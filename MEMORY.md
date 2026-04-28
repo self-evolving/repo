@@ -14,3 +14,4 @@
 - Rubric reads are advisory/best-effort; rubric writes should validate strictly before commit.
 - Scheduled workflow gates should run before expensive provider/runtime setup.
 - Review synthesis should clearly state the recommended next step when automation may continue.
+- Jobs using repo-local actions must run actions/checkout first.
