@@ -1,0 +1,96 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "baseRefName": "fix/unsupported-response-runtime",
+  "body": "## Summary\n- When an issue event reports a weak author association, keep the existing issue-author-association refresh and add a collaborator endpoint check for the issue author.\n- Promote issue authors to COLLABORATOR only when GET /repos/{owner}/{repo}/collaborators/{username} succeeds, avoiding public-read users from being trusted.\n- Document the fallback and add regression coverage for the collaborator promotion path.\n\n## Stacked on\n- #12\n\n## Verification\n- npm --prefix .agent ci\n- npm --prefix .agent test",
+  "closedAt": "2026-04-28T16:22:56Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAoMzkA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 5 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | PR extends existing extraction/auth flow in [`extract-context.ts`](https://github.com/self-evolving/repo/blob/582bc249533d79072978fc3e7093af03c777276b/.agent/src/cli/extract-context.ts) and reuses existing GitHub helpers (`ghApiOk`) instead of introducing parallel logic paths. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is tightly scoped to 3 directly relevant files only: runtime logic, targeted tests, and access-policy docs ([PR files](https://github.com/self-evolving/repo/pull/13/files)). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Behavior change (collaborator fallback) is documented in [`access-policy.md`](https://github.com/self-evolving/repo/blob/582bc249533d79072978fc3e7093af03c777276b/.agent/docs/access-policy.md). |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Implementation adds a minimal collaborator check function and a small extension to `refreshIssueAssociation`, avoiding broader refactors or extra abstraction layers. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | Docs update is principle-based narrative text; it does not add file-by-file inventory content. |\n\n## Notes\n\n- Main score drivers: focused change set, explicit docs update for new runtime behavior, and regression coverage for collaborator promotion in [`extract-context-cli.test.ts`](https://github.com/self-evolving/repo/blob/582bc249533d79072978fc3e7093af03c777276b/.agent/src/__tests__/extract-context-cli.test.ts).\n- Rubrics such as merge strategy, rubric-authoring, and orchestration follow-up defaults are not applicable to this PR’s implementation diff.\n\n## Findings\n\n- **INFO:** No rubric-specific violations found in the current PR diff.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-04-28T16:18:07Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/13#issuecomment-4337120144",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAoOHrA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- This PR strengthens trust evaluation for issue-triggered runs when webhook `author_association` is weak (`NONE`/`CONTRIBUTOR`) but the user is actually a repo collaborator.\n- It keeps the existing issue refresh step and adds a second check using `GET /repos/{owner}/{repo}/collaborators/{username}` to promote qualifying authors to `COLLABORATOR`.\n- The change is stacked on PR #12 and remains scoped to runtime logic, targeted tests, and access-policy docs.\n- Reviewer outputs consistently agree that the trust boundary direction is correct and that behavior remains conservative for non-collaborators.\n- Existing PR discussion/inline history does not already contain unresolved line-level issues requiring duplicate comments.\n\n## Review\n- Overall judgment: implementation is sound and merge-ready, with only optional INFO-level polish noted by one reviewer. No BLOCKING or WARNING defects were identified across the provided reviews.\n- I did not post inline comments because there were no concrete, must-fix line-level issues that warranted direct patch feedback.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable issues identified | INFO | Reviews converge on correct behavior, adequate regression coverage, and docs alignment; remaining notes are optional hygiene improvements. |\n\n## Progress\n- Collaborator-promotion behavior is already implemented and documented.\n- Regression test coverage for collaborator promotion is already added.\n- Optional suggestions (extra observability log and an explicit negative-path test) were raised as non-blocking and not required for this PR’s scope.\n\n## Recommended Next Step\n- `NO_AUTOMATED_ACTION`: No unresolved actionable branch changes remain; this PR is ready to proceed as-is.\n\n## Final Verdict\n- `SHIP`\n\n## Action Items\n- [ ] No required branch changes.",
+      "createdAt": "2026-04-28T16:21:30Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/13#issuecomment-4337141676",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAoPQHw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to `agent/rubrics` from PR #13.\n\nno rubric changes\n\nReasoning:\n- Reviewed PR #13 metadata, issue comments, review comments, reviews, and diff.\n- Conversation sources were bot-authored comments (`sepo-agent-app[bot]`, untrusted for rubric learning) plus the PR author `lolipopshock` with `author_association: CONTRIBUTOR`.\n- No trusted maintainer/owner/collaborator human comment in the PR thread gave an explicit durable “future agents should …” preference.\n- The PR body content is implementation-specific and does not introduce a new stable rubric beyond existing active rubrics (for example, `keep-docs-in-sync`, `surgical-changes`, `reuse-existing-code`).\n\nSo there was no warranted durable rubric to add or update from this PR conversation.\n",
+      "createdAt": "2026-04-28T16:24:11Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/13#issuecomment-4337160223",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-04-28T16:15:35Z",
+  "files": [
+    {
+      "path": ".agent/docs/access-policy.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/extract-context-cli.test.ts",
+      "additions": 67,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/extract-context.ts",
+      "additions": 25,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "fix/issue-collaborator-association",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": "2026-04-28T16:22:56Z",
+  "number": 13,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "MERGED",
+  "title": "Promote issue authors with collaborator access",
+  "updatedAt": "2026-04-28T16:24:11Z",
+  "url": "https://github.com/self-evolving/repo/pull/13"
+}

@@ -1,0 +1,90 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Normalize GitHub bot login variants when identifying prior AI review synthesis comments.\n- Allows comments authored as `sepo-agent-app` to match an authenticated viewer reported as `sepo-agent-app[bot]`.\n- Add a regression test for GitHub App bot login normalization.\n\n## Verification\n- npm --prefix .agent ci\n- npm --prefix .agent test\n",
+  "closedAt": "2026-04-28T16:17:15Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAoDhrA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I have the live PR metadata and diff; next I’m mapping only relevant rubrics to concrete evidence in the two touched files and producing the rubric scorecard.## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 5 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | PR only changes two targeted files: `.agent/src/review-summary-minimize.ts` and `.agent/src/__tests__/review-summary-minimize.test.ts`, with minimal logic/test additions tied directly to bot-login matching. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Change extends existing flow in `isGeneratedReviewSummary(...)` by introducing small local helpers (`normalizeActorLogin`, `isSameActorLogin`) instead of duplicating matching logic across call sites. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Normalization is a single trim + `[bot]` suffix strip and one equality helper; no extra architecture or branching beyond the needed behavior. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR body clearly scopes the intended behavior and verification commands; no parent issue/plan references appear in PR metadata/comments, so implementation appears aligned with available context. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | No user-facing docs appear to describe this internal login-normalization detail; regression test added to document behavior contract in code (`matches GitHub App bot login variants`). |\n\n## Notes\n\n- Main score drivers are strong surgical scope and a focused regression test that directly covers the reported variant (`sepo-agent-app` vs `sepo-agent-app[bot]`).\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric violations found in this PR based on the selected applicable rubrics.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-04-28T15:59:59Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/11#issuecomment-4336968108",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAoEr_w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- This PR fixes a mismatch when identifying prior AI review synthesis comments authored by the Sepo GitHub App.  \n- The core issue is login-format asymmetry: the authenticated viewer may appear as `sepo-agent-app[bot]` while authored comments appear as `sepo-agent-app`.  \n- The change normalizes bot-login variants before actor comparison in review-summary minimization logic.  \n- A focused regression test was added to verify the GitHub App bot-login variant case and ensure minimization still happens correctly.  \n- No parent issue, tracking issue, or broader phased plan references were found in the PR body or current discussion.\n\n## Review\n- Overall judgment across all provided reviews: the fix is correct, surgical, and sufficiently tested for the targeted behavior.  \n- One reviewer noted cosmetic INFO-level suggestions (implementation style/test completeness), but no reviewer identified a blocking or warning-level defect.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable issues identified | INFO | Reviews converge on correctness and adequate regression coverage; remaining notes are optional polish, not required branch changes. |\n\n## Progress\n- PR already contains the intended normalization change and a regression test for the reported bot-login mismatch.\n- Existing PR conversation does not show unresolved blocking review feedback.\n- Existing inline PR comments are empty; no duplicate line comments were posted.\n- Reviewer INFO notes were acknowledged as non-blocking polish ideas.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: There are no unresolved actionable findings that require additional branch changes.\n\n## Final Verdict\n`SHIP`\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-04-28T16:02:37Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/11#issuecomment-4336987135",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAoM9wg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to `agent/rubrics` from PR #11.\n\nI’ve finished trust and duplication checks: PR #11 has no human review comments/reviews to learn from, only bot-authored issue comments with `author_association: NONE`, so there’s no trusted durable rubric signal to add. I’m returning `no rubric changes`.no rubric changes\n\nI reviewed PR #11 history and context (`gh pr view`, issue comments, PR comments, reviews, diff, repo owner, and collaborator/admin lookup). The conversation contains only bot-authored comments and no trusted contributor instruction indicating a durable user/team preference beyond existing rubrics. I also checked existing active rubrics under the rubrics tree and found no warranted update.\n",
+      "createdAt": "2026-04-28T16:18:31Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/11#issuecomment-4337122754",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-04-28T15:56:00Z",
+  "files": [
+    {
+      "path": ".agent/src/__tests__/review-summary-minimize.test.ts",
+      "additions": 41,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/review-summary-minimize.ts",
+      "additions": 9,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "fix/review-collapse-bot-login",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": "2026-04-28T16:17:15Z",
+  "number": 11,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "MERGED",
+  "title": "Fix review summary collapse bot matching",
+  "updatedAt": "2026-04-28T16:18:31Z",
+  "url": "https://github.com/self-evolving/repo/pull/11"
+}

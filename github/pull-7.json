@@ -1,0 +1,163 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n\nPort the finalized auto-running label control from the dangling original-agent PR into Sepo.\n\n- Add `agent-auto-running` as a visible opt-out marker for active orchestrator automation chains.\n- Apply the label before the first handoff, require it for later handoffs, and remove it best-effort when the orchestrator stops.\n- Route terminal review/fix-pr outcomes through the orchestrator cleanup path so stale labels are removed.\n- Skip the agent planner for source outcomes that the built-in policy already treats as terminal.\n- Add CLI/workflow regression coverage for label absence, label pagination, first-dispatch labeling, dispatch-failure cleanup, and planner preflight.\n\nPort source commit: `7d6838539c804b72f99792fda8b4540b33fef037`, adapted for Sepo naming and repository slugs.\n\n## Review notes\n\nI reviewed the original PR conversation and current head before porting. The code-level correctness findings had already been addressed upstream:\n\n- stale label cleanup for terminal downstream paths\n- paginated label reads\n- avoiding later-round label re-apply after opt-out checks\n- cleanup after first-dispatch failure\n\nThe remaining upstream review/rubrics notes are policy follow-ups rather than required branch changes:\n\n- whether the visible label should have a separate config opt-out from automation itself\n- whether later user-launched follow-up runs should default to one-shot behavior independent of the label mechanism\n\nThis PR preserves the finalized label-control behavior and leaves those broader product decisions as follow-ups.\n\n## Validation\n\n- `npm --prefix .agent ci`\n- `npm --prefix .agent test` — passed (`378/378`)\n- `git diff HEAD --check`\n- Parsed workflow/action/template YAML with Ruby `YAML.load_file`\n- Shell syntax checks for installed agent scripts/actions\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAoFYQA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- This PR ports finalized orchestrator label-control behavior into Sepo by introducing a visible `agent-auto-running` label as an opt-out switch for automation chains.\n- It applies the label before first dispatch, requires label presence for later-round handoffs, and removes it best-effort when orchestration stops.\n- It also routes terminal review/fix-pr outcomes through orchestrator cleanup so label state is handled consistently across success/failure/unsupported paths.\n- Runtime preflight now skips planner setup when heuristics already determine a terminal outcome, reducing unnecessary planner work.\n- Documentation and regression coverage were updated to reflect these orchestration changes.\n\n## Review\n- Overall judgment: the core behavior is correct and largely production-ready, but two concrete engineering issues remain that are worth fixing before merge to reduce drift/regression risk.\n- Reviewer disagreement: one reviewer assessed SHIP with only policy INFO notes; another identified two WARNING-level code/test issues. After deduplication, the two WARNINGs below remain actionable.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Agent-mode heuristic gate is duplicated | WARNING | [`decideHandoff`](https://github.com/self-evolving/repo/blob/dae014339fe8b0db02a476408904174893d18a1d/.agent/src/handoff.ts#L336-L353) now pre-checks heuristic dispatch, but [`decideAgentHandoff`](https://github.com/self-evolving/repo/blob/dae014339fe8b0db02a476408904174893d18a1d/.agent/src/handoff.ts#L296-L334) recomputes the same heuristic gate. This creates dead/duplicated policy logic and future maintenance risk. |\n| Stop-path label cleanup lacks regression coverage | WARNING | New CLI tests cover label add/check/rollback during dispatch, but not the normal `decision === \"stop\"` cleanup path in [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/dae014339fe8b0db02a476408904174893d18a1d/.agent/src/cli/orchestrate-handoff.ts#L214-L229), which is a primary operational path. |\n| One-shot follow-up policy remains deferred | INFO | The label mechanism ships as intended, but the rubric/policy preference for default one-shot behavior on later user-launched follow-ups is still a separate product decision. |\n\n## Progress\n- Upstream correctness fixes called out in the PR description are present (pagination, dispatch-failure rollback, terminal cleanup routing).\n- Docs were updated alongside behavior changes in `.agent/docs/*`, aligned with project conventions.\n- Two inline comments were posted for the unresolved WARNING items:\n  - https://github.com/self-evolving/repo/pull/7#discussion_r3155549929\n  - https://github.com/self-evolving/repo/pull/7#discussion_r3155549939\n- The one-shot follow-up default gap is explicitly documented as deferred policy work, not an accidental omission.\n\n## Issue Details\n<details>\n<summary>Agent-mode heuristic gate is duplicated</summary>\n\n**Cause:** `decideHandoff` now computes `heuristicDecision` and only calls `decideAgentHandoff` when heuristics already allow dispatch, but `decideAgentHandoff` still recomputes heuristic allowance internally.\n\n**Candidate solutions:**  \n1. Pass `heuristicDecision` (or `allowed`) into `decideAgentHandoff` and remove redundant recomputation/branching.  \n2. Keep recomputation but explicitly refactor to a shared helper so policy-gate invariants are single-sourced and testable.\n\n**Comments:** One reviewer treated this as non-blocking; still, removing duplicated policy checks now will reduce confusion in later orchestrator changes.\n</details>\n\n<details>\n<summary>Stop-path label cleanup lacks regression coverage</summary>\n\n**Cause:** `.agent/src/__tests__/orchestrate-handoff-cli.test.ts` validates dispatch-related label behavior but does not assert cleanup for terminal stop outcomes.\n\n**Candidate solutions:**  \n1. Add a CLI test with a terminal source outcome (`ship` or `unsupported`) and assert `DELETE .../labels/agent-auto-running` is issued on stop.  \n2. Add a second variant for a missing-label/not-found cleanup case if you want to lock in best-effort semantics.\n\n**Comments:** This gap affects continuity behavior and is a good fit for a focused regression addition.\n</details>\n\n## Recommended Next Step\n`FIX_PR`: unresolved WARNING findings are concrete, code-local, and safe for an automated fix pass without product-policy ambiguity.\n\n## Final Verdict\n`MINOR_ISSUES`\n\n## Action Items\n- [ ] Refactor [`decideHandoff` / `decideAgentHandoff`](https://github.com/self-evolving/repo/blob/dae014339fe8b0db02a476408904174893d18a1d/.agent/src/handoff.ts) to avoid duplicated heuristic gating and remove dead/duplicated policy logic.\n- [ ] Add a regression test in [`orchestrate-handoff-cli.test.ts`](https://github.com/self-evolving/repo/blob/dae014339fe8b0db02a476408904174893d18a1d/.agent/src/__tests__/orchestrate-handoff-cli.test.ts) that asserts label removal on terminal stop-path cleanup.",
+      "createdAt": "2026-04-28T16:04:08Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/7#issuecomment-4336998464",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-04-28T15:43:30Z",
+  "files": [
+    {
+      "path": ".agent/docs/actions/agent-actions.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 2,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/agent-orchestrator.md",
+      "additions": 6,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 14,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/handoff.test.ts",
+      "additions": 15,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrate-handoff-cli.test.ts",
+      "additions": 236,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrator-preflight-cli.test.ts",
+      "additions": 78,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrate-handoff.ts",
+      "additions": 96,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrator-preflight.ts",
+      "additions": 13,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/handoff.ts",
+      "additions": 5,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-fix-pr.yml",
+      "additions": 3,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-orchestrator.yml",
+      "additions": 4,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-review.yml",
+      "additions": 1,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "feature/agent-auto-running-label",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDSNKQ",
+      "name": "agent/review",
+      "description": "",
+      "color": "8301C0"
+    },
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 7,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM75xZkp",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-04-28T16:03:37Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "dae014339fe8b0db02a476408904174893d18a1d"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM75xZk3",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-04-28T16:03:37Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "dae014339fe8b0db02a476408904174893d18a1d"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Add auto-running label control for orchestrator handoffs",
+  "updatedAt": "2026-04-28T16:04:08Z",
+  "url": "https://github.com/self-evolving/repo/pull/7"
+}

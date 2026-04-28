@@ -1,0 +1,130 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Allow CONTRIBUTOR author associations by default for public repositories.\n- Document GitHub author_association limitations for public org repos and how to tighten defaults with AGENT_ACCESS_POLICY.\n- Update tests/docs to match the new public default.\n\n## Verification\n- Not run per maintainer request.",
+  "closedAt": "2026-04-28T17:24:31Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAor1yQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 5 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Behavior change is reflected across docs: `.agent/docs/access-policy.md`, `.agent/docs/architecture/supported-workflows.md`, `.agent/docs/overview/quick-start.md`, and `README.md`. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Implementation reuses existing access-policy path by adding `CONTRIBUTOR` to `DEFAULT_PUBLIC_ALLOWED_ASSOCIATIONS` in `.agent/src/access-policy.ts`; no parallel/new mechanism introduced. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | Doc edits are narrative and policy-focused; no file inventory/table anti-pattern introduced. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is tightly scoped to requested behavior: one policy constant, one targeted triage test update, and aligned docs text only. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Smallest viable change: default allowlist update plus expectation flip in `.agent/src/__tests__/triage.test.ts` without extra architecture or branching logic. |\n\n## Notes\n\n- No parent issue/plan references were found in the PR metadata/body/comments, so rubric scoring was based on the live diff and changed docs/tests.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** Selected process rubrics like `default-merge-strategy`, `orchestrator-one-shot-followup-default`, and `surface-stateful-failures` are not meaningfully applicable to this PR’s scope (policy default + docs/tests alignment).\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-04-28T17:21:11Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/18#issuecomment-4337628617",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAos-wQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- This PR updates Sepo’s default public-repo access policy to allow `CONTRIBUTOR`, matching private-repo defaults and addressing GitHub `author_association` visibility limits for public org repos.\n- The implementation is intentionally small: add `CONTRIBUTOR` to the public default allowlist and align tests/docs.\n- Documentation updates are broad and consistent across the policy doc, architecture docs, quick start, and README, including guidance for tightening access via `AGENT_ACCESS_POLICY`.\n- No parent issue/tracking-plan linkage was found in the PR body, comments, or review metadata, so evaluation is based on the PR diff and existing policy model.\n\n## Review\n- The behavior change is correct and documentation is mostly well-aligned. One test now appears redundant under the new default and should be repurposed to preserve meaningful coverage.\n- I posted one inline comment on the changed test block: https://github.com/self-evolving/repo/pull/18#discussion_r3156020828\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Redundant public override test no longer validates override behavior | WARNING | After allowing `CONTRIBUTOR` by default in public repos, the existing “widen public repo access” case effectively tests default behavior, not route override semantics. Replace it with a narrowing override case to verify the documented hardening path. |\n| Minor wording drift in access-policy docs | INFO | The “public repositories also allow …” phrasing now implies a distinction that no longer exists since private/public defaults are identical. Editorial cleanup only. |\n\n## Progress\n- Public default behavior change is implemented in [`access-policy.ts`](https://github.com/self-evolving/repo/blob/e1759ff6fe0f64550e770a4baed28c07d19fb05b/.agent/src/access-policy.ts).\n- Primary test expectation was updated in [`triage.test.ts`](https://github.com/self-evolving/repo/blob/e1759ff6fe0f64550e770a4baed28c07d19fb05b/.agent/src/__tests__/triage.test.ts).\n- Docs are in sync across README + `.agent/docs/*`.\n- Reviewer disagreement noted: one review marked SHIP, another flagged the redundant test as a warning; synthesis treats this as unresolved test-coverage risk.\n\n## Issue Details\n<details>\n<summary>Redundant public override test no longer validates override behavior</summary>\n\n**Cause:**  \n`CONTRIBUTOR` is now in the default public allowlist, so a route override that adds `CONTRIBUTOR` does not change effective access.\n\n**Candidate solutions:**  \n- Replace the “widen public repo access” case with a narrowing override test (for example, remove `CONTRIBUTOR` for `fix-pr` and assert `unsupported`).\n- Keep the updated default-behavior test as-is, and add the narrowing test as complementary coverage.\n\n**Comments:**  \nThis is the only unresolved actionable finding across reviews; inline feedback was posted on the PR diff.\n</details>\n\n## Recommended Next Step\n`FIX_PR`: There is one concrete, safe branch change (test coverage correction) that can be handled by an automated fix-pr pass.\n\n## Final Verdict\n`MINOR_ISSUES`\n\n## Action Items\n- [ ] Replace or repurpose the public “widen override” test to validate a narrowing `AGENT_ACCESS_POLICY` route override (excluding `CONTRIBUTOR`) in public repos.",
+      "createdAt": "2026-04-28T17:24:13Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/18#issuecomment-4337647297",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAotm3A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to `agent/rubrics` from PR #18.\n\nI’ve completed trust filtering and existing-rubric dedup checks: PR #18 conversation only contains bot-authored comments/reviews, and the PR author is `CONTRIBUTOR` with no explicit durable rubric request in-thread. I’m finalizing with `no rubric changes`.no rubric changes\n\nI reviewed PR #18 history and trust signals, including:\n- `gh pr view` metadata + files/reviews\n- issue comments, PR review comments, and reviews\n- repo owner/collaborator metadata\n- existing rubrics under `/home/runner/work/_temp/agent-rubrics/rubrics/`\n\nWhy no changes:\n- PR conversation content is bot-authored (`sepo-agent-app[bot]`, association `NONE`), which is advisory-only for rubric learning.\n- The human actor (`lolipopshock`) appears as PR author/merger with `author_association: CONTRIBUTOR`; there was no explicit durable “future agents should …” preference authored by a trusted contributor in the PR conversation.\n- Existing active rubrics already cover the themes present (simple/surgical changes, docs sync), so adding from this thread would be duplicate or one-off.\n",
+      "createdAt": "2026-04-28T17:25:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/18#issuecomment-4337657564",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-04-28T17:18:39Z",
+  "files": [
+    {
+      "path": ".agent/docs/access-policy.md",
+      "additions": 4,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/overview/quick-start.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/triage.test.ts",
+      "additions": 3,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/access-policy.ts",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": "README.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "fix/public-contributor-default",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": "2026-04-28T17:24:31Z",
+  "number": 18,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM75zjsP",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-04-28T17:23:54Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "e1759ff6fe0f64550e770a4baed28c07d19fb05b"
+      }
+    }
+  ],
+  "state": "MERGED",
+  "title": "Allow public contributors by default",
+  "updatedAt": "2026-04-28T17:25:54Z",
+  "url": "https://github.com/self-evolving/repo/pull/18"
+}

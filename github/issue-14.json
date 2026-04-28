@@ -1,0 +1,91 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "@sepo-agent /answer \n\nCan you check the code? ",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAoTpMQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer try again?",
+      "createdAt": "2026-04-28T16:34:37Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/14#issuecomment-4337232177",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAoUaoA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I checked `main` and this is still not gated yet.\n\n- In the daily workflow, the expensive steps run first (`Resolve daily summary provider` -> `Setup selected provider` -> `Generate daily summary`), and only then it tries to post a discussion:  \n  <https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-daily-summary.yml#L167-L216>\n- The posting path hard-fails when discussions are disabled (`Repository discussions are not enabled; cannot create a discussion.`):  \n  <https://github.com/self-evolving/repo/blob/main/.agent/src/discussion.ts#L211-L269>\n- The tests confirm that behavior is expected today (throw on disabled discussions), not skipped gracefully:  \n  <https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/discussion.test.ts#L64-L82>\n\nSo yes, issue #14 is valid: we should add an early pre-check/gate for `hasDiscussionsEnabled` (and category existence) before provider/runtime setup.",
+      "createdAt": "2026-04-28T16:36:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/14#issuecomment-4337244832",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAoVrhw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /implement ",
+      "createdAt": "2026-04-28T16:39:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/14#issuecomment-4337265543",
+      "viewerDidAuthor": false
+    }
+  ],
+  "createdAt": "2026-04-28T16:24:22Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 14,
+  "state": "OPEN",
+  "title": "Gate daily summary if discussion is not enabled for the repo",
+  "updatedAt": "2026-04-28T16:40:16Z",
+  "url": "https://github.com/self-evolving/repo/issues/14"
+}

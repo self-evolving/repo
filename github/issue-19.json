@@ -1,0 +1,84 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "1. Right now the orchestrator is automatically attached after each action, and is gated with a flag. \n    1. this caused quite some UX issues: when users want to just launch /review but not run followup work, this is less useful. \n    2. also people do not know what’s going on \n2. A proper way: \n    1. orchestrator should be as a separate high-level route: \n        1. user can use tag /orchestrate (or some other name) to start this mode \n        2. or label /orchestrate to start \n    2. this means the orchestrator should be aware of the current situation \n        1. so we should have some situation aware planning when we just start the orchestrator: when we just launch the orchestrator, it should check the status and launch the right subagent.   \n\n\n@sepo-agent /answer plan? ",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAoue2w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "No broader tracker/parent was referenced from issue #19, and I didn’t find related open issues beyond #19.\n\nCurrent architecture (relevant files):\n- Explicit mention/label routes are resolved in [`triage.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/triage.ts) and applied in [`resolve-dispatch.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/resolve-dispatch.ts).\n- Trigger extraction is in [`extract-context.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/extract-context.ts).\n- Routing and route jobs live in [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml), with label entry via [`agent-label.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-label.yml).\n- Orchestrator is currently post-action only, dispatched from:\n  - [`agent-implement.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-implement.yml)\n  - [`agent-review.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-review.yml)\n  - [`agent-fix-pr.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-fix-pr.yml)\n  through [`dispatch-agent-orchestrator.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/dispatch-agent-orchestrator.ts), then executed by [`agent-orchestrator.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-orchestrator.yml) and [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts).\n\nProposed implementation approach:\n1. Make orchestrator a first-class route (`/orchestrate` + `agent/orchestrate`) in triage/router, same pattern as `/review` and `agent/review`.\n2. Remove automatic post-action orchestrator dispatch from implement/review/fix-pr workflows.\n3. Add a “manual-start orchestration” path in `agent-orchestrator.yml` with situation-aware bootstrap:\n   - PR target: choose review vs fix-pr based on current PR state (and planner in `agent` mode).\n   - Issue target: default to implement unless an active linked PR is detected.\n4. Keep existing handoff/dedupe policy code in [`handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts) for chained automation, but make it opt-in via explicit orchestrate route.\n5. Update tests/docs to reflect the new UX contract.\n\nExecution plan (for approval):\n1. Extend routing grammar and label mapping for `orchestrate` in [`triage.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/triage.ts), with tests in [`triage.test.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/triage.test.ts).\n2. Update context extraction + label trigger handling for `agent/orchestrate` in [`extract-context.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/extract-context.ts) and [`agent-label.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-label.yml).\n3. Add an `orchestrate` route job to [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml) that dispatches [`agent-orchestrator.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-orchestrator.yml) explicitly.\n4. Introduce manual-start inputs/logic in [`agent-orchestrator.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-orchestrator.yml) and a small CLI helper (new file) for situation detection.\n5. Remove automatic “Orchestrate automation handoff” steps from [`agent-implement.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-implement.yml), [`agent-review.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-review.yml), and [`agent-fix-pr.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-fix-pr.yml).\n6. Update docs in [`agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/technical-details/agent-orchestrator.md), [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/supported-workflows.md), and [`agent-actions.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/actions/agent-actions.md).\n7. Update envelope coverage tests in [`envelope.test.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/envelope.test.ts) and run the test suite.\n\nPlease confirm and I’ll start coding this plan.  \nOne clarification before implementation: do you want to support both command aliases (`/orchestrate` and `/orchestrator`) or only `/orchestrate`?",
+      "createdAt": "2026-04-28T17:28:16Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/19#issuecomment-4337671899",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAovG5w",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "Yes `/orchestrate` feels suitable ? \n@sepo-agent /implement ",
+      "createdAt": "2026-04-28T17:29:49Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/19#issuecomment-4337682151",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAoxm1Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-19/codex-25067966881`\n- Pull request: https://github.com/self-evolving/repo/pull/20\n\nImplemented issue #19 by redesigning orchestration as an explicit top-level route: added deterministic `/orchestrate` and `agent/orchestrate` routing/label support, wired a dedicated orchestrate job in `agent-router.yml`, updated orchestrator dispatch/runtime to handle manual starts with situation-aware target checks (issue -> implement, PR + CHANGES_REQUESTED -> fix-pr, otherwise review), and removed automatic post-action orchestrator handoff from implement/review/fix-pr workflows. Updated tests and docs to reflect the new UX and routing model. Verification run: `npm --prefix .agent run build` and `node --test .agent/dist/__tests__/triage.test.js .agent/dist/__tests__/envelope.test.js` (both passing).",
+      "createdAt": "2026-04-28T17:36:15Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/19#issuecomment-4337723093",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-04-28T17:24:56Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 19,
+  "state": "OPEN",
+  "title": "Redesign the orchestrator system",
+  "updatedAt": "2026-04-28T17:36:15Z",
+  "url": "https://github.com/self-evolving/repo/issues/19"
+}

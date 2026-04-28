@@ -1,0 +1,106 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "1. The user can just put a high level description in the chat, and the agent can turn this into a rubrics (following our specification) \n2. And then it can update the agent/rubrics branch with this. \n\n- From a UX perspective, should we also do this as a pull request? maybe not? \n- And if that task finishes, we should just close this issue.\n\n@sepo-agent /answer \nplan for this? \n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAoMrLg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\ntry again",
+      "createdAt": "2026-04-28T16:17:49Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/9#issuecomment-4337117998",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAoNalA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Plan makes sense. I’d implement it as a dedicated route (not `answer`) so rubric writes stay explicit and auditable.\n\n1. Add a new explicit route, e.g. `@sepo-agent /add-rubrics` (or `/rubrics-add`), wired in mention parsing, dispatch normalization, and docs.\n2. Add a route-specific prompt that takes the comment text as source input and converts it into valid rubric YAML (`schema_version: 1`, allowed `domain`, `applies_to`, etc.).\n3. Run through a dedicated workflow that mounts `agent/rubrics` with write enabled, validates rubrics, and commits only rubric-file changes.\n4. Post a short result summary in-thread (`created/updated rubric IDs`, or `no rubric changes`).\n5. Add tests for route parsing, route authorization, rubric validation failures, and successful write path.\n\nFor UX:\n- Default behavior: **no PR**, direct commit to `agent/rubrics` (fastest loop, matches branch purpose).\n- Optional mode: support “open PR instead” for teams that want approval before rubric changes.\n\nIssue closure:\n- Yes, close this issue automatically after a successful end-to-end run (route added, tested, and documented).",
+      "createdAt": "2026-04-28T16:19:43Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/9#issuecomment-4337130132",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAoRmvw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Plan makes sense. I’d implement it as a dedicated route (not `answer`) so rubric writes stay explicit and auditable.\n> \n> 1. Add a new explicit route, e.g. `@sepo-agent /add-rubrics` (or `/rubrics-add`), wired in mention parsing, dispatch normalization, and docs.\n> 2. Add a route-specific prompt that takes the comment text as source input and converts it into valid rubric YAML (`schema_version: 1`, allowed `domain`, `applies_to`, etc.).\n> 3. Run through a dedicated workflow that mounts `agent/rubrics` with write enabled, validates rubrics, and commits only rubric-file changes.\n> 4. Post a short result summary in-thread (`created/updated rubric IDs`, or `no rubric changes`).\n> 5. Add tests for route parsing, route authorization, rubric validation failures, and successful write path.\n> \n> For UX:\n> \n> * Default behavior: **no PR**, direct commit to `agent/rubrics` (fastest loop, matches branch purpose).\n> * Optional mode: support “open PR instead” for teams that want approval before rubric changes.\n> \n> Issue closure:\n> \n> * Yes, close this issue automatically after a successful end-to-end run (route added, tested, and documented).\n\n@sepo-agent /implement \n\ncan you start with a minimal implementation for this? also add-rubrics seems to be aligned with other route names ?",
+      "createdAt": "2026-04-28T16:29:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/9#issuecomment-4337198783",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAoU3bw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-9/codex-25065166075`\n- Pull request: https://github.com/self-evolving/repo/pull/15\n\nImplemented a minimal end-to-end `add-rubrics` route: explicit mention/label parsing and dispatch normalization, runtime/envelope route support, a new dedicated `agent-add-rubrics.yml` workflow that runs a new `agent-add-rubrics.md` prompt with `rubrics_mode_override: 'enabled'`, and in-thread summary posting via a new `prepare-add-rubrics-summary` CLI. I also updated route/docs wiring and added focused tests for route parsing, authorization behavior, and workflow/prompt integration. Verification run: `npm --prefix .agent run build && node --test .agent/dist/__tests__/triage.test.js .agent/dist/__tests__/envelope.test.js .agent/dist/__tests__/rubrics.test.js`.",
+      "createdAt": "2026-04-28T16:37:37Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/9#issuecomment-4337252207",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-04-28T15:50:07Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 9,
+  "state": "OPEN",
+  "title": "Add a \"add-rubrics\" route",
+  "updatedAt": "2026-04-28T16:37:37Z",
+  "url": "https://github.com/self-evolving/repo/issues/9"
+}

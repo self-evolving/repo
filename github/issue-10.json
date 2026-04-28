@@ -1,0 +1,143 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "1. For a lot of cases, #9 , the user may just list whatever they want, and the goal is to have the agent plan for the specific feature. \n2. in that case, we should have a more focused prompt for the planning agent? \n\n@sepo-agent /answer thinks for this plan :)",
+  "closedAt": "2026-04-28T17:00:17Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAoMtCA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\ntry again",
+      "createdAt": "2026-04-28T16:17:53Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/10#issuecomment-4337118472",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAoNQsg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, for cases like [#9](https://github.com/self-evolving/repo/issues/9), a focused planning prompt is the right move.\n\nI’d do it in 2 steps:\n\n1. **Start now (no new route):** keep using `/answer`, but detect planning intent and force a strict output shape:\n   - `Goal`\n   - `Scope (in/out)`\n   - `Assumptions`\n   - `Implementation phases`\n   - `Acceptance criteria`\n   - `Risks / open questions`\n\n2. **Promote to `/plan` route if usage is high:** if planning requests become common, add a dedicated `/plan` route so behavior is explicit and stable.\n\nFor #9 specifically, the plan should end with:\n- proposed `agent/rubrics` changes,\n- whether to open a PR vs direct branch update (with recommendation),\n- clear “done” conditions so the issue can auto-close.",
+      "createdAt": "2026-04-28T16:19:18Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/10#issuecomment-4337127602",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAoTYQA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\n> Start now (no new route): keep using /answer, but detect planning intent and force a strict output shape:\nyeah that's actually a good point. because adding implement also changes our route continuation as well. \n\nWe do not need that \"Goal / Scope (in/out) / Assumptions /Implementation phases /Acceptance criteria ...\" -> In the planning we should be more specific for the process / procedure. \n\n```\n1. Thoroughly explore the codebase using Glob, Grep, and Read tools\n2. Understand existing patterns and architecture\n3. Design an implementation approach\n4. Present your plan to the user for approval\n5. Ask users if you need to clarify approaches\n```",
+      "createdAt": "2026-04-28T16:33:59Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/10#issuecomment-4337227840",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAoT2Jg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Agreed. Keep it on `/answer` and treat this as a **planning procedure**, not a feature-spec template.\n\nA good contract for planning-mode `/answer` is:\n\n1. Explore codebase with `glob/grep/read` and cite concrete files.\n2. Summarize current architecture/patterns relevant to the request.\n3. Propose implementation approach aligned to existing patterns.\n4. Present a step-by-step execution plan for approval (no code changes yet).\n5. Ask targeted clarification questions only if blockers remain.\n\nTwo guardrails to add:\n\n- **Routing guardrail:** planning intent must stay on `/answer` (never auto-switch to `/implement`).\n- **Continuation guardrail:** mark output as `plan_only` so orchestration/follow-up routes do not trigger implementation loops.\n\nIf you want, I can draft the exact `agent-answer` prompt patch for this behavior.",
+      "createdAt": "2026-04-28T16:35:08Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/10#issuecomment-4337235494",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAoUlOw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /implement ? ",
+      "createdAt": "2026-04-28T16:36:56Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/10#issuecomment-4337247547",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAoWrAA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-10/codex-25065480527`\n- Pull request: https://github.com/self-evolving/repo/pull/16\n\nUpdated the `/answer` prompt to handle planning requests with a strict plan-only procedure (repo exploration, pattern analysis, approach design, approval-first plan, blocker-only questions) and explicitly avoid starting implementation; also synced quick-start docs so `/answer` is documented for planning guidance before coding. Verified via targeted diff inspection; no runtime tests were run because this is a prompt/docs-only change.",
+      "createdAt": "2026-04-28T16:40:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/10#issuecomment-4337281792",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-04-28T15:53:01Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 10,
+  "state": "CLOSED",
+  "title": "Add a plan route?",
+  "updatedAt": "2026-04-28T17:00:17Z",
+  "url": "https://github.com/self-evolving/repo/issues/10"
+}
