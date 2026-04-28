@@ -15,3 +15,4 @@
 - Scheduled workflow gates should run before expensive provider/runtime setup.
 - Review synthesis should clearly state the recommended next step when automation may continue.
 - Jobs using repo-local actions must run actions/checkout first.
+- For weak issue author_association, verify repo collaborator status before treating issue mentions as trusted.
