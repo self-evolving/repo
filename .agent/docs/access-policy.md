@@ -77,4 +77,4 @@ Organization membership detection depends on what the agent's GitHub token can s
 
 ## Issue-body association refresh
 
-For issue-body mentions from `issues` events, the runtime refreshes `author_association` from the GitHub API before rejecting the request. This covers cases where the webhook payload reports `NONE` but the live issue API reports a stronger association such as `MEMBER`, so valid issue-body mentions are not rejected because of stale event metadata.
+For issue-body mentions from `issues` events, the runtime refreshes `author_association` from the GitHub API before access decisions when the webhook payload reports a weaker value (for example `NONE` or `CONTRIBUTOR`). This covers cases where the webhook payload is stale and the live issue API reports a different association, while keeping the public-route policy behavior unchanged.
