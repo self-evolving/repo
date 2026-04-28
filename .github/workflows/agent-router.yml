@@ -248,7 +248,7 @@ jobs:
       - name: React with thumbs up (dispatch acknowledgment)
         if: >-
           steps.context.outputs.should_respond == 'true' &&
-          (steps.dispatch.outputs.route == 'review' || steps.dispatch.outputs.route == 'fix-pr') &&
+          (steps.dispatch.outputs.route == 'review' || steps.dispatch.outputs.route == 'fix-pr' || steps.dispatch.outputs.route == 'orchestrate') &&
           github.event.action != 'edited'
         env:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
@@ -622,6 +622,50 @@ jobs:
           REACTION_SUBJECT_ID: ${{ needs.portal.outputs.reaction_subject_id }}
           REACTION_CONTENT: THUMBS_UP
         run: node .agent/dist/cli/add-reaction.js
+
+  # --- Route: review (dual-agent) ---
+  orchestrate:
+    needs: portal
+    if: >-
+      needs.portal.outputs.should_respond == 'true' &&
+      needs.portal.outputs.route == 'orchestrate' &&
+      (needs.portal.outputs.target_kind == 'issue' || needs.portal.outputs.target_kind == 'pull_request')
+    runs-on: ${{ fromJson(inputs.runs_on || vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          token: ${{ github.token }}
+
+      - name: Resolve GitHub auth
+        id: auth
+        uses: ./.github/actions/resolve-github-auth
+        with:
+          app_id: ${{ secrets.AGENT_APP_ID }}
+          app_private_key: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
+          pat: ${{ secrets.AGENT_PAT }}
+          fallback_token: ${{ github.token }}
+
+      - name: Setup agent runtime
+        id: runtime
+        uses: ./.github/actions/setup-agent-runtime
+
+      - name: Dispatch orchestrator
+        env:
+          AUTOMATION_CURRENT_ROUND: "1"
+          AUTOMATION_MAX_ROUNDS: ${{ inputs.automation_max_rounds }}
+          AUTOMATION_MODE: ${{ inputs.automation_mode }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          REQUESTED_BY: ${{ needs.portal.outputs.requested_by }}
+          REQUEST_TEXT: ${{ needs.portal.outputs.body }}
+          SESSION_BUNDLE_MODE: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
+          SOURCE_ACTION: orchestrate
+          SOURCE_CONCLUSION: requested
+          TARGET_KIND: ${{ needs.portal.outputs.target_kind }}
+          TARGET_NUMBER: ${{ needs.portal.outputs.target_number }}
+        run: node .agent/dist/cli/dispatch-agent-orchestrator.js
 
   # --- Route: review (dual-agent) ---
   review:

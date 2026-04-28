@@ -10,7 +10,7 @@
 | `agent-entrypoint.yml` | `@sepo-agent` in issues, PRs, discussions, comments, reviews | Thin entry point that wires triggers, runner labels, and secrets into `agent-router.yml` | None |
 | `agent-router.yml` | `workflow_call` | Full portal for context extraction, auth gating, mention detection, dispatch triage, routing, approval requests, and response posting | Configurable |
 | `agent-approve.yml` | approval comments | Resolves pending approvals, creates issues when needed, dispatches implementation | None |
-| `agent-orchestrator.yml` | `workflow_dispatch` | Post-action automation layer that decides whether to dispatch the next action | None in `heuristics` mode; resolved-provider planner in `agent` mode |
+| `agent-orchestrator.yml` | `workflow_dispatch` | Explicit orchestration route that decides whether to dispatch the next action | None in `heuristics` mode; resolved-provider planner in `agent` mode |
 | `agent-implement.yml` | `workflow_dispatch` | Implementation flow: branch, commit, draft PR | Auto |
 | `agent-fix-pr.yml` | `workflow_dispatch`, `workflow_call` | PR fix flow: update existing PR branch, verify, push | Auto |
 | `agent-review.yml` | `workflow_dispatch`, `workflow_call` | Parallel Claude and Codex review with resolved-provider synthesis, plus a separate rubric review comment | Claude + Codex reviewers; configurable synthesis |
@@ -19,19 +19,18 @@
 | `agent-daily-summary.yml` | `schedule` (daily), `workflow_dispatch` | Generates a concise repository activity summary and posts it as a Discussion | Auto |
 | `test-scripts.yml` | `pull_request`, `workflow_dispatch` | CI for helper tests, YAML parsing, and shell syntax | None |
 
-When `AGENT_AUTOMATION_MODE=heuristics` (or the compatibility alias `true`),
-`agent-implement.yml`, `agent-review.yml`, and `agent-fix-pr.yml` hand back to
-`agent-orchestrator.yml` after their normal post-processing. `heuristics` mode
-runs the built-in `implement -> review -> fix-pr -> review` state machine.
-`agent` mode runs an orchestrator planner with its own session context, then
-validates the planner's JSON decision against the same built-in transition
-policy before dispatching with `workflow_dispatch`. The planner can include a
+`agent-orchestrator.yml` is started explicitly through `/orchestrate` or
+`agent/orchestrate`. On start, it inspects the current target state and
+dispatches one built-in action (`implement`, `review`, or `fix-pr`) when useful.
+In `heuristics` mode this selection is deterministic. In `agent` mode it can run
+the planner route first and then validate planner output against the same
+transition policy and round budget before dispatch. The planner can include a
 `handoff_context` string for the next action; `fix-pr` receives it as explicit
-initial steering when the planner dispatches a PR-fix pass. The planner mounts memory
-and rubrics read-only so automated control-flow planning can use steering
-context without mutating those state branches. Loops stop when the review
-verdict is `SHIP`, a route fails, a duplicate handoff marker is found, the
-planner stops or blocks, or the max-round budget is exhausted.
+initial steering when the planner dispatches a PR-fix pass. The planner mounts
+memory and rubrics read-only so automated control-flow planning can use steering
+context without mutating those state branches. Orchestration stops when target
+state indicates no safe next action, a route fails, a duplicate handoff marker
+is found, the planner stops or blocks, or the max-round budget is exhausted.
 
 When a new review synthesis is posted to a pull request, the review workflow
 first minimizes prior visible review synthesis comments and reviews from the
@@ -95,6 +94,7 @@ Explicit routes are:
 - `@sepo-agent /create-action`
 - `@sepo-agent /fix-pr`
 - `@sepo-agent /review`
+- `@sepo-agent /orchestrate`
 - `@sepo-agent /skill <name>`
 
 Explicit routes skip dispatch triage and resolve locally, but still go through the same route policy checks afterward.
@@ -110,6 +110,7 @@ Applying one of these labels triggers the same downstream routing stack without 
 - `agent/create-action`
 - `agent/fix-pr`
 - `agent/review`
+- `agent/orchestrate`
 - `agent/s/<skill>`
 
 After a label-triggered request is accepted by the router, `agent-label.yml` removes the triggering `agent/*` label so label-based runs behave like one-shot queue entries, including policy-denied requests that resolve to `unsupported`.

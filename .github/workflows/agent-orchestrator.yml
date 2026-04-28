@@ -16,6 +16,10 @@ on:
       target_number:
         description: "Issue or pull request number currently being handled"
         required: true
+      target_kind:
+        description: "Issue or pull request kind currently being handled"
+        required: false
+        default: ""
       next_target_number:
         description: "Optional next target number produced by the source action"
         required: false
@@ -81,6 +85,7 @@ jobs:
           AUTOMATION_CURRENT_ROUND: ${{ inputs.automation_current_round }}
           AUTOMATION_MAX_ROUNDS: ${{ inputs.automation_max_rounds }}
           AUTOMATION_MODE: ${{ inputs.automation_mode }}
+          SOURCE_ACTION: ${{ inputs.source_action }}
         run: node .agent/dist/cli/orchestrator-preflight.js
 
       - name: Resolve orchestrator provider
@@ -134,9 +139,9 @@ jobs:
           requested_by: ${{ inputs.requested_by || github.actor }}
           route: orchestrator
           source_kind: workflow_dispatch
-          target_kind: ${{ inputs.source_action == 'implement' && 'issue' || 'pull_request' }}
+          target_kind: ${{ inputs.target_kind || (inputs.source_action == 'implement' && 'issue' || 'pull_request') }}
           target_number: ${{ inputs.target_number }}
-          target_url: ${{ inputs.source_action == 'implement' && format('{0}/{1}/issues/{2}', github.server_url, github.repository, inputs.target_number) || format('{0}/{1}/pull/{2}', github.server_url, github.repository, inputs.target_number) }}
+          target_url: ${{ (inputs.target_kind || (inputs.source_action == 'implement' && 'issue' || 'pull_request')) == 'issue' && format('{0}/{1}/issues/{2}', github.server_url, github.repository, inputs.target_number) || format('{0}/{1}/pull/{2}', github.server_url, github.repository, inputs.target_number) }}
           workflow: agent-orchestrator.yml
 
       - name: Decide and dispatch next action
@@ -154,6 +159,7 @@ jobs:
           SOURCE_ACTION: ${{ inputs.source_action }}
           SOURCE_CONCLUSION: ${{ inputs.source_conclusion }}
           SOURCE_RUN_ID: ${{ inputs.source_run_id || github.run_id }}
+          TARGET_KIND: ${{ inputs.target_kind || (inputs.source_action == 'implement' && 'issue' || 'pull_request') }}
           TARGET_NUMBER: ${{ inputs.target_number }}
           PLANNER_RESPONSE_FILE: ${{ steps.planner.outputs.response_file }}
         run: node .agent/dist/cli/orchestrate-handoff.js

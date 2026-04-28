@@ -759,20 +759,21 @@ test("execution workflows expose automation handoff inputs", () => {
     assert.match(workflow, /automation_mode:/);
     assert.match(workflow, /automation_current_round:/);
     assert.match(workflow, /automation_max_rounds:/);
-    assert.match(workflow, /inputs\.automation_mode == 'true'/);
-    assert.match(workflow, /inputs\.automation_mode == 'heuristics'/);
-    assert.match(workflow, /inputs\.automation_mode == 'agent'/);
-    assert.doesNotMatch(workflow, /inputs\.automation_mode == 'heuristic'/);
-    assert.doesNotMatch(workflow, /inputs\.automation_mode == 'deterministic'/);
-    assert.match(workflow, /node \.agent\/dist\/cli\/dispatch-agent-orchestrator\.js/);
+    assert.doesNotMatch(workflow, /node \.agent\/dist\/cli\/dispatch-agent-orchestrator\.js/);
   }
 
-  assert.match(implementWorkflow, /NEXT_TARGET_NUMBER:\s*\$\{\{ steps\.pr\.outputs\.pr_number \}\}/);
+  assert.match(runnerWorkflow, /needs\.portal\.outputs\.route == 'orchestrate'/);
+  assert.match(runnerWorkflow, /SOURCE_ACTION:\s*orchestrate/);
+  assert.match(runnerWorkflow, /TARGET_KIND:\s*\$\{\{ needs\.portal\.outputs\.target_kind \}\}/);
+  assert.match(runnerWorkflow, /node \.agent\/dist\/cli\/dispatch-agent-orchestrator\.js/);
   assert.match(reviewWorkflow, /id: post_comment/);
   assert.match(reviewWorkflow, /RESPONSE_FILE:\s*\$\{\{ steps\.synthesis\.outputs\.response_file \}\}/);
-  assert.match(reviewWorkflow, /steps\.post_comment\.outcome == 'success'/);
+  assert.doesNotMatch(reviewWorkflow, /steps\.post_comment\.outcome == 'success'/);
   assert.match(orchestratorWorkflow, /PLANNER_RESPONSE_FILE:\s*\$\{\{ steps\.planner\.outputs\.response_file \}\}/);
+  assert.match(orchestratorWorkflow, /target_kind:/);
+  assert.match(orchestratorWorkflow, /TARGET_KIND:/);
   assert.match(orchestrateHandoffCli, /orchestrator_context:\s*decision\.handoffContext/);
+  assert.match(orchestrateHandoffCli, /manual orchestrate start on issue; dispatching implement/);
   assert.match(fixPrWorkflow, /orchestrator_context:/);
   assert.match(fixPrWorkflow, /ORCHESTRATOR_CONTEXT:\s*\$\{\{ inputs\.orchestrator_context \}\}/);
   assert.match(fixPrPrompt, /\$\{ORCHESTRATOR_CONTEXT\}/);

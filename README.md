@@ -40,6 +40,7 @@ Check [Install into an existing repository](.agent/docs/deployment/install-exist
 # Inside a PR
 @sepo-agent /review
 @sepo-agent /fix-pr
+@sepo-agent /orchestrate
 ```
 
 > [!WARNING]
@@ -50,8 +51,8 @@ Check [Install into an existing repository](.agent/docs/deployment/install-exist
 
 For example, adding the `agent/review` label will run the review agent.
 
-### Automatic Task Orchestration Layer
-When automation mode is enabled, Sepo can chain follow-up actions after an initial run, such as review after implementation and fix after review. The orchestrator applies deterministic guardrails like dedupe checks and max-round limits to keep loops bounded.
+### Task Orchestration Route
+Use `@sepo-agent /orchestrate` (or `agent/orchestrate`) to run the orchestration route explicitly. It checks current target state and dispatches the right built-in follow-up action (`implement`, `review`, or `fix-pr`) with deterministic guardrails like dedupe checks and max-round limits.
 
 ### Tracking Workspace Memory and Rubrics
 Sepo persists long-lived context in `agent/memory` and preference rules in `agent/rubrics`, both as repository-owned branches. This lets later runs resume with durable project context and team-specific guidance.
@@ -69,7 +70,7 @@ Durable context lives in two repository-owned branches:
 - `agent/memory` mirrors GitHub artifacts and stores curated project context.
 - `agent/rubrics` stores user/team preferences that guide implementation and review.
 
-When automation mode is enabled, completed actions can hand back to `agent-orchestrator.yml`, a deterministic post-action boundary that manages follow-up review and fix loops with dedupe and max-round budgeting.
+Orchestration runs through `agent-orchestrator.yml` as an explicit route, so follow-up automation starts only when requested.
 
 ## Learn More
 

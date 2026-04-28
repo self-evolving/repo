@@ -1,12 +1,12 @@
 # Agent orchestrator
 
-The action handoff orchestrator is a post-action workflow for automation mode. It gives completed agent actions a separate place to hand back control before any next built-in action is dispatched.
+The orchestrator is an explicit high-level route (`/orchestrate` or `agent/orchestrate`) that evaluates current target state and dispatches the most appropriate built-in next action.
 
 Automation is disabled by default. Configure `AGENT_AUTOMATION_MODE` as a mode value:
 
 | Mode | Meaning |
 |---|---|
-| `disabled` | Default. Source actions do not call the orchestrator. |
+| `disabled` | Default for action workflows. Orchestrator still runs when users explicitly request `/orchestrate`. |
 | `heuristics` | Built-in state machine mode. |
 | `agent` | Runs an agent planner, then validates the planner's decision against the same built-in policy, budget, and dedupe rules. |
 
@@ -14,11 +14,14 @@ For compatibility with early boolean-style configuration, `true` is treated as `
 
 ## Current heuristics state machine
 
-The first implementation intentionally supports only the common built-in loop:
+The orchestrator supports an explicit manual start plus the existing bounded handoff policy:
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Implement: initial /implement
+    [*] --> Implement: /orchestrate on issue
+    [*] --> Review: /orchestrate on PR
+    [*] --> FixPR: /orchestrate on PR with CHANGES_REQUESTED
+
     Implement --> Review: success + PR created
     Implement --> Stop: failed or no PR
 
@@ -34,7 +37,15 @@ stateDiagram-v2
     Implement --> Stop: max rounds exhausted
 ```
 
-Each action workflow passes a tiny handoff payload to `agent-orchestrator.yml`:
+When the route starts, the router dispatches `agent-orchestrator.yml` with:
+
+- source action (`orchestrate`)
+- target kind (`issue` or `pull_request`)
+- target number
+- requester and request text
+- current round and max rounds
+
+When an action-originated handoff is used, the orchestrator also accepts:
 
 - source action
 - source conclusion
@@ -44,9 +55,13 @@ Each action workflow passes a tiny handoff payload to `agent-orchestrator.yml`:
 - current round and max rounds
 - requester and request text to carry forward
 
-The source actions do not own orchestration policy. They only carry this envelope forward so the orchestrator can make the post-action decision after the action completes.
+In `heuristics` mode, manual starts use deterministic status checks:
 
-In `heuristics` mode, the orchestrator workflow validates automation mode and the round budget, chooses the next action from the fixed state machine, and dispatches the route-specific workflow with `workflow_dispatch`.
+- issue target: dispatch `implement`
+- pull request target with `CHANGES_REQUESTED`: dispatch `fix-pr`
+- other open pull request targets: dispatch `review`
+
+In `heuristics` mode, action-originated handoff decisions still use the fixed transition policy and round budget checks.
 
 In `agent` mode, the orchestrator first runs a scoped planner prompt through the same resolved-provider runtime used by other agent actions. The planner has its own `orchestrator` route and `planner` lane, so session continuation is separate from implement, review, and fix-pr sessions. The planner receives the handoff envelope, read-only repository memory, selected read-only rubrics, and original request, and returns JSON describing whether to stop, block, or hand off. For handoffs, the planner may also return `handoff_context`: explicit, action-oriented instructions for the next workflow. When the next action is `fix-pr`, the dispatcher passes that context into `agent-fix-pr.yml`, and the fix-pr prompt treats it as initial steering for the automated fix pass. The workflow uses the runtime preflight CLI to skip this planner when the max-round budget is already exhausted, and the runtime still validates planner JSON against the fixed transition policy and max-round budget before dispatching anything.
 
@@ -54,8 +69,8 @@ Before dispatching, the orchestrator checks for a hidden handoff marker on the d
 
 ## Permission note
 
-The source action workflows and `agent-orchestrator.yml` request `actions: write` because `workflow_dispatch` requires it. GitHub Actions permissions are static, so that permission is present even when `AGENT_AUTOMATION_MODE=disabled`. Automation remains disabled by default; repositories that enable it accept this wider workflow permission footprint for dispatch-capable runs. The orchestrator also needs `issues: write` to persist dedupe markers on destination issues or pull requests.
+`agent-orchestrator.yml` requests `actions: write` because `workflow_dispatch` requires it, and `issues: write` to persist dedupe markers on destination issues or pull requests.
 
 ## Extension path
 
-The orchestration boundary is deliberately small: richer agent planning can expand behind the same post-action hook while keeping budget checks, dedupe markers, and dispatch validation in runtime code. Runtime policy should continue to enforce allowed transitions and max rounds even when a planner suggests the next action.
+The orchestration boundary is deliberately small: richer agent planning can expand behind the same explicit route while keeping budget checks, dedupe markers, and dispatch validation in runtime code. Runtime policy should continue to enforce allowed transitions and max rounds even when a planner suggests the next action.

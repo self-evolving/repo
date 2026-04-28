@@ -2,7 +2,7 @@
 // Env: GITHUB_REPOSITORY, DEFAULT_BRANCH, AUTOMATION_MODE, SOURCE_ACTION,
 //      SOURCE_CONCLUSION, RESPONSE_FILE, TARGET_NUMBER, NEXT_TARGET_NUMBER,
 //      REQUESTED_BY, REQUEST_TEXT, AUTOMATION_CURRENT_ROUND,
-//      AUTOMATION_MAX_ROUNDS, SESSION_BUNDLE_MODE, SOURCE_RUN_ID
+//      AUTOMATION_MAX_ROUNDS, SESSION_BUNDLE_MODE, SOURCE_RUN_ID, TARGET_KIND
 
 import { readFileSync } from "node:fs";
 import { dispatchWorkflow } from "../github.js";
@@ -19,16 +19,18 @@ function readResponseConclusion(): string {
 }
 
 const automationMode = process.env.AUTOMATION_MODE || "disabled";
-if (!automationModeAllowsHandoff(automationMode)) {
+const sourceAction = process.env.SOURCE_ACTION || "";
+const isManualOrchestrateStart = sourceAction.trim().toLowerCase() === "orchestrate";
+if (!isManualOrchestrateStart && !automationModeAllowsHandoff(automationMode)) {
   console.log("Skipping orchestrator dispatch: automation mode is disabled");
   process.exit(0);
 }
 
 const repo = process.env.GITHUB_REPOSITORY || "";
 const ref = process.env.DEFAULT_BRANCH || "";
-const sourceAction = process.env.SOURCE_ACTION || "";
 const sourceConclusion = process.env.SOURCE_CONCLUSION || readResponseConclusion() || "unknown";
 const targetNumber = process.env.TARGET_NUMBER || "";
+const targetKind = process.env.TARGET_KIND || "";
 
 if (!repo || !ref || !sourceAction || !targetNumber) {
   console.error("Missing required env: GITHUB_REPOSITORY, DEFAULT_BRANCH, SOURCE_ACTION, TARGET_NUMBER");
@@ -42,6 +44,7 @@ dispatchWorkflow(repo, "agent-orchestrator.yml", ref, {
   source_action: sourceAction,
   source_conclusion: sourceConclusion,
   source_run_id: process.env.SOURCE_RUN_ID || process.env.GITHUB_RUN_ID || "",
+  target_kind: targetKind,
   target_number: targetNumber,
   next_target_number: process.env.NEXT_TARGET_NUMBER || "",
   requested_by: process.env.REQUESTED_BY || "",
