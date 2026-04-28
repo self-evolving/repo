@@ -1,4 +1,4 @@
-# Sepo
+# sepo: self-evolving repository
 
 Mention `@sepo-agent` on a GitHub issue, pull request, or discussion to answer questions, implement issues, review PRs, fix PR branches, or create durable scheduled agent workflows. Sepo runs inside GitHub Actions and keeps working context in repository-owned branches, so collaboration stays in GitHub instead of moving to a separate chat surface.
 
@@ -6,77 +6,59 @@ Sepo turns a repository into a **self-evolving repository**: a codebase that can
 
 ![Sepo overview](.agent/docs/assets/sepo-overview.png)
 
-```mermaid
-flowchart LR
-  user[GitHub user] --> trigger[Mention, label, schedule, or workflow dispatch]
-  trigger --> router[Agent router]
-  router --> route{Selected route}
-  route --> answer[Answer]
-  route --> implement[Implement]
-  route --> review[Review]
-  route --> fix[Fix PR]
-  route --> action[Create action]
-  route --> skill[Skill]
-  answer --> github[GitHub comment or PR]
-  implement --> github
-  review --> github
-  fix --> github
-  action --> github
-  skill --> github
-  github --> memory[agent/memory and agent/rubrics]
-  memory --> router
-```
-
 ## Quick Start
 
 ### Start from this template
 
 1. Fork this repository or use it as a template.
 2. Install the [Sepo GitHub App](https://github.com/apps/sepo-agent-app/installations/select_target) and ensure GitHub Actions is enabled for your repository.
-3. Choose a GitHub authentication path:
-   - Use the built-in hosted app/OIDC path for the simplest setup. Do not set `AGENT_APP_ID` / `AGENT_APP_PRIVATE_KEY` for this path; those secrets are only for a self-managed app.
-   - Use [your own GitHub App](.agent/docs/deployment/using-your-own-github-app.md) when you want a self-managed app identity.
+   - Alternatively, you can use [your own GitHub App](.agent/docs/deployment/using-your-own-github-app.md) when you want a self-managed app identity.
    - See the [setup guide](.agent/docs/deployment/setup-guide.md) for all auth options and trade-offs.
-4. Add at least one model-provider credential as a repository secret:
+3. Add at least one model-provider credential as a repository secret:
    - `OPENAI_API_KEY` for Codex-backed runs.
    - `CLAUDE_CODE_OAUTH_TOKEN` for Claude-backed runs.
-5. Open an issue and mention `@sepo-agent` in the issue body or a comment. After a short delay, the workflow should add an eyes reaction and then post a response.
+4. Open an issue and mention `@sepo-agent` in the issue body or a comment. After a short delay, the workflow should add an eyes reaction and then post a response.
 
 ### Install into an existing repository
 
-Use [Install into an existing repository](.agent/docs/deployment/install-existing-repository.md) for the minimal non-template flow. It covers copying `.agent/` and `.github/`, configuring secrets, and bootstrapping `agent/memory` from GitHub Actions.
+Check [Install into an existing repository](.agent/docs/deployment/install-existing-repository.md) for the detailed guide. TL;DR: you (or your agent) should copy `.agent/` and `.github/`, configure secrets, and initialize agent memory from GitHub Actions.
 
 ## What You Can Ask It To Do
 
-Use a free-form mention when you want the router to infer the best route:
+### In any GitHub text input (issues, PRs, discussions), call the agent to execute tasks
 
-```md
+```python
+# Use a free-form mention when you want the router to infer the best route:
 @sepo-agent can you explain how review synthesis works?
+
+# Use an explicit slash route when you already know the action
+@sepo-agent /implement implement issue #2
+
+# Invoke arbitrary skills
+@sepo-agent /skill <skill-name>
+
+# Inside a PR
+@sepo-agent /review
+@sepo-agent /fix-pr
 ```
 
-Use an explicit slash route when you already know the action:
+> [!WARNING]
+> Only authorized repository users can trigger Sepo. By default, public repositories allow `OWNER`, `MEMBER`, and `COLLABORATOR`; private repositories also allow `CONTRIBUTOR`. See [Trigger access policy](.agent/docs/access-policy.md) to customize that behavior.
 
-| Action | Use it for | Syntax |
-|---|---|---|
-| Answer | Ask a question and get an inline response. | `@sepo-agent /answer ...` |
-| Implement | Turn an issue request into a branch and draft PR. | `@sepo-agent /implement ...` |
-| Create action | Propose a standalone scheduled agent workflow through a PR. | `@sepo-agent /create-action ...` |
-| Review | Run the dual-agent PR review flow. | `@sepo-agent /review` |
-| Fix PR | Push fixes to the current PR branch. | `@sepo-agent /fix-pr` |
-| Skill | Run a repository skill from `.skills/<name>/SKILL.md`. | `@sepo-agent /skill <name>` |
 
-You can also trigger the same built-in routes with labels:
+### You can also trigger the same built-in routes by adding `agent/*` labels to PRs
 
-| Label | Route |
-|---|---|
-| `agent/answer` | Answer |
-| `agent/implement` | Implement |
-| `agent/create-action` | Create action |
-| `agent/review` | Review |
-| `agent/fix-pr` | Fix PR |
-| `agent/s/<name>` | Skill |
+For example, adding the `agent/review` label will run the review agent.
 
-Only authorized repository users can trigger Sepo. By default, public repositories allow `OWNER`, `MEMBER`, and `COLLABORATOR`; private repositories also allow `CONTRIBUTOR`. See [Trigger access policy](.agent/docs/access-policy.md) to customize that behavior.
+### Automatic Task Orchestration Layer
+When automation mode is enabled, Sepo can chain follow-up actions after an initial run, such as review after implementation and fix after review. The orchestrator applies deterministic guardrails like dedupe checks and max-round limits to keep loops bounded.
+
+### Tracking Workspace Memory and Rubrics
+Sepo persists long-lived context in `agent/memory` and preference rules in `agent/rubrics`, both as repository-owned branches. This lets later runs resume with durable project context and team-specific guidance.
+
+### Scheduled Jobs
+You can run Sepo on a schedule to handle recurring maintenance, triage, or monitoring tasks without a manual mention. For example, [`agent-daily-summary.yml`](.github/workflows/agent-daily-summary.yml) can publish a daily repository activity summary discussion. Scheduled workflows still route through the same policy and memory layers, so they behave consistently with on-demand runs.
+
 
 ## How It Works
 
