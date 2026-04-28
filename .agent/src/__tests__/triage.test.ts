@@ -344,7 +344,7 @@ test("applyDispatchPolicy rejects routes disallowed by configured access policy"
   assert.match(d.summary, /OWNER, MEMBER, COLLABORATOR/);
 });
 
-test("applyDispatchPolicy uses collaborator-safe defaults for public repos", () => {
+test("applyDispatchPolicy allows contributors by default for public repos", () => {
   const d = applyDispatchPolicy(
     normalizeDispatch('{"route":"answer","summary":"answer it"}'),
     "issue",
@@ -352,8 +352,8 @@ test("applyDispatchPolicy uses collaborator-safe defaults for public repos", () 
     parseAccessPolicy(""),
     true,
   );
-  assert.equal(d.route, "unsupported");
-  assert.match(d.summary, /OWNER, MEMBER, COLLABORATOR/);
+  assert.equal(d.route, "answer");
+  assert.equal(d.needsApproval, false);
 });
 
 test("applyDispatchPolicy allows route overrides to widen public repo access", () => {

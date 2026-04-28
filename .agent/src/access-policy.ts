@@ -22,6 +22,7 @@ const DEFAULT_PUBLIC_ALLOWED_ASSOCIATIONS = [
   "OWNER",
   "MEMBER",
   "COLLABORATOR",
+  "CONTRIBUTOR",
 ] as const;
 
 export interface AccessPolicy {

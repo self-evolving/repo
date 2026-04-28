@@ -86,7 +86,7 @@ Supported surfaces:
 | `discussion` | discussion title, discussion body |
 | `discussion_comment` | comment body |
 
-By default, the portal responds to `OWNER`, `MEMBER`, `COLLABORATOR`, and private-repository `CONTRIBUTOR` associations. `AGENT_ACCESS_POLICY` can tighten or widen access globally or for specific routes. Bot authors are always skipped. Implicit mentions are triaged first and then checked against the resolved route, so denied requests get a visible unsupported reply instead of being dropped silently. See [Trigger access policy](../access-policy.md).
+By default, the portal responds to `OWNER`, `MEMBER`, `COLLABORATOR`, and `CONTRIBUTOR` associations. `AGENT_ACCESS_POLICY` can tighten or widen access globally or for specific routes; public repositories that do not want prior contributors to trigger Sepo should remove `CONTRIBUTOR` from the allowlist. Bot authors are always skipped. Implicit mentions are triaged first and then checked against the resolved route, so denied requests get a visible unsupported reply instead of being dropped silently. See [Trigger access policy](../access-policy.md).
 
 Explicit routes are:
 
