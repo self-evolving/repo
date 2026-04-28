@@ -486,8 +486,8 @@ test("shared auth action supports the built-in hosted OIDC broker mode", () => {
   assert.match(action, /Validate direct GitHub App inputs/);
   assert.match(action, /app_id and app_private_key must be configured together/);
   assert.match(action, /bash "\$\{GITHUB_ACTION_PATH\}\/exchange-oidc\.sh"/);
-  assert.match(action, /https:\/\/agent-oidc-test\.vercel\.app/);
-  assert.match(action, /OIDC_AUDIENCE:\s*codiscover-agent/);
+  assert.match(action, /https:\/\/oidc\.self-evolving\.app/);
+  assert.match(action, /OIDC_AUDIENCE:\s*sepo/);
 
   assert.match(oidcScript, /ACTIONS_ID_TOKEN_REQUEST_URL/);
   assert.match(oidcScript, /ACTIONS_ID_TOKEN_REQUEST_TOKEN/);
