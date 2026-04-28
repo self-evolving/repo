@@ -16,3 +16,4 @@
 - Review synthesis should clearly state the recommended next step when automation may continue.
 - Jobs using repo-local actions must run actions/checkout first.
 - For weak issue author_association, verify repo collaborator status before treating issue mentions as trusted.
+- Public repos default-allow CONTRIBUTOR due GitHub association visibility limits; use AGENT_ACCESS_POLICY to tighten access.
