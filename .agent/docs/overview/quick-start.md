@@ -29,7 +29,7 @@ Use an explicit slash route when you already know the action:
 
 | Action | Use it for | Syntax |
 |---|---|---|
-| Answer | Ask a question and get an inline response. | `@sepo-agent /answer ...` |
+| Answer | Ask a question, or request plan-only procedure guidance before coding. | `@sepo-agent /answer ...` |
 | Implement | Turn an issue request into a branch and draft PR. | `@sepo-agent /implement ...` |
 | Create action | Propose a standalone scheduled agent workflow through a PR. | `@sepo-agent /create-action ...` |
 | Review | Run the dual-agent PR review flow. | `@sepo-agent /review` |
