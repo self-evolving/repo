@@ -1,0 +1,18 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "## Summary\n\nMemory curation workflows should be able to read rubrics that specifically apply to memory updates. Today they do not have a clean route identity for rubric selection.\n\n## Current behavior\n\nThe memory curation workflows call `run-agent-task` with memory prompts, but route identity is still `answer`:\n\n- `.github/workflows/agent-memory-scan.yml`\n  - `prompt: memory-scan`\n  - `route: answer`\n- `.github/workflows/agent-memory-pr-closed.yml`\n  - `prompt: memory-pr-closed`\n  - `route: answer`\n\n`run-agent-task` can load rubrics read-only by default when `agent/rubrics` exists, but rubric selection is route-based. Because these memory jobs identify as `answer`, any memory-update rubric would need to be mislabeled as an `answer` rubric, which risks leaking memory-curation guidance into normal answer runs.\n\nThe rubric schema also does not currently allow dedicated memory routes in `applies_to`; supported routes exclude `memory-scan` and `memory-pr-closed`.\n\n## Desired behavior\n\nMemory curation agents should be able to receive rubrics that apply only to memory update workflows, without affecting normal `answer` runs.\n\n## Proposed approach\n\n1. Add first-class route identities for memory curation:\n   - `memory-scan`\n   - `memory-pr-closed`\n   - optionally `memory-bootstrap` if bootstrap curation should share memory-scan rubrics.\n2. Update runtime route validation and prompt mapping so these routes can still use existing prompts:\n   - `memory-scan` -> `.github/prompts/memory-scan.md`\n   - `memory-pr-closed` -> `.github/prompts/memory-pr-closed.md`\n3. Update memory workflows to pass route-specific identities instead of `answer`:\n   - `route: memory-scan`\n   - `route: memory-pr-closed`\n4. Update rubric schema/selection to allow these routes in `applies_to`.\n5. Add tests covering:\n   - envelope validation for memory routes\n   - workflow contracts for memory route names\n   - rubric validation/selection for `applies_to: [memory-scan, memory-pr-closed]`\n6. Update docs to explain that memory is advisory continuity, while memory-update rubrics are normative guidance for how memory should be curated.\n\n## Example rubric\n\n```yaml\nschema_version: 1\nid: keep-memory-lean\ntitle: Keep memory lean\ndescription: Memory updates should preserve durable project context only and avoid copying transient issue or PR details.\ntype: generic\ndomain: coding_workflow\napplies_to:\n  - memory-scan\n  - memory-pr-closed\nseverity: should\nweight: 8\nstatus: active\nexamples: []\n```\n\n## Acceptance criteria\n\n- Memory curation workflows no longer identify as `answer` for rubric selection.\n- Rubrics can target memory curation routes without being selected for normal answer runs.\n- Existing memory prompts continue to render and run successfully.\n- Tests and docs are updated.\n",
+  "closedAt": null,
+  "comments": [],
+  "createdAt": "2026-04-28T05:33:25Z",
+  "labels": [],
+  "number": 2,
+  "state": "OPEN",
+  "title": "Support memory-specific rubrics for memory curation agents",
+  "updatedAt": "2026-04-28T05:33:25Z",
+  "url": "https://github.com/self-evolving/repo/issues/2"
+}
