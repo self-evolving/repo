@@ -47,4 +47,4 @@ You can also trigger the same built-in routes with labels:
 | `agent/fix-pr` | Fix PR |
 | `agent/s/<name>` | Skill |
 
-Only authorized repository users can trigger Sepo. By default, public repositories allow `OWNER`, `MEMBER`, and `COLLABORATOR`; private repositories also allow `CONTRIBUTOR`. See [Trigger access policy](../access-policy.md) to customize that behavior.
+Only authorized repository users can trigger Sepo. By default, repositories allow `OWNER`, `MEMBER`, `COLLABORATOR`, and `CONTRIBUTOR` associations; public repositories can tighten this with `AGENT_ACCESS_POLICY`. See [Trigger access policy](../access-policy.md) to customize that behavior.
