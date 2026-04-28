@@ -94,7 +94,7 @@ permissions:
   id-token: write # required for GitHub Actions OIDC broker exchange
   # Note: workflow-level permissions are the union of all jobs. Individual
   # agent invocations use route-specific acpx permission modes, with
-  # dispatch triage, answer, implement, and fix-pr all currently using
+  # dispatch triage, answer, implement, add-rubrics, and fix-pr all currently using
   # approve-all.
 
 jobs:
@@ -620,6 +620,29 @@ jobs:
           REACTION_SUBJECT_ID: ${{ needs.portal.outputs.reaction_subject_id }}
           REACTION_CONTENT: THUMBS_UP
         run: node .agent/dist/cli/add-reaction.js
+
+  # --- Route: review (dual-agent) ---
+  add-rubrics:
+    needs: portal
+    if: >-
+      needs.portal.outputs.should_respond == 'true' &&
+      needs.portal.outputs.route == 'add-rubrics' &&
+      needs.portal.outputs.needs_approval == 'false'
+    uses: ./.github/workflows/agent-add-rubrics.yml
+    with:
+      runs_on: ${{ inputs.runs_on }}
+      target_number: ${{ needs.portal.outputs.target_number }}
+      target_url: ${{ needs.portal.outputs.target_url }}
+      target_kind: ${{ needs.portal.outputs.target_kind }}
+      source_kind: ${{ needs.portal.outputs.source_kind }}
+      response_kind: ${{ needs.portal.outputs.response_kind }}
+      review_comment_id: ${{ needs.portal.outputs.review_comment_id }}
+      discussion_id: ${{ needs.portal.outputs.discussion_node_id }}
+      reply_to_id: ${{ needs.portal.outputs.reply_to_id }}
+      request_text: ${{ needs.portal.outputs.body }}
+      requested_by: ${{ needs.portal.outputs.requested_by }}
+      session_bundle_mode: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
+    secrets: inherit
 
   # --- Route: review (dual-agent) ---
   review:

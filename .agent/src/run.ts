@@ -107,6 +107,7 @@ const RUBRICS_PROMPT_PATH = ".github/prompts/_rubrics.md";
 
 const PROMPT_TEMPLATES: Record<string, string> = {
   implement: ".github/prompts/agent-implement.md",
+  "add-rubrics": ".github/prompts/agent-add-rubrics.md",
   review: ".github/prompts/review.md",
   "review-synthesize": ".github/prompts/review-synthesize.md",
   "review-synthesize-finalize": ".github/prompts/review-synthesize-finalize.md",

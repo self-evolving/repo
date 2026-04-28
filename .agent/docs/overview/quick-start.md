@@ -31,6 +31,7 @@ Use an explicit slash route when you already know the action:
 |---|---|---|
 | Answer | Ask a question and get an inline response. | `@sepo-agent /answer ...` |
 | Implement | Turn an issue request into a branch and draft PR. | `@sepo-agent /implement ...` |
+| Add rubrics | Convert a preference request into updates on `agent/rubrics`. | `@sepo-agent /add-rubrics ...` |
 | Create action | Propose a standalone scheduled agent workflow through a PR. | `@sepo-agent /create-action ...` |
 | Review | Run the dual-agent PR review flow. | `@sepo-agent /review` |
 | Fix PR | Push fixes to the current PR branch. | `@sepo-agent /fix-pr` |
@@ -42,6 +43,7 @@ You can also trigger the same built-in routes with labels:
 |---|---|
 | `agent/answer` | Answer |
 | `agent/implement` | Implement |
+| `agent/add-rubrics` | Add rubrics |
 | `agent/create-action` | Create action |
 | `agent/review` | Review |
 | `agent/fix-pr` | Fix PR |

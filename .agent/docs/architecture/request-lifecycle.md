@@ -7,6 +7,7 @@ Every trigger converges on the portal workflow `agent-router.yml`. It extracts c
 ## Approval model
 
 - Inline answers are posted immediately.
+- Explicit `add-rubrics` requests are dispatched immediately.
 - Review and `fix-pr` requests on pull requests are dispatched immediately.
 - Edited PR events are blocked from re-triggering review and `fix-pr` routes.
 - Mention and label requests that fail route authorization are posted back as inline `unsupported` replies instead of being dropped silently.
@@ -42,6 +43,7 @@ Current route-level `acpx` permission modes:
 | `dispatch` | `approve-all` | classification may gather repo and issue context |
 | `answer` | `approve-all` | may gather context before replying |
 | `implement` | `approve-all` | needs full file system access |
+| `add-rubrics` | `approve-all` | updates rubric files on `agent/rubrics` |
 | `fix-pr` | `approve-all` | needs full file system access |
 | `review` | `approve-all` | reviewers and synthesis may gather PR and repo context |
 

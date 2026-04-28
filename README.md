@@ -33,6 +33,7 @@ Check [Install into an existing repository](.agent/docs/deployment/install-exist
 
 # Use an explicit slash route when you already know the action
 @sepo-agent /implement implement issue #2
+@sepo-agent /add-rubrics prefer concise PR summaries
 
 # Invoke arbitrary skills
 @sepo-agent /skill <skill-name>

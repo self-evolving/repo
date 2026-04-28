@@ -6,6 +6,7 @@ Agent actions are route-level behaviors exposed by the `.agent` backend. They ar
 |---|---|---|---|
 | Answer | `answer` | `.github/prompts/agent-answer.md` | inline response through `agent-router.yml` |
 | Implement | `implement` | `.github/prompts/agent-implement.md` | explicit `/implement` or `agent/implement` label dispatches `agent-implement.yml` directly; triaged implement goes through approval first |
+| Add rubrics | `add-rubrics` | `.github/prompts/agent-add-rubrics.md` | dispatches `agent-add-rubrics.yml` to update `agent/rubrics` and post a summary |
 | Fix PR | `fix-pr` | `.github/prompts/agent-fix-pr.md` | PR-only dispatch to `agent-fix-pr.yml` |
 | Review | `review` | `.github/prompts/review.md` and `.github/prompts/review-synthesize.md` | parallel review jobs plus synthesis in `agent-review.yml` |
 | Create action | `create-action` | `.github/prompts/agent-create-action.md` | implementation PR that adds or updates a standalone scheduled workflow under `.github/workflows/` |

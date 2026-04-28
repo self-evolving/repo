@@ -14,6 +14,7 @@
 | `agent-implement.yml` | `workflow_dispatch` | Implementation flow: branch, commit, draft PR | Auto |
 | `agent-fix-pr.yml` | `workflow_dispatch`, `workflow_call` | PR fix flow: update existing PR branch, verify, push | Auto |
 | `agent-review.yml` | `workflow_dispatch`, `workflow_call` | Parallel Claude and Codex review with resolved-provider synthesis, plus a separate rubric review comment | Claude + Codex reviewers; configurable synthesis |
+| `agent-add-rubrics.yml` | `workflow_dispatch`, `workflow_call` | Adds or updates rubric YAML directly from a mention request and posts a short summary | Auto |
 | `agent-branch-cleanup.yml` | `pull_request_target.closed` | Event-driven cleanup of agent-created branches after PR close. Excludes the shared `agent/memory` and `agent/rubrics` branches. | None |
 | `agent-close-stale-issues.yml` | `schedule` (daily), `workflow_dispatch` | Closes open `agent` issues that have had no activity for 30 days by default | None |
 | `agent-daily-summary.yml` | `schedule` (daily), `workflow_dispatch` | Generates a concise repository activity summary and posts it as a Discussion | Auto |
@@ -92,6 +93,7 @@ Explicit routes are:
 
 - `@sepo-agent /answer`
 - `@sepo-agent /implement`
+- `@sepo-agent /add-rubrics`
 - `@sepo-agent /create-action`
 - `@sepo-agent /fix-pr`
 - `@sepo-agent /review`
@@ -107,6 +109,7 @@ Applying one of these labels triggers the same downstream routing stack without 
 
 - `agent/answer`
 - `agent/implement`
+- `agent/add-rubrics`
 - `agent/create-action`
 - `agent/fix-pr`
 - `agent/review`
