@@ -61,6 +61,9 @@ In `heuristics` mode, manual starts use deterministic status checks:
 - pull request target with `CHANGES_REQUESTED`: dispatch `fix-pr`
 - other open pull request targets: dispatch `review`
 
+Manual `/orchestrate` starts are deterministic in `agent` mode as well. Planner
+runs are reserved for action-originated handoff envelopes.
+
 In `heuristics` mode, action-originated handoff decisions still use the fixed transition policy and round budget checks.
 
 In `agent` mode, the orchestrator first runs a scoped planner prompt through the same resolved-provider runtime used by other agent actions. The planner has its own `orchestrator` route and `planner` lane, so session continuation is separate from implement, review, and fix-pr sessions. The planner receives the handoff envelope, read-only repository memory, selected read-only rubrics, and original request, and returns JSON describing whether to stop, block, or hand off. For handoffs, the planner may also return `handoff_context`: explicit, action-oriented instructions for the next workflow. When the next action is `fix-pr`, the dispatcher passes that context into `agent-fix-pr.yml`, and the fix-pr prompt treats it as initial steering for the automated fix pass. The workflow uses the runtime preflight CLI to skip this planner when the max-round budget is already exhausted, and the runtime still validates planner JSON against the fixed transition policy and max-round budget before dispatching anything.

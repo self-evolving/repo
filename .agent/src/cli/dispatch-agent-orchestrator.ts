@@ -2,7 +2,8 @@
 // Env: GITHUB_REPOSITORY, DEFAULT_BRANCH, AUTOMATION_MODE, SOURCE_ACTION,
 //      SOURCE_CONCLUSION, RESPONSE_FILE, TARGET_NUMBER, NEXT_TARGET_NUMBER,
 //      REQUESTED_BY, REQUEST_TEXT, AUTOMATION_CURRENT_ROUND,
-//      AUTOMATION_MAX_ROUNDS, SESSION_BUNDLE_MODE, SOURCE_RUN_ID, TARGET_KIND
+//      AUTOMATION_MAX_ROUNDS, SESSION_BUNDLE_MODE, SOURCE_RUN_ID, TARGET_KIND,
+//      AUTHOR_ASSOCIATION, ACCESS_POLICY, REPOSITORY_PRIVATE
 
 import { readFileSync } from "node:fs";
 import { dispatchWorkflow } from "../github.js";
@@ -46,6 +47,9 @@ dispatchWorkflow(repo, "agent-orchestrator.yml", ref, {
   source_run_id: process.env.SOURCE_RUN_ID || process.env.GITHUB_RUN_ID || "",
   target_kind: targetKind,
   target_number: targetNumber,
+  author_association: process.env.AUTHOR_ASSOCIATION || "",
+  access_policy: process.env.ACCESS_POLICY || "",
+  repository_private: process.env.REPOSITORY_PRIVATE || "",
   next_target_number: process.env.NEXT_TARGET_NUMBER || "",
   requested_by: process.env.REQUESTED_BY || "",
   request_text: process.env.REQUEST_TEXT || "",

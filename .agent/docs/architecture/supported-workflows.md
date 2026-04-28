@@ -22,9 +22,9 @@
 `agent-orchestrator.yml` is started explicitly through `/orchestrate` or
 `agent/orchestrate`. On start, it inspects the current target state and
 dispatches one built-in action (`implement`, `review`, or `fix-pr`) when useful.
-In `heuristics` mode this selection is deterministic. In `agent` mode it can run
-the planner route first and then validate planner output against the same
-transition policy and round budget before dispatch. The planner can include a
+Explicit `/orchestrate` starts are deterministic in both `heuristics` and
+`agent` modes today. Planner-based selection is only used for action-originated
+handoff runs. The planner can include a
 `handoff_context` string for the next action; `fix-pr` receives it as explicit
 initial steering when the planner dispatches a PR-fix pass. The planner mounts
 memory and rubrics read-only so automated control-flow planning can use steering

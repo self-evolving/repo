@@ -5,6 +5,12 @@
 //      SESSION_BUNDLE_MODE, SOURCE_RUN_ID, PLANNER_RESPONSE_FILE, TARGET_KIND
 
 import { readFileSync } from "node:fs";
+import {
+  getAllowedAssociationsForRoute,
+  isAssociationAllowedForRoute,
+  isKnownAuthorAssociation,
+  parseAccessPolicy,
+} from "../access-policy.js";
 import { dispatchWorkflow, gh } from "../github.js";
 import { setOutput } from "../output.js";
 import {
@@ -126,6 +132,9 @@ const sourceAction = process.env.SOURCE_ACTION || "";
 const sourceConclusion = process.env.SOURCE_CONCLUSION || "unknown";
 const sourceRunId = process.env.SOURCE_RUN_ID || process.env.GITHUB_RUN_ID || "";
 const sourceTargetKind = process.env.TARGET_KIND || "";
+const sourceAssociationRaw = process.env.AUTHOR_ASSOCIATION || "";
+const accessPolicyRaw = process.env.ACCESS_POLICY || "";
+const isPublicRepo = String(process.env.REPOSITORY_PRIVATE || "").trim().toLowerCase() === "false";
 const targetNumber = process.env.TARGET_NUMBER || "";
 const requestedBy = process.env.REQUESTED_BY || "";
 const requestText = process.env.REQUEST_TEXT || "";
@@ -216,7 +225,33 @@ function decideManualOrchestration(): HandoffDecision {
   return { decision: "stop", reason: `unsupported target kind ${sourceTargetKind || "missing"}`, nextRound };
 }
 
-const decision = normalizeToken(sourceAction) === "orchestrate"
+function applyDelegatedRouteAuthorization(decision: HandoffDecision): HandoffDecision {
+  if (normalizeToken(sourceAction) !== "orchestrate" || decision.decision !== "dispatch" || !decision.nextAction) {
+    return decision;
+  }
+
+  let policy;
+  try {
+    policy = parseAccessPolicy(accessPolicyRaw);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { decision: "stop", reason: `invalid AGENT_ACCESS_POLICY: ${msg}`, nextRound: decision.nextRound };
+  }
+
+  const association = isKnownAuthorAssociation(sourceAssociationRaw) ? sourceAssociationRaw : "NONE";
+  if (isAssociationAllowedForRoute(policy, decision.nextAction, association, isPublicRepo)) {
+    return decision;
+  }
+
+  const allowed = getAllowedAssociationsForRoute(policy, decision.nextAction, isPublicRepo);
+  return {
+    decision: "stop",
+    reason: `${decision.nextAction} requests currently require ${allowed.join(", ")} access.`,
+    nextRound: decision.nextRound,
+  };
+}
+
+const routeDecision = normalizeToken(sourceAction) === "orchestrate"
   ? decideManualOrchestration()
   : decideHandoff({
     automationMode,
@@ -228,6 +263,7 @@ const decision = normalizeToken(sourceAction) === "orchestrate"
     maxRounds,
     plannerDecision: automationMode === "agent" ? readPlannerDecision() : null,
   });
+const decision = applyDelegatedRouteAuthorization(routeDecision);
 
 setOutput("decision", decision.decision);
 setOutput("next_action", decision.nextAction || "");

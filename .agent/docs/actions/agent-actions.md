@@ -13,7 +13,7 @@ Agent actions are route-level behaviors exposed by the `.agent` backend. They ar
 | Skill | `skill` | `.skills/<name>/SKILL.md` | inline skill route through `agent-router.yml` |
 | Dispatch | `dispatch` | `.github/prompts/agent-dispatch.md` | route triage inside `agent-router.yml` |
 
-The orchestrator is now an explicit top-level route. Users start orchestration with `/orchestrate` (or `agent/orchestrate`), and `agent-orchestrator.yml` chooses a first follow-up action from current target status. `heuristics` mode uses deterministic routing, while `agent` mode runs the planner prompt with its own session context and validates the result against runtime policy before dispatching. Planner handoffs can carry `handoff_context`; `fix-pr` receives that context as explicit initial steering for the automated fix pass.
+The orchestrator is now an explicit top-level route. Users start orchestration with `/orchestrate` (or `agent/orchestrate`), and `agent-orchestrator.yml` chooses a first follow-up action from current target status. Explicit `/orchestrate` starts use deterministic routing in both `heuristics` and `agent` modes today. Planner mode is reserved for action-originated handoff envelopes and still validates results against runtime policy before dispatch. Planner handoffs can carry `handoff_context`; `fix-pr` receives that context as explicit initial steering for the automated fix pass.
 
 ## Consumption model
 
