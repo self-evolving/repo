@@ -12,7 +12,6 @@ import { isKnownAuthorAssociation } from "../access-policy.js";
 import { ghApi, ghApiOk } from "../github.js";
 import { setOutput } from "../output.js";
 import {
-  DEFAULT_TRUSTED_ASSOCIATIONS,
   DEFAULT_MENTION,
   extractEventContext,
   getAuthorAssociation,
@@ -31,6 +30,11 @@ const triggerKind = String(process.env.INPUT_TRIGGER_KIND || "mention").trim().t
 const labelName = process.env.INPUT_LABEL_NAME || "";
 const authorAssociationOverride = process.env.INPUT_AUTHOR_ASSOCIATION || "";
 const repository = process.env.GITHUB_REPOSITORY || "";
+const ISSUE_ASSOCIATIONS_TRUSTED_WITHOUT_REFRESH = new Set([
+  "OWNER",
+  "MEMBER",
+  "COLLABORATOR",
+]);
 
 function hasOrgMembership(orgLogin: string, userLogin: string): boolean {
   const membershipState = ghApi([
@@ -91,14 +95,16 @@ function resolveLabelActorAssociation(payload: Record<string, any>): string {
 }
 
 function refreshIssueAssociation(association: string, issueNumber: string): string {
+  const normalized = String(association || "").trim().toUpperCase();
+
   if (
     authorAssociationOverride ||
     eventName !== "issues" ||
-    DEFAULT_TRUSTED_ASSOCIATIONS.has(association) ||
+    ISSUE_ASSOCIATIONS_TRUSTED_WITHOUT_REFRESH.has(normalized) ||
     !repository ||
     !issueNumber
   ) {
-    return association;
+    return normalized || association;
   }
 
   const refreshed = ghApi([
@@ -106,7 +112,7 @@ function refreshIssueAssociation(association: string, issueNumber: string): stri
     "--jq",
     ".author_association // empty",
   ]).toUpperCase();
-  return refreshed || association;
+  return refreshed || normalized || association;
 }
 
 if (!eventPath || !eventName) {

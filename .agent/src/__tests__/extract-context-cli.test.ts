@@ -122,6 +122,61 @@ test("extract-context refreshes issue author association from the GitHub API", (
   }
 });
 
+test("extract-context refreshes contributor issue author association from the GitHub API", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-extract-context-"));
+
+  try {
+    const eventPath = join(tempDir, "event.json");
+    const outputPath = join(tempDir, "github-output.txt");
+    const fakeGh = join(tempDir, "gh");
+
+    writeFileSync(
+      eventPath,
+      JSON.stringify({
+        sender: { login: "alice", type: "User" },
+        issue: {
+          number: 5,
+          title: "Investigate auth",
+          body: "@sepo-agent /answer can you investigate?",
+          html_url: "https://github.com/self-evolving/repo/issues/5",
+          node_id: "I_5",
+          author_association: "CONTRIBUTOR",
+          user: { login: "alice" },
+        },
+      }),
+      "utf8",
+    );
+    writeFileSync(outputPath, "", "utf8");
+    writeFileSync(
+      fakeGh,
+      "#!/usr/bin/env bash\nif [ \"$1\" = \"api\" ] && [ \"$2\" = \"repos/self-evolving/repo/issues/5\" ]; then\n  printf 'MEMBER\\n'\n  exit 0\nfi\nprintf 'unexpected gh args: %s\\n' \"$*\" >&2\nexit 1\n",
+      { encoding: "utf8", mode: 0o755 },
+    );
+
+    execFileSync("node", [".agent/dist/cli/extract-context.js"], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        PATH: `${tempDir}:${process.env.PATH || ""}`,
+        GITHUB_EVENT_PATH: eventPath,
+        GITHUB_EVENT_NAME: "issues",
+        GITHUB_OUTPUT: outputPath,
+        GITHUB_REPOSITORY: "self-evolving/repo",
+        INPUT_MENTION: "@sepo-agent",
+        INPUT_TRIGGER_KIND: "mention",
+      },
+      stdio: "pipe",
+    });
+
+    const outputs = parseGithubOutput(outputPath);
+    assert.equal(outputs.get("should_respond"), "true");
+    assert.equal(outputs.get("association"), "MEMBER");
+    assert.equal(outputs.get("requested_route"), "answer");
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("extract-context resolves label actors as OWNER for personal repositories", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-extract-context-"));
 
