@@ -1,98 +1,112 @@
-# Self-evolving repository
+# Sepo
 
-<!-- Imagine a code repository that can react automatically in response to your requests or even improve autonomously.  -->
+Mention `@sepo-agent` on a GitHub issue, pull request, or discussion to answer questions, implement issues, review PRs, fix PR branches, or create durable scheduled agent workflows. Sepo runs inside GitHub Actions and keeps working context in repository-owned branches, so collaboration stays in GitHub instead of moving to a separate chat surface.
 
-This repo uses GitHub-native primitives — Actions, issues, pull requests, labels, and discussions — to build a full-fledged [agentic system](https://notes.szj.io/thoughts/four-tiers-of-llm-applications#tier-4-multi-agent-system) around the idea of a **self-evolving repository**: _code that can improve itself autonomously and continuously learn from user feedback._
+Sepo turns a repository into a **self-evolving repository**: a codebase that can react to user requests, preserve agent-facing memory and user/team rubrics, and improve both application code and its own automation over time. For the concept behind that architecture, see [What is a self-evolving repository?](.agent/docs/overview/what-is-self-evolving-repo.md).
 
-In addition to the code, a self-evolving repository contains:
-- a schema for organizing development artifacts beyond source files — memories, interaction histories, user preferences, plans, rubrics, and other agent-facing context — much like `just`, `make`, or `cmake` help organize how code gets run, but aimed at traceability, reproducibility, and efficiency in agent development
-- a way to launch agents and collaborate with them so the repository can improve both its application code and its own development workflow over time
+![Sepo overview](.agent/docs/assets/sepo-overview.png)
 
-In that sense, the repository is no longer a static artifact. It becomes a living system that can accumulate context, respond to feedback, and evolve alongside development.
+```mermaid
+flowchart LR
+  user[GitHub user] --> trigger[Mention, label, schedule, or workflow dispatch]
+  trigger --> router[Agent router]
+  router --> route{Selected route}
+  route --> answer[Answer]
+  route --> implement[Implement]
+  route --> review[Review]
+  route --> fix[Fix PR]
+  route --> action[Create action]
+  route --> skill[Skill]
+  answer --> github[GitHub comment or PR]
+  implement --> github
+  review --> github
+  fix --> github
+  action --> github
+  skill --> github
+  github --> memory[agent/memory and agent/rubrics]
+  memory --> router
+```
 
-Key concepts:
-<details>
-<summary>GitHub-native agent sessions</summary>
-<ul>
-  <li>Mention the agent in a GitHub issue, PR, or discussion — it answers or does the work in place.</li>
-  <li>Agent sessions run in GitHub Actions; no separate chat tool or session manager needed.</li>
-</ul>
-</details>
-<details>
-<summary>Self-evolution</summary>
-<ul>
-  <li>The repository can keep track of agent-facing development artifacts such as memories, histories, and preferences in a way that improves traceability and reproducibility.</li>
-  <li>It can also launch agents and collaborate with them to improve both the target codebase and the surrounding agent infrastructure.</li>
-</ul>
-</details>
-<details><summary>Grow with the users</summary>TBD</details>
+## Quick Start
 
+### Start from this template
 
-## Quick start
+1. Fork this repository or use it as a template.
+2. Install the [Sepo GitHub App](https://github.com/apps/sepo-agent-app/installations/select_target) and ensure GitHub Actions is enabled for your repository.
+3. Choose a GitHub authentication path:
+   - Use the built-in hosted app/OIDC path for the simplest setup. Do not set `AGENT_APP_ID` / `AGENT_APP_PRIVATE_KEY` for this path; those secrets are only for a self-managed app.
+   - Use [your own GitHub App](.agent/docs/deployment/using-your-own-github-app.md) when you want a self-managed app identity.
+   - See the [setup guide](.agent/docs/deployment/setup-guide.md) for all auth options and trade-offs.
+4. Add at least one model-provider credential as a repository secret:
+   - `OPENAI_API_KEY` for Codex-backed runs.
+   - `CLAUDE_CODE_OAUTH_TOKEN` for Claude-backed runs.
+5. Open an issue and mention `@sepo-agent` in the issue body or a comment. After a short delay, the workflow should add an eyes reaction and then post a response.
 
-<details>
-<summary>
-<strong>Starting a new self-evolving repo: two steps</strong>
-</summary>
-<ul>
-  <li>Fork this repository or use it as a template</li>
-  <li>Install the <a href="https://github.com/apps/sepo-agent-app">Sepo GitHub App</a></li>
-  <li>Ensure GitHub Actions is enabled for your repo</li>
-  <li>Set <code>OPENAI_API_KEY</code> and/or <code>CLAUDE_CODE_OAUTH_TOKEN</code> as repository secrets (for Codex or Claude agent use)</li>
-</ul>
-</details>
-<details>
-<summary>
-<strong>Alternative: installing to an existing repository</strong>
-</summary>
-<ul>
-  <li>Copy <code>.agent/</code> and the current <code>.github/</code> directory into the target repository</li>
-  <li>Configure the required secrets and auth path</li>
-  <li>Use <a href=".agent/docs/deployment/install-existing-repository.md">Install into an existing repository</a> for the minimal non-template flow, including GitHub Actions-based <code>agent/memory</code> bootstrap and an optional local fallback</li>
-</ul>
-</details>
+### Install into an existing repository
 
-<!-- Add illustration -->
+Use [Install into an existing repository](.agent/docs/deployment/install-existing-repository.md) for the minimal non-template flow. It covers copying `.agent/` and `.github/`, configuring secrets, and bootstrapping `agent/memory` from GitHub Actions.
 
-### Test the installation
+## What You Can Ask It To Do
 
-There are several ways to trigger the agents, but the simplest way to test the setup is to create an issue and mention `@sepo-agent` in the text. Wait for the 👀 reaction after a short delay: that means the agent was triggered successfully and is running in the background. It should respond shortly.
+Use a free-form mention when you want the router to infer the best route:
 
-## Feature overview
+```md
+@sepo-agent can you explain how review synthesis works?
+```
 
-### Triggering agents to act
+Use an explicit slash route when you already know the action:
 
-Trigger the agent to answer questions, implement features, review PRs, and more — either by mentioning it in a comment or by applying an `agent/*` label:
+| Action | Use it for | Syntax |
+|---|---|---|
+| Answer | Ask a question and get an inline response. | `@sepo-agent /answer ...` |
+| Implement | Turn an issue request into a branch and draft PR. | `@sepo-agent /implement ...` |
+| Create action | Propose a standalone scheduled agent workflow through a PR. | `@sepo-agent /create-action ...` |
+| Review | Run the dual-agent PR review flow. | `@sepo-agent /review` |
+| Fix PR | Push fixes to the current PR branch. | `@sepo-agent /fix-pr` |
+| Skill | Run a repository skill from `.skills/<name>/SKILL.md`. | `@sepo-agent /skill <name>` |
 
-| Category | Syntax |
+You can also trigger the same built-in routes with labels:
+
+| Label | Route |
 |---|---|
-| **Mention an agent** | 
-| - Free-form mention | `@sepo-agent [free-form-text]` — the dispatcher picks a route from your message |
-| - Mention to run pre-defined actions | `@sepo-agent /<action>` where `<action>` is one of:<br>`/answer` — reply inline.<br>`/implement` — propose and implement an issue as a new PR.<br>`/review` — dual-agent PR review (PR only).<br>`/fix-pr` — push fixes to the current PR branch (PR only).<br>|
-| - Mention to run with agent skills | `@sepo-agent /skill <name>` — runs the agent using `.skills/<name>/SKILL.md` as the prompt. |
-| **Add agent labels** | <!-- *Apply to an issue or PR to trigger the agent without a live mention* --> |
-| - Predefined action labels | `agent/answer`, `agent/implement`, `agent/review`, `agent/fix-pr` — same behavior as the matching slash command. |
-| - Skill labels | `agent/s/<name>` — runs `.skills/<name>/SKILL.md` as the prompt. |
+| `agent/answer` | Answer |
+| `agent/implement` | Implement |
+| `agent/create-action` | Create action |
+| `agent/review` | Review |
+| `agent/fix-pr` | Fix PR |
+| `agent/s/<name>` | Skill |
 
-Only collaborators (i.e., OWNER / MEMBER / COLLABORATOR / CONTRIBUTOR github roles) can trigger the agent.
+Only authorized repository users can trigger Sepo. By default, public repositories allow `OWNER`, `MEMBER`, and `COLLABORATOR`; private repositories also allow `CONTRIBUTOR`. See [Trigger access policy](.agent/docs/access-policy.md) to customize that behavior.
 
-### Autonomous agent actions
+## How It Works
 
-[TBD]
+Every trigger converges on `agent-router.yml`, which extracts GitHub context, applies access policy, optionally triages free-form requests with a model, and dispatches to a specialized route. Agent sessions are persisted across runs with git refs and GitHub Actions artifacts, so a later mention can continue from prior context.
 
-## How it works
+Durable context lives in two repository-owned branches:
 
-Every trigger — a mention, a label, or an approval command — converges on a single portal workflow (`agent-router.yml`) that extracts context, optionally triages with an LLM, and dispatches to a specialized route (`answer`, `implement`, `fix-pr`, `review`, `skill`). Agent sessions are persisted across runs via git refs and GitHub Actions artifacts, so the same thread can be resumed on a fresh runner. Normal work and review runs can also mount `agent/rubrics` so current user/team preferences steer implementation and rubric review.
+- `agent/memory` mirrors GitHub artifacts and stores curated project context.
+- `agent/rubrics` stores user/team preferences that guide implementation and review.
 
-## Documentation
+When automation mode is enabled, completed actions can hand back to `agent-orchestrator.yml`, a deterministic post-action boundary that manages follow-up review and fix loops with dedupe and max-round budgeting.
 
-The documentation tree now lives under [`.agent/docs/`](.agent/docs/README.md):
+## Learn More
 
-- [Quick Start](.agent/docs/overview/quick-start.md)
-- [Architecture](.agent/docs/architecture/overall-design.md)
-- [Repository Memory](.agent/docs/architecture/memory.md)
-- [User/team Rubrics](.agent/docs/architecture/rubrics.md)
-- [Technical Details](.agent/docs/technical-details/key-concepts.md)
-- [Agent Actions](.agent/docs/actions/README.md)
-- [Customization](.agent/docs/customization/configuration-list.md)
-- [Deployment](.agent/docs/deployment/README.md)
+Getting started:
+
+- [Quick start](.agent/docs/overview/quick-start.md)
+- [Setup guide](.agent/docs/deployment/setup-guide.md)
+- [Install into an existing repository](.agent/docs/deployment/install-existing-repository.md)
+
+Understanding the system:
+
+- [Overall design](.agent/docs/architecture/overall-design.md)
+- [Supported workflows](.agent/docs/architecture/supported-workflows.md)
+- [Agent actions](.agent/docs/actions/agent-actions.md)
+
+Customizing and operating:
+
+- [Configuration list](.agent/docs/customization/configuration-list.md)
+- [Repository memory](.agent/docs/architecture/memory.md)
+- [User/team rubrics](.agent/docs/architecture/rubrics.md)
+
+See the [full documentation index](.agent/docs/README.md) for technical details, deployment options, and the complete docs tree.
