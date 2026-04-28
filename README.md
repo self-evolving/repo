@@ -57,7 +57,7 @@ When automation mode is enabled, Sepo can chain follow-up actions after an initi
 Sepo persists long-lived context in `agent/memory` and preference rules in `agent/rubrics`, both as repository-owned branches. This lets later runs resume with durable project context and team-specific guidance.
 
 ### Scheduled Jobs
-You can run Sepo on a schedule to handle recurring maintenance, triage, or monitoring tasks without a manual mention. For example, `agent-daily-summary.yml` can publish a daily repository activity summary discussion. Scheduled workflows still route through the same policy and memory layers, so they behave consistently with on-demand runs.
+You can run Sepo on a schedule to handle recurring maintenance, triage, or monitoring tasks without a manual mention. For example, [`agent-daily-summary.yml`](.github/workflows/agent-daily-summary.yml) can publish a daily repository activity summary discussion. Scheduled workflows still route through the same policy and memory layers, so they behave consistently with on-demand runs.
 
 
 ## How It Works
