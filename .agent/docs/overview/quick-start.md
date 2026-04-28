@@ -3,9 +3,9 @@
 ## Start from the template
 
 1. Fork this repository or use it as a template.
-2. Install the [Sepo GitHub App](https://github.com/apps/sepo-agent-app) and ensure GitHub Actions is enabled for the repository.
+2. Install the [Sepo GitHub App](https://github.com/apps/sepo-agent-app/installations/select_target) and ensure GitHub Actions is enabled for the repository.
 3. Choose a GitHub authentication path:
-   - Use the built-in hosted app/OIDC path for the simplest setup.
+   - Use the built-in hosted app/OIDC path for the simplest setup. Do not set `AGENT_APP_ID` / `AGENT_APP_PRIVATE_KEY` for this path; those secrets are only for a self-managed app.
    - Use [your own GitHub App](../deployment/using-your-own-github-app.md) when you want a self-managed app identity.
    - See the [setup guide](../deployment/setup-guide.md) for all auth options and trade-offs.
 4. Add at least one model-provider credential as a repository secret:
