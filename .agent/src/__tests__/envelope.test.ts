@@ -331,6 +331,10 @@ test("agent router posts unsupported route summaries directly instead of running
 
   assert.match(runnerWorkflow, /Prepare unsupported response/);
   assert.match(runnerWorkflow, /needs\.portal\.outputs\.route == 'unsupported'/);
+  assert.match(
+    runnerWorkflow,
+    /- name: Setup agent runtime[\s\S]*needs\.portal\.outputs\.route == 'answer' \|\|[\s\S]*needs\.portal\.outputs\.route == 'unsupported'/,
+  );
   assert.match(runnerWorkflow, /SUMMARY:\s*\$\{\{\s*needs\.portal\.outputs\.summary\s*\}\}/);
   assert.match(runnerWorkflow, /Post unsupported response/);
   assert.match(
