@@ -183,12 +183,7 @@ export function createIssue(opts: CreateIssueOptions): string {
 
 // --- Workflow dispatch ---
 
-export function dispatchWorkflow(
-  repo: string,
-  workflow: string,
-  ref: string,
-  inputs: Record<string, string>,
-): void {
+function dispatchWorkflowPayload(repo: string, workflow: string, ref: string, inputs: Record<string, string>): void {
   const payload = JSON.stringify({ ref, inputs });
   execFileSync("gh", [
     "api", "-X", "POST",
@@ -199,4 +194,47 @@ export function dispatchWorkflow(
     stdio: ["pipe", "pipe", "pipe"],
     maxBuffer: MAX_BUFFER,
   });
+}
+
+function parseUnexpectedWorkflowInputs(err: unknown): string[] {
+  const match = commandErrorText(err).match(/Unexpected inputs provided:\s*(\[[^\]]*\])/i);
+  if (!match) return [];
+  try {
+    const parsed = JSON.parse(match[1]) as unknown;
+    return Array.isArray(parsed)
+      ? parsed.filter((value): value is string => typeof value === "string" && value.length > 0)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+export function dispatchWorkflow(
+  repo: string,
+  workflow: string,
+  ref: string,
+  inputs: Record<string, string>,
+): void {
+  try {
+    dispatchWorkflowPayload(repo, workflow, ref, inputs);
+    return;
+  } catch (err: unknown) {
+    const unexpectedInputs = parseUnexpectedWorkflowInputs(err);
+    if (unexpectedInputs.length === 0) throw err;
+
+    const retryInputs = { ...inputs };
+    let removed = 0;
+    for (const name of unexpectedInputs) {
+      if (Object.prototype.hasOwnProperty.call(retryInputs, name)) {
+        delete retryInputs[name];
+        removed += 1;
+      }
+    }
+    if (removed === 0) throw err;
+
+    console.warn(
+      `Retrying ${workflow} dispatch without unsupported input(s): ${unexpectedInputs.join(", ")}`,
+    );
+    dispatchWorkflowPayload(repo, workflow, ref, retryInputs);
+  }
 }
