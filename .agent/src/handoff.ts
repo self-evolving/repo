@@ -342,8 +342,12 @@ export function decideHandoff(input: HandoffInput): HandoffDecision {
   if (input.currentRound >= input.maxRounds) {
     return { decision: "stop", reason: "automation round budget exhausted", nextRound };
   }
+  const heuristicDecision = decideHeuristicHandoff(input);
   if (automationMode === "agent") {
+    if (heuristicDecision.decision !== "dispatch") {
+      return heuristicDecision;
+    }
     return decideAgentHandoff(input);
   }
-  return decideHeuristicHandoff(input);
+  return heuristicDecision;
 }

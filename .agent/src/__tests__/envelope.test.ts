@@ -742,6 +742,10 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestratorWorkflow, /rubrics_mode_override:\s*read-only/);
   assert.match(orchestratorWorkflow, /agent:\s*\$\{\{\s*steps\.provider\.outputs\.provider\s*\}\}/);
   assert.match(orchestratorWorkflow, /node \.agent\/dist\/cli\/orchestrate-handoff\.js/);
+  assert.match(orchestratorWorkflow, /SOURCE_ACTION:\s*\$\{\{ inputs\.source_action \}\}/);
+  assert.match(orchestratorWorkflow, /SOURCE_CONCLUSION:\s*\$\{\{ inputs\.source_conclusion \}\}/);
+  assert.match(orchestratorWorkflow, /TARGET_NUMBER:\s*\$\{\{ inputs\.target_number \}\}/);
+  assert.match(orchestratorWorkflow, /NEXT_TARGET_NUMBER:\s*\$\{\{ inputs\.next_target_number \}\}/);
 
   for (const workflow of [implementWorkflow, fixPrWorkflow, reviewWorkflow]) {
     assert.match(workflow, /automation_mode:/);
@@ -758,17 +762,26 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(implementWorkflow, /NEXT_TARGET_NUMBER:\s*\$\{\{ steps\.pr\.outputs\.pr_number \}\}/);
   assert.match(reviewWorkflow, /id: post_comment/);
   assert.match(reviewWorkflow, /RESPONSE_FILE:\s*\$\{\{ steps\.synthesis\.outputs\.response_file \}\}/);
-  assert.match(reviewWorkflow, /steps\.post_comment\.outcome == 'success'/);
   assert.match(orchestratorWorkflow, /PLANNER_RESPONSE_FILE:\s*\$\{\{ steps\.planner\.outputs\.response_file \}\}/);
+  assert.match(orchestrateHandoffCli, /agent-auto-running/);
+  assert.match(orchestrateHandoffCli, /ensureAutomationStateLabel/);
+  assert.match(orchestrateHandoffCli, /removeAutomationStateLabel/);
   assert.match(orchestrateHandoffCli, /orchestrator_context:\s*decision\.handoffContext/);
   assert.match(fixPrWorkflow, /orchestrator_context:/);
   assert.match(fixPrWorkflow, /ORCHESTRATOR_CONTEXT:\s*\$\{\{ inputs\.orchestrator_context \}\}/);
+  assert.doesNotMatch(fixPrWorkflow, /Dispatch orchestrator after terminal stop/);
+  assert.match(fixPrWorkflow, /SOURCE_ACTION:\s*fix-pr/);
+  assert.match(fixPrWorkflow, /SOURCE_CONCLUSION:[\s\S]*steps\.pr\.outputs\.cross_repo == 'true' \|\| steps\.pr\.outputs\.pr_state != 'OPEN'[\s\S]*unsupported[\s\S]*steps\.response\.outputs\.status \|\| 'failed'/);
+  assert.doesNotMatch(reviewWorkflow, /Dispatch orchestrator after terminal stop/);
+  assert.match(reviewWorkflow, /SOURCE_ACTION:\s*review/);
+  assert.match(reviewWorkflow, /SOURCE_CONCLUSION:\s*\$\{\{ steps\.post_comment\.outcome != 'success' && 'failed' \|\| '' \}\}/);
   assert.match(fixPrPrompt, /\$\{ORCHESTRATOR_CONTEXT\}/);
   assert.match(orchestratorPrompt, /"handoff_context"/);
   assert.match(runSource, /"ORCHESTRATOR_CONTEXT"/);
   assert.match(orchestratorDoc, /Implement --> Review: success \+ PR created/);
   assert.match(orchestratorDoc, /workflow_dispatch/);
   assert.match(orchestratorDoc, /handoff_context/);
+  assert.match(orchestratorDoc, /agent-auto-running/);
 });
 
 test("workflow docs cover hosted auth and self-hosting paths", () => {

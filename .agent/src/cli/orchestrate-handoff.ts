@@ -5,7 +5,7 @@
 //      SESSION_BUNDLE_MODE, SOURCE_RUN_ID, PLANNER_RESPONSE_FILE
 
 import { readFileSync } from "node:fs";
-import { dispatchWorkflow, gh } from "../github.js";
+import { dispatchWorkflow, ensureLabel, gh } from "../github.js";
 import { setOutput } from "../output.js";
 import {
   type HandoffMarkerInfo,
@@ -28,6 +28,9 @@ interface HandoffMarkerRecord extends HandoffMarkerInfo {
 }
 
 const PENDING_MARKER_TTL_MS = 60 * 60 * 1000;
+const AUTOMATION_STATE_LABEL = "agent-auto-running";
+const AUTOMATION_STATE_LABEL_COLOR = "5319e7";
+const AUTOMATION_STATE_LABEL_DESCRIPTION = "Sepo automation handoff chain is active.";
 
 function positiveInt(value: string, fallback: number): number {
   const parsed = Number.parseInt(value, 10);
@@ -48,6 +51,10 @@ function errorText(err: unknown): string {
     })
     .filter(Boolean)
     .join("\n") || String(err);
+}
+
+function isNotFoundError(err: unknown): boolean {
+  return /\b404\b|not found/i.test(errorText(err));
 }
 
 function normalizeCommentRecord(value: unknown): CommentRecord | null {
@@ -119,6 +126,49 @@ function updateIssueComment(repo: string, commentId: string, body: string): void
   ]);
 }
 
+function fetchIssueLabels(repo: string, issueNumber: number): string[] {
+  const raw = gh([
+    "api",
+    "--paginate",
+    `repos/${repo}/issues/${issueNumber}/labels`,
+    "--jq",
+    ".[].name",
+  ]).trim();
+  return raw
+    ? raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
+    : [];
+}
+
+function issueHasLabel(repo: string, issueNumber: number, label: string): boolean {
+  return fetchIssueLabels(repo, issueNumber).some((name) => name === label);
+}
+
+function ensureAutomationStateLabel(repo: string, issueNumber: number): void {
+  ensureLabel({
+    repo,
+    name: AUTOMATION_STATE_LABEL,
+    color: AUTOMATION_STATE_LABEL_COLOR,
+    description: AUTOMATION_STATE_LABEL_DESCRIPTION,
+  });
+  gh([
+    "api",
+    "--method",
+    "POST",
+    `repos/${repo}/issues/${issueNumber}/labels`,
+    "-f",
+    `labels[]=${AUTOMATION_STATE_LABEL}`,
+  ]);
+}
+
+function removeAutomationStateLabel(repo: string, issueNumber: number): void {
+  gh([
+    "api",
+    "--method",
+    "DELETE",
+    `repos/${repo}/issues/${issueNumber}/labels/${encodeURIComponent(AUTOMATION_STATE_LABEL)}`,
+  ]);
+}
+
 const repo = process.env.GITHUB_REPOSITORY || "";
 const ref = process.env.DEFAULT_BRANCH || "";
 const sourceAction = process.env.SOURCE_ACTION || "";
@@ -164,6 +214,20 @@ setOutput("dedupe_key", "");
 setOutput("marker_comment_id", "");
 
 if (decision.decision !== "dispatch") {
+  if (decision.decision === "stop" && repo) {
+    const cleanupTargetNumber = parsePositiveTargetNumber(targetNumber);
+    if (cleanupTargetNumber) {
+      try {
+        removeAutomationStateLabel(repo, cleanupTargetNumber);
+      } catch (err: unknown) {
+        if (!isNotFoundError(err)) {
+          console.warn(
+            `Failed to remove ${AUTOMATION_STATE_LABEL} from #${cleanupTargetNumber}: ${errorText(err)}`,
+          );
+        }
+      }
+    }
+  }
   console.log(`Handoff ${decision.decision}: ${decision.reason}`);
   process.exit(0);
 }
@@ -188,6 +252,14 @@ const markerTargetNumber = parsePositiveTargetNumber(decision.targetNumber);
 if (!markerTargetNumber) {
   console.error(`Invalid handoff marker target number: ${decision.targetNumber}`);
   process.exit(2);
+}
+
+if (currentRound > 1 && !issueHasLabel(repo, markerTargetNumber, AUTOMATION_STATE_LABEL)) {
+  const reason = `${AUTOMATION_STATE_LABEL} is absent; stopping automation handoff`;
+  setOutput("decision", "stop");
+  setOutput("reason", reason);
+  console.log(`Handoff stop: ${reason}`);
+  process.exit(0);
 }
 
 const existingMarkers = findHandoffMarkers(repo, markerTargetNumber, dedupeKey);
@@ -244,7 +316,19 @@ const commonInputs = {
   session_bundle_mode: sessionBundleMode,
 };
 
+let shouldCleanupAutomationLabelOnDispatchFailure = false;
+
 try {
+  if (currentRound <= 1) {
+    const alreadyHadAutomationStateLabel = issueHasLabel(
+      repo,
+      markerTargetNumber,
+      AUTOMATION_STATE_LABEL,
+    );
+    ensureAutomationStateLabel(repo, markerTargetNumber);
+    shouldCleanupAutomationLabelOnDispatchFailure = !alreadyHadAutomationStateLabel;
+  }
+
   if (decision.nextAction === "review") {
     dispatchWorkflow(repo, "agent-review.yml", ref, {
       ...commonInputs,
@@ -263,6 +347,17 @@ try {
   }
 } catch (err: unknown) {
   const message = errorText(err).slice(0, 1000);
+  if (shouldCleanupAutomationLabelOnDispatchFailure) {
+    try {
+      removeAutomationStateLabel(repo, markerTargetNumber);
+    } catch (cleanupErr: unknown) {
+      if (!isNotFoundError(cleanupErr)) {
+        console.warn(
+          `Failed to remove ${AUTOMATION_STATE_LABEL} from #${markerTargetNumber} after handoff dispatch failed: ${errorText(cleanupErr)}`,
+        );
+      }
+    }
+  }
   try {
     updateIssueComment(repo, markerCommentId, formatHandoffMarkerComment({
       key: dedupeKey,

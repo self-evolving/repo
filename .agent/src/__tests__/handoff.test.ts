@@ -77,6 +77,20 @@ test("agent mode leaves handoff context empty when planner omits it", () => {
   assert.equal(decision.handoffContext, undefined);
 });
 
+test("agent mode stops terminal outcomes before requiring a planner", () => {
+  const unsupported = decideHandoff({
+    automationMode: "agent",
+    sourceAction: "fix-pr",
+    sourceConclusion: "unsupported",
+    targetNumber: "99",
+    currentRound: 1,
+    maxRounds: 5,
+  });
+
+  assert.equal(unsupported.decision, "stop");
+  assert.match(unsupported.reason, /fix-pr concluded unsupported/);
+});
+
 test("agent mode stops invalid or disallowed planner handoffs", () => {
   const disallowed = decideHandoff({
     automationMode: "agent",
@@ -89,7 +103,7 @@ test("agent mode stops invalid or disallowed planner handoffs", () => {
     plannerDecision: { decision: "handoff", nextAction: "review", reason: "Try anyway." },
   });
   assert.equal(disallowed.decision, "stop");
-  assert.match(disallowed.reason, /policy disallows/);
+  assert.match(disallowed.reason, /implement concluded verify_failed/);
 
   const wrongEdge = decideHandoff({
     automationMode: "agent",

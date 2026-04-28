@@ -303,7 +303,6 @@ jobs:
         if: >-
           always() &&
           steps.auth.outputs.token &&
-          steps.post_comment.outcome == 'success' &&
           (inputs.automation_mode == 'true' || inputs.automation_mode == 'heuristics' || inputs.automation_mode == 'agent')
         env:
           AUTOMATION_CURRENT_ROUND: ${{ inputs.automation_current_round }}
@@ -314,10 +313,9 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           REQUESTED_BY: ${{ inputs.requested_by || github.actor }}
           REQUEST_TEXT: ${{ inputs.request_text }}
-          # SOURCE_CONCLUSION is intentionally omitted for review; the dispatcher
-          # derives the verdict from the synthesis response file below.
           RESPONSE_FILE: ${{ steps.synthesis.outputs.response_file }}
           SESSION_BUNDLE_MODE: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
           SOURCE_ACTION: review
+          SOURCE_CONCLUSION: ${{ steps.post_comment.outcome != 'success' && 'failed' || '' }}
           TARGET_NUMBER: ${{ inputs.pr_number }}
         run: node .agent/dist/cli/dispatch-agent-orchestrator.js

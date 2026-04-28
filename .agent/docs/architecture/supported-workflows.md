@@ -31,7 +31,8 @@ initial steering when the planner dispatches a PR-fix pass. The planner mounts m
 and rubrics read-only so automated control-flow planning can use steering
 context without mutating those state branches. Loops stop when the review
 verdict is `SHIP`, a route fails, a duplicate handoff marker is found, the
-planner stops or blocks, or the max-round budget is exhausted.
+planner stops or blocks, the max-round budget is exhausted, or a maintainer
+removes the `agent-auto-running` chain label.
 
 When a new review synthesis is posted to a pull request, the review workflow
 first minimizes prior visible review synthesis comments and reviews from the

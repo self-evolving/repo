@@ -269,8 +269,7 @@ jobs:
       - name: Orchestrate automation handoff
         if: >-
           always() &&
-          steps.pr.outputs.cross_repo != 'true' &&
-          steps.pr.outputs.pr_state == 'OPEN' &&
+          steps.auth.outputs.token &&
           (inputs.automation_mode == 'true' || inputs.automation_mode == 'heuristics' || inputs.automation_mode == 'agent')
         env:
           AUTOMATION_CURRENT_ROUND: ${{ inputs.automation_current_round }}
@@ -283,6 +282,7 @@ jobs:
           REQUEST_TEXT: ${{ inputs.request_text }}
           SESSION_BUNDLE_MODE: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
           SOURCE_ACTION: fix-pr
-          SOURCE_CONCLUSION: ${{ steps.response.outputs.status || 'failed' }}
+          SOURCE_CONCLUSION: >-
+            ${{ (steps.pr.outputs.cross_repo == 'true' || steps.pr.outputs.pr_state != 'OPEN') && 'unsupported' || steps.response.outputs.status || 'failed' }}
           TARGET_NUMBER: ${{ env.PR_NUMBER }}
         run: node .agent/dist/cli/dispatch-agent-orchestrator.js

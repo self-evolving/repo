@@ -12,7 +12,7 @@ Agent actions are route-level behaviors exposed by the `.agent` backend. They ar
 | Skill | `skill` | `.skills/<name>/SKILL.md` | inline skill route through `agent-router.yml` |
 | Dispatch | `dispatch` | `.github/prompts/agent-dispatch.md` | route triage inside `agent-router.yml` |
 
-When automation mode is enabled, action workflows hand back to `agent-orchestrator.yml` after normal post-processing. The orchestrator is a separate post-action control workflow rather than a user-selectable slash route. `heuristics` mode uses the built-in state machine. `agent` mode runs a scoped planner prompt with its own session context, then validates the planner's JSON decision against the same runtime policy before dispatching. Planner handoffs can carry `handoff_context`; `fix-pr` receives that context as explicit initial steering for the automated fix pass.
+When automation mode is enabled, action workflows hand back to `agent-orchestrator.yml` after normal post-processing. The orchestrator is a separate post-action control workflow rather than a user-selectable slash route. `heuristics` mode uses the built-in state machine. `agent` mode runs a scoped planner prompt with its own session context, then validates the planner's JSON decision against the same runtime policy before dispatching. Planner handoffs can carry `handoff_context`; `fix-pr` receives that context as explicit initial steering for the automated fix pass. Active chains carry an `agent-auto-running` label on the destination issue or pull request, and removing that label stops later handoffs without cancelling any action already running.
 
 ## Consumption model
 
