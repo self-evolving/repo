@@ -1,35 +1,50 @@
-# Quick start
+# Quick Start
 
-## Starting a new self-evolving repo
+## Start from the template
 
 1. Fork this repository or use it as a template.
-2. Install the [Sepo GitHub App](https://github.com/apps/sepo-agent-app).
-3. Ensure GitHub Actions is enabled for your repo.
-4. Set `OPENAI_API_KEY` and/or `CLAUDE_CODE_OAUTH_TOKEN` as repository secrets for Codex or Claude-backed agent runs.
+2. Install the [Sepo GitHub App](https://github.com/apps/sepo-agent-app) and ensure GitHub Actions is enabled for the repository.
+3. Choose a GitHub authentication path:
+   - Use the built-in hosted app/OIDC path for the simplest setup.
+   - Use [your own GitHub App](../deployment/using-your-own-github-app.md) when you want a self-managed app identity.
+   - See the [setup guide](../deployment/setup-guide.md) for all auth options and trade-offs.
+4. Add at least one model-provider credential as a repository secret:
+   - `OPENAI_API_KEY` for Codex-backed runs.
+   - `CLAUDE_CODE_OAUTH_TOKEN` for Claude-backed runs.
+5. Open an issue and mention `@sepo-agent` in the issue body or a comment. After a short delay, the workflow should add an eyes reaction and then post a response.
 
-## Alternative: install into an existing repository
+## Install into an existing repository
 
-Use the dedicated guide: [Install into an existing repository](../deployment/install-existing-repository.md).
+Use [Install into an existing repository](../deployment/install-existing-repository.md) for the minimal non-template flow. It covers copying `.agent/` and `.github/`, configuring secrets, and bootstrapping `agent/memory` from GitHub Actions.
 
-## Test the installation
+## Trigger Sepo
 
-Create an issue and mention `@sepo-agent` in the text. After a short wait the workflow should react with `👀`, which indicates the agent has been triggered and is running in the background.
+Use a free-form mention when you want the router to infer the best route:
 
-## Feature overview
+```md
+@sepo-agent can you explain how review synthesis works?
+```
 
-### Mention-based triggers
+Use an explicit slash route when you already know the action:
 
-| Category | Syntax |
+| Action | Use it for | Syntax |
+|---|---|---|
+| Answer | Ask a question and get an inline response. | `@sepo-agent /answer ...` |
+| Implement | Turn an issue request into a branch and draft PR. | `@sepo-agent /implement ...` |
+| Create action | Propose a standalone scheduled agent workflow through a PR. | `@sepo-agent /create-action ...` |
+| Review | Run the dual-agent PR review flow. | `@sepo-agent /review` |
+| Fix PR | Push fixes to the current PR branch. | `@sepo-agent /fix-pr` |
+| Skill | Run a repository skill from `.skills/<name>/SKILL.md`. | `@sepo-agent /skill <name>` |
+
+You can also trigger the same built-in routes with labels:
+
+| Label | Route |
 |---|---|
-| Free-form mention | `@sepo-agent [free-form-text]` |
-| Explicit route | `@sepo-agent /answer`, `/implement`, `/create-action`, `/review`, `/fix-pr` |
-| Skill route | `@sepo-agent /skill <name>` |
+| `agent/answer` | Answer |
+| `agent/implement` | Implement |
+| `agent/create-action` | Create action |
+| `agent/review` | Review |
+| `agent/fix-pr` | Fix PR |
+| `agent/s/<name>` | Skill |
 
-### Label-based triggers
-
-| Category | Syntax |
-|---|---|
-| Built-in labels | `agent/answer`, `agent/implement`, `agent/create-action`, `agent/review`, `agent/fix-pr` |
-| Skill labels | `agent/s/<name>` |
-
-Only collaborators (`OWNER`, `MEMBER`, `COLLABORATOR`, `CONTRIBUTOR`) can trigger the agent.
+Only authorized repository users can trigger Sepo. By default, public repositories allow `OWNER`, `MEMBER`, and `COLLABORATOR`; private repositories also allow `CONTRIBUTOR`. See [Trigger access policy](../access-policy.md) to customize that behavior.
