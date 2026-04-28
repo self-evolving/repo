@@ -1,0 +1,59 @@
+name: Resolve Agent Provider
+description: Resolve the acpx agent provider from route overrides, defaults, and configured secrets.
+
+inputs:
+  route:
+    description: "Route name used in diagnostics"
+    required: true
+  route_provider:
+    description: "Optional inline route-specific provider override"
+    required: false
+    default: ""
+  default_provider:
+    description: "Default provider: auto, codex, or claude"
+    required: false
+    default: auto
+  openai_api_key:
+    description: "OpenAI API key for Codex readiness detection"
+    required: false
+    default: ""
+  claude_oauth_token:
+    description: "Claude Code OAuth token for Claude readiness detection"
+    required: false
+    default: ""
+  required:
+    description: "Whether unresolved auto provider detection should fail the step"
+    required: false
+    default: "true"
+
+outputs:
+  provider:
+    description: "Resolved provider"
+    value: ${{ steps.resolve.outputs.provider }}
+  reason:
+    description: "Human-readable reason for the selected provider"
+    value: ${{ steps.resolve.outputs.reason }}
+  install_codex:
+    description: "Whether setup-agent-runtime should install Codex"
+    value: ${{ steps.resolve.outputs.install_codex }}
+  install_claude:
+    description: "Whether setup-agent-runtime should install Claude"
+    value: ${{ steps.resolve.outputs.install_claude }}
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve provider
+      id: resolve
+      shell: bash
+      env:
+        ROUTE: ${{ inputs.route }}
+        ROUTE_PROVIDER: ${{ inputs.route_provider }}
+        DEFAULT_PROVIDER: ${{ inputs.default_provider }}
+        OPENAI_API_KEY: ${{ inputs.openai_api_key }}
+        CLAUDE_CODE_OAUTH_TOKEN: ${{ inputs.claude_oauth_token }}
+        REQUIRED: ${{ inputs.required }}
+      run: |
+        # Keep this as a composite-action shell helper, matching resolve-github-auth,
+        # because provider resolution runs before setup-agent-runtime builds .agent/dist.
+        bash "${GITHUB_ACTION_PATH}/resolve-provider.sh"

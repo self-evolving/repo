@@ -1,0 +1,125 @@
+name: Agent / Rubrics / Update
+
+on:
+  pull_request_target:
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Pull request number to learn rubrics from"
+        required: true
+      rubrics_ref:
+        description: "Rubrics branch to update"
+        required: false
+        default: agent/rubrics
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: read
+  id-token: write # required for GitHub Actions OIDC broker exchange
+
+concurrency:
+  group: agent-rubrics-${{ github.repository }}-pr-${{ github.event.pull_request.number || inputs.pr_number || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  update:
+    # Rubrics are learned automatically only from merged PRs that had review
+    # interaction. Manual dispatch can inspect any PR number explicitly. This
+    # keeps unmerged/abandoned PR feedback and trivial merges from becoming
+    # normative user preference without review.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.pull_request.merged == true &&
+        (
+          github.event.pull_request.comments > 0 ||
+          github.event.pull_request.review_comments > 0
+        )
+      )
+    runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
+    env:
+      PR_NUMBER: ${{ inputs.pr_number || github.event.pull_request.number }}
+      PR_URL: ${{ github.event.pull_request.html_url || format('{0}/{1}/pull/{2}', github.server_url, github.repository, inputs.pr_number) }}
+      RUBRICS_REF: ${{ inputs.rubrics_ref || vars.AGENT_RUBRICS_REF || 'agent/rubrics' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.event.repository.default_branch }}
+          token: ${{ github.token }}
+
+      - name: Resolve GitHub auth
+        id: auth
+        uses: ./.github/actions/resolve-github-auth
+        with:
+          app_id: ${{ secrets.AGENT_APP_ID }}
+          app_private_key: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
+          pat: ${{ secrets.AGENT_PAT }}
+          fallback_token: ${{ github.token }}
+
+      - name: Resolve rubrics update provider
+        id: provider
+        uses: ./.github/actions/resolve-agent-provider
+        with:
+          route: rubrics-update
+          default_provider: ${{ vars.AGENT_DEFAULT_PROVIDER || 'auto' }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+      - name: Setup agent runtime
+        uses: ./.github/actions/setup-agent-runtime
+        with:
+          install_codex: ${{ steps.provider.outputs.install_codex }}
+          install_claude: ${{ steps.provider.outputs.install_claude }}
+
+      - name: Update user rubrics from PR history
+        id: rubrics_update
+        uses: ./.github/actions/run-agent-task
+        with:
+          agent: ${{ steps.provider.outputs.provider }}
+          github_token: ${{ steps.auth.outputs.token }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          permission_mode: approve-all
+          prompt: rubrics-update
+          route: rubrics-update
+          lane: update
+          memory_mode_override: 'read-only'
+          memory_ref: ${{ vars.AGENT_MEMORY_REF || 'agent/memory' }}
+          memory_policy: ${{ vars.AGENT_MEMORY_POLICY || '' }}
+          rubrics_mode_override: 'enabled'
+          rubrics_ref: ${{ env.RUBRICS_REF }}
+          rubrics_policy: ${{ vars.AGENT_RUBRICS_POLICY || '' }}
+          rubrics_limit: ${{ vars.AGENT_RUBRICS_LIMIT || '10' }}
+          session_policy: none
+          request_text: >-
+            Learn durable user/team rubrics from this PR conversation if warranted. Skip one-off feedback and duplicate existing rubrics.
+          requested_by: ${{ github.actor }}
+          source_kind: pull_request
+          target_kind: pull_request
+          target_number: ${{ env.PR_NUMBER }}
+          target_url: ${{ env.PR_URL }}
+          reasoning_effort: medium
+          workflow: agent-rubrics-update.yml
+
+      - name: Prepare rubrics update summary
+        if: always() && steps.rubrics_update.outputs.response_file != ''
+        id: rubrics_summary
+        env:
+          RESPONSE_FILE: ${{ steps.rubrics_update.outputs.response_file }}
+          RUBRICS_COMMITTED: ${{ steps.rubrics_update.outputs.rubrics_committed }}
+          RUBRICS_STEP_OUTCOME: ${{ steps.rubrics_update.outcome }}
+        run: node .agent/dist/cli/prepare-rubrics-update-summary.js
+
+      - name: Post rubrics update summary
+        if: always() && steps.rubrics_summary.outputs.body_file != ''
+        env:
+          BODY_FILE: ${{ steps.rubrics_summary.outputs.body_file }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          RESPONSE_KIND: issue_comment
+          TARGET_NUMBER: ${{ env.PR_NUMBER }}
+        run: node .agent/dist/cli/post-response.js

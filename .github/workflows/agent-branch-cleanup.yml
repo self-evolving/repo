@@ -1,0 +1,60 @@
+name: Agent Branch Cleanup
+
+on:
+  pull_request_target:
+    types: [closed]
+
+permissions:
+  contents: write
+  id-token: write # required for GitHub Actions OIDC broker exchange
+
+jobs:
+  cleanup:
+    if: >-
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'agent/') &&
+      github.event.pull_request.head.ref != (vars.AGENT_MEMORY_REF || 'agent/memory') &&
+      github.event.pull_request.head.ref != (vars.AGENT_RUBRICS_REF || 'agent/rubrics')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Resolve GitHub auth
+        id: auth
+        uses: ./.github/actions/resolve-github-auth
+        with:
+          app_id: ${{ secrets.AGENT_APP_ID }}
+          app_private_key: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
+          pat: ${{ secrets.AGENT_PAT }}
+          fallback_token: ${{ github.token }}
+
+      - uses: actions/github-script@v7
+        with:
+          github-token: ${{ steps.auth.outputs.token }}
+          script: |
+            const branch = context.payload.pull_request?.head?.ref;
+
+            if (!branch) {
+              core.setFailed("Missing pull request head ref.");
+              return;
+            }
+
+            try {
+              await github.rest.git.deleteRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `heads/${branch}`,
+              });
+              core.info(`Deleted merged agent branch ${branch}.`);
+            } catch (error) {
+              if (error && typeof error === "object" && "status" in error && error.status === 404) {
+                core.info(`Branch ${branch} was already deleted.`);
+                return;
+              }
+
+              throw error;
+            }

@@ -1,0 +1,14 @@
+# Internal actions
+
+Internal actions are shared composite GitHub Actions under `.github/actions/`. They are implementation building blocks consumed by workflows, not commands users invoke directly.
+
+| Action | Purpose | Key inputs | Key outputs or side effects |
+|---|---|---|---|
+| `.github/actions/setup-agent-runtime` | Bootstraps the runtime before an agent run | `node_version`, `install_codex`, `codex_version`, `install_claude`, `claude_version` | installs or verifies Node, runs `npm ci`, builds `.agent/dist`, adds tool bins to `PATH`, optionally installs Codex or Claude |
+| `.github/actions/resolve-github-auth` | Resolves the GitHub token used by workflow steps and agent runs | `app_id`, `app_private_key`, `pat`, `fallback_token` | outputs `token` and `auth_mode`; selects GitHub App, hosted OIDC broker, PAT, or workflow-token auth |
+| `.github/actions/resolve-agent-provider` | Resolves the provider for single-agent runs and review synthesis before runtime setup | `route`, `route_provider`, `default_provider`, `openai_api_key`, `claude_oauth_token`, `required` | outputs `provider`, `reason`, `install_codex`, and `install_claude`; selects explicit inline overrides or `AGENT_DEFAULT_PROVIDER` even without matching secrets, otherwise auto-detects from configured provider secrets |
+| `.github/actions/check-agent-action-expiration` | Shared expiration guard for generated scheduled agent workflows | `expires_at` | outputs `expired`, `expires_at`, and `today`; validates a UTC `YYYY-MM-DD` expiration and skips generated workflows after that date without relying on GNU-only `date -d` parsing |
+| `.github/actions/run-agent-task` | Runs a prompt or skill through the runtime and `acpx` | `prompt`, `skill`, `agent`, `route`, `lane`, `target_*`, `source_kind`, `request_text`, `session_policy`, `session_bundle_mode`, `memory_policy`, `memory_mode_override`, `memory_ref`, `rubrics_policy`, `rubrics_mode_override`, `rubrics_ref`, `rubrics_limit` | renders the prompt, runs `.agent/dist/run.js`, captures response/session files, restores and uploads session bundles when enabled, resolves memory/rubrics modes, optionally mounts `agent/memory` and `agent/rubrics`, and commits permitted memory or validated rubric edits |
+| `.github/actions/download-agent-memory` | Best-effort shallow clone of the repo-local `agent/memory` branch into `$RUNNER_TEMP/agent-memory` so the agent can read and write memory without staging it on the feature branch | `github_token`, `ref`, `path`, `continue_on_missing` | outputs `memory_available`, `memory_dir`, `memory_ref` |
+
+The memory-related inputs and CLIs (`memory/search.js`, `memory/update.js`, `memory/sync-github-artifacts.js`, `memory/read-sync-state.js`, `memory/write-sync-state.js`, `memory/resolve-policy.js`) are documented together in [Repository memory](../architecture/memory.md). Rubrics inputs and CLIs are documented in [User/team rubrics](../architecture/rubrics.md).

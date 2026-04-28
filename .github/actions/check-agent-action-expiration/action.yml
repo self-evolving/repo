@@ -1,0 +1,28 @@
+name: Check Agent Action Expiration
+description: "Checks whether a generated scheduled agent action is past its YYYY-MM-DD expiration date."
+
+inputs:
+  expires_at:
+    description: "Expiration date in UTC, formatted as YYYY-MM-DD. The action is expired after this date."
+    required: true
+
+outputs:
+  expired:
+    description: "true when the current UTC date is after expires_at; otherwise false."
+    value: ${{ steps.check.outputs.expired }}
+  expires_at:
+    description: "The normalized expiration date."
+    value: ${{ steps.check.outputs.expires_at }}
+  today:
+    description: "The current UTC date used for comparison."
+    value: ${{ steps.check.outputs.today }}
+
+runs:
+  using: composite
+  steps:
+    - name: Check expiration
+      id: check
+      shell: bash
+      env:
+        INPUT_EXPIRES_AT: ${{ inputs.expires_at }}
+      run: bash "${GITHUB_ACTION_PATH}/check-expiration.sh"

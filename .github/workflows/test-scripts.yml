@@ -1,0 +1,74 @@
+name: Test Scripts
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install and build
+        run: |
+          set -euo pipefail
+          cd .agent
+          npm ci
+          npm run build
+
+      - name: Run tests
+        run: |
+          set -euo pipefail
+          cd .agent
+          npm test
+
+      - name: Parse workflow and action YAML
+        run: |
+          set -euo pipefail
+          ruby -e 'require "yaml"; (Dir[".github/workflows/*.yml"] + Dir[".github/actions/*/action.yml"] + Dir[".agent/action-templates/*.yml"]).sort.each { |file| YAML.load_file(file) }'
+
+      - name: Validate gh-authenticated workflow steps
+        run: |
+          set -euo pipefail
+          ruby <<'RUBY'
+          require "yaml"
+
+          failures = []
+
+          Dir[".github/workflows/*.yml"].sort.each do |file|
+            workflow = YAML.load_file(file)
+            jobs = workflow.fetch("jobs", {})
+
+            jobs.each_value do |job|
+              Array(job["steps"]).each do |step|
+                next unless step.is_a?(Hash)
+
+                allowed_tools = step.dig("with", "allowed_tools").to_s
+                next unless allowed_tools.include?("Bash(gh *)")
+
+                env = step["env"] || {}
+                next if env.key?("GH_TOKEN")
+
+                step_name = step["name"] || "(unnamed step)"
+                failures << "#{file}: #{step_name} allows gh without GH_TOKEN"
+              end
+            end
+          end
+
+          abort(failures.join("\n")) unless failures.empty?
+          RUBY
+
+      - name: Shell syntax checks
+        run: |
+          set -euo pipefail
+          bash -n .agent/scripts/post-agent-verify.sh
+          bash -n .agent/scripts/resolve-scheduled-activity-gate.sh
+          bash -n .github/actions/check-agent-action-expiration/check-expiration.sh
+
+      - name: Diff hygiene
+        run: git diff --check

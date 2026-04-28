@@ -1,0 +1,47 @@
+name: Agent / Close Stale Issues
+
+on:
+  schedule:
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+concurrency:
+  group: agent-close-stale-issues-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  close:
+    runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
+    env:
+      STALE_DAYS: "30"
+    steps:
+      - name: Close stale agent issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          cutoff="$(node -e 'const days = Number(process.env.STALE_DAYS || 30); const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000); console.log(cutoff.toISOString().slice(0, 10));')"
+
+          gh issue list \
+            --repo "$REPO" \
+            --state open \
+            --label agent \
+            --search "updated:<$cutoff" \
+            --limit 1000 \
+            --json number \
+            --jq '.[].number' |
+          while read -r issue; do
+            if [ -z "$issue" ]; then
+              continue
+            fi
+
+            gh issue close "$issue" \
+              --repo "$REPO" \
+              --reason "not planned" \
+              --comment "Closing because this agent issue has had no activity for ${STALE_DAYS} days."
+          done

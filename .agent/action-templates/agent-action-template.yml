@@ -1,0 +1,105 @@
+# Template for generated scheduled agent-action workflows.
+# Copy this file to .github/workflows/agent-action-<short-slug>.yml and
+# replace the placeholder name, cron, expiration, lane, request text, and
+# optional issue-report target.
+
+name: Agent Action / Example
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  # If enabling REPORT_ISSUE_NUMBER below, add issue write permission.
+  id-token: write
+
+concurrency:
+  group: agent-action-example-${{ github.repository }}
+  cancel-in-progress: false
+
+env:
+  ACTION_EXPIRES_AT: "YYYY-MM-DD"
+  REPORT_ISSUE_NUMBER: ""
+
+jobs:
+  run:
+    runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          token: ${{ github.token }}
+
+      - name: Check expiration
+        id: expiration
+        uses: ./.github/actions/check-agent-action-expiration
+        with:
+          expires_at: ${{ env.ACTION_EXPIRES_AT }}
+
+      - name: Resolve GitHub auth
+        if: steps.expiration.outputs.expired != 'true'
+        id: auth
+        uses: ./.github/actions/resolve-github-auth
+        with:
+          app_id: ${{ secrets.AGENT_APP_ID }}
+          app_private_key: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
+          pat: ${{ secrets.AGENT_PAT }}
+          fallback_token: ${{ github.token }}
+
+      - name: Resolve provider
+        if: steps.expiration.outputs.expired != 'true'
+        id: provider
+        uses: ./.github/actions/resolve-agent-provider
+        with:
+          route: answer
+          default_provider: ${{ vars.AGENT_DEFAULT_PROVIDER || 'auto' }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+      - name: Setup agent runtime
+        if: steps.expiration.outputs.expired != 'true'
+        uses: ./.github/actions/setup-agent-runtime
+        with:
+          install_codex: ${{ steps.provider.outputs.install_codex }}
+          install_claude: ${{ steps.provider.outputs.install_claude }}
+
+      - name: Run scheduled agent task
+        if: steps.expiration.outputs.expired != 'true'
+        id: agent
+        uses: ./.github/actions/run-agent-task
+        with:
+          agent: ${{ steps.provider.outputs.provider }}
+          github_token: ${{ steps.auth.outputs.token }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          permission_mode: approve-all
+          prompt: answer
+          route: answer
+          lane: agent-action-example
+          memory_mode_override: read-only
+          session_policy: track-only
+          request_text: |
+            Describe the bounded recurring task here.
+          requested_by: ${{ github.actor }}
+          source_kind: workflow_dispatch
+          target_kind: repository
+          target_number: "0"
+          target_url: ${{ github.server_url }}/${{ github.repository }}
+          workflow: agent-action-example.yml
+
+      # Optional: set REPORT_ISSUE_NUMBER and add issue write permission only when the workflow should report to an issue.
+      - name: Post report to issue
+        if: >-
+          steps.expiration.outputs.expired != 'true' &&
+          steps.agent.outcome == 'success' &&
+          env.REPORT_ISSUE_NUMBER != ''
+        env:
+          BODY_FILE: ${{ steps.agent.outputs.response_file }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          RESPONSE_KIND: issue_comment
+          TARGET_NUMBER: ${{ env.REPORT_ISSUE_NUMBER }}
+        run: node .agent/dist/cli/post-response.js

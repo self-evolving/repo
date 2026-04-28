@@ -1,0 +1,159 @@
+name: Agent / Orchestrator
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_action:
+        description: "Agent action that handed back to the orchestrator"
+        required: true
+      source_conclusion:
+        description: "Normalized source action conclusion"
+        required: true
+      source_run_id:
+        description: "Workflow run ID of the source action, used for handoff dedupe"
+        required: false
+        default: ""
+      target_number:
+        description: "Issue or pull request number currently being handled"
+        required: true
+      next_target_number:
+        description: "Optional next target number produced by the source action"
+        required: false
+        default: ""
+      requested_by:
+        description: "GitHub login that requested the original run"
+        required: false
+      request_text:
+        description: "Original user request text forwarded from the source action"
+        required: false
+      session_bundle_mode:
+        description: "Session bundle persistence mode"
+        required: false
+        default: ""
+      automation_mode:
+        description: "Post-action orchestration mode (disabled, heuristics, agent)"
+        required: false
+        default: "disabled"
+      automation_current_round:
+        description: "Current automation handoff round"
+        required: false
+        default: "1"
+      automation_max_rounds:
+        description: "Maximum automation handoff rounds"
+        required: false
+        default: "5"
+
+permissions:
+  actions: write
+  contents: read
+  issues: write
+  pull-requests: read
+  id-token: write # required for GitHub Actions OIDC broker exchange
+
+concurrency:
+  group: agent-orchestrator-${{ github.repository }}-${{ inputs.target_number }}-${{ inputs.source_action }}-${{ inputs.automation_current_round }}
+  cancel-in-progress: false
+
+jobs:
+  orchestrate:
+    runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          token: ${{ github.token }}
+
+      - name: Resolve GitHub auth
+        id: auth
+        uses: ./.github/actions/resolve-github-auth
+        with:
+          app_id: ${{ secrets.AGENT_APP_ID }}
+          app_private_key: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
+          pat: ${{ secrets.AGENT_PAT }}
+          fallback_token: ${{ github.token }}
+
+      - name: Setup agent runtime
+        uses: ./.github/actions/setup-agent-runtime
+
+      - name: Check handoff preflight
+        id: preflight
+        env:
+          AUTOMATION_CURRENT_ROUND: ${{ inputs.automation_current_round }}
+          AUTOMATION_MAX_ROUNDS: ${{ inputs.automation_max_rounds }}
+          AUTOMATION_MODE: ${{ inputs.automation_mode }}
+        run: node .agent/dist/cli/orchestrator-preflight.js
+
+      - name: Resolve orchestrator provider
+        id: provider
+        if: ${{ steps.preflight.outputs.planner_enabled == 'true' }}
+        uses: ./.github/actions/resolve-agent-provider
+        with:
+          route: orchestrator
+          default_provider: ${{ vars.AGENT_DEFAULT_PROVIDER || 'auto' }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+      - name: Install orchestrator provider
+        if: ${{ steps.preflight.outputs.planner_enabled == 'true' }}
+        uses: ./.github/actions/setup-agent-runtime
+        with:
+          install_codex: ${{ steps.provider.outputs.install_codex }}
+          install_claude: ${{ steps.provider.outputs.install_claude }}
+
+      - name: Plan next action with agent
+        id: planner
+        if: ${{ steps.preflight.outputs.planner_enabled == 'true' }}
+        continue-on-error: true
+        uses: ./.github/actions/run-agent-task
+        env:
+          ORCHESTRATOR_SOURCE_ACTION: ${{ inputs.source_action }}
+          ORCHESTRATOR_SOURCE_CONCLUSION: ${{ inputs.source_conclusion }}
+          ORCHESTRATOR_SOURCE_RUN_ID: ${{ inputs.source_run_id || github.run_id }}
+          ORCHESTRATOR_NEXT_TARGET_NUMBER: ${{ inputs.next_target_number }}
+          ORCHESTRATOR_CURRENT_ROUND: ${{ inputs.automation_current_round }}
+          ORCHESTRATOR_MAX_ROUNDS: ${{ inputs.automation_max_rounds }}
+        with:
+          agent: ${{ steps.provider.outputs.provider }}
+          github_token: ${{ steps.auth.outputs.token }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          permission_mode: approve-reads
+          prompt: orchestrator
+          reasoning_effort: high
+          lane: planner
+          memory_mode_override: read-only
+          memory_ref: ${{ vars.AGENT_MEMORY_REF || 'agent/memory' }}
+          memory_policy: ${{ vars.AGENT_MEMORY_POLICY || '' }}
+          rubrics_ref: ${{ vars.AGENT_RUBRICS_REF || 'agent/rubrics' }}
+          rubrics_policy: ${{ vars.AGENT_RUBRICS_POLICY || '' }}
+          rubrics_mode_override: read-only
+          rubrics_limit: ${{ vars.AGENT_RUBRICS_LIMIT || '10' }}
+          session_bundle_mode: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
+          session_policy: resume-best-effort
+          request_text: ${{ inputs.request_text }}
+          requested_by: ${{ inputs.requested_by || github.actor }}
+          route: orchestrator
+          source_kind: workflow_dispatch
+          target_kind: ${{ inputs.source_action == 'implement' && 'issue' || 'pull_request' }}
+          target_number: ${{ inputs.target_number }}
+          target_url: ${{ inputs.source_action == 'implement' && format('{0}/{1}/issues/{2}', github.server_url, github.repository, inputs.target_number) || format('{0}/{1}/pull/{2}', github.server_url, github.repository, inputs.target_number) }}
+          workflow: agent-orchestrator.yml
+
+      - name: Decide and dispatch next action
+        env:
+          AUTOMATION_CURRENT_ROUND: ${{ inputs.automation_current_round }}
+          AUTOMATION_MAX_ROUNDS: ${{ inputs.automation_max_rounds }}
+          AUTOMATION_MODE: ${{ inputs.automation_mode }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          NEXT_TARGET_NUMBER: ${{ inputs.next_target_number }}
+          REQUESTED_BY: ${{ inputs.requested_by || github.actor }}
+          REQUEST_TEXT: ${{ inputs.request_text }}
+          SESSION_BUNDLE_MODE: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
+          SOURCE_ACTION: ${{ inputs.source_action }}
+          SOURCE_CONCLUSION: ${{ inputs.source_conclusion }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id || github.run_id }}
+          TARGET_NUMBER: ${{ inputs.target_number }}
+          PLANNER_RESPONSE_FILE: ${{ steps.planner.outputs.response_file }}
+        run: node .agent/dist/cli/orchestrate-handoff.js

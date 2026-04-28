@@ -1,0 +1,140 @@
+name: Setup Agent Runtime
+description: |
+  Check out-independent runtime bootstrap for the Sepo agent.
+  Reuses preinstalled Node.js on self-hosted runners, installs Node.js on
+  GitHub-hosted runners, then builds the TypeScript runtime in place and
+  optionally installs missing agent CLIs.
+
+inputs:
+  node_version:
+    description: Node.js version to install.
+    required: false
+    default: "22"
+  install_codex:
+    description: Whether to install the Codex CLI when missing.
+    required: false
+    default: "false"
+  codex_version:
+    description: Optional @openai/codex version to install when the CLI is missing.
+    required: false
+    default: ""
+  install_claude:
+    description: Whether to install the Claude CLI when missing.
+    required: false
+    default: "false"
+  claude_version:
+    description: Optional Claude Code version to install when the CLI is missing.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Ensure Node.js available on GitHub-hosted runners
+      if: ${{ runner.environment != 'self-hosted' }}
+      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      with:
+        node-version: ${{ inputs.node_version }}
+
+    - name: Verify preinstalled Node.js on self-hosted runners
+      if: ${{ runner.environment == 'self-hosted' }}
+      shell: bash
+      env:
+        REQUESTED_NODE_VERSION: ${{ inputs.node_version }}
+      run: |
+        set -euo pipefail
+
+        missing=()
+        for cmd in node npm; do
+          if ! command -v "$cmd" >/dev/null 2>&1; then
+            missing+=("$cmd")
+          fi
+        done
+
+        if [ "${#missing[@]}" -ne 0 ]; then
+          echo "Self-hosted runner is missing required Node.js tools: ${missing[*]}" >&2
+          echo "Install a compatible Node.js runtime on the runner or switch to a GitHub-hosted runner." >&2
+          exit 1
+        fi
+
+        installed_node="$(node -p 'process.versions.node')"
+        installed_npm="$(npm --version)"
+        requested_major="$(printf '%s' "$REQUESTED_NODE_VERSION" | sed -nE 's/^v?([0-9]+).*/\1/p')"
+        installed_major="${installed_node%%.*}"
+
+        if [ -n "$requested_major" ] && [ "$installed_major" != "$requested_major" ]; then
+          echo "Self-hosted runner has Node.js ${installed_node}, but setup-agent-runtime requires major version ${requested_major}.x." >&2
+          exit 1
+        fi
+
+        echo "Using preinstalled Node.js ${installed_node} and npm ${installed_npm} on self-hosted runner."
+
+    - name: Add runtime tool bins to PATH
+      shell: bash
+      run: |
+        echo "$GITHUB_WORKSPACE/.agent/node_modules/.bin" >> "$GITHUB_PATH"
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+        echo "NODE_PATH=$GITHUB_WORKSPACE/.agent/node_modules${NODE_PATH:+:$NODE_PATH}" >> "$GITHUB_ENV"
+
+    - name: Install runtime dependencies
+      shell: bash
+      working-directory: .agent
+      run: npm ci
+
+    - name: Build runtime
+      shell: bash
+      working-directory: .agent
+      run: npm run build
+
+    - name: Verify base runner tools
+      shell: bash
+      run: |
+        missing=()
+        for cmd in git gh jq bash; do
+          if ! command -v "$cmd" >/dev/null 2>&1; then
+            missing+=("$cmd")
+          fi
+        done
+
+        if [ "${#missing[@]}" -ne 0 ]; then
+          echo "Missing required runner tools: ${missing[*]}" >&2
+          exit 1
+        fi
+
+    - name: Install Codex CLI
+      if: ${{ inputs.install_codex == 'true' }}
+      shell: bash
+      env:
+        CODEX_VERSION: ${{ inputs.codex_version }}
+      run: |
+        if command -v codex >/dev/null 2>&1; then
+          echo "Codex CLI already available."
+          exit 0
+        fi
+
+        pkg="@openai/codex"
+        if [ -n "$CODEX_VERSION" ]; then
+          pkg="$pkg@$CODEX_VERSION"
+        fi
+
+        npm install -g "$pkg"
+        echo "$(npm prefix -g)/bin" >> "$GITHUB_PATH"
+
+    - name: Install Claude CLI
+      if: ${{ inputs.install_claude == 'true' }}
+      shell: bash
+      env:
+        CLAUDE_VERSION: ${{ inputs.claude_version }}
+      run: |
+        if command -v claude >/dev/null 2>&1; then
+          echo "Claude CLI already available."
+          exit 0
+        fi
+
+        if [ -n "$CLAUDE_VERSION" ]; then
+          curl -fsSL https://claude.ai/install.sh | bash -s -- "$CLAUDE_VERSION"
+        else
+          curl -fsSL https://claude.ai/install.sh | bash
+        fi
+
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"

@@ -1,0 +1,125 @@
+name: Agent / Memory / Curate Recent Activity
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      memory_ref:
+        description: "Memory branch to update"
+        required: false
+        default: agent/memory
+
+permissions:
+  contents: write
+  issues: read
+  pull-requests: read
+  discussions: read
+  id-token: write # required for GitHub Actions OIDC broker exchange
+
+concurrency:
+  group: agent-memory-${{ github.repository }}-scan
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
+    outputs:
+      skip: ${{ steps.gate.outputs.skip }}
+      mode: ${{ steps.gate.outputs.mode }}
+      reason: ${{ steps.gate.outputs.reason }}
+      dependency_value: ${{ steps.gate.outputs.dependency_value }}
+      self_value: ${{ steps.gate.outputs.self_value }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          ref: ${{ github.event.repository.default_branch }}
+          token: ${{ github.token }}
+
+      - name: Resolve scheduled activity gate
+        id: gate
+        uses: ./.github/actions/scheduled-activity-gate
+        with:
+          github_token: ${{ github.token }}
+          schedule_policy: ${{ vars.AGENT_SCHEDULE_POLICY || '' }}
+          workflow: agent-memory-scan.yml
+          dependency_ref: refs/agent-memory-state/sync
+          dependency_field: last_activity_at
+          self_ref: refs/agent-memory-state/scan
+          self_field: last_scan_at
+
+  scan:
+    needs: gate
+    if: needs.gate.outputs.skip != 'true'
+    runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
+    env:
+      MEMORY_REF: ${{ inputs.memory_ref || vars.AGENT_MEMORY_REF || 'agent/memory' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.event.repository.default_branch }}
+          token: ${{ github.token }}
+
+      - name: Resolve GitHub auth
+        id: auth
+        uses: ./.github/actions/resolve-github-auth
+        with:
+          app_id: ${{ secrets.AGENT_APP_ID }}
+          app_private_key: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
+          pat: ${{ secrets.AGENT_PAT }}
+          fallback_token: ${{ github.token }}
+
+      - name: Resolve memory scan provider
+        id: provider
+        uses: ./.github/actions/resolve-agent-provider
+        with:
+          route: memory-scan
+          default_provider: ${{ vars.AGENT_DEFAULT_PROVIDER || 'auto' }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+      - name: Setup agent runtime
+        uses: ./.github/actions/setup-agent-runtime
+        with:
+          install_codex: ${{ steps.provider.outputs.install_codex }}
+          install_claude: ${{ steps.provider.outputs.install_claude }}
+
+      - name: Curate memory from recent activity
+        id: scan
+        uses: ./.github/actions/run-agent-task
+        with:
+          agent: ${{ steps.provider.outputs.provider }}
+          github_token: ${{ steps.auth.outputs.token }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          permission_mode: approve-all
+          prompt: memory-scan
+          route: answer
+          memory_mode_override: 'enabled'
+          memory_ref: ${{ env.MEMORY_REF }}
+          memory_policy: ${{ vars.AGENT_MEMORY_POLICY || '' }}
+          session_policy: none
+          request_text: >-
+            Scheduled memory maintenance. Curate durable memory from recent repository activity; skip anything not worth carrying forward.
+          requested_by: ${{ github.actor }}
+          source_kind: workflow_dispatch
+          target_kind: repository
+          target_number: '0'
+          target_url: ${{ github.server_url }}/${{ github.repository }}
+          reasoning_effort: medium
+          workflow: agent-memory-scan.yml
+
+      - name: Write memory scan state
+        if: steps.scan.outcome == 'success'
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          INPUT_GITHUB_TOKEN: ${{ steps.auth.outputs.token }}
+          REPO_SLUG: ${{ github.repository }}
+          SCHEDULE_LAST_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SCHEDULE_STATE_FIELD: last_scan_at
+          SCHEDULE_STATE_REF: refs/agent-memory-state/scan
+        run: node .agent/dist/cli/write-scheduled-state.js

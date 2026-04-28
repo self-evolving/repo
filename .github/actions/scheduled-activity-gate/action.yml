@@ -1,0 +1,70 @@
+name: Scheduled Activity Gate
+description: Resolve scheduled workflow policy and skip when declared activity has not advanced. Runs before the TypeScript runtime is built.
+
+inputs:
+  github_token:
+    description: "GitHub token used to fetch cursor refs"
+    required: true
+  schedule_policy:
+    description: "AGENT_SCHEDULE_POLICY JSON"
+    required: false
+    default: ""
+  workflow:
+    description: "Workflow filename, for example agent-memory-scan.yml"
+    required: true
+  dependency_ref:
+    description: "Ref containing dependency state.json"
+    required: false
+    default: ""
+  dependency_field:
+    description: "Field in dependency state.json that contains an ISO timestamp"
+    required: false
+    default: ""
+  self_ref:
+    description: "Ref containing this workflow state.json"
+    required: false
+    default: ""
+  self_field:
+    description: "Field in this workflow state.json that contains an ISO timestamp"
+    required: false
+    default: ""
+  activity_count:
+    description: "Optional count of relevant activity for event-count based gates"
+    required: false
+    default: ""
+
+outputs:
+  skip:
+    description: "true when the scheduled workflow should skip expensive work"
+    value: ${{ steps.resolve.outputs.skip }}
+  mode:
+    description: "Resolved schedule mode"
+    value: ${{ steps.resolve.outputs.mode }}
+  reason:
+    description: "Human-readable gate decision reason"
+    value: ${{ steps.resolve.outputs.reason }}
+  dependency_value:
+    description: "Resolved dependency cursor value"
+    value: ${{ steps.resolve.outputs.dependency_value }}
+  self_value:
+    description: "Resolved self cursor value"
+    value: ${{ steps.resolve.outputs.self_value }}
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve scheduled activity gate
+      id: resolve
+      shell: bash
+      env:
+        AGENT_SCHEDULE_POLICY: ${{ inputs.schedule_policy }}
+        ACTIVITY_COUNT: ${{ inputs.activity_count }}
+        DEPENDENCY_FIELD: ${{ inputs.dependency_field }}
+        DEPENDENCY_REF: ${{ inputs.dependency_ref }}
+        GH_TOKEN: ${{ inputs.github_token }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        INPUT_GITHUB_TOKEN: ${{ inputs.github_token }}
+        SELF_FIELD: ${{ inputs.self_field }}
+        SELF_REF: ${{ inputs.self_ref }}
+        WORKFLOW_FILENAME: ${{ inputs.workflow }}
+      run: bash "${GITHUB_WORKSPACE}/.agent/scripts/resolve-scheduled-activity-gate.sh"

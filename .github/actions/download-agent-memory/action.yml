@@ -1,0 +1,142 @@
+name: Download Agent Memory
+description: |
+  Best-effort shallow clone of the dedicated agent memory branch into a
+  separate directory outside the tracked worktree so the agent can read
+  memory files without staging them for its feature-branch commits.
+
+inputs:
+  github_token:
+    description: "GitHub token used to clone the repository"
+    required: true
+  ref:
+    description: "Memory branch to clone"
+    required: false
+    default: agent/memory
+  path:
+    description: "Destination directory for the cloned memory checkout"
+    required: false
+    default: ""
+  continue_on_missing:
+    description: "When true, missing memory branches resolve to memory_available=false instead of failing"
+    required: false
+    default: "true"
+  bootstrap_if_missing:
+    description: "When true, bootstrap a new local memory checkout if the branch does not exist"
+    required: false
+    default: "false"
+
+outputs:
+  memory_available:
+    description: "Whether the requested memory branch was cloned successfully"
+    value: ${{ steps.download.outputs.memory_available }}
+  memory_dir:
+    description: "Absolute path to the cloned memory directory"
+    value: ${{ steps.download.outputs.memory_dir }}
+  memory_ref:
+    description: "Resolved memory ref"
+    value: ${{ steps.download.outputs.memory_ref }}
+
+runs:
+  using: composite
+  steps:
+    - name: Download memory branch
+      id: download
+      shell: bash
+      env:
+        INPUT_GITHUB_TOKEN: ${{ inputs.github_token }}
+        INPUT_REPOSITORY: ${{ github.repository }}
+        INPUT_REF: ${{ inputs.ref }}
+        INPUT_PATH: ${{ inputs.path }}
+        INPUT_CONTINUE_ON_MISSING: ${{ inputs.continue_on_missing }}
+        INPUT_BOOTSTRAP_IF_MISSING: ${{ inputs.bootstrap_if_missing }}
+      run: |
+        set -euo pipefail
+
+        repo="${INPUT_REPOSITORY}"
+        ref="${INPUT_REF}"
+        dest="${INPUT_PATH}"
+
+        if [ -z "$repo" ]; then
+          echo "Missing memory repository." >&2
+          exit 1
+        fi
+
+        if [ -z "$dest" ]; then
+          dest="${RUNNER_TEMP}/agent-memory"
+        fi
+
+        case "$dest" in
+          /*) ;;
+          *) dest="${GITHUB_WORKSPACE}/${dest}" ;;
+        esac
+
+        if [ -d "$dest" ]; then
+          rm -rf "$dest"
+        fi
+        mkdir -p "$(dirname "$dest")"
+
+        auth_url="https://x-access-token:${INPUT_GITHUB_TOKEN}@github.com/${repo}.git"
+        clone_log="$(mktemp "${RUNNER_TEMP:-/tmp}/download-agent-memory-clone.XXXXXX.log")"
+        bootstrap_log="$(mktemp "${RUNNER_TEMP:-/tmp}/download-agent-memory-bootstrap.XXXXXX.log")"
+        lsremote_log="$(mktemp "${RUNNER_TEMP:-/tmp}/download-agent-memory-lsremote.XXXXXX.log")"
+        trap 'rm -f "$clone_log" "$bootstrap_log" "$lsremote_log"' EXIT
+
+        if git clone --depth=1 --branch "$ref" --single-branch "$auth_url" "$dest" > /dev/null 2>"$clone_log"; then
+          echo "memory_available=true" >> "$GITHUB_OUTPUT"
+          echo "memory_dir=$dest" >> "$GITHUB_OUTPUT"
+          echo "memory_ref=$ref" >> "$GITHUB_OUTPUT"
+          exit 0
+        else
+          clone_status=$?
+        fi
+
+        if git ls-remote --exit-code --heads "$auth_url" "$ref" >/dev/null 2>"$lsremote_log"; then
+          if [ -s "$clone_log" ]; then
+            cat "$clone_log" >&2
+          fi
+          echo "Failed to clone memory branch ${repo}@${ref}." >&2
+          exit "$clone_status"
+        else
+          lsremote_status=$?
+        fi
+
+        if [ "$lsremote_status" -eq 2 ]; then
+          if [ "$INPUT_BOOTSTRAP_IF_MISSING" = "true" ]; then
+            echo "Memory branch ${repo}@${ref} is not available; bootstrapping a new memory checkout." >&2
+            if ! git clone --depth=1 "$auth_url" "$dest" > /dev/null 2>"$bootstrap_log"; then
+              if [ -s "$bootstrap_log" ]; then
+                cat "$bootstrap_log" >&2
+              fi
+              echo "Failed to bootstrap memory checkout for ${repo}@${ref}." >&2
+              exit 1
+            fi
+
+            cd "$dest"
+            git checkout --orphan "$ref"
+            git rm -rf . >/dev/null 2>&1 || true
+            git clean -fdx >/dev/null 2>&1 || true
+            node "${GITHUB_WORKSPACE}/.agent/dist/cli/memory/init.js" --dir "$dest" --repo "$repo" >/dev/null
+
+            echo "memory_available=true" >> "$GITHUB_OUTPUT"
+            echo "memory_dir=$dest" >> "$GITHUB_OUTPUT"
+            echo "memory_ref=$ref" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "$INPUT_CONTINUE_ON_MISSING" = "true" ]; then
+            echo "Memory branch ${repo}@${ref} is not available; continuing without memory." >&2
+            echo "memory_available=false" >> "$GITHUB_OUTPUT"
+            echo "memory_dir=" >> "$GITHUB_OUTPUT"
+            echo "memory_ref=$ref" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+        fi
+
+        if [ -s "$clone_log" ]; then
+          cat "$clone_log" >&2
+        fi
+        if [ -s "$lsremote_log" ]; then
+          cat "$lsremote_log" >&2
+        fi
+        echo "Failed to clone memory branch ${repo}@${ref}." >&2
+        exit "${clone_status:-1}"

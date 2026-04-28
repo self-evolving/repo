@@ -1,0 +1,190 @@
+name: Agent / Memory / Initialization
+
+on:
+  workflow_dispatch:
+    inputs:
+      memory_ref:
+        description: "Memory branch to create on first run"
+        required: false
+        default: agent/memory
+
+permissions:
+  contents: write
+  discussions: read
+  issues: read
+  pull-requests: read
+  id-token: write # required for GitHub Actions OIDC broker exchange
+
+concurrency:
+  group: agent-memory-${{ github.repository }}-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  bootstrap:
+    runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
+    env:
+      MEMORY_REF: ${{ inputs.memory_ref || vars.AGENT_MEMORY_REF || 'agent/memory' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.event.repository.default_branch }}
+          token: ${{ github.token }}
+
+      - name: Resolve GitHub auth
+        id: auth
+        uses: ./.github/actions/resolve-github-auth
+        with:
+          app_id: ${{ secrets.AGENT_APP_ID }}
+          app_private_key: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
+          pat: ${{ secrets.AGENT_PAT }}
+          fallback_token: ${{ github.token }}
+
+      - name: Resolve memory bootstrap provider
+        id: provider
+        uses: ./.github/actions/resolve-agent-provider
+        with:
+          route: memory-bootstrap
+          default_provider: ${{ vars.AGENT_DEFAULT_PROVIDER || 'auto' }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+      - name: Setup agent runtime
+        id: runtime
+        uses: ./.github/actions/setup-agent-runtime
+        with:
+          install_codex: ${{ steps.provider.outputs.install_codex }}
+          install_claude: ${{ steps.provider.outputs.install_claude }}
+
+      - name: Reject existing memory branch
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          refs_file="$(mktemp)"
+          trap 'rm -f "$refs_file"' EXIT
+          gh api "repos/${GITHUB_REPOSITORY}/git/matching-refs/heads/${MEMORY_REF}" --jq '.[].ref' >"$refs_file"
+          exact_ref="refs/heads/${MEMORY_REF}"
+          if grep -Fxq "$exact_ref" "$refs_file"; then
+            echo "Memory branch ${GITHUB_REPOSITORY}@${MEMORY_REF} already exists. Bootstrap is first-run only." >&2
+            exit 1
+          fi
+
+      - name: Download memory branch
+        id: memory
+        uses: ./.github/actions/download-agent-memory
+        with:
+          github_token: ${{ steps.auth.outputs.token }}
+          ref: ${{ env.MEMORY_REF }}
+          path: ${{ runner.temp }}/agent-memory
+          continue_on_missing: "true"
+          bootstrap_if_missing: "true"
+
+      - name: Commit and push memory branch
+        id: commit
+        working-directory: ${{ runner.temp }}/agent-memory
+        env:
+          BRANCH: ${{ env.MEMORY_REF }}
+          COMMIT_CWD: ${{ runner.temp }}/agent-memory
+          COMMIT_MESSAGE: "chore(memory): initialize memory branch"
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          SET_UPSTREAM: "true"
+        run: node ${{ github.workspace }}/.agent/dist/cli/commit.js
+
+      - name: Read memory sync state
+        if: steps.memory.outputs.memory_available == 'true'
+        id: state
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          INPUT_GITHUB_TOKEN: ${{ steps.auth.outputs.token }}
+        run: node .agent/dist/cli/memory/read-sync-state.js
+
+      - name: Resolve sync window
+        if: steps.memory.outputs.memory_available == 'true'
+        id: window
+        env:
+          LOOKBACK_DAYS: "30"
+          PREVIOUS_LAST_SYNC: ""
+          SINCE_OVERRIDE: ""
+        run: |
+          set -euo pipefail
+          started_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          if [ -n "$SINCE_OVERRIDE" ]; then
+            since="$SINCE_OVERRIDE"
+          elif [ -n "$PREVIOUS_LAST_SYNC" ]; then
+            since="$PREVIOUS_LAST_SYNC"
+          else
+            since=""
+          fi
+          echo "started_at=$started_at" >> "$GITHUB_OUTPUT"
+          echo "since=$since" >> "$GITHUB_OUTPUT"
+
+      - name: Sync GitHub artifacts into memory
+        if: steps.memory.outputs.memory_available == 'true'
+        id: sync
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          INPUT_GITHUB_TOKEN: ${{ steps.auth.outputs.token }}
+          MEMORY_DIR: ${{ runner.temp }}/agent-memory
+          MEMORY_SYNC_LOOKBACK_DAYS: "30"
+          MEMORY_SYNC_SINCE: ${{ steps.window.outputs.since }}
+          MEMORY_SYNC_STARTED_AT: ${{ steps.window.outputs.started_at }}
+          REPO_SLUG: ${{ github.repository }}
+        run: node .agent/dist/cli/memory/sync-github-artifacts.js
+
+      - name: Commit and push synced memory artifacts
+        if: steps.sync.outcome == 'success'
+        working-directory: ${{ runner.temp }}/agent-memory
+        env:
+          BRANCH: ${{ env.MEMORY_REF }}
+          COMMIT_CWD: ${{ runner.temp }}/agent-memory
+          COMMIT_MESSAGE: "chore(memory): sync github artifacts"
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          SET_UPSTREAM: "true"
+        run: node ${{ github.workspace }}/.agent/dist/cli/commit.js
+
+      - name: Write memory sync state
+        if: steps.sync.outcome == 'success'
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          INPUT_GITHUB_TOKEN: ${{ steps.auth.outputs.token }}
+          REPO_SLUG: ${{ github.repository }}
+          SYNC_COMMIT_CURSOR: ${{ steps.sync.outputs.commit_cursor }}
+          SYNC_DISCUSSION_CURSOR: ${{ steps.sync.outputs.discussion_cursor }}
+          SYNC_ISSUE_CURSOR: ${{ steps.sync.outputs.issue_cursor }}
+          SYNC_LAST_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SYNC_LAST_SYNC_AT: ${{ steps.window.outputs.started_at }}
+          SYNC_PULL_CURSOR: ${{ steps.sync.outputs.pull_cursor }}
+        run: node .agent/dist/cli/memory/write-sync-state.js
+
+      - name: Curate memory from recent activity
+        if: steps.sync.outcome == 'success'
+        uses: ./.github/actions/run-agent-task
+        with:
+          agent: ${{ steps.provider.outputs.provider }}
+          github_token: ${{ steps.auth.outputs.token }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          permission_mode: approve-all
+          prompt: memory-scan
+          route: answer
+          memory_mode_override: 'enabled'
+          memory_ref: ${{ env.MEMORY_REF }}
+          memory_policy: ${{ vars.AGENT_MEMORY_POLICY || '' }}
+          session_policy: none
+          request_text: >-
+            Initial memory bootstrap. Curate durable memory from recent repository activity after the initial GitHub artifact mirror; skip anything not worth carrying forward.
+          requested_by: ${{ github.actor }}
+          source_kind: workflow_dispatch
+          target_kind: repository
+          target_number: '0'
+          target_url: ${{ github.server_url }}/${{ github.repository }}
+          reasoning_effort: medium
+          workflow: agent-memory-bootstrap.yml

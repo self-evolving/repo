@@ -1,0 +1,92 @@
+name: Agent Label
+
+on:
+  issues:
+    types: [labeled]
+  pull_request_target:
+    types: [labeled]
+
+permissions:
+  actions: write
+  contents: write
+  discussions: write
+  issues: write
+  pull-requests: write
+  id-token: write # required for GitHub Actions OIDC broker exchange
+
+concurrency:
+  group: >-
+    agent-${{ github.repository }}-${{
+      github.event.issue && 'issue' ||
+      github.event.pull_request && 'pull_request' ||
+      github.event_name
+    }}-${{
+      github.event.issue.number ||
+      github.event.pull_request.number ||
+      github.run_id
+    }}
+  cancel-in-progress: false
+
+jobs:
+  agent:
+    if: startsWith(github.event.label.name, 'agent/')
+    uses: ./.github/workflows/agent-router.yml
+    with:
+      runs_on: ${{ vars.AGENT_RUNS_ON || '["ubuntu-latest"]' }}
+      access_policy: ${{ vars.AGENT_ACCESS_POLICY || '' }}
+      automation_mode: ${{ vars.AGENT_AUTOMATION_MODE || 'disabled' }}
+      automation_max_rounds: ${{ vars.AGENT_AUTOMATION_MAX_ROUNDS || '5' }}
+      trigger_kind: label
+      label_name: ${{ github.event.label.name }}
+    secrets:
+      AGENT_APP_ID: ${{ secrets.AGENT_APP_ID }}
+      AGENT_APP_PRIVATE_KEY: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
+      AGENT_PAT: ${{ secrets.AGENT_PAT }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+  cleanup-label:
+    needs: agent
+    if: >-
+      needs.agent.result == 'success' &&
+      needs.agent.outputs.should_respond == 'true'
+    runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
+    steps:
+      - name: Resolve GitHub auth
+        id: auth
+        uses: ./.github/actions/resolve-github-auth
+        with:
+          app_id: ${{ secrets.AGENT_APP_ID }}
+          app_private_key: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
+          pat: ${{ secrets.AGENT_PAT }}
+          fallback_token: ${{ github.token }}
+
+      - uses: actions/github-script@v7
+        with:
+          github-token: ${{ steps.auth.outputs.token }}
+          script: |
+            const issueNumber =
+              context.payload.issue?.number ??
+              context.payload.pull_request?.number;
+            const labelName = context.payload.label?.name;
+
+            if (!issueNumber || !labelName) {
+              core.setFailed("Missing issue_number or label_name for cleanup");
+              return;
+            }
+
+            try {
+              await github.rest.issues.removeLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                name: labelName,
+              });
+              core.info(`Removed trigger label ${labelName} from #${issueNumber}.`);
+            } catch (error) {
+              if (error && typeof error === 'object' && 'status' in error && error.status === 404) {
+                core.info(`Trigger label ${labelName} was already absent from #${issueNumber}.`);
+                return;
+              }
+              throw error;
+            }

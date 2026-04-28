@@ -1,0 +1,63 @@
+name: Agent Entrypoint
+
+# Thin entry point for this repo. Wires triggers, runner labels, and secrets
+# into the shared agent-router.yml portal workflow. Consumer repos use the
+# same agent-router.yml with their own triggers and configuration.
+
+on:
+  issues:
+    types: [opened, edited]
+  issue_comment:
+    types: [created, edited]
+  pull_request:
+    types: [opened, edited]
+  pull_request_review_comment:
+    types: [created, edited]
+  pull_request_review:
+    types: [submitted]
+  discussion:
+    types: [created, edited]
+  discussion_comment:
+    types: [created, edited]
+
+permissions:
+  actions: write
+  contents: write
+  discussions: write
+  issues: write
+  pull-requests: write
+  id-token: write # required for GitHub Actions OIDC broker exchange
+
+concurrency:
+  group: >-
+    agent-${{ github.repository }}-${{
+      github.event.issue && 'issue' ||
+      github.event.pull_request && 'pull_request' ||
+      github.event.discussion && 'discussion' ||
+      github.event_name
+    }}-${{
+      github.event.issue.number ||
+      github.event.pull_request.number ||
+      github.event.discussion.number ||
+      github.run_id
+    }}
+  cancel-in-progress: false
+
+jobs:
+  agent:
+    # Broad pre-filter: the real mention validation happens in extract-context.js
+    # inside agent-router.yml (boundary-aware, strips code blocks and quotes).
+    if: contains(toJSON(github.event), vars.AGENT_HANDLE || '@sepo-agent')
+    uses: ./.github/workflows/agent-router.yml
+    with:
+      agent_handle: ${{ vars.AGENT_HANDLE || '@sepo-agent' }}
+      runs_on: ${{ vars.AGENT_RUNS_ON || '["ubuntu-latest"]' }}
+      access_policy: ${{ vars.AGENT_ACCESS_POLICY || '' }}
+      automation_mode: ${{ vars.AGENT_AUTOMATION_MODE || 'disabled' }}
+      automation_max_rounds: ${{ vars.AGENT_AUTOMATION_MAX_ROUNDS || '5' }}
+    secrets:
+      AGENT_APP_ID: ${{ secrets.AGENT_APP_ID }}
+      AGENT_APP_PRIVATE_KEY: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
+      AGENT_PAT: ${{ secrets.AGENT_PAT }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

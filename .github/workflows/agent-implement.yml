@@ -1,0 +1,273 @@
+name: Agent / Implement
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Issue number to implement"
+        required: true
+      requested_by:
+        description: "GitHub login that approved the run"
+        required: false
+      approval_comment_url:
+        description: "Approval comment URL"
+        required: false
+      request_text:
+        description: "Original user request text forwarded from the portal"
+        required: false
+      session_fork_from_thread_key:
+        description: "Optional source thread key used to seed this implementation session"
+        required: false
+        default: ""
+      session_bundle_mode:
+        description: "Session bundle persistence mode (defaults to repository variable AGENT_SESSION_BUNDLE_MODE or 'auto')"
+        required: false
+        default: ""
+      implementation_route:
+        description: "Route identity for this implementation run"
+        required: false
+        default: implement
+      implementation_prompt:
+        description: "Prompt name for this implementation run"
+        required: false
+        default: ""
+      automation_mode:
+        description: "Post-action orchestration mode (disabled, heuristics, agent)"
+        required: false
+        default: "disabled"
+      automation_current_round:
+        description: "Current automation handoff round"
+        required: false
+        default: "1"
+      automation_max_rounds:
+        description: "Maximum automation handoff rounds"
+        required: false
+        default: "5"
+  workflow_call:
+    inputs:
+      issue_number:
+        type: string
+        required: true
+      requested_by:
+        type: string
+        required: false
+      approval_comment_url:
+        type: string
+        required: false
+      request_text:
+        type: string
+        required: false
+      session_fork_from_thread_key:
+        type: string
+        required: false
+        default: ""
+      session_bundle_mode:
+        type: string
+        required: false
+        default: ""
+      implementation_route:
+        type: string
+        required: false
+        default: implement
+      implementation_prompt:
+        type: string
+        required: false
+        default: ""
+      automation_mode:
+        type: string
+        required: false
+        default: "disabled"
+      automation_current_round:
+        type: string
+        required: false
+        default: "1"
+      automation_max_rounds:
+        type: string
+        required: false
+        default: "5"
+      runs_on:
+        type: string
+        default: ""
+
+permissions:
+  actions: write
+  contents: write
+  issues: write
+  pull-requests: write
+  id-token: write # required for GitHub Actions OIDC broker exchange
+
+concurrency:
+  group: agent-implement-${{ inputs.issue_number }}
+  cancel-in-progress: false
+
+jobs:
+  implement:
+    runs-on: ${{ fromJson(inputs.runs_on || vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
+    env:
+      ISSUE_NUMBER: ${{ inputs.issue_number }}
+      IMPLEMENTATION_ROUTE: ${{ inputs.implementation_route || 'implement' }}
+      IMPLEMENTATION_PROMPT: ${{ inputs.implementation_prompt || inputs.implementation_route || 'implement' }}
+      MODEL_REASONING_EFFORT: xhigh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.event.repository.default_branch }}
+          token: ${{ github.token }}
+
+      - name: Resolve GitHub auth
+        id: auth
+        uses: ./.github/actions/resolve-github-auth
+        with:
+          app_id: ${{ secrets.AGENT_APP_ID }}
+          app_private_key: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
+          pat: ${{ secrets.AGENT_PAT }}
+          fallback_token: ${{ github.token }}
+
+      - name: Resolve implementation provider
+        id: provider
+        uses: ./.github/actions/resolve-agent-provider
+        with:
+          route: ${{ env.IMPLEMENTATION_ROUTE }}
+          default_provider: ${{ vars.AGENT_DEFAULT_PROVIDER || 'auto' }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+      - name: Setup branch name
+        run: echo "BRANCH=agent/${IMPLEMENTATION_ROUTE}-issue-${ISSUE_NUMBER}/${{ steps.provider.outputs.provider }}-${{ github.run_id }}" >> "$GITHUB_ENV"
+
+      - name: Setup agent runtime
+        id: runtime
+        uses: ./.github/actions/setup-agent-runtime
+        with:
+          install_codex: ${{ steps.provider.outputs.install_codex }}
+          install_claude: ${{ steps.provider.outputs.install_claude }}
+
+      - name: Label source issue
+        if: vars.AGENT_STATUS_LABEL_ENABLED == 'true'
+        continue-on-error: true
+        env:
+          AGENT_STATUS_LABEL_ENABLED: ${{ vars.AGENT_STATUS_LABEL_ENABLED || '' }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          TARGET_KIND: issue
+          TARGET_NUMBER: ${{ env.ISSUE_NUMBER }}
+        run: node .agent/dist/cli/add-label.js
+
+      - name: Create implementation branch
+        run: git checkout -b "${BRANCH}" "${{ github.event.repository.default_branch }}"
+
+      - name: Run agent
+        id: agent
+        uses: ./.github/actions/run-agent-task
+        with:
+          agent: ${{ steps.provider.outputs.provider }}
+          github_token: ${{ steps.auth.outputs.token }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: ${{ env.IMPLEMENTATION_PROMPT }}
+          route: ${{ env.IMPLEMENTATION_ROUTE }}
+          memory_ref: ${{ vars.AGENT_MEMORY_REF || 'agent/memory' }}
+          memory_policy: ${{ vars.AGENT_MEMORY_POLICY || '' }}
+          rubrics_ref: ${{ vars.AGENT_RUBRICS_REF || 'agent/rubrics' }}
+          rubrics_policy: ${{ vars.AGENT_RUBRICS_POLICY || '' }}
+          rubrics_limit: ${{ vars.AGENT_RUBRICS_LIMIT || '10' }}
+          session_bundle_mode: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
+          session_fork_from_thread_key: ${{ inputs.session_fork_from_thread_key }}
+          session_policy: ${{ inputs.session_fork_from_thread_key != '' && 'resume-best-effort' || 'track-only' }}
+          request_text: ${{ inputs.request_text }}
+          requested_by: ${{ inputs.requested_by || github.actor }}
+          target_kind: issue
+          target_number: ${{ env.ISSUE_NUMBER }}
+          target_url: ${{ github.server_url }}/${{ github.repository }}/issues/${{ env.ISSUE_NUMBER }}
+          workflow: agent-implement.yml
+
+      - name: Verify changes
+        if: always()
+        id: verify
+        run: node .agent/dist/cli/verify.js
+
+      - name: Parse response
+        if: always()
+        id: response
+        env:
+          AGENT_EXIT_CODE: ${{ steps.agent.outcome == 'success' && '0' || '1' }}
+          HAS_CHANGES: ${{ steps.verify.outputs.has_changes }}
+          RESPONSE_FILE: ${{ steps.agent.outputs.response_file }}
+          VERIFY_EXIT_CODE: ${{ steps.verify.outputs.verify_exit_code }}
+        run: node .agent/dist/cli/parse-response.js
+
+      - name: Commit and push
+        if: steps.response.outputs.status == 'success'
+        id: commit
+        env:
+          BRANCH: ${{ env.BRANCH }}
+          COMMIT_MESSAGE: >-
+            ${{ steps.response.outputs.commit_message || format('feat: agent-{0} #{1} ({2})', env.IMPLEMENTATION_ROUTE, env.ISSUE_NUMBER, steps.provider.outputs.provider) }}
+          GIT_BOT_EMAIL: ${{ vars.AGENT_COMMITTER_EMAIL || '' }}
+          GIT_BOT_NAME: ${{ vars.AGENT_COMMITTER_NAME || '' }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          SET_UPSTREAM: "true"
+        run: node .agent/dist/cli/commit.js
+
+      - name: Create pull request
+        if: steps.commit.outputs.committed == 'true'
+        id: pr
+        env:
+          BASE_BRANCH: ${{ github.event.repository.default_branch }}
+          BRANCH: ${{ env.BRANCH }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          ISSUE_NUMBER: ${{ env.ISSUE_NUMBER }}
+          PR_BODY: ${{ steps.response.outputs.pr_body }}
+          PR_TITLE: ${{ steps.response.outputs.pr_title }}
+          REQUESTED_BY: ${{ inputs.requested_by || github.actor }}
+        run: node .agent/dist/cli/create-pr.js
+
+      - name: Label generated pull request
+        if: steps.pr.outputs.pr_number != '' && vars.AGENT_STATUS_LABEL_ENABLED == 'true'
+        continue-on-error: true
+        env:
+          AGENT_STATUS_LABEL_ENABLED: ${{ vars.AGENT_STATUS_LABEL_ENABLED || '' }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          TARGET_KIND: pull_request
+          TARGET_NUMBER: ${{ steps.pr.outputs.pr_number }}
+        run: node .agent/dist/cli/add-label.js
+
+      - name: Post status comment
+        if: always()
+        env:
+          APPROVAL_COMMENT_URL: ${{ inputs.approval_comment_url }}
+          BRANCH: ${{ env.BRANCH }}
+          COMMENT_TARGET: issue
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          ISSUE_NUMBER: ${{ env.ISSUE_NUMBER }}
+          PR_URL: ${{ steps.pr.outputs.pr_url }}
+          RESPONSE_FILE: ${{ steps.agent.outputs.response_file }}
+          RESUME_STATUS: ${{ steps.agent.outputs.resume_status }}
+          ROUTE: ${{ env.IMPLEMENTATION_ROUTE }}
+          STATUS: ${{ steps.response.outputs.status || 'failed' }}
+          TARGET_NUMBER: ${{ env.ISSUE_NUMBER }}
+        run: node .agent/dist/cli/post-comment.js
+
+      - name: Orchestrate automation handoff
+        if: >-
+          always() &&
+          steps.auth.outputs.token &&
+          (inputs.automation_mode == 'true' || inputs.automation_mode == 'heuristics' || inputs.automation_mode == 'agent')
+        env:
+          AUTOMATION_CURRENT_ROUND: ${{ inputs.automation_current_round }}
+          AUTOMATION_MAX_ROUNDS: ${{ inputs.automation_max_rounds }}
+          AUTOMATION_MODE: ${{ inputs.automation_mode }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          NEXT_TARGET_NUMBER: ${{ steps.pr.outputs.pr_number }}
+          REQUESTED_BY: ${{ inputs.requested_by || github.actor }}
+          REQUEST_TEXT: ${{ inputs.request_text }}
+          SESSION_BUNDLE_MODE: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
+          SOURCE_ACTION: implement
+          SOURCE_CONCLUSION: ${{ steps.response.outputs.status || 'failed' }}
+          TARGET_NUMBER: ${{ env.ISSUE_NUMBER }}
+        run: node .agent/dist/cli/dispatch-agent-orchestrator.js

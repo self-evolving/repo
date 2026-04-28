@@ -1,0 +1,476 @@
+name: Run Agent Task
+description: |
+  Shared composite action for running an agent prompt via acpx.
+  Assumes the runtime has already been bootstrapped by setup-agent-runtime,
+  then handles envelope construction, prompt composition (_base.md +
+  optional _memory.md/_rubrics.md + template), optional session bundle
+  restore/backup, and acpx invocation through run.ts.
+
+inputs:
+  prompt:
+    description: "Built-in prompt name (resolves to .github/prompts/<name>.md)"
+    required: false
+  skill:
+    description: "User-defined skill name (resolves to .skills/<name>/SKILL.md)"
+    required: false
+  agent:
+    description: "acpx agent to use"
+    required: false
+    default: codex
+  permission_mode:
+    description: "acpx permission mode (approve-all, approve-reads, deny-all)"
+    required: false
+    default: approve-all
+  reasoning_effort:
+    description: "Model reasoning effort level"
+    required: false
+    default: xhigh
+  route:
+    description: "Envelope route (implement, review, fix-pr, answer, create-action, dispatch, skill, rubrics-review, rubrics-initialization, rubrics-update)"
+    required: true
+  lane:
+    description: "Logical lane for thread/session identity (defaults to 'default')"
+    required: false
+    default: ""
+  target_kind:
+    description: "Target kind (issue, pull_request, discussion, repository)"
+    required: true
+  target_number:
+    description: "Target number"
+    required: true
+  target_url:
+    description: "Target URL"
+    required: true
+  source_kind:
+    description: "Source kind"
+    required: false
+    default: workflow_dispatch
+  request_text:
+    description: "User request text"
+    required: false
+    default: ""
+  requested_by:
+    description: "GitHub login that requested the run"
+    required: false
+  workflow:
+    description: "Workflow file name"
+    required: false
+    default: ""
+  github_token:
+    description: "GitHub token for API access"
+    required: true
+  openai_api_key:
+    description: "OpenAI API key for Codex"
+    required: false
+    default: ""
+  claude_oauth_token:
+    description: "Claude Code OAuth token"
+    required: false
+  session_policy:
+    description: "Session continuity policy (none, track-only, resume-best-effort, resume-required)"
+    required: true
+  session_bundle_mode:
+    description: "Session bundle persistence mode (auto, always, never)"
+    required: false
+    default: auto
+  session_bundle_retention_days:
+    description: "Retention for uploaded session bundle artifacts"
+    required: false
+    default: "30"
+  session_fork_from_thread_key:
+    description: "Optional source thread key used to seed a new destination session when the destination has no session yet"
+    required: false
+    default: ""
+  memory_policy:
+    description: "Memory access policy JSON. Workflow callers can pass repository variables explicitly."
+    required: false
+    default: ""
+  memory_mode_override:
+    description: |
+      Explicit memory mode (enabled, read-only, disabled) that bypasses the policy.
+      Used by dedicated memory workflows so they always have memory on.
+    required: false
+    default: ""
+  memory_ref:
+    description: "Memory branch to clone when memory is enabled"
+    required: false
+    default: agent/memory
+  rubrics_policy:
+    description: "Rubrics access policy JSON. Empty defaults to read-only rubric steering."
+    required: false
+    default: ""
+  rubrics_mode_override:
+    description: |
+      Explicit rubrics mode (enabled, read-only, disabled) that bypasses the policy.
+      Used by dedicated rubrics workflows so they can write the rubrics branch.
+    required: false
+    default: ""
+  rubrics_ref:
+    description: "Rubrics branch to clone when rubrics are enabled"
+    required: false
+    default: agent/rubrics
+  rubrics_limit:
+    description: "Maximum selected rubrics to inject into the prompt"
+    required: false
+    default: "10"
+
+outputs:
+  response_file:
+    description: "Path to the response markdown file"
+    value: ${{ steps.run.outputs.response_file }}
+  session_log_file:
+    description: "Path to the session log JSONL file"
+    value: ${{ steps.run.outputs.session_log_file }}
+  raw_stdout_file:
+    description: "Path to raw acpx stdout captured on failure"
+    value: ${{ steps.run.outputs.raw_stdout_file }}
+  raw_stderr_file:
+    description: "Path to raw acpx stderr captured on failure"
+    value: ${{ steps.run.outputs.raw_stderr_file }}
+  session_name:
+    description: "acpx session name (if persistent)"
+    value: ${{ steps.run.outputs.session_name }}
+  acpx_record_id:
+    description: "acpx record ID"
+    value: ${{ steps.run.outputs.acpx_record_id }}
+  acpx_session_id:
+    description: "acpx session ID"
+    value: ${{ steps.run.outputs.acpx_session_id }}
+  thread_key:
+    description: "Thread key for session/state tracking"
+    value: ${{ steps.run.outputs.thread_key }}
+  prompt:
+    description: "Rendered prompt text"
+    value: ${{ steps.run.outputs.prompt }}
+  resume_status:
+    description: "Final acpx session continuity outcome"
+    value: ${{ steps.run.outputs.resume_status }}
+  last_resume_error:
+    description: "Session continuity error when resume failed"
+    value: ${{ steps.run.outputs.last_resume_error }}
+  session_bundle_restore_status:
+    description: "Result of restoring a prior session bundle artifact"
+    value: ${{ steps.run.outputs.session_bundle_restore_status }}
+  session_bundle_restore_error:
+    description: "Error emitted while restoring a prior session bundle artifact"
+    value: ${{ steps.run.outputs.session_bundle_restore_error }}
+  session_fork_from_thread_key:
+    description: "Source thread key used to seed this run, when a fork restore succeeded"
+    value: ${{ steps.run.outputs.session_fork_from_thread_key }}
+  session_fork_restore_status:
+    description: "Result of restoring the fork source bundle"
+    value: ${{ steps.run.outputs.session_fork_restore_status }}
+  session_fork_restore_error:
+    description: "Error emitted while restoring the fork source bundle"
+    value: ${{ steps.run.outputs.session_fork_restore_error }}
+  session_bundle_artifact_id:
+    description: "Uploaded session bundle artifact id"
+    value: ${{ steps.upload_session_bundle.outputs.artifact-id }}
+  session_bundle_artifact_name:
+    description: "Uploaded session bundle artifact name"
+    value: ${{ steps.bundle.outputs.artifact_name }}
+  memory_mode:
+    description: "Resolved memory mode (enabled, read-only, disabled)"
+    value: ${{ steps.memory_mode.outputs.mode }}
+  memory_available:
+    description: "Whether the agent memory branch was cloned successfully"
+    value: ${{ steps.memory.outputs.memory_available }}
+  memory_dir:
+    description: "Path to the downloaded agent memory checkout"
+    value: ${{ steps.memory.outputs.memory_dir }}
+  memory_committed:
+    description: "Whether the agent produced memory edits that were committed and pushed"
+    value: ${{ steps.commit_memory.outputs.committed }}
+  rubrics_mode:
+    description: "Resolved rubrics mode (enabled, read-only, disabled)"
+    value: ${{ steps.rubrics_mode.outputs.mode }}
+  rubrics_available:
+    description: "Whether the agent rubrics branch was cloned successfully"
+    value: ${{ steps.rubrics.outputs.rubrics_available }}
+  rubrics_dir:
+    description: "Path to the downloaded agent rubrics checkout"
+    value: ${{ steps.rubrics.outputs.rubrics_dir }}
+  rubrics_selected_count:
+    description: "How many rubrics were selected for this run"
+    value: ${{ steps.select_rubrics.outputs.selected_count }}
+  rubrics_committed:
+    description: "Whether the agent produced rubric edits that were committed and pushed"
+    value: ${{ steps.commit_rubrics.outputs.committed }}
+
+runs:
+  using: composite
+  steps:
+    - name: Verify built runtime
+      shell: bash
+      run: |
+        if [ ! -f .agent/dist/run.js ]; then
+          echo "Built runtime not found at .agent/dist/run.js" >&2
+          echo "Run the setup-agent-runtime action before run-agent-task." >&2
+          exit 1
+        fi
+
+    - name: Restore session bundle
+      id: restore
+      continue-on-error: true
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github_token }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        INPUT_GITHUB_TOKEN: ${{ inputs.github_token }}
+        ROUTE: ${{ inputs.route }}
+        LANE: ${{ inputs.lane }}
+        SESSION_POLICY: ${{ inputs.session_policy }}
+        SESSION_BUNDLE_MODE: ${{ inputs.session_bundle_mode }}
+        SESSION_FORK_FROM_THREAD_KEY: ${{ inputs.session_fork_from_thread_key }}
+        TARGET_KIND: ${{ inputs.target_kind }}
+        TARGET_NUMBER: ${{ inputs.target_number }}
+      run: node .agent/dist/cli/session-restore.js
+
+    - name: Resolve memory mode
+      id: memory_mode
+      shell: bash
+      env:
+        AGENT_MEMORY_POLICY: ${{ inputs.memory_policy }}
+        MEMORY_MODE_OVERRIDE: ${{ inputs.memory_mode_override }}
+        ROUTE: ${{ inputs.route }}
+      run: node .agent/dist/cli/memory/resolve-policy.js
+
+    - name: Set up agent memory
+      if: ${{ steps.memory_mode.outputs.read_enabled == 'true' }}
+      id: memory
+      uses: ./.github/actions/download-agent-memory
+      with:
+        github_token: ${{ inputs.github_token }}
+        ref: ${{ inputs.memory_ref }}
+        bootstrap_if_missing: ${{ inputs.memory_mode_override == 'enabled' && 'true' || 'false' }}
+
+    - name: Resolve rubrics mode
+      id: rubrics_mode
+      shell: bash
+      env:
+        AGENT_RUBRICS_POLICY: ${{ inputs.rubrics_policy }}
+        RUBRICS_MODE_OVERRIDE: ${{ inputs.rubrics_mode_override }}
+        ROUTE: ${{ inputs.route }}
+      run: node .agent/dist/cli/rubrics/resolve-policy.js
+
+    - name: Set up agent rubrics
+      if: ${{ steps.rubrics_mode.outputs.read_enabled == 'true' }}
+      id: rubrics
+      uses: ./.github/actions/download-agent-rubrics
+      with:
+        github_token: ${{ inputs.github_token }}
+        ref: ${{ inputs.rubrics_ref }}
+        bootstrap_if_missing: ${{ inputs.route == 'rubrics-initialization' && inputs.rubrics_mode_override == 'enabled' && 'true' || 'false' }}
+
+    - name: Select applicable rubrics
+      if: ${{ steps.rubrics.outputs.rubrics_available == 'true' && steps.rubrics.outputs.rubrics_dir != '' }}
+      id: select_rubrics
+      continue-on-error: true
+      shell: bash
+      env:
+        REQUEST_TEXT: ${{ inputs.request_text }}
+        ROUTE: ${{ inputs.route }}
+        RUBRICS_CONTEXT_FILE: ${{ runner.temp }}/selected-rubrics.md
+        RUBRICS_DIR: ${{ steps.rubrics.outputs.rubrics_dir }}
+        RUBRICS_LIMIT: ${{ inputs.route == 'rubrics-review' && 'all' || inputs.rubrics_limit }}
+        RUBRICS_SELECT_ALL_ROUTES: ${{ inputs.route == 'rubrics-review' && 'true' || 'false' }}
+        RUBRICS_SELECT_DOMAINS: ${{ inputs.route == 'answer' && 'communication' || '' }}
+      run: |
+        all_route_args=()
+        if [ "${RUBRICS_SELECT_ALL_ROUTES}" = "true" ]; then
+          all_route_args+=(--all-routes)
+        fi
+
+        node .agent/dist/cli/rubrics/select.js \
+          --dir "${RUBRICS_DIR}" \
+          --route "${ROUTE}" \
+          --query "${REQUEST_TEXT}" \
+          --best-effort \
+          "${all_route_args[@]}" \
+          --domains "${RUBRICS_SELECT_DOMAINS}" \
+          --limit "${RUBRICS_LIMIT}" \
+          --output-file "${RUBRICS_CONTEXT_FILE}"
+
+    - name: Run agent task
+      id: run
+      shell: bash
+      env:
+        ACPX_AGENT: ${{ inputs.agent }}
+        ACPX_PERMISSION_MODE: ${{ inputs.permission_mode }}
+        INPUT_GITHUB_TOKEN: ${{ inputs.github_token }}
+        INPUT_OPENAI_API_KEY: ${{ inputs.openai_api_key }}
+        CLAUDE_CODE_OAUTH_TOKEN: ${{ inputs.claude_oauth_token }}
+        MEMORY_AVAILABLE: ${{ steps.memory.outputs.memory_available }}
+        MEMORY_DIR: ${{ steps.memory.outputs.memory_dir }}
+        MEMORY_REF: ${{ steps.memory.outputs.memory_ref }}
+        RUBRICS_AVAILABLE: ${{ steps.rubrics.outputs.rubrics_available }}
+        RUBRICS_DIR: ${{ steps.rubrics.outputs.rubrics_dir }}
+        RUBRICS_REF: ${{ steps.rubrics.outputs.rubrics_ref }}
+        RUBRICS_CONTEXT_FILE: ${{ steps.select_rubrics.outputs.context_file }}
+        MODEL_REASONING_EFFORT: ${{ inputs.reasoning_effort }}
+        PROMPT_NAME: ${{ inputs.prompt }}
+        REPO_SLUG: ${{ github.repository }}
+        REQUEST_TEXT: ${{ inputs.request_text }}
+        REQUESTED_BY: ${{ inputs.requested_by }}
+        ROUTE: ${{ inputs.route }}
+        LANE: ${{ inputs.lane }}
+        SESSION_POLICY: ${{ inputs.session_policy }}
+        SESSION_BUNDLE_RESTORE_STATUS: ${{ steps.restore.outputs.restore_status }}
+        SESSION_BUNDLE_RESTORE_ERROR: ${{ steps.restore.outputs.restore_error }}
+        SESSION_FORK_FROM_THREAD_KEY: ${{ steps.restore.outputs.fork_from_thread_key }}
+        SESSION_FORK_ACPX_SESSION_ID: ${{ steps.restore.outputs.fork_acpx_session_id }}
+        SESSION_FORK_RESTORE_STATUS: ${{ steps.restore.outputs.fork_restore_status }}
+        SESSION_FORK_RESTORE_ERROR: ${{ steps.restore.outputs.fork_restore_error }}
+        SKILL_NAME: ${{ inputs.skill }}
+        SOURCE_KIND: ${{ inputs.source_kind }}
+        TARGET_KIND: ${{ inputs.target_kind }}
+        TARGET_NUMBER: ${{ inputs.target_number }}
+        TARGET_URL: ${{ inputs.target_url }}
+        WORKFLOW: ${{ inputs.workflow }}
+      run: |
+        # Keep the composite action alive long enough to run best-effort
+        # post-processing, then rethrow the agent exit code in a final step.
+        set +e
+        node .agent/dist/run.js
+        exit_code=$?
+        echo "exit_code=${exit_code}" >> "$GITHUB_OUTPUT"
+        exit 0
+
+    - name: Commit memory edits
+      if: >-
+        steps.run.outputs.exit_code == '0' &&
+        steps.memory_mode.outputs.write_enabled == 'true' &&
+        steps.memory.outputs.memory_available == 'true' &&
+        steps.memory.outputs.memory_dir != ''
+      id: commit_memory
+      continue-on-error: true
+      shell: bash
+      env:
+        BRANCH: ${{ inputs.memory_ref }}
+        COMMIT_CWD: ${{ steps.memory.outputs.memory_dir }}
+        COMMIT_MESSAGE: "chore(memory): agent updates"
+        GH_TOKEN: ${{ inputs.github_token }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        SET_UPSTREAM: "true"
+      run: node ${{ github.workspace }}/.agent/dist/cli/commit.js
+
+    - name: Report memory commit failure
+      if: always() && steps.commit_memory.outcome == 'failure'
+      shell: bash
+      env:
+        MEMORY_REF: ${{ inputs.memory_ref }}
+        ROUTE: ${{ inputs.route }}
+      run: |
+        echo "::warning title=Memory commit failed::Failed to persist memory updates for route '${ROUTE}' to '${MEMORY_REF}'. Check the 'Commit memory edits' step for the push error."
+
+    - name: Validate rubric edits
+      if: >-
+        steps.run.outputs.exit_code == '0' &&
+        steps.rubrics_mode.outputs.write_enabled == 'true' &&
+        steps.rubrics.outputs.rubrics_available == 'true' &&
+        steps.rubrics.outputs.rubrics_dir != ''
+      id: validate_rubrics
+      shell: bash
+      run: node .agent/dist/cli/rubrics/validate.js --dir "${{ steps.rubrics.outputs.rubrics_dir }}"
+
+    - name: Report rubrics validation failure
+      if: always() && steps.validate_rubrics.outcome == 'failure'
+      shell: bash
+      env:
+        RUBRICS_REF: ${{ inputs.rubrics_ref }}
+        ROUTE: ${{ inputs.route }}
+      run: |
+        echo "::warning title=Rubrics validation failed::Rubric edits for route '${ROUTE}' failed validation and were not committed to '${RUBRICS_REF}'. Check the 'Validate rubric edits' step for schema errors."
+
+    - name: Commit rubric edits
+      if: >-
+        steps.run.outputs.exit_code == '0' &&
+        steps.rubrics_mode.outputs.write_enabled == 'true' &&
+        steps.rubrics.outputs.rubrics_available == 'true' &&
+        steps.rubrics.outputs.rubrics_dir != '' &&
+        steps.validate_rubrics.outcome == 'success'
+      id: commit_rubrics
+      continue-on-error: true
+      shell: bash
+      env:
+        BRANCH: ${{ inputs.rubrics_ref }}
+        COMMIT_CWD: ${{ steps.rubrics.outputs.rubrics_dir }}
+        COMMIT_MESSAGE: "chore(rubrics): agent updates"
+        GH_TOKEN: ${{ inputs.github_token }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        SET_UPSTREAM: "true"
+      run: node ${{ github.workspace }}/.agent/dist/cli/commit.js
+
+    - name: Report rubrics commit failure
+      if: always() && steps.commit_rubrics.outcome == 'failure'
+      shell: bash
+      env:
+        RUBRICS_REF: ${{ inputs.rubrics_ref }}
+        ROUTE: ${{ inputs.route }}
+      run: |
+        echo "::warning title=Rubrics commit failed::Failed to persist rubric updates for route '${ROUTE}' to '${RUBRICS_REF}'. Check the 'Commit rubric edits' step for the push error."
+
+    - name: Require rubric initialization commit
+      if: always() && inputs.route == 'rubrics-initialization' && steps.run.outputs.exit_code == '0'
+      shell: bash
+      env:
+        COMMIT_OUTCOME: ${{ steps.commit_rubrics.outcome }}
+        RUBRICS_COMMITTED: ${{ steps.commit_rubrics.outputs.committed }}
+        RUBRICS_REF: ${{ inputs.rubrics_ref }}
+      run: |
+        if [ "$COMMIT_OUTCOME" != "success" ] || [ "$RUBRICS_COMMITTED" != "true" ]; then
+          echo "Rubrics initialization did not persist ${RUBRICS_REF}; failing first-run setup." >&2
+          exit 1
+        fi
+
+    - name: Prepare session bundle
+      if: always() && steps.run.outputs.exit_code == '0'
+      id: bundle
+      continue-on-error: true
+      shell: bash
+      env:
+        ACPX_AGENT: ${{ inputs.agent }}
+        ACPX_RECORD_ID: ${{ steps.run.outputs.acpx_record_id }}
+        ACPX_SESSION_ID: ${{ steps.run.outputs.acpx_session_id }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        LANE: ${{ inputs.lane }}
+        ROUTE: ${{ inputs.route }}
+        SESSION_POLICY: ${{ inputs.session_policy }}
+        SESSION_BUNDLE_MODE: ${{ inputs.session_bundle_mode }}
+        TARGET_KIND: ${{ inputs.target_kind }}
+        TARGET_NUMBER: ${{ inputs.target_number }}
+      run: node .agent/dist/cli/session-backup.js
+
+    - name: Upload session bundle artifact
+      if: always() && steps.run.outputs.exit_code == '0' && steps.bundle.outputs.bundle_created == 'true'
+      id: upload_session_bundle
+      continue-on-error: true
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.bundle.outputs.artifact_name }}
+        path: ${{ steps.bundle.outputs.bundle_file }}
+        retention-days: ${{ inputs.session_bundle_retention_days }}
+
+    - name: Register session bundle artifact
+      if: always() && steps.run.outputs.exit_code == '0' && steps.upload_session_bundle.outputs.artifact-id != ''
+      id: register_session_bundle
+      continue-on-error: true
+      shell: bash
+      env:
+        INPUT_GITHUB_TOKEN: ${{ inputs.github_token }}
+        LANE: ${{ inputs.lane }}
+        ROUTE: ${{ inputs.route }}
+        SESSION_POLICY: ${{ inputs.session_policy }}
+        SESSION_BUNDLE_ARTIFACT_ID: ${{ steps.upload_session_bundle.outputs.artifact-id }}
+        SESSION_BUNDLE_ARTIFACT_NAME: ${{ steps.bundle.outputs.artifact_name }}
+        SESSION_BUNDLE_MODE: ${{ inputs.session_bundle_mode }}
+        SESSION_RECORD_ID: ${{ steps.run.outputs.acpx_record_id }}
+        SESSION_ID: ${{ steps.run.outputs.acpx_session_id }}
+        TARGET_KIND: ${{ inputs.target_kind }}
+        TARGET_NUMBER: ${{ inputs.target_number }}
+      run: node .agent/dist/cli/session-register.js
+
+    - name: Propagate agent exit code
+      if: steps.run.outputs.exit_code != '0'
+      shell: bash
+      run: exit "${{ steps.run.outputs.exit_code }}"

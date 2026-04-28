@@ -1,0 +1,103 @@
+name: Resolve GitHub auth
+description: >-
+  Resolve the GitHub token source from direct app credentials, the official
+  hosted OIDC broker, PAT, or fallback token. Callers using the hosted OIDC
+  broker path must grant `permissions: id-token: write`.
+
+inputs:
+  app_id:
+    description: GitHub App ID.
+    required: false
+    default: ""
+  app_private_key:
+    description: GitHub App private key.
+    required: false
+    default: ""
+  pat:
+    description: Fine-grained PAT or machine-user token.
+    required: false
+    default: ""
+  fallback_token:
+    description: Fallback token, typically github.token.
+    required: false
+    default: ""
+
+outputs:
+  token:
+    description: Resolved GitHub token.
+    value: ${{ steps.resolve.outputs.token }}
+  auth_mode:
+    description: Which auth mode was selected (github_app, oidc_broker, pat, github_token).
+    value: ${{ steps.resolve.outputs.auth_mode }}
+
+runs:
+  using: composite
+  steps:
+    - name: Validate direct GitHub App inputs
+      shell: bash
+      env:
+        INPUT_APP_ID: ${{ inputs.app_id }}
+        INPUT_APP_PRIVATE_KEY: ${{ inputs.app_private_key }}
+      run: |
+        set -euo pipefail
+
+        if { [ -n "${INPUT_APP_ID}" ] && [ -z "${INPUT_APP_PRIVATE_KEY}" ]; } ||
+           { [ -z "${INPUT_APP_ID}" ] && [ -n "${INPUT_APP_PRIVATE_KEY}" ]; }; then
+          echo "app_id and app_private_key must be configured together." >&2
+          exit 1
+        fi
+
+    - name: Generate app token
+      id: app-token
+      if: ${{ inputs.app_id != '' && inputs.app_private_key != '' }}
+      uses: actions/create-github-app-token@v1
+      with:
+        app-id: ${{ inputs.app_id }}
+        private-key: ${{ inputs.app_private_key }}
+
+    - name: Exchange OIDC token for hosted app token
+      id: oidc-token
+      if: ${{ inputs.app_id == '' && inputs.app_private_key == '' }}
+      shell: bash
+      env:
+        OIDC_AUDIENCE: codiscover-agent
+        OIDC_EXCHANGE_URL: https://agent-oidc-test.vercel.app/api/github/github-app-token-exchange
+      run: bash "${GITHUB_ACTION_PATH}/exchange-oidc.sh"
+
+    - name: Resolve token source
+      id: resolve
+      shell: bash
+      env:
+        APP_TOKEN: ${{ steps.app-token.outputs.token }}
+        OIDC_TOKEN: ${{ steps.oidc-token.outputs.token }}
+        PAT_TOKEN: ${{ inputs.pat }}
+        FALLBACK_TOKEN: ${{ inputs.fallback_token }}
+      run: |
+        set -euo pipefail
+
+        token=""
+        auth_mode=""
+
+        if [ -n "$APP_TOKEN" ]; then
+          token="$APP_TOKEN"
+          auth_mode="github_app"
+        elif [ -n "$OIDC_TOKEN" ]; then
+          token="$OIDC_TOKEN"
+          auth_mode="oidc_broker"
+        elif [ -n "$PAT_TOKEN" ]; then
+          token="$PAT_TOKEN"
+          auth_mode="pat"
+        elif [ -n "$FALLBACK_TOKEN" ]; then
+          token="$FALLBACK_TOKEN"
+          auth_mode="github_token"
+        else
+          echo "No GitHub auth token source configured." >&2
+          exit 1
+        fi
+
+        echo "Resolved auth mode: $auth_mode"
+        echo "::add-mask::$token"
+        {
+          echo "token=$token"
+          echo "auth_mode=$auth_mode"
+        } >> "$GITHUB_OUTPUT"

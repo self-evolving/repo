@@ -1,0 +1,159 @@
+name: Agent / Rubrics / Review
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Pull request number to review against rubrics"
+        required: true
+      requested_by:
+        description: "GitHub login that requested the run"
+        required: false
+      request_text:
+        description: "Original user request text forwarded from the portal"
+        required: false
+      rubrics_ref:
+        description: "Rubrics branch to read"
+        required: false
+        default: agent/rubrics
+      rubrics_limit:
+        description: "Maximum selected rubrics to score"
+        required: false
+        default: ""
+      post_comment:
+        description: "Post the rubric review as a PR comment"
+        required: false
+        default: "true"
+      session_bundle_mode:
+        description: "Session bundle persistence mode (defaults to repository variable AGENT_SESSION_BUNDLE_MODE or 'auto')"
+        required: false
+        default: ""
+  workflow_call:
+    inputs:
+      pr_number:
+        type: string
+        required: true
+      requested_by:
+        type: string
+        required: false
+      request_text:
+        type: string
+        required: false
+      runs_on:
+        type: string
+        default: ""
+      rubrics_ref:
+        type: string
+        default: agent/rubrics
+      rubrics_limit:
+        type: string
+        default: ""
+      post_comment:
+        type: string
+        default: "false"
+      session_bundle_mode:
+        type: string
+        default: ""
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: write
+  id-token: write # required for GitHub Actions OIDC broker exchange
+
+jobs:
+  rubrics-review:
+    runs-on: ${{ fromJson(inputs.runs_on || vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.repository.default_branch }}
+          token: ${{ github.token }}
+
+      - name: Resolve GitHub auth
+        id: auth
+        uses: ./.github/actions/resolve-github-auth
+        with:
+          app_id: ${{ secrets.AGENT_APP_ID }}
+          app_private_key: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
+          pat: ${{ secrets.AGENT_PAT }}
+          fallback_token: ${{ github.token }}
+
+      - name: Resolve rubrics review provider
+        id: provider
+        uses: ./.github/actions/resolve-agent-provider
+        with:
+          route: rubrics-review
+          default_provider: ${{ vars.AGENT_DEFAULT_PROVIDER || 'auto' }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+      - name: Setup agent runtime
+        uses: ./.github/actions/setup-agent-runtime
+        with:
+          install_codex: ${{ steps.provider.outputs.install_codex }}
+          install_claude: ${{ steps.provider.outputs.install_claude }}
+
+      - name: Run rubrics review
+        id: review
+        continue-on-error: true
+        uses: ./.github/actions/run-agent-task
+        with:
+          agent: ${{ steps.provider.outputs.provider }}
+          github_token: ${{ steps.auth.outputs.token }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          permission_mode: approve-all
+          prompt: rubrics-review
+          route: rubrics-review
+          lane: rubrics-review
+          memory_mode_override: 'read-only'
+          memory_ref: ${{ vars.AGENT_MEMORY_REF || 'agent/memory' }}
+          memory_policy: ${{ vars.AGENT_MEMORY_POLICY || '' }}
+          rubrics_ref: ${{ inputs.rubrics_ref || vars.AGENT_RUBRICS_REF || 'agent/rubrics' }}
+          rubrics_policy: ${{ vars.AGENT_RUBRICS_POLICY || '' }}
+          rubrics_limit: ${{ inputs.rubrics_limit || vars.AGENT_RUBRICS_LIMIT || '10' }}
+          session_bundle_mode: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
+          session_policy: none
+          request_text: ${{ inputs.request_text }}
+          requested_by: ${{ inputs.requested_by || github.actor }}
+          source_kind: workflow_dispatch
+          target_kind: pull_request
+          target_number: ${{ inputs.pr_number }}
+          target_url: ${{ github.server_url }}/${{ github.repository }}/pull/${{ inputs.pr_number }}
+          reasoning_effort: high
+          workflow: agent-rubrics-review.yml
+
+      - name: Persist rubrics review artifact
+        if: ${{ steps.review.outputs.response_file != '' }}
+        run: |
+          set -euo pipefail
+          cp "${{ steps.review.outputs.response_file }}" "${{ runner.temp }}/review.md"
+          if [ -f "${{ steps.review.outputs.session_log_file }}" ]; then
+            cp "${{ steps.review.outputs.session_log_file }}" "${{ runner.temp }}/events.jsonl"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ steps.review.outputs.response_file != '' }}
+        with:
+          name: rubrics-review-${{ inputs.pr_number }}
+          path: |
+            ${{ runner.temp }}/review.md
+            ${{ runner.temp }}/events.jsonl
+          retention-days: 30
+
+      - name: Post rubric review comment
+        if: inputs.post_comment == 'true' && steps.review.outputs.response_file != ''
+        env:
+          BODY_FILE: ${{ steps.review.outputs.response_file }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          RESPONSE_KIND: pr_comment
+          TARGET_NUMBER: ${{ inputs.pr_number }}
+        run: node .agent/dist/cli/post-response.js
+
+      - name: Report skipped rubric review
+        if: always() && steps.review.outcome == 'failure'
+        run: |
+          echo "::warning title=Rubrics review skipped::Rubrics review failed before producing a response; continuing because rubric scoring is advisory."

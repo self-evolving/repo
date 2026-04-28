@@ -1,0 +1,288 @@
+name: Agent / Fix PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Pull request number to fix"
+        required: true
+      requested_by:
+        description: "GitHub login that approved the run"
+        required: false
+      approval_comment_url:
+        description: "Approval comment URL"
+        required: false
+      request_comment_id:
+        description: "ID of the triggering PR comment or review"
+        required: false
+      request_comment_url:
+        description: "URL of the triggering PR comment or review"
+        required: false
+      request_source_kind:
+        description: "Source kind that triggered the PR fix run"
+        required: false
+      request_text:
+        description: "Original user request text forwarded from the portal"
+        required: false
+      orchestrator_context:
+        description: "Planner-provided instructions from agent-orchestrator.yml for automated handoffs"
+        required: false
+        default: ""
+      session_bundle_mode:
+        description: "Session bundle persistence mode (defaults to repository variable AGENT_SESSION_BUNDLE_MODE or 'auto')"
+        required: false
+        default: ""
+      automation_mode:
+        description: "Post-action orchestration mode (disabled, heuristics, agent)"
+        required: false
+        default: "disabled"
+      automation_current_round:
+        description: "Current automation handoff round"
+        required: false
+        default: "1"
+      automation_max_rounds:
+        description: "Maximum automation handoff rounds"
+        required: false
+        default: "5"
+  workflow_call:
+    inputs:
+      pr_number:
+        type: string
+        required: true
+      requested_by:
+        type: string
+        required: false
+      approval_comment_url:
+        type: string
+        required: false
+      request_comment_id:
+        type: string
+        required: false
+      request_comment_url:
+        type: string
+        required: false
+      request_source_kind:
+        type: string
+        required: false
+      request_text:
+        type: string
+        required: false
+      orchestrator_context:
+        type: string
+        required: false
+        default: ""
+      runs_on:
+        type: string
+        default: ""
+      session_bundle_mode:
+        type: string
+        default: ""
+      automation_mode:
+        type: string
+        required: false
+        default: "disabled"
+      automation_current_round:
+        type: string
+        required: false
+        default: "1"
+      automation_max_rounds:
+        type: string
+        required: false
+        default: "5"
+
+permissions:
+  actions: write
+  contents: write
+  pull-requests: write
+  id-token: write # required for GitHub Actions OIDC broker exchange
+
+concurrency:
+  group: agent-fix-pr-${{ inputs.pr_number }}
+  cancel-in-progress: false
+
+jobs:
+  fix-pr:
+    runs-on: ${{ fromJson(inputs.runs_on || vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
+    env:
+      MODEL_REASONING_EFFORT: xhigh
+      PR_NUMBER: ${{ inputs.pr_number }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.event.repository.default_branch }}
+          token: ${{ github.token }}
+
+      - name: Resolve GitHub auth
+        id: auth
+        uses: ./.github/actions/resolve-github-auth
+        with:
+          app_id: ${{ secrets.AGENT_APP_ID }}
+          app_private_key: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
+          pat: ${{ secrets.AGENT_PAT }}
+          fallback_token: ${{ github.token }}
+
+      - name: Resolve fix-pr provider
+        id: provider
+        uses: ./.github/actions/resolve-agent-provider
+        with:
+          route: fix-pr
+          default_provider: ${{ vars.AGENT_DEFAULT_PROVIDER || 'auto' }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+      - name: Setup agent runtime
+        id: runtime
+        uses: ./.github/actions/setup-agent-runtime
+        with:
+          install_codex: ${{ steps.provider.outputs.install_codex }}
+          install_claude: ${{ steps.provider.outputs.install_claude }}
+
+      - name: Checkout PR head branch
+        id: pr
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ env.PR_NUMBER }}
+        run: node .agent/dist/cli/checkout-pr.js
+
+      - name: Label target pull request
+        if: vars.AGENT_STATUS_LABEL_ENABLED == 'true' && steps.pr.outputs.cross_repo != 'true' && steps.pr.outputs.pr_state == 'OPEN'
+        continue-on-error: true
+        env:
+          AGENT_STATUS_LABEL_ENABLED: ${{ vars.AGENT_STATUS_LABEL_ENABLED || '' }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          TARGET_KIND: pull_request
+          TARGET_NUMBER: ${{ env.PR_NUMBER }}
+        run: node .agent/dist/cli/add-label.js
+
+      - name: Run agent
+        if: steps.pr.outputs.cross_repo != 'true' && steps.pr.outputs.pr_state == 'OPEN'
+        id: agent
+        uses: ./.github/actions/run-agent-task
+        with:
+          agent: ${{ steps.provider.outputs.provider }}
+          github_token: ${{ steps.auth.outputs.token }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: fix-pr
+          route: fix-pr
+          lane: fix-pr-${{ steps.provider.outputs.provider }}
+          memory_ref: ${{ vars.AGENT_MEMORY_REF || 'agent/memory' }}
+          memory_policy: ${{ vars.AGENT_MEMORY_POLICY || '' }}
+          rubrics_ref: ${{ vars.AGENT_RUBRICS_REF || 'agent/rubrics' }}
+          rubrics_policy: ${{ vars.AGENT_RUBRICS_POLICY || '' }}
+          rubrics_limit: ${{ vars.AGENT_RUBRICS_LIMIT || '10' }}
+          session_bundle_mode: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
+          session_policy: resume-best-effort
+          request_text: ${{ inputs.request_text }}
+          requested_by: ${{ inputs.requested_by || github.actor }}
+          source_kind: ${{ inputs.request_source_kind || 'workflow_dispatch' }}
+          target_kind: pull_request
+          target_number: ${{ env.PR_NUMBER }}
+          target_url: ${{ github.server_url }}/${{ github.repository }}/pull/${{ env.PR_NUMBER }}
+          workflow: agent-fix-pr.yml
+        env:
+          REQUEST_COMMENT_ID: ${{ inputs.request_comment_id }}
+          REQUEST_COMMENT_URL: ${{ inputs.request_comment_url }}
+          REQUEST_SOURCE_KIND: ${{ inputs.request_source_kind || 'workflow_dispatch' }}
+          ORCHESTRATOR_CONTEXT: ${{ inputs.orchestrator_context }}
+
+      - name: Detect PR branch head update
+        if: always() && steps.pr.outputs.cross_repo != 'true' && steps.pr.outputs.pr_state == 'OPEN'
+        id: head
+        env:
+          ORIGINAL_HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+        run: node .agent/dist/cli/detect-head-change.js
+
+      - name: Verify changes
+        if: always() && steps.pr.outputs.cross_repo != 'true' && steps.pr.outputs.pr_state == 'OPEN'
+        id: verify
+        env:
+          HEAD_CHANGED: ${{ steps.head.outputs.head_changed }}
+          VERIFY_BASE_SHA: ${{ steps.pr.outputs.head_sha }}
+        run: node .agent/dist/cli/verify.js
+
+      - name: Parse response
+        if: always() && steps.pr.outputs.cross_repo != 'true' && steps.pr.outputs.pr_state == 'OPEN'
+        id: response
+        env:
+          AGENT_EXIT_CODE: ${{ steps.agent.outcome == 'success' && '0' || '1' }}
+          HAS_CHANGES: ${{ steps.verify.outputs.has_changes }}
+          HEAD_CHANGED: ${{ steps.head.outputs.head_changed }}
+          RESPONSE_FILE: ${{ steps.agent.outputs.response_file }}
+          VERIFY_EXIT_CODE: ${{ steps.verify.outputs.verify_exit_code }}
+        run: node .agent/dist/cli/parse-response.js
+
+      - name: Commit and push to PR branch
+        if: steps.response.outputs.status == 'success' && steps.verify.outputs.has_changes == 'true'
+        id: commit
+        env:
+          BRANCH: ${{ steps.pr.outputs.head_ref }}
+          COMMIT_MESSAGE: >-
+            ${{ steps.response.outputs.commit_message || format('fix: address PR #{0} feedback ({1})', env.PR_NUMBER, steps.provider.outputs.provider) }}
+          GIT_BOT_EMAIL: ${{ vars.AGENT_COMMITTER_EMAIL || '' }}
+          GIT_BOT_NAME: ${{ vars.AGENT_COMMITTER_NAME || '' }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          PUSH_LEASE_OID: ${{ steps.pr.outputs.head_sha }}
+          PUSH_REF: ${{ steps.pr.outputs.head_ref }}
+        run: node .agent/dist/cli/commit.js
+
+      - name: Push PR branch head update
+        if: steps.response.outputs.status == 'success' && steps.verify.outputs.has_changes != 'true' && steps.head.outputs.head_changed == 'true'
+        id: push-head
+        env:
+          BRANCH: ${{ steps.pr.outputs.head_ref }}
+          EXPECTED_HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node .agent/dist/cli/push-pr-head.js
+
+      - name: Post status comment
+        if: always() && steps.pr.outputs.cross_repo != 'true' && steps.pr.outputs.pr_state == 'OPEN'
+        env:
+          APPROVAL_COMMENT_URL: ${{ inputs.approval_comment_url }}
+          BRANCH: ${{ steps.pr.outputs.head_ref }}
+          COMMENT_TARGET: pr
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          PR_NUMBER: ${{ env.PR_NUMBER }}
+          REQUESTED_BY: ${{ inputs.requested_by || github.actor }}
+          RESPONSE_FILE: ${{ steps.agent.outputs.response_file }}
+          RESUME_STATUS: ${{ steps.agent.outputs.resume_status }}
+          ROUTE: fix-pr
+          STATUS: ${{ (steps.commit.outcome == 'failure' || steps.push-head.outcome == 'failure') && 'failed' || steps.response.outputs.status || 'failed' }}
+          TARGET_NUMBER: ${{ env.PR_NUMBER }}
+        run: node .agent/dist/cli/post-comment.js
+
+      - name: Post unsupported status
+        if: steps.pr.outputs.cross_repo == 'true' || steps.pr.outputs.pr_state != 'OPEN'
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+        run: |
+          gh pr comment "${PR_NUMBER}" --body "$(printf '%s\n' \
+            '**Sepo could not update this PR automatically.**' \
+            '' \
+            'PR fix runs currently support open same-repository pull requests only.')"
+
+      - name: Orchestrate automation handoff
+        if: >-
+          always() &&
+          steps.pr.outputs.cross_repo != 'true' &&
+          steps.pr.outputs.pr_state == 'OPEN' &&
+          (inputs.automation_mode == 'true' || inputs.automation_mode == 'heuristics' || inputs.automation_mode == 'agent')
+        env:
+          AUTOMATION_CURRENT_ROUND: ${{ inputs.automation_current_round }}
+          AUTOMATION_MAX_ROUNDS: ${{ inputs.automation_max_rounds }}
+          AUTOMATION_MODE: ${{ inputs.automation_mode }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          REQUESTED_BY: ${{ inputs.requested_by || github.actor }}
+          REQUEST_TEXT: ${{ inputs.request_text }}
+          SESSION_BUNDLE_MODE: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
+          SOURCE_ACTION: fix-pr
+          SOURCE_CONCLUSION: ${{ steps.response.outputs.status || 'failed' }}
+          TARGET_NUMBER: ${{ env.PR_NUMBER }}
+        run: node .agent/dist/cli/dispatch-agent-orchestrator.js

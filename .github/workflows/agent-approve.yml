@@ -1,0 +1,119 @@
+name: Agent / Approve
+
+on:
+  issue_comment:
+    types: [created]
+  discussion_comment:
+    types: [created]
+
+concurrency:
+  group: >-
+    agent-approve-${{ github.repository }}-${{ github.event.issue.number || github.event.discussion.number }}
+  cancel-in-progress: false
+
+permissions:
+  actions: write
+  contents: read
+  discussions: write
+  issues: write
+  pull-requests: write
+  id-token: write # required for GitHub Actions OIDC broker exchange
+
+jobs:
+  approve:
+    if: >-
+      contains(
+        github.event.comment.body,
+        format('{0} /approve', vars.AGENT_HANDLE || '@sepo-agent')
+      )
+    runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ github.token }}
+
+      - name: Resolve GitHub auth
+        id: auth
+        uses: ./.github/actions/resolve-github-auth
+        with:
+          app_id: ${{ secrets.AGENT_APP_ID }}
+          app_private_key: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
+          pat: ${{ secrets.AGENT_PAT }}
+          fallback_token: ${{ github.token }}
+
+      - name: Setup agent runtime
+        id: runtime
+        uses: ./.github/actions/setup-agent-runtime
+
+      - name: Resolve approval target
+        id: approval
+        env:
+          ACCESS_POLICY: ${{ vars.AGENT_ACCESS_POLICY || '' }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          REPOSITORY_PRIVATE: ${{ github.event.repository.private && 'true' || 'false' }}
+          INPUT_MENTION: ${{ vars.AGENT_HANDLE || '@sepo-agent' }}
+        run: node .agent/dist/cli/resolve-approval.js
+
+      - name: Create implementation issue
+        if: >-
+          steps.approval.outputs.should_dispatch == 'true' &&
+          steps.approval.outputs.should_create_issue == 'true'
+        id: create_issue
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          ISSUE_BODY: ${{ steps.approval.outputs.issue_body }}
+          ISSUE_TITLE: ${{ steps.approval.outputs.issue_title }}
+          SOURCE_KIND: ${{ steps.approval.outputs.target_kind }}
+          TARGET_URL: ${{ steps.approval.outputs.target_url }}
+        run: node .agent/dist/cli/create-issue.js
+
+      - name: Dispatch follow-up workflow
+        if: >-
+          steps.approval.outputs.should_dispatch == 'true' &&
+          steps.approval.outputs.workflow == 'agent-implement.yml'
+        env:
+          APPROVAL_COMMENT_URL: ${{ github.event.comment.html_url }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ steps.create_issue.outputs.issue_number || steps.approval.outputs.target_number }}
+          IMPLEMENTATION_ROUTE: ${{ steps.approval.outputs.route }}
+          REQUESTED_BY: ${{ github.actor }}
+          REQUEST_TEXT: ${{ steps.approval.outputs.request_text }}
+          AUTOMATION_MODE: ${{ vars.AGENT_AUTOMATION_MODE || 'disabled' }}
+          AUTOMATION_MAX_ROUNDS: ${{ vars.AGENT_AUTOMATION_MAX_ROUNDS || '5' }}
+        run: node .agent/dist/cli/dispatch-agent-implement.js
+
+      - name: Reject unsupported follow-up workflow
+        if: >-
+          steps.approval.outputs.should_dispatch == 'true' &&
+          steps.approval.outputs.workflow != 'agent-implement.yml'
+        env:
+          WORKFLOW: ${{ steps.approval.outputs.workflow }}
+        run: |
+          echo "Unsupported workflow ${WORKFLOW}" >&2
+          exit 1
+
+      - name: React with thumbs up
+        if: steps.approval.outputs.should_dispatch == 'true'
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          REACTION_SUBJECT_ID: ${{ github.event.comment.node_id }}
+          REACTION_CONTENT: THUMBS_UP
+        run: node .agent/dist/cli/add-reaction.js
+
+      - name: Update approval request comment
+        if: steps.approval.outputs.should_dispatch == 'true'
+        env:
+          APPROVER: ${{ github.actor }}
+          CREATED_ISSUE_URL: ${{ steps.create_issue.outputs.issue_url }}
+          IS_DISCUSSION: ${{ steps.approval.outputs.is_discussion }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          REQUEST_COMMENT_BODY: ${{ steps.approval.outputs.request_comment_body }}
+          REQUEST_COMMENT_ID: ${{ steps.approval.outputs.request_comment_id }}
+          ROUTE: ${{ steps.approval.outputs.route }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          WORKFLOW: ${{ steps.approval.outputs.workflow }}
+        run: node .agent/dist/cli/update-approval-comment.js

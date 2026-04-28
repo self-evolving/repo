@@ -1,0 +1,216 @@
+name: Agent / Daily Summary
+
+on:
+  schedule:
+    - cron: "0 11 * * *" # Daily at 7 AM ET / 11 AM UTC
+  workflow_dispatch:
+    inputs:
+      lookback_days:
+        description: "How many days of repository activity to summarize"
+        required: false
+        default: "1"
+      discussion_category:
+        description: "Discussion category for posted summaries"
+        required: false
+        default: "General"
+
+permissions:
+  actions: read
+  contents: read
+  discussions: write
+  issues: read
+  pull-requests: read
+  id-token: write # required for GitHub Actions OIDC broker exchange
+
+concurrency:
+  group: agent-daily-summary-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  pre_gate:
+    runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
+    outputs:
+      skip: ${{ steps.gate.outputs.skip }}
+      mode: ${{ steps.gate.outputs.mode }}
+      reason: ${{ steps.gate.outputs.reason }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          ref: ${{ github.event.repository.default_branch }}
+          token: ${{ github.token }}
+
+      - name: Resolve scheduled disabled gate
+        id: gate
+        uses: ./.github/actions/scheduled-activity-gate
+        with:
+          github_token: ${{ github.token }}
+          schedule_policy: ${{ vars.AGENT_SCHEDULE_POLICY || '' }}
+          workflow: agent-daily-summary.yml
+
+  signals:
+    needs: pre_gate
+    if: needs.pre_gate.outputs.skip != 'true'
+    runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
+    env:
+      LOOKBACK_DAYS: ${{ inputs.lookback_days || '1' }}
+    outputs:
+      skip: ${{ steps.gate.outputs.skip }}
+      mode: ${{ steps.gate.outputs.mode }}
+      reason: ${{ steps.gate.outputs.reason }}
+      summary_date: ${{ steps.signals.outputs.summary_date }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.event.repository.default_branch }}
+          token: ${{ github.token }}
+
+      - name: Resolve GitHub auth
+        id: auth
+        uses: ./.github/actions/resolve-github-auth
+        with:
+          app_id: ${{ secrets.AGENT_APP_ID }}
+          app_private_key: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
+          pat: ${{ secrets.AGENT_PAT }}
+          fallback_token: ${{ github.token }}
+
+      - name: Setup agent runtime for activity signals
+        uses: ./.github/actions/setup-agent-runtime
+
+      - name: Gather repository signals
+        id: signals
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_TOKEN: ${{ steps.auth.outputs.token }}
+          REPO_SLUG: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          signals_dir="${RUNNER_TEMP}/daily-signals"
+          rm -rf "${signals_dir}"
+          mkdir -p "${signals_dir}"
+
+          summary_date="$(date -u +%Y-%m-%d)"
+          node .agent/dist/cli/memory/sync-github-artifacts.js \
+            --dir "${signals_dir}/memory" \
+            --repo "${REPO_SLUG}" \
+            --lookback-days "${LOOKBACK_DAYS}" \
+            > "${signals_dir}/github-sync.json"
+
+          echo "signals_dir=${signals_dir}" >> "${GITHUB_OUTPUT}"
+          echo "summary_date=${summary_date}" >> "${GITHUB_OUTPUT}"
+
+      - name: Count summary activity
+        id: activity
+        shell: bash
+        env:
+          DISCUSSION_COUNT: ${{ steps.signals.outputs.discussion_count || '0' }}
+          ISSUE_COUNT: ${{ steps.signals.outputs.issue_count || '0' }}
+          PULL_COUNT: ${{ steps.signals.outputs.pull_count || '0' }}
+        run: |
+          set -euo pipefail
+          count=$((ISSUE_COUNT + PULL_COUNT + DISCUSSION_COUNT))
+          echo "count=${count}" >> "${GITHUB_OUTPUT}"
+
+      - name: Resolve scheduled activity gate
+        id: gate
+        uses: ./.github/actions/scheduled-activity-gate
+        with:
+          github_token: ${{ steps.auth.outputs.token }}
+          schedule_policy: ${{ vars.AGENT_SCHEDULE_POLICY || '' }}
+          workflow: agent-daily-summary.yml
+          activity_count: ${{ steps.activity.outputs.count }}
+
+      - name: Upload summary signals
+        if: steps.gate.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-summary-signals-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ steps.signals.outputs.signals_dir }}/
+          retention-days: 1
+
+  daily-summary:
+    needs: signals
+    if: needs.signals.result == 'success' && needs.signals.outputs.skip != 'true'
+    runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
+    env:
+      DISCUSSION_CATEGORY: ${{ inputs.discussion_category || 'General' }}
+      LOOKBACK_DAYS: ${{ inputs.lookback_days || '1' }}
+      SIGNALS_DIR: daily-signals
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.event.repository.default_branch }}
+          token: ${{ github.token }}
+
+      - name: Download summary signals
+        uses: actions/download-artifact@v4
+        with:
+          name: daily-summary-signals-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.SIGNALS_DIR }}
+
+      - name: Resolve GitHub auth
+        id: auth
+        uses: ./.github/actions/resolve-github-auth
+        with:
+          app_id: ${{ secrets.AGENT_APP_ID }}
+          app_private_key: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
+          pat: ${{ secrets.AGENT_PAT }}
+          fallback_token: ${{ github.token }}
+
+      - name: Resolve daily summary provider
+        id: provider
+        uses: ./.github/actions/resolve-agent-provider
+        with:
+          route: daily-summary
+          default_provider: ${{ vars.AGENT_DEFAULT_PROVIDER || 'auto' }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+      - name: Setup selected provider
+        uses: ./.github/actions/setup-agent-runtime
+        with:
+          install_codex: ${{ steps.provider.outputs.install_codex }}
+          install_claude: ${{ steps.provider.outputs.install_claude }}
+
+      - name: Generate daily summary
+        id: summary
+        uses: ./.github/actions/run-agent-task
+        with:
+          agent: ${{ steps.provider.outputs.provider }}
+          github_token: ${{ steps.auth.outputs.token }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          permission_mode: approve-all
+          prompt: daily-summary
+          route: answer
+          memory_mode_override: 'read-only'
+          memory_ref: ${{ vars.AGENT_MEMORY_REF || 'agent/memory' }}
+          memory_policy: ${{ vars.AGENT_MEMORY_POLICY || '' }}
+          session_policy: none
+          request_text: >-
+            Generate the daily repository summary for ${{ needs.signals.outputs.summary_date }} using a ${{ env.LOOKBACK_DAYS }} day lookback. Signal files are in ${{ env.SIGNALS_DIR }}.
+          requested_by: ${{ github.actor }}
+          source_kind: workflow_dispatch
+          target_kind: repository
+          target_number: '0'
+          target_url: ${{ github.server_url }}/${{ github.repository }}
+          reasoning_effort: medium
+          workflow: agent-daily-summary.yml
+
+      - name: Create summary discussion
+        if: steps.summary.outcome == 'success'
+        env:
+          BODY_FILE: ${{ steps.summary.outputs.response_file }}
+          DISCUSSION_CATEGORY: ${{ env.DISCUSSION_CATEGORY }}
+          DISCUSSION_FOOTER: "*Generated by the agent-daily-summary workflow*"
+          DISCUSSION_TITLE: Daily Summary — ${{ needs.signals.outputs.summary_date }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_TOKEN: ${{ steps.auth.outputs.token }}
+        run: node .agent/dist/cli/create-discussion.js
