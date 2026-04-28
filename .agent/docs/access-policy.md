@@ -77,4 +77,4 @@ Organization membership detection depends on what the agent's GitHub token can s
 
 ## Issue-body association refresh
 
-For issue-body mentions from `issues` events, the runtime refreshes `author_association` from the GitHub API before access decisions when the webhook payload reports a weaker value (for example `NONE` or `CONTRIBUTOR`). This covers cases where the webhook payload is stale and the live issue API reports a different association, while keeping the public-route policy behavior unchanged.
+For issue-body mentions from `issues` events, the runtime refreshes `author_association` from the GitHub API before access decisions when the webhook payload reports a weaker value (for example `NONE` or `CONTRIBUTOR`). If the refreshed issue association is still weak, the runtime also checks the issue author with `GET /repos/{owner}/{repo}/collaborators/{username}` and treats a `204` response as `COLLABORATOR`. This covers cases where repo-scoped tokens cannot see private org membership through `author_association`, while keeping the public-route policy behavior unchanged for non-collaborators.
