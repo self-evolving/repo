@@ -21,24 +21,24 @@ Sepo turns a repository into a **self-evolving repository**: a codebase that can
 
 ### Install into an existing repository
 
-Check [Install into an existing repository](.agent/docs/deployment/install-existing-repository.md) for the detailed guide. TLDR: you (or your agent) should copy copying `.agent/` and `.github/`, configuring secrets, and initialize agent memory from GitHub Actions.
+Check [Install into an existing repository](.agent/docs/deployment/install-existing-repository.md) for the detailed guide. TL;DR: you (or your agent) should copy `.agent/` and `.github/`, configure secrets, and initialize agent memory from GitHub Actions.
 
 ## What You Can Ask It To Do
 
-### In any text input in Github (issues, PRs, discussions) to call the agent and execute tasks 
+### In any GitHub text input (issues, PRs, discussions), call the agent to execute tasks
 
 ```python
 # Use a free-form mention when you want the router to infer the best route:
 @sepo-agent can you explain how review synthesis works?
 
-# Use an explicit slash route when you already know the action 
+# Use an explicit slash route when you already know the action
 @sepo-agent /implement implement issue #2
 
 # Invoke arbitrary skills
 @sepo-agent /skill <skill-name>
 
 # Inside a PR
-@sepo-agent /review 
+@sepo-agent /review
 @sepo-agent /fix-pr
 ```
 
@@ -46,18 +46,18 @@ Check [Install into an existing repository](.agent/docs/deployment/install-exist
 > Only authorized repository users can trigger Sepo. By default, public repositories allow `OWNER`, `MEMBER`, and `COLLABORATOR`; private repositories also allow `CONTRIBUTOR`. See [Trigger access policy](.agent/docs/access-policy.md) to customize that behavior.
 
 
-### You can also trigger the same built-in routes by adding `agent/*` labels to PRs 
+### You can also trigger the same built-in routes by adding `agent/*` labels to PRs
 
-For example, adding the `agent/review` label will run the review agent. 
+For example, adding the `agent/review` label will run the review agent.
 
-### Automatic Task Orchestration Layer 
-[TBD] 
+### Automatic Task Orchestration Layer
+When automation mode is enabled, Sepo can chain follow-up actions after an initial run, such as review after implementation and fix after review. The orchestrator applies deterministic guardrails like dedupe checks and max-round limits to keep loops bounded.
 
-### Tracking workspace Memory and Rubrics 
-[TBD] 
+### Tracking Workspace Memory and Rubrics
+Sepo persists long-lived context in `agent/memory` and preference rules in `agent/rubrics`, both as repository-owned branches. This lets later runs resume with durable project context and team-specific guidance.
 
-### Scheduled Jobs 
-[TBD] 
+### Scheduled Jobs
+You can run Sepo on a schedule to handle recurring maintenance, triage, or monitoring tasks without a manual mention. Scheduled workflows still route through the same policy and memory layers, so they behave consistently with on-demand runs.
 
 
 ## How It Works
