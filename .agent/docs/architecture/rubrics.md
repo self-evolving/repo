@@ -33,7 +33,7 @@ description: >-
   and passes after it.
 type: generic # generic | specific
 domain: coding_workflow # coding_style | coding_workflow | communication | review_quality
-  applies_to:
+applies_to:
   - implement # implement | add-rubrics | fix-pr | review | answer | skill | rubrics-review | rubrics-initialization | rubrics-update
 severity: should # must | should | consider
 weight: 3 # 1-10
