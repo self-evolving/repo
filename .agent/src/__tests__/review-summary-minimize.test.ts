@@ -110,6 +110,47 @@ test("collapsePreviousReviewSummaries minimizes visible generated summaries", ()
   );
 });
 
+test("collapsePreviousReviewSummaries matches GitHub App bot login variants", () => {
+  const { client, calls } = createQueuedClient([
+    { viewer: { login: "sepo-agent-app[bot]" } },
+    {
+      repository: {
+        pullRequest: {
+          comments: {
+            nodes: [
+              {
+                id: "comment-1",
+                body: "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\nold",
+                isMinimized: false,
+                author: { login: "sepo-agent-app" },
+              },
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
+      },
+    },
+    {
+      repository: {
+        pullRequest: {
+          reviews: {
+            nodes: [],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
+      },
+    },
+    { minimizeComment: { minimizedComment: { isMinimized: true } } },
+  ]);
+
+  assert.equal(collapsePreviousReviewSummaries({
+    repo: "self-evolving/repo",
+    prNumber: 320,
+    client,
+  }), 1);
+  assert.deepEqual(calls[3]?.variables, { id: "comment-1", classifier: "OUTDATED" });
+});
+
 test("collapsePreviousReviewSummaries keeps heading fallback for markerless summaries", () => {
   const { client, calls } = createQueuedClient([
     { viewer: { login: "sepo-agent" } },

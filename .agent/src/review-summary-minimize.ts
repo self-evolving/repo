@@ -133,9 +133,17 @@ function parseRepo(repo: string): { owner: string; name: string } {
   return { owner, name };
 }
 
+function normalizeActorLogin(login: string): string {
+  return String(login || "").trim().replace(/\[bot\]$/i, "");
+}
+
+function isSameActorLogin(left: string, right: string): boolean {
+  return normalizeActorLogin(left) === normalizeActorLogin(right);
+}
+
 function isGeneratedReviewSummary(node: ReviewSummaryNode, viewerLogin: string): boolean {
   if (!node.id || node.isMinimized) return false;
-  if ((node.author?.login || "") !== viewerLogin) return false;
+  if (!isSameActorLogin(node.author?.login || "", viewerLogin)) return false;
   return isReviewSynthesisBody(node.body || "");
 }
 
