@@ -295,8 +295,8 @@ jobs:
           needs.portal.outputs.route == 'unsupported'
         uses: ./.github/actions/setup-agent-runtime
         with:
-          install_codex: ${{ steps.provider.outputs.install_codex }}
-          install_claude: ${{ steps.provider.outputs.install_claude }}
+          install_codex: ${{ needs.portal.outputs.route == 'answer' && steps.provider.outputs.install_codex || 'false' }}
+          install_claude: ${{ needs.portal.outputs.route == 'answer' && steps.provider.outputs.install_claude || 'false' }}
 
       - name: Run answer agent
         if: needs.portal.outputs.route == 'answer'
