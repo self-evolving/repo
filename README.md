@@ -4,6 +4,8 @@ Mention `@sepo-agent` on a GitHub issue, pull request, or discussion to answer q
 
 Sepo turns a repository into a **self-evolving repository**: a codebase that can react to user requests, preserve agent-facing memory and user/team rubrics, and improve both application code and its own automation over time. For the concept behind that architecture, see [What is a self-evolving repository?](.agent/docs/overview/what-is-self-evolving-repo.md).
 
+![Sepo overview](.agent/docs/assets/sepo-overview.png)
+
 ```mermaid
 flowchart LR
   user[GitHub user] --> trigger[Mention, label, schedule, or workflow dispatch]
