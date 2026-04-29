@@ -54,6 +54,8 @@ test("post project management summary comments on today's Daily Summary discussi
   try {
     const bodyFile = join(tempDir, "summary.md");
     const logPath = join(tempDir, "gh.log");
+    const outputPath = join(tempDir, "outputs.txt");
+    const stepSummary = join(tempDir, "step-summary.md");
     writeFileSync(bodyFile, "## Project Management Summary\n\n- Mode: labels applied\n");
     writeFakeGh(
       tempDir,
@@ -80,7 +82,9 @@ exit 1
       AGENT_PROJECT_MANAGEMENT_SUMMARY_DATE: "2026-04-29",
       BODY_FILE: bodyFile,
       FAKE_GH_LOG: logPath,
+      GITHUB_OUTPUT: outputPath,
       GITHUB_REPOSITORY: "self-evolving/repo",
+      GITHUB_STEP_SUMMARY: stepSummary,
     });
 
     assert.equal(result.status, 0, result.stderr);

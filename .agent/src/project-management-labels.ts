@@ -17,6 +17,7 @@ export interface ManagedLabelChange {
 
 export interface ManagedLabelPlan {
   label_changes: ManagedLabelChange[];
+  valid: boolean;
 }
 
 interface LabelDefinition {
@@ -56,20 +57,24 @@ function uniqueManagedLabels(labels: string[]): string[] {
 }
 
 export function parseManagedLabelPlan(markdown: string): ManagedLabelPlan {
-  const fence = markdown.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const source = fence ? fence[1] : markdown;
+  const fence = markdown.match(/```json\s*([\s\S]*?)```/i);
+  if (!fence) return { label_changes: [], valid: false };
+
   let parsed: unknown;
   try {
-    parsed = JSON.parse(source);
+    parsed = JSON.parse(fence[1]);
   } catch {
-    return { label_changes: [] };
+    return { label_changes: [], valid: false };
   }
 
   const root = asRecord(parsed);
-  const rawChanges = root && Array.isArray(root.label_changes) ? root.label_changes : [];
+  if (!root || !Array.isArray(root.label_changes)) {
+    return { label_changes: [], valid: false };
+  }
+
   const label_changes: ManagedLabelChange[] = [];
 
-  for (const rawChange of rawChanges) {
+  for (const rawChange of root.label_changes) {
     const change = asRecord(rawChange);
     if (!change) continue;
     const kind = normalizeKind(change.kind);
@@ -86,7 +91,7 @@ export function parseManagedLabelPlan(markdown: string): ManagedLabelPlan {
     });
   }
 
-  return { label_changes };
+  return { label_changes, valid: true };
 }
 
 export function ensureManagedLabels(repo: string): void {

@@ -29,6 +29,7 @@ test("managed label plan keeps only allowed project-management labels", () => {
 `);
 
   assert.deepEqual(plan, {
+    valid: true,
     label_changes: [
       {
         kind: "issue",
@@ -37,5 +38,20 @@ test("managed label plan keeps only allowed project-management labels", () => {
         remove: ["priority/p3"],
       },
     ],
+  });
+});
+
+test("managed label plan distinguishes malformed and missing json plans", () => {
+  assert.deepEqual(parseManagedLabelPlan("## Summary\n\nNo structured plan."), {
+    label_changes: [],
+    valid: false,
+  });
+  assert.deepEqual(parseManagedLabelPlan("```json\nnot-json\n```"), {
+    label_changes: [],
+    valid: false,
+  });
+  assert.deepEqual(parseManagedLabelPlan("```json\n{\"label_changes\":[]}\n```"), {
+    label_changes: [],
+    valid: true,
   });
 });

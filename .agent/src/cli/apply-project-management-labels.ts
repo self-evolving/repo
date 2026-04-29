@@ -4,7 +4,12 @@
 //      AGENT_PROJECT_MANAGEMENT_APPLY_LABELS
 
 import { readFileSync } from "node:fs";
-import { countManagedLabelOperations, applyManagedLabelChange, ensureManagedLabels, parseManagedLabelPlan } from "../project-management-labels.js";
+import {
+  applyManagedLabelChange,
+  countManagedLabelOperations,
+  ensureManagedLabels,
+  parseManagedLabelPlan,
+} from "../project-management-labels.js";
 import { setOutput } from "../output.js";
 
 function boolEnv(name: string, fallback = false): boolean {
@@ -33,6 +38,10 @@ function main(): number {
     const plan = parseManagedLabelPlan(summary);
     const operationCount = countManagedLabelOperations(plan.label_changes);
 
+    if (!dryRun && applyLabels && !plan.valid) {
+      throw new Error("Project management summary did not include a valid fenced JSON label_changes plan.");
+    }
+
     if (dryRun || !applyLabels) {
       const status = dryRun
         ? `- Dry run is enabled; ${operationCount} managed label operation(s) were planned but not applied.`
@@ -44,9 +53,11 @@ function main(): number {
       return 0;
     }
 
-    ensureManagedLabels(repo);
-    for (const change of plan.label_changes) {
-      applyManagedLabelChange(change, repo);
+    if (operationCount > 0) {
+      ensureManagedLabels(repo);
+      for (const change of plan.label_changes) {
+        applyManagedLabelChange(change, repo);
+      }
     }
 
     const status = `- Applied ${operationCount} managed priority/effort label operation(s).`;
