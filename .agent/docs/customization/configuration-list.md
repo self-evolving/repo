@@ -13,9 +13,9 @@
 | `AGENT_COLLAPSE_OLD_REVIEWS` | Review synthesis cleanup toggle. Defaults to enabled; set to `false` to leave older AI review synthesis summaries visible instead of minimizing them as outdated. |
 | `AGENT_STATUS_LABEL_ENABLED` | Set to `true` to apply the fixed `agent` status label to handled issues and pull requests. |
 | `AGENT_PROJECT_MANAGEMENT_ENABLED` | Set to `true` to enable scheduled prompt-driven project-management runs. Manual runs can also use the workflow's `enabled` input. Defaults off. |
-| `AGENT_PROJECT_MANAGEMENT_DRY_RUN` | Defaults project-management runs to dry-run mode. Defaults to `true`; set to `false` with label application enabled to let the agent write labels. |
-| `AGENT_PROJECT_MANAGEMENT_APPLY_LABELS` | Set to `true` to allow the project-manager agent to update managed `priority/*` and `effort/*` labels when dry-run mode is disabled. |
-| `AGENT_PROJECT_MANAGEMENT_POST_SUMMARY` | Set to `true` to have the final workflow step comment with the agent's summary on today's existing Daily Summary discussion. If the discussion is missing, only the Actions step summary is written. |
+| `AGENT_PROJECT_MANAGEMENT_DRY_RUN` | Defaults project-management runs to dry-run mode. Defaults to `true`; set to `false` with label application enabled to apply validated managed-label plans. |
+| `AGENT_PROJECT_MANAGEMENT_APPLY_LABELS` | Set to `true` to allow the deterministic post-agent step to update managed `priority/*` and `effort/*` labels when dry-run mode is disabled. |
+| `AGENT_PROJECT_MANAGEMENT_POST_SUMMARY` | Set to `true` to have the final workflow step comment with the project-management summary on today's existing Daily Summary discussion. If the discussion is missing, only the Actions step summary is written. |
 | `AGENT_PROJECT_MANAGEMENT_DISCUSSION_CATEGORY` | Discussion category where Daily Summary discussions are posted. Defaults to `General`. |
 | `AGENT_PROJECT_MANAGEMENT_LIMIT` | Maximum open issues and pull requests for the agent to inspect per kind. Defaults to `100`. |
 | `AGENT_ACCESS_POLICY` | JSON trigger allowlist policy. See [Trigger access policy](../access-policy.md). |

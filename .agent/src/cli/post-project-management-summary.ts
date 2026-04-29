@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // CLI: publish the project-manager agent's final summary.
-// Env: BODY_FILE, GITHUB_STEP_SUMMARY, GITHUB_REPOSITORY,
+// Env: BODY or BODY_FILE, GITHUB_STEP_SUMMARY, GITHUB_REPOSITORY,
 //      AGENT_PROJECT_MANAGEMENT_POST_SUMMARY,
 //      AGENT_PROJECT_MANAGEMENT_DISCUSSION_CATEGORY,
 //      AGENT_PROJECT_MANAGEMENT_SUMMARY_DATE (optional)
@@ -41,6 +41,18 @@ function writeStepSummary(markdown: string): void {
   appendFileSync(summaryFile, `${markdown}\n`);
 }
 
+function readSummary(): string {
+  const body = process.env.BODY?.trim();
+  if (body) return body;
+
+  const bodyFile = requiredEnv("BODY_FILE");
+  if (!existsSync(bodyFile)) {
+    throw new Error(`Project management summary file was not produced: ${bodyFile}`);
+  }
+
+  return readFileSync(bodyFile, "utf8").trim();
+}
+
 function publishDiscussionComment(summary: string): string | null {
   const { owner, repo } = parseRepoSlug(requiredEnv("GITHUB_REPOSITORY"));
   const category = process.env.AGENT_PROJECT_MANAGEMENT_DISCUSSION_CATEGORY?.trim() || "General";
@@ -59,12 +71,7 @@ function publishDiscussionComment(summary: string): string | null {
 
 function main(): number {
   try {
-    const bodyFile = requiredEnv("BODY_FILE");
-    if (!existsSync(bodyFile)) {
-      throw new Error(`Project management summary file was not produced: ${bodyFile}`);
-    }
-
-    const summary = readFileSync(bodyFile, "utf8").trim();
+    const summary = readSummary();
     if (!summary) {
       throw new Error("Project management summary is empty");
     }

@@ -1,6 +1,6 @@
 ## Task Description
 
-Run the repository project-manager pass. Assess open issues and pull requests with agent judgment, optionally update managed triage labels, and return the final summary for the workflow to publish.
+Run the repository project-manager pass. Assess open issues and pull requests with agent judgment, emit a managed triage-label change plan, and return the final summary for the workflow to publish.
 
 Runtime request/configuration:
 
@@ -47,17 +47,12 @@ Effort guidance:
 3. Use judgment from titles, bodies, labels, recency, discussion volume, assignment, draft/review status, and repository context. Do not reduce the decision to keyword heuristics.
 4. Assign each considered item exactly one managed priority label and exactly one managed effort label.
 5. Compute planned label changes by removing stale managed priority/effort labels that do not match the chosen labels and adding missing chosen labels. Do not remove unrelated labels.
-6. If dry-run mode is enabled or label application is disabled, do not mutate labels. Report the planned changes in the final summary.
-7. If label application is enabled and dry-run mode is disabled, execute the label updates yourself with `gh`:
-   - Ensure managed labels exist before editing items. Use `gh label list --repo ${REPO_SLUG} --search <label> --json name --jq '.[].name'`, and create missing labels with `gh label create` using suitable colors/descriptions.
-   - Use `gh issue edit <number> --repo ${REPO_SLUG} --remove-label <label>` / `--add-label <label>` for issues.
-   - Use `gh pr edit <number> --repo ${REPO_SLUG} --remove-label <label>` / `--add-label <label>` for pull requests.
-   - If a remove operation reports that a label is already absent, continue and note it briefly.
-8. Do not create issues, pull requests, commits, branches, reviews, or discussion comments. The workflow has a separate final publication step.
+6. Do not mutate labels, even when label application is enabled. The workflow has a deterministic post-agent step that validates and applies only allowed managed-label operations.
+7. Do not create labels, issues, pull requests, commits, branches, reviews, or discussion comments. The workflow has separate deterministic final steps for managed labels and summary publication.
 
 ## Final Output
 
-Return only GitHub-flavored markdown. This response is the project-management summary that the workflow will write to the Actions step summary and may post to the Daily Summary discussion.
+Return only GitHub-flavored markdown. This response is the project-management summary that the workflow will pass to deterministic label application, write to the Actions step summary, and may post to the Daily Summary discussion.
 
 Use this structure:
 
@@ -80,6 +75,29 @@ List the top 5-10 items sorted by your assessed priority and actionability. For 
 ### Label Changes
 
 Summarize applied changes, planned dry-run changes, or say no changes were needed.
+
+Include the structured change plan in one fenced `json` block using exactly this shape:
+
+```json
+{
+  "label_changes": [
+    {
+      "kind": "issue",
+      "number": 123,
+      "add": ["priority/p1", "effort/medium"],
+      "remove": ["priority/p3"]
+    },
+    {
+      "kind": "pull_request",
+      "number": 456,
+      "add": ["priority/p2"],
+      "remove": []
+    }
+  ]
+}
+```
+
+Use only `kind` values `issue` or `pull_request`. Use only managed labels in `add` and `remove`: `priority/p0`, `priority/p1`, `priority/p2`, `priority/p3`, `effort/low`, `effort/medium`, `effort/high`.
 
 ### Notes
 
