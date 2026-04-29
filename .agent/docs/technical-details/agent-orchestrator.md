@@ -9,11 +9,7 @@ Configure `AGENT_AUTOMATION_MODE` to choose how orchestrator handoffs are decide
 | `heuristics` | Deterministic built-in state machine. |
 | `agent` | Planner-assisted orchestration, validated by runtime policy. |
 
-For compatibility with early boolean-style configuration, `true` is treated as
-`heuristics`. Unset, `false`, or legacy `disabled` values fall back to
-`heuristics` for explicit `/orchestrate` chains. Use `heuristics` as the only
-named spelling for the built-in state machine. Set
-`AGENT_AUTOMATION_MAX_ROUNDS` to cap the chain length.
+Set `AGENT_AUTOMATION_MAX_ROUNDS` to cap the chain length.
 
 ## Current heuristics state machine
 
