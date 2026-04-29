@@ -7,12 +7,57 @@
   },
   "body": "@lolipopshock I set this up on my own repo but the tags where not created to trigger the agent actions on an issue.",
   "closedAt": null,
-  "comments": [],
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAxDXcw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer I think this is a overall onboarding issue: \n\n1. when the user just set up the repo, we should perhaps try to post a first issue message showing sepo is set up. \n2. in that issue, we can \n    - tell the missing configurations: if the gh app is not installed , if the api key is configured, etc \n    - explaining next steps: how to use it (briefly), what are the customizations, etc. \n3. we can include a code block so users can directly copy and use it. ",
+      "createdAt": "2026-04-29T18:23:33Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/23#issuecomment-4346402675",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAxEJxg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Agreed. I’d treat this as a first-run onboarding workflow, not only a label-creation fix.\n\nCurrent relevant pieces:\n\n- Mention entrypoint is already thin and routes through [`agent-entrypoint.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-entrypoint.yml).\n- Label-trigger routing exists in [`agent-label.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-label.yml), but trigger labels like `agent/review` are documented, not proactively created.\n- Status-label creation already has a helper path in [`add-label.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/add-label.ts), using `ensureLabel()` from [`github.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/github.ts).\n- Auth readiness is centralized in [`resolve-github-auth`](https://github.com/self-evolving/repo/blob/main/.github/actions/resolve-github-auth/action.yml).\n- Provider readiness is centralized in [`resolve-agent-provider`](https://github.com/self-evolving/repo/blob/main/.github/actions/resolve-agent-provider/action.yml).\n- First-time memory setup already has a manual workflow in [`agent-memory-bootstrap.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-memory-bootstrap.yml).\n\nImplementation approach I’d propose:\n\n1. Add a new manual first-run workflow, probably `Agent / Onboarding / Check Setup`, that can be run after copying Sepo into a repo.\n2. Reuse `resolve-github-auth` and `resolve-agent-provider` to detect:\n   - whether GitHub auth resolves through app/OIDC/PAT/fallback token\n   - whether `OPENAI_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` is available\n   - whether memory/rubrics branches exist\n   - whether expected trigger labels exist\n3. Add a small typed CLI under `.agent/src/cli/`, for example `onboarding-check.ts`, to:\n   - ensure built-in trigger labels exist: `agent/answer`, `agent/implement`, `agent/create-action`, `agent/review`, `agent/fix-pr`\n   - create an onboarding issue if one does not already exist\n   - post/update a checklist comment with the setup status and next steps\n4. Keep the issue body practical and copyable, for example:\n\n```md\n@sepo-agent /answer Is Sepo configured correctly in this repository?\n\nTry implementation after setup:\n\n@sepo-agent /implement Create a small README update that verifies the agent can open a PR.\n\nTry PR review on an open pull request:\n\n@sepo-agent /review\n```\n\n5. Update docs:\n   - [`README.md`](https://github.com/self-evolving/repo/blob/main/README.md)\n   - [`quick-start.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/overview/quick-start.md)\n   - [`install-existing-repository.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/deployment/install-existing-repository.md)\n   - [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/supported-workflows.md)\n\nExecution plan:\n\n1. Add shared constants for built-in labels so docs/tests/CLI do not drift.\n2. Add `onboarding-check` CLI with tests using fake `gh`, following the existing `add-label` test pattern.\n3. Add a new workflow_dispatch onboarding workflow that checks auth/provider readiness, creates labels, and opens/updates the setup issue.\n4. Make the workflow non-destructive and idempotent: reruns should update the same onboarding issue instead of creating duplicates.\n5. Document the new first-run step in quick start and install docs.\n6. Run the `.agent` test suite and update generated dist if this repo expects built artifacts in CI.\n\nI can implement this next if you approve this direction.",
+      "createdAt": "2026-04-29T18:25:22Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/23#issuecomment-4346415558",
+      "viewerDidAuthor": true
+    }
+  ],
   "createdAt": "2026-04-29T00:16:27Z",
-  "labels": [],
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
   "number": 23,
   "state": "OPEN",
   "title": "Agent should create tags upon install/first run",
-  "updatedAt": "2026-04-29T00:19:51Z",
+  "updatedAt": "2026-04-29T18:25:22Z",
   "url": "https://github.com/self-evolving/repo/issues/23"
 }

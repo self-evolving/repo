@@ -1,0 +1,108 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n\nMinimal runner-stability follow-up split out from PR #21.\n\nThis keeps only the two changes we want to land now:\n\n- Ignore generated agent outputs in the canonical repo and installation guidance:\n  - `.agent/node_modules/`\n  - `.agent/dist/`\n- Harden `dispatchWorkflow(...)` so a PR-branch runtime can dispatch a default-branch workflow whose `workflow_dispatch` input schema has not caught up yet. If GitHub rejects specific unexpected input names, the helper retries once without only those rejected keys.\n\nIntentionally excluded from this PR:\n\n- no `checkout-pr` force-checkout / generated-dist cleanup changes\n- no rubrics-review timeout change\n\nThe timeout/default-timeout work should land in a separate PR with a more systematic library/runtime design.\n\n## Validation\n\n- `npm --prefix .agent ci`\n- `npm --prefix .agent test` — passed (`376/376`)\n- `git diff --check`\n- workflow/action/template YAML parsed with Ruby `YAML.load_file`\n- shell syntax checks for installed agent scripts/actions\n",
+  "closedAt": "2026-04-29T16:03:35Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAwD__g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The dispatch retry stays in the existing GitHub helper module, reusing `commandErrorText(...)` and preserving existing `dispatchWorkflow(...)` call sites. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is limited to ignore rules, install docs/skill guidance, one helper, and one focused test file. PR body explicitly excludes unrelated checkout and timeout work. |\n| workflow / generic | Surface stateful failures | pass | 7/7 | Unsupported-input dispatch failures are not swallowed; the helper retries only when it can remove rejected keys and logs `console.warn(...)` before retrying. |\n| workflow / generic | Read docs and linked context first | pass | 6/6 | No parent issue or linked discussion was present in the live PR body/comments; the PR description documents intended scope and exclusions. |\n| workflow / generic | Keep docs in sync | pass | 7/7 | Installation guidance was updated in `.agent/docs/deployment/install-existing-repository.md` and `.skills/install-agent/SKILL.md` for `.agent/dist/` and `.agent/node_modules/`. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | The docs add concise generated-output ignore guidance, not a per-file inventory table. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The retry logic is a small parser plus one retry path; it avoids workflow-level branching or broader runtime redesign. |\n\n## Notes\n\n- The strongest rubric fit is surgical scope: PR #36 contains only the two requested behavior changes and avoids the explicitly excluded cleanup/timeout work.\n- The dispatch compatibility fix has focused regression coverage in `.agent/src/__tests__/github.test.ts`.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric violations found.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-04-29T15:56:07Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/36#issuecomment-4345364478",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAwEz3Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #36 is a narrow runner-stability follow-up split out from PR #21.\n- It updates generated-output ignore guidance for `.agent/dist/` and `.agent/node_modules/` so built/runtime artifacts do not leak into repository changes.\n- It also hardens `dispatchWorkflow(...)` so workflow dispatch retries once without inputs that GitHub reports as unsupported by the live default-branch workflow schema.\n- The PR intentionally excludes checkout cleanup and timeout/default-timeout work for separate follow-up.\n\n## Review\nThe combined reviews support shipping this PR. The only noted concern is an acceptable INFO-level dependency on GitHub’s current error text format, with safe fallback behavior and focused regression coverage.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues | INFO | Reviewers found no required branch-change work. The dispatch retry is narrow, documented by tests, and preserves original failure behavior when the compatibility path does not apply. |\n\n## Progress\n- Rubrics review already passed with no violations.\n- The PR already includes docs updates for install guidance and generated-output ignores.\n- Focused regression coverage was added for unsupported workflow dispatch inputs.\n- Existing PR conversation and inline comments contained no unresolved duplicate feedback; no new inline comments were posted.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: There is no unresolved actionable branch-change work for automation to perform.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-04-29T15:57:52Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/36#issuecomment-4345377757",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAwIBUw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to `agent/rubrics` from PR #36.\n\nno rubric changes\n\nPR #36 had no trusted human review comments or inline discussions. Its durable lessons were already covered by existing active rubrics: surgical changes, simple implementation, reuse existing code, keep docs in sync, read linked context, and surface stateful failures. Bot review/synthesis comments were advisory only, so I did not learn new user/team preferences from them.\n",
+      "createdAt": "2026-04-29T16:05:03Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/36#issuecomment-4345430355",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-04-29T15:39:56Z",
+  "files": [
+    {
+      "path": ".agent/docs/deployment/install-existing-repository.md",
+      "additions": 9,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/github.test.ts",
+      "additions": 71,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/github.ts",
+      "additions": 44,
+      "deletions": 6,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".gitignore",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".skills/install-agent/SKILL.md",
+      "additions": 6,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "fix/minimal-runner-stability",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": "2026-04-29T16:03:35Z",
+  "number": 36,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "MERGED",
+  "title": "Fix dispatch compatibility and generated output ignores",
+  "updatedAt": "2026-04-29T16:05:03Z",
+  "url": "https://github.com/self-evolving/repo/pull/36"
+}

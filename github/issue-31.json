@@ -22,6 +22,80 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/31#issuecomment-4343479182",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAxAHiQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer but in that case, what's the data model? where is this information saved?",
+      "createdAt": "2026-04-29T18:16:17Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/31#issuecomment-4346349449",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAxAxZw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "The cleanest data model is: **the grant request is saved in the GitHub thread as an agent-owned hidden marker**, the same way pending implementation approvals are stored today.\n\nExisting precedent:\n\n- Pending approvals are encoded as `<!-- sepo-agent-request base64:... -->` in an issue/discussion comment.\n- The payload is base64url JSON.\n- The resolver later scans comments, finds the marker by `request_id`, checks it is not already satisfied, and dispatches from that embedded metadata.\n- See [`approval.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/approval.ts) and [`prepare-approval.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/prepare-approval.ts).\n\nFor external-user grants, I’d use the same storage model with a new marker type:\n\n```md\n@external-user does not currently have access to run `/answer`.\n\nA maintainer can grant this request once with:\n\n```text\n@sepo-agent /grant grant-abc123\n```\n\n<!-- sepo-agent-grant-request base64:... -->\n```\n\nDecoded payload shape:\n\n```ts\ninterface GrantRequest {\n  kind: \"grant_request\";\n  schema_version: 1;\n\n  grant_id: string;              // \"grant-abc123\"\n  status: \"pending\";             // consumed by editing marker/comment later\n\n  route: \"answer\" | \"implement\" | \"review\" | \"fix-pr\" | \"create-action\";\n  requested_skill?: string;\n\n  requester_login: string;\n  requester_association: string; // NONE, FIRST_TIMER, etc.\n  request_text: string;\n\n  source_kind: \"issue_comment\" | \"discussion_comment\" | \"review_comment\" | \"issue_body\";\n  source_comment_id?: string;\n  source_comment_url?: string;\n\n  target_kind: \"issue\" | \"pull_request\" | \"discussion\";\n  target_number: number;\n  target_url: string;\n\n  created_at: string;\n  expires_at: string;\n\n  allowed_grantor_associations: [\"OWNER\", \"MEMBER\", \"COLLABORATOR\"];\n}\n```\n\nWhen a maintainer replies:\n\n```text\n@sepo-agent /grant grant-abc123\n```\n\nthe grant workflow would:\n\n1. Scan the issue/discussion comments for `sepo-agent-grant-request`.\n2. Decode the marker and find `grant_id`.\n3. Verify it is unexpired and not already consumed.\n4. Verify the commenter is allowed to grant, probably `OWNER`, `MEMBER`, or `COLLABORATOR`.\n5. Dispatch the original request using the saved `route`, `request_text`, `target_*`, and `requester_login`.\n6. Edit the grant-request comment to add a visible audit row and hidden consumed marker:\n\n```md\n| Granted by | Granted to | Route | Run |\n|---|---|---|---|\n| @maintainer | @external-user | `answer` | ... |\n\n<!-- sepo-agent-grant-consumed -->\n```\n\nSo there is no new database for the one-shot UX. The GitHub comment is the source of truth, just like existing approval requests. That keeps it auditable, local to the thread, and compatible with the current workflow style.\n\nI would only add a separate durable store later for **standing grants**, for example “allow @user to use `/answer` for 30 days.” That would need a different model, probably a repo-owned config file or protected branch state. For this issue, the one-shot grant marker is enough and safer.",
+      "createdAt": "2026-04-29T18:17:31Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/31#issuecomment-4346360167",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAxEkcQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\nOK but in that case, \n- this is issue specific -> the user still doesn't have access? \n- we may spend more time on the gating? ",
+      "createdAt": "2026-04-29T18:26:22Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/31#issuecomment-4346422385",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAxE-IA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, with the one-shot marker model the user still does **not** “have access” in the general sense.\n\nThey only get permission for one saved request:\n\n- same target issue/discussion/PR\n- same route, e.g. `/answer`\n- same request text\n- same requester\n- consumed once\n- expires if nobody grants it\n\nSo the mental model is closer to:\n\n> “Maintainer approved this specific agent run on behalf of this external user.”\n\nnot:\n\n> “This external user can now use the agent.”\n\nThat is probably the right first UX because it avoids creating a new trust system before we know the patterns.\n\nOn gating cost: yes, this adds another gate, but it can reuse most of the existing approval machinery. The important distinction is:\n\n- `/approve <id>` means “approve an agent-proposed follow-up workflow,” currently mostly implementation.\n- `/grant <id>` means “approve an otherwise unauthorized user’s specific request.”\n\nThe validation is still simple:\n\n1. Find hidden grant marker by `grant_id`.\n2. Confirm not expired / consumed.\n3. Confirm grant command author is trusted.\n4. Dispatch saved request.\n5. Mark grant consumed.\n\nIf we want less friction, I’d make the denial comment offer two paths:\n\n```md\nA maintainer can run this once:\n\n@sepo-agent /grant grant-abc123\n\nOr grant future `/answer` requests from @user:\n\n@sepo-agent /trust @user answer\n```\n\nBut I would **not** implement `/trust` first. That introduces a real access-control data store, revocation, TTLs, route scoping, audit history, and probably admin-only permissions. For issue #31, I’d start with one-shot `/grant`; it answers the immediate UX problem without expanding the authorization model too much.",
+      "createdAt": "2026-04-29T18:27:19Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/31#issuecomment-4346428960",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-04-29T11:59:50Z",
@@ -36,6 +110,6 @@
   "number": 31,
   "state": "OPEN",
   "title": "UX: design an explicit grant for external users to use the agent",
-  "updatedAt": "2026-04-29T12:03:27Z",
+  "updatedAt": "2026-04-29T18:27:20Z",
   "url": "https://github.com/self-evolving/repo/issues/31"
 }

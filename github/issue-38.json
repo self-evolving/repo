@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "Following #11 -> we should do this for rubrics review as well? \n\n@sepo-agent /answer plan? ",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAxAcTA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, I’d apply the same pattern to rubrics review comments.\n\nCurrent shape:\n\n- #11 added minimization for AI review synthesis comments via `.agent/src/review-summary-minimize.ts`, which scans PR comments/reviews, matches authored agent output, and calls GitHub’s `minimizeComment(... OUTDATED)` mutation.\n- The `/review` posting path uses that helper before posting a fresh synthesis comment in [`post-comment.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/post-comment.ts#L78-L92).\n- Rubrics review posts through [`agent-rubrics-review.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-rubrics-review.yml#L146-L154) using [`post-response.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/post-response.ts#L38-L41), which currently just posts the body and has no minimization hook.\n- Rubrics review comments are identifiable by the stable heading required in [`rubrics-review.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/rubrics-review.md): `## Rubrics Review`.\n\nImplementation plan:\n\n1. Generalize `.agent/src/review-summary-minimize.ts` from “review synthesis only” to “generated PR review-style comments” by accepting a body predicate or comment kind.\n2. Add rubrics detection, likely `isRubricsReviewBody(body)`, matching `body.trimStart().startsWith(\"## Rubrics Review\")`.\n3. Keep the existing actor matching, pagination, duplicate ID handling, and `OUTDATED` minimization behavior from #11.\n4. Wire `post-response.ts` to optionally collapse prior rubrics review comments when:\n   - `RESPONSE_KIND=pr_comment`\n   - the target is a PR number\n   - the body being posted is a rubrics review\n   - collapse is not disabled by an env flag, probably reusing `AGENT_COLLAPSE_OLD_REVIEWS` unless we want a rubrics-specific flag.\n5. Leave failures non-blocking, same as `post-comment.ts`: warn, then still post the new rubrics review.\n6. Add regression tests:\n   - minimizer collapses prior visible rubrics review comments by the same app/user.\n   - it does not collapse AI review synthesis when only rubrics collapse is requested, and vice versa.\n   - `post-response` still posts if minimization fails.\n   - optional disable flag skips minimization.\n7. Run `.agent` tests, at minimum the minimizer and post-response/post-comment CLI tests; preferably `npm --prefix .agent test`.\n\nNo blocker from the current code. Main decision before coding: should rubrics minimization reuse `AGENT_COLLAPSE_OLD_REVIEWS`, or should it get a separate flag like `AGENT_COLLAPSE_OLD_RUBRICS_REVIEWS`? I’d default to reusing the existing flag for consistency unless you want independent control.",
+      "createdAt": "2026-04-29T18:17:00Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/38#issuecomment-4346354764",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-04-29T18:15:06Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 38,
+  "state": "OPEN",
+  "title": "When a new rubrics review is posted, we should also minimize previous ones?",
+  "updatedAt": "2026-04-29T18:17:00Z",
+  "url": "https://github.com/self-evolving/repo/issues/38"
+}

@@ -5,14 +5,154 @@
     "login": "lolipopshock",
     "name": "Shannon Shen"
   },
-  "body": "1. Using cron jobs to launch project  status management routes",
+  "body": "1. I think a minimum implementation of this is, at least, there is some cron jobs that assigns the priority and urgency of the tasks (issues and PRs) and then it can post somewhere (or simply change the tags) \n2. Then if we can use the GitHub api to manage this with a linked project this will be very helpful. \n    - Regardless, the agent should post a message somewhere about the updates. \n\n@sepo-agent /answer what do you think?",
   "closedAt": null,
-  "comments": [],
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAxI_9g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I think this is a good fit, and I’d build it in phases.\n\nThe repo already has the right pieces:\n\n- Scheduled workflows exist for agent maintenance, e.g. [`agent-daily-summary.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-daily-summary.yml) and [`agent-close-stale-issues.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-close-stale-issues.yml).\n- The architecture docs already list scheduled agent workflows and discussion posting as supported patterns in [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/supported-workflows.md).\n- GitHub API helpers are centralized in [`github.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/github.ts), and GraphQL support already exists in [`github-graphql.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/github-graphql.ts).\n- Recent issue/PR/discussion collection already exists in [`sync-github-artifacts.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/memory/sync-github-artifacts.ts), so a project-management agent can reuse the same repo activity surface instead of inventing a new collector.\n\nRecommended first implementation:\n\n1. Add a scheduled workflow, probably `agent-project-manager.yml`, with `schedule` and `workflow_dispatch`.\n2. Keep the workflow thin: checkout, resolve auth, set up runtime only if needed, then call a typed CLI under `.agent/src/cli/`.\n3. Add a deterministic CLI that fetches open issues and PRs, scores each item for:\n   - priority: impact / strategic importance\n   - urgency: time sensitivity / blocked work / stale review / recent activity\n4. Start with label updates as the minimum viable output:\n   - `priority/p0`, `priority/p1`, `priority/p2`, `priority/p3`\n   - `urgency/now`, `urgency/soon`, `urgency/later`\n5. Post a run summary somewhere visible. I’d reuse the existing daily-summary pattern and create a Discussion by default, with an option to post to a configured issue instead.\n6. Add tests for scoring, label diffing, and dry-run behavior.\n\nFor GitHub Projects integration, I’d make that phase 2. Projects v2 uses GraphQL, and the main unknown is auth: the app/PAT needs permission to read and update the linked project fields. Once configured, the same scorer can update project fields like `Priority`, `Urgency`, `Status`, or `Next review`.\n\nA concrete execution plan would be:\n\n1. Implement `score-project-items.ts` as pure logic with tests.\n2. Implement `agent-project-manager.ts` CLI:\n   - fetch open issues/PRs\n   - compute desired labels\n   - apply label diffs unless `--dry-run`\n   - emit JSON summary\n3. Add a workflow using the existing auth and schedule-gate patterns.\n4. Add optional discussion/issue summary posting.\n5. Add optional Projects v2 GraphQL update once project number/field names/token permissions are known.\n6. Update `.agent/docs/architecture/supported-workflows.md`.\n\nI’d suggest approving phase 1 first: scheduled scoring + labels + summary post. The only clarification needed before coding is where the summary should go by default: a new Discussion, a fixed tracking issue, or both?",
+      "createdAt": "2026-04-29T18:36:05Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/34#issuecomment-4346494966",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAxJlIQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\nHow does this interact with #33 ?",
+      "createdAt": "2026-04-29T18:37:17Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/34#issuecomment-4346504481",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAxKMPQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Issue #33 is about a durable tracking-issue orchestrator for coordinating multiple child issues/PRs. I’m mapping #34 against that: it looks like project-wide prioritization and reporting, not execution orchestration.#34 and #33 are related, but they should be separate layers.\n\n#33 is about **execution orchestration**: a tracking issue coordinates multiple child issues/PRs, decides what can run next, and dispatches existing workflows like implement/review/fix. Its job is “move this multi-step project forward.”\n\n#34 is about **project management signals**: periodically inspect issues/PRs, assign priority/urgency, update labels or Project fields, and post a status update. Its job is “make the backlog/project state easier to understand.”\n\nThe clean interaction would be:\n\n- #34 runs globally on a schedule and scores all open issues/PRs.\n- #33 consumes those signals when choosing what to run next.\n- A #33 tracking issue could be one of the things #34 updates, but #34 should not itself dispatch implementation work.\n- #33 should remain the only component that starts multi-issue execution chains.\n- #34 can help #33 by maintaining fields like `priority`, `urgency`, `blocked`, `stale`, `ready`, or `needs-review`.\n\nSo I’d structure them like this:\n\n| Concern | #33 tracking orchestrator | #34 project manager |\n|---|---|---|\n| Scope | One tracking issue / project plan | Whole repo backlog |\n| Main action | Dispatch child workflows | Score, label, summarize |\n| State | Task graph in tracking issue | Labels / Project fields / summary posts |\n| Risk level | Higher, because it starts work | Lower, mostly metadata |\n| Cadence | User-triggered or event-triggered | Scheduled cron |\n\nImplementation order I’d prefer:\n\n1. Build #34 first as read-only/dry-run scoring + summary.\n2. Add label updates for priority/urgency.\n3. Let #33’s future task selector read those labels.\n4. Add GitHub Projects integration later, once field names and permissions are clear.\n5. Only then let #33 use project metadata for choosing next tasks.\n\nThat keeps #34 useful on its own while making it a planning input for #33, not a second orchestrator competing with it.",
+      "createdAt": "2026-04-29T18:38:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/34#issuecomment-4346514493",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAxMLEw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer\n\n1. I think project management should be turned of by default and can be activated with an arg. \n\n2. Which is the first task to execute? This one or the orchestrator? ",
+      "createdAt": "2026-04-29T18:42:07Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/34#issuecomment-4346546963",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAxMqqw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Agreed on default behavior: project management should be **off by default**.\n\nI’d make it opt-in with both:\n\n- a workflow variable, e.g. `AGENT_PROJECT_MANAGEMENT_ENABLED=true`\n- manual `workflow_dispatch` inputs for testing, e.g. `dry_run`, `apply_labels`, `post_summary`, `update_project`\n\nDefault scheduled behavior should either not exist until enabled, or should exit early through the same scheduled-activity gate pattern. First version should probably run in `dry_run=true` by default when manually dispatched.\n\nFor sequencing, I’d do **project management first**, before the multi-target orchestrator.\n\nReason: the project-management agent is mostly metadata and reporting. It can safely create useful signals like priority, urgency, stale/blocked/ready, and summary posts without dispatching work. The orchestrator can then consume those signals later when deciding what task to run next.\n\nSuggested order:\n\n1. #34 project management, phase 1:\n   - opt-in only\n   - dry-run support\n   - score issues/PRs\n   - optionally apply labels\n   - post a summary\n\n2. #34 project management, phase 2:\n   - optional GitHub Projects field updates\n\n3. #33 tracking orchestrator:\n   - use the labels/project fields from #34 as input\n   - dispatch one ready child task at a time\n   - keep execution bounded and auditable\n\nSo: build the lower-risk signal layer first, then build orchestration on top of it.",
+      "createdAt": "2026-04-29T18:43:03Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/34#issuecomment-4346555051",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAxNIRA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /implement\n\nLet's do the phase one for project management",
+      "createdAt": "2026-04-29T18:43:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/34#issuecomment-4346562628",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAxSDGw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-34/codex-25127393901`\n- Pull request: https://github.com/self-evolving/repo/pull/39\n\nImplemented phase-one project management as an opt-in scheduled/manual workflow with deterministic issue/PR scoring, dry-run summaries, optional priority/urgency label updates, and optional summary comments. Added typed scoring/CLI code, label removal helpers, docs for the workflow/configuration, and focused tests; verified with `npm --prefix .agent test`.",
+      "createdAt": "2026-04-29T18:52:00Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/34#issuecomment-4346643227",
+      "viewerDidAuthor": true
+    }
+  ],
   "createdAt": "2026-04-29T12:08:21Z",
-  "labels": [],
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
   "number": 34,
   "state": "OPEN",
   "title": "Agent for project management",
-  "updatedAt": "2026-04-29T12:08:21Z",
+  "updatedAt": "2026-04-29T18:52:00Z",
   "url": "https://github.com/self-evolving/repo/issues/34"
 }

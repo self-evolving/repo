@@ -158,6 +158,21 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/21#issuecomment-4341063028",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAvrM6Q",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "Addressed the two new comment threads.\n\n- For the timeout question: agreed that a broader, configurable default timeout belongs in a follow-up library/runtime change rather than expanding this incident-fix PR. I kept the direct `rubrics-review` timeout plus contract test here because it fixes the observed hang without changing every route's semantics.\n- For `.agent/dist`: agreed that future installs should not track generated dist, but we still need a checkout-side guard for already-open PRs / downstream repos that accidentally committed it. I replaced the risky unconditional `rmSync(.agent/dist)` with `git checkout -f -B ...`, which resolves overwrite conflicts only when the target branch tracks those files and preserves the built runtime when it does not.\n\nNew regression coverage:\n\n- branch accidentally tracks `.agent/dist` -> checkout succeeds and tracked file is overwritten by PR content\n- branch does not track `.agent/dist` -> built runtime CLI remains usable after checkout\n\nValidation:\n\n- `npm --prefix .agent run build`\n- targeted checkout/envelope/github tests\n- `npm --prefix .agent test` passed (`378/378`)\n- `git diff --check`\n",
+      "createdAt": "2026-04-29T15:02:58Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/21#issuecomment-4344958185",
+      "viewerDidAuthor": false
     }
   ],
   "createdAt": "2026-04-28T22:13:40Z",
@@ -170,7 +185,7 @@
     },
     {
       "path": ".agent/src/__tests__/checkout-pr-cli.test.ts",
-      "additions": 105,
+      "additions": 158,
       "deletions": 0,
       "changeType": "ADDED"
     },
@@ -188,8 +203,8 @@
     },
     {
       "path": ".agent/src/cli/checkout-pr.ts",
-      "additions": 7,
-      "deletions": 0,
+      "additions": 6,
+      "deletions": 1,
       "changeType": "MODIFIED"
     },
     {
@@ -300,6 +315,6 @@
   ],
   "state": "OPEN",
   "title": "Fix GitHub-hosted runner stability issues",
-  "updatedAt": "2026-04-29T05:24:18Z",
+  "updatedAt": "2026-04-29T15:02:58Z",
   "url": "https://github.com/self-evolving/repo/pull/21"
 }

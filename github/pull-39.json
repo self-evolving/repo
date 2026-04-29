@@ -1,0 +1,235 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Add an opt-in `agent-project-manager.yml` workflow for scheduled or manual project management scoring\n- Score open issues and PRs for managed `priority/*` and `urgency/*` labels with dry-run default behavior\n- Add optional label application and issue summary comments, plus docs and tests\n\n## Verification\n- `npm --prefix .agent test`\n\nCloses #34\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAxZvDw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate ",
+      "createdAt": "2026-04-29T19:11:06Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/39#issuecomment-4346769167",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAxZ_gw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `orchestrate` -> `review` (round 2/5).\n\nmanual orchestrate start on PR; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777489912772 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxMjg2MzA0Nzc6b3JjaGVzdHJhdGU6Mzk6cmV2aWV3OjM5OjI -->",
+      "createdAt": "2026-04-29T19:11:50Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/39#issuecomment-4346773379",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAxa1AQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 6 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR keeps workflow glue thin and puts behavior in typed `.agent/src` modules/CLI. It reuses `setup-agent-runtime`, `resolve-github-auth`, `scheduled-activity-gate`, and existing GitHub helpers in `.agent/src/github.ts`, extending them only with label removal helpers. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Adds `agent-project-manager.yml` to `.agent/docs/architecture/supported-workflows.md` and documents all new `AGENT_PROJECT_MANAGEMENT_*` variables in `.agent/docs/customization/configuration-list.md`. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR closes #34, whose discussion requested phase-one project management: opt-in by default, dry-run support, issue/PR scoring, optional labels, and a visible summary. The diff implements that scope and defers Projects integration. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are limited to the new project-management workflow, its CLI/scoring modules, minimal GitHub label helper additions, focused tests, and matching docs. No broad refactors or unrelated cleanup are present. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Uses deterministic scoring and direct `gh issue list` / `gh pr list` collection for phase one, with dry-run default and explicit opt-ins for label writes and summary comments. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | The docs add workflow/configuration descriptions without introducing stale per-file inventory tables. |\n\n## Notes\n\n- Strongest rubric drivers: the implementation matches the linked issue’s phase-one constraints, keeps the workflow thin, and updates the relevant docs alongside the behavior change.\n- Verification: `npm --prefix .agent test` passed locally with 387 tests.\n- Rubrics not scored because they do not genuinely apply to this PR: delegated route authorization, orchestrator one-shot follow-up defaults, default merge strategy, accepted workflow stop comments, stateful failure persistence, and rubric-authoring guidance.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** The PR satisfies the applicable selected rubrics. No rubric-specific blocking or warning findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-04-29T19:13:53Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/39#issuecomment-4346787073",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAxbwFA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #39 implements phase one of project management from issue #34.\n- It adds an opt-in scheduled/manual workflow that scores open issues and PRs for managed `priority/*` and `urgency/*` labels.\n- The implementation defaults to disabled and dry-run behavior, with optional label application and optional summary comments.\n- It adds typed CLI/scoring code, focused tests, and documentation for the new workflow and configuration.\n\n## Review\nThe reviews agree that the PR matches the requested phase-one scope and is generally well-structured. One actionable gap remains: the label mutation path is not covered by CLI regression tests.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Missing CLI coverage for label write path | WARNING | The dry-run path is tested, but the non-dry-run branch that creates/removes/adds labels is not exercised with fake `gh` calls. A broken mutation command could pass the current suite. |\n\n## Progress\n- Rubric review passed with no blocking or warning findings.\n- PR discussion confirms the intended scope: opt-in, dry-run by default, deterministic scoring, optional labels, and summary output.\n- Existing tests cover scoring, label planning, summary formatting, disabled mode, and dry-run CLI behavior.\n- Posted one inline comment on `.agent/src/cli/agent-project-manager.ts` line 205 for the missing mutation-path test.\n\n## Issue Details\n<details>\n<summary>Missing CLI coverage for label write path</summary>\n\n**Cause:** The risky branch starts when `applyLabels && !dryRun`; it creates managed labels, removes old managed labels, and applies new labels to issues and PRs. Current CLI tests verify dry-run avoids edits, but do not verify the actual mutation commands.\n\n**Candidate solutions:** Add a CLI test using a fake `gh` binary with `AGENT_PROJECT_MANAGEMENT_ENABLED=true`, `AGENT_PROJECT_MANAGEMENT_DRY_RUN=false`, and `AGENT_PROJECT_MANAGEMENT_APPLY_LABELS=true`. Assert expected `label list/create`, `issue edit --remove-label`, `issue edit --add-label`, `pr edit --remove-label`, and `pr edit --add-label` invocations with the correct repo and item numbers.\n\n**Comments:** This is not a design blocker, but it covers the only branch that mutates repository state.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: Add the focused CLI regression test for the non-dry-run label application path; this is concrete branch-change work and safe for automation.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Add CLI regression coverage for non-dry-run label application commands.",
+      "createdAt": "2026-04-29T19:16:36Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/39#issuecomment-4346802196",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAxcEuQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `review` -> `fix-pr` (round 3/5).\n\nagent planner selected fix-pr: Latest review synthesis recommends FIX_PR for a concrete unresolved minor issue: missing CLI regression coverage for the non-dry-run label mutation path. This is safe branch-change work within the round budget.\n\n<!-- sepo-agent-handoff state:dispatched created:1777490254967 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxMjg2NjI2MTY6cmV2aWV3OjM5OmZpeF9wcjozOToz -->",
+      "createdAt": "2026-04-29T19:17:33Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/39#issuecomment-4346807481",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAxdCxg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-34/codex-25127393901`. Requested by @lolipopshock.\n\n- Added focused CLI regression coverage for non-dry-run project label application.\n- The fake `gh` test now verifies managed label list/create calls plus issue/PR stale-label removals and desired-label additions with repo and item numbers.\n- Verification: `npm --prefix .agent test` passed with 394 tests.",
+      "createdAt": "2026-04-29T19:20:14Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/39#issuecomment-4346823366",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAxgHlg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer did the orchestrator stop?  ",
+      "createdAt": "2026-04-29T19:28:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/39#issuecomment-4346873750",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAxgqrQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes. The orchestrator ran after the `fix-pr` pass, but it stopped instead of dispatching the next `review`.\n\nEvidence:\n\n- `fix-pr` completed at `2026-04-29 19:20 UTC`.\n- A follow-up `Agent / Orchestrator` run started at `2026-04-29 19:20:16 UTC`: https://github.com/self-evolving/repo/actions/runs/25129044192\n- Its log ended with: `Handoff stop: agent planner decision missing or invalid`.\n\nSo the automation chain stopped there. It did not continue to another review pass. The apparent cause was the planner run being cancelled/invalid after it tried to request permission for a `gh pr view` read, leaving no valid planner decision for the dispatch step.",
+      "createdAt": "2026-04-29T19:30:23Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/39#issuecomment-4346882733",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-04-29T18:51:57Z",
+  "files": [
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 8,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 6,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/agent-project-manager-cli.test.ts",
+      "additions": 164,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/project-management.test.ts",
+      "additions": 99,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/agent-project-manager.ts",
+      "additions": 244,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/github.ts",
+      "additions": 12,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/project-management.ts",
+      "additions": 219,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/workflows/agent-project-manager.yml",
+      "additions": 102,
+      "deletions": 0,
+      "changeType": "ADDED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-34/codex-25127393901",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 39,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM76VyRf",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-04-29T19:16:19Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "481a359515600849ea11ca90eee254c3462ef9c8"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Add opt-in project management scoring workflow",
+  "updatedAt": "2026-04-29T19:30:23Z",
+  "url": "https://github.com/self-evolving/repo/pull/39"
+}

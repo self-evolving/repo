@@ -5,7 +5,7 @@
   },
   "baseRefName": "main",
   "body": "## Summary\n- Add `orchestrate` as an explicit route for mention and label triggers:\n  - `@sepo-agent /orchestrate`\n  - `agent/orchestrate`\n- Route explicit orchestrate requests through `agent-router.yml` to `agent-orchestrator.yml`.\n- Extend orchestrator dispatch/runtime to support manual orchestrate starts with situation-aware selection:\n  - issue target -> `implement`\n  - pull request target with `CHANGES_REQUESTED` -> `fix-pr`\n  - other open pull request targets -> `review`\n- Remove automatic post-action orchestrator dispatch from:\n  - `agent-implement.yml`\n  - `agent-review.yml`\n  - `agent-fix-pr.yml`\n- Update docs and test expectations to match the new explicit orchestration behavior.\n\n## Verification\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/triage.test.js .agent/dist/__tests__/envelope.test.js`\n\nCloses #19\n",
-  "closedAt": null,
+  "closedAt": "2026-04-29T18:30:57Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABAo0cqA",
@@ -91,8 +91,8 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- This PR implements issue #19 by making orchestration explicit instead of implicit: users invoke it with `@sepo-agent /orchestrate` or `agent/orchestrate`.\n- Routing now recognizes the new route and dispatches `agent-orchestrator.yml` directly, while automatic post-action orchestrator chaining was removed from implement/review/fix-pr workflows.\n- Manual orchestrate starts are now situation-aware: issue targets route to implement, PRs with `CHANGES_REQUESTED` route to fix-pr, and other open PRs route to review.\n- The PR also adds focused runtime tests for manual orchestrate decisions and updates docs to match the explicit orchestration model.\n- Earlier blocking findings (delegated authorization gap, docs mismatch, missing branch tests, copied header) were addressed in later commits.\n\n## Review\nOverall quality is strong and aligned with the issue goal; most prior risks appear resolved on current head.  \nOne reviewer still identified a concrete UX warning (silent stop path for explicit `/orchestrate`), while other reviewer inputs reported no remaining defects.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Explicit `/orchestrate` stop paths can appear as silent no-ops | WARNING | `orchestrate-handoff` can decide `stop`, but the workflow does not post a thread-visible status message, so users may see route acceptance without clear outcome feedback. |\n\n## Progress\n- Delegated downstream route authorization was fixed and covered by tests.\n- Manual orchestrate failure/branch behavior coverage was added in `orchestrate-handoff-cli.test.ts`.\n- Planner-behavior docs were reconciled with runtime behavior for explicit `/orchestrate`.\n- Router header typo was fixed.\n- I posted one new inline comment for the remaining warning: https://github.com/self-evolving/repo/pull/20#discussion_r3158403206\n\n## Issue Details\n<details>\n<summary>Explicit `/orchestrate` stop paths can appear as silent no-ops</summary>\n\n**Cause:**  \nThe orchestrator workflow dispatch step can end in `stop` without a follow-up PR/issue comment, even though the request was explicitly user-triggered and previously acknowledged.\n\n**Candidate solutions:**  \n- Add a conditional post-response step in `agent-orchestrator.yml` when `steps.handoff.outputs.decision == 'stop'` to publish a short reason (budget exhausted, PR closed, delegated auth denied, etc.).\n- Reuse existing response-posting utilities for consistency with other route outcomes.\n\n**Comments:**  \nClaude flagged this as a warning; Codex and rubric review reported no remaining defects, so this is a meaningful reviewer disagreement on UX strictness rather than core correctness.\n</details>\n\n## Recommended Next Step\n`FIX_PR`: there is one concrete, low-risk workflow improvement remaining, and it is safe for an automated fix-pr pass.\n\n## Final Verdict\n`MINOR_ISSUES`\n\n## Action Items\n- [ ] Add a stop-outcome status comment path in `agent-orchestrator.yml` for explicit `/orchestrate` runs so accepted requests do not fail silently.",
       "createdAt": "2026-04-29T03:19:38Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/20#issuecomment-4340588180",
       "viewerDidAuthor": true
@@ -236,6 +236,249 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/20#issuecomment-4343490745",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAw5IFw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /fix-pr\r\ncan you merge latest main to this PR",
+      "createdAt": "2026-04-29T17:59:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/20#issuecomment-4346234903",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAw5saA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-19/codex-25067966881`. Requested by @lolipopshock.\n\nMerged latest `origin/main` into the PR branch cleanly.\n\nResult:\n- Current branch: `agent/implement-issue-19/codex-25067966881`\n- Merge commit: `ef83a37`\n- Merged main at: `b157680`\n- Conflicts: none\n- Working tree: clean",
+      "createdAt": "2026-04-29T18:01:22Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/20#issuecomment-4346244200",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAw7HmQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- This PR implements issue #19 by adding explicit orchestration triggers: `@sepo-agent /orchestrate` and the `agent/orchestrate` label.\n- It routes explicit orchestration requests through the router to the orchestrator workflow, then selects the next action based on target state.\n- Direct `/implement`, `/review`, and `/fix-pr` runs remain one-shot by default, while `/orchestrate` now carries explicit orchestration context so bounded follow-up handoffs can continue.\n- The PR also updates docs and tests for the explicit orchestration model, access-policy behavior, and manual orchestrate decision paths.\n- Latest PR discussion shows the earlier one-shot-orchestrator concern was acknowledged and addressed, followed by a clean merge of latest `main`.\n\n## Review\nThe available review input reports no remaining blocking or warning findings on the current implementation. Prior issues around delegated authorization, missing branch/failure tests, docs mismatch, and one-shot orchestration semantics appear addressed.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues identified | INFO | The available reviewer input gives the current head a passing rubric review and reports no remaining blocking or warning findings. |\n\n## Progress\n- Delegated downstream route authorization was added before orchestrated dispatch.\n- Focused manual orchestrate behavior tests were added.\n- Docs were updated to describe direct routes as one-shot and `/orchestrate` as bounded explicit orchestration.\n- Post-action handoff was restored only for runs carrying explicit `orchestration_enabled`.\n- Latest `main` was merged into the PR branch cleanly, with no conflicts reported.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: the available review input reports no unresolved actionable branch-change work.\n\n## Final Verdict\n`SHIP`\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-04-29T18:04:56Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/20#issuecomment-4346267545",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAw7wcA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / specific | Default follow-up orchestration to one-shot | pass | 8/8 | Direct `/implement`, `/review`, and `/fix-pr` stay one-shot by default, while `/orchestrate` carries explicit `orchestration_enabled: \"true\"` for bounded follow-up handoffs. Evidence: workflow gates in `agent-implement.yml`, `agent-review.yml`, `agent-fix-pr.yml`, and downstream dispatch inputs in `orchestrate-handoff.ts` at head `ef83a37`. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR extends existing route resolution, dispatch, access-policy, and orchestrator handoff paths instead of moving substantial logic into workflow YAML. Evidence: changes in `triage.ts`, `dispatch-agent-orchestrator.ts`, and `orchestrate-handoff.ts`. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The file list is scoped to orchestration routing/runtime, the three action workflows’ handoff gates, focused tests, and matching docs. No unrelated refactor sweep appears in the diff. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Manual orchestration stop conditions surface concrete reasons, delegated route authorization can stop before dispatch, and focused tests cover budget exhaustion, PR status read failure, closed PR, unsupported targets, branch selection, and auth denial in `orchestrate-handoff-cli.test.ts`. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The implementation matches issue #19 and later PR discussion: `/orchestrate` is explicit, situation-aware, and can run a bounded chain, while direct action routes remain one-shot. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Docs were updated across `README.md`, `AGENT.md`, `.agent/docs/actions/agent-actions.md`, `.agent/docs/architecture/supported-workflows.md`, and `.agent/docs/technical-details/agent-orchestrator.md` to describe explicit orchestration behavior. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | The documentation changes describe behavior and workflow principles without adding stale-prone per-file inventory tables. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Manual start selection remains deterministic and small: issue -> `implement`, PR with `CHANGES_REQUESTED` -> `fix-pr`, other open PR -> `review`; continuation is controlled by a single explicit orchestration input. |\n\n## Notes\n\n- The current head satisfies the key rubric tension: orchestration is explicit and can continue as a bounded chain, while normal direct action requests do not unexpectedly trigger follow-up automation.\n- Not scored as applicable: `default-merge-strategy` because this review does not perform a merge decision, and `abstract-learned-rubrics` because the PR does not update rubrics.\n\n## Findings\n\n- **INFO:** No rubric-specific blocking or warning findings for the selected applicable rubrics.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-04-29T18:06:29Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/20#issuecomment-4346278000",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAw9Drw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- This PR implements issue #19 by making orchestration an explicit route via `@sepo-agent /orchestrate` and the `agent/orchestrate` label.\n- The router now dispatches `agent-orchestrator.yml`, which selects `implement`, `review`, or `fix-pr` based on the current issue/PR state.\n- Direct `/implement`, `/review`, and `/fix-pr` requests remain one-shot, while `/orchestrate` carries explicit orchestration context so bounded follow-up handoffs can continue.\n- The PR updates docs and tests for explicit orchestration, access-policy checks, manual decision paths, and the clarified multi-step orchestration behavior.\n- Latest `main` was merged into the PR branch cleanly before this review pass.\n\n## Review\nThe PR is close, but one reviewer found a remaining authorization gap in continuation handoffs after the first `/orchestrate` dispatch. The rubric review passes current head, so the meaningful disagreement is whether first-hop delegated authorization is sufficient for the full explicit chain; the concrete code review shows it is not.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Orchestrated continuation handoffs bypass downstream route authorization | BLOCKING | Delegated route authorization only runs when `SOURCE_ACTION=orchestrate`; later `implement`/`review`/`fix-pr` handoffs in the same explicit chain can dispatch routes without checking the original requester against route overrides. |\n\n## Progress\n- Earlier delegated authorization feedback for the initial `/orchestrate` dispatch was addressed.\n- Focused manual orchestration tests were added for first-hop branch selection and stop paths.\n- Docs now describe direct routes as one-shot and `/orchestrate` as bounded explicit orchestration.\n- Prior concerns about one-shot orchestration semantics were acknowledged and fixed by restoring gated handoffs through `orchestration_enabled`.\n- A new inline comment was posted for the remaining continuation authorization issue: https://github.com/self-evolving/repo/pull/20#discussion_r3163163994\n\n## Issue Details\n<details>\n<summary>Orchestrated continuation handoffs bypass downstream route authorization</summary>\n\n**Cause:**  \n`applyDelegatedRouteAuthorization()` only enforces delegated route access when `sourceAction` normalizes to `orchestrate`. After the first dispatch, action workflows hand back with `SOURCE_ACTION=implement`, `review`, or `fix-pr`, so the next `decision.nextAction` can bypass `AGENT_ACCESS_POLICY.route_overrides`.\n\n**Candidate solutions:**  \n- Preserve original `author_association`, `access_policy`, and repository visibility through orchestrated action workflows, then validate every `decision.nextAction` before dispatch.\n- Or authorize the full possible orchestration chain up front before starting `/orchestrate`.\n- Add regression coverage for continuation denial, such as `SOURCE_ACTION=review`, `ORCHESTRATION_ENABLED=true`, a review decision requiring `fix-pr`, and a `fix-pr` route override denying the requester.\n\n**Comments:**  \nRubric review reports PASS on current head, but the code review identifies a concrete policy bypass not covered by existing tests, so this should block shipping.\n</details>\n\n## Recommended Next Step\n`FIX_PR`: the remaining issue is a concrete authorization bug with a clear branch-change path and focused test coverage to add.\n\n## Final Verdict\n`NEEDS_REWORK`\n\n## Action Items\n- [ ] Enforce downstream route authorization for every orchestrated continuation handoff, not only the initial `SOURCE_ACTION=orchestrate` dispatch.\n- [ ] Preserve the original requester authorization context through `agent-implement.yml`, `agent-review.yml`, and `agent-fix-pr.yml` when `orchestration_enabled` is true.\n- [ ] Add a regression test covering a denied continuation route, such as review handoff to `fix-pr` when `route_overrides.fix-pr` denies the requester.",
+      "createdAt": "2026-04-29T18:09:31Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/20#issuecomment-4346299311",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAw97bQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \r\n\r\noverall looks fine; but what does this do now? since we should only support orchestrator based hand-off ? \r\n\r\n> Automation is disabled by default. Configure `AGENT_AUTOMATION_MODE` as a mode value:\r\n\r\n| Mode | Meaning |\r\n|---|---|\r\n| `disabled` | Default for action workflows. Orchestrator still runs when users explicitly request `/orchestrate`. |Collapse comment",
+      "createdAt": "2026-04-29T18:11:29Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/20#issuecomment-4346313581",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAw-VSw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "That wording is now confusing, and I think it should be changed.\n\nHistorically `AGENT_AUTOMATION_MODE` meant: “should normal action workflows automatically hand off to the orchestrator after they finish?” In the new design, that should no longer be the control point. Normal `/review`, `/implement`, and `/fix-pr` should stay one-shot.\n\nIf we only support **orchestrator-based handoff**, then the handoff should be controlled by explicit orchestration context, not by a global “automation enabled” flag.\n\nBetter model:\n\n- `/review` -> review only\n- `/implement` -> implement only\n- `/fix-pr` -> fix only\n- `/orchestrate` -> orchestrator starts a bounded loop\n- downstream handoff happens only when the downstream action was launched by `/orchestrate`\n\nSo this doc section should not say:\n\n```md\nAutomation is disabled by default. Configure `AGENT_AUTOMATION_MODE`...\n```\n\nRecommended follow-up change:\n\n```md\nThe orchestrator is an explicit route. Use `/orchestrate` or `agent/orchestrate`\nto start a bounded orchestration run. Normal action routes do not hand off after\ncompletion.\n\n`AGENT_AUTOMATION_MODE` only selects the orchestrator decision strategy for an\nexplicit orchestration run:\n```\n\nAnd the table should be something like:\n\n| Mode | Meaning |\n|---|---|\n| `heuristics` | Deterministic built-in state machine. |\n| `agent` | Planner-assisted orchestration, validated by runtime policy. |\n\nI would remove `disabled` unless we specifically want a config that makes `/orchestrate` unavailable. Right now “disabled but `/orchestrate` still runs” is internally contradictory.",
+      "createdAt": "2026-04-29T18:12:35Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/20#issuecomment-4346320203",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAw--kg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> And the table should be something like:\r\n\r\nMode\tMeaning\r\nheuristics\tDeterministic built-in state machine.\r\nagent\tPlanner-assisted orchestration, validated by runtime policy.\r\nI would remove disabled unless we specifically want a config that makes /orchestrate unavailable. Right now “disabled but /orchestrate still runs” is internally contradictory.\r\n\r\nYes this makes more sense. \r\n\r\n@sepo-agent /fix-pr can you do a small change to fix it? ",
+      "createdAt": "2026-04-29T18:14:03Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/20#issuecomment-4346330770",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAw_64g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-19/codex-25067966881`. Requested by @lolipopshock.\n\nUpdated the orchestration mode docs to remove the contradictory `disabled` row from the user-facing mode table.\n\nChanged:\n- `.agent/docs/technical-details/agent-orchestrator.md`\n  - Mode table now only lists `heuristics` and `agent`.\n  - Clarifies unset, `false`, or legacy `disabled` values fall back to `heuristics` for explicit `/orchestrate` chains.\n- `.agent/docs/customization/configuration-list.md`\n  - `AGENT_AUTOMATION_MODE` now documents only `heuristics` and `agent` as active decision modes.\n  - `AGENT_AUTOMATION_MAX_ROUNDS` now describes explicit orchestration handoff rounds.\n\nVerification passed:\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/envelope.test.js`",
+      "createdAt": "2026-04-29T18:16:00Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/20#issuecomment-4346346210",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAxAX2w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `fix-pr` -> `review` (round 2/5).\n\nagent planner selected review: fix-pr succeeded and pushed the requested documentation update; a follow-up review is warranted to validate the current PR head and reconcile the prior review state.\n\n<!-- sepo-agent-handoff state:dispatched created:1777486614880 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxMjU5ODM1ODk6Zml4X3ByOjIwOnJldmlldzoyMDoy -->",
+      "createdAt": "2026-04-29T18:16:52Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/20#issuecomment-4346353627",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAxCJUg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- This PR implements issue #19 by adding explicit orchestration through `@sepo-agent /orchestrate` and the `agent/orchestrate` label.\n- The route dispatches `agent-orchestrator.yml`, which chooses `implement`, `review`, or `fix-pr` from the current issue or PR state.\n- Direct `/implement`, `/review`, and `/fix-pr` runs remain one-shot, while `/orchestrate` starts a bounded chain through explicit orchestration context.\n- The latest docs cleanup removed the confusing active `disabled` mode from the user-facing orchestration mode table and now treats it as a legacy fallback.\n- One remaining correctness issue blocks shipping: continuation handoffs still do not preserve and re-check delegated route authorization.\n\n## Review\nThe requested docs cleanup is present, but the current head still has a blocking authorization gap in orchestrated continuation handoffs. Only one current reviewer output was available for this run, and it identifies this issue as unresolved.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Orchestrated continuation handoffs bypass downstream route authorization | BLOCKING | The first `/orchestrate` hop re-checks route access, but later `implement`/`review`/`fix-pr` handoffs do not carry original auth context and skip route-override validation. |\n\n## Progress\n- Latest mode-doc cleanup is done: `heuristics` and `agent` are now the active documented decision modes.\n- Prior one-shot orchestration concern was addressed by restoring handoff only for runs with explicit `orchestration_enabled`.\n- Earlier first-hop delegated authorization coverage was added.\n- Existing inline feedback already covers the remaining continuation authorization issue, so no duplicate inline comment was posted.\n\n## Issue Details\n<details>\n<summary>Orchestrated continuation handoffs bypass downstream route authorization</summary>\n\n**Cause:**  \n`applyDelegatedRouteAuthorization()` returns early unless `sourceAction` is `orchestrate`. After `/orchestrate` dispatches the first action, later handoffs return with `SOURCE_ACTION=implement`, `review`, or `fix-pr`, and the action workflows do not preserve `AUTHOR_ASSOCIATION`, `ACCESS_POLICY`, or `REPOSITORY_PRIVATE`.\n\n**Candidate solutions:**  \n- Add authorization-context inputs to `agent-implement.yml`, `agent-review.yml`, and `agent-fix-pr.yml`.\n- Pass those fields from `orchestrate-handoff.ts` in downstream workflow inputs.\n- Forward them from each action workflow into `dispatch-agent-orchestrator.js`.\n- Validate every orchestrated `decision.nextAction`, not only manual starts.\n- Add regression coverage for a continuation denial such as `review -> fix-pr` when `route_overrides.fix-pr` denies the original requester.\n\n**Comments:**  \nThis is the same blocking issue already called out inline at https://github.com/self-evolving/repo/pull/20#discussion_r3163163994, and it remains applicable on current head.\n</details>\n\n## Recommended Next Step\n`FIX_PR`: the unresolved issue is a concrete branch-change authorization fix with clear workflow, runtime, and test updates.\n\n## Final Verdict\n`NEEDS_REWORK`\n\n## Action Items\n- [ ] Preserve original requester authorization context through orchestrated action workflow inputs.\n- [ ] Re-check delegated route authorization for every orchestrated continuation dispatch.\n- [ ] Add a regression test for denied continuation handoff, such as `review -> fix-pr` with `fix-pr` route overrides denying the requester.",
+      "createdAt": "2026-04-29T18:20:34Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/20#issuecomment-4346382674",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAxCbPg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `review` -> `fix-pr` (round 3/5).\n\nagent planner selected fix-pr: Latest review synthesis recommends FIX_PR with NEEDS_REWORK for a concrete unresolved authorization bug in orchestrated continuation handoffs; round budget remains.\n\n<!-- sepo-agent-handoff state:dispatched created:1777486878991 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxMjYxMTI1MTc6cmV2aWV3OjIwOmZpeF9wcjoyMDoz -->",
+      "createdAt": "2026-04-29T18:21:17Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/20#issuecomment-4346387262",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAxCuYA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo did not produce code changes for this PR.**\n\nPlease add more context or restate the requested fixes, then try again.\n\nThis checkout already has the requested change applied.\n\nConfirmed:\n- `disabled` is removed from the orchestrator mode table.\n- The table now lists only:\n  - `heuristics`: deterministic built-in state machine\n  - `agent`: planner-assisted orchestration validated by runtime policy\n- `AGENT_AUTOMATION_MODE` docs now say unset, `false`, or legacy `disabled` fall back to `heuristics` for explicit `/orchestrate` chains.\n\nWorking tree is clean, so I left it unchanged.",
+      "createdAt": "2026-04-29T18:22:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/20#issuecomment-4346392160",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAxHy7Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nUpdated `agent/rubrics` from PR #20.\n\nUpdated rubrics for PR #20 with two durable preferences:\n\n- Added `validate-delegated-route-authorization`: delegated/chained routes must preserve requester auth context and re-check downstream route policy.\n- Added `comment-on-accepted-workflow-stops`: accepted explicit workflow requests that stop on guardrails should post a visible status comment with the reason.\n\nValidated the rubrics with the project rubric selector. No repo checkout changes remain, and I did not commit.\n",
+      "createdAt": "2026-04-29T18:33:42Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/20#issuecomment-4346475245",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-04-28T17:36:12Z",
@@ -260,14 +503,14 @@
     },
     {
       "path": ".agent/docs/customization/configuration-list.md",
-      "additions": 1,
-      "deletions": 1,
+      "additions": 2,
+      "deletions": 2,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/docs/technical-details/agent-orchestrator.md",
-      "additions": 33,
-      "deletions": 9,
+      "additions": 36,
+      "deletions": 13,
       "changeType": "MODIFIED"
     },
     {
@@ -358,19 +601,13 @@
   "headRefName": "agent/implement-issue-19/codex-25067966881",
   "labels": [
     {
-      "id": "LA_kwDOSOhEMM8AAAAChDSNKQ",
-      "name": "agent/review",
-      "description": "",
-      "color": "8301C0"
-    },
-    {
       "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
       "name": "agent",
       "description": "Handled by the agent",
       "color": "0e8a16"
     }
   ],
-  "mergedAt": null,
+  "mergedAt": "2026-04-29T18:30:57Z",
   "number": 20,
   "reviewDecision": "CHANGES_REQUESTED",
   "reviews": [
@@ -440,10 +677,25 @@
       "commit": {
         "oid": "57eee1f086e8a4bfa590fd4a0cf7b1fa30848109"
       }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM76T-St",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-04-29T18:08:56Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "ef83a37fb57f2efc62d7fb775a96b4a09d9493e8"
+      }
     }
   ],
-  "state": "OPEN",
+  "state": "MERGED",
   "title": "Make orchestrator explicit via /orchestrate and label route",
-  "updatedAt": "2026-04-29T12:05:21Z",
+  "updatedAt": "2026-04-29T18:33:42Z",
   "url": "https://github.com/self-evolving/repo/pull/20"
 }
