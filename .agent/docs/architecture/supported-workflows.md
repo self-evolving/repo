@@ -17,7 +17,7 @@
 | `agent-branch-cleanup.yml` | `pull_request_target.closed` | Event-driven cleanup of agent-created branches after PR close. Excludes the shared `agent/memory` and `agent/rubrics` branches. | None |
 | `agent-close-stale-issues.yml` | `schedule` (daily), `workflow_dispatch` | Closes open `agent` issues that have had no activity for 30 days by default | None |
 | `agent-daily-summary.yml` | `schedule` (daily), `workflow_dispatch` | Generates a concise repository activity summary and posts it as a Discussion | Auto |
-| `agent-project-manager.yml` | `schedule` (every 6h), `workflow_dispatch` | Opt-in scoring for open issues and PRs, with dry-run summaries and optional priority/effort label updates | None |
+| `agent-project-manager.yml` | `schedule` (every 6h), `workflow_dispatch` | Opt-in agent-driven triage for open issues and PRs, with dry-run summaries and optional priority/effort label updates | Auto |
 | `test-scripts.yml` | `pull_request`, `workflow_dispatch` | CI for helper tests, YAML parsing, and shell syntax | None |
 
 `agent-orchestrator.yml` is started explicitly through `/orchestrate` or
@@ -71,13 +71,18 @@ their guardrails in place.
 
 `agent-project-manager.yml` is disabled by default. Enable scheduled runs with
 `AGENT_PROJECT_MANAGEMENT_ENABLED=true`, or run it manually with the `enabled`
-input. It scores open issues and pull requests, writes a GitHub Actions step
-summary, and can apply managed `priority/*` and `effort/*` labels only when
-label application is enabled and dry-run mode is disabled. The schedule runs
-every 6 hours at minute 17 UTC. Optional summary comments require
-`post_summary=true`; when enabled, the workflow finds today's `Daily Summary —
-YYYY-MM-DD` discussion in the configured discussion category and comments there.
-If that discussion does not exist yet, it leaves only the Actions step summary.
+input. It launches a prompt-driven, read-approved agent to inspect open issues
+and pull requests, assess priority/effort with judgment rather than fixed
+heuristics, and return a GitHub-flavored summary plus a structured managed-label
+change plan. A deterministic post-agent CLI validates that plan and applies only
+managed `priority/*` and `effort/*` add/remove operations when label application
+is enabled and dry-run mode is disabled; otherwise it reports planned changes
+without mutating labels. The schedule runs every 6 hours at minute 17 UTC. A
+final workflow step writes the resulting summary to the Actions step summary.
+Optional summary comments require `post_summary=true`; when enabled, that final
+step finds today's `Daily Summary — YYYY-MM-DD` discussion in the configured
+discussion category and comments there. If that discussion does not exist yet,
+it leaves only the Actions step summary.
 
 Single-agent routes, autonomous agent workflows, and the review synthesis step resolve their provider before installing provider CLIs. Explicit provider choices from `AGENT_DEFAULT_PROVIDER` or a route-specific override are authoritative: the workflows select that provider even when the matching repository secret is absent, so self-hosted runners can rely on local Codex or Claude authentication. When the provider is `auto`, detection uses configured provider secrets and prefers Codex when both `OPENAI_API_KEY` and `CLAUDE_CODE_OAUTH_TOKEN` are present. Route-specific overrides are available by editing the relevant workflow's `resolve-agent-provider` step inline. Portal and skill jobs use non-fatal early resolution before non-agent response paths, then require a provider only immediately before invoking an agent.
 
