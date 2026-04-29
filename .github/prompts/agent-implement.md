@@ -3,7 +3,7 @@
 Implement GitHub issue #${TARGET_NUMBER}.
 
 Instructions:
-1. Start by reading the current issue state with `gh issue view ${TARGET_NUMBER} --repo ${REPO_SLUG} --json title,body,author,comments,labels,state,url`. Please also check the broader project context. 
+1. Start by reading the current issue state with `gh issue view ${TARGET_NUMBER} --repo ${REPO_SLUG} --json title,body,author,comments,labels,state,url`. Please also check the broader project context.
 2. Make the smallest complete change that resolves the issue.
 3. Run lightweight, directly relevant checks when they are clearly applicable.
 4. Do not commit. Leave changes in the working tree.
