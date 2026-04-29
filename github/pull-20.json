@@ -126,6 +126,116 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/20#issuecomment-4340596738",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAuMATw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Point-by-point:\n\n1. **Removing post-review handoff does not remove orchestration entirely.**  \n   It removes implicit post-action chaining from `agent-review.yml`. Orchestration still works through the explicit route added in [`agent-router.yml`](https://github.com/self-evolving/repo/blob/57eee1f086e8a4bfa590fd4a0cf7b1fa30848109/.github/workflows/agent-router.yml#L626-L671), which dispatches `agent-orchestrator.yml` for `/orchestrate` or `agent/orchestrate`.\n\n2. **I agree with adding a visible stop response.**  \n   Today `orchestrate-handoff` emits `decision=stop` and `reason`, but [`agent-orchestrator.yml`](https://github.com/self-evolving/repo/blob/57eee1f086e8a4bfa590fd4a0cf7b1fa30848109/.github/workflows/agent-orchestrator.yml#L159-L180) does not post that outcome back. Follow-up fix: add a step after `Decide and dispatch next action` gated on `steps.handoff.outputs.decision == 'stop'` and `inputs.source_action == 'orchestrate'`, then post a short comment with the reason.\n\n3. **I agree the access model should be stricter at route entry.**  \n   The current fix re-validates delegated access just before dispatch in [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/57eee1f086e8a4bfa590fd4a0cf7b1fa30848109/.agent/src/cli/orchestrate-handoff.ts#L228-L251), which prevents bypasses. But your point is stronger: `/orchestrate` should probably not be accepted unless the requester has sufficient access for the downstream routes it may invoke. Follow-up fix: enforce this during router authorization:\n   - issue `/orchestrate` requires `implement` access\n   - PR `/orchestrate` requires `review` and `fix-pr` access, or at least the route selected from current PR state\n   - return an unsupported/denied response immediately instead of accepting and later stopping\n\n4. **Given no backward compatibility requirement, we can simplify further.**  \n   Since issue #19 is explicitly moving away from automatic handoff, we should remove or narrow remaining action-originated orchestration compatibility. Follow-up fix: keep `dispatch-agent-orchestrator.ts` only as the explicit route dispatcher, or rename/simplify it so it no longer carries post-action handoff semantics.\n\nRecommended next fixes:\n- Add stop-outcome comment for explicit `/orchestrate`.\n- Move downstream route access validation into router-time `/orchestrate` authorization.\n- Simplify docs/code names that still describe “post-action handoff” behavior.",
+      "createdAt": "2026-04-29T11:50:16Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/20#issuecomment-4343398479",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAuM6EQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer\n\n> Removing post-review handoff does not remove orchestration entirely.\nIt removes implicit post-action chaining from agent-review.yml. Orchestration still works through the explicit route added in agent-router.yml, which dispatches agent-orchestrator.yml for /orchestrate or agent/orchestrate\n\nBut this is incorrect? After the implement and fix route, the orchestrate agent cannot be called again if you remove that lines? Meaning that the orchestrate is just one off ",
+      "createdAt": "2026-04-29T11:52:48Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/20#issuecomment-4343413265",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAuNTEA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "You’re right. My previous wording was too loose.\n\nWith the current PR shape:\n\n- `/orchestrate` can still be invoked again manually by the user.\n- But once `/orchestrate` dispatches `implement`, `review`, or `fix-pr`, that downstream action will **not hand back to the orchestrator** because the post-action handoff steps were removed.\n- So yes: the current implementation makes orchestrate a **one-shot router**, not an ongoing orchestration mode.\n\nThat means if the intended UX is:\n\n`/orchestrate` -> implement -> review -> fix-pr -> review -> stop\n\nthen we should not remove handoff entirely. We should remove only the implicit handoff for normal `/implement`, `/review`, and `/fix-pr` runs.\n\nRecommended fix:\n\n1. Add an explicit orchestration context/input, e.g. `orchestration_enabled: true` or `orchestration_run_id`.\n2. When `/orchestrate` dispatches a sub-action, pass that input into `agent-implement.yml`, `agent-review.yml`, and `agent-fix-pr.yml`.\n3. Restore the post-action handoff steps, but gate them on that explicit orchestration context only.\n4. Normal `/review`, `/implement`, `/fix-pr` stay one-shot.\n5. Explicit `/orchestrate` becomes the bounded multi-step mode.\n\nSo the better model is:\n\n- Direct route: `/review` -> review only.\n- Explicit orchestrator route: `/orchestrate` -> selected action -> orchestrator handoff loop until stop condition.\n\nThat matches the original UX concern while preserving real orchestration.",
+      "createdAt": "2026-04-29T11:53:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/20#issuecomment-4343419664",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAuOFcQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> You’re right. My previous wording was too loose.\n> \n> With the current PR shape:\n> \n> - `/orchestrate` can still be invoked again manually by the user.\n> - But once `/orchestrate` dispatches `implement`, `review`, or `fix-pr`, that downstream action will **not hand back to the orchestrator** because the post-action handoff steps were removed.\n> - So yes: the current implementation makes orchestrate a **one-shot router**, not an ongoing orchestration mode.\n> \n> That means if the intended UX is:\n> \n> `/orchestrate` -> implement -> review -> fix-pr -> review -> stop\n> \n> then we should not remove handoff entirely. We should remove only the implicit handoff for normal `/implement`, `/review`, and `/fix-pr` runs.\n> \n> Recommended fix:\n> \n> 1. Add an explicit orchestration context/input, e.g. `orchestration_enabled: true` or `orchestration_run_id`.\n> 2. When `/orchestrate` dispatches a sub-action, pass that input into `agent-implement.yml`, `agent-review.yml`, and `agent-fix-pr.yml`.\n> 3. Restore the post-action handoff steps, but gate them on that explicit orchestration context only.\n> 4. Normal `/review`, `/implement`, `/fix-pr` stay one-shot.\n> 5. Explicit `/orchestrate` becomes the bounded multi-step mode.\n> \n> So the better model is:\n> \n> - Direct route: `/review` -> review only.\n> - Explicit orchestrator route: `/orchestrate` -> selected action -> orchestrator handoff loop until stop condition.\n> \n> That matches the original UX concern while preserving real orchestration.\n\n@sepo-agent /fix-pr based on our latest discussion ",
+      "createdAt": "2026-04-29T11:56:03Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/20#issuecomment-4343432561",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAuP17Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-19/codex-25067966881`. Requested by @lolipopshock.\n\nImplemented the latest discussion feedback: explicit `/orchestrate` now starts a bounded multi-step orchestration chain, while direct `/implement`, `/review`, and `/fix-pr` remain one-shot.\n\nChanged:\n- Added `orchestration_enabled` inputs to `agent-implement.yml`, `agent-review.yml`, and `agent-fix-pr.yml`.\n- Restored post-action handoff steps in those workflows, gated only on `inputs.orchestration_enabled == 'true'`.\n- Updated `orchestrate-handoff.ts` to pass `orchestration_enabled: \"true\"` into downstream actions.\n- Updated `dispatch-agent-orchestrator.ts` so explicit orchestration continuations still work when repo-level automation mode is `disabled`, defaulting that explicit chain to `heuristics`.\n- Updated docs and envelope expectations to describe direct routes as one-shot and `/orchestrate` as the bounded orchestration mode.\n\nVerification passed:\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/triage.test.js .agent/dist/__tests__/envelope.test.js`\n- `node --test .agent/dist/__tests__/orchestrate-handoff-cli.test.js`",
+      "createdAt": "2026-04-29T12:00:29Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/20#issuecomment-4343461357",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAuRouQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / specific | Default follow-up orchestration to one-shot | pass | 8/8 | Current head makes direct `/implement`, `/review`, and `/fix-pr` one-shot by default, while restoring handoff only when runs carry explicit `orchestration_enabled: \"true\"` from `/orchestrate` ([agent-implement.yml](https://github.com/self-evolving/repo/blob/f2076ebdf55114a558fa412b2cd242e5a02fe434/.github/workflows/agent-implement.yml), [agent-review.yml](https://github.com/self-evolving/repo/blob/f2076ebdf55114a558fa412b2cd242e5a02fe434/.github/workflows/agent-review.yml), [agent-fix-pr.yml](https://github.com/self-evolving/repo/blob/f2076ebdf55114a558fa412b2cd242e5a02fe434/.github/workflows/agent-fix-pr.yml), [orchestrate-handoff.ts](https://github.com/self-evolving/repo/blob/f2076ebdf55114a558fa412b2cd242e5a02fe434/.agent/src/cli/orchestrate-handoff.ts)). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR extends existing route, dispatch, access-policy, and handoff helpers instead of embedding the orchestration state machine in workflow YAML ([triage.ts](https://github.com/self-evolving/repo/blob/f2076ebdf55114a558fa412b2cd242e5a02fe434/.agent/src/triage.ts), [dispatch-agent-orchestrator.ts](https://github.com/self-evolving/repo/blob/f2076ebdf55114a558fa412b2cd242e5a02fe434/.agent/src/cli/dispatch-agent-orchestrator.ts), [orchestrate-handoff.ts](https://github.com/self-evolving/repo/blob/f2076ebdf55114a558fa412b2cd242e5a02fe434/.agent/src/cli/orchestrate-handoff.ts)). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are limited to explicit route recognition, orchestrator dispatch/runtime, gated workflow handoff inputs, targeted tests, and matching docs for issue #19; no unrelated refactor or rename sweep appears in the PR file list. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Manual orchestrate stop conditions surface concrete reasons, dispatch failures mark handoff markers failed, stale pending markers are expired, and focused tests cover budget exhaustion, PR-status read failure, closed PR, unsupported targets, and auth denial ([orchestrate-handoff.ts](https://github.com/self-evolving/repo/blob/f2076ebdf55114a558fa412b2cd242e5a02fe434/.agent/src/cli/orchestrate-handoff.ts), [orchestrate-handoff-cli.test.ts](https://github.com/self-evolving/repo/blob/f2076ebdf55114a558fa412b2cd242e5a02fe434/.agent/src/__tests__/orchestrate-handoff-cli.test.ts)). |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The implementation matches linked issue #19 and the later PR discussion clarification: `/orchestrate` is explicit, situation-aware, and can continue a bounded chain, while direct action routes remain one-shot. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Docs now describe `/orchestrate`, `agent/orchestrate`, deterministic manual starts, explicit orchestration context, and direct route one-shot behavior ([README.md](https://github.com/self-evolving/repo/blob/f2076ebdf55114a558fa412b2cd242e5a02fe434/README.md), [AGENT.md](https://github.com/self-evolving/repo/blob/f2076ebdf55114a558fa412b2cd242e5a02fe434/AGENT.md), [agent-actions.md](https://github.com/self-evolving/repo/blob/f2076ebdf55114a558fa412b2cd242e5a02fe434/.agent/docs/actions/agent-actions.md), [agent-orchestrator.md](https://github.com/self-evolving/repo/blob/f2076ebdf55114a558fa412b2cd242e5a02fe434/.agent/docs/technical-details/agent-orchestrator.md)). |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | Documentation updates describe behavior and workflow principles without adding a stale-prone per-file inventory table. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Manual start selection remains deterministic and small: issue -> `implement`, open PR with `CHANGES_REQUESTED` -> `fix-pr`, other open PR -> `review`; explicit continuation is controlled by one `orchestration_enabled` input. |\n\n## Notes\n\n- The current head addresses the main rubric-sensitive concern from earlier reviews: `/orchestrate` is not merely a one-shot router anymore, but direct action routes still stay one-shot unless explicitly launched by orchestration.\n- Not scored as applicable: `default-merge-strategy` because no merge action is being performed, and `abstract-learned-rubrics` because this PR does not update rubrics.\n\n## Findings\n\n- **INFO:** No rubric-specific blocking or warning findings for the selected applicable rubrics.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-04-29T12:05:21Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/20#issuecomment-4343490745",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-04-28T17:36:12Z",
@@ -144,7 +254,7 @@
     },
     {
       "path": ".agent/docs/architecture/supported-workflows.md",
-      "additions": 14,
+      "additions": 17,
       "deletions": 13,
       "changeType": "MODIFIED"
     },
@@ -156,14 +266,14 @@
     },
     {
       "path": ".agent/docs/technical-details/agent-orchestrator.md",
-      "additions": 27,
+      "additions": 33,
       "deletions": 9,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/__tests__/envelope.test.ts",
-      "additions": 9,
-      "deletions": 8,
+      "additions": 11,
+      "deletions": 6,
       "changeType": "MODIFIED"
     },
     {
@@ -180,14 +290,14 @@
     },
     {
       "path": ".agent/src/cli/dispatch-agent-orchestrator.ts",
-      "additions": 10,
-      "deletions": 3,
+      "additions": 15,
+      "deletions": 4,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/cli/orchestrate-handoff.ts",
-      "additions": 131,
-      "deletions": 11,
+      "additions": 133,
+      "deletions": 12,
       "changeType": "MODIFIED"
     },
     {
@@ -204,14 +314,14 @@
     },
     {
       "path": ".github/workflows/agent-fix-pr.yml",
-      "additions": 0,
-      "deletions": 21,
+      "additions": 10,
+      "deletions": 1,
       "changeType": "MODIFIED"
     },
     {
       "path": ".github/workflows/agent-implement.yml",
-      "additions": 0,
-      "deletions": 21,
+      "additions": 10,
+      "deletions": 1,
       "changeType": "MODIFIED"
     },
     {
@@ -222,8 +332,8 @@
     },
     {
       "path": ".github/workflows/agent-review.yml",
-      "additions": 0,
-      "deletions": 23,
+      "additions": 10,
+      "deletions": 1,
       "changeType": "MODIFIED"
     },
     {
@@ -248,6 +358,12 @@
   "headRefName": "agent/implement-issue-19/codex-25067966881",
   "labels": [
     {
+      "id": "LA_kwDOSOhEMM8AAAAChDSNKQ",
+      "name": "agent/review",
+      "description": "",
+      "color": "8301C0"
+    },
+    {
       "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
       "name": "agent",
       "description": "Handled by the agent",
@@ -256,7 +372,7 @@
   ],
   "mergedAt": null,
   "number": 20,
-  "reviewDecision": "",
+  "reviewDecision": "CHANGES_REQUESTED",
   "reviews": [
     {
       "id": "PRR_kwDOSOhEMM750Kis",
@@ -302,10 +418,32 @@
       "commit": {
         "oid": "57eee1f086e8a4bfa590fd4a0cf7b1fa30848109"
       }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM76ImU3",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent can you take a look my comments and provide point by point feedback to address this and potential follow up fixe ",
+      "submittedAt": "2026-04-29T11:48:05Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "state": "CHANGES_REQUESTED",
+      "commit": {
+        "oid": "57eee1f086e8a4bfa590fd4a0cf7b1fa30848109"
+      }
     }
   ],
   "state": "OPEN",
   "title": "Make orchestrator explicit via /orchestrate and label route",
-  "updatedAt": "2026-04-29T03:22:08Z",
+  "updatedAt": "2026-04-29T12:05:21Z",
   "url": "https://github.com/self-evolving/repo/pull/20"
 }

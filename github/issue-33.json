@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "After #20, the orchestrator agent becomes more powerful for handling a single task. But they are constrained inside one PR and cannot be used to coordinate multiple PRs or issues. How to support that? \n\n@sepo-agent /answer think about a plan for this?",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAuS4TA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I think the right direction is to add a **tracking-issue orchestrator** above the existing single-target orchestrator, rather than stretching the current PR/issue handoff loop until it becomes ambiguous.\n\nCurrent architecture I found:\n\n- [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml) is the entry point that resolves mentions/labels into routes and dispatches built-in workflows.\n- [`agent-orchestrator.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-orchestrator.yml) is currently a post-action workflow dispatcher.\n- [`handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts) encodes the bounded state machine: `implement -> review -> fix-pr -> review`.\n- [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts) handles dedupe markers and dispatches the next route-specific workflow.\n- [`dispatch-agent-orchestrator.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/dispatch-agent-orchestrator.ts) is the small bridge from action workflows back to the orchestrator.\n- The docs in [`agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/technical-details/agent-orchestrator.md) describe the orchestrator as a bounded post-action handoff layer, not a cross-issue project coordinator.\n\nSo after #20, the single-target orchestrator should stay focused: one issue or PR, bounded loop, explicit opt-in. For “longer more complex tasks,” I’d introduce a separate concept: **multi-target orchestration from a tracking issue**.\n\nProposed model:\n\n- A user creates or asks Sepo to create a tracking issue, e.g. “Epic: support larger tasks.”\n- The tracking issue owns a durable task graph in a hidden marker/comment, not in one workflow run.\n- The graph contains child tasks with status, dependencies, target issue/PR numbers, assigned route, and current run state.\n- The multi-target orchestrator wakes up on `/orchestrate` or `agent/orchestrate`, reads the tracking issue graph, picks ready tasks, and dispatches existing workflows.\n- Each child task still uses today’s normal bounded flow: `implement`, `review`, `fix-pr`, etc.\n- Completion of child PRs updates the tracking issue graph and may enqueue the next dependent child.\n- The tracking issue becomes the coordination surface; child issues/PRs remain small and reviewable.\n\nImplementation approach aligned with current patterns:\n\n1. Add a new route mode for tracking issues, probably reusing `/orchestrate` but detecting an “orchestration plan” marker on the issue. If no marker exists, the agent can draft one and ask for approval.\n2. Add a typed task-graph schema under `.agent/src`, for example:\n   - task id\n   - title\n   - route: `implement | review | fix-pr | answer`\n   - target kind/number\n   - dependencies\n   - status: `planned | ready | running | blocked | done | failed`\n   - last workflow run id\n   - result URL\n3. Store the graph in the tracking issue as a hidden marker plus a visible summary comment. This matches the existing marker style used by handoff dedupe in [`handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts).\n4. Add a new CLI, e.g. `.agent/src/cli/orchestrate-plan.ts`, that:\n   - reads the tracking issue\n   - validates the graph\n   - expires stale `running` tasks\n   - selects ready tasks within a configurable concurrency limit\n   - dispatches existing workflows through the same `dispatchWorkflow` helper in [`github.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/github.ts)\n   - writes updated task state back to the tracking issue\n5. Keep permissions explicit. The multi-target orchestrator must re-check route authorization for each delegated action, not just authorize `/orchestrate` once.\n6. Add configuration:\n   - `AGENT_ORCHESTRATION_MAX_ACTIVE_TASKS`, default `1`\n   - `AGENT_ORCHESTRATION_MAX_CHILD_ISSUES`, default maybe `5`\n   - reuse existing max-rounds for each child task\n7. Add tests around graph parsing, ready-task selection, dependency blocking, stale run recovery, dedupe, and route authorization.\n8. Update docs to separate:\n   - single-target orchestration: bounded action chain for one issue/PR\n   - tracking orchestration: durable project coordination across multiple issues/PRs\n\nSuggested execution plan:\n\n1. Land/finish #20 as the explicit single-target orchestrator baseline.\n2. Add the tracking issue schema and parser with tests only.\n3. Add read-only `/orchestrate` behavior that summarizes a plan without dispatching.\n4. Add approved dispatch of one ready child task at a time.\n5. Add child task completion updates back into the tracking issue.\n6. Add bounded concurrency only after the single-task path is stable.\n7. Document the UX with examples:\n   - `/orchestrate create a plan`\n   - `/orchestrate run next`\n   - `/orchestrate status`\n   - `/orchestrate pause`\n\nI would not make one agent run own multiple PR branches directly. The safer shape is: one durable tracking issue coordinates many normal, bounded Sepo runs. That keeps review surfaces clean, preserves GitHub-native auditability, and avoids turning a single workflow run into a long-lived project manager.",
+      "createdAt": "2026-04-29T12:08:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/33#issuecomment-4343511116",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-04-29T12:03:37Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 33,
+  "state": "OPEN",
+  "title": "orchestrate longer more complex tasks ",
+  "updatedAt": "2026-04-29T12:08:38Z",
+  "url": "https://github.com/self-evolving/repo/issues/33"
+}

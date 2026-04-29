@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "In #22 another user commented on that issue tagging the agent, who currently does not have the needed roles.  What's a good ux for the maintainer to grant the access to the user? \n\n@sepo-agent /answer",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAuQ7jg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "A good UX here is a **maintainer-issued one-shot grant**, not a global policy change.\n\nCurrent behavior is association-based: `AGENT_ACCESS_POLICY` allows routes by GitHub author association, and unauthorized route requests become `unsupported` with a reply like “answer requests currently require ... access” ([access-policy.ts](https://github.com/self-evolving/repo/blob/main/.agent/src/access-policy.ts), [triage.ts](https://github.com/self-evolving/repo/blob/main/.agent/src/triage.ts)). Approval comments already use a marker-driven flow with `@sepo-agent /approve <request_id>` ([supported-workflows.md](https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/supported-workflows.md), [agent-approve.yml](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-approve.yml)).\n\nI’d extend that pattern:\n\n1. When an external user is denied, the agent should post:\n   ```md\n   @user does not currently have access to run `/answer`.\n\n   A maintainer can grant this request once with:\n\n   @sepo-agent /grant <request_id>\n   ```\n   The comment should include a hidden `<!-- sepo-agent-grant-request ... -->` marker containing requester login, author association, route, source comment id/url, request text, target kind/number, and expiry.\n\n2. A maintainer replies:\n   ```md\n   @sepo-agent /grant <request_id>\n   ```\n   The workflow validates the commenter against the existing access policy for a privileged route, probably `OWNER`, `MEMBER`, `COLLABORATOR` only.\n\n3. If valid, the agent dispatches the original request exactly once, preserving:\n   - original requester: `ltorroba`\n   - granted by: maintainer login\n   - grant source: approval comment URL\n   - route: `answer`\n\n4. The agent edits or replies to the denial/grant comment:\n   ```md\n   Granted by @maintainer. Running `/answer` for @ltorroba.\n   ```\n\n5. The one-shot grant should expire, e.g. after 7 days, and be consumed after dispatch.\n\nI would avoid making this “add the user to `AGENT_ACCESS_POLICY`” because that policy is association-based today, not user-based, and widening it to `NONE` / `FIRST_TIMER` would grant every external user. I’d also avoid asking maintainers to add collaborators just to let someone ask the agent a question.\n\nImplementation plan:\n\n1. Add a grant-request marker type alongside the existing pending approval marker machinery.\n2. Change unauthorized dispatch handling so it can emit a grantable denial marker instead of only plain unsupported text.\n3. Add a grant resolver CLI similar to `resolve-approval.ts`, validating the grant command, marker, route, requester, expiry, and maintainer authorization.\n4. Add `agent-grant.yml` triggered by `issue_comment` / `discussion_comment` containing `@sepo-agent /grant`.\n5. Dispatch the original route with metadata showing both `requested_by` and `granted_by`.\n6. Update docs in `access-policy.md` and `supported-workflows.md`.\n7. Add tests for denied external user, authorized maintainer grant, unauthorized grant attempt, expired grant, and consumed grant.\n\nThat gives maintainers a visible, auditable, low-friction UX without permanently broadening repository access.",
+      "createdAt": "2026-04-29T12:03:27Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/31#issuecomment-4343479182",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-04-29T11:59:50Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 31,
+  "state": "OPEN",
+  "title": "UX: design an explicit grant for external users to use the agent",
+  "updatedAt": "2026-04-29T12:03:27Z",
+  "url": "https://github.com/self-evolving/repo/issues/31"
+}

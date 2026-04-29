@@ -31,8 +31,8 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- This PR adds a new explicit `add-rubrics` route so users can request rubric updates directly from conversation text.\n- It wires the route through triage/dispatch, envelope validation, runtime prompt mapping, and label handling (`agent/add-rubrics`).\n- It introduces a dedicated workflow (`agent-add-rubrics.yml`) that runs the new prompt, enables rubric writes, and posts a summary comment.\n- It also adds a new summary CLI/formatter path and updates route/workflow documentation across the repo.\n- The scope matches issue [#9](https://github.com/self-evolving/repo/issues/9) for a minimal end-to-end implementation.\n\n## Review\n- Overall implementation direction is correct and aligned with the issue plan, but there are a few correctness/robustness gaps to fix before merge.\n- Reviewer inputs were mostly consistent; no material disagreement on the main warnings.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Rubrics schema doc example is malformed | WARNING | In [`.agent/docs/architecture/rubrics.md`](https://github.com/self-evolving/repo/blob/5c0be34e4535799b6dfc1933a63692ca153206a6/.agent/docs/architecture/rubrics.md#L36), `applies_to` indentation is broken, making the YAML example invalid/misleading for copy-paste. |\n| Add-rubrics lane name is inconsistent | WARNING | In [`.github/workflows/agent-add-rubrics.yml`](https://github.com/self-evolving/repo/blob/5c0be34e4535799b6dfc1933a63692ca153206a6/.github/workflows/agent-add-rubrics.yml#L165), `lane: add` diverges from route-name conventions and can create namespace ambiguity. |\n| Missing direct tests for `formatAddRubricsComment` | WARNING | [`.agent/src/response.ts`](https://github.com/self-evolving/repo/blob/5c0be34e4535799b6dfc1933a63692ca153206a6/.agent/src/response.ts#L165) adds new branching formatter behavior, but `response.test.ts` has no focused coverage for its three output branches. |\n| Stateful failure visibility is incomplete for summary posting | WARNING | Summary preparation is gated on `response_file` existence, so some early/stateful failures can finish without a user-facing status comment even though this is a write workflow. |\n| Minor comment/documentation consistency nits | INFO | Router section comment label and one prompt schema comment are slightly inconsistent with the new route naming; low risk but worth cleanup. |\n\n## Progress\n- Existing PR discussion already includes a rubric-review warning about stateful failure visibility.\n- New inline comments were posted for the three concrete line-level gaps above:\n  - [rubrics schema indentation](https://github.com/self-evolving/repo/pull/15#discussion_r3155796435)\n  - [lane naming](https://github.com/self-evolving/repo/pull/15#discussion_r3155796524)\n  - [missing formatter tests](https://github.com/self-evolving/repo/pull/15#discussion_r3155796616)\n\n## Issue Details\n<details>\n<summary>Rubrics schema doc example is malformed</summary>\n\n**Cause:** A doc edit changed YAML indentation for `applies_to`, making the schema snippet structurally invalid.\n\n**Candidate solutions:** Restore `applies_to:` to top-level and keep `- implement ...` indented beneath it (matching other rubric schema examples).\n\n**Comments:** Multiple reviewers independently flagged this as misleading for users.\n</details>\n\n<details>\n<summary>Add-rubrics lane name is inconsistent</summary>\n\n**Cause:** New workflow uses `lane: add` instead of the established full-route lane naming pattern.\n\n**Candidate solutions:** Change to `lane: add-rubrics` for consistency and safer session/thread namespacing.\n\n**Comments:** No opposing reviewer rationale was provided for abbreviation.\n</details>\n\n<details>\n<summary>Missing direct tests for <code>formatAddRubricsComment</code></summary>\n\n**Cause:** New formatter was added, but tests cover only neighboring formatters and route wiring.\n\n**Candidate solutions:** Add focused unit tests in `response.test.ts` for failed run, committed update, and no-commit-success paths.\n\n**Comments:** This is user-visible output, so regression risk is practical rather than theoretical.\n</details>\n\n<details>\n<summary>Stateful failure visibility is incomplete for summary posting</summary>\n\n**Cause:** Summary generation depends on `response_file`; some failure modes can skip posting a status comment.\n\n**Candidate solutions:** Decouple summary posting from `response_file` presence and include explicit persistence/commit-failure signaling in the formatter inputs.\n\n**Comments:** Already surfaced in prior PR discussion; still unresolved.\n</details>\n\n<details>\n<summary>Minor comment/documentation consistency nits</summary>\n\n**Cause:** One router section comment and one prompt schema comment were not fully updated to the new route terminology.\n\n**Candidate solutions:** Update route comment label and include `add-rubrics` in the prompt schema comment’s allowed values list.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: unresolved warnings are concrete branch changes with clear, low-risk fixes suitable for an automated fix pass.\n\n## Final Verdict\n`MINOR_ISSUES`\n\n## Action Items\n- [ ] Fix YAML indentation in the rubrics schema example so `applies_to` is valid top-level YAML.\n- [ ] Change `lane: add` to `lane: add-rubrics` in `agent-add-rubrics.yml`.\n- [ ] Add unit tests for `formatAddRubricsComment` covering failed, committed, and no-change-success branches.\n- [ ] Ensure add-rubrics summary posting still surfaces clear status on early/stateful failures (including commit/push failure cases).",
       "createdAt": "2026-04-28T16:45:51Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/15#issuecomment-4337322187",
       "viewerDidAuthor": true
@@ -50,6 +50,66 @@
       "minimizedReason": "",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/15#issuecomment-4337634841",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAuMJkQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 98 | PARTIAL | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | `agent-add-rubrics.yml` reuses existing workflow plumbing: `resolve-github-auth`, `resolve-agent-provider`, `setup-agent-runtime`, `run-agent-task`, and `post-response`; formatter logic lives in `.agent/src/response.ts` with a small CLI wrapper. |\n| coding_workflow / generic | Keep docs in sync | partial | 6/7 | Route lists and workflow docs were updated across `.agent/docs/*`, `AGENT.md`, `README.md`, prompt route lists, and action input docs. One remaining inconsistency: the new `.github/prompts/agent-add-rubrics.md` rubric schema comment omits `add-rubrics` from allowed `applies_to` routes while other schema examples include it. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The PR follows issue #9’s plan: dedicated `/add-rubrics` route, direct `agent/rubrics` update workflow instead of PR flow, validation/commit through existing plumbing, in-thread summary, route tests, and docs. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | Documentation additions describe route/workflow behavior and route lists without adding stale per-file inventory tables. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is scoped to add-rubrics route wiring, envelope/runtime mapping, workflow/prompt, summary formatter/CLI, tests, and related docs. No broad refactors or unrelated cleanup are present. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | The workflow now runs `Prepare add-rubrics summary` with `if: always()` and posts when a body file is produced, so early failures still surface a status comment; unreadable response files are logged by `prepare-add-rubrics-summary.ts`. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation is minimal: one route addition through existing maps, one dedicated workflow, one prompt, one formatter, and focused tests. |\n\n## Notes\n\n- The PR now satisfies the earlier stateful-failure rubric concern: summary preparation no longer depends on `response_file` existing.\n- Smallest useful follow-up: update `.github/prompts/agent-add-rubrics.md` so its schema comment includes `add-rubrics` in the allowed `applies_to` list.\n\n## Findings\n\n- **WARNING:** `.github/prompts/agent-add-rubrics.md` still shows an allowed-route schema comment that excludes `add-rubrics`, even though the PR adds `add-rubrics` to runtime validation and other rubric schema docs. This is a small docs/prompt consistency miss tied to `keep-docs-in-sync`.\n\n## Final Rubric Verdict\n\nPARTIAL",
+      "createdAt": "2026-04-29T11:50:39Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/15#issuecomment-4343400849",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAuNYuw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- This PR adds a minimal end-to-end `add-rubrics` route for turning user requests into durable rubric updates.\n- It wires the route through triage, dispatch, envelope validation, runtime prompt selection, label handling, and documentation.\n- It adds a dedicated `agent-add-rubrics.yml` workflow that writes directly to `agent/rubrics`, validates rubric edits, commits through existing plumbing, and posts an in-thread summary.\n- The implementation follows the linked issue #9 direction: direct rubrics-branch updates rather than opening PRs by default.\n\n## Review\n- The PR is directionally solid and has already addressed several earlier review findings, but the new write workflow still has two operational robustness gaps.\n- Reviewers agree the remaining issues are fixable without redesign; no meaningful reviewer disagreement was present.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Add-rubrics writes can race on `agent/rubrics` | WARNING | The new workflow writes directly to the shared rubrics branch but has no concurrency group, so simultaneous `/add-rubrics` runs can race and lose one update. |\n| Commit/push failures can be summarized as no changes | WARNING | Rubric commit failures are `continue-on-error` inside `run-agent-task`, so the add-rubrics summary can report “No changes were committed” instead of surfacing a persistence failure. |\n| Prompt schema comment omits `add-rubrics` | WARNING | `.github/prompts/agent-add-rubrics.md` still excludes `add-rubrics` from the example `applies_to` allowed route list, despite runtime/docs now accepting it. |\n\n## Progress\n- Previously flagged YAML indentation, lane naming, missing formatter tests, and early summary posting gaps were fixed in the PR branch.\n- Existing discussion already acknowledges the prompt schema omission in the latest rubrics review.\n- New inline comments were posted for the two concrete workflow issues:\n  - https://github.com/self-evolving/repo/pull/15#discussion_r3160750540\n  - https://github.com/self-evolving/repo/pull/15#discussion_r3160751124\n\n## Issue Details\n<details>\n<summary>Add-rubrics writes can race on <code>agent/rubrics</code></summary>\n\n**Cause:** The workflow writes directly to a shared branch without serializing runs.\n\n**Candidate solutions:** Add workflow or job-level `concurrency` scoped to the repository and rubrics ref, with `cancel-in-progress: false`, matching other stateful rubrics workflows.\n\n**Comments:** This is more important here because `/add-rubrics` is an explicit user-requested write path.\n</details>\n\n<details>\n<summary>Commit/push failures can be summarized as no changes</summary>\n\n**Cause:** `steps.add_rubrics.outcome` can remain `success` even when the internal rubric commit step fails under `continue-on-error`, while `rubrics_committed` is simply false.\n\n**Candidate solutions:** Expose the rubric commit outcome from `run-agent-task` and pass it into `prepare-add-rubrics-summary`, or make commit/push failure force a failure summary for this route.\n\n**Comments:** Earlier stateful-failure feedback was partially fixed for early failures, but this persistence-failure case remains.\n</details>\n\n<details>\n<summary>Prompt schema comment omits <code>add-rubrics</code></summary>\n\n**Cause:** The new route was added to runtime validation and other docs, but the route-specific prompt’s YAML example was not updated.\n\n**Candidate solutions:** Add `add-rubrics` to the allowed `applies_to` route comment in `.github/prompts/agent-add-rubrics.md`.\n\n**Comments:** Both reviewer inputs identified this as a docs/prompt consistency issue.\n</details>\n\n## Recommended Next Step\n`FIX_PR`: the remaining findings are concrete, low-risk branch changes suitable for an automated fix-pr pass.\n\n## Final Verdict\n`MINOR_ISSUES`\n\n## Action Items\n- [ ] Add concurrency for `agent-add-rubrics.yml` so direct writes to the rubrics branch are serialized.\n- [ ] Make add-rubrics summaries surface rubric commit/push failures instead of reporting them as no committed changes.\n- [ ] Include `add-rubrics` in the prompt schema comment’s allowed `applies_to` route list.",
+      "createdAt": "2026-04-29T11:54:08Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/15#issuecomment-4343421115",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAuNoVg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `review` -> `fix-pr` (round 2/5).\n\nagent planner selected fix-pr: Latest review synthesis for PR #15 has Final Verdict MINOR_ISSUES and explicitly recommends FIX_PR for concrete, low-risk branch changes.\n\n<!-- sepo-agent-handoff state:dispatched created:1777463693035 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxMDcwOTQwNjk6cmV2aWV3OjE1OmZpeF9wcjoxNToy -->",
+      "createdAt": "2026-04-29T11:54:51Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/15#issuecomment-4343425110",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAuOGoQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo did not produce code changes for this PR.**\n\nPlease add more context or restate the requested fixes, then try again.\n\nThe add-rubrics route work is already present on the branch, and the working tree is clean.\n\nVerified:\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/triage.test.js .agent/dist/__tests__/envelope.test.js .agent/dist/__tests__/rubrics.test.js`\n- `node --test .agent/dist/__tests__/response.test.js`\n\nAll checks passed.",
+      "createdAt": "2026-04-29T11:56:06Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/15#issuecomment-4343432865",
       "viewerDidAuthor": true
     }
   ],
@@ -269,10 +329,40 @@
       "commit": {
         "oid": "5c0be34e4535799b6dfc1933a63692ca153206a6"
       }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM76JBKM",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-04-29T11:53:35Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "3c39f6db59aa571f0c41a92cf27abd5620a1442a"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM76JBTS",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-04-29T11:53:41Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "3c39f6db59aa571f0c41a92cf27abd5620a1442a"
+      }
     }
   ],
   "state": "OPEN",
   "title": "Add minimal add-rubrics route with dedicated workflow",
-  "updatedAt": "2026-04-28T17:22:23Z",
+  "updatedAt": "2026-04-29T11:56:06Z",
   "url": "https://github.com/self-evolving/repo/pull/15"
 }
