@@ -14,7 +14,7 @@ on:
         required: false
         default: "true"
       apply_labels:
-        description: "Set true to update priority/effort labels."
+        description: "Set true to let the agent update priority/effort labels."
         required: false
         default: "false"
       post_summary:
@@ -26,7 +26,7 @@ on:
         required: false
         default: "General"
       limit:
-        description: "Maximum open issues and PRs to score per kind."
+        description: "Maximum open issues and PRs for the agent to inspect per kind."
         required: false
         default: "100"
 
@@ -77,6 +77,62 @@ jobs:
           ref: ${{ github.event.repository.default_branch }}
           token: ${{ github.token }}
 
+      - name: Resolve project management configuration
+        id: project_config
+        shell: bash
+        env:
+          RAW_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || vars.AGENT_PROJECT_MANAGEMENT_DRY_RUN || 'true' }}
+          RAW_APPLY_LABELS: ${{ github.event_name == 'workflow_dispatch' && inputs.apply_labels || vars.AGENT_PROJECT_MANAGEMENT_APPLY_LABELS || 'false' }}
+          RAW_POST_SUMMARY: ${{ github.event_name == 'workflow_dispatch' && inputs.post_summary || vars.AGENT_PROJECT_MANAGEMENT_POST_SUMMARY || 'false' }}
+          RAW_DISCUSSION_CATEGORY: ${{ github.event_name == 'workflow_dispatch' && inputs.discussion_category || vars.AGENT_PROJECT_MANAGEMENT_DISCUSSION_CATEGORY || 'General' }}
+          RAW_LIMIT: ${{ github.event_name == 'workflow_dispatch' && inputs.limit || vars.AGENT_PROJECT_MANAGEMENT_LIMIT || '100' }}
+        run: |
+          set -euo pipefail
+
+          normalize_bool() {
+            local value="${1:-}"
+            local default="${2:-false}"
+            value="$(printf '%s' "$value" | tr '[:upper:]' '[:lower:]' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+            if [ -z "$value" ]; then
+              echo "$default"
+              return
+            fi
+            case "$value" in
+              1|true|yes|on) echo true ;;
+              *) echo false ;;
+            esac
+          }
+
+          positive_int_or_default() {
+            local value="${1:-}"
+            local default="${2:-100}"
+            if printf '%s' "$value" | grep -Eq '^[1-9][0-9]*$'; then
+              echo "$value"
+            else
+              echo "$default"
+            fi
+          }
+
+          dry_run="$(normalize_bool "$RAW_DRY_RUN" true)"
+          apply_labels="$(normalize_bool "$RAW_APPLY_LABELS" false)"
+          post_summary="$(normalize_bool "$RAW_POST_SUMMARY" false)"
+          discussion_category="${RAW_DISCUSSION_CATEGORY:-General}"
+          limit="$(positive_int_or_default "$RAW_LIMIT" 100)"
+
+          permission_mode=approve-reads
+          if [ "$dry_run" = false ] && [ "$apply_labels" = true ]; then
+            permission_mode=approve-all
+          fi
+
+          {
+            echo "dry_run=${dry_run}"
+            echo "apply_labels=${apply_labels}"
+            echo "post_summary=${post_summary}"
+            echo "discussion_category=${discussion_category}"
+            echo "limit=${limit}"
+            echo "permission_mode=${permission_mode}"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Resolve GitHub auth
         id: auth
         uses: ./.github/actions/resolve-github-auth
@@ -86,18 +142,59 @@ jobs:
           pat: ${{ secrets.AGENT_PAT }}
           fallback_token: ${{ github.token }}
 
-      - name: Setup agent runtime
-        uses: ./.github/actions/setup-agent-runtime
+      - name: Resolve project manager provider
+        id: provider
+        uses: ./.github/actions/resolve-agent-provider
+        with:
+          route: project-manager
+          default_provider: ${{ vars.AGENT_DEFAULT_PROVIDER || 'auto' }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
-      - name: Score project items
+      - name: Setup selected provider
+        uses: ./.github/actions/setup-agent-runtime
+        with:
+          install_codex: ${{ steps.provider.outputs.install_codex }}
+          install_claude: ${{ steps.provider.outputs.install_claude }}
+
+      - name: Run project manager agent
+        id: project_manager
+        uses: ./.github/actions/run-agent-task
+        with:
+          agent: ${{ steps.provider.outputs.provider }}
+          github_token: ${{ steps.auth.outputs.token }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          permission_mode: ${{ steps.project_config.outputs.permission_mode }}
+          prompt: project-manager
+          route: answer
+          memory_mode_override: disabled
+          rubrics_mode_override: disabled
+          session_policy: none
+          request_text: |
+            Run the scheduled project-manager pass for ${{ github.repository }}.
+            Configuration:
+            - repository: ${{ github.repository }}
+            - limit per kind: ${{ steps.project_config.outputs.limit }}
+            - dry run: ${{ steps.project_config.outputs.dry_run }}
+            - apply labels: ${{ steps.project_config.outputs.apply_labels }}
+            - post summary after agent: ${{ steps.project_config.outputs.post_summary }}
+            - Daily Summary discussion category: ${{ steps.project_config.outputs.discussion_category }}
+            - workflow schedule: every 6 hours at minute 17 UTC
+          requested_by: ${{ github.actor }}
+          source_kind: workflow_dispatch
+          target_kind: repository
+          target_number: '0'
+          target_url: ${{ github.server_url }}/${{ github.repository }}
+          reasoning_effort: medium
+          workflow: agent-project-manager.yml
+
+      - name: Publish project management summary
         env:
-          AGENT_PROJECT_MANAGEMENT_ENABLED: ${{ github.event_name == 'workflow_dispatch' && inputs.enabled || vars.AGENT_PROJECT_MANAGEMENT_ENABLED || 'false' }}
-          AGENT_PROJECT_MANAGEMENT_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || vars.AGENT_PROJECT_MANAGEMENT_DRY_RUN || 'true' }}
-          AGENT_PROJECT_MANAGEMENT_APPLY_LABELS: ${{ github.event_name == 'workflow_dispatch' && inputs.apply_labels || vars.AGENT_PROJECT_MANAGEMENT_APPLY_LABELS || 'false' }}
-          AGENT_PROJECT_MANAGEMENT_POST_SUMMARY: ${{ github.event_name == 'workflow_dispatch' && inputs.post_summary || vars.AGENT_PROJECT_MANAGEMENT_POST_SUMMARY || 'false' }}
-          AGENT_PROJECT_MANAGEMENT_DISCUSSION_CATEGORY: ${{ github.event_name == 'workflow_dispatch' && inputs.discussion_category || vars.AGENT_PROJECT_MANAGEMENT_DISCUSSION_CATEGORY || 'General' }}
-          AGENT_PROJECT_MANAGEMENT_LIMIT: ${{ github.event_name == 'workflow_dispatch' && inputs.limit || vars.AGENT_PROJECT_MANAGEMENT_LIMIT || '100' }}
+          AGENT_PROJECT_MANAGEMENT_DISCUSSION_CATEGORY: ${{ steps.project_config.outputs.discussion_category }}
+          AGENT_PROJECT_MANAGEMENT_POST_SUMMARY: ${{ steps.project_config.outputs.post_summary }}
+          BODY_FILE: ${{ steps.project_manager.outputs.response_file }}
           GH_TOKEN: ${{ steps.auth.outputs.token }}
-          GITHUB_TOKEN: ${{ steps.auth.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-        run: node .agent/dist/cli/agent-project-manager.js
+          GITHUB_TOKEN: ${{ steps.auth.outputs.token }}
+        run: node .agent/dist/cli/post-project-management-summary.js
