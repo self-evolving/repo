@@ -52,7 +52,7 @@ Check [Install into an existing repository](.agent/docs/deployment/install-exist
 For example, adding the `agent/review` label will run the review agent.
 
 ### Task Orchestration Route
-Use `@sepo-agent /orchestrate` (or `agent/orchestrate`) to run the orchestration route explicitly. It checks current target state and dispatches the right built-in follow-up action (`implement`, `review`, or `fix-pr`) with deterministic guardrails like dedupe checks and max-round limits.
+Use `@sepo-agent /orchestrate` (or `agent/orchestrate`) to run the orchestration route explicitly. It checks current target state, dispatches the right built-in action (`implement`, `review`, or `fix-pr`), and keeps that explicitly started chain moving through bounded follow-up handoffs until a stop condition is reached. Direct `/implement`, `/review`, and `/fix-pr` requests remain one-shot.
 
 ### Tracking Workspace Memory and Rubrics
 Sepo persists long-lived context in `agent/memory` and preference rules in `agent/rubrics`, both as repository-owned branches. This lets later runs resume with durable project context and team-specific guidance.
@@ -70,7 +70,7 @@ Durable context lives in two repository-owned branches:
 - `agent/memory` mirrors GitHub artifacts and stores curated project context.
 - `agent/rubrics` stores user/team preferences that guide implementation and review.
 
-Orchestration runs through `agent-orchestrator.yml` as an explicit route, so follow-up automation starts only when requested.
+Orchestration runs through `agent-orchestrator.yml` as an explicit route. Follow-up automation starts only when requested, and only workflows launched with explicit orchestration context hand back to the orchestrator.
 
 ## Learn More
 

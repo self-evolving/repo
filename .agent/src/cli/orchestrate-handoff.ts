@@ -350,7 +350,8 @@ setOutput("marker_comment_id", markerCommentId);
 const commonInputs = {
   requested_by: requestedBy,
   request_text: requestText,
-  automation_mode: automationMode,
+  orchestration_enabled: "true",
+  automation_mode: automationMode === "disabled" ? "heuristics" : automationMode,
   automation_current_round: String(decision.nextRound),
   automation_max_rounds: String(maxRounds),
   session_bundle_mode: sessionBundleMode,

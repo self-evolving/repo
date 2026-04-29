@@ -3,7 +3,7 @@
 //      SOURCE_CONCLUSION, RESPONSE_FILE, TARGET_NUMBER, NEXT_TARGET_NUMBER,
 //      REQUESTED_BY, REQUEST_TEXT, AUTOMATION_CURRENT_ROUND,
 //      AUTOMATION_MAX_ROUNDS, SESSION_BUNDLE_MODE, SOURCE_RUN_ID, TARGET_KIND,
-//      AUTHOR_ASSOCIATION, ACCESS_POLICY, REPOSITORY_PRIVATE
+//      AUTHOR_ASSOCIATION, ACCESS_POLICY, REPOSITORY_PRIVATE, ORCHESTRATION_ENABLED
 
 import { readFileSync } from "node:fs";
 import { dispatchWorkflow } from "../github.js";
@@ -22,10 +22,14 @@ function readResponseConclusion(): string {
 const automationMode = process.env.AUTOMATION_MODE || "disabled";
 const sourceAction = process.env.SOURCE_ACTION || "";
 const isManualOrchestrateStart = sourceAction.trim().toLowerCase() === "orchestrate";
-if (!isManualOrchestrateStart && !automationModeAllowsHandoff(automationMode)) {
+const orchestrationEnabled = String(process.env.ORCHESTRATION_ENABLED || "").trim().toLowerCase() === "true";
+if (!isManualOrchestrateStart && !orchestrationEnabled && !automationModeAllowsHandoff(automationMode)) {
   console.log("Skipping orchestrator dispatch: automation mode is disabled");
   process.exit(0);
 }
+const effectiveAutomationMode = orchestrationEnabled && !automationModeAllowsHandoff(automationMode)
+  ? "heuristics"
+  : automationMode;
 
 const repo = process.env.GITHUB_REPOSITORY || "";
 const ref = process.env.DEFAULT_BRANCH || "";
@@ -39,7 +43,7 @@ if (!repo || !ref || !sourceAction || !targetNumber) {
 }
 
 dispatchWorkflow(repo, "agent-orchestrator.yml", ref, {
-  automation_mode: automationMode,
+  automation_mode: effectiveAutomationMode,
   automation_current_round: process.env.AUTOMATION_CURRENT_ROUND || "1",
   automation_max_rounds: process.env.AUTOMATION_MAX_ROUNDS || "5",
   source_action: sourceAction,

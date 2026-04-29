@@ -45,6 +45,12 @@ When the route starts, the router dispatches `agent-orchestrator.yml` with:
 - requester and request text
 - current round and max rounds
 
+Each action workflow launched by `agent-orchestrator.yml` receives
+`orchestration_enabled: true`. Only runs with that explicit context hand back to
+the orchestrator after post-processing; direct `/implement`, `/review`, and
+`/fix-pr` runs keep the default `orchestration_enabled: false` and stop after
+their own workflow.
+
 When an action-originated handoff is used, the orchestrator also accepts:
 
 - source action

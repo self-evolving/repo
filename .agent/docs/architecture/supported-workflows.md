@@ -22,6 +22,9 @@
 `agent-orchestrator.yml` is started explicitly through `/orchestrate` or
 `agent/orchestrate`. On start, it inspects the current target state and
 dispatches one built-in action (`implement`, `review`, or `fix-pr`) when useful.
+That dispatch includes explicit orchestration context; only those orchestrator
+launched action runs hand back to `agent-orchestrator.yml` after post-processing.
+Direct `/implement`, `/review`, and `/fix-pr` runs remain one-shot.
 Explicit `/orchestrate` starts are deterministic in both `heuristics` and
 `agent` modes today. Planner-based selection is only used for action-originated
 handoff runs. The planner can include a

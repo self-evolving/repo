@@ -759,7 +759,9 @@ test("execution workflows expose automation handoff inputs", () => {
     assert.match(workflow, /automation_mode:/);
     assert.match(workflow, /automation_current_round:/);
     assert.match(workflow, /automation_max_rounds:/);
-    assert.doesNotMatch(workflow, /node \.agent\/dist\/cli\/dispatch-agent-orchestrator\.js/);
+    assert.match(workflow, /orchestration_enabled:/);
+    assert.match(workflow, /inputs\.orchestration_enabled == 'true'/);
+    assert.match(workflow, /node \.agent\/dist\/cli\/dispatch-agent-orchestrator\.js/);
   }
 
   assert.match(runnerWorkflow, /needs\.portal\.outputs\.route == 'orchestrate'/);
@@ -768,10 +770,12 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(runnerWorkflow, /node \.agent\/dist\/cli\/dispatch-agent-orchestrator\.js/);
   assert.match(reviewWorkflow, /id: post_comment/);
   assert.match(reviewWorkflow, /RESPONSE_FILE:\s*\$\{\{ steps\.synthesis\.outputs\.response_file \}\}/);
-  assert.doesNotMatch(reviewWorkflow, /steps\.post_comment\.outcome == 'success'/);
+  assert.match(reviewWorkflow, /steps\.post_comment\.outcome == 'success'/);
   assert.match(orchestratorWorkflow, /PLANNER_RESPONSE_FILE:\s*\$\{\{ steps\.planner\.outputs\.response_file \}\}/);
   assert.match(orchestratorWorkflow, /target_kind:/);
   assert.match(orchestratorWorkflow, /TARGET_KIND:/);
+  assert.match(orchestrateHandoffCli, /orchestration_enabled:\s*"true"/);
+  assert.match(orchestrateHandoffCli, /automationMode === "disabled" \? "heuristics" : automationMode/);
   assert.match(orchestrateHandoffCli, /orchestrator_context:\s*decision\.handoffContext/);
   assert.match(orchestrateHandoffCli, /manual orchestrate start on issue; dispatching implement/);
   assert.match(fixPrWorkflow, /orchestrator_context:/);
