@@ -1,7 +1,7 @@
 // CLI: dispatch agent-orchestrator.yml with a post-action handoff envelope.
 // Env: GITHUB_REPOSITORY, DEFAULT_BRANCH, AUTOMATION_MODE, SOURCE_ACTION,
 //      SOURCE_CONCLUSION, RESPONSE_FILE, TARGET_NUMBER, NEXT_TARGET_NUMBER,
-//      REQUESTED_BY, REQUEST_TEXT, AUTOMATION_CURRENT_ROUND,
+//      REQUESTED_BY, REQUEST_TEXT, SOURCE_COMMENT_URL, AUTOMATION_CURRENT_ROUND,
 //      AUTOMATION_MAX_ROUNDS, SESSION_BUNDLE_MODE, SOURCE_RUN_ID, TARGET_KIND,
 //      AUTHOR_ASSOCIATION, ACCESS_POLICY, REPOSITORY_PRIVATE, ORCHESTRATION_ENABLED
 
@@ -57,6 +57,7 @@ dispatchWorkflow(repo, "agent-orchestrator.yml", ref, {
   next_target_number: process.env.NEXT_TARGET_NUMBER || "",
   requested_by: process.env.REQUESTED_BY || "",
   request_text: process.env.REQUEST_TEXT || "",
+  source_comment_url: process.env.SOURCE_COMMENT_URL || "",
   session_bundle_mode: process.env.SESSION_BUNDLE_MODE || "",
 });
 

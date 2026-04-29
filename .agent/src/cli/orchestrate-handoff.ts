@@ -2,16 +2,19 @@
 // Env: AUTOMATION_MODE, SOURCE_ACTION, SOURCE_CONCLUSION, TARGET_NUMBER,
 //      NEXT_TARGET_NUMBER, AUTOMATION_CURRENT_ROUND, AUTOMATION_MAX_ROUNDS,
 //      GITHUB_REPOSITORY, DEFAULT_BRANCH, REQUESTED_BY, REQUEST_TEXT,
+//      SOURCE_COMMENT_URL,
 //      SESSION_BUNDLE_MODE, SOURCE_RUN_ID, PLANNER_RESPONSE_FILE, TARGET_KIND
 
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
+import { randomBytes } from "node:crypto";
+import { join } from "node:path";
 import {
   getAllowedAssociationsForRoute,
   isAssociationAllowedForRoute,
   isKnownAuthorAssociation,
   parseAccessPolicy,
 } from "../access-policy.js";
-import { dispatchWorkflow, gh } from "../github.js";
+import { createIssue, dispatchWorkflow, gh } from "../github.js";
 import { setOutput } from "../output.js";
 import {
   type HandoffDecision,
@@ -32,6 +35,11 @@ interface CommentRecord {
 
 interface HandoffMarkerRecord extends HandoffMarkerInfo {
   id: string;
+}
+
+interface ClosedPrComment {
+  prNumber: string;
+  body: string;
 }
 
 const PENDING_MARKER_TTL_MS = 60 * 60 * 1000;
@@ -138,10 +146,12 @@ const isPublicRepo = String(process.env.REPOSITORY_PRIVATE || "").trim().toLower
 const targetNumber = process.env.TARGET_NUMBER || "";
 const requestedBy = process.env.REQUESTED_BY || "";
 const requestText = process.env.REQUEST_TEXT || "";
+const sourceCommentUrl = process.env.SOURCE_COMMENT_URL || "";
 const sessionBundleMode = process.env.SESSION_BUNDLE_MODE || "";
 const maxRounds = positiveInt(process.env.AUTOMATION_MAX_ROUNDS || "", 5);
 const currentRound = positiveInt(process.env.AUTOMATION_CURRENT_ROUND || "", 1);
 const automationMode = normalizeAutomationMode(process.env.AUTOMATION_MODE || "disabled");
+const deferred = { closedPrComment: null as ClosedPrComment | null };
 
 function readPlannerDecision(): ReturnType<typeof parsePlannerDecision> {
   const responseFile = process.env.PLANNER_RESPONSE_FILE || "";
@@ -179,6 +189,88 @@ function readPrStatus(repoSlug: string, prNumber: string): { state: string; revi
   }
 }
 
+function delegatedRouteAuthorizationStop(
+  nextAction: NonNullable<HandoffDecision["nextAction"]>,
+  nextRound: number,
+): HandoffDecision | null {
+  let policy;
+  try {
+    policy = parseAccessPolicy(accessPolicyRaw);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { decision: "stop", reason: `invalid AGENT_ACCESS_POLICY: ${msg}`, nextRound };
+  }
+
+  const association = isKnownAuthorAssociation(sourceAssociationRaw) ? sourceAssociationRaw : "NONE";
+  if (isAssociationAllowedForRoute(policy, nextAction, association, isPublicRepo)) {
+    return null;
+  }
+
+  const allowed = getAllowedAssociationsForRoute(policy, nextAction, isPublicRepo);
+  return {
+    decision: "stop",
+    reason: `${nextAction} requests currently require ${allowed.join(", ")} access.`,
+    nextRound,
+  };
+}
+
+function normalizeTitle(raw: string): string {
+  const collapsed = raw.replace(/[\r\n]+/g, " ").replace(/\s+/g, " ").trim();
+  return collapsed.length > 70 ? `${collapsed.slice(0, 67)}...` : collapsed;
+}
+
+function stripAgentCommand(text: string): string {
+  return String(text || "")
+    .replace(/@[\w-]+(?:\/[\w-]+)?\s+\/orchestrate\b/gi, "")
+    .replace(/\bagent\/orchestrate\b/gi, "")
+    .replace(/\/orchestrate\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isLikelyBranchChangeRequest(text: string): boolean {
+  const normalized = stripAgentCommand(text).toLowerCase();
+  if (!normalized) return false;
+  return /\b(add|adjust|change|code|fix|failing|failure|implement|patch|prefetch|regression|remove|test|update|workflow)\b/.test(normalized);
+}
+
+function createFollowupIssueForClosedPr(prNumber: string): { number: string; url: string } | null {
+  const cleanRequest = stripAgentCommand(requestText);
+  const sourcePrUrl = `https://github.com/${repo}/pull/${prNumber}`;
+  const titleSource = cleanRequest || `Follow-up from PR #${prNumber}`;
+  const title = normalizeTitle(`Follow-up from PR #${prNumber}: ${titleSource}`);
+  const bodyLines = [
+    "## Follow-up request",
+    "",
+    cleanRequest || requestText.trim() || "_No additional request text was provided._",
+    "",
+    "## Source",
+    "",
+    `- PR: ${sourcePrUrl}`,
+  ];
+  if (sourceCommentUrl.trim()) {
+    bodyLines.push(`- Comment: ${sourceCommentUrl.trim()}`);
+  }
+  bodyLines.push("", "This issue was created by `/orchestrate` because the source PR is no longer open.");
+
+  const runnerTemp = process.env.RUNNER_TEMP || "/tmp";
+  const bodyFile = join(runnerTemp, `agent-followup-issue-${randomBytes(8).toString("hex")}.md`);
+  writeFileSync(bodyFile, bodyLines.join("\n") + "\n", "utf8");
+  const issueUrl = createIssue({ title, bodyFile, repo });
+  const numberMatch = issueUrl.match(/\/issues\/(\d+)(?:\D.*)?$/) || issueUrl.match(/(\d+)$/);
+  const number = numberMatch ? numberMatch[1] : "";
+  if (!number) return null;
+  return { number, url: issueUrl };
+}
+
+function commentClosedPrFollowup(prNumber: string, body: string): void {
+  try {
+    createIssueComment(repo, parsePositiveTargetNumber(prNumber), body);
+  } catch (err: unknown) {
+    console.warn(`Failed to comment on source PR #${prNumber}: ${errorText(err)}`);
+  }
+}
+
 function decideManualOrchestration(): HandoffDecision {
   const nextRound = currentRound + 1;
   if (currentRound >= maxRounds) {
@@ -202,7 +294,38 @@ function decideManualOrchestration(): HandoffDecision {
       return { decision: "stop", reason: "could not read pull request status", nextRound };
     }
     if (status.state !== "OPEN") {
-      return { decision: "stop", reason: `pull request is ${status.state.toLowerCase()}`, nextRound };
+      if (!isLikelyBranchChangeRequest(requestText)) {
+        const reason = `pull request is ${status.state.toLowerCase()}; closed PR follow-up needs a concrete code-change request`;
+        commentClosedPrFollowup(targetNumber, [
+          "Handoff stop: this pull request is no longer open.",
+          "",
+          "Please include a concrete patch/fix request with `/orchestrate` so Sepo can create a fresh implementation issue against the default branch.",
+        ].join("\n"));
+        return { decision: "stop", reason, nextRound };
+      }
+
+      const authStop = delegatedRouteAuthorizationStop("implement", nextRound);
+      if (authStop) return authStop;
+
+      const followup = createFollowupIssueForClosedPr(targetNumber);
+      if (!followup) {
+        return { decision: "stop", reason: "could not create follow-up issue for closed pull request", nextRound };
+      }
+      deferred.closedPrComment = {
+        prNumber: targetNumber,
+        body: [
+          `Created follow-up issue ${followup.url} for this post-merge request and dispatched implementation against the default branch.`,
+          "",
+          "The original PR is no longer open, so Sepo will continue the patch as fresh issue-backed work.",
+        ].join("\n"),
+      };
+      return {
+        decision: "dispatch",
+        nextAction: "implement",
+        targetNumber: followup.number,
+        reason: `manual orchestrate start on ${status.state.toLowerCase()} PR; created follow-up issue #${followup.number} and dispatching implement`,
+        nextRound,
+      };
     }
     if (status.reviewDecision === "CHANGES_REQUESTED") {
       return {
@@ -230,25 +353,7 @@ function applyDelegatedRouteAuthorization(decision: HandoffDecision): HandoffDec
     return decision;
   }
 
-  let policy;
-  try {
-    policy = parseAccessPolicy(accessPolicyRaw);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return { decision: "stop", reason: `invalid AGENT_ACCESS_POLICY: ${msg}`, nextRound: decision.nextRound };
-  }
-
-  const association = isKnownAuthorAssociation(sourceAssociationRaw) ? sourceAssociationRaw : "NONE";
-  if (isAssociationAllowedForRoute(policy, decision.nextAction, association, isPublicRepo)) {
-    return decision;
-  }
-
-  const allowed = getAllowedAssociationsForRoute(policy, decision.nextAction, isPublicRepo);
-  return {
-    decision: "stop",
-    reason: `${decision.nextAction} requests currently require ${allowed.join(", ")} access.`,
-    nextRound: decision.nextRound,
-  };
+  return delegatedRouteAuthorizationStop(decision.nextAction, decision.nextRound) || decision;
 }
 
 const routeDecision = normalizeToken(sourceAction) === "orchestrate"
@@ -382,6 +487,9 @@ try {
     console.error(`Unsupported next action: ${decision.nextAction}`);
     process.exit(2);
   }
+  if (deferred.closedPrComment) {
+    commentClosedPrFollowup(deferred.closedPrComment.prNumber, deferred.closedPrComment.body);
+  }
 } catch (err: unknown) {
   const message = errorText(err).slice(0, 1000);
   try {
@@ -397,6 +505,13 @@ try {
     }));
   } catch (updateErr: unknown) {
     console.warn(`Failed to mark handoff ${dedupeKey} as failed: ${errorText(updateErr)}`);
+  }
+  if (deferred.closedPrComment) {
+    commentClosedPrFollowup(deferred.closedPrComment.prNumber, [
+      "Created a follow-up issue for this post-merge request, but dispatching implementation failed.",
+      "",
+      `Error: ${message}`,
+    ].join("\n"));
   }
   throw err;
 }

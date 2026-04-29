@@ -20,6 +20,7 @@ stateDiagram-v2
     [*] --> Implement: /orchestrate on issue
     [*] --> Review: /orchestrate on PR
     [*] --> FixPR: /orchestrate on PR with CHANGES_REQUESTED
+    [*] --> Implement: /orchestrate on closed PR with concrete patch request creates follow-up issue
 
     Implement --> Review: success + PR created
     Implement --> Stop: failed or no PR
@@ -42,6 +43,7 @@ When the route starts, the router dispatches `agent-orchestrator.yml` with:
 - target kind (`issue` or `pull_request`)
 - target number
 - requester and request text
+- source comment URL when available
 - current round and max rounds
 
 Each action workflow launched by `agent-orchestrator.yml` receives
@@ -65,6 +67,11 @@ In `heuristics` mode, manual starts use deterministic status checks:
 - issue target: dispatch `implement`
 - pull request target with `CHANGES_REQUESTED`: dispatch `fix-pr`
 - other open pull request targets: dispatch `review`
+- closed or merged pull request target with a concrete patch/fix request: create a
+  follow-up issue linked to the source PR/comment, comment on the source PR, and
+  dispatch `implement` against the new issue
+- closed or merged pull request target without a concrete code-change request:
+  stop with a visible explanation on the source PR
 
 Manual `/orchestrate` starts are deterministic in `agent` mode as well. Planner
 runs are reserved for action-originated handoff envelopes.

@@ -23,6 +23,7 @@ function runOrchestrateHandoff(env: Record<string, string>): {
   stdout: string;
   outputs: Map<string, string>;
   ghLog: string;
+  issueBody: string;
 } {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-orchestrate-handoff-"));
   try {
@@ -30,6 +31,7 @@ function runOrchestrateHandoff(env: Record<string, string>): {
     const outputPath = join(tempDir, "github-output.txt");
     const ghLogPath = join(tempDir, "gh.log");
     const dispatchPayloadPath = join(tempDir, "dispatch.json");
+    const issueBodyPath = join(tempDir, "issue-body.md");
 
     writeFileSync(outputPath, "", "utf8");
     writeFileSync(
@@ -43,6 +45,22 @@ if [ "\${1-}" = "pr" ] && [ "\${2-}" = "view" ]; then
     exit 1
   fi
   printf '{"state":"%s","reviewDecision":"%s"}\\n' "\${FAKE_PR_STATE-OPEN}" "\${FAKE_PR_REVIEW_DECISION-}"
+  exit 0
+fi
+
+if [ "\${1-}" = "issue" ] && [ "\${2-}" = "create" ]; then
+  body_file=""
+  while [ "$#" -gt 0 ]; do
+    if [ "\${1-}" = "--body-file" ]; then
+      shift
+      body_file="\${1-}"
+    fi
+    shift || true
+  done
+  if [ -n "$body_file" ]; then
+    cat "$body_file" > "$FAKE_ISSUE_BODY"
+  fi
+  printf 'https://github.com/self-evolving/repo/issues/%s\\n' "\${FAKE_CREATED_ISSUE_NUMBER-88}"
   exit 0
 fi
 
@@ -94,6 +112,7 @@ exit 1
         REPOSITORY_PRIVATE: "true",
         FAKE_GH_LOG: ghLogPath,
         FAKE_DISPATCH_PAYLOAD: dispatchPayloadPath,
+        FAKE_ISSUE_BODY: issueBodyPath,
         ...env,
       },
       encoding: "utf8",
@@ -107,6 +126,14 @@ exit 1
         ghLog = "";
       }
     }
+    let issueBody = "";
+    if (existsSync(issueBodyPath)) {
+      try {
+        issueBody = readFileSync(issueBodyPath, "utf8");
+      } catch {
+        issueBody = "";
+      }
+    }
 
     return {
       status: result.status,
@@ -114,6 +141,7 @@ exit 1
       stdout: result.stdout,
       outputs: parseGithubOutput(outputPath),
       ghLog,
+      issueBody,
     };
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
@@ -162,7 +190,59 @@ test("manual orchestrate stops for non-open PR targets", () => {
 
   assert.equal(run.status, 0);
   assert.equal(run.outputs.get("decision"), "stop");
-  assert.equal(run.outputs.get("reason"), "pull request is closed");
+  assert.equal(
+    run.outputs.get("reason"),
+    "pull request is closed; closed PR follow-up needs a concrete code-change request",
+  );
+  assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/21\/comments/);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-implement\.yml\/dispatches/);
+});
+
+test("manual orchestrate creates an issue for closed PR code follow-ups", () => {
+  const run = runOrchestrateHandoff({
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "39",
+    FAKE_PR_STATE: "MERGED",
+    REQUEST_TEXT: "@sepo-agent /orchestrate can you do a quick patch for that fix?",
+    SOURCE_COMMENT_URL: "https://github.com/self-evolving/repo/pull/39#issuecomment-123",
+  });
+
+  assert.equal(run.status, 0);
+  assert.equal(run.outputs.get("decision"), "dispatch");
+  assert.equal(run.outputs.get("next_action"), "implement");
+  assert.equal(run.outputs.get("target_number"), "88");
+  assert.equal(
+    run.outputs.get("reason"),
+    "manual orchestrate start on merged PR; created follow-up issue #88 and dispatching implement",
+  );
+  assert.match(run.ghLog, /issue create/);
+  assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/39\/comments/);
+  assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/88\/comments/);
+  assert.match(run.ghLog, /actions\/workflows\/agent-implement\.yml\/dispatches/);
+  assert.match(run.issueBody, /can you do a quick patch for that fix\?/);
+  assert.match(run.issueBody, /https:\/\/github\.com\/self-evolving\/repo\/pull\/39/);
+  assert.match(run.issueBody, /https:\/\/github\.com\/self-evolving\/repo\/pull\/39#issuecomment-123/);
+});
+
+test("closed PR follow-ups validate implement access before creating an issue", () => {
+  const run = runOrchestrateHandoff({
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "39",
+    FAKE_PR_STATE: "MERGED",
+    REQUEST_TEXT: "@sepo-agent /orchestrate can you do a quick patch for that fix?",
+    AUTHOR_ASSOCIATION: "CONTRIBUTOR",
+    ACCESS_POLICY: JSON.stringify({
+      route_overrides: {
+        implement: ["MEMBER"],
+      },
+    }),
+  });
+
+  assert.equal(run.status, 0);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.equal(run.outputs.get("reason"), "implement requests currently require MEMBER access.");
+  assert.doesNotMatch(run.ghLog, /issue create/);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-implement\.yml\/dispatches/);
 });
 
 test("manual orchestrate dispatches implement for issue targets", () => {

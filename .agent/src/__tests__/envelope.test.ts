@@ -743,6 +743,7 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(approveWorkflow, /AUTOMATION_MODE:\s*\$\{\{ vars\.AGENT_AUTOMATION_MODE \|\| 'disabled' \}\}/);
   assert.match(orchestratorWorkflow, /name: Agent \/ Orchestrator/);
   assert.match(orchestratorWorkflow, /source_run_id:/);
+  assert.match(orchestratorWorkflow, /source_comment_url:/);
   assert.match(orchestratorWorkflow, /issues: write/);
   assert.match(orchestratorWorkflow, /uses: \.\/\.github\/actions\/resolve-agent-provider/);
   assert.match(orchestratorWorkflow, /route:\s*orchestrator/);
@@ -766,12 +767,14 @@ test("execution workflows expose automation handoff inputs", () => {
 
   assert.match(runnerWorkflow, /needs\.portal\.outputs\.route == 'orchestrate'/);
   assert.match(runnerWorkflow, /SOURCE_ACTION:\s*orchestrate/);
+  assert.match(runnerWorkflow, /SOURCE_COMMENT_URL:\s*\$\{\{ needs\.portal\.outputs\.source_comment_url \}\}/);
   assert.match(runnerWorkflow, /TARGET_KIND:\s*\$\{\{ needs\.portal\.outputs\.target_kind \}\}/);
   assert.match(runnerWorkflow, /node \.agent\/dist\/cli\/dispatch-agent-orchestrator\.js/);
   assert.match(reviewWorkflow, /id: post_comment/);
   assert.match(reviewWorkflow, /RESPONSE_FILE:\s*\$\{\{ steps\.synthesis\.outputs\.response_file \}\}/);
   assert.match(reviewWorkflow, /steps\.post_comment\.outcome == 'success'/);
   assert.match(orchestratorWorkflow, /PLANNER_RESPONSE_FILE:\s*\$\{\{ steps\.planner\.outputs\.response_file \}\}/);
+  assert.match(orchestratorWorkflow, /SOURCE_COMMENT_URL:\s*\$\{\{ inputs\.source_comment_url \}\}/);
   assert.match(orchestratorWorkflow, /target_kind:/);
   assert.match(orchestratorWorkflow, /TARGET_KIND:/);
   assert.match(orchestrateHandoffCli, /orchestration_enabled:\s*"true"/);
