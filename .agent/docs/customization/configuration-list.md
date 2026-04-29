@@ -28,7 +28,7 @@ The bundled workflows intentionally expose one global provider variable. If a re
 
 | Secret | Purpose |
 |---|---|
-| Model provider secrets | | 
+| Model provider secrets | |
 | `OPENAI_API_KEY` | Enable Codex-backed runs on runners without local Codex authentication; also lets `AGENT_DEFAULT_PROVIDER=auto` detect Codex |
 | `CLAUDE_CODE_OAUTH_TOKEN` | Enable Claude-backed runs on runners without local Claude authentication; also lets `AGENT_DEFAULT_PROVIDER=auto` detect Claude |
 | GitHub auth secrets |  |
