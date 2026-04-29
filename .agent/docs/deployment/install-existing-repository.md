@@ -17,6 +17,15 @@ Copy these directories into the target repository:
 
 Copy the current `.github/` directory as a unit so the workflows, composite actions, and prompt templates stay in sync.
 
+Also merge these generated-output rules into the target repository's existing `.gitignore` without replacing target-owned entries:
+
+```gitignore
+.agent/dist/
+.agent/node_modules/
+```
+
+The workflows build `.agent/dist/` on GitHub-hosted runners. Keeping generated runtime outputs ignored prevents them from being committed accidentally.
+
 ## Repository configuration
 
 At minimum, configure:

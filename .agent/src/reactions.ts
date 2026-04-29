@@ -31,4 +31,3 @@ export function addReaction(subjectId: string, content: string): void {
     { stdio: "pipe", maxBuffer: MAX_BUFFER },
   );
 }
-
