@@ -36,11 +36,12 @@ function main(): number {
     const applyLabels = boolEnv("AGENT_PROJECT_MANAGEMENT_APPLY_LABELS", false);
     const summary = readFileSync(bodyFile, "utf8");
     const plan = parseManagedLabelPlan(summary);
-    const operationCount = countManagedLabelOperations(plan.label_changes);
 
-    if (!dryRun && applyLabels && !plan.valid) {
+    if (!plan.valid) {
       throw new Error("Project management summary did not include a valid fenced JSON label_changes plan.");
     }
+
+    const operationCount = countManagedLabelOperations(plan.label_changes);
 
     if (dryRun || !applyLabels) {
       const status = dryRun

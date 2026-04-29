@@ -91,6 +91,46 @@ exit 1
   }
 });
 
+test("apply project management labels fails dry-run without a valid plan", () => {
+  const cases = [
+    ["missing fenced json", "## Project Management Summary\n\nNo structured plan.\n"],
+    ["malformed fenced json", "## Project Management Summary\n\n```json\nnot-json\n```\n"],
+  ];
+
+  for (const [name, body] of cases) {
+    const tempDir = mkdtempSync(join(tmpdir(), "apply-project-labels-"));
+
+    try {
+      const bodyFile = join(tempDir, "summary.md");
+      const logPath = join(tempDir, "gh.log");
+      const outputPath = join(tempDir, "outputs.txt");
+      writeFileSync(bodyFile, body);
+      writeFakeGh(
+        tempDir,
+        `#!/usr/bin/env bash
+printf '%s\\n' "$*" >> "$FAKE_GH_LOG"
+exit 1
+`,
+      );
+
+      const result = runCli(tempDir, {
+        AGENT_PROJECT_MANAGEMENT_DRY_RUN: "true",
+        AGENT_PROJECT_MANAGEMENT_APPLY_LABELS: "true",
+        BODY_FILE: bodyFile,
+        FAKE_GH_LOG: logPath,
+        GITHUB_OUTPUT: outputPath,
+        GITHUB_REPOSITORY: "self-evolving/repo",
+      });
+
+      assert.equal(result.status, 1, name);
+      assert.match(result.stderr, /valid fenced JSON label_changes plan/);
+      assert.throws(() => readFileSync(logPath, "utf8"));
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  }
+});
+
 test("apply project management labels creates labels and applies only managed changes", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "apply-project-labels-"));
 
