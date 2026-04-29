@@ -1055,9 +1055,11 @@ test("normal workflows honor rubrics policy instead of forcing read-only", () =>
 
 test("rubrics-review prompt chooses from full active rubric context", () => {
   const rubricsReviewPrompt = readRepoFile(".github/prompts/rubrics-review.md");
+  const rubricsReviewWorkflow = readRepoFile(".github/workflows/agent-rubrics-review.yml");
 
   assert.match(rubricsReviewPrompt, /full active rubric set/);
   assert.match(rubricsReviewPrompt, /do not score unrelated route\/process rubrics/);
+  assert.match(rubricsReviewWorkflow, /- name: Run rubrics review[\s\S]*timeout-minutes:\s*30/);
 });
 
 test("memory workflows exist and point at the right CLIs / prompts", () => {
