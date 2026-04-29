@@ -2,15 +2,18 @@
 
 The orchestrator is an explicit high-level route (`/orchestrate` or `agent/orchestrate`) that evaluates current target state and dispatches the most appropriate built-in next action.
 
-Automation is disabled by default. Configure `AGENT_AUTOMATION_MODE` as a mode value:
+Configure `AGENT_AUTOMATION_MODE` to choose how orchestrator handoffs are decided:
 
 | Mode | Meaning |
 |---|---|
-| `disabled` | Default for action workflows. Orchestrator still runs when users explicitly request `/orchestrate`. |
-| `heuristics` | Built-in state machine mode. |
-| `agent` | Runs an agent planner, then validates the planner's decision against the same built-in policy, budget, and dedupe rules. |
+| `heuristics` | Deterministic built-in state machine. |
+| `agent` | Planner-assisted orchestration, validated by runtime policy. |
 
-For compatibility with early boolean-style configuration, `true` is treated as `heuristics` and `false` is treated as `disabled`. Use `heuristics` as the only named spelling for the built-in state machine. Set `AGENT_AUTOMATION_MAX_ROUNDS` to cap the chain length.
+For compatibility with early boolean-style configuration, `true` is treated as
+`heuristics`. Unset, `false`, or legacy `disabled` values fall back to
+`heuristics` for explicit `/orchestrate` chains. Use `heuristics` as the only
+named spelling for the built-in state machine. Set
+`AGENT_AUTOMATION_MAX_ROUNDS` to cap the chain length.
 
 ## Current heuristics state machine
 
