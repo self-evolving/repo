@@ -2,15 +2,15 @@
 // CLI: score open issues and PRs for project management labels.
 // Env: GITHUB_REPOSITORY, AGENT_PROJECT_MANAGEMENT_ENABLED,
 //      AGENT_PROJECT_MANAGEMENT_DRY_RUN, AGENT_PROJECT_MANAGEMENT_APPLY_LABELS,
-//      AGENT_PROJECT_MANAGEMENT_POST_SUMMARY, AGENT_PROJECT_MANAGEMENT_SUMMARY_ISSUE
+//      AGENT_PROJECT_MANAGEMENT_POST_SUMMARY, AGENT_PROJECT_MANAGEMENT_DISCUSSION_CATEGORY
 
 import { appendFileSync } from "node:fs";
+import { addDiscussionComment, findRepositoryDiscussionByTitle } from "../discussion.js";
 import {
   addIssueLabel,
   addPrLabel,
   ensureLabel,
   gh,
-  postIssueComment,
   removeIssueLabel,
   removePrLabel,
 } from "../github.js";
@@ -53,9 +53,9 @@ const LABEL_DEFINITIONS: LabelDefinition[] = [
   { name: "priority/p1", color: "d93f0b", description: "Project management: high priority" },
   { name: "priority/p2", color: "fbca04", description: "Project management: medium priority" },
   { name: "priority/p3", color: "c2e0c6", description: "Project management: low priority" },
-  { name: "urgency/now", color: "d73a4a", description: "Project management: needs action soon" },
-  { name: "urgency/soon", color: "fbca04", description: "Project management: needs action soonish" },
-  { name: "urgency/later", color: "bfdadc", description: "Project management: no immediate action" },
+  { name: "effort/low", color: "c2e0c6", description: "Project management: low effort" },
+  { name: "effort/medium", color: "fbca04", description: "Project management: medium effort" },
+  { name: "effort/high", color: "d73a4a", description: "Project management: high effort" },
 ];
 
 function boolEnv(name: string, fallback = false): boolean {
@@ -67,6 +67,14 @@ function boolEnv(name: string, fallback = false): boolean {
 function numberEnv(name: string, fallback: number): number {
   const parsed = Number.parseInt(process.env[name] || "", 10);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function parseRepoSlug(slug: string): { owner: string; repo: string } {
+  const [owner, repo, extra] = slug.split("/");
+  if (!owner || !repo || extra) {
+    throw new Error(`GITHUB_REPOSITORY must be owner/repo (got: ${slug || "missing"})`);
+  }
+  return { owner, repo };
 }
 
 function parseItems(kind: ProjectItemKind, raw: string): ProjectItem[] {
@@ -172,6 +180,27 @@ function safeSetOutput(name: string, value: string): void {
   }
 }
 
+function dailySummaryTitle(date = new Date()): string {
+  const override = process.env.AGENT_PROJECT_MANAGEMENT_SUMMARY_DATE?.trim();
+  if (override) return `Daily Summary — ${override}`;
+  return `Daily Summary — ${date.toISOString().slice(0, 10)}`;
+}
+
+function postDailySummaryComment(repoSlug: string, summary: string): void {
+  const { owner, repo } = parseRepoSlug(repoSlug);
+  const category = process.env.AGENT_PROJECT_MANAGEMENT_DISCUSSION_CATEGORY?.trim() || "General";
+  const title = dailySummaryTitle();
+  const discussion = findRepositoryDiscussionByTitle(owner, repo, title, category);
+
+  if (!discussion) {
+    console.warn(`Daily summary discussion '${title}' was not found in category '${category}'; skipping comment.`);
+    return;
+  }
+
+  const url = addDiscussionComment(discussion.id, summary);
+  console.log(`Posted project management summary to ${discussion.url || `discussion #${discussion.number}`}: ${url}`);
+}
+
 function main(): number {
   const enabled = boolEnv("AGENT_PROJECT_MANAGEMENT_ENABLED");
   const repo = process.env.GITHUB_REPOSITORY || "";
@@ -179,7 +208,6 @@ function main(): number {
   const dryRun = boolEnv("AGENT_PROJECT_MANAGEMENT_DRY_RUN", true);
   const applyLabels = boolEnv("AGENT_PROJECT_MANAGEMENT_APPLY_LABELS");
   const postSummary = boolEnv("AGENT_PROJECT_MANAGEMENT_POST_SUMMARY");
-  const summaryIssue = Number.parseInt(process.env.AGENT_PROJECT_MANAGEMENT_SUMMARY_ISSUE || "", 10);
 
   if (!enabled) {
     const message = "Project management is disabled; set AGENT_PROJECT_MANAGEMENT_ENABLED=true to run it.";
@@ -228,14 +256,7 @@ function main(): number {
   safeSetOutput("summary", summary);
 
   if (postSummary) {
-    if (Number.isInteger(summaryIssue) && summaryIssue > 0) {
-      postIssueComment(summaryIssue, summary, repo);
-      console.log(`Posted project management summary to issue #${summaryIssue}.`);
-    } else {
-      console.warn(
-        "AGENT_PROJECT_MANAGEMENT_POST_SUMMARY is true but AGENT_PROJECT_MANAGEMENT_SUMMARY_ISSUE is not a valid issue number.",
-      );
-    }
+    postDailySummaryComment(repo, summary);
   }
 
   return 0;

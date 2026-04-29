@@ -1,6 +1,6 @@
 export type ProjectItemKind = "issue" | "pull_request";
 export type Priority = "p0" | "p1" | "p2" | "p3";
-export type Urgency = "now" | "soon" | "later";
+export type Effort = "low" | "medium" | "high";
 
 export interface ProjectLabel {
   name: string;
@@ -23,9 +23,9 @@ export interface ProjectItem {
 export interface ProjectItemScore {
   item: ProjectItem;
   priority: Priority;
-  urgency: Urgency;
+  effort: Effort;
   priorityScore: number;
-  urgencyScore: number;
+  actionScore: number;
   reasons: string[];
 }
 
@@ -41,15 +41,15 @@ export const PRIORITY_LABELS: Record<Priority, string> = {
   p3: "priority/p3",
 };
 
-export const URGENCY_LABELS: Record<Urgency, string> = {
-  now: "urgency/now",
-  soon: "urgency/soon",
-  later: "urgency/later",
+export const EFFORT_LABELS: Record<Effort, string> = {
+  low: "effort/low",
+  medium: "effort/medium",
+  high: "effort/high",
 };
 
 export const PROJECT_MANAGEMENT_LABELS = [
   ...Object.values(PRIORITY_LABELS),
-  ...Object.values(URGENCY_LABELS),
+  ...Object.values(EFFORT_LABELS),
 ];
 
 const PRIORITY_WORDS = [
@@ -72,6 +72,27 @@ const URGENCY_WORDS = [
   "blocker",
   "security",
   "vulnerability",
+];
+
+const LOW_EFFORT_WORDS = [
+  "docs",
+  "documentation",
+  "typo",
+  "copy",
+  "small",
+  "minor",
+  "simple",
+];
+
+const HIGH_EFFORT_WORDS = [
+  "architecture",
+  "migration",
+  "refactor",
+  "integration",
+  "workflow",
+  "security",
+  "database",
+  "breaking",
 ];
 
 function labelNames(item: ProjectItem): string[] {
@@ -100,10 +121,11 @@ function priorityFromScore(score: number): Priority {
   return "p3";
 }
 
-function urgencyFromScore(score: number): Urgency {
-  if (score >= 5) return "now";
-  if (score >= 2) return "soon";
-  return "later";
+function effortFrom(item: ProjectItem, text: string, comments: number): Effort {
+  if (hasAny(text, HIGH_EFFORT_WORDS) || comments >= 8) return "high";
+  if (hasAny(text, LOW_EFFORT_WORDS) && comments < 5) return "low";
+  if (item.kind === "pull_request" && !item.isDraft && item.reviewDecision === "REVIEW_REQUIRED") return "low";
+  return "medium";
 }
 
 export function scoreProjectItem(item: ProjectItem, now = new Date()): ProjectItemScore {
@@ -112,7 +134,7 @@ export function scoreProjectItem(item: ProjectItem, now = new Date()): ProjectIt
   const updatedDays = daysSince(item.updatedAt, now);
   const comments = Math.max(0, Number(item.comments || 0));
   let priorityScore = 0;
-  let urgencyScore = 0;
+  let actionScore = 0;
   const reasons: string[] = [];
 
   if (labels.some((label) => ["bug", "regression", "security"].includes(label))) {
@@ -133,36 +155,36 @@ export function scoreProjectItem(item: ProjectItem, now = new Date()): ProjectIt
   }
 
   if (hasAny(text, URGENCY_WORDS)) {
-    urgencyScore += 4;
+    actionScore += 4;
     reasons.push("time-sensitive wording");
   }
   if (item.kind === "pull_request" && !item.isDraft) {
     if (item.reviewDecision === "REVIEW_REQUIRED" || item.reviewDecision === "CHANGES_REQUESTED") {
-      urgencyScore += 3;
+      actionScore += 3;
       reasons.push("PR needs review action");
     }
   }
   if (updatedDays !== null && updatedDays >= 14) {
-    urgencyScore += 2;
+    actionScore += 2;
     reasons.push("stale open item");
   } else if (updatedDays !== null && updatedDays <= 2 && comments > 0) {
-    urgencyScore += 1;
+    actionScore += 1;
     reasons.push("recent activity");
   }
 
   return {
     item,
     priority: priorityFromScore(priorityScore),
-    urgency: urgencyFromScore(urgencyScore),
+    effort: effortFrom(item, text, comments),
     priorityScore,
-    urgencyScore,
+    actionScore,
     reasons,
   };
 }
 
 export function planLabelChange(score: ProjectItemScore): LabelChange {
   const current = score.item.labels.map((label) => label.name);
-  const wanted = [PRIORITY_LABELS[score.priority], URGENCY_LABELS[score.urgency]];
+  const wanted = [PRIORITY_LABELS[score.priority], EFFORT_LABELS[score.effort]];
   const managed = new Set(PROJECT_MANAGEMENT_LABELS);
   const currentSet = new Set(current);
 
@@ -179,12 +201,12 @@ export function formatProjectManagementSummary(
 ): string {
   const sorted = [...scores].sort((a, b) => {
     if (b.priorityScore !== a.priorityScore) return b.priorityScore - a.priorityScore;
-    if (b.urgencyScore !== a.urgencyScore) return b.urgencyScore - a.urgencyScore;
+    if (b.actionScore !== a.actionScore) return b.actionScore - a.actionScore;
     return a.item.number - b.item.number;
   });
   const counts = new Map<string, number>();
   for (const score of scores) {
-    const key = `${PRIORITY_LABELS[score.priority]} / ${URGENCY_LABELS[score.urgency]}`;
+    const key = `${PRIORITY_LABELS[score.priority]} / ${EFFORT_LABELS[score.effort]}`;
     counts.set(key, (counts.get(key) || 0) + 1);
   }
 
@@ -194,7 +216,7 @@ export function formatProjectManagementSummary(
     `Mode: ${opts.dryRun ? "dry run" : opts.labelsApplied ? "labels applied" : "labels not applied"}`,
     `Open items scored: ${scores.length}`,
     "",
-    "### Label Buckets",
+    "### Triage Label Buckets",
     "",
   ];
 
@@ -202,7 +224,7 @@ export function formatProjectManagementSummary(
     lines.push(`- ${key}: ${count}`);
   }
 
-  lines.push("", "### Highest Priority Items", "");
+  lines.push("", "### Top Triage Queue", "");
   for (const score of sorted.slice(0, 10)) {
     const key = `${score.item.kind}#${score.item.number}`;
     const change = changes.get(key);
@@ -211,7 +233,7 @@ export function formatProjectManagementSummary(
       : "";
     const reasonText = score.reasons.length > 0 ? ` (${score.reasons.join("; ")})` : "";
     lines.push(
-      `- ${key}: ${score.item.title} - ${PRIORITY_LABELS[score.priority]}, ${URGENCY_LABELS[score.urgency]}${reasonText}${changeText}`,
+      `- ${key}: ${score.item.title} - ${PRIORITY_LABELS[score.priority]}, ${EFFORT_LABELS[score.effort]}, action score ${score.actionScore}${reasonText}${changeText}`,
     );
   }
 

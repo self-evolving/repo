@@ -25,7 +25,7 @@ function item(overrides: Partial<ProjectItem>): ProjectItem {
   };
 }
 
-test("scores security regressions as high priority and urgent", () => {
+test("scores security regressions as high priority with high effort", () => {
   const score = scoreProjectItem(
     item({
       title: "Critical security regression",
@@ -37,12 +37,12 @@ test("scores security regressions as high priority and urgent", () => {
   );
 
   assert.equal(score.priority, "p0");
-  assert.equal(score.urgency, "now");
+  assert.equal(score.effort, "high");
   assert.match(score.reasons.join(" "), /impact label/);
   assert.match(score.reasons.join(" "), /time-sensitive wording/);
 });
 
-test("scores stale reviewable PRs as needing soon action", () => {
+test("scores stale reviewable PRs as low effort action items", () => {
   const score = scoreProjectItem(
     item({
       kind: "pull_request",
@@ -55,7 +55,7 @@ test("scores stale reviewable PRs as needing soon action", () => {
   );
 
   assert.equal(score.priority, "p3");
-  assert.equal(score.urgency, "now");
+  assert.equal(score.effort, "low");
   assert.match(score.reasons.join(" "), /PR needs review action/);
   assert.match(score.reasons.join(" "), /stale open item/);
 });
@@ -67,7 +67,7 @@ test("plans replacement of existing managed labels only", () => {
       comments: 5,
       labels: [
         { name: "priority/p3" },
-        { name: "urgency/later" },
+        { name: "effort/low" },
         { name: "agent" },
       ],
     }),
@@ -75,8 +75,8 @@ test("plans replacement of existing managed labels only", () => {
   );
 
   assert.deepEqual(planLabelChange(score), {
-    add: ["priority/p1", "urgency/now"],
-    remove: ["priority/p3", "urgency/later"],
+    add: ["priority/p1", "effort/high"],
+    remove: ["priority/p3", "effort/low"],
   });
 });
 
@@ -95,5 +95,6 @@ test("formats a summary with run mode and label changes", () => {
   assert.match(summary, /Mode: dry run/);
   assert.match(summary, /Open items scored: 1/);
   assert.match(summary, /issue#1: Critical security issue/);
-  assert.match(summary, /\+priority\/p1, urgency\/now/);
+  assert.match(summary, /Top Triage Queue/);
+  assert.match(summary, /\+priority\/p1, effort\/high/);
 });
