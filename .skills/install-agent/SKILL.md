@@ -56,6 +56,9 @@ unless explicitly requested.
 - Do not copy generated or local-only files: `node_modules/`, `dist/`,
   `.agent/node_modules/`, `.agent/dist/`, `.git/`, `_worktrees/`, or
   `.claude/worktrees/`.
+- Merge agent-generated-output ignore rules into the target's existing
+  `.gitignore` instead of replacing it: at least `.agent/dist/` and
+  `.agent/node_modules/`.
 - Do not ask users to paste secrets into issues, PRs, comments, or committed
   files. Direct them to GitHub settings or `gh secret set` in a trusted shell.
 
@@ -86,6 +89,9 @@ unless explicitly requested.
 
 4. Copy the install files conservatively.
    - Sync `.agent/` with generated/dependency exclusions.
+   - Preserve target-owned root files, but add the agent ignore entries
+     `.agent/dist/` and `.agent/node_modules/` to the target `.gitignore` if
+     missing so GitHub-hosted runner builds do not leak generated files into PRs.
    - Copy all source `.github/` files/directories into the target `.github/` by
      default, but merge rather than wholesale replace.
    - Preserve target-only `.github` files and replace existing `.github` files
