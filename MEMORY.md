@@ -19,3 +19,4 @@
 - Public repos default-allow CONTRIBUTOR due GitHub association visibility limits; use AGENT_ACCESS_POLICY to tighten access.
 - Planning/procedure-only asks stay on /answer; provide a concrete plan and request approval before coding.
 - Keep .agent/dist/ and .agent/node_modules/ ignored; they are generated outputs, not repository source.
+- Explicit /orchestrate owns bounded follow-up chains; direct /implement, /review, and /fix-pr stay one-shot by default.
