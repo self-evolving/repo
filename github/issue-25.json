@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "@sepo-agent /answer \n\n- For example, if we tag the agent for reviewing in the chat, we should display as labels \n- the same should be true for orchestrator; but we should not remove the orchestrator tag until it finishes \n\nCan you plan for it?",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABArP4uQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I checked issue #25 and related context. There’s no parent/tracker linked from #25, but related issue [#19](https://github.com/self-evolving/repo/issues/19) exists and its implementation PR [#20](https://github.com/self-evolving/repo/pull/20) is still open (not merged), so `main` does not yet include explicit `/orchestrate` routing.\n\nCurrent behavior in `main`:\n- Mention runs are routed in [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml) and only apply the fixed `agent` status label via [`add-label.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/add-label.ts).\n- Label-triggered runs are handled by [`agent-label.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-label.yml), which removes the triggering `agent/*` label after router success.\n- Orchestrator handoff is dispatched from [`dispatch-agent-orchestrator.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/dispatch-agent-orchestrator.ts) into [`agent-orchestrator.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-orchestrator.yml), with no dedicated orchestrator activity label lifecycle.\n\nProposed implementation approach:\n1. Add route-activity label management (separate from fixed `agent` status label), with explicit add/remove operations in CLI helpers.\n2. Apply corresponding activity label when a route starts (review, fix-pr, implement, orchestrator path).\n3. Remove activity labels in terminal workflow steps (`if: always()`), so cleanup happens even on failures.\n4. Special-case orchestrator: keep its label until orchestrator workflow actually completes; do not let generic trigger-label cleanup remove it early.\n5. Keep trigger-label semantics (`agent/*`) and status/activity semantics separate to avoid accidental retriggers and cleanup races.\n\nExecution plan (for approval):\n1. Extend GitHub label helpers in [`github.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/github.ts) with remove-label support.\n2. Add a new CLI for route activity labels (add/remove by route + target kind/number), and tests under [`.agent/src/__tests__`](https://github.com/self-evolving/repo/tree/main/.agent/src/__tests__).\n3. Wire label-add at route start in [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml) and workflow entry points where needed.\n4. Wire label-remove at route completion in [`agent-review.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-review.yml), [`agent-fix-pr.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-fix-pr.yml), [`agent-implement.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-implement.yml), and [`agent-orchestrator.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-orchestrator.yml).\n5. Update [`agent-label.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-label.yml) cleanup logic so orchestrator-tag cleanup is deferred until orchestrator completion.\n6. Update assertions in [`envelope.test.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/envelope.test.ts) and docs in [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/supported-workflows.md).\n\nPlease confirm and I’ll start implementation.\n\nClarifications to unblock cleanly:\n1. Should “corresponding label” reuse trigger names (`agent/review`, `agent/orchestrate`) or use separate non-trigger activity labels (recommended)?\n2. For orchestrator, should label removal happen when `agent-orchestrator.yml` ends, or only after the full multi-step automation chain reaches stop?",
+      "createdAt": "2026-04-29T01:55:40Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/25#issuecomment-4340316345",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-04-29T01:52:52Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 25,
+  "state": "OPEN",
+  "title": "Display the corresponding label when running the action",
+  "updatedAt": "2026-04-29T01:55:40Z",
+  "url": "https://github.com/self-evolving/repo/issues/25"
+}

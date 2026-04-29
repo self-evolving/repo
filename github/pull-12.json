@@ -63,8 +63,8 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- This PR primarily ensures unsupported-route replies can be posted reliably by running `Setup agent runtime` before `post-response.js`.\n- The workflow change widens runtime setup from `answer`-only to `answer || unsupported`, and tests were updated to assert that contract.\n- The branch also includes a second behavior change in issue association handling (`extract-context` collaborator promotion) with matching tests and docs updates.\n- There were no parent/tracking references in the PR body that changed the expected scope or phasing.\n- Overall, runtime correctness looks good, with one remaining workflow-hardening concern.\n\n## Review\n- The core runtime fix is correct and regression-tested, and docs-sync concerns previously raised in discussion are now addressed.\n- One concrete workflow fragility remains around implicit empty provider outputs on the unsupported path.\n- Reviewers differed on process severity (ship vs minor issues), but aligned that there is no current runtime breakage.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Explicitly set provider install flags for unsupported route | WARNING | `setup-agent-runtime` receives empty provider outputs when route is `unsupported`; current behavior works but depends on action internals treating empty as not-true. Make unsupported inputs explicit to avoid future regressions. |\n| PR scope includes a second independent behavior change | INFO | The PR title/body target runtime setup, but the branch also includes collaborator-association logic and tests/docs, which increases review/rollback coupling. |\n\n## Progress\n- Runtime setup widening for unsupported route is implemented and test-covered.\n- Docs were updated in this PR for both runtime lifecycle and access-policy behavior.\n- Existing inline review comments were empty before synthesis; I posted one targeted inline comment for the workflow fragility: https://github.com/self-evolving/repo/pull/12#discussion_r3155733185\n\n## Issue Details\n<details>\n<summary>Explicitly set provider install flags for unsupported route</summary>\n\n**Cause:**  \n`Resolve answer provider` only runs for `answer`, but `setup-agent-runtime` now also runs for `unsupported`, so `install_codex`/`install_claude` resolve to empty strings on that path.\n\n**Candidate solutions:**  \n- Pass explicit `\"false\"` values for provider install flags when route is `unsupported`.\n- Or ensure provider outputs are always populated before runtime setup, then keep runtime inputs explicit.\n\n**Comments:**  \nThis is a latent-hardening issue, not an observed break; current behavior is safe because install checks currently use strict `== 'true'`.\n</details>\n\n## Recommended Next Step\n`FIX_PR`: there is one concrete, low-risk branch change that removes a future-regression hazard in workflow behavior.\n\n## Final Verdict\n`MINOR_ISSUES`\n\n## Action Items\n- [ ] Update `.github/workflows/agent-router.yml` so unsupported-route runtime setup passes explicit provider install flags (for example, both `\"false\"`), rather than relying on empty outputs from the answer-only provider step.",
       "createdAt": "2026-04-28T16:34:47Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/12#issuecomment-4337233378",
       "viewerDidAuthor": true
@@ -82,6 +82,36 @@
       "minimizedReason": "",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/12#issuecomment-4337449921",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAqiYow",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 84 | FAIL | 6 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Runtime setup change reuses existing `Setup agent runtime` workflow step by widening its condition instead of adding parallel logic in a new step ([`.github/workflows/agent-router.yml`](https://github.com/self-evolving/repo/blob/7d4cbab6d2fe908c5cf4a3e2cded43110fcae82e/.github/workflows/agent-router.yml)). |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Unsupported route now guarantees runtime setup before posting response, and regression assertions were added for this contract ([`agent-router.yml`](https://github.com/self-evolving/repo/blob/7d4cbab6d2fe908c5cf4a3e2cded43110fcae82e/.github/workflows/agent-router.yml), [`.agent/src/__tests__/envelope.test.ts`](https://github.com/self-evolving/repo/blob/7d4cbab6d2fe908c5cf4a3e2cded43110fcae82e/.agent/src/__tests__/envelope.test.ts)). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Docs were updated to reflect unsupported-route runtime setup before `post-response.js` and related auth-association behavior ([`.agent/docs/architecture/request-lifecycle.md`](https://github.com/self-evolving/repo/blob/7d4cbab6d2fe908c5cf4a3e2cded43110fcae82e/.agent/docs/architecture/request-lifecycle.md), [`.agent/docs/access-policy.md`](https://github.com/self-evolving/repo/blob/7d4cbab6d2fe908c5cf4a3e2cded43110fcae82e/.agent/docs/access-policy.md)). |\n| coding_workflow / generic | Make surgical changes | fail | 2/8 | PR request/scope is unsupported-route runtime setup, but diff also adds a separate collaborator-association behavior change plus tests/docs ([`.agent/src/cli/extract-context.ts`](https://github.com/self-evolving/repo/blob/7d4cbab6d2fe908c5cf4a3e2cded43110fcae82e/.agent/src/cli/extract-context.ts), [`.agent/src/__tests__/extract-context-cli.test.ts`](https://github.com/self-evolving/repo/blob/7d4cbab6d2fe908c5cf4a3e2cded43110fcae82e/.agent/src/__tests__/extract-context-cli.test.ts)). |\n| coding_style / generic | Prefer simple implementations | partial | 6/7 | Each individual fix is straightforward, but combining two independent behaviors in one PR increases coupling/review complexity beyond the smallest possible change. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | Docs edits are concise behavioral statements; no file inventory/table anti-pattern introduced. |\n\n## Notes\n\n- No parent/tracking references were found in the PR body/comments; context appears self-contained.\n- The core runtime fix is rubric-aligned (reuse, stateful reliability, docs sync), but `surgical-changes` is not satisfied due to added unrelated extract-context collaborator logic.\n- Rubrics not scored as non-applicable to this PR diff: `default-merge-strategy`, `orchestrator-one-shot-followup-default`, `abstract-learned-rubrics`, `read-docs-first` (author workflow evidence not determinable from diff artifacts alone).\n\n## Findings\n\n- **BLOCKING:** `surgical-changes` (must) is violated because PR #12 includes a second independent behavior change (`extract-context` collaborator promotion) outside the stated unsupported-runtime scope.\n- **INFO:** Unsupported-route runtime setup and explicit false provider flags are correctly covered by workflow + regression tests.\n\n## Final Rubric Verdict\n\nFAIL",
+      "createdAt": "2026-04-28T22:35:46Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/12#issuecomment-4339570851",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAqjtGg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- This PR’s stated goal is to ensure unsupported-route replies can post reliably by running runtime setup before `post-response.js`.\n- It implements that by widening `Setup agent runtime` conditions in `agent-router.yml` and adding regression assertions in envelope tests.\n- The branch also includes a second behavior change in issue association handling (`extract-context` collaborator promotion), with matching tests and docs updates.\n- I checked PR #12 conversation and existing inline comments; no parent/tracking issue references were present in PR metadata or discussion.\n- Existing discussion already covers runtime/docs progression, but one trust-boundary edge case in collaborator promotion remained unaddressed inline.\n\n## Review\n- The runtime-setup fix is solid and well-tested, but the combined PR scope and one association-identity edge case still leave unresolved review risk.\n- Reviewer outputs disagree on severity of scope coupling (warning vs blocking), but all reviews align that the runtime path itself is correct.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Mixed intent: PR includes unrelated collaborator-association behavior | BLOCKING | The PR is framed as unsupported-runtime setup but also changes access-association behavior in `extract-context`, increasing audit/rollback coupling and violating surgical-scope expectations. |\n| Collaborator promotion checks issue opener, not acting sender | WARNING | `refreshIssueAssociation` is passed `payload.issue.user.login`; on `issues` events where sender differs from opener, sender trust can be promoted based on another user’s collaborator status. |\n\n## Progress\n- Unsupported-route runtime setup and explicit provider flags are implemented and regression-tested.\n- Docs for unsupported runtime setup and access policy were updated in this branch.\n- Existing inline comment already covered provider-flag hardening; I added one new inline comment for the sender/opener identity mismatch: https://github.com/self-evolving/repo/pull/12#discussion_r3157635957\n\n## Issue Details\n<details>\n<summary>Mixed intent: PR includes unrelated collaborator-association behavior</summary>\n\n**Cause:**  \nThe branch bundles two independent behavior changes: unsupported-route runtime setup and collaborator-based association promotion, while title/body/verification framing emphasizes only the former.\n\n**Candidate solutions:**  \n- Split collaborator-association changes into a dedicated PR with focused title/body/verification.\n- If keeping combined, explicitly update PR framing and verification scope to cover both behaviors and risks.\n\n**Comments:**  \nCode reviewers treated this mostly as a warning, while rubric review marked it blocking under a must-level surgical-changes requirement.\n</details>\n\n<details>\n<summary>Collaborator promotion checks issue opener, not acting sender</summary>\n\n**Cause:**  \nThe call site passes `String(payload.issue?.user?.login || \"\")` into `refreshIssueAssociation`, so collaborator status is evaluated for the issue author instead of the actor when `payload.sender` differs.\n\n**Candidate solutions:**  \n- Pass actor identity (`payload.sender?.login`) for collaborator checks when evaluating sender association.\n- Or guard promotion so it only applies when opener and sender are the same user, and add an explicit mismatch regression test.\n\n**Comments:**  \nThis is an edge-case trust-boundary issue (not an observed runtime break), but it is concrete and line-specific.\n</details>\n\n## Recommended Next Step\n`FIX_PR`: unresolved findings require concrete branch changes (scope isolation/framing correction plus actor-aligned collaborator check) and are suitable for an automated fix pass.\n\n## Final Verdict\n`NEEDS_REWORK`\n\n## Action Items\n- [ ] Isolate collaborator-association behavior into a separate PR (or explicitly reframe this PR’s title/body/verification to include it as first-class scope).\n- [ ] Update `extract-context` association refresh to evaluate collaborator status against the acting sender (or enforce sender/opener equivalence before promotion), with a regression test for sender != issue author.",
+      "createdAt": "2026-04-28T22:39:48Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/12#issuecomment-4339592474",
       "viewerDidAuthor": true
     }
   ],
@@ -127,12 +157,6 @@
   "headRefName": "fix/unsupported-response-runtime",
   "labels": [
     {
-      "id": "LA_kwDOSOhEMM8AAAAChDSNKQ",
-      "name": "agent/review",
-      "description": "",
-      "color": "8301C0"
-    },
-    {
       "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
       "name": "agent",
       "description": "Handled by the agent",
@@ -157,10 +181,25 @@
       "commit": {
         "oid": "5dd68b9399b00a396e81b0a8e47f5988efd3ba86"
       }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM7563ZB",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-04-28T22:39:16Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "7d4cbab6d2fe908c5cf4a3e2cded43110fcae82e"
+      }
     }
   ],
   "state": "MERGED",
   "title": "Build runtime for unsupported responses",
-  "updatedAt": "2026-04-28T17:01:22Z",
+  "updatedAt": "2026-04-28T22:39:57Z",
   "url": "https://github.com/self-evolving/repo/pull/12"
 }
