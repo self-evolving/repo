@@ -4,8 +4,6 @@
 // Outputs: head_ref, head_sha, cross_repo, pr_state
 
 import { execFileSync } from "node:child_process";
-import { rmSync } from "node:fs";
-import { join } from "node:path";
 import { setOutput } from "../output.js";
 import { fetchPrMeta } from "../github.js";
 
@@ -25,11 +23,11 @@ if (!prNumber) {
     const remoteUrl = `https://x-access-token:${token}@github.com/${repo}.git`;
     execFileSync("git", ["fetch", remoteUrl, meta.headRef], { cwd, stdio: "pipe" });
     // setup-agent-runtime builds .agent/dist before fix-pr checks out the PR
-    // branch. If that branch accidentally tracks generated dist files, Git
-    // refuses to switch because the freshly built untracked files would be
-    // overwritten. Remove only this known generated directory before checkout.
-    rmSync(join(cwd, ".agent", "dist"), { recursive: true, force: true });
-    execFileSync("git", ["checkout", "-B", meta.headRef, "FETCH_HEAD"], { cwd, stdio: "pipe" });
+    // branch. If that branch accidentally tracks generated dist files, a normal
+    // checkout refuses to overwrite the untracked build output. Force checkout
+    // only overwrites paths tracked by the target branch, while preserving the
+    // built runtime when the target branch does not track .agent/dist.
+    execFileSync("git", ["checkout", "-f", "-B", meta.headRef, "FETCH_HEAD"], { cwd, stdio: "pipe" });
     headSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd, stdio: "pipe" })
       .toString("utf8")
       .trim();
