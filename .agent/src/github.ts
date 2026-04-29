@@ -122,6 +122,18 @@ export function addPrLabel(prNumber: number, label: string, repo?: string): void
   gh(args);
 }
 
+export function removeIssueLabel(issueNumber: number, label: string, repo?: string): void {
+  const args = ["issue", "edit", String(issueNumber), "--remove-label", label];
+  if (repo) args.push("--repo", repo);
+  gh(args);
+}
+
+export function removePrLabel(prNumber: number, label: string, repo?: string): void {
+  const args = ["pr", "edit", String(prNumber), "--remove-label", label];
+  if (repo) args.push("--repo", repo);
+  gh(args);
+}
+
 // --- Pull requests ---
 
 export interface PrMeta {

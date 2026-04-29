@@ -25,6 +25,14 @@ export interface RepositoryDiscussionConfig {
   categories: DiscussionCategory[];
 }
 
+export interface RepositoryDiscussionSummary {
+  id: string;
+  number: number;
+  title: string;
+  url: string;
+  category: string;
+}
+
 /**
  * Resolves the reply-to target for a discussion comment.
  * Returns the parent comment node ID if the comment is a nested reply,
@@ -142,6 +150,82 @@ export function updateDiscussionComment(
   ghGraphqlData<{
     updateDiscussionComment?: { comment?: { id?: string } | null } | null;
   }>(query, { commentId, body });
+}
+
+export function addDiscussionComment(discussionId: string, body: string): string {
+  const query = `
+    mutation($discussionId: ID!, $body: String!) {
+      addDiscussionComment(input: { discussionId: $discussionId, body: $body }) {
+        comment { url }
+      }
+    }
+  `;
+  const data = ghGraphqlData<{
+    addDiscussionComment?: { comment?: { url?: string } | null } | null;
+  }>(query, { discussionId, body });
+  const url = data.addDiscussionComment?.comment?.url || "";
+  if (!url) {
+    throw new Error("GitHub did not return a URL for the discussion comment.");
+  }
+  return url;
+}
+
+export function findRepositoryDiscussionByTitle(
+  owner: string,
+  repo: string,
+  title: string,
+  categoryName = "",
+  client: GraphQLClient = createGhGraphqlClient(),
+): RepositoryDiscussionSummary | null {
+  const query = `
+    query($owner: String!, $repo: String!) {
+      repository(owner: $owner, name: $repo) {
+        discussions(first: 50, orderBy: { field: UPDATED_AT, direction: DESC }) {
+          nodes {
+            id
+            number
+            title
+            url
+            category { name }
+          }
+        }
+      }
+    }
+  `;
+  const data = client.graphql<{
+    repository?: {
+      discussions?: {
+        nodes?: Array<{
+          id?: string;
+          number?: number;
+          title?: string;
+          url?: string;
+          category?: { name?: string | null } | null;
+        } | null> | null;
+      } | null;
+    } | null;
+  }>(query, { owner, repo });
+
+  for (const node of data.repository?.discussions?.nodes || []) {
+    const nodeTitle = node?.title || "";
+    const category = node?.category?.name || "";
+    if (
+      node?.id &&
+      Number.isInteger(node.number) &&
+      nodeTitle === title &&
+      (!categoryName || category === categoryName)
+    ) {
+      return {
+        id: node.id,
+        number: node.number as number,
+        title: nodeTitle,
+        url: node.url || "",
+        category,
+      };
+    }
+  }
+
+  return null;
 }
 
 /**

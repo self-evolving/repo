@@ -4,6 +4,7 @@
 // Replaces the Octokit-based respond.cjs + post.cjs files.
 
 import { execFileSync } from "node:child_process";
+import { addDiscussionComment } from "./discussion.js";
 import { postIssueComment, postPrComment } from "./github.js";
 
 const MAX_BUFFER = 10 * 1024 * 1024;
@@ -56,7 +57,11 @@ export function postResponse(target: ResponseTarget, body: string): void {
       if (!target.discussionNodeId) {
         throw new Error("discussion_comment requires discussionNodeId");
       }
-      postDiscussionComment(target.discussionNodeId, body, target.replyToId);
+      if (target.replyToId) {
+        postDiscussionCommentReply(target.discussionNodeId, body, target.replyToId);
+      } else {
+        addDiscussionComment(target.discussionNodeId, body);
+      }
       break;
 
     default:
@@ -88,16 +93,12 @@ function replyToReviewComment(
 /**
  * Posts a comment to a GitHub discussion via GraphQL.
  */
-function postDiscussionComment(
+function postDiscussionCommentReply(
   discussionId: string,
   body: string,
-  replyToId?: string,
+  replyToId: string,
 ): void {
-  let query: string;
-  let args: string[];
-
-  if (replyToId) {
-    query = `
+  const query = `
       mutation($discussionId: ID!, $body: String!, $replyToId: ID!) {
         addDiscussionComment(input: {
           discussionId: $discussionId,
@@ -108,31 +109,13 @@ function postDiscussionComment(
         }
       }
     `;
-    args = [
-      "api", "graphql",
-      "-f", `query=${query}`,
-      "-f", `discussionId=${discussionId}`,
-      "-f", `body=${body}`,
-      "-f", `replyToId=${replyToId}`,
-    ];
-  } else {
-    query = `
-      mutation($discussionId: ID!, $body: String!) {
-        addDiscussionComment(input: {
-          discussionId: $discussionId,
-          body: $body
-        }) {
-          comment { url }
-        }
-      }
-    `;
-    args = [
-      "api", "graphql",
-      "-f", `query=${query}`,
-      "-f", `discussionId=${discussionId}`,
-      "-f", `body=${body}`,
-    ];
-  }
+  const args = [
+    "api", "graphql",
+    "-f", `query=${query}`,
+    "-f", `discussionId=${discussionId}`,
+    "-f", `body=${body}`,
+    "-f", `replyToId=${replyToId}`,
+  ];
 
   execFileSync("gh", args, { stdio: "pipe", maxBuffer: MAX_BUFFER });
 }
