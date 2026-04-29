@@ -22,3 +22,4 @@
 - Explicit /orchestrate owns bounded follow-up chains; direct /implement, /review, and /fix-pr stay one-shot by default.
 - Keep prompt-driven agents read-only when planning repo mutations; apply changes through deterministic, test-covered CLIs.
 - Project management is a signal layer: score/label/summarize backlog; execution dispatch belongs to orchestrators.
+- checkout-pr must preserve built .agent/dist runtime; use conflict-specific checkout, not blanket dist deletion.
