@@ -102,6 +102,10 @@ test("extractRequestedRoute detects explicit slash routes after the agent mentio
     "fix-pr",
   );
   assert.equal(
+    extractRequestedRoute("@sepo-agent /orchestrate continue intelligently", "@sepo-agent"),
+    "orchestrate",
+  );
+  assert.equal(
     extractRequestedRoute("@sepo-agent /create-action monitor flaky tests", "@sepo-agent"),
     "create-action",
   );
@@ -153,6 +157,14 @@ test("buildRequestedRouteDecision builds deterministic review metadata", () => {
   assert.equal(d.issueBody, "");
 });
 
+test("buildRequestedRouteDecision builds deterministic orchestrate metadata", () => {
+  const d = buildRequestedRouteDecision("orchestrate", "@sepo-agent /orchestrate");
+  assert.equal(d.route, "orchestrate");
+  assert.equal(d.needsApproval, false);
+  assert.equal(d.issueTitle, "");
+  assert.equal(d.issueBody, "");
+});
+
 test("buildRequestedRouteDecision builds deterministic create-action metadata", () => {
   const d = buildRequestedRouteDecision(
     "create-action",
@@ -172,6 +184,7 @@ test("buildRequestedRouteDecision supports skill routes", () => {
 
 test("resolveRequestedLabel maps built-in and skill labels", () => {
   assert.deepEqual(resolveRequestedLabel("agent/review"), { route: "review", skill: "" });
+  assert.deepEqual(resolveRequestedLabel("agent/orchestrate"), { route: "orchestrate", skill: "" });
   assert.deepEqual(resolveRequestedLabel("agent/create-action"), {
     route: "create-action",
     skill: "",
@@ -300,6 +313,24 @@ test("applyDispatchPolicy dispatches review on PR without approval", () => {
   );
   assert.equal(d.route, "review");
   assert.equal(d.needsApproval, false);
+});
+
+test("applyDispatchPolicy dispatches orchestrate on issue without approval", () => {
+  const d = applyDispatchPolicy(
+    normalizeDispatch('{"route":"orchestrate","summary":"orchestrate"}'),
+    "issue",
+    "MEMBER",
+  );
+  assert.equal(d.route, "orchestrate");
+  assert.equal(d.needsApproval, false);
+});
+
+test("applyDispatchPolicy rejects orchestrate requests outside issues and pull requests", () => {
+  const d = applyDispatchPolicy(
+    normalizeDispatch('{"route":"orchestrate","summary":"orchestrate"}'),
+    "discussion",
+  );
+  assert.equal(d.route, "unsupported");
 });
 
 test("applyDispatchPolicy rejects review requests outside pull requests", () => {

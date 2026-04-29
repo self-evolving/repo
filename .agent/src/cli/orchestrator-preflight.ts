@@ -1,5 +1,5 @@
 // CLI: compute cheap preflight outputs for agent-orchestrator.yml.
-// Env: AUTOMATION_MODE, AUTOMATION_CURRENT_ROUND, AUTOMATION_MAX_ROUNDS
+// Env: AUTOMATION_MODE, AUTOMATION_CURRENT_ROUND, AUTOMATION_MAX_ROUNDS, SOURCE_ACTION
 // Outputs: automation_mode, current_round, max_rounds, planner_enabled
 
 import { normalizeAutomationMode } from "../handoff.js";
@@ -13,7 +13,8 @@ function positiveInt(value: string, fallback: number): number {
 const automationMode = normalizeAutomationMode(process.env.AUTOMATION_MODE || "disabled");
 const currentRound = positiveInt(process.env.AUTOMATION_CURRENT_ROUND || "", 1);
 const maxRounds = positiveInt(process.env.AUTOMATION_MAX_ROUNDS || "", 5);
-const plannerEnabled = automationMode === "agent" && currentRound < maxRounds;
+const sourceAction = String(process.env.SOURCE_ACTION || "").trim().toLowerCase();
+const plannerEnabled = automationMode === "agent" && currentRound < maxRounds && sourceAction !== "orchestrate";
 
 setOutput("automation_mode", automationMode);
 setOutput("current_round", String(currentRound));
@@ -21,5 +22,5 @@ setOutput("max_rounds", String(maxRounds));
 setOutput("planner_enabled", String(plannerEnabled));
 
 console.log(
-  `Orchestrator preflight: mode=${automationMode}, round=${currentRound}/${maxRounds}, planner_enabled=${plannerEnabled}`,
+  `Orchestrator preflight: mode=${automationMode}, source_action=${sourceAction || "missing"}, round=${currentRound}/${maxRounds}, planner_enabled=${plannerEnabled}`,
 );

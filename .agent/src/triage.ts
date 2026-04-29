@@ -14,6 +14,7 @@ export const ROUTES = new Set([
   "implement",
   "fix-pr",
   "review",
+  "orchestrate",
   "create-action",
   "unsupported",
 ]);
@@ -27,7 +28,7 @@ export interface DispatchDecision {
   issueBody: string;
 }
 
-const EXPLICIT_ROUTE_COMMANDS = ["answer", "implement", "fix-pr", "review", "create-action"] as const;
+const EXPLICIT_ROUTE_COMMANDS = ["answer", "implement", "fix-pr", "review", "orchestrate", "create-action"] as const;
 const LABEL_ROUTE_PREFIX = "agent/";
 const LABEL_SKILL_PREFIX = "agent/s/";
 const VALID_SKILL_LABEL = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
@@ -171,6 +172,17 @@ export function buildRequestedRouteDecision(route: string, requestText: string):
     };
   }
 
+  if (normalizedRoute === "orchestrate") {
+    return {
+      route: "orchestrate",
+      needsApproval: false,
+      confidence: "high",
+      summary: "I’ll start orchestration for this target.",
+      issueTitle: "",
+      issueBody: "",
+    };
+  }
+
   if (normalizedRoute === "skill") {
     return {
       route: "skill",
@@ -217,6 +229,9 @@ export function resolveRequestedLabel(labelName: string): RequestedLabelDecision
   }
   if (normalized === "agent/review") {
     return { route: "review", skill: "" };
+  }
+  if (normalized === "agent/orchestrate") {
+    return { route: "orchestrate", skill: "" };
   }
   if (normalized === "agent/create-action") {
     return { route: "create-action", skill: "" };
@@ -346,6 +361,25 @@ export function applyDispatchPolicy(
         needsApproval: false,
         summary:
           "Review requests are only supported from pull requests right now.",
+        issueTitle: "",
+        issueBody: "",
+      };
+    }
+
+    normalized.needsApproval = false;
+    normalized.issueTitle = "";
+    normalized.issueBody = "";
+    return normalized;
+  }
+
+  if (normalized.route === "orchestrate") {
+    if (targetKind !== "issue" && targetKind !== "pull_request") {
+      return {
+        ...normalized,
+        route: "unsupported",
+        needsApproval: false,
+        summary:
+          "Orchestration requests are currently supported on issues and pull requests only.",
         issueTitle: "",
         issueBody: "",
       };
