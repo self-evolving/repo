@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "@sepo-agent /answer check what others similar fixes need for this? ",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAr7y4w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I checked issue #28 and there is no parent/tracking issue linked. The closest related work is open PR #21, which already identifies the same install/update gap plus a few adjacent runner-stability fixes: https://github.com/self-evolving/repo/pull/21\n\nWhat I’d include for this issue:\n\n1. Add/keep generated-output exclusions in both install/update skills:\n   - [`install-agent`](https://github.com/self-evolving/repo/blob/main/.skills/install-agent/SKILL.md#L56) and [`update-agent`](https://github.com/self-evolving/repo/blob/main/.skills/update-agent/SKILL.md#L59) already say not to copy `node_modules/`, `dist/`, `.agent/node_modules/`, `.agent/dist/`, etc.\n   - They should also explicitly say to **merge** `.agent/dist/` and `.agent/node_modules/` into the target repo’s `.gitignore`.\n\n2. Update install docs:\n   - [`install-existing-repository.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/deployment/install-existing-repository.md#L11) currently says to copy `.agent/` and `.github/`, but does not mention `.gitignore`.\n   - Add a short generated-output rule block there.\n\n3. Update this repo’s own `.gitignore`:\n   - Current file has `.agent/dist/` but not `.agent/node_modules/`: https://github.com/self-evolving/repo/blob/main/.gitignore#L1-L4\n   - Add `.agent/node_modules/`.\n\n4. Regression/test coverage:\n   - Since this is docs/skill guidance, a lightweight envelope/fixture assertion is enough if we want to pin the contract.\n   - Similar fixes in PR #21 used `.agent/src/__tests__/envelope.test.ts` to assert workflow/doc invariants.\n\nImportant caveat from PR #21: I would **not** bundle this with the `checkout-pr` cleanup change unless we also fix the runtime risk called out in review. Deleting `.agent/dist` before checkout can break later `node .agent/dist/...` steps if the PR branch does not track dist. For issue #28, the safer scope is just: skill guidance + install docs + `.gitignore` + focused assertion.",
+      "createdAt": "2026-04-29T05:20:33Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/28#issuecomment-4341035747",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-04-29T05:13:52Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 28,
+  "state": "OPEN",
+  "title": "Add including `dist (and node modules etc) ` for the installation skills",
+  "updatedAt": "2026-04-29T05:20:34Z",
+  "url": "https://github.com/self-evolving/repo/issues/28"
+}

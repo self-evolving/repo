@@ -143,6 +143,21 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/21#issuecomment-4340354650",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAr9ddA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I checked both comments.\n\n- On timeout: agreed. The direct PR fix is fine: keep `timeout-minutes: 30` on `Run rubrics review` and the contract test in [`envelope.test.ts`](https://github.com/self-evolving/repo/blob/6c9d9fda842e73cb83d370b36942f0d80f9ed3ce/.agent/src/__tests__/envelope.test.ts#L1062). For the broader default/configurable timeout, I’d track that as a follow-up library change rather than expand this PR. Likely shape: add a `run-agent-task` timeout input/default, pass it into `.agent/src/run.ts`, and then into `runAcpx({ timeout })`, since `acpx-adapter` already supports a timeout parameter.\n\n- On `.agent/dist` cleanup: future `.gitignore` rules help, but they do not fix already-open PR branches or downstream repos that accidentally committed dist. So I would keep a direct checkout fix in this PR. However, I agree with the review concern that unconditional `rmSync(.agent/dist)` is risky because later steps still run `node .agent/dist/...` in [`agent-fix-pr.yml`](https://github.com/self-evolving/repo/blob/6c9d9fda842e73cb83d370b36942f0d80f9ed3ce/.github/workflows/agent-fix-pr.yml#L148-L206).\n\nBest direct fix: replace the unconditional deletion with a conflict-specific checkout strategy, probably `git checkout -f -B <headRef> FETCH_HEAD`, and add the normal-path regression test the review requested. That preserves built runtime artifacts when the PR branch does not track `.agent/dist`, while still handling the overwrite conflict when it does.",
+      "createdAt": "2026-04-29T05:24:18Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/21#issuecomment-4341063028",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-04-28T22:13:40Z",
@@ -259,10 +274,32 @@
       "commit": {
         "oid": "6c9d9fda842e73cb83d370b36942f0d80f9ed3ce"
       }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM76AHTa",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer can you check my comments there? \n\nI think one direct fix is fine; we should consider the timeout more systematically in our library as well. \n\n",
+      "submittedAt": "2026-04-29T05:22:19Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "6c9d9fda842e73cb83d370b36942f0d80f9ed3ce"
+      }
     }
   ],
   "state": "OPEN",
   "title": "Fix GitHub-hosted runner stability issues",
-  "updatedAt": "2026-04-29T02:08:40Z",
+  "updatedAt": "2026-04-29T05:24:18Z",
   "url": "https://github.com/self-evolving/repo/pull/21"
 }
