@@ -62,6 +62,17 @@ If you use a fine-grained PAT, start with these repository permissions:
 - **Discussions:** read and write, only if you use discussion triggers
 - **Actions:** read and write, for approval dispatch and review artifact flows
 
+## Commit author identity
+
+Sepo's implementation and PR-fix workflows create commits with the `sepo-agent` author by default. That is usually fine for GitHub, but some deployment providers apply author-based deployment protection. For example, Vercel can reject a deployment with an error like `Git author sepo-agent must have access to the project on Vercel`.
+
+For repositories connected to such deploy providers, configure these repository variables so agent commits use a GitHub identity that already has access to the deployment project:
+
+- `AGENT_COMMITTER_NAME`
+- `AGENT_COMMITTER_EMAIL`
+
+Use the exact Git author name and email that the provider maps to the allowed user. For GitHub noreply addresses, copy the noreply email from the user's GitHub email settings. This only changes commit author metadata; GitHub API authentication still follows the auth priority above.
+
 ## Workflow token fallback
 
 If no higher-priority auth mode is configured, the backend can still fall back to `github.token`. This is useful as a lowest-friction fallback, but it should not be treated as the preferred long-term setup for more advanced automation.

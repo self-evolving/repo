@@ -19,8 +19,17 @@
 | `AGENT_RUBRICS_POLICY` | JSON policy controlling which routes can read or write user/team rubrics. Defaults to read-only. See [User/team rubrics](../architecture/rubrics.md). |
 | `AGENT_RUBRICS_REF` | Default branch name used when workflows mount user/team rubrics. Defaults to `agent/rubrics`. |
 | `AGENT_RUBRICS_LIMIT` | Maximum selected rubrics injected into an agent prompt. Defaults to `10`. |
-| `AGENT_COMMITTER_NAME` | Custom commit author name for implementation and PR-fix runs |
-| `AGENT_COMMITTER_EMAIL` | Custom commit author email for implementation and PR-fix runs |
+| `AGENT_COMMITTER_NAME` | Custom commit author name for implementation and PR-fix runs. Useful when downstream deploy providers require commits to be authored by a team member. |
+| `AGENT_COMMITTER_EMAIL` | Custom commit author email for implementation and PR-fix runs. For GitHub noreply identities, use the exact email shown in the user's GitHub email settings. |
+
+### Commit author identity for deploy providers
+
+Some deploy providers, including Vercel projects with Git author protection enabled, only create deployments for commits whose author maps to a user with access to the deployment project. If agent-authored commits are blocked with a message such as `Git author sepo-agent must have access to the project on Vercel`, set these repository variables to a Vercel project member's GitHub identity:
+
+- `AGENT_COMMITTER_NAME`
+- `AGENT_COMMITTER_EMAIL`
+
+This changes the author on implementation and PR-fix commits while leaving the GitHub authentication token unchanged.
 
 The bundled workflows intentionally expose one global provider variable. If a repository needs a route-specific provider, edit that route's `resolve-agent-provider` step in the workflow YAML and set `default_provider` or `route_provider` inline. The review workflow still launches explicit Claude and Codex reviewer lanes; `AGENT_DEFAULT_PROVIDER` controls the single synthesis step that combines whatever review artifacts were produced.
 

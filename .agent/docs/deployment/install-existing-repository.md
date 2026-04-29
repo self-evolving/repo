@@ -35,6 +35,8 @@ At minimum, configure:
 
 See [Setup guide](setup-guide.md) for the auth options and trade-offs.
 
+If this repository is connected to Vercel or another deploy provider that restricts deploys by Git author, also configure `AGENT_COMMITTER_NAME` and `AGENT_COMMITTER_EMAIL` as repository variables for an allowed deploy-project member. See [Commit author identity](setup-guide.md#commit-author-identity) for details.
+
 ## First verification
 
 After the files and secrets are in place:
