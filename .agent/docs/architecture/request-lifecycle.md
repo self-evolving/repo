@@ -42,6 +42,7 @@ Current route-level `acpx` permission modes:
 |---|---|---|
 | `dispatch` | `approve-all` | classification may gather repo and issue context |
 | `answer` | `approve-all` | may gather context before replying |
+| `orchestrator` | `approve-all` | planner may gather target and repository context before choosing the next route |
 | `implement` | `approve-all` | needs full file system access |
 | `fix-pr` | `approve-all` | needs full file system access |
 | `review` | `approve-all` | reviewers and synthesis may gather PR and repo context |

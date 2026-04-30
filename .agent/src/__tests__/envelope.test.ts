@@ -749,6 +749,7 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestratorWorkflow, /node \.agent\/dist\/cli\/orchestrator-preflight\.js/);
   assert.match(orchestratorWorkflow, /install_claude:\s*\$\{\{\s*steps\.provider\.outputs\.install_claude\s*\}\}/);
   assert.match(orchestratorWorkflow, /prompt:\s*orchestrator/);
+  assert.match(orchestratorWorkflow, /permission_mode:\s*approve-all/);
   assert.match(orchestratorWorkflow, /session_policy:\s*resume-best-effort/);
   assert.match(orchestratorWorkflow, /continue-on-error:\s*true/);
   assert.match(orchestratorWorkflow, /rubrics_mode_override:\s*read-only/);
