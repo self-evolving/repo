@@ -42,7 +42,16 @@ interface ClosedPrComment {
   body: string;
 }
 
+interface ClosedPrFollowupMarkerRecord {
+  id: string;
+  state: HandoffMarkerInfo["state"];
+  createdAtMs: number | null;
+  targetNumber: string;
+  targetUrl: string;
+}
+
 const PENDING_MARKER_TTL_MS = 60 * 60 * 1000;
+const CLOSED_PR_FOLLOWUP_MARKER_PREFIX = "sepo-agent-closed-pr-followup";
 
 function positiveInt(value: string, fallback: number): number {
   const parsed = Number.parseInt(value, 10);
@@ -132,6 +141,14 @@ function updateIssueComment(repo: string, commentId: string, body: string): void
     "-f",
     `body=${body}`,
   ]);
+}
+
+function encodeMarkerKey(key: string): string {
+  return Buffer.from(key, "utf8").toString("base64url");
+}
+
+function escapeRegex(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 const repo = process.env.GITHUB_REPOSITORY || "";
@@ -234,6 +251,88 @@ function isLikelyBranchChangeRequest(text: string): boolean {
   return /\b(add|adjust|change|code|fix|failing|failure|implement|patch|prefetch|regression|remove|test|update|workflow)\b/.test(normalized);
 }
 
+function buildClosedPrFollowupKey(prNumber: string): string {
+  const requestIdentity = sourceCommentUrl.trim() || stripAgentCommand(requestText).toLowerCase();
+  return [
+    "closed-pr-followup",
+    repo.trim().toLowerCase(),
+    prNumber.trim(),
+    requestIdentity,
+  ].join(":");
+}
+
+function parseClosedPrFollowupMarker(body: string, key: string): Omit<ClosedPrFollowupMarkerRecord, "id"> | null {
+  const encoded = escapeRegex(encodeMarkerKey(key));
+  const markerRe = new RegExp(
+    `<!--\\s*${CLOSED_PR_FOLLOWUP_MARKER_PREFIX}` +
+      `(?:\\s+state:(pending|dispatched|failed))?` +
+      `(?:\\s+created:(\\d+))?` +
+      `(?:\\s+target:(\\d+))?` +
+      `(?:\\s+url:(\\S+))?` +
+      `\\s+base64:${encoded}\\s*-->`,
+    "i",
+  );
+  const match = String(body || "").match(markerRe);
+  if (!match) return null;
+  const rawState = String(match[1] || "dispatched").toLowerCase();
+  const state: HandoffMarkerInfo["state"] = rawState === "pending" || rawState === "failed"
+    ? rawState
+    : "dispatched";
+  const createdAtMs = match[2] ? Number.parseInt(match[2], 10) : NaN;
+  return {
+    state,
+    createdAtMs: Number.isFinite(createdAtMs) && createdAtMs > 0 ? createdAtMs : null,
+    targetNumber: String(match[3] || ""),
+    targetUrl: String(match[4] || ""),
+  };
+}
+
+function formatClosedPrFollowupMarkerComment(args: {
+  key: string;
+  state: HandoffMarkerInfo["state"];
+  prNumber: string;
+  targetNumber?: string;
+  targetUrl?: string;
+  error?: string;
+  createdAtMs?: number;
+}): string {
+  const lines = [
+    `Sepo closed-PR follow-up ${args.state} for PR #${args.prNumber}.`,
+  ];
+  if (args.targetUrl) {
+    lines.push("", `Follow-up issue: ${args.targetUrl}`);
+  }
+  if (args.error) {
+    lines.push("", `Error: ${args.error}`);
+  }
+
+  const markerParts = [
+    CLOSED_PR_FOLLOWUP_MARKER_PREFIX,
+    `state:${args.state}`,
+    `created:${Math.trunc(args.createdAtMs ?? Date.now())}`,
+  ];
+  if (args.targetNumber) markerParts.push(`target:${args.targetNumber}`);
+  if (args.targetUrl) markerParts.push(`url:${args.targetUrl}`);
+  markerParts.push(`base64:${encodeMarkerKey(args.key)}`);
+  lines.push("", `<!-- ${markerParts.join(" ")} -->`);
+  return lines.join("\n");
+}
+
+function findClosedPrFollowupMarkers(prNumber: string, key: string): ClosedPrFollowupMarkerRecord[] {
+  const issueNumber = parsePositiveTargetNumber(prNumber);
+  if (!issueNumber) return [];
+  return fetchIssueComments(repo, issueNumber)
+    .map((comment) => {
+      const parsed = parseClosedPrFollowupMarker(comment.body || "", key);
+      if (!parsed) return null;
+      return {
+        id: String(comment.id || ""),
+        ...parsed,
+      };
+    })
+    .filter((marker): marker is ClosedPrFollowupMarkerRecord => Boolean(marker?.id));
+}
+
 function createFollowupIssueForClosedPr(prNumber: string): { number: string; url: string } | null {
   const cleanRequest = stripAgentCommand(requestText);
   const sourcePrUrl = `https://github.com/${repo}/pull/${prNumber}`;
@@ -307,10 +406,82 @@ function decideManualOrchestration(): HandoffDecision {
       const authStop = delegatedRouteAuthorizationStop("implement", nextRound);
       if (authStop) return authStop;
 
-      const followup = createFollowupIssueForClosedPr(targetNumber);
+      const followupKey = buildClosedPrFollowupKey(targetNumber);
+      const nowMs = Date.now();
+      const existingFollowups = findClosedPrFollowupMarkers(targetNumber, followupKey);
+      const existingFollowupTarget = existingFollowups
+        .find((marker) => marker.state !== "failed" && marker.targetNumber);
+      if (existingFollowupTarget) {
+        return {
+          decision: "dispatch",
+          nextAction: "implement",
+          targetNumber: existingFollowupTarget.targetNumber,
+          reason: `manual orchestrate start on ${status.state.toLowerCase()} PR; reusing follow-up issue #${existingFollowupTarget.targetNumber} and dispatching implement`,
+          nextRound,
+        };
+      }
+      const activeReservation = existingFollowups.find((marker) => (
+        marker.state === "pending" && !isPendingHandoffMarkerStale(marker, nowMs, PENDING_MARKER_TTL_MS)
+      ));
+      if (activeReservation) {
+        return {
+          decision: "stop",
+          reason: "closed pull request follow-up issue creation is already pending",
+          nextRound,
+        };
+      }
+
+      for (const staleMarker of existingFollowups.filter((marker) =>
+        !marker.targetNumber && isPendingHandoffMarkerStale(marker, nowMs, PENDING_MARKER_TTL_MS)
+      )) {
+        try {
+          updateIssueComment(repo, staleMarker.id, formatClosedPrFollowupMarkerComment({
+            key: followupKey,
+            state: "failed",
+            prNumber: targetNumber,
+            error: "Pending follow-up reservation expired before issue creation completed; retrying.",
+          }));
+        } catch (err: unknown) {
+          console.warn(`Failed to expire stale closed-PR follow-up marker ${staleMarker.id}: ${errorText(err)}`);
+        }
+      }
+
+      const reservationId = createIssueComment(repo, parsePositiveTargetNumber(targetNumber), formatClosedPrFollowupMarkerComment({
+        key: followupKey,
+        state: "pending",
+        prNumber: targetNumber,
+        createdAtMs: nowMs,
+      }));
+
+      let followup: { number: string; url: string } | null = null;
+      try {
+        followup = createFollowupIssueForClosedPr(targetNumber);
+      } catch (err: unknown) {
+        updateIssueComment(repo, reservationId, formatClosedPrFollowupMarkerComment({
+          key: followupKey,
+          state: "failed",
+          prNumber: targetNumber,
+          error: errorText(err).slice(0, 1000),
+        }));
+        throw err;
+      }
       if (!followup) {
+        updateIssueComment(repo, reservationId, formatClosedPrFollowupMarkerComment({
+          key: followupKey,
+          state: "failed",
+          prNumber: targetNumber,
+          error: "Could not parse created follow-up issue number.",
+        }));
         return { decision: "stop", reason: "could not create follow-up issue for closed pull request", nextRound };
       }
+      updateIssueComment(repo, reservationId, formatClosedPrFollowupMarkerComment({
+        key: followupKey,
+        state: "pending",
+        prNumber: targetNumber,
+        targetNumber: followup.number,
+        targetUrl: followup.url,
+        createdAtMs: nowMs,
+      }));
       deferred.closedPrComment = {
         prNumber: targetNumber,
         body: [

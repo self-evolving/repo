@@ -17,6 +17,10 @@ function parseGithubOutput(path: string): Map<string, string> {
   return outputs;
 }
 
+function base64url(value: string): string {
+  return Buffer.from(value, "utf8").toString("base64url");
+}
+
 function runOrchestrateHandoff(env: Record<string, string>): {
   status: number | null;
   stderr: string;
@@ -65,6 +69,10 @@ if [ "\${1-}" = "issue" ] && [ "\${2-}" = "create" ]; then
 fi
 
 if [ "\${1-}" = "api" ] && [ "\${2-}" = "--paginate" ] && [ "\${3-}" = "--slurp" ]; then
+  if [ -n "\${FAKE_COMMENTS_JSON-}" ]; then
+    printf '%s\\n' "$FAKE_COMMENTS_JSON"
+    exit 0
+  fi
   printf '[]\\n'
   exit 0
 fi
@@ -222,6 +230,59 @@ test("manual orchestrate creates an issue for closed PR code follow-ups", () => 
   assert.match(run.issueBody, /can you do a quick patch for that fix\?/);
   assert.match(run.issueBody, /https:\/\/github\.com\/self-evolving\/repo\/pull\/39/);
   assert.match(run.issueBody, /https:\/\/github\.com\/self-evolving\/repo\/pull\/39#issuecomment-123/);
+});
+
+test("manual orchestrate reuses closed PR follow-up issue on rerun", () => {
+  const sourceCommentUrl = "https://github.com/self-evolving/repo/pull/39#issuecomment-123";
+  const followupKey = [
+    "closed-pr-followup",
+    "self-evolving/repo",
+    "39",
+    sourceCommentUrl,
+  ].join(":");
+  const handoffKey = [
+    "handoff",
+    "self-evolving/repo",
+    "12345",
+    "orchestrate",
+    "39",
+    "implement",
+    "88",
+    "2",
+  ].join(":");
+  const comments = [[
+    {
+      id: 7001,
+      body: [
+        "Sepo closed-PR follow-up pending for PR #39.",
+        "",
+        "Follow-up issue: https://github.com/self-evolving/repo/issues/88",
+        "",
+        `<!-- sepo-agent-closed-pr-followup state:pending created:${Date.now()} target:88 url:https://github.com/self-evolving/repo/issues/88 base64:${base64url(followupKey)} -->`,
+      ].join("\n"),
+    },
+    {
+      id: 7002,
+      body: `<!-- sepo-agent-handoff state:dispatched created:${Date.now()} base64:${base64url(handoffKey)} -->`,
+    },
+  ]];
+
+  const run = runOrchestrateHandoff({
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "39",
+    FAKE_PR_STATE: "MERGED",
+    REQUEST_TEXT: "@sepo-agent /orchestrate can you do a quick patch for that fix?",
+    SOURCE_COMMENT_URL: sourceCommentUrl,
+    FAKE_COMMENTS_JSON: JSON.stringify(comments),
+  });
+
+  assert.equal(run.status, 0);
+  assert.equal(run.outputs.get("decision"), "dispatch");
+  assert.equal(run.outputs.get("target_number"), "88");
+  assert.equal(run.outputs.get("deduped"), "true");
+  assert.match(run.stdout, /Skipping duplicate handoff/);
+  assert.doesNotMatch(run.ghLog, /issue create/);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-implement\.yml\/dispatches/);
 });
 
 test("closed PR follow-ups validate implement access before creating an issue", () => {
