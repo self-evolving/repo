@@ -59,6 +59,80 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/26#issuecomment-4340543572",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0MOWQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> One decision to confirm before implementation: should the central intake be GitHub Discussions (as in the original issue) or Issues?\nGood point; I think issues might be too crazy; I think having (manual) discussion -> issue promoting seems to be a good idea. Otherwise there will be too many issues too quickly...  \n\n@sepo-agent /answer what do u think? ",
+      "createdAt": "2026-04-30T04:30:13Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/26#issuecomment-4349693529",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0NwUw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I agree. Use **Discussions as the default intake**, then manually promote only actionable reports into Issues.\n\nThat gives us a cleaner flow:\n\n1. Failed runs from installed repos post structured reports into a dedicated Discussion category, e.g. `Agent Run Reports`.\n2. Reports are grouped/deduped by fingerprint so repeated failures do not flood the repo.\n3. Maintainers inspect the discussion thread and promote confirmed bugs into Issues when they are actionable.\n4. The promoted Issue becomes the place to track the fix and launch repair work against the source repo.\n\nI would avoid creating Issues automatically at first. Auto-created Issues are useful only after we have strong dedupe, severity classification, and enough confidence that the report is product-actionable. Discussions are better for noisy telemetry and triage.\n\nSuggested default:\n\n- Public installed repos: auto-report failed agent runs to Discussions by default.\n- Private repos: opt-in, because logs may contain sensitive context.\n- Maintainers can disable reporting with config.\n- Only maintainers or trusted automation promote Discussion reports into Issues.\n\nSo the implementation target should stay close to the original issue: **auto-report failures to GitHub Discussions, not Issues, with a later manual promotion path into Issues.**",
+      "createdAt": "2026-04-30T04:36:44Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/26#issuecomment-4349718611",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0uUMQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /agent \n\nHow to organize the bug reports? \n- Perhaps posting a bug report in https://github.com/self-evolving/repo/discussions/categories/bug-report  ?",
+      "createdAt": "2026-04-30T06:45:24Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/26#issuecomment-4350252081",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0vDsQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, I’d use that category:\n\n`https://github.com/self-evolving/repo/discussions/categories/bug-report`\n\nI’d organize it as **one Discussion per distinct bug fingerprint**, not one giant thread and not one Issue per failure.\n\nConcrete shape:\n\n- Category: `Bug Report`\n- Title format: `[agent-failure] owner/repo route failed: <short error/fingerprint>`\n- Body includes: source repo, workflow run URL, route, trigger kind, target URL, commit SHA, failure phase, sanitized error summary, fingerprint, first seen time\n- Follow-up comments include repeat occurrences: latest run URL, count, last seen time, any changed stack/error details\n- Manual promotion: when a maintainer decides it is actionable, create an Issue from the Discussion and link both ways\n- Fix launch: the promoted Issue becomes the place to run `/implement` or another repair workflow\n\nThis matches the repo’s current architecture pretty well. There are already helpers for creating Discussions and validating categories in [`discussion.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/discussion.ts), plus a CLI for creating a discussion from a generated markdown body in [`create-discussion.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/create-discussion.ts). The existing action template currently talks about optional Issue reporting in [`agent-action-template.yml`](https://github.com/self-evolving/repo/blob/main/.agent/action-templates/agent-action-template.yml), so I’d change the new design toward Discussion reporting instead of Issue reporting.\n\nImplementation plan I’d suggest:\n\n1. Add a config variable like `AGENT_FAILURE_REPORT_DISCUSSION_CATEGORY`, defaulting to `Bug Report`.\n2. Add a failure-report body formatter with a stable fingerprint.\n3. Add a CLI/workflow step that checks the category exists before posting.\n4. If a discussion with the same fingerprint already exists, comment there.\n5. Otherwise create a new Discussion in `Bug Report`.\n6. Document the manual promote-to-Issue flow.\n7. Keep auto-created Issues out of v1.\n\nI would only create Issues automatically later if we have good dedupe and severity rules. For now, Discussions are the right intake surface.",
+      "createdAt": "2026-04-30T06:47:21Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/26#issuecomment-4350264241",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-04-29T02:57:06Z",
@@ -68,11 +142,23 @@
       "name": "agent",
       "description": "Handled by the agent",
       "color": "0e8a16"
+    },
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChVB4QQ",
+      "name": "priority/p1",
+      "description": "Project management: high priority",
+      "color": "d93f0b"
+    },
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChVB5Zw",
+      "name": "effort/high",
+      "description": "Project management: high effort",
+      "color": "d73a4a"
     }
   ],
   "number": 26,
   "state": "OPEN",
   "title": "Automatically report issues on GitHub",
-  "updatedAt": "2026-04-29T03:05:39Z",
+  "updatedAt": "2026-04-30T06:47:22Z",
   "url": "https://github.com/self-evolving/repo/issues/26"
 }

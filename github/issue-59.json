@@ -1,0 +1,99 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "Following #57  #11 , can we do something similar to the orchestrate comment? \n\n@sepo-agent /answer plan it ",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0soKw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, this is feasible and should reuse the same pattern from #11/#57 rather than inventing a separate cleanup path.\n\nCurrent shape I found:\n\n- Review/rubrics cleanup lives in [`review-summary-minimize.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/review-summary-minimize.ts), which matches same-agent comments, skips already-minimized items, and calls GitHub GraphQL `minimizeComment(... OUTDATED)`.\n- Rubrics review posting wires that cleanup through [`post-response.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/post-response.ts#L46-L64), gated by `AGENT_COLLAPSE_OLD_REVIEWS`.\n- Orchestrator handoff comments are created and updated directly in [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L308-L350), using hidden `sepo-agent-handoff` markers from [`handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L149-L190).\n- Docs currently describe `AGENT_COLLAPSE_OLD_REVIEWS` only for AI review synthesis and rubrics review comments: [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/supported-workflows.md#L44-L51), [`configuration-list.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/customization/configuration-list.md#L13).\n\nProposed implementation:\n\n1. Generalize the existing minimization helper so it can collapse matching issue/PR comments, not just PR review summaries.\n2. Add an orchestrator-specific matcher for comments containing the hidden `<!-- sepo-agent-handoff ... -->` marker.\n3. In `orchestrate-handoff.ts`, preserve the current dedupe behavior first, then after a new handoff marker is successfully posted/updated to `dispatched`, minimize older same-agent handoff comments on the same target as `OUTDATED`.\n4. Keep failures non-blocking, matching #57: warn in logs if minimization fails, but do not block dispatch.\n5. Reuse `AGENT_COLLAPSE_OLD_REVIEWS` unless you’d prefer a new variable. My recommendation is to keep the existing toggle and update its description to cover generated orchestrator handoff comments too.\n6. Add focused tests in `review-summary-minimize.test.ts` or a new helper test for handoff-marker matching, and in `orchestrate-handoff-cli.test.ts` for:\n   - old handoff comments are minimized after a new dispatch,\n   - current dedupe marker is not minimized before dedupe detection,\n   - cleanup is skipped when `AGENT_COLLAPSE_OLD_REVIEWS=false`,\n   - minimization failure still dispatches.\n7. Update the workflow env for `agent-orchestrator.yml` to pass `AGENT_COLLAPSE_OLD_REVIEWS`.\n8. Update docs in `supported-workflows.md`, `configuration-list.md`, and likely `technical-details/agent-orchestrator.md`.\n\nNo blocker questions from me. Please approve and I’ll implement this path.",
+      "createdAt": "2026-04-30T06:39:36Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/59#issuecomment-4350224427",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0s_XA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate ",
+      "createdAt": "2026-04-30T06:40:49Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/59#issuecomment-4350230364",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0tLNA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `orchestrate` -> `implement` (round 2/10).\n\nmanual orchestrate start on issue; dispatching implement\n\n<!-- sepo-agent-handoff state:dispatched created:1777531290613 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxNTEzMTI3NTk6b3JjaGVzdHJhdGU6NTk6aW1wbGVtZW50OjU5OjI -->",
+      "createdAt": "2026-04-30T06:41:28Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/59#issuecomment-4350233396",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0ubyw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-59/codex-25151334049`\n- Pull request: https://github.com/self-evolving/repo/pull/60\n\nImplemented orchestrator handoff cleanup by reusing the existing generated-comment minimizer for handoff markers, wiring AGENT_COLLAPSE_OLD_REVIEWS into agent-orchestrator.yml, and updating docs/tests. Verified with npm --prefix .agent run build, targeted node --test coverage for the minimizer/orchestrator/envelope tests, and git diff --check.",
+      "createdAt": "2026-04-30T06:45:46Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/59#issuecomment-4350254027",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-04-30T06:37:32Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 59,
+  "state": "OPEN",
+  "title": "Nit: In orchestrator mode, collapse previous orchestrate comment when a new one is posted",
+  "updatedAt": "2026-04-30T06:45:46Z",
+  "url": "https://github.com/self-evolving/repo/issues/59"
+}

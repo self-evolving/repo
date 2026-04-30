@@ -1,0 +1,173 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "After reviewing #43 and #45 , I think this is just a temporary hack. I think the simplest and a bit more elegant fix is the following: \n\n1. orchestrator can dispatch back to another orchestrator \n    - example: there is a bigger task, and the meta orchestrator breaks down the tasks into substages; and it can dispatch to sub orchestrators to execute the task; when the sub orchestrator finishes the task, then it reports back, and the meta-orchestrator then decides to work on the next issue. \n2. in that case, we should perhaps should consider implementing this function #30 -> we should be able to stack PRs on other branches? \n3. if this is implemented properly, this should represent a better model of the fix in #45 \n4. Question: does our session envelop system support creating different orchestrators inside the same route? \n    - say in the same issue, can it create multiple different target orchestrators?\n\n@sepo-agent /answer can you check this, understand what's implemented, and is this feasible?",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0KOUQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Short answer: feasible, but **not supported by the current implementation yet**. Today the orchestrator can dispatch only built-in action workflows: `implement`, `review`, and `fix-pr`. It cannot dispatch another `agent-orchestrator.yml` run as a first-class next action.\n\nWhat is implemented now:\n\n- The route/action model is closed over `AgentAction = \"implement\" | \"review\" | \"fix-pr\"` in [`handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L3). `orchestrator` is a valid runtime route, but not a valid handoff action.\n- Even in `agent` mode, the planner is constrained by the heuristic transition policy. A planner can choose only the transition already allowed by `decideHeuristicHandoff()`; otherwise it stops ([`handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L296-L333)).\n- The dispatch CLI has hardcoded workflow dispatch branches for only `agent-review.yml`, `agent-implement.yml`, and `agent-fix-pr.yml` ([`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L360-L380)).\n- Manual `/orchestrate` on `main` is also deterministic: issue -> implement, open PR -> review/fix-pr, closed PR -> stop ([`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L182-L225)). PR #45 changes that closed-PR case by creating a follow-up issue and dispatching `implement`, but it is still not a general orchestrator-to-orchestrator model.\n- The session envelope supports distinct continuity identities via `repo:target_kind:target_number:route:lane` ([`envelope.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/envelope.ts#L92-L100)). The orchestrator planner already uses route `orchestrator` plus lane `planner` ([`agent-orchestrator.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-orchestrator.yml#L138-L157)).\n\nSo the session/envelope layer is close enough: different target numbers already create different orchestrator thread keys, and different lanes could separate multiple orchestrator roles on the same issue. The missing pieces are in the orchestration policy and workflow inputs, not the basic envelope format.\n\nFor the specific question, “can it create multiple different target orchestrators inside the same route?”:\n\n- **Different targets:** mostly yes conceptually. `issue#51/orchestrator/planner` and `issue#52/orchestrator/planner` would be separate thread keys.\n- **Same issue, multiple orchestrators:** not cleanly today. `agent-orchestrator.yml` hardcodes lane `planner`, so two meta/sub orchestrators for the same issue would share the same route/lane identity unless we add an explicit orchestrator lane/id input.\n- **Same run spawning multiple sub-orchestrators:** no. The current handoff model returns one `HandoffDecision`, writes one dedupe marker, and dispatches one next workflow.\n\n#30 is relevant. `agent-implement.yml` always checks out the default branch and creates PRs against the default branch ([checkout](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-implement.yml#L120-L125), [branch creation](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-implement.yml#L166-L167), [PR base](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-implement.yml#L222-L233)). A meta-orchestrator that decomposes work into stacked substages needs a `base_branch` or `base_ref` input, otherwise every subtask competes against `main`.\n\nRecommended implementation plan:\n\n1. Extend the handoff action model to include `orchestrate` or a clearer internal action like `sub-orchestrate`.\n2. Add `parent_orchestrator_thread_key`, `orchestrator_lane`, and optional `orchestrator_context` inputs to `agent-orchestrator.yml`.\n3. Allow the planner JSON to request an orchestrator handoff, but validate it with explicit policy: max rounds, allowed target kind, requester authorization, and no cycles.\n4. Generalize `orchestrate-handoff.ts` dispatch so it can dispatch `agent-orchestrator.yml` as well as action workflows.\n5. Add a stable dedupe key that includes parent orchestrator, child target, child lane, next action, and round.\n6. Implement #30 in parallel or first: add `base_branch` to `agent-implement.yml`, use it for checkout, branch creation, and PR creation.\n7. Add tests for: orchestrator -> orchestrator dispatch, same issue with distinct lanes, duplicate dispatch dedupe, round-budget stop, policy denial, and stacked PR base branch propagation.\n8. Update the orchestrator docs to describe meta/sub-orchestrator topology and the one-child-per-handoff rule, unless we intentionally add batched child dispatch later.\n\nMy recommendation: do **#30 first or as part of the same PR**, then add orchestrator-to-orchestrator dispatch. Without branch stacking, sub-orchestrators are feasible but will produce awkward parallel PRs against `main` instead of clean staged work.",
+      "createdAt": "2026-04-30T04:20:55Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/51#issuecomment-4349660753",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0pbUA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \nnow that #30 is implemented in #56 , shall we implement this function? \nthe session continuation issue is also related to #58 as well: \nhow to make sure, in the same issue, there could be orchestrate routes with different context? and how to make it visible to users? ",
+      "createdAt": "2026-04-30T06:28:16Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/51#issuecomment-4350171984",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0p4vQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, I think we should implement it now, but I would scope it as **orchestrator chain context + visible child orchestrators**, not just “allow `next_action: orchestrate`”.\n\n#30/#56 removed the main branching blocker: `agent-implement.yml` now accepts `base_branch` / `base_pr`, resolves a base, creates the implementation branch from it, and opens the PR against that base ([workflow inputs](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-implement.yml#L26-L33), [base resolution](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-implement.yml#L171-L199), [PR base](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-implement.yml#L254-L265)). The orchestrator also forwards those base inputs to implementation handoffs ([`agent-orchestrator.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-orchestrator.yml#L49-L56), [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L369-L378)).\n\nThe remaining blocker is exactly #58: a manual `/orchestrate` on a PR starts a new route from current PR state, instead of continuing the issue-originated orchestration context. Current evidence:\n\n- `AgentAction` is still only `implement | review | fix-pr`, so the planner cannot select a child orchestrator as a typed handoff target ([`handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L3-L27)).\n- Manual orchestrate starts bypass planner handoff and use deterministic issue/PR routing ([`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L185-L225), [`#L257-L268`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L257-L268)).\n- Session identity already supports the right primitive: `repo:target_kind:target_number:route:lane` ([`envelope.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/envelope.ts#L92-L100)). So multiple orchestrators on the same issue are feasible if we give them different lanes.\n- The current orchestrator planner lane is hardcoded to `planner` ([`agent-orchestrator.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-orchestrator.yml#L146-L165)), so same-issue different orchestrator contexts are not first-class yet.\n\nRecommended design:\n\n1. Add an explicit `orchestration_chain_id` and `orchestrator_lane` to `agent-orchestrator.yml`.\n2. Default lane stays compatible, e.g. `planner`; child orchestrators use lanes like `planner-meta`, `planner-stage-1`, or `planner-<short-chain-id>`.\n3. Add a visible “orchestration status” comment on the origin issue/PR with a non-hidden summary:\n   - chain id\n   - parent target\n   - current child target\n   - lane/context name\n   - base branch / base PR when relevant\n   - latest dispatched run/action\n4. Keep hidden markers for dedupe, but make the chain summary visible and update it instead of relying only on hidden comments.\n5. Extend planner output to allow an orchestrator handoff, probably as a new typed action like `orchestrate`, with fields:\n   - `target_kind`\n   - `target_number`\n   - `orchestrator_lane`\n   - `handoff_context`\n   - `base_branch` / `base_pr`\n6. Validate this in runtime code, not just prompts: max round budget, downstream route authorization, no self-loop unless explicitly allowed, valid lane name, valid target kind, and idempotent marker key.\n7. Teach manual `/orchestrate` on a PR to detect an existing chain marker linking that PR back to an issue-originated chain. If found, offer/resume that chain context; if not found, start a fresh chain as today.\n8. Add tests for:\n   - same issue, two distinct orchestrator lanes produce different thread keys\n   - PR `/orchestrate` can resume/fork from an issue-originated chain\n   - child orchestrator can dispatch `implement` with `base_pr`\n   - duplicate child orchestrator dispatch is deduped\n   - visible chain status comment is created/updated\n\nSo my answer is: **yes, implement it next**, but I would do #58’s chain/lane visibility first or in the same PR. Otherwise orchestrator-to-orchestrator dispatch will technically work but remain confusing to users because they won’t know which context a later `/orchestrate` is continuing.",
+      "createdAt": "2026-04-30T06:30:03Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/51#issuecomment-4350179517",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0rYrw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> The remaining blocker is exactly https://github.com/self-evolving/repo/issues/58: a manual /orchestrate on a PR starts a new route from current PR state, instead of continuing the issue-originated orchestration context. Current evidence:\n> \n> AgentAction is still only implement | review | fix-pr, so the planner cannot select a child orchestrator as a typed handoff target ([handoff.ts](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L3-L27)).\n> Manual orchestrate starts bypass planner handoff and use deterministic issue/PR routing ([orchestrate-handoff.ts](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L185-L225), [#L257-L268](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L257-L268)).\n> Session identity already supports the right primitive: repo:target_kind:target_number:route:lane ([envelope.ts](https://github.com/self-evolving/repo/blob/main/.agent/src/envelope.ts#L92-L100)). So multiple orchestrators on the same issue are feasible if we give them different lanes.\n> The current orchestrator planner lane is hardcoded to planner ([agent-orchestrator.yml](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-orchestrator.yml#L146-L165)), so same-issue different orchestrator contexts are not first-class yet.\n\n@sepo-agent /answer \n\nI think in my mind, the current orchestrator nesting is the following: \n\n```\nIssue \n-> (meta) orchestrate \n      -> orchestrate-1 \n            -> implement PR / review / fix / ... / DONE\n            -> go back to the issue page, and report to the meta orchestrate  \n      -> orchestrate-2\n            -> ...  \n```\n\nIs this easier to implement ?",
+      "createdAt": "2026-04-30T06:35:24Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/51#issuecomment-4350204079",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0ruFA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I’ll answer this as a design question against the current orchestration model; no code changes. The key distinction is whether the meta-orchestrator owns the issue thread while child orchestrators own separate lanes/targets.Yes. That nesting model is **easier and cleaner** than arbitrary orchestrator-to-orchestrator recursion.\n\nThe important simplification is: keep the **meta orchestrator anchored to the issue**, and treat `orchestrate-1`, `orchestrate-2`, etc. as **child orchestration lanes** with bounded work. Each child can run the existing loop:\n\n```text\nimplement -> review -> fix-pr -> review -> done/stop\n```\n\nThen the child reports completion back to the issue-level meta chain.\n\nRecommended model:\n\n```text\nIssue #N\n-> meta orchestrator\n   lane: meta\n   target: issue #N\n\n   -> child orchestrator 1\n      lane: stage-1\n      target: issue #N or generated sub-issue\n      base_branch/base_pr: optional\n      produces PR #A\n      reports: done / blocked / PR shipped / needs human\n\n   -> child orchestrator 2\n      lane: stage-2\n      target: issue #N or generated sub-issue\n      base_branch/base_pr: PR #A or branch from stage 1\n      produces PR #B\n      reports back\n```\n\nWhy this is easier:\n\n- We do **not** need fully general recursive orchestration immediately.\n- We can reuse the existing session identity primitive: `repo:target_kind:target_number:route:lane`.\n- Same issue, different context becomes natural:\n  - `self-evolving/repo:issue:51:orchestrator:meta`\n  - `self-evolving/repo:issue:51:orchestrator:stage-1`\n  - `self-evolving/repo:issue:51:orchestrator:stage-2`\n- The meta orchestrator can remain the visible coordinator on the issue page.\n- Child orchestrators can be normal bounded chains using today’s implement/review/fix-pr machinery.\n- #30/#56 now provides the missing stacked PR mechanism, so `stage-2` can stack on `stage-1`.\n\nThe main implementation should be **meta/child orchestration state**, not just “allow `next_action=orchestrate`”.\n\nConcrete implementation shape:\n\n1. Add `orchestration_chain_id`, `orchestrator_lane`, `parent_orchestrator_lane`, and `orchestrator_context` inputs to `agent-orchestrator.yml`.\n2. Make planner lane configurable instead of hardcoded `planner`.\n3. Add a visible issue comment like:\n\n   ```text\n   Orchestration chain: #51 / meta\n   - stage-1: running, target PR #A\n   - stage-2: pending, base PR #A\n   - latest: stage-1 review passed\n   ```\n\n4. Keep hidden dedupe markers for dispatch safety, but use the visible comment for user-facing state.\n5. Let the meta orchestrator dispatch exactly one child at a time at first.\n6. When a child reaches `SHIP`, `blocked`, max rounds, or failure, dispatch the meta orchestrator again with the child result.\n7. Add `base_branch` / `base_pr` propagation from meta to child implement runs.\n\nFor #58 specifically: a later manual `/orchestrate` on PR #A should be able to find the visible/hidden chain marker saying “PR #A belongs to issue #51, chain X, lane stage-1” and either:\n\n- resume `stage-1`, or\n- ask/start a new lane if the user’s request clearly starts a different context.\n\nSo yes, your model is the one I would implement. It gives us nesting without uncontrolled recursion, preserves clear session boundaries, and makes the state visible to users on the issue page.",
+      "createdAt": "2026-04-30T06:36:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/51#issuecomment-4350209556",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0sZ7Q",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate implement this idea. ",
+      "createdAt": "2026-04-30T06:38:49Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/51#issuecomment-4350220781",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0slBA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `orchestrate` -> `implement` (round 2/10).\n\nmanual orchestrate start on issue; dispatching implement\n\n<!-- sepo-agent-handoff state:dispatched created:1777531168214 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxNTEyNDM1MzY6b3JjaGVzdHJhdGU6NTE6aW1wbGVtZW50OjUxOjI -->",
+      "createdAt": "2026-04-30T06:39:26Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/51#issuecomment-4350223620",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0ujlQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-51/codex-25151263881`\n- Pull request: https://github.com/self-evolving/repo/pull/61\n\nImplemented meta-to-child orchestrator handoffs by adding `orchestrate` as a validated planner action, configurable orchestrator lanes and chain inputs, child dispatch through `agent-orchestrator.yml`, lane propagation through implement/review/fix-pr handbacks, prompt/docs updates, and regression coverage. Verification: `npm test` passed.",
+      "createdAt": "2026-04-30T06:46:06Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/51#issuecomment-4350256021",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-04-30T04:18:56Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 51,
+  "state": "OPEN",
+  "title": "Orchestrator to dispatch to another orchestrator",
+  "updatedAt": "2026-04-30T06:46:06Z",
+  "url": "https://github.com/self-evolving/repo/issues/51"
+}

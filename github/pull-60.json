@@ -1,0 +1,227 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Collapse older same-agent orchestrator handoff marker comments after a successful dispatch.\n- Reuse the existing generated-comment minimizer and AGENT_COLLAPSE_OLD_REVIEWS toggle.\n- Update orchestrator workflow env, docs, and focused regression tests.\n\n## Verification\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/review-summary-minimize.test.js .agent/dist/__tests__/orchestrate-handoff-cli.test.js .agent/dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nCloses #59\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0uvpg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `implement` -> `review` (round 3/10).\n\nagent planner selected review: Implementation succeeded and produced PR #60 for issue #59; no review synthesis exists yet, so an automated review is the appropriate next action.\n\n<!-- sepo-agent-handoff state:dispatched created:1777531597938 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxNTEzMzQwNDk6aW1wbGVtZW50OjU5OnJldmlldzo2MDoz -->",
+      "createdAt": "2026-04-30T06:46:36Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/60#issuecomment-4350259110",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0vN2w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Reuses `.agent/src/review-summary-minimize.ts` and extends the existing minimization path instead of creating separate workflow glue. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates supported workflows, configuration list, and orchestrator technical docs for handoff comment cleanup and `AGENT_COLLAPSE_OLD_REVIEWS`. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR closes #59, whose accepted plan explicitly referenced #57/#11 and the existing cleanup helper; implementation follows that plan. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are limited to orchestrator handoff cleanup, the shared minimizer, focused tests, workflow env wiring, and matching docs. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Adds a small handoff marker matcher plus issue/PR comment minimization reuse; no new subsystem or complex configuration. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Cleanup failure is surfaced with a warning while preserving successful dispatch; regression test covers the non-blocking failure path. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | Docs update behavior descriptions only; no stale-prone per-file inventory table was added. |\n\n## Notes\n\n- The strongest rubric alignment is reuse: the PR generalizes the existing generated-comment minimizer and gates handoff cleanup with the existing `AGENT_COLLAPSE_OLD_REVIEWS` toggle.\n- Focused tests cover issue handoff cleanup, PR target cleanup, toggle-off behavior, current marker exclusion, and cleanup failure after dispatch.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific violations found.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-04-30T06:47:51Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/60#issuecomment-4350266843",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0weuA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #60 addresses issue #59 by collapsing older orchestrator handoff marker comments after a successful dispatch.\n- The implementation reuses the existing generated-comment minimization path and extends `AGENT_COLLAPSE_OLD_REVIEWS` to cover orchestrator handoff comments.\n- It updates workflow env wiring, docs, and focused tests for issue/PR handoff comment cleanup, disabled cleanup, and non-blocking cleanup failure.\n- The broader goal is to keep the newest agent status visible without leaving prior generated handoff comments prominent.\n\n## Review\n- Overall, the PR is close and follows the requested design, but one edge case can hide an active or newer handoff marker on the same target.\n- I posted one inline comment on `.agent/src/review-summary-minimize.ts` line 322 for the concrete issue.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Cleanup can minimize active/non-previous handoff markers | WARNING | The cleanup excludes only the current marker ID, while the matcher accepts `pending`, `failed`, and `dispatched` markers. A concurrent or newer same-agent handoff on the same target could be minimized as outdated even if it is still active. |\n\n## Progress\n- Rubrics review passed with no rubric-specific violations.\n- Review verification reported passing `npm --prefix .agent run build`, targeted `node --test` coverage, and `git diff --check`.\n- Existing PR discussion did not already cover the active-marker cleanup edge case, so an inline comment was posted.\n\n## Issue Details\n\n<details>\n<summary>Cleanup can minimize active/non-previous handoff markers</summary>\n\n**Cause:** `collapsePreviousHandoffComments` uses a broad handoff marker matcher, then filters out only `excludeCommentId`. Because the matcher accepts `pending`, `failed`, and `dispatched`, any other same-agent marker on the target can be minimized without checking whether it is actually older or inactive.\n\n**Candidate solutions:** Parse marker `state` and `createdAt` and minimize only markers older than the current marker, or at minimum skip `pending` markers so active orchestration status remains visible. Add focused regression coverage for a pending or newer handoff marker on the same target.\n\n**Comments:** Normal sequential handoffs should work, but this behavior is broader than the documented “older/previous” cleanup contract.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: The remaining issue is a concrete branch change with a narrow testable fix, suitable for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Restrict handoff cleanup so it does not minimize pending or newer/non-previous handoff markers on the same target.",
+      "createdAt": "2026-04-30T06:51:44Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/60#issuecomment-4350287544",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0wv3Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `review` -> `fix-pr` (round 4/10).\n\nagent planner selected fix-pr: Latest review synthesis recommends FIX_PR for a concrete MINOR_ISSUES finding: handoff cleanup can minimize pending or newer same-agent markers on the same target.\n\n<!-- sepo-agent-handoff state:dispatched created:1777531956752 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxNTE1MTQzNDk6cmV2aWV3OjYwOmZpeF9wcjo2MDo0 -->",
+      "createdAt": "2026-04-30T06:52:35Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/60#issuecomment-4350291933",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0xiRA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-59/codex-25151334049`. Requested by @sepo-agent.\n\n- Restricted orchestrator handoff cleanup to skip pending markers and only collapse markers older than the current handoff when a current timestamp is available.\n- Preserved the current handoff marker creation timestamp through the dispatched update and passed it into cleanup.\n- Added focused regression coverage for pending and newer same-target handoff markers.\n- Verification passed: `npm --prefix .agent run build`, targeted `node --test ...`, and `git diff --check`.",
+      "createdAt": "2026-04-30T06:55:09Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/60#issuecomment-4350304836",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0x2dQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `fix-pr` -> `review` (round 5/10).\n\nagent planner selected review: fix-pr succeeded after the latest review synthesis recommended FIX_PR for a concrete MINOR_ISSUES finding; a follow-up automated review is warranted to verify the branch change.\n\n<!-- sepo-agent-handoff state:dispatched created:1777532167425 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxNTE3MjY0OTY6Zml4X3ByOjYwOnJldmlldzo2MDo1 -->",
+      "createdAt": "2026-04-30T06:56:05Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/60#issuecomment-4350310005",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0yiMw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Reuses and extends the existing generated-comment minimizer in [review-summary-minimize.ts](https://github.com/self-evolving/repo/blob/b2a2820d347ce312c9d2c9f6747becf9914d06eb/.agent/src/review-summary-minimize.ts) instead of adding separate workflow-only cleanup logic. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates supported workflows, configuration docs, and orchestrator technical docs for orchestrator handoff cleanup and `AGENT_COLLAPSE_OLD_REVIEWS`. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR closes #59, whose plan explicitly referenced #57/#11 and asked to reuse the existing cleanup pattern; the implementation follows that accepted plan. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is limited to handoff marker parsing, minimizer reuse, orchestrator env/CLI wiring, focused tests, and related docs. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Adds a small handoff-marker matcher and cleanup filter using existing GraphQL minimization helpers; no new subsystem or broad configuration surface. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Cleanup failures are logged as warnings without persisting a misleading clean state or blocking successful dispatch; regression coverage checks this path. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | Documentation describes behavior and configuration only; it does not add stale-prone per-file inventory tables. |\n\n## Notes\n\n- The PR aligns strongly with the selected rubrics: it follows the linked issue plan, reuses existing minimization infrastructure, keeps docs updated, and adds focused regression tests.\n- The prior review warning about minimizing pending or newer handoff markers appears addressed in the current diff by skipping `pending` markers and comparing marker creation timestamps.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific violations found.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-04-30T06:58:08Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/60#issuecomment-4350321203",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0zAWA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #60 addresses issue #59 by collapsing older orchestrator handoff marker comments after a successful dispatch.\n- It reuses the existing generated-comment minimization path and extends `AGENT_COLLAPSE_OLD_REVIEWS` to cover orchestrator handoff comments.\n- The PR also updates workflow env wiring, docs, and focused tests for issue/PR cleanup, disabled cleanup, and non-blocking cleanup failure.\n- A prior review warning about minimizing active or newer handoff markers was followed by a fix-pr pass.\n\n## Review\nThe current reviewer inputs agree that the PR is ready. The earlier active-marker concern appears resolved by skipping `pending` markers and only minimizing markers older than the current handoff timestamp.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues | INFO | The current review and rubrics review found no remaining blocking, warning, or required branch-change issues. |\n\n## Progress\n- Earlier synthesis flagged that cleanup could minimize pending or newer same-agent handoff markers.\n- A fix-pr pass updated the branch to skip pending markers and compare marker creation timestamps.\n- The latest Codex review reports `npm --prefix .agent run build`, targeted `node --test`, and `git diff --check` all passed.\n- Rubrics review passed, including reuse of existing code, docs kept in sync, surgical scope, and surfaced cleanup failures.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: No unresolved actionable branch changes remain from the available reviews.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-04-30T06:59:26Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/60#issuecomment-4350328920",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-04-30T06:45:42Z",
+  "files": [
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 7,
+      "deletions": 6,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/agent-orchestrator.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 3,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrate-handoff-cli.test.ts",
+      "additions": 77,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/review-summary-minimize.test.ts",
+      "additions": 103,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrate-handoff.ts",
+      "additions": 36,
+      "deletions": 10,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/handoff.ts",
+      "additions": 22,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/review-summary-minimize.ts",
+      "additions": 148,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-orchestrator.yml",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-59/codex-25151334049",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 60,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM76hMO9",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-04-30T06:51:23Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "3f3a4df5d30e3787ac5c4d83a1ca13f0f067dcaa"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Collapse old orchestrator handoff comments",
+  "updatedAt": "2026-04-30T06:59:26Z",
+  "url": "https://github.com/self-evolving/repo/pull/60"
+}

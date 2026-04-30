@@ -1,0 +1,221 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Add `Agent / Onboarding / Check Setup` for first-run setup checks.\n- Create built-in `agent/*` trigger labels and maintain one `Sepo setup check` issue/comment.\n- Document the onboarding flow in the README and setup docs.\n\n## Verification\n- `npm --prefix .agent test`\n- `ruby -e 'require \"yaml\"; Dir[\".github/workflows/*.yml\"].sort.each { |file| YAML.load_file(file) }'`\n\nCloses #23\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0w4Iw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `implement` -> `review` (round 3/10).\n\nagent planner selected review: Implementation succeeded and produced PR #62 for issue #23; an automated review is the appropriate next step before merge.\n\n<!-- sepo-agent-handoff state:dispatched created:1777531983099 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxNTE1MzEwMzU6aW1wbGVtZW50OjIzOnJldmlldzo2Mjoz -->",
+      "createdAt": "2026-04-30T06:53:01Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/62#issuecomment-4350294051",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0xTqw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR closes #23, whose discussion requested a first-run onboarding issue, setup status, next steps, and copyable commands; the diff implements that shape in `.github/workflows/agent-onboarding.yml` and `.agent/src/onboarding.ts`. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The CLI reuses existing `.agent/src/github.ts` helpers: `createIssue`, `ensureLabel`, `gh`, and `postIssueComment`, and the workflow reuses shared `resolve-github-auth`, `resolve-agent-provider`, and `setup-agent-runtime` actions. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | README, quick start, install docs, and supported workflows docs were updated to describe `Agent / Onboarding / Check Setup`, trigger label creation, and the setup issue. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The new workflow exposes separate typed `memory_ref` and `rubrics_ref` inputs instead of overloading one string, and the CLI consumes explicit env fields for auth/provider/ref status. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is scoped to onboarding: one workflow, onboarding CLI/module, trigger-label constants, tests, and directly related documentation. No broad refactors or unrelated formatting churn are visible. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation is straightforward: ensure labels, check branch refs, find/create one setup issue, then post or patch one marker comment. No extra orchestration or unnecessary abstraction was added. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | Documentation additions describe the onboarding workflow behavior and update existing workflow/setup sections; they do not introduce per-file inventory tables. |\n\n## Notes\n\n- The strongest rubric alignment is reuse and docs sync: PR #62 follows the plan in issue #23 by keeping workflow glue thin and putting the GitHub mutation logic in typed `.agent/src` modules with focused CLI tests.\n- Authorization and orchestrator follow-up rubrics were not scored because this PR does not change route delegation, downstream authorization checks, or follow-up orchestration behavior. It only creates labels that existing label routing will later process.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings. The PR satisfies the applicable selected rubrics.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-04-30T06:54:24Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/62#issuecomment-4350301099",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0zJ2Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #62 adds a first-run `Agent / Onboarding / Check Setup` workflow for Sepo installs. It creates built-in `agent/*` trigger labels, checks auth/provider/memory/rubrics readiness, and opens or updates a single `Sepo setup check` issue with copyable test commands. This addresses issue #23’s request to make initial setup more visible and practical after installation. The implementation keeps workflow glue thin and puts most GitHub mutation logic in typed `.agent/src` code with tests and docs updates.\n\n## Review\nOverall, the PR is close and matches the requested onboarding direction. One workflow default issue can make repository-configured branch refs unreachable, so it should be fixed before merge.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Workflow defaults make configured branch refs unreachable | WARNING | `workflow_dispatch` input defaults make `inputs.memory_ref` and `inputs.rubrics_ref` non-empty, so the `vars.AGENT_MEMORY_REF` / `vars.AGENT_RUBRICS_REF` fallbacks are effectively dead. |\n| Built-in trigger labels have two sources of truth | INFO | `BUILT_IN_TRIGGER_LABELS` duplicates route knowledge from `resolveRequestedLabel()`, which could drift when routes change. |\n\n## Progress\n- Rubrics review passed and found the PR aligned with reuse, docs sync, surgical changes, and structured-input expectations.\n- The implementation already includes docs updates and focused CLI tests.\n- One inline comment was posted on `.github/workflows/agent-onboarding.yml` line 28 for the workflow default issue.\n- No existing inline comments duplicated this finding.\n\n## Issue Details\n\n<details>\n<summary>Workflow defaults make configured branch refs unreachable</summary>\n\n**Cause:** The workflow defines defaults for `memory_ref` and `rubrics_ref`, then later tries to fall back to repository vars with `${{ inputs.memory_ref || vars.AGENT_MEMORY_REF || 'agent/memory' }}`. On normal manual dispatches, the input defaults are already populated, so repository vars are skipped.\n\n**Candidate solutions:** Remove the input defaults so repository vars can apply, or remove the vars fallback and document that these refs are controlled only by explicit dispatch inputs.\n\n**Comments:** This affects repositories that customize memory or rubrics branch names through vars; the setup issue could report the wrong branch status.\n\n</details>\n\n<details>\n<summary>Built-in trigger labels have two sources of truth</summary>\n\n**Cause:** `.agent/src/trigger-labels.ts` defines built-in labels separately from the router logic in `triage.ts`.\n\n**Candidate solutions:** Share one built-in route/label map with the resolver, or add a focused test proving every `BUILT_IN_TRIGGER_LABELS` entry resolves through `resolveRequestedLabel()`.\n\n**Comments:** This is not blocking for the current PR because the list appears aligned now, but it is a drift risk.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the workflow default issue is concrete, small, and safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Fix `.github/workflows/agent-onboarding.yml` so repository vars for `AGENT_MEMORY_REF` and `AGENT_RUBRICS_REF` are reachable, or remove/document the vars fallback behavior.",
+      "createdAt": "2026-04-30T06:59:53Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/62#issuecomment-4350331353",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0zb8g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `review` -> `fix-pr` (round 4/10).\n\nagent planner selected fix-pr: Review synthesis recommends FIX_PR and the remaining blocking item is a concrete, small workflow bug: dispatch input defaults make AGENT_MEMORY_REF and AGENT_RUBRICS_REF vars unreachable.\n\n<!-- sepo-agent-handoff state:dispatched created:1777532448272 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxNTE3NDI0MzI6cmV2aWV3OjYyOmZpeF9wcjo2Mjo0 -->",
+      "createdAt": "2026-04-30T07:00:46Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/62#issuecomment-4350335986",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0z7Mg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-23/codex-25151531035`. Requested by @sepo-agent.\n\n- Removed `workflow_dispatch` defaults for `memory_ref` and `rubrics_ref` in `.github/workflows/agent-onboarding.yml` so repo vars `AGENT_MEMORY_REF` and `AGENT_RUBRICS_REF` can take effect.\n- Preserved the existing expression fallbacks to `agent/memory` and `agent/rubrics`.\n- Verified with YAML parsing and `npm --prefix .agent test` (415 tests passed).",
+      "createdAt": "2026-04-30T07:02:14Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/62#issuecomment-4350343986",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA00PBg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `fix-pr` -> `review` (round 5/10).\n\nagent planner selected review: fix-pr succeeded after the prior review recommended FIX_PR; PR #62 now has a new commit removing onboarding workflow dispatch defaults so repository ref vars should be reachable. A fresh automated review is warranted to verify the fix and reassess remaining issues before stopping.\n\n<!-- sepo-agent-handoff state:dispatched created:1777532593145 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxNTIwMjE2MzI6Zml4X3ByOjYyOnJldmlldzo2Mjo1 -->",
+      "createdAt": "2026-04-30T07:03:11Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/62#issuecomment-4350349062",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA00ymg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR closes #23, which requested first-run setup checks, missing configuration status, next steps, and copyable commands; the diff implements that onboarding flow. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The workflow reuses existing local actions for auth/provider/runtime setup, and `.agent/src/onboarding.ts` reuses `ensureLabel`, `createIssue`, `gh`, and `postIssueComment` from `.agent/src/github.ts`. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | README, quick start, install docs, and supported workflow docs were updated for `Agent / Onboarding / Check Setup`, trigger labels, and the setup issue behavior. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The workflow exposes separate `memory_ref` and `rubrics_ref` inputs, with separate `MEMORY_REF` and `RUBRICS_REF` env fields and clear fallbacks to repo vars/default branches. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are scoped to onboarding setup: one workflow, one CLI/module, trigger-label metadata, focused tests, and directly related docs. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation is direct and idempotent: ensure labels, check branches, find/create one setup issue, then post or patch one marker comment. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | Documentation additions describe setup behavior and update existing workflow docs without adding a new per-file inventory table. |\n\n## Notes\n\n- The earlier workflow default issue has been fixed in the current PR diff: `memory_ref` and `rubrics_ref` no longer define dispatch defaults, so `vars.AGENT_MEMORY_REF` and `vars.AGENT_RUBRICS_REF` remain reachable.\n- Authorization delegation, follow-up orchestration defaults, preview contracts, merge strategy, and workflow-stop comment rubrics were not scored because this PR does not change those behaviors.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings. The current PR satisfies the applicable selected rubrics.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-04-30T07:04:53Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/62#issuecomment-4350358170",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA01lCg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #62 adds a first-run `Agent / Onboarding / Check Setup` workflow for Sepo installs.\n- It creates built-in `agent/*` trigger labels, checks auth/provider/memory/rubrics readiness, and opens or updates a single `Sepo setup check` issue with copyable commands.\n- The PR addresses issue #23’s onboarding request: make setup state visible, create missing trigger labels, and give new users clear next steps.\n- The current head includes the follow-up fix that removed `workflow_dispatch` defaults so repository ref vars remain reachable.\n\n## Review\nThe current PR is in good shape. The previously identified workflow-default issue is fixed, tests and docs are in place, and the only remaining note is a non-blocking drift risk around duplicated route-label metadata.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Built-in trigger labels have a second route map | INFO | `BUILT_IN_TRIGGER_LABELS` duplicates built-in routing knowledge from `resolveRequestedLabel()`. The lists are aligned today, but a future route change could update one side without the other. |\n\n## Progress\n- The earlier `memory_ref` / `rubrics_ref` default issue has been fixed in the current PR head.\n- Rubrics review passed with no remaining rubric-specific findings.\n- Existing discussion already covers the prior workflow-default finding and the non-blocking trigger-label drift note, so no new inline comments were posted.\n- Reviewer verification reported `npm --prefix .agent test` passing with 415 tests after installing `.agent` dependencies.\n\n## Issue Details\n\n<details>\n<summary>Built-in trigger labels have a second route map</summary>\n\n**Cause:** `.agent/src/trigger-labels.ts` defines built-in labels separately from the router logic in `.agent/src/triage.ts` via `resolveRequestedLabel()`.\n\n**Candidate solutions:** Derive both onboarding labels and route resolution from a shared built-in label map, or add a focused regression test proving each `BUILT_IN_TRIGGER_LABELS` entry resolves through `resolveRequestedLabel()`.\n\n**Comments:** This is not blocking because the current labels appear aligned and this is a future drift risk, not a current behavior bug.\n\n</details>\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: there is no required branch-change work remaining; the only note is optional maintainability hardening.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change action items.",
+      "createdAt": "2026-04-30T07:07:18Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/62#issuecomment-4350371082",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-04-30T06:52:19Z",
+  "files": [
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 7,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/deployment/install-existing-repository.md",
+      "additions": 9,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/overview/quick-start.md",
+      "additions": 5,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/onboarding-check-cli.test.ts",
+      "additions": 139,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/onboarding-check.ts",
+      "additions": 37,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/onboarding.ts",
+      "additions": 184,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/trigger-labels.ts",
+      "additions": 45,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/workflows/agent-onboarding.yml",
+      "additions": 69,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": "README.md",
+      "additions": 4,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-23/codex-25151531035",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 62,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM76hYol",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-04-30T06:59:34Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "1fedc1730525128cbd545155c9da576c95a73052"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Add first-run onboarding setup workflow",
+  "updatedAt": "2026-04-30T07:07:18Z",
+  "url": "https://github.com/self-evolving/repo/pull/62"
+}

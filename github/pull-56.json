@@ -1,0 +1,546 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Add `base_branch` and `base_pr` inputs for implementation runs.\n- Resolve implementation bases with validation, same-repo open PR head lookup, and clear ambiguous-input failures.\n- Forward stacked base inputs through implement and orchestrator dispatch paths.\n- Document stacked PR behavior and add focused regression coverage.\n\n## Verification\n- `npm test`\n- `npm run build && node --test dist/__tests__/envelope.test.js dist/__tests__/implementation-base.test.js dist/__tests__/dispatch-agent-implement-cli.test.js dist/__tests__/orchestrate-handoff-cli.test.js`\n\nCloses #30\n",
+  "closedAt": "2026-04-30T06:23:28Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0SWUA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `implement` -> `review` (round 3/10).\n\nagent planner selected review: Implementation succeeded and produced PR #56 for issue #30; no review has run yet, so an automated review is the useful next step.\n\n<!-- sepo-agent-handoff state:dispatched created:1777524800686 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxNDc5MDU2MDc6aW1wbGVtZW50OjMwOnJldmlldzo1Njoz -->",
+      "createdAt": "2026-04-30T04:53:18Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/56#issuecomment-4349793872",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0Sq0g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 6 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Orchestrator handoff keeps `requested_by` in shared inputs and forwards only structured `base_branch`/`base_pr` inputs to `agent-implement.yml`; no broader delegated route is introduced. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is limited to stacked implementation bases: implement/orchestrator workflow inputs, dispatch plumbing, one resolver helper/CLI, focused tests, and matching docs. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | `resolveImplementationBase()` reuses existing `fetchPrMeta()` and workflow dispatch helpers instead of embedding GitHub API logic in shell. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates `.agent/docs/actions/agent-actions.md`, `.agent/docs/architecture/supported-workflows.md`, and `.agent/docs/technical-details/agent-orchestrator.md` to describe `base_branch`/`base_pr` behavior. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR implements the explicit contract agreed in issue #30, including the linked #51 need for stacked branches before broader orchestrator-to-orchestrator work. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation uses two explicit inputs, a small typed resolver, early validation, and existing workflow wiring rather than a mini-language inside `base_branch`. |\n\n## Notes\n\n- The highest-signal positives are the explicit input contract, early ambiguous-input failure, same-repo/open PR validation, and docs/tests covering the new behavior.\n- Rubrics about preview contracts, workflow stops, merge strategy, rubric authoring, and per-file doc inventories were not scored because this PR does not materially exercise those behaviors.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-04-30T04:54:42Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/56#issuecomment-4349799122",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0TM9w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #56 adds support for stacked implementation PRs.\n- It introduces explicit `base_branch` and `base_pr` inputs so implementation runs can branch from another branch or from an open same-repository PR head.\n- This implements the contract discussed in issue #30 and supports the broader stacked-orchestration direction referenced from #51.\n- The implementation updates workflow wiring, typed helper code, tests, and relevant `.agent` docs.\n\n## Review\nThe design is sound and matches the agreed contract, but one workflow regression blocks shipping. The new fetch path can fail in private repositories because it runs after checkout credentials have been disabled.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Unauthenticated base branch fetch | BLOCKING | `.github/workflows/agent-implement.yml` now runs `git fetch origin \"refs/heads/${BASE_BRANCH}\"` after `actions/checkout` uses `persist-credentials: false`, so private repository fetches can fail even for default-branch implementations. |\n| Missing rejection coverage for unsafe `base_pr` states | WARNING | Production code rejects closed and cross-repository `base_pr` values, but focused tests only cover happy-path PR resolution plus syntax/ambiguity validation. |\n| Rubric and design checks pass | INFO | The PR keeps the input contract explicit, reuses typed helpers, updates docs, and avoids a mini-language inside `base_branch`. |\n\n## Progress\n- Existing PR discussion already confirms the intended `base_branch`/`base_pr` contract.\n- Rubrics review passed with no rubric-specific required follow-up.\n- I posted one inline comment for the blocking fetch issue at `.github/workflows/agent-implement.yml:195`.\n- No existing inline comments duplicated that blocker before posting.\n\n## Issue Details\n\n<details>\n<summary>Unauthenticated base branch fetch</summary>\n\n**Cause:** The workflow resolves `BASE_BRANCH`, then fetches it with plain `git fetch origin \"refs/heads/${BASE_BRANCH}\"`. Because checkout uses `persist-credentials: false`, the remote does not retain credentials for this later fetch.\n\n**Candidate solutions:** Fetch using the resolved GitHub token, for example with a scoped `http.extraheader`/credentialed fetch, or otherwise provide credentials only for this fetch while preserving the safer push behavior.\n\n**Comments:** This is a regression for private repository installs and affects the default-branch case too because the new fetch always runs before branch creation.\n\n</details>\n\n<details>\n<summary>Missing rejection coverage for unsafe `base_pr` states</summary>\n\n**Cause:** `resolveImplementationBase()` rejects fork PRs and closed PRs, but tests do not currently lock those failure modes down.\n\n**Candidate solutions:** Add focused tests in `.agent/src/__tests__/implementation-base.test.ts` for `isCrossRepository: true` and non-`OPEN` PR states.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the unresolved blocker and test gap both require concrete branch changes and are safe for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Make the implementation-base fetch credentialed for private repositories while preserving safe push behavior.\n- [ ] Add regression tests for closed `base_pr` rejection and cross-repository `base_pr` rejection.",
+      "createdAt": "2026-04-30T04:57:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/56#issuecomment-4349807863",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0TWYA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `review` -> `fix-pr` (round 4/10).\n\nagent planner selected fix-pr: Latest review synthesis recommends FIX_PR for NEEDS_REWORK: one blocking workflow regression plus a focused test gap remain and are safe for automated changes.\n\n<!-- sepo-agent-handoff state:dispatched created:1777525064969 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxNDgwODczOTc6cmV2aWV3OjU2OmZpeF9wcjo1Njo0 -->",
+      "createdAt": "2026-04-30T04:57:43Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/56#issuecomment-4349810272",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0Ty1Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-30/codex-25147905607`. Requested by @sepo-agent.\n\n- Fixed `.github/workflows/agent-implement.yml` so base branch fetches use the resolved GitHub token for private repos without persisting checkout credentials.\n- Added focused regression coverage for rejecting cross-repository and closed `base_pr` values.\n- Updated the workflow envelope assertion for the credentialed fetch path.\n\n<details><summary>Verification</summary>\n\n- `npm run build && node --test dist/__tests__/implementation-base.test.js dist/__tests__/envelope.test.js`\n\n</details>",
+      "createdAt": "2026-04-30T04:59:42Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/56#issuecomment-4349817557",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0T-1g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `fix-pr` -> `review` (round 5/10).\n\nagent planner selected review: fix-pr succeeded after the prior NEEDS_REWORK review; another automated review is warranted to verify the credentialed fetch fix and added base_pr rejection coverage.\n\n<!-- sepo-agent-handoff state:dispatched created:1777525227380 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxNDgyMDE2MDQ6Zml4X3ByOjU2OnJldmlldzo1Njo1 -->",
+      "createdAt": "2026-04-30T05:00:25Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/56#issuecomment-4349820630",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0UTRQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 6 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Orchestrator and implement dispatch plumbing preserves `requested_by` while only forwarding explicit `base_branch`/`base_pr` inputs; no broader delegated route is introduced. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is scoped to stacked implementation bases: workflow inputs, dispatch forwarding, one resolver helper/CLI, focused tests, and matching docs. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | [`implementation-base.ts`](https://github.com/self-evolving/repo/blob/99cbb27c6308d7ff2c8b300f18b06a937bf93c1e/.agent/src/implementation-base.ts) reuses existing `fetchPrMeta()` and output helpers instead of embedding GitHub API parsing in workflow shell. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates [`agent-actions.md`](https://github.com/self-evolving/repo/blob/99cbb27c6308d7ff2c8b300f18b06a937bf93c1e/.agent/docs/actions/agent-actions.md), [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/99cbb27c6308d7ff2c8b300f18b06a937bf93c1e/.agent/docs/architecture/supported-workflows.md), and [`agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/99cbb27c6308d7ff2c8b300f18b06a937bf93c1e/.agent/docs/technical-details/agent-orchestrator.md) for stacked PR behavior. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The PR implements the explicit #30 discussion contract: separate `base_branch` and `base_pr`, reject ambiguity, reject fork/closed base PRs, and support #51’s stacked-branch prerequisite. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation uses two typed inputs, a small resolver, early validation, and existing workflow dispatch helpers rather than overloading `base_branch` with a mini-language. |\n\n## Notes\n\n- The earlier private-repo fetch blocker has been addressed in the current diff: [`agent-implement.yml`](https://github.com/self-evolving/repo/blob/99cbb27c6308d7ff2c8b300f18b06a937bf93c1e/.github/workflows/agent-implement.yml) now fetches the resolved base branch with a token-scoped `http.extraheader` while keeping checkout credentials non-persistent.\n- The focused regression gap called out earlier is also covered: [`implementation-base.test.ts`](https://github.com/self-evolving/repo/blob/99cbb27c6308d7ff2c8b300f18b06a937bf93c1e/.agent/src/__tests__/implementation-base.test.ts) includes cross-repository and non-open `base_pr` rejection cases.\n- Rubrics for preview contracts, workflow stops, merge strategy, rubric authoring, and per-file doc inventories were not scored because this PR does not materially exercise those behaviors.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-04-30T05:01:39Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/56#issuecomment-4349825861",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0U5rQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #56 adds stacked implementation PR support for issue #30.\n- It introduces explicit `base_branch` and `base_pr` inputs so implementation runs can branch from another branch or from an open same-repository PR head.\n- This supports the broader stacked-orchestration direction referenced from #51 while keeping the workflow contract typed and explicit.\n- The PR updates workflow wiring, typed helper code, dispatch plumbing, tests, and relevant `.agent` documentation.\n\n## Review\nThe current head looks ready to ship. The prior blocking private-repo fetch issue and missing rejection coverage have both been addressed, and the independent reviews agree there are no remaining blocking or warning findings.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | Current review artifacts report SHIP/PASS. The implementation matches the agreed `base_branch` / `base_pr` contract and includes focused regression coverage. |\n\n## Progress\n- Earlier review identified an unauthenticated base-branch fetch blocker and missing closed/fork `base_pr` rejection tests.\n- The fix-pr pass updated `agent-implement.yml` to fetch with a token-scoped `http.extraheader`.\n- Regression tests now cover cross-repository and non-open `base_pr` rejection.\n- Rubrics review passes with no rubric-specific follow-up.\n- No new inline comments were posted because there are no current file/line-specific actionable findings.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved actionable work remains for an automated fix-pr pass.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change action items remain.",
+      "createdAt": "2026-04-30T05:04:22Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/56#issuecomment-4349835693",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0Vtzg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "If that base branch not set then it's by default main right? Which line of code?\n@sepo-agent /answer",
+      "createdAt": "2026-04-30T05:08:09Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/56#issuecomment-4349849038",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0WClQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, but more precisely: it defaults to the repo’s default branch, which is currently `main`.\n\nThe fallback is here:\n\n- [`implementation-base.ts` lines 89-91](https://github.com/self-evolving/repo/blob/99cbb27c6308d7ff2c8b300f18b06a937bf93c1e/.agent/src/implementation-base.ts#L89-L91)\n\n```ts\nreturn {\n  baseBranch: defaultBranch,\n  source: \"default_branch\",\n};\n```\n\nThat `defaultBranch` comes from the workflow here:\n\n- [`agent-implement.yml` line 176](https://github.com/self-evolving/repo/blob/99cbb27c6308d7ff2c8b300f18b06a937bf93c1e/.github/workflows/agent-implement.yml#L176)\n\n```yaml\nDEFAULT_BRANCH: ${{ github.event.repository.default_branch }}\n```\n\nSo if neither `base_branch` nor `base_pr` is set, it uses `github.event.repository.default_branch`, not a hardcoded `main`.",
+      "createdAt": "2026-04-30T05:09:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/56#issuecomment-4349854357",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0d0Hg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer check my last code review comment about delim ",
+      "createdAt": "2026-04-30T05:43:35Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/56#issuecomment-4349981726",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0eNHw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "That `delim` is the heredoc delimiter used when writing a value into GitHub Actions’ `$GITHUB_ENV`.\n\nIn this line:\n\n[`implementation-base.ts#L100`](https://github.com/self-evolving/repo/blob/99cbb27c6308d7ff2c8b300f18b06a937bf93c1e/.agent/src/implementation-base.ts#L100)\n\n```ts\nconst delim = `DELIM_${randomBytes(8).toString(\"hex\")}`;\n```\n\nit creates a random marker like `DELIM_a1b2c3d4...`, then this line writes:\n\n[`implementation-base.ts#L101`](https://github.com/self-evolving/repo/blob/99cbb27c6308d7ff2c8b300f18b06a937bf93c1e/.agent/src/implementation-base.ts#L101)\n\n```ts\nappendFileSync(envFile, `${name}<<${delim}\\n${value}\\n${delim}\\n`);\n```\n\nThat is GitHub Actions syntax for setting env vars safely, especially if the value could contain newlines:\n\n```text\nBASE_BRANCH<<DELIM_xxx\nsome-value\nDELIM_xxx\n```\n\nHere it sets `BASE_BRANCH` for later workflow steps. The same pattern already exists for outputs in [`output.ts#L17-L18`](https://github.com/self-evolving/repo/blob/99cbb27c6308d7ff2c8b300f18b06a937bf93c1e/.agent/src/output.ts#L17-L18). For branch names specifically, values are validated as single-line, so this is conservative but consistent.",
+      "createdAt": "2026-04-30T05:45:17Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/56#issuecomment-4349988127",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0empw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate firstly fix merge conflicts then launch a review agent ",
+      "createdAt": "2026-04-30T05:46:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/56#issuecomment-4349994663",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0ewwA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `orchestrate` -> `review` (round 2/10).\n\nmanual orchestrate start on PR; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777528051294 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxNDk1OTY2ODg6b3JjaGVzdHJhdGU6NTY6cmV2aWV3OjU2OjI -->",
+      "createdAt": "2026-04-30T05:47:29Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/56#issuecomment-4349997248",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0fBgQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Orchestrator and implement dispatch plumbing preserves `requested_by` while forwarding only explicit `base_branch` / `base_pr` inputs; no broader delegated route is added. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is scoped to stacked implementation bases: workflow inputs, dispatch forwarding, one resolver helper/CLI, tests, and docs. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | `.agent/src/implementation-base.ts` reuses existing `fetchPrMeta()` and `setOutput()` helpers instead of embedding GitHub API parsing in workflow shell. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates `.agent/docs/actions/agent-actions.md`, `.agent/docs/architecture/supported-workflows.md`, and `.agent/docs/technical-details/agent-orchestrator.md` for `base_branch` / `base_pr` behavior. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The PR implements the explicit issue #30 contract and supports the stacked-branch prerequisite discussed from issue #51. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Uses two structured inputs, early validation, and a small typed resolver rather than overloading `base_branch` with a mini-language. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | The docs describe workflow behavior and structural rules; they do not add stale per-file inventory tables. |\n\n## Notes\n\n- The current diff addresses the earlier review’s private-repo fetch concern by using a token-scoped `http.extraheader` for the base branch fetch while keeping checkout credentials non-persistent.\n- Regression coverage now includes default branch fallback, explicit branch, same-repo open `base_pr`, cross-repo rejection, closed PR rejection, ambiguous inputs, and orchestration forwarding.\n- Rubrics for preview contracts, workflow stops, merge strategy, stateful failures, rubric authoring, and follow-up one-shot defaults were not scored because this PR does not materially change those behaviors.\n\n## Findings\n\n- **INFO:** No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-04-30T05:48:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/56#issuecomment-4350001537",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0fh9g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #56 adds stacked implementation PR support for issue #30.\n- It introduces explicit `base_branch` and `base_pr` inputs so implementation runs can branch from another branch or from an open same-repository PR head.\n- This supports the broader stacked-orchestration direction referenced from #51 while keeping the workflow contract typed and explicit.\n- The current review round is primarily checking the post-fix state after earlier fetch and test coverage issues were addressed.\n\n## Review\nThe implementation concerns from the prior review appear fixed, but the PR is currently not mergeable. GitHub reports `mergeStateStatus: DIRTY`, and the remaining blocker is a merge conflict in the workflow docs.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Merge conflict in supported workflows docs | BLOCKING | `.agent/docs/architecture/supported-workflows.md` conflicts with current `main`; the resolution needs to preserve both this PR’s stacked implementation paragraph and `main`’s newer review/rubrics cleanup wording. |\n| Prior implementation blockers fixed | INFO | The private-repo fetch path now uses a token-scoped `http.extraheader`, and tests now cover cross-repository and non-open `base_pr` rejection. |\n| Rubric checks pass | INFO | The rubrics review reports PASS with no rubric-specific findings. |\n\n## Progress\n- Earlier unauthenticated base-branch fetch feedback has been addressed.\n- Earlier missing closed/fork `base_pr` regression coverage has been addressed.\n- The current rubrics review passes with no required follow-up.\n- A new inline comment was posted for the current merge-conflict blocker at `.agent/docs/architecture/supported-workflows.md:44`.\n- The maintainer explicitly requested fixing merge conflicts before launching another review.\n\n## Issue Details\n\n<details>\n<summary>Merge conflict in supported workflows docs</summary>\n\n**Cause:** Current `main` changed the review cleanup documentation to cover both review synthesis and rubrics review cleanup, while this PR adds stacked implementation documentation in the same nearby section.\n\n**Candidate solutions:** Rebase or merge `main`, then resolve `.agent/docs/architecture/supported-workflows.md` by keeping the `base_branch` / `base_pr` stacked implementation paragraph and the current `main` wording for `AGENT_COLLAPSE_OLD_REVIEWS`.\n\n**Comments:** This is a mergeability blocker, not a design disagreement. The code-level issues from the previous review appear fixed.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the unresolved merge conflict requires a concrete branch change and is safe for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Resolve the merge conflict in `.agent/docs/architecture/supported-workflows.md`, preserving both stacked implementation docs and current review/rubrics cleanup docs.",
+      "createdAt": "2026-04-30T05:50:57Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/56#issuecomment-4350009846",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0fsVg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `review` -> `fix-pr` (round 3/10).\n\nagent planner selected fix-pr: Latest review synthesis recommends FIX_PR for NEEDS_REWORK: PR #56 is blocked by a merge conflict in supported workflow docs, which is a concrete branch change and safe to automate.\n\n<!-- sepo-agent-handoff state:dispatched created:1777528301361 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxNDk2MTU4ODM6cmV2aWV3OjU2OmZpeF9wcjo1Njoz -->",
+      "createdAt": "2026-04-30T05:51:39Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/56#issuecomment-4350012502",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0gerA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-30/codex-25147905607`. Requested by @sepo-agent.\n\nResolved the PR #56 merge conflict and launched the review workflow.\n\n- Merged current `main` into `agent/implement-issue-30/codex-25147905607`.\n- Resolved `.agent/docs/architecture/supported-workflows.md` by preserving both the stacked implementation docs and the newer review/rubrics cleanup docs.\n- Ran `npm test` in `.agent`: 408 passed.\n- Pushed merge commit `e68d2a3`.\n- Confirmed PR #56 is now `MERGEABLE`.\n- Dispatched review run: https://github.com/self-evolving/repo/actions/runs/25149823713",
+      "createdAt": "2026-04-30T05:54:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/56#issuecomment-4350025388",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0gyIA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Orchestrator and implement dispatch plumbing preserves `requested_by` and forwards only explicit `base_branch` / `base_pr` inputs; no broader downstream route is introduced. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is scoped to stacked implementation bases: workflow inputs, dispatch forwarding, one resolver helper/CLI, focused tests, and matching docs. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | `.agent/src/implementation-base.ts` reuses existing `fetchPrMeta()` and `setOutput()` helpers instead of embedding GitHub API parsing in workflow shell. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates `.agent/docs/actions/agent-actions.md`, `.agent/docs/architecture/supported-workflows.md`, and `.agent/docs/technical-details/agent-orchestrator.md` for `base_branch` / `base_pr` behavior. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The PR implements the issue #30 agreement: separate `base_branch` and `base_pr`, default branch fallback, ambiguity rejection, and same-repo/open PR validation; this supports the #51 stacked-branch prerequisite. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Uses two structured inputs, early validation, and a small typed resolver rather than overloading `base_branch` with a mini-language. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | The docs describe workflow behavior and structural rules; they do not add stale per-file inventory tables. |\n\n## Notes\n\n- The current head is `e68d2a3`, after the merge conflict fix. The live PR diff preserves both stacked implementation documentation and the newer review/rubrics cleanup docs.\n- The earlier private-repo fetch issue remains addressed: `agent-implement.yml` uses a token-scoped `http.extraheader` fetch while keeping checkout credentials non-persistent.\n- Regression coverage includes default branch fallback, explicit branch, same-repo open `base_pr`, cross-repo rejection, closed PR rejection, ambiguous inputs, dispatch forwarding, and orchestration forwarding.\n- Rubrics for preview contracts, stateful failures, workflow-stop comments, follow-up one-shot defaults, merge strategy, and rubric authoring were not scored because the current PR diff does not materially change those behaviors.\n\n## Findings\n\n- **INFO:** No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-04-30T05:56:12Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/56#issuecomment-4350030368",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0hewg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #56 adds stacked implementation PR support for issue #30.\n- It introduces explicit `base_branch` and `base_pr` inputs so implementation runs can branch from another branch or from an open same-repository PR head.\n- The change supports the broader stacked-branch prerequisite discussed from issue #51 while keeping the workflow contract explicit.\n- The PR updates workflow wiring, typed helper code, dispatch/orchestration forwarding, tests, and relevant `.agent` docs.\n\n## Review\nThe current PR head is ready to ship. Independent code and rubrics reviews agree there are no remaining actionable issues, and GitHub reports the PR is mergeable.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | Current review artifacts report SHIP/PASS. Prior blockers around private-repo fetching, missing rejection coverage, and docs merge conflicts have been addressed. |\n\n## Progress\n- Earlier unauthenticated base-branch fetch feedback was fixed with a token-scoped fetch.\n- Earlier missing closed/fork `base_pr` rejection coverage was added.\n- The docs merge conflict in `supported-workflows.md` was resolved.\n- Latest PR state is `mergeStateStatus: CLEAN` at head `e68d2a3`.\n- `npm test` passed in the latest code review artifact with 408 tests passing.\n- No new inline comments were posted because there are no current file/line-specific actionable findings.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved actionable work remains for an automated fix-pr pass.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change action items remain.",
+      "createdAt": "2026-04-30T05:58:12Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/56#issuecomment-4350041794",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0jmGA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /fix-pr please fix merge conflicts ",
+      "createdAt": "2026-04-30T06:06:18Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/56#issuecomment-4350076440",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0kBJg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo did not produce code changes for this PR.**\n\nPlease add more context or restate the requested fixes, then try again.\n\nPR #56 is already clean against current `main`.\n\n- Exact trigger comment checked: “please fix merge conflicts”.\n- Fetched `origin/main`; `HEAD` already contains current `main` (`1515d1e`).\n- GitHub reports PR #56 as `MERGEABLE`.\n- Working tree is clean.\n- No branch changes were needed.",
+      "createdAt": "2026-04-30T06:07:58Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/56#issuecomment-4350083366",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0opQw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nUpdated `agent/rubrics` from PR #56.\n\nAdded one rubric:\n\n- `rubrics/workflow/prefer-explicit-structured-inputs.yaml`\n- Captures the durable preference from #30/#56 to use separate typed workflow/CLI/planner inputs with clear validation instead of overloading one string field with a mini-language.\n- Provenance points to the accepted design discussion: `https://github.com/self-evolving/repo/issues/30#issuecomment-4349739867`\n\nI skipped the other PR comments as bot-authored review artifacts or one-off operational requests, and did not commit changes.\n",
+      "createdAt": "2026-04-30T06:25:14Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/56#issuecomment-4350159171",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-04-30T04:52:31Z",
+  "files": [
+    {
+      "path": ".agent/docs/actions/agent-actions.md",
+      "additions": 4,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 6,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/agent-orchestrator.md",
+      "additions": 7,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/dispatch-agent-implement-cli.test.ts",
+      "additions": 48,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 12,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/implementation-base.test.ts",
+      "additions": 108,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrate-handoff-cli.test.ts",
+      "additions": 12,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/dispatch-agent-implement.ts",
+      "additions": 6,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/dispatch-agent-orchestrator.ts",
+      "additions": 4,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrate-handoff.ts",
+      "additions": 6,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/resolve-implementation-base.ts",
+      "additions": 22,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/implementation-base.ts",
+      "additions": 107,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/workflows/agent-implement.yml",
+      "additions": 34,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-orchestrator.yml",
+      "additions": 10,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-30/codex-25147905607",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": "2026-04-30T06:23:28Z",
+  "number": 56,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM76fV93",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-04-30T04:56:44Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "5907b1224ff60b721be6a016832c0fec6cd5356f"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM76f73y",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "",
+      "submittedAt": "2026-04-30T05:41:29Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "99cbb27c6308d7ff2c8b300f18b06a937bf93c1e"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM76gE89",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-04-30T05:50:38Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "99cbb27c6308d7ff2c8b300f18b06a937bf93c1e"
+      }
+    }
+  ],
+  "state": "MERGED",
+  "title": "Support stacked implementation PRs",
+  "updatedAt": "2026-04-30T06:25:14Z",
+  "url": "https://github.com/self-evolving/repo/pull/56"
+}

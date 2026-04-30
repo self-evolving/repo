@@ -1,0 +1,218 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Link `agent/memory` and `agent/rubrics` refs in the prompt fragments agents receive.\n- Link the configured rubrics branch in rubrics-update summary comments.\n- Add focused coverage for prompt branch URLs and rubrics comment formatting.\n\n## Verification\n- `npm --prefix .agent run build && node --test .agent/dist/__tests__/response.test.js .agent/dist/__tests__/envelope.test.js`\n\nCloses #42\n",
+  "closedAt": "2026-04-30T06:36:09Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0Le5A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `implement` -> `review` (round 3/10).\n\nagent planner selected review: Implementation succeeded and produced PR #53 for issue #42; no review has run yet and there is no newer signal to stop.\n\n<!-- sepo-agent-handoff state:dispatched created:1777523209551 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxNDcxODgyMzc6aW1wbGVtZW50OjQyOnJldmlldzo1Mzoz -->",
+      "createdAt": "2026-04-30T04:26:47Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/53#issuecomment-4349681380",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0MBOQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 5 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR extends existing `formatRubricsUpdateComment` behavior in `.agent/src/response.ts` and wires the existing `prepare-rubrics-update-summary` CLI instead of adding a new comment path. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR body closes #42, whose title is exactly the requested nit: “when referring to agent/rubrics or agent/memory branch, be sure to add the link for it.” The diff directly addresses that linked context. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is limited to prompt fragments, the rubrics-update summary formatter/CLI wiring, and focused tests. No unrelated refactor or broad reformatting appears in the PR diff. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Prompt docs in `.github/prompts/_memory.md` and `.github/prompts/_rubrics.md` now link `${MEMORY_REF}` and `${RUBRICS_REF}` where the agent-facing docs mention those branches. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation adds a small branch-reference formatter with repo-slug validation and a fallback to code formatting when no repo slug is available. Coverage verifies linked and fallback output. |\n\n## Notes\n\n- The strongest score drivers are the narrow scope and the focused coverage: `envelope.test.ts` checks the prompt branch URLs, and `response.test.ts` checks linked rubrics-update comments plus fallback behavior.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric violations found. The PR satisfies the applicable selected rubrics for this request.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-04-30T04:29:16Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/53#issuecomment-4349690169",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0NQyg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #53 addresses issue #42, which asks that references to the `agent/memory` and `agent/rubrics` branches include links.\n- The PR links memory and rubrics branch references in the shared prompt fragments agents receive.\n- It also updates rubrics-update summary comments to link the configured rubrics branch when repository context is available.\n- Focused tests were added for prompt branch URLs and rubrics comment formatting.\n\n## Review\nThe implementation is narrow and mostly satisfies the request, and the rubrics review found no policy or style violations. One agent-facing prompt still contains an unlinked `${MEMORY_REF}` reference, so the request is not fully covered yet.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Missed memory branch reference in `memory-scan.md` | WARNING | `.github/prompts/memory-scan.md` still says the workflow pushes edits to `${MEMORY_REF}` without linking it. This is another agent-facing branch reference and should be made consistent with the updated shared memory prompt. |\n\n## Progress\n- The shared memory prompt now links `${MEMORY_REF}` in both the branch introduction and push guardrail.\n- The shared rubrics prompt now links `${RUBRICS_REF}`.\n- Rubrics-update summary comments now link the configured rubrics branch when `GITHUB_REPOSITORY` is available, with fallback behavior covered.\n- Existing PR discussion already includes a rubrics review with a PASS verdict.\n- No inline PR comment was posted because the remaining issue is in a file not changed by this PR, so there is no eligible changed line for inline feedback.\n\n## Issue Details\n\n<details>\n<summary>Missed memory branch reference in <code>memory-scan.md</code></summary>\n\n**Cause:**  \nThe PR updated `.github/prompts/_memory.md`, but `.github/prompts/memory-scan.md` is also an agent-facing prompt and still contains an unlinked `${MEMORY_REF}` reference at [`memory-scan.md#L30`](https://github.com/self-evolving/repo/blob/d8c8cf1c6bb9b53cdc8ae6cc719d708256c728c5/.github/prompts/memory-scan.md#L30).\n\n**Candidate solutions:**  \nLink `${MEMORY_REF}` there using the same pattern as `_memory.md`:  \n`[${MEMORY_REF}](https://github.com/${REPO_SLUG}/tree/${MEMORY_REF})`\n\n**Comments:**  \nThis is a small coverage gap rather than a design disagreement. The independent rubrics review passed; the Codex review identified this missed prompt reference.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: the remaining issue is a concrete, low-risk branch change suitable for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Link the `${MEMORY_REF}` reference in `.github/prompts/memory-scan.md` so it matches the updated memory prompt behavior.",
+      "createdAt": "2026-04-30T04:34:23Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/53#issuecomment-4349710538",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0N2WQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `review` -> `fix-pr` (round 4/10).\n\nagent planner selected fix-pr: Review synthesis recommends FIX_PR for a concrete low-risk gap: an unlinked ${MEMORY_REF} reference remains in .github/prompts/memory-scan.md.\n\n<!-- sepo-agent-handoff state:dispatched created:1777523835650 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxNDczNDkzOTU6cmV2aWV3OjUzOmZpeF9wcjo1Mzo0 -->",
+      "createdAt": "2026-04-30T04:37:14Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/53#issuecomment-4349720153",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0N38A",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "Note: I don't think we should update the prompts with the URLs",
+      "createdAt": "2026-04-30T04:37:21Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/53#issuecomment-4349720560",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0OdaA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-42/codex-25147188237`. Requested by @@sepo-agent.\n\n- Aligned the focused prompt-fragment test with the current PR direction after the maintainer removed prompt URL edits.\n- Left `.github/prompts/memory-scan.md` unchanged because the latest branch state and maintainer note say not to add URLs in prompts.\n- Verification passed: `npm --prefix .agent run build` and `node --test .agent/dist/__tests__/response.test.js .agent/dist/__tests__/envelope.test.js`.",
+      "createdAt": "2026-04-30T04:40:12Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/53#issuecomment-4349730152",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0qaDQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review it \r\n\r\n> Cause:\r\n> The PR updated .github/prompts/_memory.md, but .github/prompts/memory-scan.md is also an agent-facing prompt and still contains an unlinked ${MEMORY_REF} reference at memory-scan.md#L30.\r\n> \r\n> Candidate solutions:\r\n> Link ${MEMORY_REF} there using the same pattern as _memory.md:\r\n> [${MEMORY_REF}](https://github.com/${REPO_SLUG}/tree/${MEMORY_REF})\r\n> \r\n> Comments:\r\n> This is a small coverage gap rather than a design disagreement. The independent rubrics review passed; the Codex review identified this missed prompt reference.\r\n\r\nI explicitly want to remove link reference in the prompts, since it doesn't really matter  ",
+      "createdAt": "2026-04-30T06:31:59Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/53#issuecomment-4350188045",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0qzAQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 5 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR context includes issue #42 plus the latest maintainer clarification: prompt URLs should be removed. Current PR diff no longer changes `.github/prompts/*`, matching that direction. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Current diff touches only `.agent/src/response.ts`, `.agent/src/cli/prepare-rubrics-update-summary.ts`, `.agent/src/__tests__/response.test.ts`, and `.github/workflows/agent-rubrics-update.yml`. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The change extends existing `formatRubricsUpdateComment` and the existing `prepare-rubrics-update-summary` CLI path instead of adding a parallel comment formatter. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation adds a small branch-reference formatter with repo-slug validation and fallback formatting when no repo slug is available. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | No runtime behavior requiring prompt/doc updates remains in the current diff; the prompt-link direction was explicitly rejected by the requester. |\n\n## Notes\n\n- The current PR state aligns with the requester’s latest instruction: it does not add prompt links for `${MEMORY_REF}` or `${RUBRICS_REF}`.\n- The remaining behavior is scoped to rubrics-update summary comments, with focused tests for linked output and fallback output.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric violations found. The earlier `memory-scan.md` prompt-link concern is not a rubric failure under the latest maintainer instruction to remove prompt link references.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-04-30T06:33:29Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/53#issuecomment-4350194433",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0rh4w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #53 addresses issue #42, which asked for branch references to `agent/rubrics` or `agent/memory` to include links.\n- After maintainer clarification, prompt fragments should not add URL links.\n- The current PR now scopes the functional change to rubrics-update summary comments, linking the configured rubrics branch when repository context is available.\n- It also adds focused formatter coverage for linked output and fallback behavior.\n\n## Review\nBoth reviewer outputs agree there are no blocking or warning findings in the current PR state. The earlier `memory-scan.md` concern is superseded by the maintainer’s explicit direction not to add prompt URLs.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues | INFO | Reviewers found no unresolved blocking or warning issues. The current diff aligns with the latest maintainer direction and remains narrowly scoped. |\n\n## Progress\n- Maintainer clarified prompt references should not be updated with URLs.\n- Current PR diff no longer changes `.github/prompts/*`.\n- Rubrics-update summary comments now link `RUBRICS_REF` when `GITHUB_REPOSITORY` is available.\n- Fallback behavior without a repo slug is covered by tests.\n- Existing rubrics review passed with no rubric-specific follow-up.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: no unresolved actionable work remains for an automated fix-pr pass.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch changes.",
+      "createdAt": "2026-04-30T06:35:49Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/53#issuecomment-4350206435",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0r_rQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #53.\n\nno rubric changes\n\nI reviewed PR #53, linked issue #42, issue comments, PR review comments, reviews, collaborator signals, and the existing rubric set. The only human preference in the PR was a scope clarification from `lolipopshock` about not adding branch URLs in prompt files. With `author_association: CONTRIBUTOR` and no admin/maintain collaborator signal returned, it is not enough to create a durable team rubric under the trust rules. Existing rubrics already cover the reusable lessons around linked context, surgical scope, and docs sync.\n",
+      "createdAt": "2026-04-30T06:37:24Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/53#issuecomment-4350214061",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-04-30T04:25:35Z",
+  "files": [
+    {
+      "path": ".agent/src/__tests__/response.test.ts",
+      "additions": 14,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/prepare-rubrics-update-summary.ts",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/response.ts",
+      "additions": 17,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-rubrics-update.yml",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-42/codex-25147188237",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": "2026-04-30T06:36:09Z",
+  "number": 53,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "MERGED",
+  "title": "Link agent memory and rubrics branch references",
+  "updatedAt": "2026-04-30T06:37:25Z",
+  "url": "https://github.com/self-evolving/repo/pull/53"
+}

@@ -1,0 +1,457 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Add a pre-runtime discussion post gate action and shell resolver.\n- Skip daily summary provider setup and generation when Discussions are disabled or the configured category is missing.\n- Update workflow docs and regression coverage.\n\n## Verification\n- `npm run build`\n- `node --test dist/__tests__/discussion-post-gate-shell.test.js dist/__tests__/envelope.test.js`\n- `bash -n .agent/scripts/resolve-discussion-post-gate.sh`\n- `git diff --check`\n\nCloses #14\n",
+  "closedAt": "2026-04-30T06:43:11Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0Mc3Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `implement` -> `review` (round 3/10).\n\nagent planner selected review: Implementation succeeded and produced PR #54 for issue #14; an automated review is the appropriate next step before stopping.\n\n<!-- sepo-agent-handoff state:dispatched created:1777523479569 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxNDcyNDI3OTg6aW1wbGVtZW50OjE0OnJldmlldzo1NDoz -->",
+      "createdAt": "2026-04-30T04:31:17Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/54#issuecomment-4349697245",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0NQpQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I have enough context to score now. The live diff shows a narrow workflow/action/script change with docs and tests; the linked issue asked specifically for an early Discussions/category gate before provider/runtime setup.## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 6 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR adds a thin composite action and shell resolver for a pre-runtime workflow gate, matching the existing workflow pattern of shell gates such as `resolve-scheduled-activity-gate.sh` instead of embedding provider/runtime logic in YAML. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The behavior change is documented in `.agent/docs/architecture/supported-workflows.md` and `.agent/docs/architecture/memory.md`, explicitly noting that daily summaries now check discussion availability before provider setup. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The PR closes issue #14, whose discussion asked for an early `hasDiscussionsEnabled` and category gate before provider/runtime setup; the diff implements exactly that workflow phase change. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is scoped to the daily summary gate: one new action, one resolver script, targeted workflow wiring, focused tests, and two doc updates. No unrelated refactors or broad cleanup are present. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The resolver performs one GraphQL query, validates required config, emits `skip`/`reason`, and the workflow gates only the provider, setup, generation, and posting steps. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | The documentation changes describe the workflow behavior directly and do not add per-file inventory tables. |\n\n## Notes\n\n- The strongest rubric signals are positive: this is narrow, documented, covered by targeted tests, and aligned with the linked issue’s requested pre-runtime gate.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No selected applicable rubric violations found.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-04-30T04:34:22Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/54#issuecomment-4349710501",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0OPSw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #54 adds an early daily-summary discussion gate for issue #14.\n- The goal is to skip provider setup and summary generation when Discussions are disabled or the configured category is unavailable.\n- The PR adds a composite action, a shell resolver, workflow wiring, focused tests, and documentation updates.\n- This matches the linked issue’s request to avoid spending provider runtime before a posting failure.\n\n## Review\n- Overall, the implementation is narrow, documented, and aligned with the requested workflow behavior.\n- One parity issue remains: the new shell gate does not match the existing runtime discussion-category lookup when categories require pagination.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Gate can false-skip when configured category is beyond first 100 categories | WARNING | The shell gate checks only `discussionCategories(first: 100)`, while the runtime posting path paginates all categories. A valid category after the first page would be treated as missing and skip daily summary generation incorrectly. |\n\n## Progress\n- The rubric review passed and found no selected rubric violations.\n- The PR discussion already records successful build, targeted tests, shell syntax check, and diff hygiene.\n- I posted one inline comment on `.agent/scripts/resolve-discussion-post-gate.sh` line 81 for the pagination parity issue.\n\n## Issue Details\n<details>\n<summary>Gate can false-skip when configured category is beyond first 100 categories</summary>\n\n**Cause:** The new pre-runtime shell resolver queries only the first 100 discussion categories, but `.agent/src/discussion.ts` uses `fetchRepositoryDiscussionConfig` to paginate `discussionCategories(first: 100, after: $cursor)` until all pages are read.\n\n**Candidate solutions:** Add pagination to `.agent/scripts/resolve-discussion-post-gate.sh`, or otherwise share the same lookup contract as the runtime posting path. Add a focused regression test where the matching category appears on a later page.\n\n**Comments:** This is an edge case, but it creates a misleading clean skip for repositories where `create-discussion` would have succeeded.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the remaining issue is a concrete branch change and is safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Make the pre-runtime discussion gate paginate discussion categories, with regression coverage for a category found after the first page.",
+      "createdAt": "2026-04-30T04:39:09Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/54#issuecomment-4349726539",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0Ojqg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `review` -> `fix-pr` (round 4/10).\n\nagent planner selected fix-pr: Latest review synthesis recommends FIX_PR for a concrete unresolved pagination parity issue in PR #54, and the chain is within round budget.\n\n<!-- sepo-agent-handoff state:dispatched created:1777524043658 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxNDc0ODI0NDg6cmV2aWV3OjU0OmZpeF9wcjo1NDo0 -->",
+      "createdAt": "2026-04-30T04:40:42Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/54#issuecomment-4349731754",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0OkPg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Cause: The new pre-runtime shell resolver queries only the first 100 discussion categories, but .agent/src/discussion.ts uses fetchRepositoryDiscussionConfig to paginate discussionCategories(first: 100, after: $cursor) until all pages are read.\r\n\r\nCandidate solutions: Add pagination to .agent/scripts/resolve-discussion-post-gate.sh, or otherwise share the same lookup contract as the runtime posting path. Add a focused regression test where the matching category appears on a later page.\r\n\r\nIsn't this like a crazy corner case? why should not consider implementing this extreme corner case ... ",
+      "createdAt": "2026-04-30T04:40:44Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/54#issuecomment-4349731902",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0PUoA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-14/codex-25147242798`. Requested by @@sepo-agent.\n\n- Updated `.agent/scripts/resolve-discussion-post-gate.sh` to paginate `discussionCategories(first: 100, after: $cursor)` until the configured category is found or all pages are exhausted.\n- Preserved existing skip/allow outputs for discussions disabled, missing category, and available category.\n- Added focused regression coverage for a category found on the second page.\n\n<details><summary>Verification</summary>\n\n- `bash -n .agent/scripts/resolve-discussion-post-gate.sh`\n- `npm run build` in `.agent`\n- `node --test dist/__tests__/discussion-post-gate-shell.test.js` in `.agent`\n- `git diff --check`\n\n</details>",
+      "createdAt": "2026-04-30T04:44:27Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/54#issuecomment-4349744288",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0Pf7g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `fix-pr` -> `review` (round 5/10).\n\nagent planner selected review: The fix-pr pass succeeded and pushed changes addressing the prior review finding; one follow-up review is warranted to verify the pagination fix and regression coverage before stopping.\n\n<!-- sepo-agent-handoff state:dispatched created:1777524321334 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxNDc3NDgxMzc6Zml4X3ByOjU0OnJldmlldzo1NDo1 -->",
+      "createdAt": "2026-04-30T04:45:19Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/54#issuecomment-4349747182",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0Pyag",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 6 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR keeps the workflow thin by adding a composite gate action plus shell resolver, while leaving provider/runtime work in existing actions. The resolver mirrors the runtime category lookup contract by paginating `discussionCategories(first: 100, after: $cursor)`. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The PR updates [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/9b4c70c673d9619fee559999117e4658789c26ae/.agent/docs/architecture/supported-workflows.md) and [`memory.md`](https://github.com/self-evolving/repo/blob/9b4c70c673d9619fee559999117e4658789c26ae/.agent/docs/architecture/memory.md) to document the early discussion availability gate. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | Linked issue #14 asked for an early `hasDiscussionsEnabled` and category gate before provider/runtime setup; the PR implements that exact phase change in `agent-daily-summary.yml`. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is scoped to the daily summary gate: one new action, one resolver script, targeted workflow wiring, focused tests, and two doc updates. No unrelated refactors are present. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | [`resolve-discussion-post-gate.sh`](https://github.com/self-evolving/repo/blob/9b4c70c673d9619fee559999117e4658789c26ae/.agent/scripts/resolve-discussion-post-gate.sh) validates config, performs the GraphQL availability/category check, emits `skip`/`reason`, and exits clearly on malformed responses. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | The docs describe the workflow behavior directly and do not add file inventory tables. |\n\n## Notes\n\n- The current PR head includes the pagination fix raised in the earlier review, plus regression coverage in [`discussion-post-gate-shell.test.ts`](https://github.com/self-evolving/repo/blob/9b4c70c673d9619fee559999117e4658789c26ae/.agent/src/__tests__/discussion-post-gate-shell.test.ts).\n- Delegated-route authorization, follow-up orchestration defaults, preview contracts, merge strategy, and stateful persistence rubrics were not scored because this PR does not change those behavior surfaces.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No selected applicable rubric violations found.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-04-30T04:46:42Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/54#issuecomment-4349751914",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0Qbwg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #54 implements issue #14 by adding an early daily-summary discussion gate.\n- The workflow now checks whether Discussions are enabled and whether the configured category exists before resolving providers, setting up runtime tools, or generating a summary.\n- The PR adds a composite action, shell resolver, workflow wiring, regression tests, and documentation updates.\n- A prior review found a pagination mismatch in the category lookup; the current PR head includes the fix and coverage.\n\n## Review\n- The current review inputs agree there are no remaining BLOCKING or WARNING findings.\n- The follow-up pagination fix now matches the runtime posting contract, and the targeted tests/docs are in sync.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | Current reviewers found no unresolved blocking or warning issues. The previous category-pagination concern has been fixed and covered by regression tests. |\n\n## Progress\n- Prior inline feedback on `.agent/scripts/resolve-discussion-post-gate.sh` line 81 was addressed by paginating `discussionCategories(first: 100, after: $cursor)`.\n- Regression coverage now includes a category found on a later page.\n- The latest rubric review passed with no selected rubric violations.\n- Verification reported by the reviewer passed: shell syntax check, install/build, targeted Node tests, and diff hygiene. `npm ci` emitted a Node engine warning for `acpx@0.4.0` on Node `v20.3.1`, but install/build/tests still passed.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved actionable branch-change work remains.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-04-30T04:48:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/54#issuecomment-4349762498",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0R9mw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \r\n\r\nwill it add a lot of effort to run the gating step ?",
+      "createdAt": "2026-04-30T04:51:37Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/54#issuecomment-4349787547",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0SREQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "No, the gating step should add very little runtime effort.\n\nIt runs before provider setup in [`agent-daily-summary.yml`](https://github.com/self-evolving/repo/pull/54/files#diff-65f1b6e9d76a12d43c7a69c8ffb68c087d8ad8bce2b1a1f6766b922f9e908a1d) and only does a GitHub GraphQL check via [`resolve-discussion-post-gate.sh`](https://github.com/self-evolving/repo/pull/54/files#diff-0c8ce4e946204b24d171165e78e182491c98e9e126f516d4a19038767603c343):\n\n- usually **1 GraphQL request** to check `hasDiscussionsEnabled` and the configured category\n- more requests only if the repo has **more than 100 discussion categories**\n- no provider resolution, no Codex/Claude setup, no summary generation unless the gate passes\n\nSo the tradeoff is good: a cheap GitHub API call to avoid potentially expensive provider/runtime work and a later posting failure.\n\nImplementation-wise, it is not a lot of effort now that the PR has the pieces in place: one composite action, one shell resolver, a few workflow `if:` guards, and focused tests. The only extra complexity was pagination parity with the runtime discussion lookup, and that is already covered by the regression test.",
+      "createdAt": "2026-04-30T04:52:57Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/54#issuecomment-4349792529",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0TeSw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer\n\nA follow up idea is that the \"installed\" agent can even remove this code locally when they know the discussion server is there? ",
+      "createdAt": "2026-04-30T04:58:15Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/54#issuecomment-4349812299",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0TrvQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Technically yes, an installed agent could delete or bypass the gate locally if the target repo knows Discussions are enabled.\n\nI would not make that the default behavior, though. The gate is cheap, and it protects against things that can change after install:\n\n- Discussions can be disabled later.\n- The configured category can be renamed/deleted.\n- App/token permissions can differ from what the installer assumed.\n- The same installed workflow may be copied into repos with different discussion settings.\n\nThe current gate is only a small pre-runtime check in [`agent-daily-summary.yml`](https://github.com/self-evolving/repo/pull/54/files#diff-65f1b6e9d76a12d43c7a69c8ffb68c087d8ad8bce2b1a1f6766b922f9e908a1d) plus one GraphQL resolver in [`resolve-discussion-post-gate.sh`](https://github.com/self-evolving/repo/pull/54/files#diff-0c8ce4e946204b24d171165e78e182491c98e9e126f516d4a19038767603c343). Keeping it avoids spending provider/runtime work when posting cannot succeed.\n\nIf we want an escape hatch, I’d prefer a config bypass like `AGENT_DAILY_SUMMARY_DISCUSSION_GATE=disabled` over having the installer physically remove code. That keeps installed repos closer to upstream and makes future updates less brittle.",
+      "createdAt": "2026-04-30T04:59:13Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/54#issuecomment-4349815741",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0qZ4g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, we can lift it earlier, and there is a reasonable case for doing that.\n\nRight now PR #54 places the discussion gate in the `daily-summary` job, after signal collection and artifact download, but before provider resolution/setup/generation:\n\n```yaml\nDownload summary signals\nResolve GitHub auth\nResolve summary discussion gate\nResolve daily summary provider\nSetup selected provider\nGenerate daily summary\nCreate summary discussion\n```\n\nThat already avoids the expensive provider work. But if Discussions are disabled, we still spent effort in the `signals` job:\n\n- checkout\n- auth resolution\n- `.agent` runtime setup\n- GitHub signal sync\n- activity counting\n- artifact upload/download\n\nA better placement would be in the `signals` job, immediately after `Resolve GitHub auth` and before `Setup agent runtime for activity signals`. That would keep the same effective auth model while skipping signal gathering too when posting can never work.\n\nI would **not** move it ahead of the existing `pre_gate` scheduled-policy check. The schedule-disabled gate is even cheaper and should remain first.\n\nRecommended order:\n\n```yaml\npre_gate:\n  Resolve scheduled disabled gate\n\nsignals:\n  checkout\n  Resolve GitHub auth\n  Resolve summary discussion gate\n  Setup agent runtime for activity signals\n  Gather repository signals\n  Count summary activity\n  Resolve scheduled activity gate\n  Upload summary signals\n\ndaily-summary:\n  Download summary signals\n  Resolve provider\n  Setup provider\n  Generate summary\n  Create discussion\n```\n\nSo yes: lifting it into `signals` is probably cleaner and saves more work. I’d avoid putting it in `pre_gate` unless we also move auth there, because the gate should ideally use the same token family that would later create the discussion.",
+      "createdAt": "2026-04-30T06:31:59Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/54#issuecomment-4350188002",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0qkgQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Yes, we can lift it earlier, and there is a reasonable case for doing that.\r\n> \r\n> Right now PR #54 places the discussion gate in the `daily-summary` job, after signal collection and artifact download, but before provider resolution/setup/generation:\r\n> \r\n> ```yaml\r\n> Download summary signals\r\n> Resolve GitHub auth\r\n> Resolve summary discussion gate\r\n> Resolve daily summary provider\r\n> Setup selected provider\r\n> Generate daily summary\r\n> Create summary discussion\r\n> ```\r\n> \r\n> That already avoids the expensive provider work. But if Discussions are disabled, we still spent effort in the `signals` job:\r\n> \r\n> * checkout\r\n> * auth resolution\r\n> * `.agent` runtime setup\r\n> * GitHub signal sync\r\n> * activity counting\r\n> * artifact upload/download\r\n> \r\n> A better placement would be in the `signals` job, immediately after `Resolve GitHub auth` and before `Setup agent runtime for activity signals`. That would keep the same effective auth model while skipping signal gathering too when posting can never work.\r\n> \r\n> I would **not** move it ahead of the existing `pre_gate` scheduled-policy check. The schedule-disabled gate is even cheaper and should remain first.\r\n> \r\n> Recommended order:\r\n> \r\n> ```yaml\r\n> pre_gate:\r\n>   Resolve scheduled disabled gate\r\n> \r\n> signals:\r\n>   checkout\r\n>   Resolve GitHub auth\r\n>   Resolve summary discussion gate\r\n>   Setup agent runtime for activity signals\r\n>   Gather repository signals\r\n>   Count summary activity\r\n>   Resolve scheduled activity gate\r\n>   Upload summary signals\r\n> \r\n> daily-summary:\r\n>   Download summary signals\r\n>   Resolve provider\r\n>   Setup provider\r\n>   Generate summary\r\n>   Create discussion\r\n> ```\r\n> \r\n> So yes: lifting it into `signals` is probably cleaner and saves more work. I’d avoid putting it in `pre_gate` unless we also move auth there, because the gate should ideally use the same token family that would later create the discussion.\r\n\r\n@sepo-agent /fix-pr",
+      "createdAt": "2026-04-30T06:32:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/54#issuecomment-4350190721",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0rg7g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-14/codex-25147242798`. Requested by @lolipopshock.\n\n- Moved the daily-summary discussion availability gate into the `signals` job immediately after `Resolve GitHub auth`, preserving the cheaper `pre_gate` scheduled-policy check first.\n- Guarded signal runtime setup, signal gathering, activity counting, activity gating, and artifact upload when discussion posting cannot work.\n- Removed the redundant discussion gate from `daily-summary`; the job now skips through `needs.signals.outputs.skip`.\n- Updated workflow docs and envelope regression coverage for the new placement.\n\n<details><summary>Verification</summary>\n\n- `bash -n .agent/scripts/resolve-discussion-post-gate.sh`\n- `npm run build` in `.agent`\n- `node --test dist/__tests__/discussion-post-gate-shell.test.js dist/__tests__/envelope.test.js` in `.agent`\n- `git diff --check`\n\n</details>",
+      "createdAt": "2026-04-30T06:35:46Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/54#issuecomment-4350206190",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0sHug",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review",
+      "createdAt": "2026-04-30T06:37:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/54#issuecomment-4350216122",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0skOQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR keeps workflow logic thin: it adds a composite `discussion-post-gate` action and shell resolver, matching the existing pre-runtime shell gate pattern used by scheduled workflow gates. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The PR updates `.agent/docs/architecture/supported-workflows.md` and `.agent/docs/architecture/memory.md` to document that daily summaries now check discussion availability before signal collection/provider setup. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The new composite action exposes separate `github_token` and `discussion_category` inputs, and the script validates `GITHUB_REPOSITORY` and `DISCUSSION_CATEGORY` explicitly rather than overloading a single string. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | Linked issue #14 asked for an early `hasDiscussionsEnabled` and category gate before expensive runtime/provider work; the latest diff moves the check into `signals` before activity runtime setup. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is scoped to the daily-summary discussion gate: one action, one resolver script, targeted workflow wiring, focused tests, and small doc updates. No unrelated refactor is present. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The resolver performs a direct GraphQL availability/category check, paginates categories, emits `skip`/`reason`, and exits clearly on malformed configuration or responses. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | The documentation changes describe workflow behavior, not a file-by-file inventory. |\n\n## Notes\n\n- The latest PR head addresses the prior pagination parity concern by checking `discussionCategories(first: 100, after: $cursor)` until the category is found or pages are exhausted.\n- The follow-up move into `signals` is rubric-aligned: it preserves the cheaper scheduled `pre_gate` first, then skips signal runtime setup, signal gathering, activity counting, artifact upload, provider setup, and generation when posting cannot work.\n- Delegated authorization, follow-up orchestration defaults, preview contracts, merge strategy, and stateful persistence rubrics were not scored because this PR does not change those behavior surfaces.\n\n## Findings\n\n- **INFO:** No selected applicable rubric violations found.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-04-30T06:39:24Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/54#issuecomment-4350223417",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0tW1A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #54 implements issue #14 by gating daily summary work on whether the target repository can actually accept the summary discussion.\n- The latest PR head moves the discussion availability/category check into the `signals` job, after GitHub auth and before signal runtime setup.\n- This skips signal collection, artifact upload/download, provider setup, summary generation, and posting when Discussions are disabled or the configured category is missing.\n- The PR also adds the shell resolver, composite action, regression tests, and docs updates for the new workflow behavior.\n\n## Review\n- Current reviewer inputs agree there are no remaining BLOCKING or WARNING findings.\n- The earlier pagination mismatch has been fixed, and the later placement change into `signals` aligns with the requested optimization.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | Reviewers found no unresolved blocking or warning issues. The gate placement, pagination behavior, tests, and docs are aligned with the requested behavior. |\n\n## Progress\n- Prior feedback about category pagination was addressed by paginating `discussionCategories(first: 100, after: $cursor)`.\n- Maintainer follow-up asking to lift the check earlier was addressed by moving the gate into the `signals` job after GitHub auth.\n- Latest rubrics review passed with no selected rubric violations.\n- Targeted verification passed in reviewer output: shell syntax check, `npm run build`, and Node tests for the discussion gate and workflow envelope.\n- `actionlint` was not available in the review runner, so it was not run.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved actionable branch-change work remains.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-04-30T06:42:06Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/54#issuecomment-4350236372",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0uJsA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #54.\n\nno rubric changes\n\nI reviewed PR #54, linked issue #14, comments, reviews, trust signals, and existing active rubrics. The durable reusable lessons are already covered by existing rubrics like `read-docs-first`, `reuse-existing-code`, `surgical-changes`, `keep-docs-in-sync`, and `simple-implementation`.\n\nNo rubric files were changed.\n",
+      "createdAt": "2026-04-30T06:44:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/54#issuecomment-4350249392",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-04-30T04:27:43Z",
+  "files": [
+    {
+      "path": ".agent/docs/architecture/memory.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 6,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/scripts/resolve-discussion-post-gate.sh",
+      "additions": 143,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/discussion-post-gate-shell.test.ts",
+      "additions": 132,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 9,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/discussion-post-gate/action.yml",
+      "additions": 31,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/workflows/agent-daily-summary.yml",
+      "additions": 15,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/test-scripts.yml",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-14/codex-25147242798",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": "2026-04-30T06:43:11Z",
+  "number": 54,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM76fIWb",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-04-30T04:38:53Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "6ad45cef57a66e91ca9cd4ad417b2b9fc5d54bec"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM76guM4",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer should we lift the check even earlier?",
+      "submittedAt": "2026-04-30T06:30:39Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "9b4c70c673d9619fee559999117e4658789c26ae"
+      }
+    }
+  ],
+  "state": "MERGED",
+  "title": "Gate daily summaries on discussion availability",
+  "updatedAt": "2026-04-30T06:44:50Z",
+  "url": "https://github.com/self-evolving/repo/pull/54"
+}

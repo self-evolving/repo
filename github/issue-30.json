@@ -6,13 +6,165 @@
     "name": "Shannon Shen"
   },
   "body": "The implement agent should be able to create stacked PRs (or at least know which branch to start with rather than just merging to main only)",
-  "closedAt": null,
-  "comments": [],
+  "closedAt": "2026-04-30T06:23:29Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0Kndg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "see the context for #51 \n\n@sepo-agent /answer can you check the code and plan for a way for implementing it?",
+      "createdAt": "2026-04-30T04:22:52Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/30#issuecomment-4349667190",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0LGaA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Feasible, and I’d implement #30 first because it is the branch primitive that #51’s meta/sub-orchestrator model will need.\n\nWhat exists now:\n\n- `agent-implement.yml` always checks out the default branch, creates the work branch from the default branch, and opens the PR against the default branch:\n  - checkout: https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-implement.yml#L120-L125\n  - branch creation: https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-implement.yml#L166-L167\n  - PR base: https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-implement.yml#L222-L233\n- `create-pr.ts` already supports `BASE_BRANCH`; the workflow just hardcodes it to the default branch: https://github.com/self-evolving/repo/blob/main/.agent/src/cli/create-pr.ts#L12-L50\n- `dispatch-agent-implement.ts` does not accept or forward any base branch input yet: https://github.com/self-evolving/repo/blob/main/.agent/src/cli/dispatch-agent-implement.ts#L10-L36\n- The orchestrator currently dispatches `implement` without branch context: https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L366-L373\n- #51’s broader orchestrator-to-orchestrator idea is not supported yet because `AgentAction` is limited to `implement | review | fix-pr`, and agent-mode planner decisions are validated against the fixed transition policy: https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L3-L27 and https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L296-L333\n\nImplementation plan for #30:\n\n1. Add a `base_branch` input to `agent-implement.yml` for both `workflow_dispatch` and `workflow_call`, defaulting to `\"\"`.\n2. Resolve an effective base branch early in the workflow:\n   - if `inputs.base_branch` is present, use it;\n   - otherwise use `github.event.repository.default_branch`.\n3. Validate the branch/ref before using it in shell commands. I’d prefer a small typed CLI helper under `.agent/src/cli/` rather than inline shell, matching the repo convention of keeping workflow logic thin.\n4. Use the resolved base branch for:\n   - `actions/checkout@v4` `ref`;\n   - `git checkout -b \"$BRANCH\" \"$BASE_BRANCH\"` or the checked-out `HEAD`;\n   - `BASE_BRANCH` passed to `create-pr.ts`.\n5. Extend `dispatch-agent-implement.ts` to read and forward `BASE_BRANCH`.\n6. Extend `orchestrate-handoff.ts` so an orchestrator-dispatched `implement` can forward a base branch when the handoff context supplies one. I’d keep the first version deterministic: accept an explicit `BASE_BRANCH` env/input, but do not let free-form planner text silently become a branch name.\n7. Add tests in the existing coverage areas:\n   - workflow shape tests in `envelope.test.ts` proving `base_branch` is exposed and wired through checkout/branch/PR creation;\n   - dispatch CLI tests proving `base_branch` is forwarded;\n   - orchestrator CLI tests proving implement handoff can pass `base_branch`;\n   - validation tests for empty/default branch and unsafe branch names.\n8. Update `.agent/docs/technical-details/agent-orchestrator.md` and supported workflow docs to describe stacked implementation PRs and the default-branch fallback.\n\nFor #51 after #30 lands, I’d do a second phase:\n\n1. Extend the planner contract from only `next_action` to structured handoff metadata, e.g. `{ next_action: \"implement\", target_number, base_branch }`.\n2. Add an orchestrator action type only after the base-branch plumbing is stable.\n3. Add `orchestrator_lane` or `orchestrator_id` if we need multiple orchestrators on the same issue; today `agent-orchestrator.yml` hardcodes lane `planner`, so same-issue sub-orchestrators would share continuity.\n4. Keep the current one-child-per-handoff model initially; batched sub-orchestrators should be a later design because dedupe, round budget, and status aggregation get more complicated.\n\nClarifying question before coding: should `base_branch` be accepted only as a branch name, or should it also accept PR numbers like `base_pr: 123` and resolve that PR’s head branch automatically? My recommendation for the first PR is branch-name only, then add PR-number resolution once the basic stacked PR path is proven.",
+      "createdAt": "2026-04-30T04:25:16Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/30#issuecomment-4349675112",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0OUjg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Add a base_branch input to agent-implement.yml for both workflow_dispatch and workflow_call, defaulting to \"\".\n\nClarifying question before coding: should base_branch be accepted only as a branch name, or should it also accept PR numbers like base_pr: 123 and resolve that PR’s head branch automatically? My recommendation for the first PR is branch-name only, then add PR-number resolution once the basic stacked PR path is proven.\n\n@sepo-agent /answer I think it's very minimum cost to support both cases right? I think the only thing is to make sure the we define / reuse a proper format for the \"base_pr: 123\" and then supporting both should be simple enough?",
+      "createdAt": "2026-04-30T04:39:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/30#issuecomment-4349727886",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0PDWw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, I agree it is low cost to support both, as long as we keep the machine-facing contract explicit.\n\nI would **not** overload `base_branch` with a string like `base_pr: 123` inside the workflow input. That makes validation/parsing messier and turns a typed workflow input into a mini-language. Instead I’d define two optional inputs:\n\n```yaml\nbase_branch: \"\" # direct branch name, e.g. agent/implement-issue-12/codex-123\nbase_pr: \"\"     # PR number whose head branch should become the base\n```\n\nRules:\n\n- If neither is set: use `github.event.repository.default_branch`.\n- If `base_branch` is set: validate it and use it directly.\n- If `base_pr` is set: resolve the PR head branch and use that as the base.\n- If both are set: fail early with a clear error, unless we intentionally define precedence. I’d prefer failing to avoid accidental wrong stacks.\n- For `base_pr`, only accept a plain positive integer like `123`, not `#123` or `base_pr: 123` at the workflow-input layer.\n\nThe implementation is small because the repo already has most of the primitives:\n\n- `agent-implement.yml` currently hardcodes default branch for checkout, implementation branch creation, and PR base: https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-implement.yml#L120-L167 and https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-implement.yml#L222-L233\n- `create-pr.ts` already respects `BASE_BRANCH`: https://github.com/self-evolving/repo/blob/main/.agent/src/cli/create-pr.ts#L12-L50\n- `github.ts` already has `fetchPrMeta()`, including `headRef`, `state`, and `isCrossRepository`, which is exactly what `base_pr` needs: https://github.com/self-evolving/repo/blob/main/.agent/src/github.ts#L139-L156\n\nConcrete plan:\n\n1. Add `base_branch` and `base_pr` inputs to `agent-implement.yml` for both `workflow_dispatch` and `workflow_call`.\n2. Add a small CLI, e.g. `.agent/src/cli/resolve-implementation-base.ts`, that reads `BASE_BRANCH`, `BASE_PR`, `DEFAULT_BRANCH`, and `GITHUB_REPOSITORY`.\n3. For `base_pr`, call `fetchPrMeta(basePr)` and resolve to `headRef`.\n4. Reject cross-repo PR heads for the first version, because checkout/push semantics get ambiguous.\n5. Probably require the base PR to be open unless there is a strong reason to stack onto closed PR branches.\n6. Export `BASE_BRANCH=<resolved>` to `GITHUB_ENV`.\n7. Use that resolved base for checkout/branch creation and PR creation.\n8. Extend `dispatch-agent-implement.ts` and orchestrator dispatch plumbing to forward both inputs.\n9. Add tests for default branch fallback, direct `base_branch`, `base_pr` resolution, both-inputs error, invalid PR number, closed/cross-repo rejection.\n\nFor human/planner-facing syntax, we can still document:\n\n```yaml\nbase_pr: 123\n```\n\nBut that should be the structured planner/context format, not a value stuffed into `base_branch`.",
+      "createdAt": "2026-04-30T04:43:08Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/30#issuecomment-4349739867",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0Pk9w",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "good. let's implement it? \n\n@sepo-agent /orchestrate ",
+      "createdAt": "2026-04-30T04:45:39Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/30#issuecomment-4349748471",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0PtGQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `orchestrate` -> `implement` (round 2/10).\n\nmanual orchestrate start on issue; dispatching implement\n\n<!-- sepo-agent-handoff state:dispatched created:1777524380908 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxNDc4ODkyMjQ6b3JjaGVzdHJhdGU6MzA6aW1wbGVtZW50OjMwOjI -->",
+      "createdAt": "2026-04-30T04:46:19Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/30#issuecomment-4349750553",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0SLxA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-30/codex-25147905607`\n- Pull request: https://github.com/self-evolving/repo/pull/56\n\nImplemented stacked implementation PR support by adding validated `base_branch` and `base_pr` inputs, resolving PR heads through a typed CLI, wiring the resolved base into branch creation and PR creation, forwarding base inputs through implement/orchestrator dispatch paths, and updating docs. Verification: `npm test` passed, and after the final workflow refspec tweak `npm run build && node --test dist/__tests__/envelope.test.js dist/__tests__/implementation-base.test.js dist/__tests__/dispatch-agent-implement-cli.test.js dist/__tests__/orchestrate-handoff-cli.test.js` passed.",
+      "createdAt": "2026-04-30T04:52:34Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/30#issuecomment-4349791172",
+      "viewerDidAuthor": true
+    }
+  ],
   "createdAt": "2026-04-29T11:54:03Z",
-  "labels": [],
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    },
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChVB4ig",
+      "name": "priority/p2",
+      "description": "Project management: medium priority",
+      "color": "fbca04"
+    },
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChVB5Zw",
+      "name": "effort/high",
+      "description": "Project management: high effort",
+      "color": "d73a4a"
+    }
+  ],
   "number": 30,
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "More flexible branching strategy",
-  "updatedAt": "2026-04-29T11:54:03Z",
+  "updatedAt": "2026-04-30T06:23:29Z",
   "url": "https://github.com/self-evolving/repo/issues/30"
 }

@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "Consider this case: \n\n1. in an issue, we launch orchestrate, which launches implement and creates a PR ; then the orchestrate stops\n2. after that, in the PR, we launch orchestrate again -> it seems the new orchestrate route does not share the same context as the first orchestrate? \n\n@sepo-agent /answer can you confirm this? here is an example that you can directly look into https://github.com/self-evolving/repo/pull/56#issuecomment-4349994663\n\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0piew",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, confirmed.\n\nThe current behavior is: a new manual `/orchestrate` mention starts a new orchestration route from the current target state. It does **not** continue the prior issue-originated orchestrate session/context.\n\nEvidence:\n\n- The router always dispatches a manual `/orchestrate` with `AUTOMATION_CURRENT_ROUND: \"1\"` and `SOURCE_ACTION: orchestrate`:  \n  https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L653-L665\n- In `orchestrate-handoff.ts`, `SOURCE_ACTION=orchestrate` takes the manual-start path, not the action-originated continuation path:  \n  https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L257-L268\n- Manual PR starts are deterministic: if the PR is open and not `CHANGES_REQUESTED`, it dispatches `review`:  \n  https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L202-L224\n- Docs also say manual `/orchestrate` starts use deterministic status checks, and planner/session continuation is separate for orchestrator/action-originated handoffs:  \n  https://github.com/self-evolving/repo/blob/main/.agent/docs/technical-details/agent-orchestrator.md#L67-L84\n\nFor the concrete example, the comment on PR #56:\n\n> `@sepo-agent /orchestrate firstly fix merge conflicts then launch a review agent`\n\nwas treated as a fresh manual PR orchestration. Since the PR did not have `CHANGES_REQUESTED`, the manual PR heuristic dispatched `review` first. That matches the bot comment:\n\n> `manual orchestrate start on PR; dispatching review`\n\nSo yes: the second `/orchestrate` on the PR did **not** share the first issue `/orchestrate` chain context. It only used current PR state plus the new request text. After that new PR-originated chain started, its own launched workflows carried `orchestration_enabled: true`, so that second chain could continue from `review -> fix-pr -> review`.\n\nCurrent limitation: there is no explicit cross-surface “orchestration chain id” or issue-to-PR session continuation for manual `/orchestrate` restarts. To support the behavior you expected, we’d need to carry an origin target / chain identity from issue orchestrate into the PR, then have later PR `/orchestrate` discover and resume or fork from that chain instead of starting at round 1 from PR state.",
+      "createdAt": "2026-04-30T06:28:42Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/58#issuecomment-4350173819",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-04-30T06:26:51Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 58,
+  "state": "OPEN",
+  "title": "Question: session continuation for the orchestrate route",
+  "updatedAt": "2026-04-30T06:28:42Z",
+  "url": "https://github.com/self-evolving/repo/issues/58"
+}
