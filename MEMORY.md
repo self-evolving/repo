@@ -20,7 +20,7 @@
 - Planning/procedure-only asks stay on /answer; provide a concrete plan and request approval before coding.
 - Keep .agent/dist/ and .agent/node_modules/ ignored; they are generated outputs, not repository source.
 - Explicit /orchestrate owns bounded follow-up chains; direct /implement, /review, and /fix-pr stay one-shot by default.
-- Keep prompt-driven agents read-only when planning repo mutations; apply changes through deterministic, test-covered CLIs.
+- Context-gathering planner agents may use approve-all in non-interactive workflows; keep writes in deterministic, tested CLIs.
 - Project management is a signal layer: score/label/summarize backlog; execution dispatch belongs to orchestrators.
 - checkout-pr must preserve built .agent/dist runtime; use conflict-specific checkout, not blanket dist deletion.
 - Chained/orchestrated dispatches must preserve requester auth context and re-check downstream route policy.
@@ -32,3 +32,4 @@
 - Implementation runs support stacked PRs via explicit base_branch or base_pr; base_pr must be an open same-repo PR.
 - Do not add branch URL links in agent prompt fragments; reserve branch links for user-facing comments.
 - Daily summary discussion gate belongs after GitHub auth in signals, before signal/provider setup.
+- Project management owns managed priority/* and effort/* labels; keep urgency signals in summaries, not labels.
