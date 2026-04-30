@@ -43,6 +43,7 @@ When the route starts, the router dispatches `agent-orchestrator.yml` with:
 - target number
 - requester and request text
 - current round and max rounds
+- optional `base_branch` or `base_pr` for stacked implementation PRs
 
 Each action workflow launched by `agent-orchestrator.yml` receives
 `orchestration_enabled: true`. Only runs with that explicit context hand back to
@@ -68,6 +69,12 @@ In `heuristics` mode, manual starts use deterministic status checks:
 - issue target: dispatch `implement`
 - pull request target with `CHANGES_REQUESTED`: dispatch `fix-pr`
 - other open pull request targets: dispatch `review`
+
+When an orchestrator dispatches `implement`, it forwards any explicit
+`base_branch` or `base_pr` input. `agent-implement.yml` then resolves a single
+base branch: `base_branch` is used when set, `base_pr` resolves to the open
+same-repository PR head branch, and the repository default branch is used when
+neither input is present. Setting both base inputs is rejected.
 
 Manual `/orchestrate` starts are deterministic in `agent` mode as well. Planner
 runs are reserved for action-originated handoff envelopes.

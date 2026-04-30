@@ -15,6 +15,10 @@ Agent actions are route-level behaviors exposed by the `.agent` backend. They ar
 
 The orchestrator is now an explicit top-level route. Users start orchestration with `/orchestrate` (or `agent/orchestrate`), and `agent-orchestrator.yml` chooses a first follow-up action from current target status. Workflows launched by the orchestrator carry explicit orchestration context and hand back after post-processing, so the bounded `implement -> review -> fix-pr -> review` loop can continue until a stop condition. Direct `/implement`, `/review`, and `/fix-pr` runs do not carry that context and stay one-shot. Explicit `/orchestrate` starts use deterministic routing in both `heuristics` and `agent` modes today. Planner mode is reserved for action-originated handoff envelopes and still validates results against runtime policy before dispatch. Planner handoffs can carry `handoff_context`; `fix-pr` receives that context as explicit initial steering for the automated fix pass.
 
+Implementation runs can create stacked PRs by receiving either `base_branch` or
+`base_pr`. `base_pr` resolves to the open same-repository PR head branch; when
+neither input is set, implementations branch from the repository default branch.
+
 ## Consumption model
 
 Agent actions share the same runtime shape:

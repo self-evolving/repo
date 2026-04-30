@@ -2,7 +2,8 @@
 // Env: AUTOMATION_MODE, SOURCE_ACTION, SOURCE_CONCLUSION, TARGET_NUMBER,
 //      NEXT_TARGET_NUMBER, AUTOMATION_CURRENT_ROUND, AUTOMATION_MAX_ROUNDS,
 //      GITHUB_REPOSITORY, DEFAULT_BRANCH, REQUESTED_BY, REQUEST_TEXT,
-//      SESSION_BUNDLE_MODE, SOURCE_RUN_ID, PLANNER_RESPONSE_FILE, TARGET_KIND
+//      SESSION_BUNDLE_MODE, SOURCE_RUN_ID, PLANNER_RESPONSE_FILE, TARGET_KIND,
+//      BASE_BRANCH, BASE_PR
 
 import { readFileSync } from "node:fs";
 import {
@@ -139,6 +140,8 @@ const targetNumber = process.env.TARGET_NUMBER || "";
 const requestedBy = process.env.REQUESTED_BY || "";
 const requestText = process.env.REQUEST_TEXT || "";
 const sessionBundleMode = process.env.SESSION_BUNDLE_MODE || "";
+const baseBranch = process.env.BASE_BRANCH || "";
+const basePr = process.env.BASE_PR || "";
 const maxRounds = positiveInt(process.env.AUTOMATION_MAX_ROUNDS || "", 5);
 const currentRound = positiveInt(process.env.AUTOMATION_CURRENT_ROUND || "", 1);
 const automationMode = normalizeAutomationMode(process.env.AUTOMATION_MODE || "disabled");
@@ -368,6 +371,8 @@ try {
       ...commonInputs,
       issue_number: decision.targetNumber,
       approval_comment_url: "",
+      base_branch: baseBranch,
+      base_pr: basePr,
       implementation_route: "implement",
       implementation_prompt: "implement",
     });

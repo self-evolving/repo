@@ -23,6 +23,14 @@ on:
         description: "Session bundle persistence mode (defaults to repository variable AGENT_SESSION_BUNDLE_MODE or 'auto')"
         required: false
         default: ""
+      base_branch:
+        description: "Branch to base the implementation branch and PR on"
+        required: false
+        default: ""
+      base_pr:
+        description: "Open PR number whose same-repository head branch becomes the implementation base"
+        required: false
+        default: ""
       implementation_route:
         description: "Route identity for this implementation run"
         required: false
@@ -66,6 +74,14 @@ on:
         required: false
         default: ""
       session_bundle_mode:
+        type: string
+        required: false
+        default: ""
+      base_branch:
+        type: string
+        required: false
+        default: ""
+      base_pr:
         type: string
         required: false
         default: ""
@@ -152,6 +168,16 @@ jobs:
           install_codex: ${{ steps.provider.outputs.install_codex }}
           install_claude: ${{ steps.provider.outputs.install_claude }}
 
+      - name: Resolve implementation base
+        id: implementation_base
+        env:
+          BASE_BRANCH: ${{ inputs.base_branch }}
+          BASE_PR: ${{ inputs.base_pr }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node .agent/dist/cli/resolve-implementation-base.js
+
       - name: Label source issue
         if: vars.AGENT_STATUS_LABEL_ENABLED == 'true'
         continue-on-error: true
@@ -164,7 +190,10 @@ jobs:
         run: node .agent/dist/cli/add-label.js
 
       - name: Create implementation branch
-        run: git checkout -b "${BRANCH}" "${{ github.event.repository.default_branch }}"
+        run: |
+          set -euo pipefail
+          git fetch origin "refs/heads/${BASE_BRANCH}"
+          git checkout -b "${BRANCH}" FETCH_HEAD
 
       - name: Run agent
         id: agent
@@ -223,7 +252,7 @@ jobs:
         if: steps.commit.outputs.committed == 'true'
         id: pr
         env:
-          BASE_BRANCH: ${{ github.event.repository.default_branch }}
+          BASE_BRANCH: ${{ env.BASE_BRANCH }}
           BRANCH: ${{ env.BRANCH }}
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           ISSUE_NUMBER: ${{ env.ISSUE_NUMBER }}
