@@ -10,7 +10,7 @@ import { gh } from "../github.js";
 import { setOutput } from "../output.js";
 import {
   formatSubOrchestrationIssueBody,
-  formatSubOrchestratorMarker,
+  normalizeSubOrchestratorStage,
   parseSubOrchestratorMarker,
 } from "../sub-orchestration.js";
 
@@ -63,9 +63,15 @@ if (existingChildIssue) {
     "body",
   ]).trim();
   const body = String((JSON.parse(raw || "{}") as Record<string, unknown>).body || "");
-  if (!parseSubOrchestratorMarker(body)) {
-    const marker = formatSubOrchestratorMarker({ parent: parentIssue, stage });
-    gh(["issue", "edit", String(existingChildIssue), "--repo", repo, "--body", `${body.trim()}\n\n${marker}`.trim()]);
+  const marker = parseSubOrchestratorMarker(body);
+  const expectedStage = normalizeSubOrchestratorStage(stage);
+  if (!marker) {
+    console.error(`Child issue #${existingChildIssue} is missing a sepo-sub-orchestrator marker`);
+    process.exit(2);
+  }
+  if (marker.parent !== parentIssue || marker.stage !== expectedStage || marker.state !== "running") {
+    console.error(`Child issue #${existingChildIssue} is not a running child for parent #${parentIssue} stage ${expectedStage}`);
+    process.exit(2);
   }
   setOutput("child_issue_number", String(existingChildIssue));
   console.log(`Using existing child issue #${existingChildIssue}`);

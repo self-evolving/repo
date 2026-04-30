@@ -9,7 +9,7 @@ export interface SubOrchestratorMarker {
 const MARKER_PREFIX = "sepo-sub-orchestrator";
 const MARKER_RE = /<!--\s*sepo-sub-orchestrator\s+parent:(\d+)\s+stage:([^\s]+)\s+state:(running|done|blocked|failed)\s*-->/i;
 
-function normalizeStage(value: string): string {
+export function normalizeSubOrchestratorStage(value: string): string {
   return String(value || "")
     .trim()
     .toLowerCase()
@@ -23,7 +23,7 @@ export function formatSubOrchestratorMarker(input: {
   stage: string;
   state?: SubOrchestratorState;
 }): string {
-  return `<!-- ${MARKER_PREFIX} parent:${input.parent} stage:${normalizeStage(input.stage)} state:${input.state || "running"} -->`;
+  return `<!-- ${MARKER_PREFIX} parent:${input.parent} stage:${normalizeSubOrchestratorStage(input.stage)} state:${input.state || "running"} -->`;
 }
 
 export function parseSubOrchestratorMarker(body: string): SubOrchestratorMarker | null {

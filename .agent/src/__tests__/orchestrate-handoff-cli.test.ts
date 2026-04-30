@@ -121,6 +121,10 @@ if [ "\${1-}" = "api" ] && [ "\${2-}" = "--method" ] && [ "\${3-}" = "PATCH" ] &
 fi
 
 if [ "\${1-}" = "api" ] && [ "\${2-}" = "-X" ] && [ "\${3-}" = "POST" ] && [[ "\${4-}" == repos/*/actions/workflows/*/dispatches ]]; then
+  if [ "\${FAKE_DISPATCH_MODE-}" = "fail" ]; then
+    printf 'dispatch failed\\n' >&2
+    exit 1
+  fi
   cat > "$FAKE_DISPATCH_PAYLOAD"
   exit 0
 fi
@@ -389,17 +393,92 @@ test("agent meta orchestrate can reuse an existing child issue", () => {
     FAKE_ISSUE_VIEW_JSON: JSON.stringify({
       number: 88,
       title: "Existing child",
-      body: "Existing task body",
+      body: "<!-- sepo-sub-orchestrator parent:51 stage:stage-1 state:running -->",
     }),
   });
 
   assert.equal(run.status, 0, run.stderr);
   assert.equal(run.outputs.get("target_number"), "88");
   assert.match(run.ghLog, /issue view 88/);
-  assert.match(run.ghLog, /issue edit 88/);
+  assert.doesNotMatch(run.ghLog, /issue edit 88/);
   assert.doesNotMatch(run.ghLog, /issue create/);
   const inputs = run.dispatchPayload?.inputs as Record<string, string>;
   assert.equal(inputs.target_number, "88");
+});
+
+test("agent meta orchestrate rejects mismatched reusable child issue markers", () => {
+  const run = runOrchestrateHandoff({
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "51",
+    AUTOMATION_MODE: "agent",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "handoff",
+      next_action: "orchestrate",
+      reason: "Continue the existing child issue.",
+      child_stage: "stage-1",
+      child_issue_number: "88",
+    }),
+    FAKE_ISSUE_VIEW_JSON: JSON.stringify({
+      number: 88,
+      title: "Wrong child",
+      body: "<!-- sepo-sub-orchestrator parent:52 stage:stage-1 state:running -->",
+    }),
+  });
+
+  assert.equal(run.status, 2);
+  assert.match(run.stderr, /belongs to parent #52, not #51/);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
+});
+
+test("agent meta orchestrate validates effective child base inputs", () => {
+  const run = runOrchestrateHandoff({
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "51",
+    AUTOMATION_MODE: "agent",
+    BASE_BRANCH: "agent/base",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "handoff",
+      next_action: "orchestrate",
+      reason: "Split out the first stage.",
+      child_stage: "stage-1",
+      child_instructions: "Implement the first stage only.",
+      base_pr: "12",
+    }),
+  });
+
+  assert.equal(run.status, 2);
+  assert.match(run.stderr, /set only one of base_branch or base_pr/);
+  assert.doesNotMatch(run.ghLog, /issue create/);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
+});
+
+test("agent meta orchestrate reuses child found by parsed marker lookup", () => {
+  const run = runOrchestrateHandoff({
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "51",
+    AUTOMATION_MODE: "agent",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "handoff",
+      next_action: "orchestrate",
+      reason: "Split out the first stage.",
+      child_stage: "Stage 1",
+      child_instructions: "Implement the first stage only.",
+    }),
+    FAKE_ISSUE_LIST_JSON: JSON.stringify([
+      {
+        number: 89,
+        body: "<!-- sepo-sub-orchestrator parent:51 stage:stage-1 state:running -->",
+      },
+    ]),
+  });
+
+  assert.equal(run.status, 0, run.stderr);
+  assert.equal(run.outputs.get("target_number"), "89");
+  assert.match(run.ghLog, /issue list/);
+  assert.match(run.ghLog, /--search sepo-sub-orchestrator/);
+  assert.doesNotMatch(run.ghLog, /issue create/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.target_number, "89");
 });
 
 test("PR terminal SHIP resolves child issue and resumes parent orchestrator", () => {
@@ -431,4 +510,53 @@ test("PR terminal SHIP resolves child issue and resumes parent orchestrator", ()
   assert.equal(inputs.target_number, "51");
   assert.equal(inputs.automation_mode, "agent");
   assert.match(inputs.request_text, /Child issue #77 finished with SHIP/);
+});
+
+test("terminal child report keeps marker running when parent resume dispatch fails", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "99",
+    AUTOMATION_MODE: "heuristics",
+    FAKE_PR_BODY: "Closes #77",
+    FAKE_DISPATCH_MODE: "fail",
+    FAKE_ISSUE_VIEW_JSON: JSON.stringify({
+      number: 77,
+      title: "Child",
+      body: "Parent issue: #51\n\n<!-- sepo-sub-orchestrator parent:51 stage:stage-1 state:running -->",
+    }),
+  });
+
+  assert.equal(run.status, 0);
+  assert.match(run.stderr, /Failed to report terminal sub-orchestration state/);
+  assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/51\/comments/);
+  assert.match(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
+  assert.doesNotMatch(run.ghLog, /issue edit 77/);
+});
+
+test("terminal child report is idempotent after parent resume was dispatched", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "99",
+    AUTOMATION_MODE: "heuristics",
+    FAKE_PR_BODY: "Closes #77",
+    FAKE_ISSUE_VIEW_JSON: JSON.stringify({
+      number: 77,
+      title: "Child",
+      body: "Parent issue: #51\n\n<!-- sepo-sub-orchestrator parent:51 stage:stage-1 state:running -->",
+    }),
+    FAKE_ISSUE_COMMENTS_JSON: JSON.stringify([[
+      {
+        id: 123,
+        body: "<!-- sepo-sub-orchestrator-report child:77 resume:dispatched -->",
+      },
+    ]]),
+  });
+
+  assert.equal(run.status, 0, run.stderr);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
+  assert.match(run.ghLog, /issue edit 77/);
 });
