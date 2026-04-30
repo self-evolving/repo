@@ -2,11 +2,15 @@
 
 Implement GitHub issue #${TARGET_NUMBER}.
 
+Orchestrator context, when provided by an automation lane:
+`${ORCHESTRATOR_CONTEXT}`
+
 Instructions:
 1. Start by reading the current issue state with `gh issue view ${TARGET_NUMBER} --repo ${REPO_SLUG} --json title,body,author,comments,labels,state,url`. Please also check the broader project context.
-2. Make the smallest complete change that resolves the issue.
-3. Run lightweight, directly relevant checks when they are clearly applicable.
-4. Do not commit. Leave changes in the working tree.
+2. If orchestrator context is non-empty, treat it as the current lane's scoped implementation instruction.
+3. Make the smallest complete change that resolves the issue.
+4. Run lightweight, directly relevant checks when they are clearly applicable.
+5. Do not commit. Leave changes in the working tree.
 
 Return exactly one JSON object and nothing else:
 

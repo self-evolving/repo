@@ -28,7 +28,9 @@ launched action runs hand back to `agent-orchestrator.yml` after post-processing
 Direct `/implement`, `/review`, and `/fix-pr` runs remain one-shot. In `agent`
 mode, the planner can also dispatch one child `orchestrate` lane for a staged
 subtask. Child lanes run the existing bounded action loop in `heuristics` mode
-and carry their `orchestrator_lane` back on later handoffs. The planner can
+and carry their `orchestrator_lane`, parent lane, chain id, and stage context
+through later handoffs. Terminal child outcomes report back to the parent lane
+for the next planning decision. The planner can
 include a `handoff_context` string for the next action; `fix-pr` receives it as
 explicit initial steering when the planner dispatches a PR-fix pass. The
 planner mounts memory and rubrics read-only so automated control-flow planning

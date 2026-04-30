@@ -39,8 +39,24 @@ on:
         description: "Orchestrator lane this run should hand back to"
         required: false
         default: "planner"
+      parent_orchestrator_lane:
+        description: "Parent orchestrator lane for terminal report-back"
+        required: false
+        default: ""
       orchestration_chain_id:
         description: "Optional stable chain id for related orchestrator lanes"
+        required: false
+        default: ""
+      orchestrator_context:
+        description: "Planner-provided context for this orchestrator lane"
+        required: false
+        default: ""
+      orchestrator_target_kind:
+        description: "Original target kind for parent lane report-back"
+        required: false
+        default: ""
+      orchestrator_target_number:
+        description: "Original target number for parent lane report-back"
         required: false
         default: ""
   workflow_call:
@@ -83,7 +99,23 @@ on:
         type: string
         required: false
         default: "planner"
+      parent_orchestrator_lane:
+        type: string
+        required: false
+        default: ""
       orchestration_chain_id:
+        type: string
+        required: false
+        default: ""
+      orchestrator_context:
+        type: string
+        required: false
+        default: ""
+      orchestrator_target_kind:
+        type: string
+        required: false
+        default: ""
+      orchestrator_target_number:
         type: string
         required: false
         default: ""
@@ -174,6 +206,8 @@ jobs:
           target_number: ${{ inputs.pr_number }}
           target_url: ${{ github.server_url }}/${{ github.repository }}/pull/${{ inputs.pr_number }}
           workflow: agent-review.yml
+        env:
+          ORCHESTRATOR_CONTEXT: ${{ inputs.orchestrator_context }}
 
       - name: Persist review artifacts
         if: ${{ steps.agent.outcome == 'success' }}
@@ -299,6 +333,7 @@ jobs:
           target_url: ${{ github.server_url }}/${{ github.repository }}/pull/${{ inputs.pr_number }}
           workflow: agent-review.yml
         env:
+          ORCHESTRATOR_CONTEXT: ${{ inputs.orchestrator_context }}
           REVIEWS_DIR: ${{ steps.reviews.outputs.reviews_dir }}
 
       - name: Post review comment
@@ -338,7 +373,11 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           ORCHESTRATION_ENABLED: ${{ inputs.orchestration_enabled }}
           ORCHESTRATOR_LANE: ${{ inputs.orchestrator_lane }}
+          PARENT_ORCHESTRATOR_LANE: ${{ inputs.parent_orchestrator_lane }}
           ORCHESTRATION_CHAIN_ID: ${{ inputs.orchestration_chain_id }}
+          ORCHESTRATOR_CONTEXT: ${{ inputs.orchestrator_context }}
+          ORCHESTRATOR_TARGET_KIND: ${{ inputs.orchestrator_target_kind || 'pull_request' }}
+          ORCHESTRATOR_TARGET_NUMBER: ${{ inputs.orchestrator_target_number || inputs.pr_number }}
           REQUESTED_BY: ${{ inputs.requested_by || github.actor }}
           REQUEST_TEXT: ${{ inputs.request_text }}
           # SOURCE_CONCLUSION is intentionally omitted for review; the dispatcher

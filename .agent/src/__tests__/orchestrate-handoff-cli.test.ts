@@ -246,6 +246,73 @@ test("agent planner must name a child orchestrator lane", () => {
   assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
 });
 
+test("agent planner malformed output stops manual orchestrate", () => {
+  const run = runOrchestrateHandoff({
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "51",
+    AUTOMATION_MODE: "agent",
+    PLANNER_RESPONSE: "not json",
+  });
+
+  assert.equal(run.status, 0);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.equal(run.outputs.get("reason"), "agent planner decision missing or invalid");
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-implement\.yml\/dispatches/);
+});
+
+test("child orchestrator context is passed to implement dispatch", () => {
+  const run = runOrchestrateHandoff({
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "51",
+    AUTOMATION_MODE: "heuristics",
+    ORCHESTRATOR_LANE: "stage-1",
+    PARENT_ORCHESTRATOR_LANE: "meta",
+    ORCHESTRATION_CHAIN_ID: "issue-51",
+    ORCHESTRATOR_CONTEXT: "Implement stage 1 only.",
+  });
+
+  assert.equal(run.status, 0);
+  assert.equal(run.outputs.get("decision"), "dispatch");
+  assert.equal(run.outputs.get("next_action"), "implement");
+  assert.match(run.ghLog, /actions\/workflows\/agent-implement\.yml\/dispatches/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.orchestrator_lane, "stage-1");
+  assert.equal(inputs.parent_orchestrator_lane, "meta");
+  assert.equal(inputs.orchestration_chain_id, "issue-51");
+  assert.equal(inputs.orchestrator_context, "Implement stage 1 only.");
+  assert.equal(inputs.orchestrator_target_kind, "issue");
+  assert.equal(inputs.orchestrator_target_number, "51");
+});
+
+test("terminal child lane reports back to parent orchestrator", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "61",
+    AUTOMATION_MODE: "heuristics",
+    ORCHESTRATOR_LANE: "stage-1",
+    PARENT_ORCHESTRATOR_LANE: "meta",
+    ORCHESTRATION_CHAIN_ID: "issue-51",
+    ORCHESTRATOR_TARGET_KIND: "issue",
+    ORCHESTRATOR_TARGET_NUMBER: "51",
+  });
+
+  assert.equal(run.status, 0);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.match(run.outputs.get("reason") || "", /review verdict is ship/i);
+  assert.match(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.automation_mode, "agent");
+  assert.equal(inputs.source_action, "orchestrate");
+  assert.equal(inputs.source_conclusion, "child_stop");
+  assert.equal(inputs.target_kind, "issue");
+  assert.equal(inputs.target_number, "51");
+  assert.equal(inputs.orchestrator_lane, "meta");
+  assert.equal(inputs.orchestration_chain_id, "issue-51");
+  assert.match(inputs.orchestrator_context, /Child orchestrator lane stage-1 reached stop: review verdict is ship/i);
+});
+
 test("manual orchestrate dispatches fix-pr for PR targets with CHANGES_REQUESTED", () => {
   const run = runOrchestrateHandoff({
     TARGET_KIND: "pull_request",

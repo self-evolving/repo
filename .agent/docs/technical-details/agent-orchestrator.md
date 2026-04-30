@@ -100,7 +100,10 @@ existing `implement -> review -> fix-pr -> review` loop while allowing a meta
 orchestrator to split issue-level work into visible stages. Workflows launched
 by a child lane carry `orchestrator_lane` and `orchestration_chain_id` back to
 the orchestrator so follow-up handoffs resume the same lane instead of the
-default planner lane.
+default planner lane. They also carry the child lane's `orchestrator_context`
+into implement, review, and fix-pr prompts, plus `parent_orchestrator_lane` and
+the original orchestrator target so terminal child outcomes can dispatch the
+parent/meta lane for the next planning decision.
 
 Before dispatching, the orchestrator checks for a hidden handoff marker on the destination issue or pull request. It then writes a `pending` marker for the current source run, source action, destination action, target, and round, dispatches the next workflow, and updates the marker to `dispatched` after `workflow_dispatch` succeeds. If dispatch fails, the marker is updated to `failed` so a rerun can retry. Rerunning the same source action or orchestrator run skips fresh `pending` or `dispatched` markers instead of enqueueing a duplicate next action. A `pending` marker records its creation time; if it is older than the one-hour stale threshold, the orchestrator marks it `failed` and retries so cancelled runs do not permanently block handoff. Non-success statuses and unsupported verdicts stop the chain.
 

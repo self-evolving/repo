@@ -70,6 +70,14 @@ on:
         description: "Planner-provided context for this orchestrator lane"
         required: false
         default: ""
+      orchestrator_target_kind:
+        description: "Original target kind for parent lane report-back"
+        required: false
+        default: ""
+      orchestrator_target_number:
+        description: "Original target number for parent lane report-back"
+        required: false
+        default: ""
       automation_mode:
         description: "Post-action orchestration mode (disabled, heuristics, agent)"
         required: false
@@ -192,7 +200,11 @@ jobs:
           BASE_BRANCH: ${{ inputs.base_branch }}
           BASE_PR: ${{ inputs.base_pr }}
           ORCHESTRATOR_LANE: ${{ inputs.orchestrator_lane || 'planner' }}
+          PARENT_ORCHESTRATOR_LANE: ${{ inputs.parent_orchestrator_lane }}
           ORCHESTRATION_CHAIN_ID: ${{ inputs.orchestration_chain_id }}
+          ORCHESTRATOR_CONTEXT: ${{ inputs.orchestrator_context }}
+          ORCHESTRATOR_TARGET_KIND: ${{ inputs.orchestrator_target_kind || inputs.target_kind }}
+          ORCHESTRATOR_TARGET_NUMBER: ${{ inputs.orchestrator_target_number || inputs.target_number }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}

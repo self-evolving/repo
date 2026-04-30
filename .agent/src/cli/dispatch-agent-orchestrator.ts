@@ -4,7 +4,9 @@
 //      REQUESTED_BY, REQUEST_TEXT, AUTOMATION_CURRENT_ROUND,
 //      AUTOMATION_MAX_ROUNDS, SESSION_BUNDLE_MODE, SOURCE_RUN_ID, TARGET_KIND,
 //      AUTHOR_ASSOCIATION, ACCESS_POLICY, REPOSITORY_PRIVATE, ORCHESTRATION_ENABLED,
-//      BASE_BRANCH, BASE_PR, ORCHESTRATOR_LANE, ORCHESTRATION_CHAIN_ID
+//      BASE_BRANCH, BASE_PR, ORCHESTRATOR_LANE, PARENT_ORCHESTRATOR_LANE,
+//      ORCHESTRATION_CHAIN_ID, ORCHESTRATOR_CONTEXT,
+//      ORCHESTRATOR_TARGET_KIND, ORCHESTRATOR_TARGET_NUMBER
 
 import { readFileSync } from "node:fs";
 import { dispatchWorkflow } from "../github.js";
@@ -65,6 +67,8 @@ dispatchWorkflow(repo, "agent-orchestrator.yml", ref, {
   parent_orchestrator_lane: process.env.PARENT_ORCHESTRATOR_LANE || "",
   orchestration_chain_id: process.env.ORCHESTRATION_CHAIN_ID || "",
   orchestrator_context: process.env.ORCHESTRATOR_CONTEXT || "",
+  orchestrator_target_kind: process.env.ORCHESTRATOR_TARGET_KIND || "",
+  orchestrator_target_number: process.env.ORCHESTRATOR_TARGET_NUMBER || "",
 });
 
 console.log(`Dispatched agent-orchestrator.yml after ${sourceAction} for #${targetNumber}`);

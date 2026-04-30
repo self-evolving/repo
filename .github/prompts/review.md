@@ -2,6 +2,9 @@
 
 Perform a thorough code review of this pull request.
 
+Orchestrator context, when provided by an automation lane:
+`${ORCHESTRATOR_CONTEXT}`
+
 Gather current PR context before judging the change:
 - `gh pr view ${TARGET_NUMBER} --repo ${REPO_SLUG} --json title,body,author,comments,files,labels,reviews,reviewDecision,state,url`
 - `gh pr view ${TARGET_NUMBER} --repo ${REPO_SLUG} --json files,headRefOid`

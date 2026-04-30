@@ -3,7 +3,9 @@
 //      NEXT_TARGET_NUMBER, AUTOMATION_CURRENT_ROUND, AUTOMATION_MAX_ROUNDS,
 //      GITHUB_REPOSITORY, DEFAULT_BRANCH, REQUESTED_BY, REQUEST_TEXT,
 //      SESSION_BUNDLE_MODE, SOURCE_RUN_ID, PLANNER_RESPONSE_FILE, TARGET_KIND,
-//      BASE_BRANCH, BASE_PR, ORCHESTRATOR_LANE, ORCHESTRATION_CHAIN_ID
+//      BASE_BRANCH, BASE_PR, ORCHESTRATOR_LANE, PARENT_ORCHESTRATOR_LANE,
+//      ORCHESTRATION_CHAIN_ID, ORCHESTRATOR_CONTEXT,
+//      ORCHESTRATOR_TARGET_KIND, ORCHESTRATOR_TARGET_NUMBER
 
 import { readFileSync } from "node:fs";
 import {
@@ -143,7 +145,11 @@ const sessionBundleMode = process.env.SESSION_BUNDLE_MODE || "";
 const baseBranch = process.env.BASE_BRANCH || "";
 const basePr = process.env.BASE_PR || "";
 const orchestratorLane = process.env.ORCHESTRATOR_LANE || "planner";
+const parentOrchestratorLane = process.env.PARENT_ORCHESTRATOR_LANE || "";
 const orchestrationChainId = process.env.ORCHESTRATION_CHAIN_ID || "";
+const orchestratorContext = process.env.ORCHESTRATOR_CONTEXT || "";
+const orchestratorTargetKind = process.env.ORCHESTRATOR_TARGET_KIND || "";
+const orchestratorTargetNumber = process.env.ORCHESTRATOR_TARGET_NUMBER || "";
 const maxRounds = positiveInt(process.env.AUTOMATION_MAX_ROUNDS || "", 5);
 const currentRound = positiveInt(process.env.AUTOMATION_CURRENT_ROUND || "", 1);
 const automationMode = normalizeAutomationMode(process.env.AUTOMATION_MODE || "disabled");
@@ -258,7 +264,10 @@ function applyDelegatedRouteAuthorization(decision: HandoffDecision): HandoffDec
 
 const plannerDecision = automationMode === "agent" ? readPlannerDecision() : null;
 const usePlannerDecision = automationMode === "agent" && Boolean(plannerDecision);
-const routeDecision = normalizeToken(sourceAction) === "orchestrate" && !usePlannerDecision
+const agentPlannerRequired = automationMode === "agent" && normalizeToken(sourceAction) === "orchestrate" && currentRound < maxRounds;
+const routeDecision = agentPlannerRequired && !plannerDecision
+  ? { decision: "stop" as const, reason: "agent planner decision missing or invalid", nextRound: currentRound + 1 }
+  : normalizeToken(sourceAction) === "orchestrate" && !usePlannerDecision
   ? decideManualOrchestration()
   : decideHandoff({
     automationMode,
@@ -283,6 +292,38 @@ setOutput("dedupe_key", "");
 setOutput("marker_comment_id", "");
 
 if (decision.decision !== "dispatch") {
+  const hasParentLane = parentOrchestratorLane && normalizeToken(parentOrchestratorLane) !== normalizeToken(orchestratorLane);
+  if (hasParentLane && repo && ref) {
+    const parentTargetNumber = orchestratorTargetNumber || targetNumber;
+    if (parentTargetNumber) {
+      dispatchWorkflow(repo, "agent-orchestrator.yml", ref, {
+        requested_by: requestedBy,
+        request_text: requestText,
+        automation_current_round: String(decision.nextRound),
+        automation_max_rounds: String(maxRounds),
+        session_bundle_mode: sessionBundleMode,
+        automation_mode: "agent",
+        source_action: "orchestrate",
+        source_conclusion: `child_${decision.decision}`,
+        source_run_id: sourceRunId,
+        target_kind: orchestratorTargetKind || sourceTargetKind || "issue",
+        target_number: parentTargetNumber,
+        author_association: sourceAssociationRaw,
+        access_policy: accessPolicyRaw,
+        repository_private: process.env.REPOSITORY_PRIVATE || "",
+        next_target_number: "",
+        base_branch: baseBranch,
+        base_pr: basePr,
+        orchestrator_lane: parentOrchestratorLane,
+        parent_orchestrator_lane: "",
+        orchestration_chain_id: orchestrationChainId,
+        orchestrator_context: `Child orchestrator lane ${orchestratorLane} reached ${decision.decision}: ${decision.reason}`,
+        orchestrator_target_kind: orchestratorTargetKind || sourceTargetKind || "issue",
+        orchestrator_target_number: parentTargetNumber,
+      });
+      console.log(`Child lane ${orchestratorLane} reported ${decision.decision} to parent lane ${parentOrchestratorLane}`);
+    }
+  }
   console.log(`Handoff ${decision.decision}: ${decision.reason}`);
   process.exit(0);
 }
@@ -364,7 +405,11 @@ const commonInputs = {
   automation_max_rounds: String(maxRounds),
   session_bundle_mode: sessionBundleMode,
   orchestrator_lane: orchestratorLane,
+  parent_orchestrator_lane: parentOrchestratorLane,
   orchestration_chain_id: orchestrationChainId,
+  orchestrator_context: decision.handoffContext || orchestratorContext,
+  orchestrator_target_kind: orchestratorTargetKind || sourceTargetKind,
+  orchestrator_target_number: orchestratorTargetNumber || targetNumber,
 };
 
 try {
@@ -388,7 +433,6 @@ try {
       ...commonInputs,
       pr_number: decision.targetNumber,
       request_source_kind: "workflow_dispatch",
-      orchestrator_context: decision.handoffContext || "",
     });
   } else if (decision.nextAction === "orchestrate") {
     dispatchWorkflow(repo, "agent-orchestrator.yml", ref, {
@@ -413,6 +457,8 @@ try {
       parent_orchestrator_lane: decision.parentOrchestratorLane || orchestratorLane,
       orchestration_chain_id: decision.orchestrationChainId || orchestrationChainId,
       orchestrator_context: decision.handoffContext || "",
+      orchestrator_target_kind: orchestratorTargetKind || sourceTargetKind || "issue",
+      orchestrator_target_number: orchestratorTargetNumber || targetNumber,
     });
   } else {
     console.error(`Unsupported next action: ${decision.nextAction}`);
