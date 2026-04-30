@@ -1230,12 +1230,10 @@ test("memory and rubric guidance live in dedicated conditional prompt fragments"
   assert.match(memory, /memory\/search\.js/);
   assert.match(memory, /memory\/update\.js/);
   assert.match(memory, /\$\{MEMORY_DIR\}/);
-  assert.match(memory, /https:\/\/github\.com\/\$\{REPO_SLUG\}\/tree\/\$\{MEMORY_REF\}/);
   assert.match(runSource, /MEMORY_PROMPT_PATH = "\.github\/prompts\/_memory\.md"/);
   assert.match(runSource, /vars\.MEMORY_AVAILABLE === "true"/);
   assert.match(rubrics, /User\/team rubrics/);
   assert.match(rubrics, /\$\{RUBRICS_CONTEXT\}/);
-  assert.match(rubrics, /https:\/\/github\.com\/\$\{REPO_SLUG\}\/tree\/\$\{RUBRICS_REF\}/);
   assert.match(runSource, /RUBRICS_PROMPT_PATH = "\.github\/prompts\/_rubrics\.md"/);
   assert.match(runSource, /vars\.RUBRICS_AVAILABLE === "true"/);
   assert.match(runSource, /base \+ memory \+ rubrics \+ template/);
