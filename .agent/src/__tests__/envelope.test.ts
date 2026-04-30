@@ -436,6 +436,13 @@ test("workflows use granular CLI helpers for post-processing", () => {
   assert.match(implementWorkflow, /node \.agent\/dist\/cli\/commit\.js/);
   assert.match(implementWorkflow, /node \.agent\/dist\/cli\/create-pr\.js/);
   assert.match(implementWorkflow, /node \.agent\/dist\/cli\/post-comment\.js/);
+  assert.match(implementWorkflow, /base_branch:/);
+  assert.match(implementWorkflow, /base_pr:/);
+  assert.match(implementWorkflow, /node \.agent\/dist\/cli\/resolve-implementation-base\.js/);
+  assert.match(implementWorkflow, /GH_TOKEN:\s*\$\{\{ steps\.auth\.outputs\.token \}\}/);
+  assert.match(implementWorkflow, /http\.\$\{GITHUB_SERVER_URL\}\/\.extraheader=AUTHORIZATION: basic \$\{AUTH_HEADER\}/);
+  assert.match(implementWorkflow, /fetch origin "refs\/heads\/\$\{BASE_BRANCH\}"/);
+  assert.match(implementWorkflow, /BASE_BRANCH:\s*\$\{\{ env\.BASE_BRANCH \}\}/);
 
   assert.match(fixPrWorkflow, /node \.agent\/dist\/cli\/verify\.js/);
   assert.match(fixPrWorkflow, /node \.agent\/dist\/cli\/detect-head-change\.js/);
@@ -782,6 +789,11 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(reviewWorkflow, /RESPONSE_FILE:\s*\$\{\{ steps\.synthesis\.outputs\.response_file \}\}/);
   assert.match(reviewWorkflow, /steps\.post_comment\.outcome == 'success'/);
   assert.match(orchestratorWorkflow, /PLANNER_RESPONSE_FILE:\s*\$\{\{ steps\.planner\.outputs\.response_file \}\}/);
+  assert.match(orchestratorWorkflow, /base_branch:/);
+  assert.match(orchestratorWorkflow, /base_pr:/);
+  assert.match(orchestratorWorkflow, /BASE_BRANCH:\s*\$\{\{ inputs\.base_branch \}\}/);
+  assert.match(orchestrateHandoffCli, /base_branch:\s*baseBranch/);
+  assert.match(orchestrateHandoffCli, /base_pr:\s*basePr/);
   assert.match(orchestratorWorkflow, /target_kind:/);
   assert.match(orchestratorWorkflow, /TARGET_KIND:/);
   assert.match(orchestrateHandoffCli, /orchestration_enabled:\s*"true"/);

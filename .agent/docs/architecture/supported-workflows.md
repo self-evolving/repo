@@ -11,7 +11,7 @@
 | `agent-router.yml` | `workflow_call` | Full portal for context extraction, auth gating, mention detection, dispatch triage, routing, approval requests, and response posting | Configurable |
 | `agent-approve.yml` | approval comments | Resolves pending approvals, creates issues when needed, dispatches implementation | None |
 | `agent-orchestrator.yml` | `workflow_dispatch` | Explicit orchestration route that decides whether to dispatch the next action | None in `heuristics` mode; resolved-provider planner in `agent` mode |
-| `agent-implement.yml` | `workflow_dispatch` | Implementation flow: branch, commit, draft PR | Auto |
+| `agent-implement.yml` | `workflow_dispatch` | Implementation flow: branch, commit, draft PR; supports `base_branch` or `base_pr` for stacked PRs | Auto |
 | `agent-fix-pr.yml` | `workflow_dispatch`, `workflow_call` | PR fix flow: update existing PR branch, verify, push | Auto |
 | `agent-review.yml` | `workflow_dispatch`, `workflow_call` | Parallel Claude and Codex review with resolved-provider synthesis, plus a separate rubric review comment | Claude + Codex reviewers; configurable synthesis |
 | `agent-branch-cleanup.yml` | `pull_request_target.closed` | Event-driven cleanup of agent-created branches after PR close. Excludes the shared `agent/memory` and `agent/rubrics` branches. | None |
@@ -35,6 +35,11 @@ memory and rubrics read-only so automated control-flow planning can use steering
 context without mutating those state branches. Orchestration stops when target
 state indicates no safe next action, a route fails, a duplicate handoff marker
 is found, the planner stops or blocks, or the max-round budget is exhausted.
+
+Implementation dispatches default to the repository default branch. Callers can
+set `base_branch` to stack directly on another branch, or `base_pr` to stack on
+an open same-repository PR head branch. The implementation workflow rejects
+ambiguous input when both are set.
 
 When a new review synthesis or rubrics review is posted to a pull request, the
 review workflows first minimize prior visible matching comments and reviews from

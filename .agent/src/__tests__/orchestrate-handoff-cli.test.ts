@@ -23,6 +23,7 @@ function runOrchestrateHandoff(env: Record<string, string>): {
   stdout: string;
   outputs: Map<string, string>;
   ghLog: string;
+  dispatchPayload: Record<string, unknown> | null;
 } {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-orchestrate-handoff-"));
   try {
@@ -107,6 +108,14 @@ exit 1
         ghLog = "";
       }
     }
+    let dispatchPayload: Record<string, unknown> | null = null;
+    if (existsSync(dispatchPayloadPath)) {
+      try {
+        dispatchPayload = JSON.parse(readFileSync(dispatchPayloadPath, "utf8"));
+      } catch {
+        dispatchPayload = null;
+      }
+    }
 
     return {
       status: result.status,
@@ -114,6 +123,7 @@ exit 1
       stdout: result.stdout,
       outputs: parseGithubOutput(outputPath),
       ghLog,
+      dispatchPayload,
     };
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
@@ -169,12 +179,14 @@ test("manual orchestrate dispatches implement for issue targets", () => {
   const run = runOrchestrateHandoff({
     TARGET_KIND: "issue",
     TARGET_NUMBER: "20",
+    BASE_PR: "12",
   });
 
   assert.equal(run.status, 0);
   assert.equal(run.outputs.get("decision"), "dispatch");
   assert.equal(run.outputs.get("next_action"), "implement");
   assert.match(run.ghLog, /actions\/workflows\/agent-implement\.yml\/dispatches/);
+  assert.equal((run.dispatchPayload?.inputs as Record<string, string>).base_pr, "12");
 });
 
 test("manual orchestrate dispatches fix-pr for PR targets with CHANGES_REQUESTED", () => {
