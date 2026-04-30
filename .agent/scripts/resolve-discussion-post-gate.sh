@@ -54,7 +54,7 @@ fail_config() {
 }
 
 main() {
-  local repo_slug category owner repo extra response enabled category_exists
+  local repo_slug category owner repo extra response enabled category_exists has_next_page cursor end_cursor
   repo_slug="$(trim "${GITHUB_REPOSITORY:-${REPO_SLUG:-}}")"
   category="$(trim "${DISCUSSION_CATEGORY:-}")"
 
@@ -70,45 +70,74 @@ main() {
     fail_config "GITHUB_REPOSITORY must be owner/repo (got: ${repo_slug})"
   fi
 
-  response="$(
-    gh api graphql \
-      -F owner="$owner" \
-      -F repo="$repo" \
-      -f query='
-        query($owner: String!, $repo: String!) {
-          repository(owner: $owner, name: $repo) {
-            hasDiscussionsEnabled
-            discussionCategories(first: 100) {
-              nodes { name }
+  cursor=""
+  while :; do
+    local gh_args=(-F "owner=${owner}" -F "repo=${repo}")
+    if [ -n "$cursor" ]; then
+      gh_args+=(-F "cursor=${cursor}")
+    fi
+
+    response="$(
+      gh api graphql \
+        "${gh_args[@]}" \
+        -f query='
+          query($owner: String!, $repo: String!, $cursor: String) {
+            repository(owner: $owner, name: $repo) {
+              hasDiscussionsEnabled
+              discussionCategories(first: 100, after: $cursor) {
+                nodes { name }
+                pageInfo {
+                  hasNextPage
+                  endCursor
+                }
+              }
             }
           }
-        }
-      '
-  )"
+        '
+    )"
 
-  if ! printf '%s' "$response" | jq -e '.data.repository | type == "object"' >/dev/null; then
-    printf 'Repository not found or GraphQL response was malformed for %s\n' "$repo_slug" >&2
-    exit 1
-  fi
+    if ! printf '%s' "$response" | jq -e '.data.repository | type == "object"' >/dev/null; then
+      printf 'Repository not found or GraphQL response was malformed for %s\n' "$repo_slug" >&2
+      exit 1
+    fi
 
-  enabled="$(printf '%s' "$response" | jq -r '.data.repository.hasDiscussionsEnabled == true')"
-  if [ "$enabled" != "true" ]; then
-    emit_result "true" "repository discussions are disabled"
-    return 0
-  fi
+    enabled="$(printf '%s' "$response" | jq -r '.data.repository.hasDiscussionsEnabled == true')"
+    if [ "$enabled" != "true" ]; then
+      emit_result "true" "repository discussions are disabled"
+      return 0
+    fi
 
-  category_exists="$(
-    printf '%s' "$response" |
-      jq -r --arg category "$category" '
-        [.data.repository.discussionCategories.nodes[]?.name] | any(. == $category)
-      '
-  )"
-  if [ "$category_exists" != "true" ]; then
-    emit_result "true" "discussion category '${category}' was not found"
-    return 0
-  fi
+    category_exists="$(
+      printf '%s' "$response" |
+        jq -r --arg category "$category" '
+          [.data.repository.discussionCategories.nodes[]?.name] | any(. == $category)
+        '
+    )"
+    if [ "$category_exists" = "true" ]; then
+      emit_result "false" "discussion posting is available"
+      return 0
+    fi
 
-  emit_result "false" "discussion posting is available"
+    has_next_page="$(
+      printf '%s' "$response" |
+        jq -r '.data.repository.discussionCategories.pageInfo.hasNextPage == true'
+    )"
+    if [ "$has_next_page" != "true" ]; then
+      break
+    fi
+
+    end_cursor="$(
+      printf '%s' "$response" |
+        jq -r '.data.repository.discussionCategories.pageInfo.endCursor // ""'
+    )"
+    if [ -z "$end_cursor" ]; then
+      printf 'GraphQL response was malformed: discussion category page has no endCursor\n' >&2
+      exit 1
+    fi
+    cursor="$end_cursor"
+  done
+
+  emit_result "true" "discussion category '${category}' was not found"
 }
 
 main "$@"

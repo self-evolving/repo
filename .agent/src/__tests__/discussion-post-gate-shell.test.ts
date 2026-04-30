@@ -5,13 +5,27 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
 
-function writeFakeGh(tempDir: string, response: string): void {
+function writeFakeGh(tempDir: string, responses: string | string[]): void {
+  const responseList = Array.isArray(responses) ? responses : [responses];
+  responseList.forEach((response, index) => {
+    writeFileSync(join(tempDir, `response-${index}.json`), response);
+  });
+
   writeFileSync(
     join(tempDir, "gh"),
     `#!/usr/bin/env bash
 if [ "$1" = "api" ] && [ "$2" = "graphql" ]; then
-  printf '%s' '${response.replaceAll("'", "'\\''")}'
-  exit 0
+  count_file="${join(tempDir, "gh-count")}"
+  count="$(cat "$count_file" 2>/dev/null || printf '0')"
+  response_file="${join(tempDir, "response-")}$count.json"
+  next_count="$((count + 1))"
+  printf '%s' "$next_count" > "$count_file"
+  if [ -f "$response_file" ]; then
+    cat "$response_file"
+    exit 0
+  fi
+  printf 'missing fake gh response: %s\\n' "$response_file" >&2
+  exit 1
 fi
 printf 'unexpected gh args: %s\\n' "$*" >&2
 exit 1
@@ -89,6 +103,27 @@ test("discussion post gate allows summary generation when posting is available",
     });
 
     assert.equal(result.status, 0, result.stderr);
+    assert.equal(payload.skip, false);
+    assert.equal(payload.reason, "discussion posting is available");
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("discussion post gate paginates categories before deciding posting is available", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "discussion-gate-"));
+  try {
+    writeFakeGh(tempDir, [
+      '{"data":{"repository":{"hasDiscussionsEnabled":true,"discussionCategories":{"nodes":[{"name":"General"}],"pageInfo":{"hasNextPage":true,"endCursor":"cursor-1"}}}}}',
+      '{"data":{"repository":{"hasDiscussionsEnabled":true,"discussionCategories":{"nodes":[{"name":"Daily Summaries"}],"pageInfo":{"hasNextPage":false,"endCursor":"cursor-2"}}}}}',
+    ]);
+
+    const { result, payload } = runGate(tempDir, {
+      DISCUSSION_CATEGORY: "Daily Summaries",
+    });
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(readFileSync(join(tempDir, "gh-count"), "utf8"), "2");
     assert.equal(payload.skip, false);
     assert.equal(payload.reason, "discussion posting is available");
   } finally {
