@@ -1,7 +1,7 @@
 // CLI: build the rubrics-update summary comment body.
 // Usage: node .agent/dist/cli/prepare-rubrics-update-summary.js
 // Env: RESPONSE_FILE, RUBRICS_COMMITTED, RUBRICS_STEP_OUTCOME, RUBRICS_REF,
-//      PR_NUMBER, RUNNER_TEMP
+//      PR_NUMBER, GITHUB_REPOSITORY, RUNNER_TEMP
 // Outputs: body_file
 
 import { readFileSync, writeFileSync } from "node:fs";
@@ -15,6 +15,7 @@ const rubricsCommitted = process.env.RUBRICS_COMMITTED === "true";
 const runSucceeded = process.env.RUBRICS_STEP_OUTCOME === "success";
 const rubricsRef = process.env.RUBRICS_REF || "agent/rubrics";
 const prNumber = process.env.PR_NUMBER || "";
+const repoSlug = process.env.GITHUB_REPOSITORY || "";
 
 let summary = "";
 if (responseFile) {
@@ -30,6 +31,7 @@ const body = formatRubricsUpdateComment({
   rubricsRef,
   rubricsCommitted,
   runSucceeded,
+  repoSlug,
   summary,
 });
 

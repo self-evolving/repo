@@ -142,23 +142,38 @@ export function formatReviewComment(data: {
   return lines.join("\n");
 }
 
+function escapeMarkdownLinkText(text: string): string {
+  return text.replace(/\\/g, "\\\\").replace(/\]/g, "\\]");
+}
+
+function formatBranchReference(ref: string, repoSlug?: string): string {
+  const normalizedRepoSlug = String(repoSlug || "").trim();
+  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(normalizedRepoSlug)) {
+    return `\`${ref}\``;
+  }
+  const encodedRef = ref.split("/").map(encodeURIComponent).join("/");
+  return `[\`${escapeMarkdownLinkText(ref)}\`](https://github.com/${normalizedRepoSlug}/tree/${encodedRef})`;
+}
+
 export function formatRubricsUpdateComment(data: {
   prNumber: string | number;
   rubricsRef: string;
   rubricsCommitted: boolean;
   runSucceeded: boolean;
+  repoSlug?: string;
   summary?: string;
 }): string {
   const prNumber = String(data.prNumber || "").trim() || "unknown";
   const rubricsRef = String(data.rubricsRef || "").trim() || "agent/rubrics";
+  const rubricsRefLink = formatBranchReference(rubricsRef, data.repoSlug);
   const lines = ["## Rubrics Update", ""];
 
   if (!data.runSucceeded) {
     lines.push(`Rubrics update did not complete successfully for PR #${prNumber}; inspect the workflow logs.`);
   } else if (data.rubricsCommitted) {
-    lines.push(`Updated \`${rubricsRef}\` from PR #${prNumber}.`);
+    lines.push(`Updated ${rubricsRefLink} from PR #${prNumber}.`);
   } else {
-    lines.push(`No changes were committed to \`${rubricsRef}\` from PR #${prNumber}.`);
+    lines.push(`No changes were committed to ${rubricsRefLink} from PR #${prNumber}.`);
   }
 
   const summary = String(data.summary || "").trim();
