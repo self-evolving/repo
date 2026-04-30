@@ -50,6 +50,10 @@ export interface PlannerDecision {
 
 const REVIEW_TO_FIX_PR = new Set(["minor_issues", "needs_rework", "changes_requested"]);
 const HANDOFF_MARKER_PREFIX = "sepo-agent-handoff";
+const ANY_HANDOFF_MARKER_RE = new RegExp(
+  `<!--\\s*${HANDOFF_MARKER_PREFIX}(?:\\s+state:(pending|dispatched|failed))?(?:\\s+created:(\\d+))?\\s+base64:[A-Za-z0-9_-]+\\s*-->`,
+  "i",
+);
 
 function normalizeToken(value: string): string {
   return value.trim().toLowerCase().replace(/[\s-]+/g, "_");
@@ -196,6 +200,24 @@ export function getHandoffMarkerState(body: string, key: string): HandoffMarkerS
 
 export function hasHandoffMarker(body: string, key: string): boolean {
   return parseHandoffMarker(body, key) !== null;
+}
+
+export function parseAnyHandoffMarker(body: string): HandoffMarkerInfo | null {
+  const match = String(body || "").match(ANY_HANDOFF_MARKER_RE);
+  if (!match) return null;
+  const rawState = String(match[1] || "dispatched").toLowerCase();
+  const state: HandoffMarkerState = rawState === "pending" || rawState === "failed"
+    ? rawState
+    : "dispatched";
+  const createdAtMs = match[2] ? Number.parseInt(match[2], 10) : NaN;
+  return {
+    state,
+    createdAtMs: Number.isFinite(createdAtMs) && createdAtMs > 0 ? createdAtMs : null,
+  };
+}
+
+export function hasAnyHandoffMarker(body: string): boolean {
+  return parseAnyHandoffMarker(body) !== null;
 }
 
 export function isPendingHandoffMarkerStale(

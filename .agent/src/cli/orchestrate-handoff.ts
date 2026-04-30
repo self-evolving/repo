@@ -3,7 +3,7 @@
 //      NEXT_TARGET_NUMBER, AUTOMATION_CURRENT_ROUND, AUTOMATION_MAX_ROUNDS,
 //      GITHUB_REPOSITORY, DEFAULT_BRANCH, REQUESTED_BY, REQUEST_TEXT,
 //      SESSION_BUNDLE_MODE, SOURCE_RUN_ID, PLANNER_RESPONSE_FILE, TARGET_KIND,
-//      BASE_BRANCH, BASE_PR
+//      BASE_BRANCH, BASE_PR, AGENT_COLLAPSE_OLD_REVIEWS
 
 import { readFileSync } from "node:fs";
 import {
@@ -25,6 +25,7 @@ import {
   parsePlannerDecision,
   parseHandoffMarker,
 } from "../handoff.js";
+import { collapsePreviousHandoffComments } from "../review-summary-minimize.js";
 
 interface CommentRecord {
   id?: string | number;
@@ -145,6 +146,9 @@ const basePr = process.env.BASE_PR || "";
 const maxRounds = positiveInt(process.env.AUTOMATION_MAX_ROUNDS || "", 5);
 const currentRound = positiveInt(process.env.AUTOMATION_CURRENT_ROUND || "", 1);
 const automationMode = normalizeAutomationMode(process.env.AUTOMATION_MODE || "disabled");
+const collapseOldReviews = !["false", "0", "no", "off"].includes(
+  (process.env.AGENT_COLLAPSE_OLD_REVIEWS || "").trim().toLowerCase(),
+);
 
 function readPlannerDecision(): ReturnType<typeof parsePlannerDecision> {
   const responseFile = process.env.PLANNER_RESPONSE_FILE || "";
@@ -406,18 +410,40 @@ try {
   throw err;
 }
 
+const dispatchedBody = formatHandoffMarkerComment({
+  key: dedupeKey,
+  state: "dispatched",
+  sourceAction,
+  nextAction: decision.nextAction,
+  nextRound: decision.nextRound,
+  maxRounds,
+  reason: decision.reason,
+  createdAtMs: nowMs,
+});
+
 try {
-  updateIssueComment(repo, markerCommentId, formatHandoffMarkerComment({
-    key: dedupeKey,
-    state: "dispatched",
-    sourceAction,
-    nextAction: decision.nextAction,
-    nextRound: decision.nextRound,
-    maxRounds,
-    reason: decision.reason,
-  }));
+  updateIssueComment(repo, markerCommentId, dispatchedBody);
 } catch (err: unknown) {
   console.warn(`Handoff dispatched but marker ${markerCommentId} remained pending: ${errorText(err)}`);
+}
+
+if (collapseOldReviews) {
+  try {
+    const collapsed = collapsePreviousHandoffComments({
+      repo,
+      targetNumber: markerTargetNumber,
+      targetKind: decision.nextAction === "implement" ? "issue" : "pull_request",
+      excludeCommentId: markerCommentId,
+      currentCreatedAtMs: nowMs,
+    });
+    if (collapsed > 0) {
+      console.log(`Collapsed ${collapsed} previous orchestrator handoff comment(s).`);
+    }
+  } catch (err: unknown) {
+    console.warn(
+      `Failed to collapse previous orchestrator handoff comments for ${repo}#${markerTargetNumber}: ${errorText(err)}`,
+    );
+  }
 }
 
 console.log(`Handoff dispatched ${decision.nextAction} for #${decision.targetNumber}: ${decision.reason}`);

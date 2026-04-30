@@ -2,6 +2,7 @@ import {
   createGhGraphqlClient,
   type GraphQLClient,
 } from "./github-graphql.js";
+import { hasAnyHandoffMarker, parseAnyHandoffMarker } from "./handoff.js";
 import { isReviewSynthesisBody } from "./review-synthesis.js";
 
 type PageInfo = {
@@ -45,9 +46,26 @@ type PullRequestReviewsResponse = {
   } | null;
 };
 
+type IssueCommentsResponse = {
+  repository?: {
+    issue?: {
+      comments?: ReviewSummaryConnection | null;
+    } | null;
+  } | null;
+};
+
 type CollapsePreviousReviewSummariesOptions = {
   repo: string;
   prNumber: number;
+  client?: GraphQLClient;
+};
+
+type CollapsePreviousHandoffCommentsOptions = {
+  repo: string;
+  targetNumber: number;
+  targetKind: "issue" | "pull_request";
+  excludeCommentId?: string;
+  currentCreatedAtMs?: number;
   client?: GraphQLClient;
 };
 
@@ -99,6 +117,34 @@ const REVIEWS_QUERY = `
     repository(owner: $owner, name: $name) {
       pullRequest(number: $number) {
         reviews(first: 100, after: $after) {
+          nodes {
+            id
+            body
+            isMinimized
+            author {
+              login
+            }
+          }
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
+        }
+      }
+    }
+  }
+`;
+
+const ISSUE_COMMENTS_QUERY = `
+  query IssueGeneratedComments(
+    $owner: String!
+    $name: String!
+    $number: Int!
+    $after: String
+  ) {
+    repository(owner: $owner, name: $name) {
+      issue(number: $number) {
+        comments(first: 100, after: $after) {
           nodes {
             id
             body
@@ -246,6 +292,99 @@ function collapsePreviousMatchingReviewComments(
   return uniqueNodeIds.length;
 }
 
+function collapsePreviousMatchingHandoffComments(
+  options: CollapsePreviousHandoffCommentsOptions,
+): number {
+  const client = options.client || createGhGraphqlClient();
+  const repo = parseRepo(options.repo);
+  const viewerLogin = fetchViewerLogin(client);
+  const nodes = options.targetKind === "issue"
+    ? fetchMatchingIssueCommentNodes(
+      client,
+      repo,
+      options.targetNumber,
+      viewerLogin,
+      hasAnyHandoffMarker,
+    )
+    : fetchMatchingNodes(
+      client,
+      COMMENTS_QUERY,
+      "comments",
+      repo,
+      options.targetNumber,
+      viewerLogin,
+      hasAnyHandoffMarker,
+    );
+  const excludeCommentId = String(options.excludeCommentId || "");
+  const currentFromComment = nodes.find((node) => node.id === excludeCommentId);
+  const currentMarker = currentFromComment
+    ? parseAnyHandoffMarker(currentFromComment.body || "")
+    : null;
+  const explicitCreatedAtMs = Number(options.currentCreatedAtMs);
+  const currentCreatedAtMs = Number.isFinite(explicitCreatedAtMs) && explicitCreatedAtMs > 0
+    ? explicitCreatedAtMs
+    : currentMarker?.createdAtMs ?? null;
+  const uniqueNodeIds = Array.from(new Set(
+    nodes
+      .filter((node) => {
+        if (!node.id || node.id === excludeCommentId) return false;
+        const marker = parseAnyHandoffMarker(node.body || "");
+        if (!marker || marker.state === "pending") return false;
+        if (currentCreatedAtMs) {
+          return Boolean(marker.createdAtMs && marker.createdAtMs < currentCreatedAtMs);
+        }
+        return true;
+      })
+      .map((node) => node.id)
+      .filter((id): id is string => Boolean(id)),
+  ));
+
+  for (const id of uniqueNodeIds) {
+    client.graphql(MINIMIZE_COMMENT_MUTATION, {
+      id,
+      classifier: "OUTDATED",
+    });
+  }
+
+  return uniqueNodeIds.length;
+}
+
+function fetchMatchingIssueCommentNodes(
+  client: GraphQLClient,
+  repo: { owner: string; name: string },
+  issueNumber: number,
+  viewerLogin: string,
+  bodyMatcher: ReviewBodyMatcher,
+): ReviewSummaryNode[] {
+  const matches: ReviewSummaryNode[] = [];
+  let after: string | undefined;
+
+  do {
+    const data = client.graphql<IssueCommentsResponse>(
+      ISSUE_COMMENTS_QUERY,
+      {
+        owner: repo.owner,
+        name: repo.name,
+        number: issueNumber,
+        after,
+      },
+    );
+    const connection = data.repository?.issue?.comments;
+    if (!connection) return matches;
+
+    for (const node of connection.nodes || []) {
+      if (isGeneratedReviewComment(node, viewerLogin, bodyMatcher)) {
+        matches.push(node);
+      }
+    }
+    after = connection.pageInfo.hasNextPage
+      ? connection.pageInfo.endCursor || undefined
+      : undefined;
+  } while (after);
+
+  return matches;
+}
+
 /**
  * Collapses older agent-generated PR review summaries before posting a fresh one.
  */
@@ -262,4 +401,13 @@ export function collapsePreviousRubricsReviews(
   options: CollapsePreviousReviewSummariesOptions,
 ): number {
   return collapsePreviousMatchingReviewComments(options, isRubricsReviewBody);
+}
+
+/**
+ * Collapses older orchestrator handoff marker comments after a fresh dispatch.
+ */
+export function collapsePreviousHandoffComments(
+  options: CollapsePreviousHandoffCommentsOptions,
+): number {
+  return collapsePreviousMatchingHandoffComments(options);
 }
