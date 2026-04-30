@@ -48,7 +48,10 @@ Each action workflow launched by `agent-orchestrator.yml` receives
 `orchestration_enabled: true`. Only runs with that explicit context hand back to
 the orchestrator after post-processing; direct `/implement`, `/review`, and
 `/fix-pr` runs keep the default `orchestration_enabled: false` and stop after
-their own workflow.
+their own workflow. For orchestrator-launched fix-pr runs, the completion
+status comment attributes the visible request mention to the configured agent
+handle (`AGENT_HANDLE`, default `@sepo-agent`) instead of re-tagging the
+original human requester.
 
 When an action-originated handoff is used, the orchestrator also accepts:
 

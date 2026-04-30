@@ -38,6 +38,12 @@ export interface StatusCommentData {
   approvalCommentUrl?: string;
 }
 
+function formatMention(loginOrHandle: string): string {
+  const value = String(loginOrHandle || "").trim();
+  if (!value) return "";
+  return value.startsWith("@") ? value : `@${value}`;
+}
+
 export function formatImplementComment(data: StatusCommentData): string {
   switch (data.status) {
     case "success": {
@@ -79,7 +85,8 @@ export function formatFixPrComment(data: StatusCommentData): string {
   switch (data.status) {
     case "success": {
       let line = `**Sepo pushed fixes for this PR.** Branch: \`${data.branch ?? ""}\`.`;
-      if (data.requestedBy) line += ` Requested by @${data.requestedBy}.`;
+      const requestedBy = data.requestedBy ? formatMention(data.requestedBy) : "";
+      if (requestedBy) line += ` Requested by ${requestedBy}.`;
       if (data.approvalCommentUrl) line += ` Approval: ${data.approvalCommentUrl}.`;
       return [line, "", data.summary ?? ""].join("\n");
     }

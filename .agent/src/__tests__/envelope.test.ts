@@ -452,6 +452,10 @@ test("workflows use granular CLI helpers for post-processing", () => {
   assert.match(fixPrWorkflow, /node \.agent\/dist\/cli\/push-pr-head\.js/);
   assert.match(fixPrWorkflow, /node \.agent\/dist\/cli\/add-label\.js/);
   assert.match(fixPrWorkflow, /node \.agent\/dist\/cli\/post-comment\.js/);
+  assert.match(
+    fixPrWorkflow,
+    /REQUESTED_BY:\s*\$\{\{\s*inputs\.orchestration_enabled == 'true' && \(vars\.AGENT_HANDLE \|\| '@sepo-agent'\) \|\| inputs\.requested_by \|\| github\.actor\s*\}\}/,
+  );
 
   assert.match(reviewWorkflow, /node \.agent\/dist\/cli\/post-comment\.js/);
   assert.match(reviewWorkflow, /AGENT_COLLAPSE_OLD_REVIEWS:\s*\$\{\{ vars\.AGENT_COLLAPSE_OLD_REVIEWS \}\}/);
@@ -792,6 +796,7 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestratorDoc, /Implement --> Review: success \+ PR created/);
   assert.match(orchestratorDoc, /workflow_dispatch/);
   assert.match(orchestratorDoc, /handoff_context/);
+  assert.match(orchestratorDoc, /agent\s+handle/);
 });
 
 test("workflow docs cover hosted auth and self-hosting paths", () => {
