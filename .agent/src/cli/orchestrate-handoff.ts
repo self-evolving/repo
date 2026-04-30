@@ -248,7 +248,10 @@ function stripAgentCommand(text: string): string {
 function isLikelyBranchChangeRequest(text: string): boolean {
   const normalized = stripAgentCommand(text).toLowerCase();
   if (!normalized) return false;
-  return /\b(add|adjust|change|code|fix|failing|failure|implement|patch|prefetch|regression|remove|test|update|workflow)\b/.test(normalized);
+  const hasChangeIntent = /\b(add|adjust|change|create|fix|implement|patch|prefetch|remove|update|write)\b/.test(normalized);
+  if (!hasChangeIntent) return false;
+  return /\b(code|failing|failure|regression|test|tests?|workflow)\b/.test(normalized) ||
+    /\b(fix|implement|patch)\b/.test(normalized);
 }
 
 function buildClosedPrFollowupKey(prNumber: string): string {

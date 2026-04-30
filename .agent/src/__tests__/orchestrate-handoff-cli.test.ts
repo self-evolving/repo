@@ -211,6 +211,25 @@ test("manual orchestrate stops for non-open PR targets", () => {
   assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-implement\.yml\/dispatches/);
 });
 
+test("manual orchestrate stops diagnostic closed PR requests", () => {
+  const run = runOrchestrateHandoff({
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "39",
+    FAKE_PR_STATE: "MERGED",
+    REQUEST_TEXT: "@sepo-agent /orchestrate why is the workflow failing?",
+  });
+
+  assert.equal(run.status, 0, run.stderr);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.equal(
+    run.outputs.get("reason"),
+    "pull request is merged; closed PR follow-up needs a concrete code-change request",
+  );
+  assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/39\/comments/);
+  assert.doesNotMatch(run.ghLog, /issue create/);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-implement\.yml\/dispatches/);
+});
+
 test("manual orchestrate creates an issue for closed PR code follow-ups", () => {
   const run = runOrchestrateHandoff({
     TARGET_KIND: "pull_request",
