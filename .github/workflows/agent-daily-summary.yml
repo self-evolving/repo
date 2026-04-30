@@ -164,7 +164,15 @@ jobs:
           pat: ${{ secrets.AGENT_PAT }}
           fallback_token: ${{ github.token }}
 
+      - name: Resolve summary discussion gate
+        id: discussion_gate
+        uses: ./.github/actions/discussion-post-gate
+        with:
+          github_token: ${{ steps.auth.outputs.token }}
+          discussion_category: ${{ env.DISCUSSION_CATEGORY }}
+
       - name: Resolve daily summary provider
+        if: steps.discussion_gate.outputs.skip != 'true'
         id: provider
         uses: ./.github/actions/resolve-agent-provider
         with:
@@ -174,12 +182,14 @@ jobs:
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
       - name: Setup selected provider
+        if: steps.discussion_gate.outputs.skip != 'true'
         uses: ./.github/actions/setup-agent-runtime
         with:
           install_codex: ${{ steps.provider.outputs.install_codex }}
           install_claude: ${{ steps.provider.outputs.install_claude }}
 
       - name: Generate daily summary
+        if: steps.discussion_gate.outputs.skip != 'true'
         id: summary
         uses: ./.github/actions/run-agent-task
         with:
@@ -205,7 +215,7 @@ jobs:
           workflow: agent-daily-summary.yml
 
       - name: Create summary discussion
-        if: steps.summary.outcome == 'success'
+        if: steps.discussion_gate.outputs.skip != 'true' && steps.summary.outcome == 'success'
         env:
           BODY_FILE: ${{ steps.summary.outputs.response_file }}
           DISCUSSION_CATEGORY: ${{ env.DISCUSSION_CATEGORY }}

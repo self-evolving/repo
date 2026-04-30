@@ -209,6 +209,11 @@ test("scheduled workflows evaluate skip gates before provider-dependent jobs", (
   assert.match(dailySummaryWorkflow, /Download summary signals[\s\S]*actions\/download-artifact@v4/);
   assert.doesNotMatch(dailySummaryWorkflow, /COMMIT_COUNT/);
   assert.match(dailySummaryWorkflow, /count=\$\(\(ISSUE_COUNT \+ PULL_COUNT \+ DISCUSSION_COUNT\)\)/);
+  assert.match(dailySummaryWorkflow, /Resolve summary discussion gate[\s\S]*discussion-post-gate/);
+  assert.match(
+    dailySummaryWorkflow,
+    /Resolve summary discussion gate[\s\S]*Resolve daily summary provider[\s\S]*if: steps\.discussion_gate\.outputs\.skip != 'true'/,
+  );
   assert.match(dailySummaryWorkflow, /Resolve daily summary provider[\s\S]*Setup selected provider/);
   assert.match(dailySummaryWorkflow, /discussion_category:[\s\S]*default:\s*""/);
   assert.match(

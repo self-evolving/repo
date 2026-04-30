@@ -1,0 +1,31 @@
+name: Discussion Post Gate
+description: Check whether a repository can accept a discussion post before agent runtime setup.
+
+inputs:
+  github_token:
+    description: "GitHub token used to query repository discussion settings"
+    required: true
+  discussion_category:
+    description: "Discussion category required for the post"
+    required: true
+
+outputs:
+  skip:
+    description: "true when discussion posting is unavailable and later steps should skip"
+    value: ${{ steps.resolve.outputs.skip }}
+  reason:
+    description: "Human-readable gate decision reason"
+    value: ${{ steps.resolve.outputs.reason }}
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve discussion post gate
+      id: resolve
+      shell: bash
+      env:
+        DISCUSSION_CATEGORY: ${{ inputs.discussion_category }}
+        GH_TOKEN: ${{ inputs.github_token }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+      run: bash "${GITHUB_WORKSPACE}/.agent/scripts/resolve-discussion-post-gate.sh"
