@@ -2,6 +2,7 @@ import { test } from "node:test";
 import { strict as assert } from "node:assert";
 
 import {
+  collapsePreviousHandoffComments,
   collapsePreviousReviewSummaries,
   collapsePreviousRubricsReviews,
   isRubricsReviewBody,
@@ -222,6 +223,87 @@ test("collapsePreviousRubricsReviews minimizes rubrics reviews only", () => {
       { id: "review-1", classifier: "OUTDATED" },
     ],
   );
+});
+
+test("collapsePreviousHandoffComments minimizes old issue handoff comments only", () => {
+  const { client, calls } = createQueuedClient([
+    { viewer: { login: "sepo-agent-app[bot]" } },
+    {
+      repository: {
+        issue: {
+          comments: {
+            nodes: [
+              {
+                id: "old-handoff",
+                body: "Sepo automation handoff dispatched\n\n<!-- sepo-agent-handoff state:dispatched created:123 base64:aGFuZG9m -->",
+                isMinimized: false,
+                author: { login: "sepo-agent-app" },
+              },
+              {
+                id: "current-handoff",
+                body: "Sepo automation handoff dispatched\n\n<!-- sepo-agent-handoff state:dispatched created:456 base64:Y3VycmVudA -->",
+                isMinimized: false,
+                author: { login: "sepo-agent-app" },
+              },
+              {
+                id: "other-body",
+                body: "Regular discussion",
+                isMinimized: false,
+                author: { login: "sepo-agent-app" },
+              },
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
+      },
+    },
+    { minimizeComment: { minimizedComment: { isMinimized: true } } },
+  ]);
+
+  const collapsed = collapsePreviousHandoffComments({
+    repo: "self-evolving/repo",
+    targetNumber: 59,
+    targetKind: "issue",
+    excludeCommentId: "current-handoff",
+    client,
+  });
+
+  assert.equal(collapsed, 1);
+  assert.match(calls[1]?.query || "", /issue\(number: \$number\)/);
+  assert.deepEqual(calls[2]?.variables, { id: "old-handoff", classifier: "OUTDATED" });
+});
+
+test("collapsePreviousHandoffComments uses pull request comments for PR targets", () => {
+  const { client, calls } = createQueuedClient([
+    { viewer: { login: "sepo-agent" } },
+    {
+      repository: {
+        pullRequest: {
+          comments: {
+            nodes: [
+              {
+                id: "old-handoff",
+                body: "<!-- sepo-agent-handoff state:dispatched created:123 base64:aGFuZG9m -->",
+                isMinimized: false,
+                author: { login: "sepo-agent" },
+              },
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
+      },
+    },
+    { minimizeComment: { minimizedComment: { isMinimized: true } } },
+  ]);
+
+  assert.equal(collapsePreviousHandoffComments({
+    repo: "self-evolving/repo",
+    targetNumber: 57,
+    targetKind: "pull_request",
+    client,
+  }), 1);
+  assert.match(calls[1]?.query || "", /pullRequest\(number: \$number\)/);
+  assert.deepEqual(calls[2]?.variables, { id: "old-handoff", classifier: "OUTDATED" });
 });
 
 test("rubrics body detection matches heading after a continuity note", () => {

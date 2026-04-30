@@ -48,7 +48,33 @@ if [ "\${1-}" = "pr" ] && [ "\${2-}" = "view" ]; then
 fi
 
 if [ "\${1-}" = "api" ] && [ "\${2-}" = "--paginate" ] && [ "\${3-}" = "--slurp" ]; then
-  printf '[]\\n'
+  printf '%s\\n' "\${FAKE_ISSUE_COMMENTS_JSON-[]}"
+  exit 0
+fi
+
+if [ "\${1-}" = "api" ] && [ "\${2-}" = "graphql" ]; then
+  if [ "\${FAKE_GRAPHQL_MODE-}" = "error" ]; then
+    printf '{"errors":[{"message":"graphql unavailable"}]}\\n'
+    exit 0
+  fi
+  case "$*" in
+    *ViewerLogin*)
+      printf '{"data":{"viewer":{"login":"sepo-agent-app[bot]"}}}\\n'
+      ;;
+    *IssueGeneratedComments*)
+      printf '{"data":{"repository":{"issue":{"comments":{"nodes":%s,"pageInfo":{"hasNextPage":false,"endCursor":null}}}}}}\\n' "\${FAKE_GRAPHQL_ISSUE_COMMENTS-[]}"
+      ;;
+    *PullRequestReviewSummaryComments*)
+      printf '{"data":{"repository":{"pullRequest":{"comments":{"nodes":%s,"pageInfo":{"hasNextPage":false,"endCursor":null}}}}}}\\n' "\${FAKE_GRAPHQL_PR_COMMENTS-[]}"
+      ;;
+    *MinimizeReviewSummary*)
+      printf '{"data":{"minimizeComment":{"minimizedComment":{"isMinimized":true}}}}\\n'
+      ;;
+    *)
+      printf 'unexpected graphql query: %s\\n' "$*" >&2
+      exit 1
+      ;;
+  esac
   exit 0
 fi
 
@@ -187,6 +213,56 @@ test("manual orchestrate dispatches implement for issue targets", () => {
   assert.equal(run.outputs.get("next_action"), "implement");
   assert.match(run.ghLog, /actions\/workflows\/agent-implement\.yml\/dispatches/);
   assert.equal((run.dispatchPayload?.inputs as Record<string, string>).base_pr, "12");
+});
+
+test("manual orchestrate collapses old handoff comments after dispatch", () => {
+  const run = runOrchestrateHandoff({
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "20",
+    FAKE_MARKER_ID: "current-handoff",
+    FAKE_GRAPHQL_ISSUE_COMMENTS: JSON.stringify([
+      {
+        id: "old-handoff",
+        body: "<!-- sepo-agent-handoff state:dispatched created:123 base64:aGFuZG9m -->",
+        isMinimized: false,
+        author: { login: "sepo-agent-app" },
+      },
+      {
+        id: "current-handoff",
+        body: "<!-- sepo-agent-handoff state:dispatched created:456 base64:Y3VycmVudA -->",
+        isMinimized: false,
+        author: { login: "sepo-agent-app" },
+      },
+    ]),
+  });
+
+  assert.equal(run.status, 0);
+  assert.match(run.stdout, /Collapsed 1 previous orchestrator handoff comment/);
+  assert.match(run.ghLog, /id=old-handoff/);
+  assert.doesNotMatch(run.ghLog, /id=current-handoff/);
+});
+
+test("manual orchestrate skips handoff cleanup when disabled", () => {
+  const run = runOrchestrateHandoff({
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "20",
+    AGENT_COLLAPSE_OLD_REVIEWS: "false",
+  });
+
+  assert.equal(run.status, 0);
+  assert.doesNotMatch(run.ghLog, /graphql/);
+});
+
+test("manual orchestrate keeps dispatch when handoff cleanup fails", () => {
+  const run = runOrchestrateHandoff({
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "20",
+    FAKE_GRAPHQL_MODE: "error",
+  });
+
+  assert.equal(run.status, 0);
+  assert.match(run.ghLog, /actions\/workflows\/agent-implement\.yml\/dispatches/);
+  assert.match(run.stderr, /Failed to collapse previous orchestrator handoff comments/);
 });
 
 test("manual orchestrate dispatches fix-pr for PR targets with CHANGES_REQUESTED", () => {
