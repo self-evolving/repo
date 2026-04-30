@@ -26,15 +26,25 @@ dispatches one built-in action (`implement`, `review`, or `fix-pr`) when useful.
 That dispatch includes explicit orchestration context; only those orchestrator
 launched action runs hand back to `agent-orchestrator.yml` after post-processing.
 Direct `/implement`, `/review`, and `/fix-pr` runs remain one-shot.
-Explicit `/orchestrate` starts are deterministic in both `heuristics` and
-`agent` modes today. Planner-based selection is only used for action-originated
-handoff runs. The planner can include a
+Explicit `/orchestrate` starts are deterministic in `heuristics` mode. In
+`agent` mode, issue starts may use the planner to create or reuse a child issue
+sub-orchestrator; pull request starts remain deterministic status checks. The
+planner can include a
 `handoff_context` string for the next action; `fix-pr` receives it as explicit
 initial steering when the planner dispatches a PR-fix pass. The planner mounts
 memory and rubrics read-only so automated control-flow planning can use steering
 context without mutating those state branches. Orchestration stops when target
 state indicates no safe next action, a route fails, a duplicate handoff marker
 is found, the planner stops or blocks, or the max-round budget is exhausted.
+
+Parent/child sub-orchestration state lives in GitHub issues. A parent planner
+handoff with `next_action: orchestrate` creates a child issue, or annotates an
+existing `child_issue_number`, with a hidden `sepo-sub-orchestrator` marker
+containing the parent issue, stage, and state. The child runs the normal issue
+orchestrator loop. When the child reaches a terminal stop, the orchestrator
+resolves the child issue directly or through the PR closing reference, updates a
+visible parent progress comment, marks the child marker done/blocked/failed,
+and dispatches the parent issue orchestrator with the child result.
 
 Implementation dispatches default to the repository default branch. Callers can
 set `base_branch` to stack directly on another branch, or `base_pr` to stack on

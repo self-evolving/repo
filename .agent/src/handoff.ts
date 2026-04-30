@@ -1,6 +1,6 @@
 import { extractJsonObject } from "./response.js";
 
-export type AgentAction = "implement" | "review" | "fix-pr";
+export type AgentAction = "implement" | "review" | "fix-pr" | "orchestrate";
 export type HandoffDecisionKind = "dispatch" | "stop" | "skip";
 export type AutomationMode = "disabled" | "heuristics" | "agent";
 export type HandoffMarkerState = "pending" | "dispatched" | "failed";
@@ -10,6 +10,7 @@ export interface HandoffInput {
   automationMode: string;
   sourceAction: string;
   sourceConclusion: string;
+  targetKind?: string;
   targetNumber: string;
   nextTargetNumber?: string;
   currentRound: number;
@@ -24,6 +25,11 @@ export interface HandoffDecision {
   reason: string;
   nextRound: number;
   handoffContext?: string;
+  childStage?: string;
+  childInstructions?: string;
+  childIssueNumber?: string;
+  baseBranch?: string;
+  basePr?: string;
 }
 
 export interface HandoffDedupeInput {
@@ -46,6 +52,11 @@ export interface PlannerDecision {
   nextAction?: AgentAction;
   reason: string;
   handoffContext?: string;
+  childStage?: string;
+  childInstructions?: string;
+  childIssueNumber?: string;
+  baseBranch?: string;
+  basePr?: string;
 }
 
 const REVIEW_TO_FIX_PR = new Set(["minor_issues", "needs_rework", "changes_requested"]);
@@ -101,6 +112,7 @@ function normalizeAgentAction(value: string): AgentAction | null {
   if (normalized === "implement") return "implement";
   if (normalized === "review") return "review";
   if (normalized === "fix_pr") return "fix-pr";
+  if (normalized === "orchestrate") return "orchestrate";
   return null;
 }
 
@@ -130,6 +142,15 @@ export function parsePlannerDecision(raw: string): PlannerDecision | null {
   const nextAction = normalizeAgentAction(String(record.next_action ?? record.nextAction ?? ""));
   const reason = String(record.reason || "").trim();
   const handoffContext = String(record.handoff_context ?? record.handoffContext ?? "").trim();
+  const childStage = String(record.child_stage ?? record.childStage ?? record.stage ?? "").trim();
+  const childInstructions = String(
+    record.child_instructions ?? record.childInstructions ?? record.task_instructions ?? record.taskInstructions ?? "",
+  ).trim();
+  const childIssueNumber = String(
+    record.child_issue_number ?? record.childIssueNumber ?? record.target_issue_number ?? record.targetIssueNumber ?? "",
+  ).trim();
+  const baseBranch = String(record.base_branch ?? record.baseBranch ?? "").trim();
+  const basePr = String(record.base_pr ?? record.basePr ?? "").trim();
   const plannerDecision: PlannerDecision = {
     decision,
     nextAction: nextAction || undefined,
@@ -138,6 +159,11 @@ export function parsePlannerDecision(raw: string): PlannerDecision | null {
   if (handoffContext) {
     plannerDecision.handoffContext = handoffContext;
   }
+  if (childStage) plannerDecision.childStage = childStage;
+  if (childInstructions) plannerDecision.childInstructions = childInstructions;
+  if (childIssueNumber) plannerDecision.childIssueNumber = childIssueNumber;
+  if (baseBranch) plannerDecision.baseBranch = baseBranch;
+  if (basePr) plannerDecision.basePr = basePr;
   return plannerDecision;
 }
 
@@ -330,6 +356,44 @@ function decideAgentHandoff(input: HandoffInput): HandoffDecision {
   }
   if (!plannerDecision.nextAction) {
     return { decision: "stop", reason: "agent planner requested handoff without next_action", nextRound };
+  }
+
+  const sourceAction = normalizeToken(input.sourceAction);
+  const targetKind = normalizeToken(input.targetKind || "");
+  if (sourceAction === "orchestrate") {
+    if (plannerDecision.nextAction !== "orchestrate") {
+      return {
+        decision: "stop",
+        reason: `agent planner requested ${plannerDecision.nextAction}, but meta orchestration only allows orchestrate`,
+        nextRound,
+      };
+    }
+    if (targetKind && targetKind !== "issue") {
+      return { decision: "stop", reason: "meta orchestration can create child orchestrators only from issues", nextRound };
+    }
+    if (plannerDecision.baseBranch && plannerDecision.basePr) {
+      return { decision: "stop", reason: "agent planner set both base_branch and base_pr", nextRound };
+    }
+    if (!plannerDecision.childIssueNumber && !plannerDecision.childInstructions && !plannerDecision.handoffContext) {
+      return {
+        decision: "stop",
+        reason: "agent planner requested child orchestration without child instructions or existing issue",
+        nextRound,
+      };
+    }
+    return {
+      decision: "dispatch",
+      nextAction: "orchestrate",
+      targetNumber: plannerDecision.childIssueNumber || input.targetNumber,
+      reason: `agent planner selected child orchestration: ${plannerDecision.reason}`,
+      nextRound,
+      handoffContext: plannerDecision.handoffContext,
+      childStage: plannerDecision.childStage || `stage-${nextRound - 1}`,
+      childInstructions: plannerDecision.childInstructions || plannerDecision.handoffContext,
+      childIssueNumber: plannerDecision.childIssueNumber,
+      baseBranch: plannerDecision.baseBranch,
+      basePr: plannerDecision.basePr,
+    };
   }
 
   const allowed = decideHeuristicHandoff(input);

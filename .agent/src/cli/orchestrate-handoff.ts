@@ -5,7 +5,9 @@
 //      SESSION_BUNDLE_MODE, SOURCE_RUN_ID, PLANNER_RESPONSE_FILE, TARGET_KIND,
 //      BASE_BRANCH, BASE_PR, AGENT_COLLAPSE_OLD_REVIEWS
 
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   getAllowedAssociationsForRoute,
   isAssociationAllowedForRoute,
@@ -26,6 +28,15 @@ import {
   parseHandoffMarker,
 } from "../handoff.js";
 import { collapsePreviousHandoffComments } from "../review-summary-minimize.js";
+import {
+  extractClosingIssueNumber,
+  formatSubOrchestrationIssueBody,
+  formatSubOrchestratorMarker,
+  parseSubOrchestratorMarker,
+  resultStateFromTerminal,
+  updateSubOrchestratorMarkerState,
+  type SubOrchestratorState,
+} from "../sub-orchestration.js";
 
 interface CommentRecord {
   id?: string | number;
@@ -34,6 +45,12 @@ interface CommentRecord {
 
 interface HandoffMarkerRecord extends HandoffMarkerInfo {
   id: string;
+}
+
+interface IssueRecord {
+  number: number;
+  title: string;
+  body: string;
 }
 
 const PENDING_MARKER_TTL_MS = 60 * 60 * 1000;
@@ -126,6 +143,224 @@ function updateIssueComment(repo: string, commentId: string, body: string): void
     "-f",
     `body=${body}`,
   ]);
+}
+
+function fetchIssue(repoSlug: string, issueNumber: number): IssueRecord | null {
+  try {
+    const raw = gh([
+      "issue",
+      "view",
+      String(issueNumber),
+      "--repo",
+      repoSlug,
+      "--json",
+      "number,title,body",
+    ]).trim();
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    return {
+      number: Number(parsed.number || issueNumber),
+      title: String(parsed.title || ""),
+      body: String(parsed.body || ""),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function updateIssueBody(repoSlug: string, issueNumber: number, body: string): void {
+  withTempBodyFile(body, (bodyFile) => {
+    gh(["issue", "edit", String(issueNumber), "--repo", repoSlug, "--body-file", bodyFile]);
+  });
+}
+
+function parseIssueNumberFromUrl(url: string): string {
+  const match = String(url || "").trim().match(/\/issues\/(\d+)(?:\D*)?$/);
+  return match ? match[1] : "";
+}
+
+function withTempBodyFile<T>(body: string, fn: (path: string) => T): T {
+  const dir = mkdtempSync(join(tmpdir(), "sepo-sub-orchestrator-"));
+  try {
+    const file = join(dir, "body.md");
+    writeFileSync(file, body, "utf8");
+    return fn(file);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+function createIssueFromBody(repoSlug: string, title: string, body: string): string {
+  return withTempBodyFile(body, (bodyFile) => gh([
+    "issue",
+    "create",
+    "--repo",
+    repoSlug,
+    "--title",
+    title,
+    "--body-file",
+    bodyFile,
+  ]).trim());
+}
+
+function findExistingSubOrchestrationIssue(repoSlug: string, parentIssue: number, stage: string): string {
+  const expected = parseSubOrchestratorMarker(formatSubOrchestratorMarker({ parent: parentIssue, stage }));
+  if (!expected) return "";
+  try {
+    const raw = gh([
+      "issue",
+      "list",
+      "--repo",
+      repoSlug,
+      "--state",
+      "open",
+      "--search",
+      `sepo-sub-orchestrator parent:${parentIssue} stage:${expected.stage}`,
+      "--json",
+      "number,body",
+      "--limit",
+      "50",
+    ]).trim();
+    const parsed = JSON.parse(raw || "[]") as unknown;
+    if (!Array.isArray(parsed)) return "";
+    for (const entry of parsed) {
+      if (!entry || typeof entry !== "object") continue;
+      const record = entry as Record<string, unknown>;
+      const marker = parseSubOrchestratorMarker(String(record.body || ""));
+      if (marker?.parent === parentIssue && marker.stage === expected.stage && marker.state === "running") {
+        return String(record.number || "");
+      }
+    }
+  } catch {
+    return "";
+  }
+  return "";
+}
+
+function ensureSubOrchestrationIssue(decision: HandoffDecision): string {
+  const parentIssue = parsePositiveTargetNumber(targetNumber);
+  if (!parentIssue) throw new Error(`Invalid parent issue number: ${targetNumber}`);
+  if (decision.baseBranch && decision.basePr) {
+    throw new Error("set only one of base_branch or base_pr for child orchestration");
+  }
+
+  const stage = decision.childStage || `stage-${decision.nextRound - 1}`;
+  const instructions = decision.childInstructions || decision.handoffContext || requestText;
+  const existingIssueNumber = parsePositiveTargetNumber(decision.childIssueNumber || "");
+  const marker = formatSubOrchestratorMarker({ parent: parentIssue, stage });
+
+  if (existingIssueNumber) {
+    const existing = fetchIssue(repo, existingIssueNumber);
+    if (!existing) throw new Error(`Could not read child issue #${existingIssueNumber}`);
+    if (!parseSubOrchestratorMarker(existing.body)) {
+      updateIssueBody(repo, existingIssueNumber, `${existing.body.trim()}\n\n${marker}`.trim());
+    }
+    return String(existingIssueNumber);
+  }
+
+  const reusableIssueNumber = findExistingSubOrchestrationIssue(repo, parentIssue, stage);
+  if (reusableIssueNumber) return reusableIssueNumber;
+
+  const title = `Sub-orchestrator: ${stage}`;
+  const body = formatSubOrchestrationIssueBody({
+    parentIssue,
+    stage,
+    taskInstructions: instructions,
+    baseBranch: decision.baseBranch || baseBranch,
+    basePr: decision.basePr || basePr,
+  });
+  const createdUrl = createIssueFromBody(repo, title, body);
+  const createdNumber = parseIssueNumberFromUrl(createdUrl);
+  if (!createdNumber) throw new Error(`Could not parse created child issue URL: ${createdUrl}`);
+  return createdNumber;
+}
+
+function readPrBody(repoSlug: string, prNumber: string): string {
+  try {
+    const raw = gh(["pr", "view", prNumber, "--repo", repoSlug, "--json", "body"]).trim();
+    if (!raw) return "";
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    return String(parsed.body || "");
+  } catch {
+    return "";
+  }
+}
+
+function resolveChildIssueForTerminal(): IssueRecord | null {
+  const normalizedKind = normalizeToken(sourceTargetKind);
+  const currentNumber = parsePositiveTargetNumber(targetNumber);
+  if (!repo || !currentNumber) return null;
+  if (normalizedKind === "issue") {
+    const issue = fetchIssue(repo, currentNumber);
+    return issue && parseSubOrchestratorMarker(issue.body) ? issue : null;
+  }
+  if (normalizedKind === "pull_request") {
+    const linkedIssueNumber = extractClosingIssueNumber(readPrBody(repo, targetNumber));
+    if (!linkedIssueNumber) return null;
+    const issue = fetchIssue(repo, linkedIssueNumber);
+    return issue && parseSubOrchestratorMarker(issue.body) ? issue : null;
+  }
+  return null;
+}
+
+function reportTerminalToParent(decision: HandoffDecision): void {
+  const childIssue = resolveChildIssueForTerminal();
+  if (!childIssue) return;
+  const marker = parseSubOrchestratorMarker(childIssue.body);
+  if (!marker || marker.state !== "running") return;
+
+  const resultState = resultStateFromTerminal({
+    sourceAction,
+    sourceConclusion,
+    reason: decision.reason,
+  });
+  const result = resultState === "done" ? "SHIP" : resultState.toUpperCase();
+  const prLine = normalizeToken(sourceTargetKind) === "pull_request" ? `PR: #${targetNumber}\n` : "";
+  const progressMarker = `<!-- sepo-sub-orchestrator-report child:${childIssue.number} -->`;
+  const progressBody = [
+    `Sub-orchestrator ${marker.stage} finished`,
+    "",
+    `Child issue: #${childIssue.number}`,
+    prLine.trim(),
+    `Result: ${result}`,
+    `Summary: ${decision.reason}`,
+    "Next: waiting for meta orchestrator",
+    "",
+    progressMarker,
+  ].filter(Boolean).join("\n");
+
+  const existingProgress = fetchIssueComments(repo, marker.parent).find((comment) =>
+    String(comment.body || "").includes(progressMarker)
+  );
+  if (existingProgress?.id) {
+    updateIssueComment(repo, String(existingProgress.id), progressBody);
+  } else {
+    createIssueComment(repo, marker.parent, progressBody);
+  }
+
+  const updatedChildBody = updateSubOrchestratorMarkerState(childIssue.body, resultState as SubOrchestratorState);
+  if (updatedChildBody !== childIssue.body) {
+    updateIssueBody(repo, childIssue.number, updatedChildBody);
+  }
+
+  dispatchWorkflow(repo, "agent-orchestrator.yml", ref, {
+    source_action: "orchestrate",
+    source_conclusion: resultState,
+    source_run_id: sourceRunId,
+    target_kind: "issue",
+    target_number: String(marker.parent),
+    author_association: sourceAssociationRaw,
+    access_policy: accessPolicyRaw,
+    repository_private: isPublicRepo ? "false" : "true",
+    requested_by: requestedBy,
+    request_text: `Child issue #${childIssue.number} finished with ${result}: ${decision.reason}`,
+    automation_mode: "agent",
+    automation_current_round: "1",
+    automation_max_rounds: String(maxRounds),
+    session_bundle_mode: sessionBundleMode,
+    base_branch: baseBranch,
+    base_pr: basePr,
+  });
 }
 
 const repo = process.env.GITHUB_REPOSITORY || "";
@@ -258,17 +493,31 @@ function applyDelegatedRouteAuthorization(decision: HandoffDecision): HandoffDec
   };
 }
 
+const plannerDecision = readPlannerDecision();
 const routeDecision = normalizeToken(sourceAction) === "orchestrate"
-  ? decideManualOrchestration()
+  ? automationMode === "agent" && normalizeToken(sourceTargetKind) === "issue"
+    ? decideHandoff({
+      automationMode,
+      sourceAction,
+      sourceConclusion,
+      targetKind: sourceTargetKind,
+      targetNumber,
+      nextTargetNumber: process.env.NEXT_TARGET_NUMBER || "",
+      currentRound,
+      maxRounds,
+      plannerDecision,
+    })
+    : decideManualOrchestration()
   : decideHandoff({
     automationMode,
     sourceAction,
     sourceConclusion,
+    targetKind: sourceTargetKind,
     targetNumber,
     nextTargetNumber: process.env.NEXT_TARGET_NUMBER || "",
     currentRound,
     maxRounds,
-    plannerDecision: automationMode === "agent" ? readPlannerDecision() : null,
+    plannerDecision: automationMode === "agent" ? plannerDecision : null,
   });
 const decision = applyDelegatedRouteAuthorization(routeDecision);
 
@@ -284,6 +533,11 @@ setOutput("marker_comment_id", "");
 
 if (decision.decision !== "dispatch") {
   console.log(`Handoff ${decision.decision}: ${decision.reason}`);
+  try {
+    reportTerminalToParent(decision);
+  } catch (err: unknown) {
+    console.warn(`Failed to report terminal sub-orchestration state: ${errorText(err)}`);
+  }
   process.exit(0);
 }
 
@@ -292,18 +546,30 @@ if (!repo || !ref || !decision.nextAction || !decision.targetNumber) {
   process.exit(2);
 }
 
+let dispatchTargetNumber = decision.targetNumber;
+if (decision.nextAction === "orchestrate") {
+  try {
+    dispatchTargetNumber = ensureSubOrchestrationIssue(decision);
+    decision.targetNumber = dispatchTargetNumber;
+    setOutput("target_number", dispatchTargetNumber);
+  } catch (err: unknown) {
+    console.error(errorText(err));
+    process.exit(2);
+  }
+}
+
 const dedupeKey = buildHandoffDedupeKey({
   repo,
   sourceRunId,
   sourceAction,
   sourceTargetNumber: targetNumber,
   nextAction: decision.nextAction,
-  nextTargetNumber: decision.targetNumber,
+  nextTargetNumber: dispatchTargetNumber || "",
   nextRound: decision.nextRound,
 });
 setOutput("dedupe_key", dedupeKey);
 
-const markerTargetNumber = parsePositiveTargetNumber(decision.targetNumber);
+const markerTargetNumber = parsePositiveTargetNumber(dispatchTargetNumber || "");
 if (!markerTargetNumber) {
   console.error(`Invalid handoff marker target number: ${decision.targetNumber}`);
   process.exit(2);
@@ -368,12 +634,12 @@ try {
   if (decision.nextAction === "review") {
     dispatchWorkflow(repo, "agent-review.yml", ref, {
       ...commonInputs,
-      pr_number: decision.targetNumber,
+      pr_number: dispatchTargetNumber,
     });
   } else if (decision.nextAction === "implement") {
     dispatchWorkflow(repo, "agent-implement.yml", ref, {
       ...commonInputs,
-      issue_number: decision.targetNumber,
+      issue_number: dispatchTargetNumber,
       approval_comment_url: "",
       base_branch: baseBranch,
       base_pr: basePr,
@@ -383,9 +649,28 @@ try {
   } else if (decision.nextAction === "fix-pr") {
     dispatchWorkflow(repo, "agent-fix-pr.yml", ref, {
       ...commonInputs,
-      pr_number: decision.targetNumber,
+      pr_number: dispatchTargetNumber,
       request_source_kind: "workflow_dispatch",
       orchestrator_context: decision.handoffContext || "",
+    });
+  } else if (decision.nextAction === "orchestrate") {
+    dispatchWorkflow(repo, "agent-orchestrator.yml", ref, {
+      requested_by: requestedBy,
+      request_text: requestText,
+      automation_max_rounds: String(maxRounds),
+      session_bundle_mode: sessionBundleMode,
+      source_action: "orchestrate",
+      source_conclusion: "requested",
+      source_run_id: sourceRunId,
+      target_kind: "issue",
+      target_number: dispatchTargetNumber || "",
+      author_association: sourceAssociationRaw,
+      access_policy: accessPolicyRaw,
+      repository_private: isPublicRepo ? "false" : "true",
+      automation_mode: "heuristics",
+      automation_current_round: "1",
+      base_branch: decision.baseBranch || baseBranch,
+      base_pr: decision.basePr || basePr,
     });
   } else {
     console.error(`Unsupported next action: ${decision.nextAction}`);
@@ -432,7 +717,7 @@ if (collapseOldReviews) {
     const collapsed = collapsePreviousHandoffComments({
       repo,
       targetNumber: markerTargetNumber,
-      targetKind: decision.nextAction === "implement" ? "issue" : "pull_request",
+      targetKind: decision.nextAction === "implement" || decision.nextAction === "orchestrate" ? "issue" : "pull_request",
       excludeCommentId: markerCommentId,
       currentCreatedAtMs: nowMs,
     });

@@ -31,6 +31,11 @@ function runOrchestrateHandoff(env: Record<string, string>): {
     const outputPath = join(tempDir, "github-output.txt");
     const ghLogPath = join(tempDir, "gh.log");
     const dispatchPayloadPath = join(tempDir, "dispatch.json");
+    const plannerResponse = env.FAKE_PLANNER_RESPONSE || "";
+    const plannerResponsePath = join(tempDir, "planner-response.txt");
+    if (plannerResponse) {
+      writeFileSync(plannerResponsePath, plannerResponse, "utf8");
+    }
 
     writeFileSync(outputPath, "", "utf8");
     writeFileSync(
@@ -39,11 +44,39 @@ function runOrchestrateHandoff(env: Record<string, string>): {
 set -euo pipefail
 printf '%s\\n' "$*" >> "$FAKE_GH_LOG"
 
+if [ "\${1-}" = "pr" ] && [ "\${2-}" = "view" ] && [[ "$*" == *"--json body"* ]]; then
+  printf '{"body":"%s"}\\n' "\${FAKE_PR_BODY-}"
+  exit 0
+fi
+
 if [ "\${1-}" = "pr" ] && [ "\${2-}" = "view" ]; then
   if [ "\${FAKE_PR_STATUS_MODE-}" = "missing" ]; then
     exit 1
   fi
   printf '{"state":"%s","reviewDecision":"%s"}\\n' "\${FAKE_PR_STATE-OPEN}" "\${FAKE_PR_REVIEW_DECISION-}"
+  exit 0
+fi
+
+if [ "\${1-}" = "issue" ] && [ "\${2-}" = "list" ]; then
+  printf '%s\\n' "\${FAKE_ISSUE_LIST_JSON-[]}"
+  exit 0
+fi
+
+if [ "\${1-}" = "issue" ] && [ "\${2-}" = "view" ]; then
+  if [ -n "\${FAKE_ISSUE_VIEW_JSON-}" ]; then
+    printf '%s\\n' "$FAKE_ISSUE_VIEW_JSON"
+  else
+    printf '{"number":20,"title":"Issue","body":""}\\n'
+  fi
+  exit 0
+fi
+
+if [ "\${1-}" = "issue" ] && [ "\${2-}" = "create" ]; then
+  printf '%s\\n' "\${FAKE_CREATED_ISSUE_URL-https://github.com/self-evolving/repo/issues/77}"
+  exit 0
+fi
+
+if [ "\${1-}" = "issue" ] && [ "\${2-}" = "edit" ]; then
   exit 0
 fi
 
@@ -117,6 +150,7 @@ exit 1
         AUTOMATION_MODE: "heuristics",
         AUTOMATION_CURRENT_ROUND: "1",
         AUTOMATION_MAX_ROUNDS: "5",
+        PLANNER_RESPONSE_FILE: plannerResponse ? plannerResponsePath : "",
         AUTHOR_ASSOCIATION: "MEMBER",
         REPOSITORY_PRIVATE: "true",
         FAKE_GH_LOG: ghLogPath,
@@ -309,4 +343,92 @@ test("manual orchestrate re-validates delegated route access before dispatch", (
   assert.equal(run.outputs.get("decision"), "stop");
   assert.equal(run.outputs.get("reason"), "implement requests currently require MEMBER access.");
   assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-implement\.yml\/dispatches/);
+});
+
+test("agent meta orchestrate creates child issue and dispatches normal child orchestrator", () => {
+  const run = runOrchestrateHandoff({
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "51",
+    AUTOMATION_MODE: "agent",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "handoff",
+      next_action: "orchestrate",
+      reason: "Split out the first stage.",
+      child_stage: "stage-1",
+      child_instructions: "Implement the first stage only.",
+      base_pr: "12",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr);
+  assert.equal(run.outputs.get("decision"), "dispatch");
+  assert.equal(run.outputs.get("next_action"), "orchestrate");
+  assert.equal(run.outputs.get("target_number"), "77");
+  assert.match(run.ghLog, /issue create/);
+  assert.match(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.source_action, "orchestrate");
+  assert.equal(inputs.target_kind, "issue");
+  assert.equal(inputs.target_number, "77");
+  assert.equal(inputs.automation_mode, "heuristics");
+  assert.equal(inputs.base_pr, "12");
+});
+
+test("agent meta orchestrate can reuse an existing child issue", () => {
+  const run = runOrchestrateHandoff({
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "51",
+    AUTOMATION_MODE: "agent",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "handoff",
+      next_action: "orchestrate",
+      reason: "Continue the existing child issue.",
+      child_stage: "stage-1",
+      child_issue_number: "88",
+    }),
+    FAKE_ISSUE_VIEW_JSON: JSON.stringify({
+      number: 88,
+      title: "Existing child",
+      body: "Existing task body",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr);
+  assert.equal(run.outputs.get("target_number"), "88");
+  assert.match(run.ghLog, /issue view 88/);
+  assert.match(run.ghLog, /issue edit 88/);
+  assert.doesNotMatch(run.ghLog, /issue create/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.target_number, "88");
+});
+
+test("PR terminal SHIP resolves child issue and resumes parent orchestrator", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "99",
+    AUTOMATION_MODE: "heuristics",
+    FAKE_PR_BODY: "Closes #77",
+    FAKE_ISSUE_VIEW_JSON: JSON.stringify({
+      number: 77,
+      title: "Child",
+      body: "Parent issue: #51\n\n<!-- sepo-sub-orchestrator parent:51 stage:stage-1 state:running -->",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.equal(run.outputs.get("reason"), "review verdict is SHIP");
+  assert.match(run.ghLog, /pr view 99/);
+  assert.match(run.ghLog, /issue view 77/);
+  assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/51\/comments/);
+  assert.match(run.ghLog, /issue edit 77/);
+  assert.match(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.source_action, "orchestrate");
+  assert.equal(inputs.target_kind, "issue");
+  assert.equal(inputs.target_number, "51");
+  assert.equal(inputs.automation_mode, "agent");
+  assert.match(inputs.request_text, /Child issue #77 finished with SHIP/);
 });

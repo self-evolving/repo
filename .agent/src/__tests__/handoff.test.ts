@@ -104,6 +104,33 @@ test("agent mode stops invalid or disallowed planner handoffs", () => {
   assert.match(wrongEdge.reason, /policy only allows fix-pr/);
 });
 
+test("agent mode allows parent issue planner to select child orchestration", () => {
+  const decision = decideHandoff({
+    automationMode: "agent",
+    sourceAction: "orchestrate",
+    sourceConclusion: "requested",
+    targetKind: "issue",
+    targetNumber: "51",
+    currentRound: 1,
+    maxRounds: 5,
+    plannerDecision: {
+      decision: "handoff",
+      nextAction: "orchestrate",
+      reason: "Split out stage one.",
+      childStage: "stage-1",
+      childInstructions: "Implement stage one only.",
+      basePr: "12",
+    },
+  });
+
+  assert.equal(decision.decision, "dispatch");
+  assert.equal(decision.nextAction, "orchestrate");
+  assert.equal(decision.targetNumber, "51");
+  assert.equal(decision.childStage, "stage-1");
+  assert.equal(decision.childInstructions, "Implement stage one only.");
+  assert.equal(decision.basePr, "12");
+});
+
 test("agent mode respects planner stop, invalid planner output, and round budget", () => {
   const stopped = decideHandoff({
     automationMode: "agent",
@@ -339,6 +366,14 @@ test("parsePlannerDecision reads planner JSON", () => {
     )?.handoffContext,
     "camel case works",
   );
+  const child = parsePlannerDecision(
+    '{"decision":"handoff","next_action":"orchestrate","reason":"Stage.","child_stage":"stage-1","child_instructions":"Do stage one.","child_issue_number":"77","base_branch":"agent/base"}',
+  );
+  assert.equal(child?.nextAction, "orchestrate");
+  assert.equal(child?.childStage, "stage-1");
+  assert.equal(child?.childInstructions, "Do stage one.");
+  assert.equal(child?.childIssueNumber, "77");
+  assert.equal(child?.baseBranch, "agent/base");
   assert.equal(parsePlannerDecision("not json"), null);
   assert.equal(parsePlannerDecision('{"decision":"handoff","next_action":"deploy"}')?.nextAction, undefined);
 });
