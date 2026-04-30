@@ -26,3 +26,4 @@
 - Chained/orchestrated dispatches must preserve requester auth context and re-check downstream route policy.
 - The orchestrator planner runs with approve-all so non-interactive workflows can gather current repo/GitHub context.
 - AGENT_PROJECT_MANAGEMENT_DISCUSSION_CATEGORY is shared by daily summary creation and project-management summary comments.
+- Orchestrated fix-pr completion comments mention AGENT_HANDLE; requester auth context remains the human initiator.
