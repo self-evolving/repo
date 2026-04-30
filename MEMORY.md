@@ -30,3 +30,4 @@
 - Install/update-agent should merge .agent/dist/ and .agent/node_modules/ ignores into target .gitignore, not replace it.
 - AGENT_COLLAPSE_OLD_REVIEWS governs cleanup for both review synthesis and rubrics review comments.
 - Implementation runs support stacked PRs via explicit base_branch or base_pr; base_pr must be an open same-repo PR.
+- Do not add branch URL links in agent prompt fragments; reserve branch links for user-facing comments.
