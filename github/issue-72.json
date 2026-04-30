@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "@sepo-agent /answer \n\n1. In #21 , it uses github action timeout, which i think actually is a good idea. \n2. But also it suggests using acpx's native implementation; I am not sure but it seems less clean than the default github action implementation \n3. I think reporting timeout is also critical to orchestrator flow -> otherwise in the current version it will just stop working there  (#66 for example, there is a few failure agent stopped in the middle \n ",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA4_AEA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I agree with using a GitHub Actions timeout, but I would not make it the only timeout if reporting is required.\n\nThe current shared path is centralized in [`run-agent-task`](https://github.com/self-evolving/repo/blob/main/.github/actions/run-agent-task/action.yml#L9-L116), which runs [`node .agent/dist/run.js`](https://github.com/self-evolving/repo/blob/main/.github/actions/run-agent-task/action.yml#L330-L337). That runtime currently calls [`runAcpx`](https://github.com/self-evolving/repo/blob/main/.agent/src/run.ts#L507-L518) without passing a timeout. The lower-level adapter already has timeout support: it can add `--timeout` to `acpx` args and set a process timeout around the spawned command in [`acpx-adapter.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/acpx-adapter.ts#L212-L224) and [`acpx-adapter.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/acpx-adapter.ts#L653-L659).\n\nSo my recommendation is a two-layer design:\n\n- **Inner/reportable timeout:** add a configurable `timeout_minutes` input to `run-agent-task`, pass it into `run.ts`, then into `runAcpx`. If the agent times out, `run.ts` can still write a response file, mark thread state failed, set outputs like `timed_out=true`, and let existing post-processing continue.\n- **Outer/hard GitHub timeout:** add `timeout-minutes` on the workflow steps that call `run-agent-task`, with a small grace buffer above the inner timeout. This catches runtime bugs, shell deadlocks, or cases where the inner timeout itself fails.\n\nI would avoid relying only on GitHub’s step timeout because once GitHub kills the step, the composite action cannot reliably emit `response_file`, session outputs, or a typed timeout status. That is exactly the part needed for the orchestrator/reporting flow. Existing implement/fix-pr flows already parse agent failure and post status comments through [`parse-response`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/parse-response.ts#L13-L29) and [`post-comment`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/post-comment.ts#L43-L71), so a controlled timeout should plug into that path.\n\nProposed implementation plan:\n\n1. Add `timeout_minutes` to [`run-agent-task/action.yml`](https://github.com/self-evolving/repo/blob/main/.github/actions/run-agent-task/action.yml), defaulting to a repo variable-friendly value such as `30` or `45`.\n2. Pass that input into [`run.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/run.ts) as an env var, validate it, and pass seconds into `runAcpx`.\n3. Extend [`acpx-adapter.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/acpx-adapter.ts) to return an explicit `timedOut` flag when the process timeout fires, rather than treating it as a generic failure.\n4. Extend response/status handling with a distinct `timed_out` status, so implement/fix-pr comments say the agent timed out instead of the generic “could not complete” message.\n5. Ensure orchestrator handoff receives `source_conclusion=timed_out` for timed-out implement/fix-pr/review runs, so it stops visibly instead of appearing stuck. The handoff code already stops on non-success conclusions in [`handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L264-L315).\n6. Add workflow contract tests in [`envelope.test.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/envelope.test.ts#L480-L496) and runtime tests around timeout propagation/result formatting.\n\nI’d implement this as a general shared-runtime change, not as another one-off rubrics-review timeout like #21. That keeps the workflow defaults clean while still giving the orchestrator a typed, reportable failure mode.",
+      "createdAt": "2026-04-30T17:37:53Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/72#issuecomment-4354719760",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-04-30T17:34:29Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 72,
+  "state": "OPEN",
+  "title": "Adding timeout for agent tasks",
+  "updatedAt": "2026-04-30T17:37:53Z",
+  "url": "https://github.com/self-evolving/repo/issues/72"
+}

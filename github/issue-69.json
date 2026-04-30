@@ -1,0 +1,86 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "## Summary\n\nThe Claude review lane can fail during session setup when the self-hosted runner's Claude Code settings use `permissions.defaultMode: \"auto\"` while the repo runtime installs `acpx@^0.4.0`.\n\nObserved run/job:\n- https://github.com/self-evolving/repo/actions/runs/25175391392/job/73805965114\n\n## Symptoms\n\nThe job logs show the `Run claude review` step invoking `acpx`, then failing before any agent output is produced:\n\n```text\n{\"msg\":\"acpx completed\",\"exit_code\":1,\"session_ensure_outcome\":\"failed\"}\n{\"msg\":\"acpx run failed\",\"stderr_tail\":\"session setup failed: Internal error\\n\"}\n##[error]Process completed with exit code 1.\n```\n\nThere is also a non-fatal warning earlier about failing to push thread state with `github-actions[bot]`, but the direct job failure is the `acpx` session setup error.\n\n## Reproduction / diagnosis\n\nOn the same runner configuration, `acpx@0.4.0` fails to create a Claude session when `~/.claude/settings.json` contains:\n\n```json\n\"permissions\": {\n  \"allow\": [],\n  \"defaultMode\": \"auto\"\n}\n```\n\nThe more detailed local repro error is:\n\n```text\nError handling request ... method: 'session/new' ...\n{\n  code: -32603,\n  message: 'Internal error',\n  data: { details: 'Invalid permissions.defaultMode: auto.' }\n}\nInternal error\n```\n\nTesting with `acpx@0.6.1` successfully creates the Claude session with the same Claude setting, so this appears to be an older ACP adapter/runtime compatibility issue.\n\n## Suggested fix\n\nUpdate the agent runtime dependency from `acpx@^0.4.0` to a version that supports current Claude Code settings, e.g. `acpx@^0.6.1`, and refresh the lockfile.\n\nShort-term workaround: change/remove `permissions.defaultMode: \"auto\"` in the runner's `~/.claude/settings.json`, but that is runner-local and brittle.\n",
+  "closedAt": "2026-04-30T17:29:56Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA4fEAg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "Additional check:\n\n- Current Claude Code reports `--permission-mode` choices as: `acceptEdits`, `auto`, `bypassPermissions`, `default`, `dontAsk`, `plan`.\n- So `permissions.defaultMode: \"auto\"` is the correct mode name for current Claude Code; this is not a settings typo.\n- Local repro with the same `~/.claude/settings.json`:\n  - `acpx@0.4.0` fails with `Invalid permissions.defaultMode: auto.`\n  - `acpx@0.4.1` succeeds (`@agentclientprotocol/claude-agent-acp@^0.25.0`)\n  - `acpx@0.5.0`, `0.5.3`, and `0.6.1` also succeed.\n\nBecause the workflow uses `npm ci`, the lockfile can still pin `acpx@0.4.0` even though package.json has `^0.4.0`; the fix should update package-lock as well. Runner Node is already 22.21.1, which satisfies newer acpx's `>=22.12.0` engine requirement.\n",
+      "createdAt": "2026-04-30T16:20:58Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/69#issuecomment-4354196482",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA4h9qw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "Related but separate finding: the Codex review lane is also unhealthy, but it hangs after `Running acpx` rather than failing Claude session setup. Tracked separately in #70.",
+      "createdAt": "2026-04-30T16:27:16Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/69#issuecomment-4354244011",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA43rhg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `orchestrate` -> `implement` (round 2/10).\n\nmanual orchestrate start on issue; dispatching implement\n\n<!-- sepo-agent-handoff state:dispatched created:1777569497870 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxNzkyMzk1MDI6b3JjaGVzdHJhdGU6Njk6aW1wbGVtZW50OjY5OjI -->",
+      "createdAt": "2026-04-30T17:18:18Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/69#issuecomment-4354599814",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA44kCQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-69/codex-25179270284`\n- Pull request: https://github.com/self-evolving/repo/pull/71\n\nUpdated the agent runtime dependency from `acpx@^0.4.0` to `acpx@^0.6.1` and refreshed `.agent/package-lock.json` so workflow `npm ci` installs `acpx@0.6.1`. Verified the lockfile resolution with `npm ls acpx --package-lock-only` and ran `.agent` `npm test` successfully.",
+      "createdAt": "2026-04-30T17:20:26Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/69#issuecomment-4354614281",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-04-30T16:11:58Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 69,
+  "state": "CLOSED",
+  "title": "Claude review lane fails with permissions.defaultMode auto on acpx 0.4.0",
+  "updatedAt": "2026-04-30T17:29:56Z",
+  "url": "https://github.com/self-evolving/repo/issues/69"
+}

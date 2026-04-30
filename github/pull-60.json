@@ -5,7 +5,7 @@
   },
   "baseRefName": "main",
   "body": "## Summary\n- Collapse older same-agent orchestrator handoff marker comments after a successful dispatch.\n- Reuse the existing generated-comment minimizer and AGENT_COLLAPSE_OLD_REVIEWS toggle.\n- Update orchestrator workflow env, docs, and focused regression tests.\n\n## Verification\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/review-summary-minimize.test.js .agent/dist/__tests__/orchestrate-handoff-cli.test.js .agent/dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nCloses #59\n",
-  "closedAt": null,
+  "closedAt": "2026-04-30T15:00:52Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABA0uvpg",
@@ -126,6 +126,95 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/60#issuecomment-4350328920",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA32R-Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I checked both review comments.\n\nThe earlier bot comment about minimizing pending/newer handoff markers appears resolved in the current diff: `collapsePreviousMatchingHandoffComments` now skips `pending` markers and only minimizes markers with `createdAt` older than the current handoff timestamp.\n\nFor your comment: yes, I agree this wrapper is redundant:\n\n```ts\nexport function collapsePreviousHandoffComments(...) {\n  return collapsePreviousMatchingHandoffComments(options);\n}\n```\n\nUnlike `collapsePreviousReviewSummaries` and `collapsePreviousRubricsReviews`, it does not pass a matcher or adapt behavior. It is mostly there to match the module’s existing exported-wrapper style, but in this case the private function can simply become the exported function.\n\nSuggested cleanup:\n\n- Rename `collapsePreviousMatchingHandoffComments` to `collapsePreviousHandoffComments`.\n- Export it directly.\n- Delete the one-line wrapper at the bottom of [`review-summary-minimize.ts`](https://github.com/self-evolving/repo/blob/b2a2820d347ce312c9d2c9f6747becf9914d06eb/.agent/src/review-summary-minimize.ts#L409-L412).\n\nNo behavior change needed.",
+      "createdAt": "2026-04-30T14:55:37Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/60#issuecomment-4353528313",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA333Ug",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer it seems the right way is to systematically rethink and redesign the code here. Maybe better for a future PR",
+      "createdAt": "2026-04-30T14:58:48Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/60#issuecomment-4353554258",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA34S1w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Agreed. I would not block this PR on that broader cleanup.\n\nFor this PR, the current shape is acceptable because it preserves the existing module pattern and keeps the behavior change focused on handoff cleanup. Your review comment is valid, but the better fix is probably a follow-up refactor that redesigns this helper around a clearer abstraction, for example:\n\n- one generic “collapse generated comments” path,\n- explicit target support for issue comments, PR comments, and PR reviews,\n- policy-specific filters for review synthesis, rubrics, and handoff markers,\n- fewer one-line wrappers where they do not add meaning.\n\nSo my recommendation: ship this PR as-is if the behavior is otherwise good, and open a future cleanup issue/PR for the minimizer API design.",
+      "createdAt": "2026-04-30T14:59:42Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/60#issuecomment-4353561303",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA34rqg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Agreed. I would not block this PR on that broader cleanup.\n> \n> For this PR, the current shape is acceptable because it preserves the existing module pattern and keeps the behavior change focused on handoff cleanup. Your review comment is valid, but the better fix is probably a follow-up refactor that redesigns this helper around a clearer abstraction, for example:\n> \n> - one generic “collapse generated comments” path,\n> - explicit target support for issue comments, PR comments, and PR reviews,\n> - policy-specific filters for review synthesis, rubrics, and handoff markers,\n> - fewer one-line wrappers where they do not add meaning.\n> \n> So my recommendation: ship this PR as-is if the behavior is otherwise good, and open a future cleanup issue/PR for the minimizer API design.\n\n@sepo-agent /answer can you create an issue?",
+      "createdAt": "2026-04-30T15:00:30Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/60#issuecomment-4353567658",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA35dyw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Created follow-up issue: https://github.com/self-evolving/repo/issues/65",
+      "createdAt": "2026-04-30T15:01:46Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/60#issuecomment-4353580491",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-04-30T06:45:42Z",
@@ -212,7 +301,7 @@
       "color": "fbca04"
     }
   ],
-  "mergedAt": null,
+  "mergedAt": "2026-04-30T15:00:52Z",
   "number": 60,
   "reviewDecision": "",
   "reviews": [
@@ -230,10 +319,32 @@
       "commit": {
         "oid": "3f3a4df5d30e3787ac5c4d83a1ca13f0f067dcaa"
       }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM76tPDr",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer check my review comments ",
+      "submittedAt": "2026-04-30T14:54:13Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "b2a2820d347ce312c9d2c9f6747becf9914d06eb"
+      }
     }
   ],
-  "state": "OPEN",
+  "state": "MERGED",
   "title": "Collapse old orchestrator handoff comments",
-  "updatedAt": "2026-04-30T08:38:05Z",
+  "updatedAt": "2026-04-30T15:01:46Z",
   "url": "https://github.com/self-evolving/repo/pull/60"
 }

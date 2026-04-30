@@ -1,0 +1,61 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "body": "Follow-up from PR #60 review: the current generated-comment minimization code works for the handoff cleanup change, but the helper API has grown around review-specific naming and one-line wrappers.\n\nThe goal is to redesign this area systematically rather than making PR #60 larger.\n\nProposed direction:\n\n- Create one clearer generic path for collapsing generated comments/reviews.\n- Model target sources explicitly: issue comments, PR comments, and PR reviews.\n- Keep behavior-specific policies separate for AI review synthesis, rubrics reviews, and orchestrator handoff markers.\n- Remove wrappers that only forward to a private function without adding policy or meaning.\n- Preserve existing behavior and test coverage while making the API easier to extend.\n\nContext:\n\n- PR: https://github.com/self-evolving/repo/pull/60\n- Review discussion: the exported handoff cleanup wrapper is mostly stylistic/redundant, but a broader cleanup is better suited to a separate PR.",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA4U2Qw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer it seems it is also connected to the following two issues #67 #68 ",
+      "createdAt": "2026-04-30T15:59:27Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/65#issuecomment-4354029123",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA4WMwg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, I agree they are connected.\n\nI’d treat #65 as the umbrella/refactor issue, with #67 and #68 as concrete behavior cases that the redesign should support:\n\n- #67: extend review cleanup beyond generated review synthesis to older inline/generated review comments when a fresh review is posted.\n- #68: add the same “latest generated status stays visible, older ones collapse” behavior for repeated `/fix-pr` result comments.\n- #65: redesign the shared helper/API so these are policies over one generic minimization path, instead of adding more one-off wrappers.\n\nThe current code already points in that direction: [`review-summary-minimize.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/review-summary-minimize.ts) mixes PR comments, PR reviews, issue comments, and policy-specific wrappers, while [`post-comment.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/post-comment.ts#L78-L92) only collapses old review synthesis comments for `route === \"review\"` and does not yet cover `/fix-pr` comments.\n\nSuggested handling:\n\n1. Keep #65 open as the design/refactor umbrella.\n2. Link #67 and #68 from #65 as acceptance cases.\n3. Implement #65 with explicit target/source types: issue comments, PR comments, PR reviews, and inline review comments if GitHub’s API supports the needed minimization target cleanly.\n4. Add policy filters for review synthesis, rubrics reviews, orchestrator handoffs, fix-pr result comments, and inline review comments.\n5. Close #67/#68 when the new shared path wires those behaviors and has focused regression tests.",
+      "createdAt": "2026-04-30T16:01:29Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/65#issuecomment-4354051266",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-04-30T15:01:38Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 65,
+  "state": "OPEN",
+  "title": "Refactor generated comment minimization helpers",
+  "updatedAt": "2026-04-30T16:01:29Z",
+  "url": "https://github.com/self-evolving/repo/issues/65"
+}

@@ -1,0 +1,18 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "## Summary\n\nThe Codex review lane appears to be hanging in `acpx` rather than completing/failing cleanly. This is separate from the Claude `permissions.defaultMode: \"auto\"` / `acpx@0.4.0` session setup failure tracked in #69.\n\n## Evidence\n\nCurrent run:\n- https://github.com/self-evolving/repo/actions/runs/25175391392/job/73805965148\n- Job: `review (codex, approve-all, xhigh, codex-review, codex-review)`\n- Status is still `in_progress`; step `Run codex review` started at `2026-04-30T15:53:29Z` and has not completed.\n- Logs are not yet downloadable via the Actions job log API (`BlobNotFound` while in progress), so we cannot see a terminal error from this run.\n\nPrevious run with the same PR/review lane:\n- https://github.com/self-evolving/repo/actions/runs/25174733546/job/73803608373\n- The Codex lane started normally and reached:\n\n```text\n{\"msg\":\"Envelope parsed\",\"route\":\"review\",\"target\":\"pull_request#66\",\"thread_key\":\"self-evolving/repo:pull_request:66:review:codex-review\"}\n{\"msg\":\"Prompt rendered\", ...}\n{\"msg\":\"Running acpx\",\"agent\":\"codex\",\"route\":\"review\",\"permission_mode\":\"approve-all\"}\n```\n\n- It never logged `acpx completed`.\n- It was later cancelled:\n\n```text\n##[error]The operation was canceled.\nTerminate orphan process: pid (...) (codex-acp)\n```\n\nFor comparison, an earlier Codex review on PR #66 did complete successfully in ~2m40s:\n- https://github.com/self-evolving/repo/actions/runs/25174163038/job/73801548334\n- It logged `acpx completed` with `exit_code:0` and uploaded `codex-review-66`.\n\n## Notes\n\nThis failure mode differs from #69:\n- Claude failure: deterministic setup error before agent run (`Invalid permissions.defaultMode: auto.` through old ACP adapter).\n- Codex failure: `acpx` starts but appears to hang with no completion/log artifact, blocking review synthesis.\n\nThere is also a repeated non-fatal thread state warning:\n\n```text\nFailed to update thread state (pre-run)\nremote: Permission to self-evolving/repo.git denied to github-actions[bot].\n```\n\nThat warning occurs on both successful and stuck runs, so it may not be the direct cause, but it makes diagnosis and continuity weaker.\n\n## Suggested fixes / hardening\n\n- Add an explicit timeout around `run-agent-task` / `acpx` invocations so a hung Codex ACP process fails visibly instead of leaving the workflow in progress indefinitely.\n- Persist partial raw stdout/stderr/session logs or heartbeat output while the agent is running, so in-progress hangs are diagnosable.\n- Investigate whether Codex continuation for `pull_request-66-review-codex-review` can wedge when reusing/continuing the same lane after a prior successful review.\n- Fix the thread-state push auth warning separately so continuation state is reliable.\n",
+  "closedAt": null,
+  "comments": [],
+  "createdAt": "2026-04-30T16:27:10Z",
+  "labels": [],
+  "number": 70,
+  "state": "OPEN",
+  "title": "Codex review lane can hang in acpx and block synthesis",
+  "updatedAt": "2026-04-30T16:27:10Z",
+  "url": "https://github.com/self-evolving/repo/issues/70"
+}

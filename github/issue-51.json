@@ -134,8 +134,8 @@
       "body": "Sepo automation handoff dispatched: `orchestrate` -> `implement` (round 2/10).\n\nmanual orchestrate start on issue; dispatching implement\n\n<!-- sepo-agent-handoff state:dispatched created:1777531168214 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxNTEyNDM1MzY6b3JjaGVzdHJhdGU6NTE6aW1wbGVtZW50OjUxOjI -->",
       "createdAt": "2026-04-30T06:39:26Z",
       "includesCreatedEdit": true,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/51#issuecomment-4350223620",
       "viewerDidAuthor": true
@@ -153,6 +153,101 @@
       "minimizedReason": "",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/51#issuecomment-4350256021",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA3_sIw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer\n\nAfter checking the latest implementation #61 , i don't think the version there is clean and elegant. It actually patches our data model and then try to find a way to hack it. One better way is that, when we launch a sub-orchestrate, it will always go to a different issue (or create one). Such that we do not need to patch our data model for now. But the key implementation challenge is to make sure that the orchestrate should report back after they finish. Can you think of a new way for implementing it?",
+      "createdAt": "2026-04-30T15:11:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/51#issuecomment-4353682467",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA4Ao7g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I agree with that direction. The cleaner model is:\n\n```text\nParent issue #51\n-> meta orchestrator decides next subtask\n-> creates child issue #A for subtask 1\n-> dispatches normal /orchestrate on child issue #A\n-> child issue runs existing implement/review/fix-pr loop\n-> when child reaches terminal state, child reports back to parent issue #51\n-> parent meta orchestrator decides next child issue or stops\n```\n\nThis avoids the awkward part of #61: threading `orchestrator_lane`, `parent_orchestrator_lane`, `orchestration_chain_id`, and context through orchestrator, implement, review, fix-pr, prompts, and runtime. PR #61 is trying to make same-issue lanes into the data model. If every sub-orchestrator gets its own issue, then the existing thread key already separates sessions naturally because the `target_number` is different.\n\nThe key is to make the parent/child relationship live in GitHub issue metadata, not in the session envelope.\n\nRecommended design:\n\n1. **Meta creates a child issue**\n   - Add a deterministic helper like `create-sub-orchestration-issue.ts`.\n   - Child issue body includes:\n     - parent issue number\n     - stage title\n     - task instructions\n     - base branch / base PR, if needed\n     - hidden marker, for example:\n\n       ```html\n       <!-- sepo-sub-orchestrator parent:51 stage:1 state:running -->\n       ```\n\n   - The child issue is ordinary GitHub issue state, so users can inspect it.\n\n2. **Dispatch normal orchestrator on the child issue**\n   - No special lane needed.\n   - It uses the current path: issue `/orchestrate` -> `implement` -> `review` -> `fix-pr` -> terminal.\n   - Current main already supports issue orchestrate dispatching implement ([`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L189-L203)).\n   - #56 already gives child issues `base_branch` / `base_pr` support for stacked PRs.\n\n3. **Detect child terminal state**\n   - Add a small callback step after `orchestrate-handoff.ts` reaches a terminal `stop`.\n   - If the terminal target is an issue, read the child marker from that issue.\n   - If the terminal target is a PR, resolve the linked child issue from the PR body / closing issue reference, then read the child marker.\n   - Terminal states should include:\n     - review verdict `SHIP`\n     - implement failed / no PR\n     - fix-pr failed\n     - max round budget exhausted\n     - planner blocked / malformed / policy stop\n\n4. **Report back to the parent issue**\n   - Post or update one visible parent issue comment:\n\n     ```text\n     Sub-orchestrator stage 1 finished\n\n     Child issue: #A\n     PR: #B\n     Result: SHIP\n     Summary: ...\n     Next: waiting for meta orchestrator\n     ```\n\n   - Also update the child issue marker/comment to `state:done`, `state:blocked`, or `state:failed`.\n\n5. **Resume the parent meta orchestrator**\n   - Dispatch `agent-orchestrator.yml` on the parent issue with request text containing the child result.\n   - The parent run should use planner mode and decide:\n     - create next child issue\n     - wait/block\n     - stop as complete\n   - This needs a small extension to the orchestrator source-action handling, but not a broad session model change.\n\nThe most important implementation trick: **do not pass parent context through every action workflow**. Instead, recover it from the child issue marker at terminal time. That keeps implement/review/fix-pr mostly unchanged.\n\nThis would be much cleaner than #61 because:\n\n- child sessions are naturally isolated by issue number\n- users can see every subtask as a normal issue\n- report-back is explicit and visible\n- stacked PRs use the already-merged #56 base inputs\n- parent/child state is inspectable GitHub state, not hidden session-envelope state\n- fewer workflow inputs need to be threaded through every path\n\nSuggested execution plan:\n\n1. Stop pursuing the lane-heavy #61 shape.\n2. Add child issue marker parser/formatter helpers.\n3. Add `create-sub-orchestration-issue.ts`.\n4. Extend the meta planner prompt to emit “create child issue” decisions.\n5. Add terminal callback logic that resolves child issue -> parent issue.\n6. Post/update visible parent progress comments.\n7. Dispatch parent orchestrator after child terminal report.\n8. Add tests for:\n   - parent creates child issue\n   - child issue dispatches normal orchestrator\n   - PR terminal state resolves child issue\n   - child reports success/failure back to parent\n   - parent resumes after callback\n   - duplicate callbacks are idempotent\n\nSo yes: this is easier conceptually and likely cleaner in code. The only hard part is terminal report-back, and that can be solved with child issue markers plus a small callback CLI instead of changing the whole orchestration/session model.",
+      "createdAt": "2026-04-30T15:13:57Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/51#issuecomment-4353698030",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA4CHjQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> I agree with that direction. The cleaner model is:\n> \n> ```text\n> Parent issue #51\n> -> meta orchestrator decides next subtask\n> -> creates child issue #A for subtask 1\n> -> dispatches normal /orchestrate on child issue #A\n> -> child issue runs existing implement/review/fix-pr loop\n> -> when child reaches terminal state, child reports back to parent issue #51\n> -> parent meta orchestrator decides next child issue or stops\n> ```\n> \n> This avoids the awkward part of #61: threading `orchestrator_lane`, `parent_orchestrator_lane`, `orchestration_chain_id`, and context through orchestrator, implement, review, fix-pr, prompts, and runtime. PR #61 is trying to make same-issue lanes into the data model. If every sub-orchestrator gets its own issue, then the existing thread key already separates sessions naturally because the `target_number` is different.\n> \n> The key is to make the parent/child relationship live in GitHub issue metadata, not in the session envelope.\n> \n> Recommended design:\n> \n> 1. **Meta creates a child issue**\n>    - Add a deterministic helper like `create-sub-orchestration-issue.ts`.\n>    - Child issue body includes:\n>      - parent issue number\n>      - stage title\n>      - task instructions\n>      - base branch / base PR, if needed\n>      - hidden marker, for example:\n> \n>        ```html\n>        <!-- sepo-sub-orchestrator parent:51 stage:1 state:running -->\n>        ```\n> \n>    - The child issue is ordinary GitHub issue state, so users can inspect it.\n> \n> 2. **Dispatch normal orchestrator on the child issue**\n>    - No special lane needed.\n>    - It uses the current path: issue `/orchestrate` -> `implement` -> `review` -> `fix-pr` -> terminal.\n>    - Current main already supports issue orchestrate dispatching implement ([`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L189-L203)).\n>    - #56 already gives child issues `base_branch` / `base_pr` support for stacked PRs.\n> \n> 3. **Detect child terminal state**\n>    - Add a small callback step after `orchestrate-handoff.ts` reaches a terminal `stop`.\n>    - If the terminal target is an issue, read the child marker from that issue.\n>    - If the terminal target is a PR, resolve the linked child issue from the PR body / closing issue reference, then read the child marker.\n>    - Terminal states should include:\n>      - review verdict `SHIP`\n>      - implement failed / no PR\n>      - fix-pr failed\n>      - max round budget exhausted\n>      - planner blocked / malformed / policy stop\n> \n> 4. **Report back to the parent issue**\n>    - Post or update one visible parent issue comment:\n> \n>      ```text\n>      Sub-orchestrator stage 1 finished\n> \n>      Child issue: #A\n>      PR: #B\n>      Result: SHIP\n>      Summary: ...\n>      Next: waiting for meta orchestrator\n>      ```\n> \n>    - Also update the child issue marker/comment to `state:done`, `state:blocked`, or `state:failed`.\n> \n> 5. **Resume the parent meta orchestrator**\n>    - Dispatch `agent-orchestrator.yml` on the parent issue with request text containing the child result.\n>    - The parent run should use planner mode and decide:\n>      - create next child issue\n>      - wait/block\n>      - stop as complete\n>    - This needs a small extension to the orchestrator source-action handling, but not a broad session model change.\n> \n> The most important implementation trick: **do not pass parent context through every action workflow**. Instead, recover it from the child issue marker at terminal time. That keeps implement/review/fix-pr mostly unchanged.\n> \n> This would be much cleaner than #61 because:\n> \n> - child sessions are naturally isolated by issue number\n> - users can see every subtask as a normal issue\n> - report-back is explicit and visible\n> - stacked PRs use the already-merged #56 base inputs\n> - parent/child state is inspectable GitHub state, not hidden session-envelope state\n> - fewer workflow inputs need to be threaded through every path\n> \n> Suggested execution plan:\n> \n> 1. Stop pursuing the lane-heavy #61 shape.\n> 2. Add child issue marker parser/formatter helpers.\n> 3. Add `create-sub-orchestration-issue.ts`.\n> 4. Extend the meta planner prompt to emit “create child issue” decisions.\n> 5. Add terminal callback logic that resolves child issue -> parent issue.\n> 6. Post/update visible parent progress comments.\n> 7. Dispatch parent orchestrator after child terminal report.\n> 8. Add tests for:\n>    - parent creates child issue\n>    - child issue dispatches normal orchestrator\n>    - PR terminal state resolves child issue\n>    - child reports success/failure back to parent\n>    - parent resumes after callback\n>    - duplicate callbacks are idempotent\n> \n> So yes: this is easier conceptually and likely cleaner in code. The only hard part is terminal report-back, and that can be solved with child issue markers plus a small callback CLI instead of changing the whole orchestration/session model.\n\nOverall good. One small note: (1) it can also go to an exiting issue if it exists (do not need to always create) and (2) if not too hard to implement, we can also link sub issues to the parent issue (otherwise we can use it as a follow up) \n\n@sepo-agent /orchestrate ",
+      "createdAt": "2026-04-30T15:17:13Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/51#issuecomment-4353722253",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA4Ck2Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `orchestrate` -> `implement` (round 2/10).\n\nmanual orchestrate start on issue; dispatching implement\n\n<!-- sepo-agent-handoff state:dispatched created:1777562296265 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxNzM1OTQ0MDk6b3JjaGVzdHJhdGU6NTE6aW1wbGVtZW50OjUxOjI -->",
+      "createdAt": "2026-04-30T15:18:16Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/51#issuecomment-4353729753",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA4HIkw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-51/codex-25173642474`\n- Pull request: https://github.com/self-evolving/repo/pull/66\n\nImplemented issue-backed sub-orchestration for the orchestrator: agent-mode parent issue planning can create or reuse child issues with metadata markers, dispatch normal child issue orchestration, report terminal child results back to the parent, update child marker state, and resume the parent planner. Updated prompts/docs and added regression coverage; verification: `npm test` passed with 422 tests.",
+      "createdAt": "2026-04-30T15:27:51Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/51#issuecomment-4353804435",
       "viewerDidAuthor": true
     }
   ],
@@ -180,6 +275,6 @@
   "number": 51,
   "state": "OPEN",
   "title": "Orchestrator to dispatch to another orchestrator",
-  "updatedAt": "2026-04-30T08:37:54Z",
+  "updatedAt": "2026-04-30T15:27:51Z",
   "url": "https://github.com/self-evolving/repo/issues/51"
 }
