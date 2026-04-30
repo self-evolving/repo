@@ -31,3 +31,4 @@
 - AGENT_COLLAPSE_OLD_REVIEWS governs cleanup for both review synthesis and rubrics review comments.
 - Implementation runs support stacked PRs via explicit base_branch or base_pr; base_pr must be an open same-repo PR.
 - Do not add branch URL links in agent prompt fragments; reserve branch links for user-facing comments.
+- Daily summary discussion gate belongs after GitHub auth in signals, before signal/provider setup.
