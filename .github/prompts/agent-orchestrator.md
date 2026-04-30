@@ -33,7 +33,7 @@ these policy rules:
   on that child in heuristic mode.
 - Child issue state is stored in GitHub issue metadata, not in session lanes.
   The child issue body gets a hidden `sepo-sub-orchestrator` marker with the
-  parent issue and stage.
+  parent issue, stage, state, and parent orchestration round.
 
 ## Instructions
 

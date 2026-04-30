@@ -786,7 +786,13 @@ test("execution workflows expose automation handoff inputs", () => {
     assert.match(workflow, /automation_current_round:/);
     assert.match(workflow, /automation_max_rounds:/);
     assert.match(workflow, /orchestration_enabled:/);
+    assert.match(workflow, /author_association:/);
+    assert.match(workflow, /access_policy:/);
+    assert.match(workflow, /repository_private:/);
     assert.match(workflow, /inputs\.orchestration_enabled == 'true'/);
+    assert.match(workflow, /AUTHOR_ASSOCIATION:\s*\$\{\{ inputs\.author_association \}\}/);
+    assert.match(workflow, /ACCESS_POLICY:\s*\$\{\{ inputs\.access_policy \}\}/);
+    assert.match(workflow, /REPOSITORY_PRIVATE:\s*\$\{\{ inputs\.repository_private \|\|/);
     assert.match(workflow, /node \.agent\/dist\/cli\/dispatch-agent-orchestrator\.js/);
   }
 

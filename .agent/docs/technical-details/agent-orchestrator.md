@@ -91,18 +91,21 @@ uses `child_issue_number` when the planner points to an existing issue, and
 adds a hidden marker like:
 
 ```html
-<!-- sepo-sub-orchestrator parent:51 stage:stage-1 state:running -->
+<!-- sepo-sub-orchestrator parent:51 stage:stage-1 state:running parent_round:2 -->
 ```
 
 The child issue is dispatched through the normal issue orchestrator path in
 `heuristics` mode. That keeps the child session naturally isolated by issue
 number and avoids passing parent context through implement, review, and fix-pr.
-The child issue body records parent issue, stage, task instructions, and
-optional `base_branch` or `base_pr` for stacked work. When the planner supplies
-`child_issue_number`, the dispatcher requires that issue to already have a
-running marker for the same parent and normalized stage. Otherwise, the
-dispatcher searches open marker-bearing issues, parses their markers, and
-reuses a running parent/stage match before creating a new child.
+The child issue body records parent issue, stage, task instructions, the parent
+orchestration round that created or reused the child, and optional `base_branch`
+or `base_pr` for stacked work. When the planner supplies `child_issue_number`,
+the dispatcher requires that issue to already have a running marker for the same
+parent and normalized stage. Otherwise, the dispatcher searches open
+marker-bearing issues, parses their markers, and reuses a running parent/stage
+match before creating a new child. Reused child markers are refreshed with the
+current parent round so terminal callbacks remain bounded by the parent chain's
+round budget.
 
 When a child reaches a terminal stop, `orchestrate-handoff.ts` tries to recover
 the parent relationship from GitHub metadata. For issue targets it reads the
@@ -110,9 +113,9 @@ child issue marker directly. For pull request targets it reads the PR body for
 a closing issue reference, then reads that issue marker. If a running child
 marker is found, the callback updates or creates one visible parent progress
 comment, dispatches `agent-orchestrator.yml` on the parent issue with the child
-result in the request text, records the resume as dispatched in the progress
-comment, and then updates the child marker to `done`, `blocked`, or `failed`.
-If dispatch fails, the child marker stays retryable.
+result in the request text and the stored parent round, records the resume as
+dispatched in the progress comment, and then updates the child marker to `done`,
+`blocked`, or `failed`. If dispatch fails, the child marker stays retryable.
 
 Before dispatching, the orchestrator checks for a hidden handoff marker on the destination issue or pull request. It then writes a `pending` marker for the current source run, source action, destination action, target, and round, dispatches the next workflow, and updates the marker to `dispatched` after `workflow_dispatch` succeeds. After a successful dispatch, it minimizes older visible handoff marker comments from the same authenticated agent account as outdated unless `AGENT_COLLAPSE_OLD_REVIEWS=false` is set. If dispatch fails, the marker is updated to `failed` so a rerun can retry. Rerunning the same source action or orchestrator run skips fresh `pending` or `dispatched` markers instead of enqueueing a duplicate next action. A `pending` marker records its creation time; if it is older than the one-hour stale threshold, the orchestrator marks it `failed` and retries so cancelled runs do not permanently block handoff. Non-success statuses and unsupported verdicts stop the chain.
 

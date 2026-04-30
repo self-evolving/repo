@@ -31,10 +31,10 @@ import { collapsePreviousHandoffComments } from "../review-summary-minimize.js";
 import {
   extractClosingIssueNumber,
   formatSubOrchestrationIssueBody,
-  formatSubOrchestratorMarker,
   normalizeSubOrchestratorStage,
   parseSubOrchestratorMarker,
   resultStateFromTerminal,
+  updateSubOrchestratorMarkerParentRound,
   updateSubOrchestratorMarkerState,
   type SubOrchestratorState,
 } from "../sub-orchestration.js";
@@ -204,7 +204,7 @@ function createIssueFromBody(repoSlug: string, title: string, body: string): str
   ]).trim());
 }
 
-function findExistingSubOrchestrationIssue(repoSlug: string, parentIssue: number, stage: string): string {
+function findExistingSubOrchestrationIssue(repoSlug: string, parentIssue: number, stage: string): IssueRecord | null {
   const expectedStage = normalizeSubOrchestratorStage(stage);
   const raw = gh([
     "issue",
@@ -227,12 +227,14 @@ function findExistingSubOrchestrationIssue(repoSlug: string, parentIssue: number
   for (const entry of parsed) {
     if (!entry || typeof entry !== "object") continue;
     const record = entry as Record<string, unknown>;
-    const marker = parseSubOrchestratorMarker(String(record.body || ""));
-    if (marker?.parent === parentIssue && marker.stage === expectedStage && marker.state === "running") {
-      return String(record.number || "");
+    const number = parsePositiveTargetNumber(String(record.number || ""));
+    const body = String(record.body || "");
+    const marker = parseSubOrchestratorMarker(body);
+    if (number && marker?.parent === parentIssue && marker.stage === expectedStage && marker.state === "running") {
+      return { number, title: String(record.title || ""), body };
     }
   }
-  return "";
+  return null;
 }
 
 function validateReusableChildIssue(existing: IssueRecord, parentIssue: number, stage: string): void {
@@ -264,16 +266,23 @@ function ensureSubOrchestrationIssue(decision: HandoffDecision): string {
   const stage = decision.childStage || `stage-${decision.nextRound - 1}`;
   const instructions = decision.childInstructions || decision.handoffContext || requestText;
   const existingIssueNumber = parsePositiveTargetNumber(decision.childIssueNumber || "");
+  const parentRound = decision.nextRound;
 
   if (existingIssueNumber) {
     const existing = fetchIssue(repo, existingIssueNumber);
     if (!existing) throw new Error(`Could not read child issue #${existingIssueNumber}`);
     validateReusableChildIssue(existing, parentIssue, stage);
+    const updatedBody = updateSubOrchestratorMarkerParentRound(existing.body, parentRound);
+    if (updatedBody !== existing.body) updateIssueBody(repo, existing.number, updatedBody);
     return String(existingIssueNumber);
   }
 
-  const reusableIssueNumber = findExistingSubOrchestrationIssue(repo, parentIssue, stage);
-  if (reusableIssueNumber) return reusableIssueNumber;
+  const reusableIssue = findExistingSubOrchestrationIssue(repo, parentIssue, stage);
+  if (reusableIssue) {
+    const updatedBody = updateSubOrchestratorMarkerParentRound(reusableIssue.body, parentRound);
+    if (updatedBody !== reusableIssue.body) updateIssueBody(repo, reusableIssue.number, updatedBody);
+    return String(reusableIssue.number);
+  }
 
   const title = `Sub-orchestrator: ${stage}`;
   const body = formatSubOrchestrationIssueBody({
@@ -282,6 +291,7 @@ function ensureSubOrchestrationIssue(decision: HandoffDecision): string {
     taskInstructions: instructions,
     baseBranch: effectiveBaseBranch,
     basePr: effectiveBasePr,
+    parentRound,
   });
   const createdUrl = createIssueFromBody(repo, title, body);
   const createdNumber = parseIssueNumberFromUrl(createdUrl);
@@ -328,6 +338,7 @@ function reportTerminalToParent(decision: HandoffDecision): void {
     sourceConclusion,
     reason: decision.reason,
   });
+  const parentRound = marker.parentRound || 1;
   const result = resultState === "done" ? "SHIP" : resultState.toUpperCase();
   const prLine = normalizeToken(sourceTargetKind) === "pull_request" ? `PR: #${targetNumber}\n` : "";
   const progressMarkerPrefix = `sepo-sub-orchestrator-report child:${childIssue.number}`;
@@ -339,6 +350,7 @@ function reportTerminalToParent(decision: HandoffDecision): void {
     `Child issue: #${childIssue.number}`,
     prLine.trim(),
     `Result: ${result}`,
+    `Parent round: ${parentRound}/${maxRounds}`,
     `Summary: ${decision.reason}`,
     "Next: waiting for meta orchestrator",
     "",
@@ -373,7 +385,7 @@ function reportTerminalToParent(decision: HandoffDecision): void {
       requested_by: requestedBy,
       request_text: `Child issue #${childIssue.number} finished with ${result}: ${decision.reason}`,
       automation_mode: "agent",
-      automation_current_round: "1",
+      automation_current_round: String(parentRound),
       automation_max_rounds: String(maxRounds),
       session_bundle_mode: sessionBundleMode,
       base_branch: baseBranch,
@@ -654,6 +666,9 @@ const commonInputs = {
   automation_current_round: String(decision.nextRound),
   automation_max_rounds: String(maxRounds),
   session_bundle_mode: sessionBundleMode,
+  author_association: sourceAssociationRaw,
+  access_policy: accessPolicyRaw,
+  repository_private: isPublicRepo ? "false" : "true",
 };
 
 try {

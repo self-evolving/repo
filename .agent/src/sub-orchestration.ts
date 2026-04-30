@@ -4,10 +4,12 @@ export interface SubOrchestratorMarker {
   parent: number;
   stage: string;
   state: SubOrchestratorState;
+  parentRound?: number;
 }
 
 const MARKER_PREFIX = "sepo-sub-orchestrator";
-const MARKER_RE = /<!--\s*sepo-sub-orchestrator\s+parent:(\d+)\s+stage:([^\s]+)\s+state:(running|done|blocked|failed)\s*-->/i;
+const MARKER_RE = /<!--\s*sepo-sub-orchestrator\s+([\s\S]*?)-->/i;
+const VALID_STATES = new Set<SubOrchestratorState>(["running", "done", "blocked", "failed"]);
 
 export function normalizeSubOrchestratorStage(value: string): string {
   return String(value || "")
@@ -18,21 +20,53 @@ export function normalizeSubOrchestratorStage(value: string): string {
     .slice(0, 60) || "stage";
 }
 
+function parseMarkerTokens(text: string): Map<string, string> {
+  const tokens = new Map<string, string>();
+  for (const match of String(text || "").matchAll(/\b([a-z_]+):([^\s]+)/gi)) {
+    tokens.set(match[1].toLowerCase(), match[2]);
+  }
+  return tokens;
+}
+
+function parsePositiveInteger(value: string | undefined): number {
+  const parsed = Number.parseInt(String(value || ""), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
+
 export function formatSubOrchestratorMarker(input: {
   parent: number;
   stage: string;
   state?: SubOrchestratorState;
+  parentRound?: number;
 }): string {
-  return `<!-- ${MARKER_PREFIX} parent:${input.parent} stage:${normalizeSubOrchestratorStage(input.stage)} state:${input.state || "running"} -->`;
+  const parts = [
+    MARKER_PREFIX,
+    `parent:${input.parent}`,
+    `stage:${normalizeSubOrchestratorStage(input.stage)}`,
+    `state:${input.state || "running"}`,
+  ];
+  const parentRound = parsePositiveInteger(String(input.parentRound || ""));
+  if (parentRound) parts.push(`parent_round:${parentRound}`);
+  return `<!-- ${parts.join(" ")} -->`;
 }
 
 export function parseSubOrchestratorMarker(body: string): SubOrchestratorMarker | null {
   const match = String(body || "").match(MARKER_RE);
   if (!match) return null;
+
+  const tokens = parseMarkerTokens(match[1] || "");
+  const parent = parsePositiveInteger(tokens.get("parent"));
+  const stageToken = tokens.get("stage");
+  const stage = stageToken ? normalizeSubOrchestratorStage(stageToken) : "";
+  const rawState = String(tokens.get("state") || "").toLowerCase() as SubOrchestratorState;
+  if (!parent || !stage || !VALID_STATES.has(rawState)) return null;
+
+  const parentRound = parsePositiveInteger(tokens.get("parent_round"));
   return {
-    parent: Number.parseInt(match[1], 10),
-    stage: match[2],
-    state: match[3].toLowerCase() as SubOrchestratorState,
+    parent,
+    stage,
+    state: rawState,
+    ...(parentRound ? { parentRound } : {}),
   };
 }
 
@@ -42,12 +76,19 @@ export function updateSubOrchestratorMarkerState(body: string, state: SubOrchest
   return String(body || "").replace(MARKER_RE, formatSubOrchestratorMarker({ ...marker, state }));
 }
 
+export function updateSubOrchestratorMarkerParentRound(body: string, parentRound: number): string {
+  const marker = parseSubOrchestratorMarker(body);
+  if (!marker) return body;
+  return String(body || "").replace(MARKER_RE, formatSubOrchestratorMarker({ ...marker, parentRound }));
+}
+
 export function formatSubOrchestrationIssueBody(input: {
   parentIssue: number;
   stage: string;
   taskInstructions: string;
   baseBranch?: string;
   basePr?: string;
+  parentRound?: number;
 }): string {
   const lines = [
     `Parent issue: #${input.parentIssue}`,
@@ -65,13 +106,17 @@ export function formatSubOrchestrationIssueBody(input: {
     if (input.basePr) lines.push(`- base_pr: #${input.basePr}`);
   }
 
-  lines.push("", formatSubOrchestratorMarker({ parent: input.parentIssue, stage: input.stage }));
+  lines.push("", formatSubOrchestratorMarker({
+    parent: input.parentIssue,
+    stage: input.stage,
+    parentRound: input.parentRound,
+  }));
   return lines.join("\n");
 }
 
 export function extractClosingIssueNumber(text: string): number | null {
   const match = String(text || "").match(
-    /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+(?:[\w.-]+\/[\w.-]+)?#(\d+)\b/i,
+    /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?|implement(?:s|ed)?)\s+(?:[\w.-]+\/[\w.-]+)?#(\d+)\b/i,
   );
   if (!match) return null;
   const parsed = Number.parseInt(match[1], 10);

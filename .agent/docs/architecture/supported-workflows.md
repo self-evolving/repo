@@ -40,12 +40,13 @@ is found, the planner stops or blocks, or the max-round budget is exhausted.
 Parent/child sub-orchestration state lives in GitHub issues. A parent planner
 handoff with `next_action: orchestrate` creates a child issue, or reuses an
 existing `child_issue_number` that already has a matching running
-`sepo-sub-orchestrator` marker containing the parent issue, stage, and state.
-The child runs the normal issue orchestrator loop. When the child reaches a
-terminal stop, the orchestrator resolves the child issue directly or through
-the PR closing reference, updates a visible parent progress comment, dispatches
-the parent issue orchestrator with the child result, and then marks the child
-marker done/blocked/failed so dispatch failures remain retryable.
+`sepo-sub-orchestrator` marker containing the parent issue, stage, state, and
+parent orchestration round. The child runs the normal issue orchestrator loop.
+When the child reaches a terminal stop, the orchestrator resolves the child
+issue directly or through the PR linked/closing reference, updates a visible
+parent progress comment, dispatches the parent issue orchestrator with the child
+result and stored parent round, and then marks the child marker
+done/blocked/failed so dispatch failures remain retryable.
 
 Implementation dispatches default to the repository default branch. Callers can
 set `base_branch` to stack directly on another branch, or `base_pr` to stack on

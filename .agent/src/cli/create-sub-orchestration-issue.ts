@@ -1,6 +1,6 @@
 // CLI: create or annotate a child issue for sub-orchestration.
 // Env: GITHUB_REPOSITORY, PARENT_ISSUE_NUMBER, CHILD_ISSUE_NUMBER, STAGE,
-//      TASK_INSTRUCTIONS, BASE_BRANCH, BASE_PR
+//      TASK_INSTRUCTIONS, BASE_BRANCH, BASE_PR, PARENT_ROUND
 // Outputs: child_issue_number
 
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -42,6 +42,7 @@ const stage = process.env.STAGE || "stage";
 const taskInstructions = process.env.TASK_INSTRUCTIONS || "";
 const baseBranch = process.env.BASE_BRANCH || "";
 const basePr = process.env.BASE_PR || "";
+const parentRound = positiveInt(process.env.PARENT_ROUND || "");
 
 if (!repo || !parentIssue) {
   console.error("Missing required env: GITHUB_REPOSITORY, PARENT_ISSUE_NUMBER");
@@ -84,6 +85,7 @@ const body = formatSubOrchestrationIssueBody({
   taskInstructions,
   baseBranch,
   basePr,
+  parentRound: parentRound || undefined,
 });
 const url = withBodyFile(body, (bodyFile) => gh([
   "issue",

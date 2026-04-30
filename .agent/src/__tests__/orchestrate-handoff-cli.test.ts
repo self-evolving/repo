@@ -24,6 +24,8 @@ function runOrchestrateHandoff(env: Record<string, string>): {
   outputs: Map<string, string>;
   ghLog: string;
   dispatchPayload: Record<string, unknown> | null;
+  createdIssueBody: string;
+  editedIssueBody: string;
 } {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-orchestrate-handoff-"));
   try {
@@ -31,6 +33,8 @@ function runOrchestrateHandoff(env: Record<string, string>): {
     const outputPath = join(tempDir, "github-output.txt");
     const ghLogPath = join(tempDir, "gh.log");
     const dispatchPayloadPath = join(tempDir, "dispatch.json");
+    const createdIssueBodyPath = join(tempDir, "created-issue-body.md");
+    const editedIssueBodyPath = join(tempDir, "edited-issue-body.md");
     const plannerResponse = env.FAKE_PLANNER_RESPONSE || "";
     const plannerResponsePath = join(tempDir, "planner-response.txt");
     if (plannerResponse) {
@@ -72,11 +76,33 @@ if [ "\${1-}" = "issue" ] && [ "\${2-}" = "view" ]; then
 fi
 
 if [ "\${1-}" = "issue" ] && [ "\${2-}" = "create" ]; then
+  body_file=""
+  previous=""
+  for arg in "$@"; do
+    if [ "$previous" = "--body-file" ]; then
+      body_file="$arg"
+    fi
+    previous="$arg"
+  done
+  if [ -n "$body_file" ] && [ -f "$body_file" ]; then
+    cat "$body_file" > "$FAKE_CREATED_ISSUE_BODY"
+  fi
   printf '%s\\n' "\${FAKE_CREATED_ISSUE_URL-https://github.com/self-evolving/repo/issues/77}"
   exit 0
 fi
 
 if [ "\${1-}" = "issue" ] && [ "\${2-}" = "edit" ]; then
+  body_file=""
+  previous=""
+  for arg in "$@"; do
+    if [ "$previous" = "--body-file" ]; then
+      body_file="$arg"
+    fi
+    previous="$arg"
+  done
+  if [ -n "$body_file" ] && [ -f "$body_file" ]; then
+    cat "$body_file" > "$FAKE_EDITED_ISSUE_BODY"
+  fi
   exit 0
 fi
 
@@ -159,6 +185,8 @@ exit 1
         REPOSITORY_PRIVATE: "true",
         FAKE_GH_LOG: ghLogPath,
         FAKE_DISPATCH_PAYLOAD: dispatchPayloadPath,
+        FAKE_CREATED_ISSUE_BODY: createdIssueBodyPath,
+        FAKE_EDITED_ISSUE_BODY: editedIssueBodyPath,
         ...env,
       },
       encoding: "utf8",
@@ -180,6 +208,8 @@ exit 1
         dispatchPayload = null;
       }
     }
+    const createdIssueBody = existsSync(createdIssueBodyPath) ? readFileSync(createdIssueBodyPath, "utf8") : "";
+    const editedIssueBody = existsSync(editedIssueBodyPath) ? readFileSync(editedIssueBodyPath, "utf8") : "";
 
     return {
       status: result.status,
@@ -188,6 +218,8 @@ exit 1
       outputs: parseGithubOutput(outputPath),
       ghLog,
       dispatchPayload,
+      createdIssueBody,
+      editedIssueBody,
     };
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
@@ -250,7 +282,10 @@ test("manual orchestrate dispatches implement for issue targets", () => {
   assert.equal(run.outputs.get("decision"), "dispatch");
   assert.equal(run.outputs.get("next_action"), "implement");
   assert.match(run.ghLog, /actions\/workflows\/agent-implement\.yml\/dispatches/);
-  assert.equal((run.dispatchPayload?.inputs as Record<string, string>).base_pr, "12");
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.base_pr, "12");
+  assert.equal(inputs.author_association, "MEMBER");
+  assert.equal(inputs.repository_private, "true");
 });
 
 test("manual orchestrate collapses old handoff comments after dispatch", () => {
@@ -376,6 +411,9 @@ test("agent meta orchestrate creates child issue and dispatches normal child orc
   assert.equal(inputs.target_number, "77");
   assert.equal(inputs.automation_mode, "heuristics");
   assert.equal(inputs.base_pr, "12");
+  assert.equal(inputs.author_association, "MEMBER");
+  assert.equal(inputs.repository_private, "true");
+  assert.match(run.createdIssueBody, /parent_round:2/);
 });
 
 test("agent meta orchestrate can reuse an existing child issue", () => {
@@ -400,7 +438,8 @@ test("agent meta orchestrate can reuse an existing child issue", () => {
   assert.equal(run.status, 0, run.stderr);
   assert.equal(run.outputs.get("target_number"), "88");
   assert.match(run.ghLog, /issue view 88/);
-  assert.doesNotMatch(run.ghLog, /issue edit 88/);
+  assert.match(run.ghLog, /issue edit 88/);
+  assert.match(run.editedIssueBody, /parent_round:2/);
   assert.doesNotMatch(run.ghLog, /issue create/);
   const inputs = run.dispatchPayload?.inputs as Record<string, string>;
   assert.equal(inputs.target_number, "88");
@@ -509,7 +548,31 @@ test("PR terminal SHIP resolves child issue and resumes parent orchestrator", ()
   assert.equal(inputs.target_kind, "issue");
   assert.equal(inputs.target_number, "51");
   assert.equal(inputs.automation_mode, "agent");
+  assert.equal(inputs.automation_current_round, "1");
   assert.match(inputs.request_text, /Child issue #77 finished with SHIP/);
+});
+
+test("PR terminal resolves Implements links and resumes the stored parent round", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "99",
+    AUTOMATION_MODE: "heuristics",
+    FAKE_PR_BODY: "Implements #77",
+    FAKE_ISSUE_VIEW_JSON: JSON.stringify({
+      number: 77,
+      title: "Child",
+      body: "Parent issue: #51\n\n<!-- sepo-sub-orchestrator parent:51 stage:stage-1 state:running parent_round:4 -->",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr);
+  assert.match(run.ghLog, /issue view 77/);
+  assert.match(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.target_number, "51");
+  assert.equal(inputs.automation_current_round, "4");
 });
 
 test("terminal child report keeps marker running when parent resume dispatch fails", () => {

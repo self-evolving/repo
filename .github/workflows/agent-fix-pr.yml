@@ -48,6 +48,18 @@ on:
         description: "Whether this run belongs to an explicit orchestrator chain"
         required: false
         default: "false"
+      author_association:
+        description: "Original requester author association for orchestrator authorization"
+        required: false
+        default: ""
+      access_policy:
+        description: "Route access policy JSON to preserve across orchestrated handoffs"
+        required: false
+        default: ""
+      repository_private:
+        description: "Repository visibility flag to preserve across orchestrated handoffs"
+        required: false
+        default: ""
   workflow_call:
     inputs:
       pr_number:
@@ -97,6 +109,18 @@ on:
         type: string
         required: false
         default: "false"
+      author_association:
+        type: string
+        required: false
+        default: ""
+      access_policy:
+        type: string
+        required: false
+        default: ""
+      repository_private:
+        type: string
+        required: false
+        default: ""
 
 permissions:
   actions: write
@@ -293,5 +317,8 @@ jobs:
           SESSION_BUNDLE_MODE: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
           SOURCE_ACTION: fix-pr
           SOURCE_CONCLUSION: ${{ steps.response.outputs.status || 'failed' }}
+          AUTHOR_ASSOCIATION: ${{ inputs.author_association }}
+          ACCESS_POLICY: ${{ inputs.access_policy }}
+          REPOSITORY_PRIVATE: ${{ inputs.repository_private || (github.event.repository.private && 'true' || 'false') }}
           TARGET_NUMBER: ${{ env.PR_NUMBER }}
         run: node .agent/dist/cli/dispatch-agent-orchestrator.js
