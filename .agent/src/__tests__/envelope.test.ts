@@ -439,7 +439,9 @@ test("workflows use granular CLI helpers for post-processing", () => {
   assert.match(implementWorkflow, /base_branch:/);
   assert.match(implementWorkflow, /base_pr:/);
   assert.match(implementWorkflow, /node \.agent\/dist\/cli\/resolve-implementation-base\.js/);
-  assert.match(implementWorkflow, /git fetch origin "refs\/heads\/\$\{BASE_BRANCH\}"/);
+  assert.match(implementWorkflow, /GH_TOKEN:\s*\$\{\{ steps\.auth\.outputs\.token \}\}/);
+  assert.match(implementWorkflow, /http\.\$\{GITHUB_SERVER_URL\}\/\.extraheader=AUTHORIZATION: basic \$\{AUTH_HEADER\}/);
+  assert.match(implementWorkflow, /fetch origin "refs\/heads\/\$\{BASE_BRANCH\}"/);
   assert.match(implementWorkflow, /BASE_BRANCH:\s*\$\{\{ env\.BASE_BRANCH \}\}/);
 
   assert.match(fixPrWorkflow, /node \.agent\/dist\/cli\/verify\.js/);

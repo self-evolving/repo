@@ -190,9 +190,12 @@ jobs:
         run: node .agent/dist/cli/add-label.js
 
       - name: Create implementation branch
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
         run: |
           set -euo pipefail
-          git fetch origin "refs/heads/${BASE_BRANCH}"
+          AUTH_HEADER="$(node -e "process.stdout.write(Buffer.from('x-access-token:' + process.env.GH_TOKEN).toString('base64'))")"
+          git -c "http.${GITHUB_SERVER_URL}/.extraheader=AUTHORIZATION: basic ${AUTH_HEADER}" fetch origin "refs/heads/${BASE_BRANCH}"
           git checkout -b "${BRANCH}" FETCH_HEAD
 
       - name: Run agent
