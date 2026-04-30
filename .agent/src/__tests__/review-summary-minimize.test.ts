@@ -246,6 +246,18 @@ test("collapsePreviousHandoffComments minimizes old issue handoff comments only"
                 author: { login: "sepo-agent-app" },
               },
               {
+                id: "pending-handoff",
+                body: "Sepo automation handoff pending\n\n<!-- sepo-agent-handoff state:pending created:100 base64:cGVuZGluZw -->",
+                isMinimized: false,
+                author: { login: "sepo-agent-app" },
+              },
+              {
+                id: "newer-handoff",
+                body: "Sepo automation handoff dispatched\n\n<!-- sepo-agent-handoff state:dispatched created:789 base64:bmV3ZXI -->",
+                isMinimized: false,
+                author: { login: "sepo-agent-app" },
+              },
+              {
                 id: "other-body",
                 body: "Regular discussion",
                 isMinimized: false,
@@ -265,6 +277,7 @@ test("collapsePreviousHandoffComments minimizes old issue handoff comments only"
     targetNumber: 59,
     targetKind: "issue",
     excludeCommentId: "current-handoff",
+    currentCreatedAtMs: 456,
     client,
   });
 
@@ -287,6 +300,12 @@ test("collapsePreviousHandoffComments uses pull request comments for PR targets"
                 isMinimized: false,
                 author: { login: "sepo-agent" },
               },
+              {
+                id: "current-handoff",
+                body: "<!-- sepo-agent-handoff state:dispatched created:456 base64:Y3VycmVudA -->",
+                isMinimized: false,
+                author: { login: "sepo-agent" },
+              },
             ],
             pageInfo: { hasNextPage: false, endCursor: null },
           },
@@ -300,6 +319,8 @@ test("collapsePreviousHandoffComments uses pull request comments for PR targets"
     repo: "self-evolving/repo",
     targetNumber: 57,
     targetKind: "pull_request",
+    excludeCommentId: "current-handoff",
+    currentCreatedAtMs: 456,
     client,
   }), 1);
   assert.match(calls[1]?.query || "", /pullRequest\(number: \$number\)/);

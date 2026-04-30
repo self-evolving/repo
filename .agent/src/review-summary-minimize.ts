@@ -2,7 +2,7 @@ import {
   createGhGraphqlClient,
   type GraphQLClient,
 } from "./github-graphql.js";
-import { hasAnyHandoffMarker } from "./handoff.js";
+import { hasAnyHandoffMarker, parseAnyHandoffMarker } from "./handoff.js";
 import { isReviewSynthesisBody } from "./review-synthesis.js";
 
 type PageInfo = {
@@ -65,6 +65,7 @@ type CollapsePreviousHandoffCommentsOptions = {
   targetNumber: number;
   targetKind: "issue" | "pull_request";
   excludeCommentId?: string;
+  currentCreatedAtMs?: number;
   client?: GraphQLClient;
 };
 
@@ -291,9 +292,8 @@ function collapsePreviousMatchingReviewComments(
   return uniqueNodeIds.length;
 }
 
-function collapsePreviousMatchingIssueComments(
+function collapsePreviousMatchingHandoffComments(
   options: CollapsePreviousHandoffCommentsOptions,
-  bodyMatcher: ReviewBodyMatcher,
 ): number {
   const client = options.client || createGhGraphqlClient();
   const repo = parseRepo(options.repo);
@@ -304,7 +304,7 @@ function collapsePreviousMatchingIssueComments(
       repo,
       options.targetNumber,
       viewerLogin,
-      bodyMatcher,
+      hasAnyHandoffMarker,
     )
     : fetchMatchingNodes(
       client,
@@ -313,13 +313,30 @@ function collapsePreviousMatchingIssueComments(
       repo,
       options.targetNumber,
       viewerLogin,
-      bodyMatcher,
+      hasAnyHandoffMarker,
     );
   const excludeCommentId = String(options.excludeCommentId || "");
+  const currentFromComment = nodes.find((node) => node.id === excludeCommentId);
+  const currentMarker = currentFromComment
+    ? parseAnyHandoffMarker(currentFromComment.body || "")
+    : null;
+  const explicitCreatedAtMs = Number(options.currentCreatedAtMs);
+  const currentCreatedAtMs = Number.isFinite(explicitCreatedAtMs) && explicitCreatedAtMs > 0
+    ? explicitCreatedAtMs
+    : currentMarker?.createdAtMs ?? null;
   const uniqueNodeIds = Array.from(new Set(
     nodes
+      .filter((node) => {
+        if (!node.id || node.id === excludeCommentId) return false;
+        const marker = parseAnyHandoffMarker(node.body || "");
+        if (!marker || marker.state === "pending") return false;
+        if (currentCreatedAtMs) {
+          return Boolean(marker.createdAtMs && marker.createdAtMs < currentCreatedAtMs);
+        }
+        return true;
+      })
       .map((node) => node.id)
-      .filter((id): id is string => Boolean(id) && id !== excludeCommentId),
+      .filter((id): id is string => Boolean(id)),
   ));
 
   for (const id of uniqueNodeIds) {
@@ -392,5 +409,5 @@ export function collapsePreviousRubricsReviews(
 export function collapsePreviousHandoffComments(
   options: CollapsePreviousHandoffCommentsOptions,
 ): number {
-  return collapsePreviousMatchingIssueComments(options, hasAnyHandoffMarker);
+  return collapsePreviousMatchingHandoffComments(options);
 }

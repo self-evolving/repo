@@ -410,16 +410,19 @@ try {
   throw err;
 }
 
+const dispatchedBody = formatHandoffMarkerComment({
+  key: dedupeKey,
+  state: "dispatched",
+  sourceAction,
+  nextAction: decision.nextAction,
+  nextRound: decision.nextRound,
+  maxRounds,
+  reason: decision.reason,
+  createdAtMs: nowMs,
+});
+
 try {
-  updateIssueComment(repo, markerCommentId, formatHandoffMarkerComment({
-    key: dedupeKey,
-    state: "dispatched",
-    sourceAction,
-    nextAction: decision.nextAction,
-    nextRound: decision.nextRound,
-    maxRounds,
-    reason: decision.reason,
-  }));
+  updateIssueComment(repo, markerCommentId, dispatchedBody);
 } catch (err: unknown) {
   console.warn(`Handoff dispatched but marker ${markerCommentId} remained pending: ${errorText(err)}`);
 }
@@ -431,6 +434,7 @@ if (collapseOldReviews) {
       targetNumber: markerTargetNumber,
       targetKind: decision.nextAction === "implement" ? "issue" : "pull_request",
       excludeCommentId: markerCommentId,
+      currentCreatedAtMs: nowMs,
     });
     if (collapsed > 0) {
       console.log(`Collapsed ${collapsed} previous orchestrator handoff comment(s).`);
