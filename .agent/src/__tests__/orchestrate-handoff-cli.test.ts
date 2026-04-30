@@ -49,6 +49,10 @@ set -euo pipefail
 printf '%s\\n' "$*" >> "$FAKE_GH_LOG"
 
 if [ "\${1-}" = "pr" ] && [ "\${2-}" = "view" ] && [[ "$*" == *"--json body"* ]]; then
+  if [ "\${FAKE_PR_BODY_MODE-}" = "fail" ]; then
+    printf 'pr body read failed\\n' >&2
+    exit 1
+  fi
   printf '{"body":"%s"}\\n' "\${FAKE_PR_BODY-}"
   exit 0
 fi
@@ -67,6 +71,10 @@ if [ "\${1-}" = "issue" ] && [ "\${2-}" = "list" ]; then
 fi
 
 if [ "\${1-}" = "issue" ] && [ "\${2-}" = "view" ]; then
+  if [ "\${FAKE_ISSUE_VIEW_MODE-}" = "fail" ]; then
+    printf 'issue read failed\\n' >&2
+    exit 1
+  fi
   if [ -n "\${FAKE_ISSUE_VIEW_JSON-}" ]; then
     printf '%s\\n' "$FAKE_ISSUE_VIEW_JSON"
   else
@@ -622,4 +630,63 @@ test("terminal child report is idempotent after parent resume was dispatched", (
   assert.equal(run.status, 0, run.stderr);
   assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
   assert.match(run.ghLog, /issue edit 77/);
+});
+
+test("terminal child report surfaces pull request body read failures", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "99",
+    AUTOMATION_MODE: "heuristics",
+    FAKE_PR_BODY_MODE: "fail",
+  });
+
+  assert.equal(run.status, 0);
+  assert.match(run.stderr, /Failed to report terminal sub-orchestration state/);
+  assert.match(run.stderr, /pr body read failed/);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
+});
+
+test("terminal child report surfaces child issue read failures", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "99",
+    AUTOMATION_MODE: "heuristics",
+    FAKE_PR_BODY: "Closes #77",
+    FAKE_ISSUE_VIEW_MODE: "fail",
+  });
+
+  assert.equal(run.status, 0);
+  assert.match(run.stderr, /Failed to report terminal sub-orchestration state/);
+  assert.match(run.stderr, /issue read failed/);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
+});
+
+test("terminal child report does not overwrite already-dispatched terminal markers", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "implement",
+    SOURCE_CONCLUSION: "failed",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "99",
+    AUTOMATION_MODE: "heuristics",
+    FAKE_PR_BODY: "Closes #77",
+    FAKE_ISSUE_VIEW_JSON: JSON.stringify({
+      number: 77,
+      title: "Child",
+      body: "Parent issue: #51\n\n<!-- sepo-sub-orchestrator parent:51 stage:stage-1 state:done parent_round:4 -->",
+    }),
+    FAKE_ISSUE_COMMENTS_JSON: JSON.stringify([[
+      {
+        id: 123,
+        body: "<!-- sepo-sub-orchestrator-report child:77 resume:dispatched -->",
+      },
+    ]]),
+  });
+
+  assert.equal(run.status, 0, run.stderr);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
+  assert.doesNotMatch(run.ghLog, /issue edit 77/);
 });

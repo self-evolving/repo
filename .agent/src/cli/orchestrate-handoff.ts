@@ -148,25 +148,29 @@ function updateIssueComment(repo: string, commentId: string, body: string): void
 
 function fetchIssue(repoSlug: string, issueNumber: number): IssueRecord | null {
   try {
-    const raw = gh([
-      "issue",
-      "view",
-      String(issueNumber),
-      "--repo",
-      repoSlug,
-      "--json",
-      "number,title,body",
-    ]).trim();
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-    return {
-      number: Number(parsed.number || issueNumber),
-      title: String(parsed.title || ""),
-      body: String(parsed.body || ""),
-    };
+    return fetchIssueStrict(repoSlug, issueNumber);
   } catch {
     return null;
   }
+}
+
+function fetchIssueStrict(repoSlug: string, issueNumber: number): IssueRecord {
+  const raw = gh([
+    "issue",
+    "view",
+    String(issueNumber),
+    "--repo",
+    repoSlug,
+    "--json",
+    "number,title,body",
+  ]).trim();
+  if (!raw) throw new Error(`empty issue response for #${issueNumber}`);
+  const parsed = JSON.parse(raw) as Record<string, unknown>;
+  return {
+    number: Number(parsed.number || issueNumber),
+    title: String(parsed.title || ""),
+    body: String(parsed.body || ""),
+  };
 }
 
 function updateIssueBody(repoSlug: string, issueNumber: number, body: string): void {
@@ -299,15 +303,11 @@ function ensureSubOrchestrationIssue(decision: HandoffDecision): string {
   return createdNumber;
 }
 
-function readPrBody(repoSlug: string, prNumber: string): string {
-  try {
-    const raw = gh(["pr", "view", prNumber, "--repo", repoSlug, "--json", "body"]).trim();
-    if (!raw) return "";
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-    return String(parsed.body || "");
-  } catch {
-    return "";
-  }
+function readPrBodyStrict(repoSlug: string, prNumber: string): string {
+  const raw = gh(["pr", "view", prNumber, "--repo", repoSlug, "--json", "body"]).trim();
+  if (!raw) throw new Error(`empty pull request response for #${prNumber}`);
+  const parsed = JSON.parse(raw) as Record<string, unknown>;
+  return String(parsed.body || "");
 }
 
 function resolveChildIssueForTerminal(): IssueRecord | null {
@@ -315,13 +315,13 @@ function resolveChildIssueForTerminal(): IssueRecord | null {
   const currentNumber = parsePositiveTargetNumber(targetNumber);
   if (!repo || !currentNumber) return null;
   if (normalizedKind === "issue") {
-    const issue = fetchIssue(repo, currentNumber);
+    const issue = fetchIssueStrict(repo, currentNumber);
     return issue && parseSubOrchestratorMarker(issue.body) ? issue : null;
   }
   if (normalizedKind === "pull_request") {
-    const linkedIssueNumber = extractClosingIssueNumber(readPrBody(repo, targetNumber));
+    const linkedIssueNumber = extractClosingIssueNumber(readPrBodyStrict(repo, targetNumber));
     if (!linkedIssueNumber) return null;
-    const issue = fetchIssue(repo, linkedIssueNumber);
+    const issue = fetchIssueStrict(repo, linkedIssueNumber);
     return issue && parseSubOrchestratorMarker(issue.body) ? issue : null;
   }
   return null;
@@ -333,11 +333,11 @@ function reportTerminalToParent(decision: HandoffDecision): void {
   const marker = parseSubOrchestratorMarker(childIssue.body);
   if (!marker || !["running", "done", "blocked", "failed"].includes(marker.state)) return;
 
-  const resultState = resultStateFromTerminal({
+  const resultState = marker.state === "running" ? resultStateFromTerminal({
     sourceAction,
     sourceConclusion,
     reason: decision.reason,
-  });
+  }) : marker.state;
   const parentRound = marker.parentRound || 1;
   const result = resultState === "done" ? "SHIP" : resultState.toUpperCase();
   const prLine = normalizeToken(sourceTargetKind) === "pull_request" ? `PR: #${targetNumber}\n` : "";
@@ -360,6 +360,9 @@ function reportTerminalToParent(decision: HandoffDecision): void {
     String(comment.body || "").includes(progressMarkerPrefix)
   );
   const progressWasDispatched = String(existingProgress?.body || "").includes(dispatchedProgressMarker);
+  if (marker.state !== "running" && progressWasDispatched) {
+    return;
+  }
   let progressCommentId = existingProgress?.id ? String(existingProgress.id) : "";
   const writeProgress = (progressMarker: string): void => {
     const progressBody = [...progressLines, progressMarker].join("\n");
@@ -395,7 +398,9 @@ function reportTerminalToParent(decision: HandoffDecision): void {
     writeProgress(dispatchedProgressMarker);
   }
 
-  const updatedChildBody = updateSubOrchestratorMarkerState(childIssue.body, resultState as SubOrchestratorState);
+  const updatedChildBody = marker.state === "running"
+    ? updateSubOrchestratorMarkerState(childIssue.body, resultState as SubOrchestratorState)
+    : childIssue.body;
   if (updatedChildBody !== childIssue.body) {
     updateIssueBody(repo, childIssue.number, updatedChildBody);
   }
