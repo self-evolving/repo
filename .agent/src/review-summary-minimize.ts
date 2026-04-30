@@ -51,6 +51,8 @@ type CollapsePreviousReviewSummariesOptions = {
   client?: GraphQLClient;
 };
 
+type ReviewBodyMatcher = (body: string) => boolean;
+
 const VIEWER_QUERY = `
   query ViewerLogin {
     viewer {
@@ -141,10 +143,18 @@ function isSameActorLogin(left: string, right: string): boolean {
   return normalizeActorLogin(left) === normalizeActorLogin(right);
 }
 
-function isGeneratedReviewSummary(node: ReviewSummaryNode, viewerLogin: string): boolean {
+export function isRubricsReviewBody(body: string): boolean {
+  return /(?:^|\r?\n)## Rubrics Review(?:\s|$)/.test(body);
+}
+
+function isGeneratedReviewComment(
+  node: ReviewSummaryNode,
+  viewerLogin: string,
+  bodyMatcher: ReviewBodyMatcher,
+): boolean {
   if (!node.id || node.isMinimized) return false;
   if (!isSameActorLogin(node.author?.login || "", viewerLogin)) return false;
-  return isReviewSynthesisBody(node.body || "");
+  return bodyMatcher(node.body || "");
 }
 
 function fetchViewerLogin(client: GraphQLClient): string {
@@ -163,6 +173,7 @@ function fetchMatchingNodes(
   repo: { owner: string; name: string },
   prNumber: number,
   viewerLogin: string,
+  bodyMatcher: ReviewBodyMatcher,
 ): ReviewSummaryNode[] {
   const matches: ReviewSummaryNode[] = [];
   let after: string | undefined;
@@ -184,7 +195,7 @@ function fetchMatchingNodes(
     if (!connection) return matches;
 
     for (const node of connection.nodes || []) {
-      if (isGeneratedReviewSummary(node, viewerLogin)) {
+      if (isGeneratedReviewComment(node, viewerLogin, bodyMatcher)) {
         matches.push(node);
       }
     }
@@ -196,18 +207,32 @@ function fetchMatchingNodes(
   return matches;
 }
 
-/**
- * Collapses older agent-generated PR review summaries before posting a fresh one.
- */
-export function collapsePreviousReviewSummaries(
+function collapsePreviousMatchingReviewComments(
   options: CollapsePreviousReviewSummariesOptions,
+  bodyMatcher: ReviewBodyMatcher,
 ): number {
   const client = options.client || createGhGraphqlClient();
   const repo = parseRepo(options.repo);
   const viewerLogin = fetchViewerLogin(client);
   const nodes = [
-    ...fetchMatchingNodes(client, COMMENTS_QUERY, "comments", repo, options.prNumber, viewerLogin),
-    ...fetchMatchingNodes(client, REVIEWS_QUERY, "reviews", repo, options.prNumber, viewerLogin),
+    ...fetchMatchingNodes(
+      client,
+      COMMENTS_QUERY,
+      "comments",
+      repo,
+      options.prNumber,
+      viewerLogin,
+      bodyMatcher,
+    ),
+    ...fetchMatchingNodes(
+      client,
+      REVIEWS_QUERY,
+      "reviews",
+      repo,
+      options.prNumber,
+      viewerLogin,
+      bodyMatcher,
+    ),
   ];
   const uniqueNodeIds = Array.from(new Set(nodes.map((node) => node.id).filter(Boolean))) as string[];
 
@@ -219,4 +244,22 @@ export function collapsePreviousReviewSummaries(
   }
 
   return uniqueNodeIds.length;
+}
+
+/**
+ * Collapses older agent-generated PR review summaries before posting a fresh one.
+ */
+export function collapsePreviousReviewSummaries(
+  options: CollapsePreviousReviewSummariesOptions,
+): number {
+  return collapsePreviousMatchingReviewComments(options, isReviewSynthesisBody);
+}
+
+/**
+ * Collapses older agent-generated rubrics reviews before posting a fresh one.
+ */
+export function collapsePreviousRubricsReviews(
+  options: CollapsePreviousReviewSummariesOptions,
+): number {
+  return collapsePreviousMatchingReviewComments(options, isRubricsReviewBody);
 }

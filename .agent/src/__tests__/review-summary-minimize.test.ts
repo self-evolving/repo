@@ -1,7 +1,11 @@
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
 
-import { collapsePreviousReviewSummaries } from "../review-summary-minimize.js";
+import {
+  collapsePreviousReviewSummaries,
+  collapsePreviousRubricsReviews,
+  isRubricsReviewBody,
+} from "../review-summary-minimize.js";
 import type { GraphQLClient, GraphQLVariableValue } from "../github-graphql.js";
 
 function createQueuedClient(responses: unknown[]): {
@@ -149,6 +153,80 @@ test("collapsePreviousReviewSummaries matches GitHub App bot login variants", ()
     client,
   }), 1);
   assert.deepEqual(calls[3]?.variables, { id: "comment-1", classifier: "OUTDATED" });
+});
+
+test("collapsePreviousRubricsReviews minimizes rubrics reviews only", () => {
+  const { client, calls } = createQueuedClient([
+    { viewer: { login: "sepo-agent" } },
+    {
+      repository: {
+        pullRequest: {
+          comments: {
+            nodes: [
+              {
+                id: "comment-1",
+                body: "preface\n\n## Rubrics Review\nold rubric scorecard",
+                isMinimized: false,
+                author: { login: "sepo-agent" },
+              },
+              {
+                id: "comment-2",
+                body: "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\nold synthesis",
+                isMinimized: false,
+                author: { login: "sepo-agent" },
+              },
+              {
+                id: "comment-3",
+                body: "## Rubrics Review\nother author",
+                isMinimized: false,
+                author: { login: "alice" },
+              },
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
+      },
+    },
+    {
+      repository: {
+        pullRequest: {
+          reviews: {
+            nodes: [
+              {
+                id: "review-1",
+                body: "## Rubrics Review\nold review body",
+                isMinimized: false,
+                author: { login: "sepo-agent" },
+              },
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
+      },
+    },
+    { minimizeComment: { minimizedComment: { isMinimized: true } } },
+    { minimizeComment: { minimizedComment: { isMinimized: true } } },
+  ]);
+
+  const collapsed = collapsePreviousRubricsReviews({
+    repo: "self-evolving/repo",
+    prNumber: 320,
+    client,
+  });
+
+  assert.equal(collapsed, 2);
+  assert.deepEqual(
+    calls.slice(3).map((call) => call.variables),
+    [
+      { id: "comment-1", classifier: "OUTDATED" },
+      { id: "review-1", classifier: "OUTDATED" },
+    ],
+  );
+});
+
+test("rubrics body detection matches heading after a continuity note", () => {
+  assert.equal(isRubricsReviewBody("> Restored session\n\n## Rubrics Review\nbody"), true);
+  assert.equal(isRubricsReviewBody("## AI Review Synthesis\nbody"), false);
 });
 
 test("collapsePreviousReviewSummaries keeps heading fallback for markerless summaries", () => {
