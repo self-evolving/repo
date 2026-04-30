@@ -54,11 +54,12 @@ jobs:
     if: needs.pre_gate.outputs.skip != 'true'
     runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
     env:
+      DISCUSSION_CATEGORY: ${{ inputs.discussion_category || vars.AGENT_PROJECT_MANAGEMENT_DISCUSSION_CATEGORY || 'General' }}
       LOOKBACK_DAYS: ${{ inputs.lookback_days || '1' }}
     outputs:
-      skip: ${{ steps.gate.outputs.skip }}
+      skip: ${{ steps.discussion_gate.outputs.skip == 'true' && 'true' || steps.gate.outputs.skip }}
       mode: ${{ steps.gate.outputs.mode }}
-      reason: ${{ steps.gate.outputs.reason }}
+      reason: ${{ steps.discussion_gate.outputs.skip == 'true' && steps.discussion_gate.outputs.reason || steps.gate.outputs.reason }}
       summary_date: ${{ steps.signals.outputs.summary_date }}
     steps:
       - uses: actions/checkout@v4
@@ -77,10 +78,19 @@ jobs:
           pat: ${{ secrets.AGENT_PAT }}
           fallback_token: ${{ github.token }}
 
+      - name: Resolve summary discussion gate
+        id: discussion_gate
+        uses: ./.github/actions/discussion-post-gate
+        with:
+          github_token: ${{ steps.auth.outputs.token }}
+          discussion_category: ${{ env.DISCUSSION_CATEGORY }}
+
       - name: Setup agent runtime for activity signals
+        if: steps.discussion_gate.outputs.skip != 'true'
         uses: ./.github/actions/setup-agent-runtime
 
       - name: Gather repository signals
+        if: steps.discussion_gate.outputs.skip != 'true'
         id: signals
         shell: bash
         env:
@@ -105,6 +115,7 @@ jobs:
           echo "summary_date=${summary_date}" >> "${GITHUB_OUTPUT}"
 
       - name: Count summary activity
+        if: steps.discussion_gate.outputs.skip != 'true'
         id: activity
         shell: bash
         env:
@@ -117,6 +128,7 @@ jobs:
           echo "count=${count}" >> "${GITHUB_OUTPUT}"
 
       - name: Resolve scheduled activity gate
+        if: steps.discussion_gate.outputs.skip != 'true'
         id: gate
         uses: ./.github/actions/scheduled-activity-gate
         with:
@@ -126,7 +138,7 @@ jobs:
           activity_count: ${{ steps.activity.outputs.count }}
 
       - name: Upload summary signals
-        if: steps.gate.outputs.skip != 'true'
+        if: steps.discussion_gate.outputs.skip != 'true' && steps.gate.outputs.skip != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: daily-summary-signals-${{ github.run_id }}-${{ github.run_attempt }}
@@ -164,15 +176,7 @@ jobs:
           pat: ${{ secrets.AGENT_PAT }}
           fallback_token: ${{ github.token }}
 
-      - name: Resolve summary discussion gate
-        id: discussion_gate
-        uses: ./.github/actions/discussion-post-gate
-        with:
-          github_token: ${{ steps.auth.outputs.token }}
-          discussion_category: ${{ env.DISCUSSION_CATEGORY }}
-
       - name: Resolve daily summary provider
-        if: steps.discussion_gate.outputs.skip != 'true'
         id: provider
         uses: ./.github/actions/resolve-agent-provider
         with:
@@ -182,14 +186,12 @@ jobs:
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
       - name: Setup selected provider
-        if: steps.discussion_gate.outputs.skip != 'true'
         uses: ./.github/actions/setup-agent-runtime
         with:
           install_codex: ${{ steps.provider.outputs.install_codex }}
           install_claude: ${{ steps.provider.outputs.install_claude }}
 
       - name: Generate daily summary
-        if: steps.discussion_gate.outputs.skip != 'true'
         id: summary
         uses: ./.github/actions/run-agent-task
         with:
@@ -215,7 +217,7 @@ jobs:
           workflow: agent-daily-summary.yml
 
       - name: Create summary discussion
-        if: steps.discussion_gate.outputs.skip != 'true' && steps.summary.outcome == 'success'
+        if: steps.summary.outcome == 'success'
         env:
           BODY_FILE: ${{ steps.summary.outputs.response_file }}
           DISCUSSION_CATEGORY: ${{ env.DISCUSSION_CATEGORY }}
