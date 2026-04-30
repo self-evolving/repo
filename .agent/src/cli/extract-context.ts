@@ -65,6 +65,15 @@ function hasRepositoryPermission(userLogin: string): boolean {
   return Boolean(permission) && permission !== "none";
 }
 
+function hasRepositoryCollaborator(userLogin: string): boolean {
+  const login = String(userLogin || "").trim();
+  if (!repository || !login) {
+    return false;
+  }
+
+  return ghApiOk([`repos/${repository}/collaborators/${login}`]);
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function resolveLabelActorAssociation(payload: Record<string, any>): string {
   const override = String(authorAssociationOverride || "").trim().toUpperCase();
@@ -94,7 +103,11 @@ function resolveLabelActorAssociation(payload: Record<string, any>): string {
   return "NONE";
 }
 
-function refreshIssueAssociation(association: string, issueNumber: string): string {
+function refreshIssueAssociation(
+  association: string,
+  issueNumber: string,
+  issueAuthorLogin: string,
+): string {
   const normalized = String(association || "").trim().toUpperCase();
 
   if (
@@ -112,7 +125,16 @@ function refreshIssueAssociation(association: string, issueNumber: string): stri
     "--jq",
     ".author_association // empty",
   ]).toUpperCase();
-  return refreshed || normalized || association;
+  const resolved = refreshed || normalized || association;
+  if (ISSUE_ASSOCIATIONS_TRUSTED_WITHOUT_REFRESH.has(resolved)) {
+    return resolved;
+  }
+
+  if (hasRepositoryCollaborator(issueAuthorLogin)) {
+    return "COLLABORATOR";
+  }
+
+  return resolved;
 }
 
 if (!eventPath || !eventName) {
@@ -132,6 +154,7 @@ if (!eventPath || !eventName) {
       : refreshIssueAssociation(
         authorAssociationOverride || getAuthorAssociation(eventName, payload),
         String(payload.issue?.number || ""),
+        String(payload.issue?.user?.login || ""),
       );
     if (!isKnownAuthorAssociation(association)) {
       setOutput("should_respond", "false");

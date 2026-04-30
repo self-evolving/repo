@@ -29,7 +29,7 @@ Use an explicit slash route when you already know the action:
 
 | Action | Use it for | Syntax |
 |---|---|---|
-| Answer | Ask a question and get an inline response. | `@sepo-agent /answer ...` |
+| Answer | Ask a question, or request plan-only procedure guidance before coding. | `@sepo-agent /answer ...` |
 | Implement | Turn an issue request into a branch and draft PR. | `@sepo-agent /implement ...` |
 | Add rubrics | Convert a preference request into updates on `agent/rubrics`. | `@sepo-agent /add-rubrics ...` |
 | Create action | Propose a standalone scheduled agent workflow through a PR. | `@sepo-agent /create-action ...` |
@@ -49,4 +49,4 @@ You can also trigger the same built-in routes with labels:
 | `agent/fix-pr` | Fix PR |
 | `agent/s/<name>` | Skill |
 
-Only authorized repository users can trigger Sepo. By default, public repositories allow `OWNER`, `MEMBER`, and `COLLABORATOR`; private repositories also allow `CONTRIBUTOR`. See [Trigger access policy](../access-policy.md) to customize that behavior.
+Only authorized repository users can trigger Sepo. By default, repositories allow `OWNER`, `MEMBER`, `COLLABORATOR`, and `CONTRIBUTOR` associations; public repositories can tighten this with `AGENT_ACCESS_POLICY`. See [Trigger access policy](../access-policy.md) to customize that behavior.

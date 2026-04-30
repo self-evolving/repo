@@ -210,6 +210,11 @@ test("scheduled workflows evaluate skip gates before provider-dependent jobs", (
   assert.doesNotMatch(dailySummaryWorkflow, /COMMIT_COUNT/);
   assert.match(dailySummaryWorkflow, /count=\$\(\(ISSUE_COUNT \+ PULL_COUNT \+ DISCUSSION_COUNT\)\)/);
   assert.match(dailySummaryWorkflow, /Resolve daily summary provider[\s\S]*Setup selected provider/);
+  assert.match(dailySummaryWorkflow, /discussion_category:[\s\S]*default:\s*""/);
+  assert.match(
+    dailySummaryWorkflow,
+    /DISCUSSION_CATEGORY:\s*\$\{\{\s*inputs\.discussion_category \|\| vars\.AGENT_PROJECT_MANAGEMENT_DISCUSSION_CATEGORY \|\| 'General'\s*\}\}/,
+  );
   assert.doesNotMatch(dailySummaryWorkflow, /if: steps\.pre_gate\.outputs\.skip != 'true' && steps\.gate\.outputs\.skip != 'true'/);
 });
 
@@ -331,6 +336,18 @@ test("agent router posts unsupported route summaries directly instead of running
 
   assert.match(runnerWorkflow, /Prepare unsupported response/);
   assert.match(runnerWorkflow, /needs\.portal\.outputs\.route == 'unsupported'/);
+  assert.match(
+    runnerWorkflow,
+    /- name: Setup agent runtime[\s\S]*needs\.portal\.outputs\.route == 'answer' \|\|[\s\S]*needs\.portal\.outputs\.route == 'unsupported'/,
+  );
+  assert.match(
+    runnerWorkflow,
+    /install_codex:\s*\$\{\{\s*needs\.portal\.outputs\.route == 'answer' && steps\.provider\.outputs\.install_codex \|\| 'false'\s*\}\}/,
+  );
+  assert.match(
+    runnerWorkflow,
+    /install_claude:\s*\$\{\{\s*needs\.portal\.outputs\.route == 'answer' && steps\.provider\.outputs\.install_claude \|\| 'false'\s*\}\}/,
+  );
   assert.match(runnerWorkflow, /SUMMARY:\s*\$\{\{\s*needs\.portal\.outputs\.summary\s*\}\}/);
   assert.match(runnerWorkflow, /Post unsupported response/);
   assert.match(
@@ -737,6 +754,7 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestratorWorkflow, /node \.agent\/dist\/cli\/orchestrator-preflight\.js/);
   assert.match(orchestratorWorkflow, /install_claude:\s*\$\{\{\s*steps\.provider\.outputs\.install_claude\s*\}\}/);
   assert.match(orchestratorWorkflow, /prompt:\s*orchestrator/);
+  assert.match(orchestratorWorkflow, /permission_mode:\s*approve-all/);
   assert.match(orchestratorWorkflow, /session_policy:\s*resume-best-effort/);
   assert.match(orchestratorWorkflow, /continue-on-error:\s*true/);
   assert.match(orchestratorWorkflow, /rubrics_mode_override:\s*read-only/);
@@ -747,20 +765,25 @@ test("execution workflows expose automation handoff inputs", () => {
     assert.match(workflow, /automation_mode:/);
     assert.match(workflow, /automation_current_round:/);
     assert.match(workflow, /automation_max_rounds:/);
-    assert.match(workflow, /inputs\.automation_mode == 'true'/);
-    assert.match(workflow, /inputs\.automation_mode == 'heuristics'/);
-    assert.match(workflow, /inputs\.automation_mode == 'agent'/);
-    assert.doesNotMatch(workflow, /inputs\.automation_mode == 'heuristic'/);
-    assert.doesNotMatch(workflow, /inputs\.automation_mode == 'deterministic'/);
+    assert.match(workflow, /orchestration_enabled:/);
+    assert.match(workflow, /inputs\.orchestration_enabled == 'true'/);
     assert.match(workflow, /node \.agent\/dist\/cli\/dispatch-agent-orchestrator\.js/);
   }
 
-  assert.match(implementWorkflow, /NEXT_TARGET_NUMBER:\s*\$\{\{ steps\.pr\.outputs\.pr_number \}\}/);
+  assert.match(runnerWorkflow, /needs\.portal\.outputs\.route == 'orchestrate'/);
+  assert.match(runnerWorkflow, /SOURCE_ACTION:\s*orchestrate/);
+  assert.match(runnerWorkflow, /TARGET_KIND:\s*\$\{\{ needs\.portal\.outputs\.target_kind \}\}/);
+  assert.match(runnerWorkflow, /node \.agent\/dist\/cli\/dispatch-agent-orchestrator\.js/);
   assert.match(reviewWorkflow, /id: post_comment/);
   assert.match(reviewWorkflow, /RESPONSE_FILE:\s*\$\{\{ steps\.synthesis\.outputs\.response_file \}\}/);
   assert.match(reviewWorkflow, /steps\.post_comment\.outcome == 'success'/);
   assert.match(orchestratorWorkflow, /PLANNER_RESPONSE_FILE:\s*\$\{\{ steps\.planner\.outputs\.response_file \}\}/);
+  assert.match(orchestratorWorkflow, /target_kind:/);
+  assert.match(orchestratorWorkflow, /TARGET_KIND:/);
+  assert.match(orchestrateHandoffCli, /orchestration_enabled:\s*"true"/);
+  assert.match(orchestrateHandoffCli, /automationMode === "disabled" \? "heuristics" : automationMode/);
   assert.match(orchestrateHandoffCli, /orchestrator_context:\s*decision\.handoffContext/);
+  assert.match(orchestrateHandoffCli, /manual orchestrate start on issue; dispatching implement/);
   assert.match(fixPrWorkflow, /orchestrator_context:/);
   assert.match(fixPrWorkflow, /ORCHESTRATOR_CONTEXT:\s*\$\{\{ inputs\.orchestrator_context \}\}/);
   assert.match(fixPrPrompt, /\$\{ORCHESTRATOR_CONTEXT\}/);

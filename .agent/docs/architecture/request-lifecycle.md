@@ -9,8 +9,9 @@ Every trigger converges on the portal workflow `agent-router.yml`. It extracts c
 - Inline answers are posted immediately.
 - Explicit `add-rubrics` requests are dispatched immediately.
 - Review and `fix-pr` requests on pull requests are dispatched immediately.
+- Explicit `/orchestrate` (or `agent/orchestrate`) requests dispatch the orchestrator workflow, which chooses one follow-up action from current target state.
 - Edited PR events are blocked from re-triggering review and `fix-pr` routes.
-- Mention and label requests that fail route authorization are posted back as inline `unsupported` replies instead of being dropped silently.
+- Mention and label requests that fail route authorization are posted back as inline `unsupported` replies instead of being dropped silently; that path still runs `Setup agent runtime` before `post-response.js` so posting dependencies are available.
 - Triaged implementation requests (i.e., when the dispatch agent predicts `implement` from a free-form mention) require an approval comment:
   - `@sepo-agent /approve req-...`
 - For triaged implementation requests from non-issue surfaces, the router drafts an issue title and body, posts the proposal on the original surface, and creates the issue after approval.
@@ -42,6 +43,7 @@ Current route-level `acpx` permission modes:
 |---|---|---|
 | `dispatch` | `approve-all` | classification may gather repo and issue context |
 | `answer` | `approve-all` | may gather context before replying |
+| `orchestrator` | `approve-all` | planner may gather target and repository context before choosing the next route |
 | `implement` | `approve-all` | needs full file system access |
 | `add-rubrics` | `approve-all` | updates rubric files on `agent/rubrics` |
 | `fix-pr` | `approve-all` | needs full file system access |

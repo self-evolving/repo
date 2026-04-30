@@ -10,7 +10,7 @@
 | `agent-entrypoint.yml` | `@sepo-agent` in issues, PRs, discussions, comments, reviews | Thin entry point that wires triggers, runner labels, and secrets into `agent-router.yml` | None |
 | `agent-router.yml` | `workflow_call` | Full portal for context extraction, auth gating, mention detection, dispatch triage, routing, approval requests, and response posting | Configurable |
 | `agent-approve.yml` | approval comments | Resolves pending approvals, creates issues when needed, dispatches implementation | None |
-| `agent-orchestrator.yml` | `workflow_dispatch` | Post-action automation layer that decides whether to dispatch the next action | None in `heuristics` mode; resolved-provider planner in `agent` mode |
+| `agent-orchestrator.yml` | `workflow_dispatch` | Explicit orchestration route that decides whether to dispatch the next action | None in `heuristics` mode; resolved-provider planner in `agent` mode |
 | `agent-implement.yml` | `workflow_dispatch` | Implementation flow: branch, commit, draft PR | Auto |
 | `agent-fix-pr.yml` | `workflow_dispatch`, `workflow_call` | PR fix flow: update existing PR branch, verify, push | Auto |
 | `agent-review.yml` | `workflow_dispatch`, `workflow_call` | Parallel Claude and Codex review with resolved-provider synthesis, plus a separate rubric review comment | Claude + Codex reviewers; configurable synthesis |
@@ -18,21 +18,24 @@
 | `agent-branch-cleanup.yml` | `pull_request_target.closed` | Event-driven cleanup of agent-created branches after PR close. Excludes the shared `agent/memory` and `agent/rubrics` branches. | None |
 | `agent-close-stale-issues.yml` | `schedule` (daily), `workflow_dispatch` | Closes open `agent` issues that have had no activity for 30 days by default | None |
 | `agent-daily-summary.yml` | `schedule` (daily), `workflow_dispatch` | Generates a concise repository activity summary and posts it as a Discussion | Auto |
+| `agent-project-manager.yml` | `schedule` (every 6h), `workflow_dispatch` | Opt-in agent-driven triage for open issues and PRs, with dry-run summaries and optional priority/effort label updates | Auto |
 | `test-scripts.yml` | `pull_request`, `workflow_dispatch` | CI for helper tests, YAML parsing, and shell syntax | None |
 
-When `AGENT_AUTOMATION_MODE=heuristics` (or the compatibility alias `true`),
-`agent-implement.yml`, `agent-review.yml`, and `agent-fix-pr.yml` hand back to
-`agent-orchestrator.yml` after their normal post-processing. `heuristics` mode
-runs the built-in `implement -> review -> fix-pr -> review` state machine.
-`agent` mode runs an orchestrator planner with its own session context, then
-validates the planner's JSON decision against the same built-in transition
-policy before dispatching with `workflow_dispatch`. The planner can include a
+`agent-orchestrator.yml` is started explicitly through `/orchestrate` or
+`agent/orchestrate`. On start, it inspects the current target state and
+dispatches one built-in action (`implement`, `review`, or `fix-pr`) when useful.
+That dispatch includes explicit orchestration context; only those orchestrator
+launched action runs hand back to `agent-orchestrator.yml` after post-processing.
+Direct `/implement`, `/review`, and `/fix-pr` runs remain one-shot.
+Explicit `/orchestrate` starts are deterministic in both `heuristics` and
+`agent` modes today. Planner-based selection is only used for action-originated
+handoff runs. The planner can include a
 `handoff_context` string for the next action; `fix-pr` receives it as explicit
-initial steering when the planner dispatches a PR-fix pass. The planner mounts memory
-and rubrics read-only so automated control-flow planning can use steering
-context without mutating those state branches. Loops stop when the review
-verdict is `SHIP`, a route fails, a duplicate handoff marker is found, the
-planner stops or blocks, or the max-round budget is exhausted.
+initial steering when the planner dispatches a PR-fix pass. The planner mounts
+memory and rubrics read-only so automated control-flow planning can use steering
+context without mutating those state branches. Orchestration stops when target
+state indicates no safe next action, a route fails, a duplicate handoff marker
+is found, the planner stops or blocks, or the max-round budget is exhausted.
 
 When a new review synthesis is posted to a pull request, the review workflow
 first minimizes prior visible review synthesis comments and reviews from the
@@ -67,6 +70,21 @@ Rubrics are documented in [User/team rubrics](./rubrics.md). They are separate f
 workflows. They listen directly to repository events or schedules and apply
 their guardrails in place.
 
+`agent-project-manager.yml` is disabled by default. Enable scheduled runs with
+`AGENT_PROJECT_MANAGEMENT_ENABLED=true`, or run it manually with the `enabled`
+input. It launches a prompt-driven, read-approved agent to inspect open issues
+and pull requests, assess priority/effort with judgment rather than fixed
+heuristics, and return a GitHub-flavored summary plus a structured managed-label
+change plan. A deterministic post-agent CLI validates that plan and applies only
+managed `priority/*` and `effort/*` add/remove operations when label application
+is enabled and dry-run mode is disabled; otherwise it reports planned changes
+without mutating labels. The schedule runs every 6 hours at minute 17 UTC. A
+final workflow step writes the resulting summary to the Actions step summary.
+Optional summary comments require `post_summary=true`; when enabled, that final
+step finds today's `Daily Summary — YYYY-MM-DD` discussion in the configured
+discussion category and comments there. If that discussion does not exist yet,
+it leaves only the Actions step summary.
+
 Single-agent routes, autonomous agent workflows, and the review synthesis step resolve their provider before installing provider CLIs. Explicit provider choices from `AGENT_DEFAULT_PROVIDER` or a route-specific override are authoritative: the workflows select that provider even when the matching repository secret is absent, so self-hosted runners can rely on local Codex or Claude authentication. When the provider is `auto`, detection uses configured provider secrets and prefers Codex when both `OPENAI_API_KEY` and `CLAUDE_CODE_OAUTH_TOKEN` are present. Route-specific overrides are available by editing the relevant workflow's `resolve-agent-provider` step inline. Portal and skill jobs use non-fatal early resolution before non-agent response paths, then require a provider only immediately before invoking an agent.
 
 ## Trigger details
@@ -87,7 +105,7 @@ Supported surfaces:
 | `discussion` | discussion title, discussion body |
 | `discussion_comment` | comment body |
 
-By default, the portal responds to `OWNER`, `MEMBER`, `COLLABORATOR`, and private-repository `CONTRIBUTOR` associations. `AGENT_ACCESS_POLICY` can tighten or widen access globally or for specific routes. Bot authors are always skipped. Implicit mentions are triaged first and then checked against the resolved route, so denied requests get a visible unsupported reply instead of being dropped silently. See [Trigger access policy](../access-policy.md).
+By default, the portal responds to `OWNER`, `MEMBER`, `COLLABORATOR`, and `CONTRIBUTOR` associations. `AGENT_ACCESS_POLICY` can tighten or widen access globally or for specific routes; public repositories that do not want prior contributors to trigger Sepo should remove `CONTRIBUTOR` from the allowlist. Bot authors are always skipped. Implicit mentions are triaged first and then checked against the resolved route, so denied requests get a visible unsupported reply instead of being dropped silently. See [Trigger access policy](../access-policy.md).
 
 Explicit routes are:
 
@@ -97,6 +115,7 @@ Explicit routes are:
 - `@sepo-agent /create-action`
 - `@sepo-agent /fix-pr`
 - `@sepo-agent /review`
+- `@sepo-agent /orchestrate`
 - `@sepo-agent /skill <name>`
 
 Explicit routes skip dispatch triage and resolve locally, but still go through the same route policy checks afterward.
@@ -113,6 +132,7 @@ Applying one of these labels triggers the same downstream routing stack without 
 - `agent/create-action`
 - `agent/fix-pr`
 - `agent/review`
+- `agent/orchestrate`
 - `agent/s/<skill>`
 
 After a label-triggered request is accepted by the router, `agent-label.yml` removes the triggering `agent/*` label so label-based runs behave like one-shot queue entries, including policy-denied requests that resolve to `unsupported`.

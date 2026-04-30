@@ -9,11 +9,12 @@ Agent actions are route-level behaviors exposed by the `.agent` backend. They ar
 | Add rubrics | `add-rubrics` | `.github/prompts/agent-add-rubrics.md` | dispatches `agent-add-rubrics.yml` to update `agent/rubrics` and post a summary |
 | Fix PR | `fix-pr` | `.github/prompts/agent-fix-pr.md` | PR-only dispatch to `agent-fix-pr.yml` |
 | Review | `review` | `.github/prompts/review.md` and `.github/prompts/review-synthesize.md` | parallel review jobs plus synthesis in `agent-review.yml` |
+| Orchestrate | `orchestrate` | `.github/prompts/agent-orchestrator.md` | explicit `/orchestrate` or `agent/orchestrate` dispatches `agent-orchestrator.yml`, which selects the next action based on current target state |
 | Create action | `create-action` | `.github/prompts/agent-create-action.md` | implementation PR that adds or updates a standalone scheduled workflow under `.github/workflows/` |
 | Skill | `skill` | `.skills/<name>/SKILL.md` | inline skill route through `agent-router.yml` |
 | Dispatch | `dispatch` | `.github/prompts/agent-dispatch.md` | route triage inside `agent-router.yml` |
 
-When automation mode is enabled, action workflows hand back to `agent-orchestrator.yml` after normal post-processing. The orchestrator is a separate post-action control workflow rather than a user-selectable slash route. `heuristics` mode uses the built-in state machine. `agent` mode runs a scoped planner prompt with its own session context, then validates the planner's JSON decision against the same runtime policy before dispatching. Planner handoffs can carry `handoff_context`; `fix-pr` receives that context as explicit initial steering for the automated fix pass.
+The orchestrator is now an explicit top-level route. Users start orchestration with `/orchestrate` (or `agent/orchestrate`), and `agent-orchestrator.yml` chooses a first follow-up action from current target status. Workflows launched by the orchestrator carry explicit orchestration context and hand back after post-processing, so the bounded `implement -> review -> fix-pr -> review` loop can continue until a stop condition. Direct `/implement`, `/review`, and `/fix-pr` runs do not carry that context and stay one-shot. Explicit `/orchestrate` starts use deterministic routing in both `heuristics` and `agent` modes today. Planner mode is reserved for action-originated handoff envelopes and still validates results against runtime policy before dispatch. Planner handoffs can carry `handoff_context`; `fix-pr` receives that context as explicit initial steering for the automated fix pass.
 
 ## Consumption model
 

@@ -10,9 +10,9 @@ on:
         required: false
         default: "1"
       discussion_category:
-        description: "Discussion category for posted summaries"
+        description: "Discussion category for posted summaries. Defaults to AGENT_PROJECT_MANAGEMENT_DISCUSSION_CATEGORY or General."
         required: false
-        default: "General"
+        default: ""
 
 permissions:
   actions: read
@@ -138,7 +138,7 @@ jobs:
     if: needs.signals.result == 'success' && needs.signals.outputs.skip != 'true'
     runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
     env:
-      DISCUSSION_CATEGORY: ${{ inputs.discussion_category || 'General' }}
+      DISCUSSION_CATEGORY: ${{ inputs.discussion_category || vars.AGENT_PROJECT_MANAGEMENT_DISCUSSION_CATEGORY || 'General' }}
       LOOKBACK_DAYS: ${{ inputs.lookback_days || '1' }}
       SIGNALS_DIR: daily-signals
     steps:

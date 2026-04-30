@@ -43,6 +43,10 @@ on:
         description: "Maximum automation handoff rounds"
         required: false
         default: "5"
+      orchestration_enabled:
+        description: "Whether this run belongs to an explicit orchestrator chain"
+        required: false
+        default: "false"
   workflow_call:
     inputs:
       issue_number:
@@ -85,6 +89,10 @@ on:
         type: string
         required: false
         default: "5"
+      orchestration_enabled:
+        type: string
+        required: false
+        default: "false"
       runs_on:
         type: string
         default: ""
@@ -255,7 +263,7 @@ jobs:
         if: >-
           always() &&
           steps.auth.outputs.token &&
-          (inputs.automation_mode == 'true' || inputs.automation_mode == 'heuristics' || inputs.automation_mode == 'agent')
+          inputs.orchestration_enabled == 'true'
         env:
           AUTOMATION_CURRENT_ROUND: ${{ inputs.automation_current_round }}
           AUTOMATION_MAX_ROUNDS: ${{ inputs.automation_max_rounds }}
@@ -264,6 +272,7 @@ jobs:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           NEXT_TARGET_NUMBER: ${{ steps.pr.outputs.pr_number }}
+          ORCHESTRATION_ENABLED: ${{ inputs.orchestration_enabled }}
           REQUESTED_BY: ${{ inputs.requested_by || github.actor }}
           REQUEST_TEXT: ${{ inputs.request_text }}
           SESSION_BUNDLE_MODE: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}

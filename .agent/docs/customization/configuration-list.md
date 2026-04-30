@@ -8,10 +8,16 @@
 | `AGENT_RUNS_ON` | JSON array string for runner selection. If you are using self-hosted runners, see [Self-hosted GitHub Action runner](../deployment/self-hosted-github-action-runner.md). |
 | `AGENT_DEFAULT_PROVIDER` | Default provider for single-agent runs and review synthesis: `auto`, `codex`, or `claude`. Explicit `codex` / `claude` choices are honored even without matching repository secrets, allowing self-hosted runners to use local provider authentication. `auto` chooses the first configured provider secret, preferring Codex when both secrets are present. |
 | `AGENT_SESSION_BUNDLE_MODE` | Default session-bundle behavior: `auto`, `always`, or `never`. For the trade-offs behind this setting, see [Session continuity](../technical-details/session-continuity.md). |
-| `AGENT_AUTOMATION_MODE` | Post-action orchestration mode: `disabled` by default, `heuristics` for the built-in state machine, or `agent` for a planner-backed orchestrator validated by runtime policy. Compatibility aliases: `true` = `heuristics`, `false` = `disabled`. See [Agent orchestrator](../technical-details/agent-orchestrator.md). |
-| `AGENT_AUTOMATION_MAX_ROUNDS` | Maximum number of automatic handoff rounds when automation mode is enabled. Defaults to `5`. |
+| `AGENT_AUTOMATION_MODE` | Orchestrator decision mode: `heuristics` for deterministic status-based routing, or `agent` for a planner-backed orchestrator validated by runtime policy. Compatibility alias: `true` = `heuristics`; unset, `false`, or legacy `disabled` values fall back to `heuristics` for explicit `/orchestrate` chains. See [Agent orchestrator](../technical-details/agent-orchestrator.md). |
+| `AGENT_AUTOMATION_MAX_ROUNDS` | Maximum number of explicit orchestration handoff rounds. Defaults to `5`. |
 | `AGENT_COLLAPSE_OLD_REVIEWS` | Review synthesis cleanup toggle. Defaults to enabled; set to `false` to leave older AI review synthesis summaries visible instead of minimizing them as outdated. |
 | `AGENT_STATUS_LABEL_ENABLED` | Set to `true` to apply the fixed `agent` status label to handled issues and pull requests. |
+| `AGENT_PROJECT_MANAGEMENT_ENABLED` | Set to `true` to enable scheduled prompt-driven project-management runs. Manual runs can also use the workflow's `enabled` input. Defaults off. |
+| `AGENT_PROJECT_MANAGEMENT_DRY_RUN` | Defaults project-management runs to dry-run mode. Defaults to `true`; set to `false` with label application enabled to apply validated managed-label plans. |
+| `AGENT_PROJECT_MANAGEMENT_APPLY_LABELS` | Set to `true` to allow the deterministic post-agent step to update managed `priority/*` and `effort/*` labels when dry-run mode is disabled. |
+| `AGENT_PROJECT_MANAGEMENT_POST_SUMMARY` | Set to `true` to have the final workflow step comment with the project-management summary on today's existing Daily Summary discussion. If the discussion is missing, only the Actions step summary is written. |
+| `AGENT_PROJECT_MANAGEMENT_DISCUSSION_CATEGORY` | Discussion category shared by Daily Summary discussion creation and project-management summary comments. Defaults to `General`. |
+| `AGENT_PROJECT_MANAGEMENT_LIMIT` | Maximum open issues and pull requests for the agent to inspect per kind. Defaults to `100`. |
 | `AGENT_ACCESS_POLICY` | JSON trigger allowlist policy. See [Trigger access policy](../access-policy.md). |
 | `AGENT_MEMORY_POLICY` | JSON policy controlling which routes can read or write repository memory. See [Repository memory](../architecture/memory.md). |
 | `AGENT_MEMORY_REF` | Default branch name used when workflows mount repository memory. Defaults to `agent/memory`. |
@@ -28,7 +34,7 @@ The bundled workflows intentionally expose one global provider variable. If a re
 
 | Secret | Purpose |
 |---|---|
-| Model provider secrets | | 
+| Model provider secrets | |
 | `OPENAI_API_KEY` | Enable Codex-backed runs on runners without local Codex authentication; also lets `AGENT_DEFAULT_PROVIDER=auto` detect Codex |
 | `CLAUDE_CODE_OAUTH_TOKEN` | Enable Claude-backed runs on runners without local Claude authentication; also lets `AGENT_DEFAULT_PROVIDER=auto` detect Claude |
 | GitHub auth secrets |  |

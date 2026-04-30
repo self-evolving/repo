@@ -61,7 +61,9 @@ The values match GitHub's [`CommentAuthorAssociation`](https://docs.github.com/g
 If `AGENT_ACCESS_POLICY` is unset:
 
 - private repositories allow `OWNER`, `MEMBER`, `COLLABORATOR`, and `CONTRIBUTOR`
-- public repositories allow `OWNER`, `MEMBER`, and `COLLABORATOR`
+- public repositories also allow `OWNER`, `MEMBER`, `COLLABORATOR`, and `CONTRIBUTOR`
+
+Known limitation: GitHub can report private organization members as `CONTRIBUTOR` in public repository issue payloads when the token or payload cannot see private membership. Sepo therefore includes `CONTRIBUTOR` in the public default allowlist as a pragmatic compatibility choice. Repositories that need stricter public access should set `AGENT_ACCESS_POLICY`, for example `{"allowed_associations":["OWNER","MEMBER","COLLABORATOR"]}`.
 
 ## Enforcement model
 
@@ -77,4 +79,4 @@ Organization membership detection depends on what the agent's GitHub token can s
 
 ## Issue-body association refresh
 
-For issue-body mentions from `issues` events, the runtime refreshes `author_association` from the GitHub API before access decisions when the webhook payload reports a weaker value (for example `NONE` or `CONTRIBUTOR`). This covers cases where the webhook payload is stale and the live issue API reports a different association, while keeping the public-route policy behavior unchanged.
+For issue-body mentions from `issues` events, the runtime refreshes `author_association` from the GitHub API before access decisions when the webhook payload reports a weaker value (for example `NONE` or `CONTRIBUTOR`). If the refreshed issue association is still weak, the runtime also checks the issue author with `GET /repos/{owner}/{repo}/collaborators/{username}` and treats a `204` response as `COLLABORATOR`. This covers some cases where repo-scoped tokens cannot see private org membership through `author_association`, but GitHub author association remains token- and visibility-dependent. The public default allowlist therefore still includes `CONTRIBUTOR` unless a repository configures a stricter `AGENT_ACCESS_POLICY`.
