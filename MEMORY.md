@@ -28,3 +28,4 @@
 - AGENT_PROJECT_MANAGEMENT_DISCUSSION_CATEGORY is shared by daily summary creation and project-management summary comments.
 - Orchestrated fix-pr completion comments mention AGENT_HANDLE; requester auth context remains the human initiator.
 - Install/update-agent should merge .agent/dist/ and .agent/node_modules/ ignores into target .gitignore, not replace it.
+- AGENT_COLLAPSE_OLD_REVIEWS governs cleanup for both review synthesis and rubrics review comments.
