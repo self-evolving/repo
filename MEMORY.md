@@ -23,3 +23,4 @@
 - Keep prompt-driven agents read-only when planning repo mutations; apply changes through deterministic, test-covered CLIs.
 - Project management is a signal layer: score/label/summarize backlog; execution dispatch belongs to orchestrators.
 - checkout-pr must preserve built .agent/dist runtime; use conflict-specific checkout, not blanket dist deletion.
+- Chained/orchestrated dispatches must preserve requester auth context and re-check downstream route policy.
