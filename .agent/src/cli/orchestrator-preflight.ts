@@ -14,7 +14,7 @@ const automationMode = normalizeAutomationMode(process.env.AUTOMATION_MODE || "d
 const currentRound = positiveInt(process.env.AUTOMATION_CURRENT_ROUND || "", 1);
 const maxRounds = positiveInt(process.env.AUTOMATION_MAX_ROUNDS || "", 5);
 const sourceAction = String(process.env.SOURCE_ACTION || "").trim().toLowerCase();
-const plannerEnabled = automationMode === "agent" && currentRound < maxRounds && sourceAction !== "orchestrate";
+const plannerEnabled = automationMode === "agent" && currentRound < maxRounds;
 
 setOutput("automation_mode", automationMode);
 setOutput("current_round", String(currentRound));

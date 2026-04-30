@@ -12,6 +12,10 @@ chain should stop or hand off to exactly one allowed next action.
 - Max rounds: `${ORCHESTRATOR_MAX_ROUNDS}`
 - Current target: `${TARGET_KIND} #${TARGET_NUMBER}`
 - Next target from source action, if any: `${ORCHESTRATOR_NEXT_TARGET_NUMBER}`
+- Orchestrator lane: `${ORCHESTRATOR_LANE}`
+- Parent orchestrator lane: `${ORCHESTRATOR_PARENT_LANE}`
+- Orchestration chain id: `${ORCHESTRATION_CHAIN_ID}`
+- Orchestrator context: `${ORCHESTRATOR_CONTEXT}`
 
 ## Runtime Policy
 
@@ -24,6 +28,9 @@ these policy rules:
 - `review` may hand off to `fix-pr` only for `MINOR_ISSUES`,
   `NEEDS_REWORK`, or `CHANGES_REQUESTED`.
 - `fix-pr` may hand off to `review` only when fixes succeeded.
+- In `agent` mode, a meta orchestrator may hand off to one child
+  `orchestrate` lane. Child orchestrators run the normal bounded heuristic
+  action loop and report back through the same lane context.
 - Duplicate handoffs are skipped by the orchestrator marker dedupe logic.
 - You may always choose to stop when another automatic action is not useful.
 
@@ -36,7 +43,11 @@ rubrics. Then return exactly one JSON object and nothing else:
 ```json
 {
   "decision": "handoff | stop | blocked",
-  "next_action": "review | fix-pr",
+  "next_action": "orchestrate | review | fix-pr",
+  "target_number": "Issue or PR number for a child orchestrator handoff.",
+  "orchestrator_lane": "Required only for next_action=orchestrate, e.g. stage-1.",
+  "parent_orchestrator_lane": "Optional parent lane for next_action=orchestrate.",
+  "orchestration_chain_id": "Optional stable id shared by related orchestrator lanes.",
   "reason": "Short explanation for logs and the handoff marker.",
   "handoff_context": "Actionable instructions for the next action, especially fix-pr."
 }
@@ -47,6 +58,9 @@ Rules:
   as the primary automation signal: hand off on `FIX_PR`, stop on
   `HUMAN_DECISION` or `NO_AUTOMATED_ACTION` unless newer human input overrides it.
 - Use `handoff` only when one more automatic action is clearly warranted.
+- Use `next_action: "orchestrate"` only to launch exactly one bounded child
+  lane for a separable stage of work. Include a valid lowercase
+  `orchestrator_lane`; use letters, numbers, `.`, `_`, or `-`.
 - Be conservative for `MINOR_ISSUES`, especially in late rounds. Hand off to
   `fix-pr` only for concrete unresolved findings that require a branch change
   and are safe for an automated agent to apply.

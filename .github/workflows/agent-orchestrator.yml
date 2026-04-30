@@ -54,6 +54,22 @@ on:
         description: "Open PR number whose head branch agent-implement should stack on"
         required: false
         default: ""
+      orchestrator_lane:
+        description: "Session lane for this orchestrator context"
+        required: false
+        default: "planner"
+      parent_orchestrator_lane:
+        description: "Parent orchestrator lane when this is a child orchestrator"
+        required: false
+        default: ""
+      orchestration_chain_id:
+        description: "Optional stable chain id for related orchestrator lanes"
+        required: false
+        default: ""
+      orchestrator_context:
+        description: "Planner-provided context for this orchestrator lane"
+        required: false
+        default: ""
       automation_mode:
         description: "Post-action orchestration mode (disabled, heuristics, agent)"
         required: false
@@ -75,7 +91,7 @@ permissions:
   id-token: write # required for GitHub Actions OIDC broker exchange
 
 concurrency:
-  group: agent-orchestrator-${{ github.repository }}-${{ inputs.target_number }}-${{ inputs.source_action }}-${{ inputs.automation_current_round }}
+  group: agent-orchestrator-${{ github.repository }}-${{ inputs.target_number }}-${{ inputs.orchestrator_lane }}-${{ inputs.source_action }}-${{ inputs.automation_current_round }}
   cancel-in-progress: false
 
 jobs:
@@ -137,6 +153,10 @@ jobs:
           ORCHESTRATOR_NEXT_TARGET_NUMBER: ${{ inputs.next_target_number }}
           ORCHESTRATOR_CURRENT_ROUND: ${{ inputs.automation_current_round }}
           ORCHESTRATOR_MAX_ROUNDS: ${{ inputs.automation_max_rounds }}
+          ORCHESTRATOR_LANE: ${{ inputs.orchestrator_lane || 'planner' }}
+          ORCHESTRATOR_PARENT_LANE: ${{ inputs.parent_orchestrator_lane }}
+          ORCHESTRATION_CHAIN_ID: ${{ inputs.orchestration_chain_id }}
+          ORCHESTRATOR_CONTEXT: ${{ inputs.orchestrator_context }}
         with:
           agent: ${{ steps.provider.outputs.provider }}
           github_token: ${{ steps.auth.outputs.token }}
@@ -145,7 +165,7 @@ jobs:
           permission_mode: approve-all
           prompt: orchestrator
           reasoning_effort: high
-          lane: planner
+          lane: ${{ inputs.orchestrator_lane || 'planner' }}
           memory_mode_override: read-only
           memory_ref: ${{ vars.AGENT_MEMORY_REF || 'agent/memory' }}
           memory_policy: ${{ vars.AGENT_MEMORY_POLICY || '' }}
@@ -171,6 +191,8 @@ jobs:
           AUTOMATION_MODE: ${{ inputs.automation_mode }}
           BASE_BRANCH: ${{ inputs.base_branch }}
           BASE_PR: ${{ inputs.base_pr }}
+          ORCHESTRATOR_LANE: ${{ inputs.orchestrator_lane || 'planner' }}
+          ORCHESTRATION_CHAIN_ID: ${{ inputs.orchestration_chain_id }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}

@@ -1,6 +1,6 @@
 import { extractJsonObject } from "./response.js";
 
-export type AgentAction = "implement" | "review" | "fix-pr";
+export type AgentAction = "implement" | "review" | "fix-pr" | "orchestrate";
 export type HandoffDecisionKind = "dispatch" | "stop" | "skip";
 export type AutomationMode = "disabled" | "heuristics" | "agent";
 export type HandoffMarkerState = "pending" | "dispatched" | "failed";
@@ -24,6 +24,9 @@ export interface HandoffDecision {
   reason: string;
   nextRound: number;
   handoffContext?: string;
+  orchestratorLane?: string;
+  parentOrchestratorLane?: string;
+  orchestrationChainId?: string;
 }
 
 export interface HandoffDedupeInput {
@@ -34,6 +37,7 @@ export interface HandoffDedupeInput {
   nextAction: string;
   nextTargetNumber: string;
   nextRound: number;
+  nextLane?: string;
 }
 
 export interface HandoffMarkerInfo {
@@ -46,6 +50,10 @@ export interface PlannerDecision {
   nextAction?: AgentAction;
   reason: string;
   handoffContext?: string;
+  targetNumber?: string;
+  orchestratorLane?: string;
+  parentOrchestratorLane?: string;
+  orchestrationChainId?: string;
 }
 
 const REVIEW_TO_FIX_PR = new Set(["minor_issues", "needs_rework", "changes_requested"]);
@@ -97,7 +105,13 @@ function normalizeAgentAction(value: string): AgentAction | null {
   if (normalized === "implement") return "implement";
   if (normalized === "review") return "review";
   if (normalized === "fix_pr") return "fix-pr";
+  if (normalized === "orchestrate") return "orchestrate";
   return null;
+}
+
+function normalizeOrchestratorLane(value: string): string {
+  const normalized = value.trim().toLowerCase();
+  return /^[a-z0-9][a-z0-9_.-]{0,62}$/.test(normalized) ? normalized : "";
 }
 
 export function parsePlannerDecision(raw: string): PlannerDecision | null {
@@ -126,6 +140,16 @@ export function parsePlannerDecision(raw: string): PlannerDecision | null {
   const nextAction = normalizeAgentAction(String(record.next_action ?? record.nextAction ?? ""));
   const reason = String(record.reason || "").trim();
   const handoffContext = String(record.handoff_context ?? record.handoffContext ?? "").trim();
+  const targetNumber = String(record.target_number ?? record.targetNumber ?? "").trim();
+  const orchestratorLane = normalizeOrchestratorLane(
+    String(record.orchestrator_lane ?? record.orchestratorLane ?? ""),
+  );
+  const parentOrchestratorLane = normalizeOrchestratorLane(
+    String(record.parent_orchestrator_lane ?? record.parentOrchestratorLane ?? ""),
+  );
+  const orchestrationChainId = normalizeOrchestratorLane(
+    String(record.orchestration_chain_id ?? record.orchestrationChainId ?? ""),
+  );
   const plannerDecision: PlannerDecision = {
     decision,
     nextAction: nextAction || undefined,
@@ -133,6 +157,18 @@ export function parsePlannerDecision(raw: string): PlannerDecision | null {
   };
   if (handoffContext) {
     plannerDecision.handoffContext = handoffContext;
+  }
+  if (targetNumber) {
+    plannerDecision.targetNumber = targetNumber;
+  }
+  if (orchestratorLane) {
+    plannerDecision.orchestratorLane = orchestratorLane;
+  }
+  if (parentOrchestratorLane) {
+    plannerDecision.parentOrchestratorLane = parentOrchestratorLane;
+  }
+  if (orchestrationChainId) {
+    plannerDecision.orchestrationChainId = orchestrationChainId;
   }
   return plannerDecision;
 }
@@ -147,7 +183,7 @@ export function extractReviewConclusion(markdown: string): string {
 }
 
 export function buildHandoffDedupeKey(input: HandoffDedupeInput): string {
-  return [
+  const parts = [
     "handoff",
     input.repo.trim().toLowerCase(),
     input.sourceRunId.trim() || "unknown-run",
@@ -155,8 +191,13 @@ export function buildHandoffDedupeKey(input: HandoffDedupeInput): string {
     input.sourceTargetNumber.trim(),
     normalizeToken(input.nextAction),
     input.nextTargetNumber.trim(),
-    String(input.nextRound),
-  ].join(":");
+  ];
+  const nextLane = normalizeToken(input.nextLane || "");
+  if (nextLane) {
+    parts.push(nextLane);
+  }
+  parts.push(String(input.nextRound));
+  return parts.join(":");
 }
 
 function encodeMarkerKey(key: string): string {
@@ -308,6 +349,27 @@ function decideAgentHandoff(input: HandoffInput): HandoffDecision {
   }
   if (!plannerDecision.nextAction) {
     return { decision: "stop", reason: "agent planner requested handoff without next_action", nextRound };
+  }
+
+  if (plannerDecision.nextAction === "orchestrate") {
+    const childTarget = (plannerDecision.targetNumber || input.nextTargetNumber || input.targetNumber).trim();
+    if (!childTarget) {
+      return { decision: "stop", reason: "agent planner requested orchestrate without target_number", nextRound };
+    }
+    if (!plannerDecision.orchestratorLane) {
+      return { decision: "stop", reason: "agent planner requested orchestrate without orchestrator_lane", nextRound };
+    }
+    return {
+      decision: "dispatch",
+      nextAction: "orchestrate",
+      targetNumber: childTarget,
+      reason: `agent planner selected child orchestrator ${plannerDecision.orchestratorLane}: ${plannerDecision.reason}`,
+      nextRound,
+      handoffContext: plannerDecision.handoffContext,
+      orchestratorLane: plannerDecision.orchestratorLane,
+      parentOrchestratorLane: plannerDecision.parentOrchestratorLane,
+      orchestrationChainId: plannerDecision.orchestrationChainId,
+    };
   }
 
   const allowed = decideHeuristicHandoff(input);

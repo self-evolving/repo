@@ -791,9 +791,15 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestratorWorkflow, /PLANNER_RESPONSE_FILE:\s*\$\{\{ steps\.planner\.outputs\.response_file \}\}/);
   assert.match(orchestratorWorkflow, /base_branch:/);
   assert.match(orchestratorWorkflow, /base_pr:/);
+  assert.match(orchestratorWorkflow, /orchestrator_lane:/);
+  assert.match(orchestratorWorkflow, /parent_orchestrator_lane:/);
+  assert.match(orchestratorWorkflow, /orchestration_chain_id:/);
+  assert.match(orchestratorWorkflow, /lane:\s*\$\{\{\s*inputs\.orchestrator_lane \|\| 'planner'\s*\}\}/);
   assert.match(orchestratorWorkflow, /BASE_BRANCH:\s*\$\{\{ inputs\.base_branch \}\}/);
   assert.match(orchestrateHandoffCli, /base_branch:\s*baseBranch/);
   assert.match(orchestrateHandoffCli, /base_pr:\s*basePr/);
+  assert.match(orchestrateHandoffCli, /agent-orchestrator\.yml/);
+  assert.match(orchestrateHandoffCli, /parent_orchestrator_lane:\s*decision\.parentOrchestratorLane/);
   assert.match(orchestratorWorkflow, /target_kind:/);
   assert.match(orchestratorWorkflow, /TARGET_KIND:/);
   assert.match(orchestrateHandoffCli, /orchestration_enabled:\s*"true"/);
@@ -804,6 +810,8 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(fixPrWorkflow, /ORCHESTRATOR_CONTEXT:\s*\$\{\{ inputs\.orchestrator_context \}\}/);
   assert.match(fixPrPrompt, /\$\{ORCHESTRATOR_CONTEXT\}/);
   assert.match(orchestratorPrompt, /"handoff_context"/);
+  assert.match(orchestratorPrompt, /"orchestrator_lane"/);
+  assert.match(orchestratorDoc, /child orchestrator/);
   assert.match(runSource, /"ORCHESTRATOR_CONTEXT"/);
   assert.match(orchestratorDoc, /Implement --> Review: success \+ PR created/);
   assert.match(orchestratorDoc, /workflow_dispatch/);

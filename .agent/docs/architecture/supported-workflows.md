@@ -25,16 +25,17 @@
 dispatches one built-in action (`implement`, `review`, or `fix-pr`) when useful.
 That dispatch includes explicit orchestration context; only those orchestrator
 launched action runs hand back to `agent-orchestrator.yml` after post-processing.
-Direct `/implement`, `/review`, and `/fix-pr` runs remain one-shot.
-Explicit `/orchestrate` starts are deterministic in both `heuristics` and
-`agent` modes today. Planner-based selection is only used for action-originated
-handoff runs. The planner can include a
-`handoff_context` string for the next action; `fix-pr` receives it as explicit
-initial steering when the planner dispatches a PR-fix pass. The planner mounts
-memory and rubrics read-only so automated control-flow planning can use steering
-context without mutating those state branches. Orchestration stops when target
-state indicates no safe next action, a route fails, a duplicate handoff marker
-is found, the planner stops or blocks, or the max-round budget is exhausted.
+Direct `/implement`, `/review`, and `/fix-pr` runs remain one-shot. In `agent`
+mode, the planner can also dispatch one child `orchestrate` lane for a staged
+subtask. Child lanes run the existing bounded action loop in `heuristics` mode
+and carry their `orchestrator_lane` back on later handoffs. The planner can
+include a `handoff_context` string for the next action; `fix-pr` receives it as
+explicit initial steering when the planner dispatches a PR-fix pass. The
+planner mounts memory and rubrics read-only so automated control-flow planning
+can use steering context without mutating those state branches. Orchestration
+stops when target state indicates no safe next action, a route fails, a
+duplicate handoff marker is found, the planner stops or blocks, or the
+max-round budget is exhausted.
 
 Implementation dispatches default to the repository default branch. Callers can
 set `base_branch` to stack directly on another branch, or `base_pr` to stack on

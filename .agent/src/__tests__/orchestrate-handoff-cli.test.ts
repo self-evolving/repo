@@ -31,6 +31,7 @@ function runOrchestrateHandoff(env: Record<string, string>): {
     const outputPath = join(tempDir, "github-output.txt");
     const ghLogPath = join(tempDir, "gh.log");
     const dispatchPayloadPath = join(tempDir, "dispatch.json");
+    const plannerResponsePath = join(tempDir, "planner-response.md");
 
     writeFileSync(outputPath, "", "utf8");
     writeFileSync(
@@ -72,6 +73,12 @@ exit 1
       { encoding: "utf8", mode: 0o755 },
     );
 
+    const plannerResponse = env.PLANNER_RESPONSE || "";
+    if (plannerResponse) {
+      writeFileSync(plannerResponsePath, plannerResponse, "utf8");
+    }
+    const { PLANNER_RESPONSE: _plannerResponse, ...runEnv } = env;
+
     const result = spawnSync("node", [".agent/dist/cli/orchestrate-handoff.js"], {
       cwd: repoRoot,
       env: {
@@ -95,7 +102,8 @@ exit 1
         REPOSITORY_PRIVATE: "true",
         FAKE_GH_LOG: ghLogPath,
         FAKE_DISPATCH_PAYLOAD: dispatchPayloadPath,
-        ...env,
+        PLANNER_RESPONSE_FILE: plannerResponse ? plannerResponsePath : "",
+        ...runEnv,
       },
       encoding: "utf8",
     });
@@ -187,6 +195,55 @@ test("manual orchestrate dispatches implement for issue targets", () => {
   assert.equal(run.outputs.get("next_action"), "implement");
   assert.match(run.ghLog, /actions\/workflows\/agent-implement\.yml\/dispatches/);
   assert.equal((run.dispatchPayload?.inputs as Record<string, string>).base_pr, "12");
+});
+
+test("agent planner dispatches a child orchestrator lane", () => {
+  const run = runOrchestrateHandoff({
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "51",
+    AUTOMATION_MODE: "agent",
+    ORCHESTRATOR_LANE: "meta",
+    ORCHESTRATION_CHAIN_ID: "issue-51",
+    PLANNER_RESPONSE: JSON.stringify({
+      decision: "handoff",
+      next_action: "orchestrate",
+      target_number: "51",
+      orchestrator_lane: "stage-1",
+      reason: "split the first stage into a child lane",
+      handoff_context: "Implement stage 1, then report completion.",
+    }),
+  });
+
+  assert.equal(run.status, 0);
+  assert.equal(run.outputs.get("decision"), "dispatch");
+  assert.equal(run.outputs.get("next_action"), "orchestrate");
+  assert.match(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.automation_mode, "heuristics");
+  assert.equal(inputs.source_action, "orchestrate");
+  assert.equal(inputs.orchestrator_lane, "stage-1");
+  assert.equal(inputs.parent_orchestrator_lane, "meta");
+  assert.equal(inputs.orchestration_chain_id, "issue-51");
+  assert.equal(inputs.orchestrator_context, "Implement stage 1, then report completion.");
+});
+
+test("agent planner must name a child orchestrator lane", () => {
+  const run = runOrchestrateHandoff({
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "51",
+    AUTOMATION_MODE: "agent",
+    PLANNER_RESPONSE: JSON.stringify({
+      decision: "handoff",
+      next_action: "orchestrate",
+      target_number: "51",
+      reason: "missing lane",
+    }),
+  });
+
+  assert.equal(run.status, 0);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.equal(run.outputs.get("reason"), "agent planner requested orchestrate without orchestrator_lane");
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
 });
 
 test("manual orchestrate dispatches fix-pr for PR targets with CHANGES_REQUESTED", () => {

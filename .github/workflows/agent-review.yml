@@ -35,6 +35,14 @@ on:
         description: "Whether this run belongs to an explicit orchestrator chain"
         required: false
         default: "false"
+      orchestrator_lane:
+        description: "Orchestrator lane this run should hand back to"
+        required: false
+        default: "planner"
+      orchestration_chain_id:
+        description: "Optional stable chain id for related orchestrator lanes"
+        required: false
+        default: ""
   workflow_call:
     inputs:
       pr_number:
@@ -71,6 +79,14 @@ on:
         type: string
         required: false
         default: "false"
+      orchestrator_lane:
+        type: string
+        required: false
+        default: "planner"
+      orchestration_chain_id:
+        type: string
+        required: false
+        default: ""
 
 permissions:
   actions: write
@@ -321,6 +337,8 @@ jobs:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           ORCHESTRATION_ENABLED: ${{ inputs.orchestration_enabled }}
+          ORCHESTRATOR_LANE: ${{ inputs.orchestrator_lane }}
+          ORCHESTRATION_CHAIN_ID: ${{ inputs.orchestration_chain_id }}
           REQUESTED_BY: ${{ inputs.requested_by || github.actor }}
           REQUEST_TEXT: ${{ inputs.request_text }}
           # SOURCE_CONCLUSION is intentionally omitted for review; the dispatcher

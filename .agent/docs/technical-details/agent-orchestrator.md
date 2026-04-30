@@ -11,6 +11,11 @@ Configure `AGENT_AUTOMATION_MODE` to choose how orchestrator handoffs are decide
 
 Set `AGENT_AUTOMATION_MAX_ROUNDS` to cap the chain length.
 
+The orchestrator workflow also accepts an `orchestrator_lane` input. The
+default lane is `planner`; child orchestrators use distinct lanes such as
+`stage-1` so the session key can separate multiple orchestrator contexts on
+the same issue.
+
 ## Current heuristics state machine
 
 The orchestrator supports an explicit manual start plus the existing bounded handoff policy:
@@ -44,6 +49,9 @@ When the route starts, the router dispatches `agent-orchestrator.yml` with:
 - requester and request text
 - current round and max rounds
 - optional `base_branch` or `base_pr` for stacked implementation PRs
+- optional `orchestrator_lane`, `parent_orchestrator_lane`,
+  `orchestration_chain_id`, and `orchestrator_context` for meta/child
+  orchestration
 
 Each action workflow launched by `agent-orchestrator.yml` receives
 `orchestration_enabled: true`. Only runs with that explicit context hand back to
@@ -76,12 +84,23 @@ base branch: `base_branch` is used when set, `base_pr` resolves to the open
 same-repository PR head branch, and the repository default branch is used when
 neither input is present. Setting both base inputs is rejected.
 
-Manual `/orchestrate` starts are deterministic in `agent` mode as well. Planner
-runs are reserved for action-originated handoff envelopes.
+Manual `/orchestrate` starts in `agent` mode may use the planner so a meta
+orchestrator can launch one child lane. In `heuristics` mode they remain
+deterministic.
 
 In `heuristics` mode, action-originated handoff decisions still use the fixed transition policy and round budget checks.
 
-In `agent` mode, the orchestrator first runs a scoped planner prompt through the same resolved-provider runtime used by other agent actions. The planner has its own `orchestrator` route and `planner` lane, so session continuation is separate from implement, review, and fix-pr sessions. The planner runs with `approve-all` tool permission so it can gather current GitHub and repository context in non-interactive workflows. It still receives read-only repository memory, selected read-only rubrics, the handoff envelope, and original request, and returns JSON describing whether to stop, block, or hand off. For handoffs, the planner may also return `handoff_context`: explicit, action-oriented instructions for the next workflow. When the next action is `fix-pr`, the dispatcher passes that context into `agent-fix-pr.yml`, and the fix-pr prompt treats it as initial steering for the automated fix pass. The workflow uses the runtime preflight CLI to skip this planner when the max-round budget is already exhausted, and the runtime still validates planner JSON against the fixed transition policy and max-round budget before dispatching anything.
+In `agent` mode, the orchestrator first runs a scoped planner prompt through the same resolved-provider runtime used by other agent actions. The planner has its own `orchestrator` route and configured lane, so session continuation is separate from implement, review, and fix-pr sessions. The planner runs with `approve-all` tool permission so it can gather current GitHub and repository context in non-interactive workflows. It still receives read-only repository memory, selected read-only rubrics, the handoff envelope, and original request, and returns JSON describing whether to stop, block, or hand off. For handoffs, the planner may also return `handoff_context`: explicit, action-oriented instructions for the next workflow. When the next action is `fix-pr`, the dispatcher passes that context into `agent-fix-pr.yml`, and the fix-pr prompt treats it as initial steering for the automated fix pass. The workflow uses the runtime preflight CLI to skip this planner when the max-round budget is already exhausted, and the runtime still validates planner JSON against runtime policy and max-round budget before dispatching anything.
+
+Planner JSON can also request `next_action: "orchestrate"` to launch one
+child orchestrator. Runtime validation requires a child `orchestrator_lane`;
+the dispatcher preserves the parent lane and optional chain id, then starts the
+child orchestrator in `heuristics` mode. That keeps child lanes bounded to the
+existing `implement -> review -> fix-pr -> review` loop while allowing a meta
+orchestrator to split issue-level work into visible stages. Workflows launched
+by a child lane carry `orchestrator_lane` and `orchestration_chain_id` back to
+the orchestrator so follow-up handoffs resume the same lane instead of the
+default planner lane.
 
 Before dispatching, the orchestrator checks for a hidden handoff marker on the destination issue or pull request. It then writes a `pending` marker for the current source run, source action, destination action, target, and round, dispatches the next workflow, and updates the marker to `dispatched` after `workflow_dispatch` succeeds. If dispatch fails, the marker is updated to `failed` so a rerun can retry. Rerunning the same source action or orchestrator run skips fresh `pending` or `dispatched` markers instead of enqueueing a duplicate next action. A `pending` marker records its creation time; if it is older than the one-hour stale threshold, the orchestrator marks it `failed` and retries so cancelled runs do not permanently block handoff. Non-success statuses and unsupported verdicts stop the chain.
 
