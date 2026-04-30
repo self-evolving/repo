@@ -41,13 +41,14 @@ set `base_branch` to stack directly on another branch, or `base_pr` to stack on
 an open same-repository PR head branch. The implementation workflow rejects
 ambiguous input when both are set.
 
-When a new review synthesis is posted to a pull request, the review workflow
-first minimizes prior visible review synthesis comments and reviews from the
-same authenticated agent account as outdated. Generated summaries carry a hidden
-HTML marker for robust matching, with a heading fallback for older summaries.
-This keeps the latest synthesis prominent while leaving older generated
-summaries expandable. Set `AGENT_COLLAPSE_OLD_REVIEWS=false` to skip this
-cleanup and leave prior review summaries visible.
+When a new review synthesis or rubrics review is posted to a pull request, the
+review workflows first minimize prior visible matching comments and reviews from
+the same authenticated agent account as outdated. Generated review summaries
+carry a hidden HTML marker for robust matching, with a heading fallback for
+older summaries. Rubrics reviews match the `## Rubrics Review` heading. This
+keeps the latest generated review prominent while leaving older generated
+reviews expandable. Set `AGENT_COLLAPSE_OLD_REVIEWS=false` to skip this cleanup
+and leave prior generated reviews visible.
 
 ### Repository memory workflows
 
