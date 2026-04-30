@@ -22,6 +22,43 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/33#issuecomment-4343511116",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAy22_g",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "After merging #34 how should we implement this? Also is it related to the latest issue? \n\n@sepo-agent /answer",
+      "createdAt": "2026-04-29T23:44:01Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/33#issuecomment-4348294910",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAy3P7Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "After #34, I’d implement #33 as a **tracking-issue orchestrator that consumes project-management signals**, not as an extension of the project manager itself.\n\nSmall correction: #34 is the closed issue “Agent for project management”; it was implemented by PR #39 and main now has the phase-one project manager in [`agent-project-manager.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-project-manager.yml), with managed `priority/*` + `effort/*` label application through [`project-management-labels.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/project-management-labels.ts) and [`apply-project-management-labels.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/apply-project-management-labels.ts).\n\nSo the shape should be:\n\n- #34 project manager: repo-wide signal layer.\n  - Scores/summarizes open issues and PRs.\n  - Optionally applies `priority/*` and `effort/*`.\n  - Does **not** dispatch implementation work.\n\n- #33 tracking orchestrator: execution layer.\n  - Owns one tracking issue / project plan.\n  - Maintains a task graph.\n  - Dispatches existing workflows (`implement`, `review`, `fix-pr`) one child task at a time.\n  - Uses #34 labels as input when deciding what is ready or important.\n\nConcrete implementation plan for #33 after #34:\n\n1. Add a tracking-plan schema under `.agent/src`, with fields like:\n   - task id\n   - title\n   - target issue/PR number\n   - dependencies\n   - status: `planned | ready | running | blocked | done | failed`\n   - priority/effort snapshot\n   - last workflow run id/result URL\n\n2. Store the plan on the tracking issue using a hidden marker/comment, similar to the existing handoff marker pattern in [`handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts).\n\n3. Add a CLI, probably `.agent/src/cli/orchestrate-plan.ts`, that:\n   - reads the tracking issue\n   - parses/validates the plan\n   - refreshes child issue/PR state and labels\n   - selects the next ready task\n   - dispatches existing workflows using the same workflow-dispatch helper used by [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts)\n   - updates the tracking issue with visible status\n\n4. Keep execution conservative:\n   - default max active tasks: `1`\n   - explicit route authorization per delegated task\n   - dedupe markers per child dispatch\n   - stale `running` recovery\n   - visible stop reasons\n\n5. Wire it through `/orchestrate` only when the target issue has a tracking-plan marker. Otherwise, current single-target behavior should remain:\n   - issue -> `implement`\n   - open PR -> `review` or `fix-pr`\n   - bounded follow-up chain\n\n6. Add docs separating:\n   - project manager: labels/summaries\n   - single-target orchestrator: one issue/PR chain\n   - tracking orchestrator: multi-issue execution plan\n\nThis is related to the latest issue #43, but #43 is a narrower bug/UX gap: `/orchestrate` on a merged/closed PR should create new branch-change work instead of stopping with `pull request is merged`.\n\nI’d treat #43 as adjacent and probably implement it **before** the full #33 tracking orchestrator. It gives us a useful primitive for #33: turning a follow-up request from a closed/merged PR into a fresh issue or fresh implementation run against `main`.\n\nRecommended order:\n\n1. Implement #43: closed/merged PR `/orchestrate` creates a tracking issue or dispatches fresh implementation work, with a link-back comment.\n2. Implement #33 phase 1: tracking issue schema + read-only status summary.\n3. Implement #33 phase 2: dispatch one ready child task.\n4. Implement #33 phase 3: consume #34 labels for task selection.\n\nSo yes, #43 is related, but it is not the full multi-PR orchestrator. It is the first concrete edge case that pushes `/orchestrate` beyond “current open target only,” and it should feed into the same design rather than becoming a separate orchestration path.",
+      "createdAt": "2026-04-29T23:45:53Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/33#issuecomment-4348301293",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-04-29T12:03:37Z",
@@ -36,6 +73,6 @@
   "number": 33,
   "state": "OPEN",
   "title": "orchestrate longer more complex tasks ",
-  "updatedAt": "2026-04-29T12:08:38Z",
+  "updatedAt": "2026-04-29T23:45:53Z",
   "url": "https://github.com/self-evolving/repo/issues/33"
 }

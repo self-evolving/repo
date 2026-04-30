@@ -7,12 +7,57 @@
   },
   "body": "It would be nice if we could trigger the agent by simpliy assigning an issue to it. It could remove itself when it has finished executing the command.",
   "closedAt": null,
-  "comments": [],
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAx-PVw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\nthis is an interesting idea, and I thought about it for a bit. there are several key problems:\n\n1. can we assign a bot account to an issue \n2. if not working, can we assign @sepo-agent to an issue or PR\n    - even if the agent is not part of the repo? \n\nAnd there are two levels of issues:\n1. implementation wise: -> how does the GitHub action trigger and tack this \n2. UX wise -> what is a reasonable interaction for people? ",
+      "createdAt": "2026-04-29T20:41:14Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/24#issuecomment-4347367255",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAx_KZw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Short answer: yes, this is feasible, but I would treat assignment as a **secondary UX trigger**, not the only trigger.\n\nGitHub side:\n\n- A GitHub issue/PR can only be assigned to an eligible GitHub user account. GitHub documents eligible assignees as users such as commenters, users with write access, and org members with read access, and assignees are managed through the Issues assignee API for both issues and PRs.\n- In this repo specifically, `sepo-agent` is currently assignable: `GET /repos/self-evolving/repo/assignees/sepo-agent` returns `204`, and `sepo-agent` appears in the repo assignee list.\n- So: assigning `@sepo-agent` can work here. In other repos, it depends on whether the `sepo-agent` account is an available assignee there. If it is not eligible, GitHub will not let users assign it, regardless of our workflow logic.\n\nCurrent architecture:\n\n- The current mention entrypoint only listens to opened/edited issues, PRs, comments, reviews, and discussions, not assignment events: [.github/workflows/agent-entrypoint.yml](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-entrypoint.yml#L7-L21).\n- The shared router already supports non-mention trigger kinds through `trigger_kind`, currently `mention` and `label`: [.github/workflows/agent-router.yml](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L47-L54).\n- Label triggers are already the closest pattern: `agent-label.yml` listens for `agent/*` labels, routes through the same router, authorizes the label applier, then removes the trigger label afterward: [.github/workflows/agent-label.yml](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-label.yml#L3-L40).\n- `extract-context.ts` already has the right place to add assignment-specific handling: it gates bot senders, resolves actor association, skips mention validation for non-mention triggers, and resolves the requested route: [.agent/src/cli/extract-context.ts](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/extract-context.ts#L146-L203).\n\nRecommended UX:\n\n- Keep `@sepo-agent /...` as the explicit command surface.\n- Keep `agent/*` labels as the precise queue surface.\n- Add assignment as a convenience shortcut:\n  - assign `sepo-agent` to an issue: equivalent to `@sepo-agent /orchestrate`\n  - assign `sepo-agent` to a PR: equivalent to `@sepo-agent /orchestrate`\n- Avoid making assignment mean `/implement` directly. Assignment has too little intent. `/orchestrate` is safer because the orchestrator can decide whether the next step should be implement, review, fix-pr, or stop.\n- Optionally remove `sepo-agent` from assignees after the terminal workflow finishes, but I would make that configurable. Some teams may prefer the assignment to remain as visible ownership/history.\n\nImplementation plan:\n\n1. Add a new thin workflow, probably `.github/workflows/agent-assigned.yml`, listening on:\n   - `issues: types: [assigned]`\n   - `pull_request_target: types: [assigned]`\n2. Gate the job with:\n   - `github.event.assignee.login == vars.AGENT_ASSIGNMENT_LOGIN || 'sepo-agent'`\n3. Call `agent-router.yml` with:\n   - `trigger_kind: assignment`\n   - same `runs_on`, `access_policy`, secrets, and automation inputs as the existing entrypoints.\n4. Extend `extract-context.ts` so `trigger_kind=assignment`:\n   - authorizes the actor who performed the assignment, not the issue/PR author\n   - skips live mention validation\n   - ignores assignments to anyone other than the configured agent login\n   - sets `requested_route` to `orchestrate`\n5. Add tests for:\n   - issue assignment to `sepo-agent`\n   - PR assignment to `sepo-agent`\n   - assignment to a different user is ignored\n   - unauthorized assigner is rejected by `AGENT_ACCESS_POLICY`\n6. Add optional follow-up support for auto-unassignment after completion. This should be separate or feature-flagged because async routes like `/implement` finish in downstream workflows, not inside the router job.\n7. Update docs under `.agent/docs/architecture/supported-workflows.md` and probably the action docs to describe assignment semantics.\n\nI would implement the MVP as: **assignment to `sepo-agent` means `/orchestrate`, authorized by the assigner, no auto-unassign yet**. Then add auto-unassign as a follow-up once the assignment trigger itself is stable.",
+      "createdAt": "2026-04-29T20:43:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/24#issuecomment-4347382375",
+      "viewerDidAuthor": true
+    }
+  ],
   "createdAt": "2026-04-29T00:21:04Z",
-  "labels": [],
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
   "number": 24,
   "state": "OPEN",
   "title": "Assign to sepo agent to trigger action",
-  "updatedAt": "2026-04-29T00:21:04Z",
+  "updatedAt": "2026-04-29T20:43:55Z",
   "url": "https://github.com/self-evolving/repo/issues/24"
 }

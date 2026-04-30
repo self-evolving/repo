@@ -7,7 +7,7 @@
   },
   "baseRefName": "main",
   "body": "## Summary\n\nFix the GitHub-hosted runner failures seen after migration by removing assumptions that held on persistent/self-hosted workspaces.\n\n- Clean generated `.agent/dist/` before `checkout-pr` switches to a PR head so tracked generated files on a PR branch cannot block checkout.\n- Retry workflow dispatch once without inputs rejected by the live workflow schema, which keeps automation handoffs resilient while workflow input schemas roll out.\n- Add a 30-minute timeout to advisory rubrics review agent runs so a hung model call cannot hold the whole review workflow for GitHub's six-hour default.\n- Document and enforce generated-output ignore rules for installs: `.agent/dist/` and `.agent/node_modules/`.\n\n## Investigation notes\n\nObserved failures this addresses:\n\n1. PR #7 review looked unfinished because the advisory rubrics-review job stayed alive until GitHub's default six-hour timeout. The actual dual review and synthesis completed and posted, but the overall workflow stayed pending/cancelled because rubrics review never returned.\n2. PR #20 fix-pr completed its code changes, then failed while dispatching the follow-up review because the PR-branch runtime sent newly added workflow inputs to the default-branch workflow schema, which rejected them with `Unexpected inputs provided`.\n3. The downstream docs-site fix-pr run failed before the agent could start because setup built `.agent/dist/`, then `checkout-pr` tried to switch to a PR branch that had accidentally committed `.agent/dist`; Git refused to overwrite the untracked build output.\n\n## Validation\n\n- `npm --prefix .agent ci`\n- `npm --prefix .agent test` — passed (`377/377`)\n- `git diff --check`\n- workflow/action/template YAML parsed with Ruby `YAML.load_file`\n- shell syntax checks for installed agent scripts/actions\n",
-  "closedAt": null,
+  "closedAt": "2026-04-29T23:55:11Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABArPBsQ",
@@ -313,8 +313,8 @@
       }
     }
   ],
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Fix GitHub-hosted runner stability issues",
-  "updatedAt": "2026-04-29T15:02:58Z",
+  "updatedAt": "2026-04-29T23:55:11Z",
   "url": "https://github.com/self-evolving/repo/pull/21"
 }

@@ -1,0 +1,84 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "## Problem\n\nA maintainer can leave a valid follow-up patch request on a PR after it has already been merged, then invoke `@sepo-agent /orchestrate`. Today the orchestrator accepts the route but stops with `Handoff stop: pull request is merged`, so no new work starts and the user only sees reactions/logs.\n\nRecent example: https://github.com/self-evolving/repo/pull/39#issuecomment-4348146105\n\n## Desired behavior\n\n`/orchestrate` should be able to turn a post-merge/closed-PR follow-up into new branch-change work against the default branch, rather than stopping. A practical implementation could either:\n\n- create a tracking issue containing the request text and source PR/comment links, then dispatch the existing implement workflow for that issue; or\n- dispatch a dedicated follow-up implementation workflow that opens a fresh PR directly.\n\n## Acceptance criteria\n\n- `@sepo-agent /orchestrate` on a merged/closed PR with a patch/fix request starts new implementation work against `main`.\n- The source PR gets an explanatory comment linking the new issue/run/PR.\n- Ambiguous non-code requests still stop safely with a visible explanation.\n- Add regression coverage for the merged/closed PR orchestration path.",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAy4FhQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "Let's work on it -- also see #33 and its latest comment\n\n@sepo-agent /orchestrate",
+      "createdAt": "2026-04-29T23:49:58Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/43#issuecomment-4348315013",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAy4OKg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `orchestrate` -> `implement` (round 2/10).\n\nmanual orchestrate start on issue; dispatching implement\n\n<!-- sepo-agent-handoff state:dispatched created:1777506638713 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxMzk4NDIxOTU6b3JjaGVzdHJhdGU6NDM6aW1wbGVtZW50OjQzOjI -->",
+      "createdAt": "2026-04-29T23:50:37Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/43#issuecomment-4348317226",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAy7MKw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-43/codex-25139861026`\n- Pull request: https://github.com/self-evolving/repo/pull/45\n\nImplemented closed/merged PR orchestration follow-ups: `/orchestrate` now creates a linked issue and dispatches implementation for concrete patch requests, posts visible stop comments for ambiguous closed-PR requests, forwards source comment URLs, and keeps delegated route authorization before side effects. Verified with `npm --prefix .agent run build`, `node --test .agent/dist/__tests__/orchestrate-handoff-cli.test.js .agent/dist/__tests__/envelope.test.js`, and `node --test .agent/dist/__tests__/orchestrate-handoff-cli.test.js`.",
+      "createdAt": "2026-04-29T23:56:40Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/43#issuecomment-4348365867",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-04-29T23:20:11Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 43,
+  "state": "OPEN",
+  "title": "Allow /orchestrate follow-up patches from merged or closed PRs",
+  "updatedAt": "2026-04-29T23:56:40Z",
+  "url": "https://github.com/self-evolving/repo/issues/43"
+}

@@ -1,0 +1,386 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "baseRefName": "agent/implement-issue-34/codex-25127393901",
+  "body": "## Summary\n- Replace the deterministic project-management scoring CLI with a prompt-driven project-manager agent run stacked on #39\n- Let the agent assess open issues/PRs, optionally execute managed priority/effort label add/remove operations, and return the summary\n- Add a final summary publication CLI that writes the Actions step summary and optionally comments on today’s Daily Summary discussion\n- Update docs/configuration and regression coverage for summary publication\n\n## Verification\n- npm --prefix .agent test\n\nStacked on #39.",
+  "closedAt": "2026-04-29T22:29:52Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAyNQJg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `orchestrate` -> `review` (round 2/5).\n\nmanual orchestrate start on PR; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777497871478 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxMzQ2NDQzNTU6b3JjaGVzdHJhdGU6NDE6cmV2aWV3OjQxOjI -->",
+      "createdAt": "2026-04-29T21:24:29Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/41#issuecomment-4347613222",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAyOBAA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #41 is explicitly stacked on #39; #39’s discussion requested prompt-driven PM behavior, `priority/*` plus `effort/*`, six-hour cadence, Daily Summary discussion posting, and docs/tests updates. The PR diff implements those points. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The workflow reuses `scheduled-activity-gate`, `resolve-github-auth`, `resolve-agent-provider`, `setup-agent-runtime`, and `run-agent-task`; the summary publisher reuses `.agent/src/discussion.ts` and `.agent/src/output.ts` instead of embedding GraphQL/output logic inline. |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | The agent task preserves `requested_by: ${{ github.actor }}` and only switches to `approve-all` when both `dry_run=false` and `apply_labels=true`; otherwise it runs read-approved. Manual execution is additionally gated by `enabled=true`, while scheduled runs are gated by `AGENT_PROJECT_MANAGEMENT_ENABLED`. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | `.agent/docs/architecture/supported-workflows.md` and `.agent/docs/customization/configuration-list.md` are updated for prompt-driven PM runs, dry-run/label behavior, schedule, summary posting, category, and limit settings. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | The docs update workflow/configuration behavior only; it does not add per-file inventory tables. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is scoped to replacing project-management scoring with the prompt-driven workflow, adding the final summary publisher, updating the prompt/docs, and adjusting focused tests. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation keeps the workflow direct: resolve config, run one project-manager prompt, then publish the returned markdown with a small CLI. The prompt gives clear managed-label rules without adding a new framework. |\n\n## Notes\n\n- Main score drivers: the PR follows the parent PR’s direction, keeps workflow glue on existing shared actions, and updates the relevant docs and regression tests.\n- `surface-stateful-failures`, orchestration follow-up defaults, accepted stop comments, default merge strategy, and rubric-authoring guidance were not scored because they do not genuinely apply to this PR’s changed behavior.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** The PR satisfies the applicable selected rubrics. No rubric-specific blocking or warning findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-04-29T21:26:48Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/41#issuecomment-4347625728",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAyOxqw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #41 replaces the deterministic project-management scoring CLI from #39 with a prompt-driven project-manager agent.\n- The agent assesses open issues and PRs, can optionally apply managed `priority/*` and `effort/*` labels, and returns a markdown summary.\n- A new publication CLI writes that returned summary to the Actions step summary and can comment on today’s Daily Summary discussion.\n- The PR updates workflow docs, configuration docs, prompts, and summary-publication tests for the new behavior.\n\n## Review\nThe reviews disagree on risk: the rubrics review passes the PR, but the code review identifies a blocking authorization boundary regression. The prompt-driven design currently gives the agent broader write authority than the intended managed-label operation.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Label-write mode grants broad agent mutation authority | BLOCKING | When labels are enabled, the workflow switches the model run to `approve-all` with issue, PR, and discussion write permissions. The prompt is the only guardrail preventing unrelated mutations. |\n| Label mutation path lacks executable regression coverage | WARNING | The deterministic label application code and tests were removed, while the new tests only cover summary publication. The risky write path now lacks a testable enforcement boundary. |\n\n## Progress\n- Rubrics review passed and found the PR aligned with docs, linked #39 context, and selected workflow rubrics.\n- Existing PR discussion on #39 requested prompt-driven PM behavior, `priority/*` plus `effort/*`, six-hour cadence, and Daily Summary discussion posting.\n- The new summary publication CLI is focused and covered by tests.\n- Posted one inline comment on `.github/workflows/agent-project-manager.yml` line 168 for the blocking write-authority issue.\n\n## Issue Details\n\n<details>\n<summary>Label-write mode grants broad agent mutation authority</summary>\n\n**Cause:** In label-application mode, `permission_mode` becomes `approve-all` while the job token has `issues: write`, `pull-requests: write`, and `discussions: write`. GitHub token permissions cannot constrain the agent to only managed label add/remove operations.\n\n**Candidate solutions:** Keep the agent in read mode and have it emit a structured label-change plan, then apply that plan with a deterministic CLI that validates allowed labels and operations. Alternatively, add a hard execution boundary around the agent’s available mutation commands so only intended managed-label changes can run.\n\n**Comments:** This is the main reviewer disagreement: rubric review accepts the prompt guardrail, while code review treats it as insufficient because the previous deterministic CLI enforced the mutation boundary in code.\n\n</details>\n\n<details>\n<summary>Label mutation path lacks executable regression coverage</summary>\n\n**Cause:** The prior project-management CLI tests covered non-dry-run managed label mutation. This PR removes that executable path and replaces it with prompt instructions, leaving no focused test that can prove label writes remain constrained.\n\n**Candidate solutions:** After adding a deterministic apply boundary, add tests for allowed label creation, stale managed-label removal, desired managed-label addition, and rejection of unrelated mutations. If the implementation stays workflow-driven, add static/workflow tests that assert the write mechanism remains constrained.\n\n**Comments:** This warning depends on the blocking design issue: restoring a testable boundary should make the coverage target straightforward.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: The PR needs a concrete branch change to restore a hard, testable boundary for managed label writes, and that is suitable for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Keep the project-manager agent in read mode or otherwise restrict it with a hard execution boundary so it can only perform intended managed `priority/*` and `effort/*` label mutations.\n- [ ] Add focused regression coverage for the constrained label mutation path.",
+      "createdAt": "2026-04-29T21:29:15Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/41#issuecomment-4347638187",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAyPAnQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `review` -> `fix-pr` (round 3/5).\n\nagent planner selected fix-pr: Latest review synthesis for PR #41 has Final Verdict NEEDS_REWORK and explicitly recommends FIX_PR for concrete branch changes; round budget remains.\n\n<!-- sepo-agent-handoff state:dispatched created:1777498202030 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxMzQ2NzQxNzI6cmV2aWV3OjQxOmZpeF9wcjo0MToz -->",
+      "createdAt": "2026-04-29T21:30:00Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/41#issuecomment-4347642013",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAyQbZA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `stacked/project-manager-agent-assessment`. Requested by @lolipopshock.\n\n- Kept the project-manager agent prompt-driven but forced the agent run to `approve-reads` only.\n- Added a deterministic managed-label apply CLI that parses the agent’s structured plan, creates allowed managed labels, applies only `priority/*` and `effort/*` add/remove operations, and excludes unrelated mutations.\n- Wired the workflow to run label application after the read-only agent phase and publish the validated result summary.\n- Updated project-manager prompt/docs/configuration for the new plan-and-apply contract.\n- Added regression coverage for dry-run skipping, allowed label creation, stale managed-label removal, desired managed-label addition, and unrelated mutation exclusion.\n\n<details><summary>Verification</summary>\n\n- `npm --prefix .agent test` passed: 392 tests.\n\n</details>",
+      "createdAt": "2026-04-29T21:34:12Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/41#issuecomment-4347665252",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAyQwQA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `fix-pr` -> `review` (round 4/5).\n\nagent planner selected review: fix-pr completed successfully on PR #41 after the prior review explicitly recommended FIX_PR for NEEDS_REWORK; a follow-up review is needed to confirm the hard label-write boundary and regression coverage are resolved.\n\n<!-- sepo-agent-handoff state:dispatched created:1777498505959 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxMzQ5MDc2NzE6Zml4X3ByOjQxOnJldmlldzo0MTo0 -->",
+      "createdAt": "2026-04-29T21:35:04Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/41#issuecomment-4347670592",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAyRVAw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I’ve got enough evidence for the rubric review. The current head appears to satisfy the previously raised hard-boundary issue: `run-agent-task` is read-approved, and the separate CLI filters the agent plan down to known `priority/*` and `effort/*` labels before any mutation.## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #41 is explicitly stacked on #39 and follows the linked plan: prompt-driven PM pass, six-hour cadence, `priority/*` and `effort/*` labels, Daily Summary publication, docs, and tests. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The workflow reuses `scheduled-activity-gate`, `resolve-github-auth`, `resolve-agent-provider`, `setup-agent-runtime`, and `run-agent-task`; summary posting reuses `.agent/src/discussion.ts` and `.agent/src/output.ts`. |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | The agent run uses `permission_mode: approve-reads` and preserves `requested_by: ${{ github.actor }}`; writes are moved to a deterministic CLI that only applies validated managed label operations. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | `.agent/docs/architecture/supported-workflows.md` and `.agent/docs/customization/configuration-list.md` document prompt-driven PM behavior, dry-run/label application, summary posting, category, and limit settings. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | The docs update behavior and configuration entries only; no per-file inventory table was added. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is scoped to replacing deterministic scoring with a prompt-driven agent, adding deterministic label-plan application and summary publication, and updating focused tests/docs. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation keeps a straightforward flow: agent assesses and emits a JSON plan, deterministic CLI validates/applies managed labels, final CLI publishes the summary. |\n\n## Notes\n\n- Main score drivers: the current PR head addresses the important authorization-boundary concern by keeping the agent read-only and moving label writes into a testable deterministic path.\n- Regression coverage now includes dry-run skipping, allowed label creation, managed add/remove operations, unrelated label exclusion, and summary publication.\n- `surface-stateful-failures`, orchestration follow-up defaults, accepted stop comments, default merge strategy, and rubric-authoring guidance were not scored because they do not genuinely apply to the changed behavior.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** The implementation satisfies the applicable selected rubrics. No rubric-specific blocking or warning findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-04-29T21:36:45Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/41#issuecomment-4347680003",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAySt2A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #41 replaces deterministic project-management scoring with a prompt-driven project-manager agent.\n- The agent inspects open issues and PRs, emits a summary plus a structured managed-label change plan, and stays in read-approved mode.\n- A deterministic post-agent CLI validates and applies managed `priority/*` / `effort/*` label changes, then a final CLI publishes the summary.\n- This follow-up review is evaluating the current head after the prior authorization-boundary fix.\n\n## Review\nThe previous broad write-authority issue appears resolved, and the rubrics review now passes. However, the code review found one blocking contract-handling issue and one test hermeticity failure that currently keep the PR from shipping.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Missing or malformed label plans are treated as successful no-ops | BLOCKING | The apply CLI cannot distinguish a valid empty plan from missing or invalid structured JSON, so label-application mode can publish a clean success state after an agent output contract failure. |\n| Label-apply CLI test leaks ambient `GITHUB_OUTPUT` | WARNING | One new CLI test does not set an isolated `GITHUB_OUTPUT`, and `npm --prefix .agent test` failed in review with `EPERM` while writing the inherited workflow file-command path. |\n\n## Progress\n- The prior inline concern about `approve-all` agent mutation authority has been addressed by using `permission_mode: approve-reads`.\n- Label writes now flow through a deterministic CLI that filters to managed `priority/*` and `effort/*` labels.\n- Rubrics review passed the current head, including authorization, docs, reuse, and surgical-change expectations.\n- New inline comments were posted for both current actionable findings.\n\n## Issue Details\n\n<details>\n<summary>Missing or malformed label plans are treated as successful no-ops</summary>\n\n**Cause:** `parseManagedLabelPlan()` returns `{ label_changes: [] }` for parse failures and for valid empty plans. In non-dry-run `apply_labels=true` mode, the CLI then reports `Applied 0 managed priority/effort label operation(s)` and continues.\n\n**Candidate solutions:** Return parse validity from the parser, throw on missing or malformed structured plans in label-application mode, or require an explicit valid `{\"label_changes\":[]}` plan for intentional no-op runs. Add regression coverage for malformed JSON and absent JSON fences.\n\n**Comments:** This is a stateful failure concern: the workflow should surface an invalid agent contract instead of persisting a misleading clean success summary.\n\n</details>\n\n<details>\n<summary>Label-apply CLI test leaks ambient `GITHUB_OUTPUT`</summary>\n\n**Cause:** The “creates labels and applies only managed changes” test invokes a CLI that calls `setOutput()`, but unlike the dry-run test it does not provide a temp `GITHUB_OUTPUT`.\n\n**Candidate solutions:** Set `GITHUB_OUTPUT` to a temp file in that test or explicitly clear it from the spawned environment. Keep the existing assertions and add output assertions if useful.\n\n**Comments:** Reviewer verification reported `npm --prefix .agent test` failing with `EPERM` on the inherited `_runner_file_commands/set_output_*` path.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: The remaining issues are concrete branch changes suitable for automation: fail invalid label-plan contracts and make the CLI test environment hermetic.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Make label-application mode fail when the project-manager output lacks a valid structured label plan, while still allowing an explicit valid empty plan.\n- [ ] Add or update regression coverage for absent/malformed label-plan output.\n- [ ] Set an isolated `GITHUB_OUTPUT` for the label-apply CLI test that currently inherits the ambient workflow output path.",
+      "createdAt": "2026-04-29T21:39:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/41#issuecomment-4347702744",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAyTKcA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `review` -> `fix-pr` (round 5/5).\n\nagent planner selected fix-pr: Latest review synthesis for PR #41 has Final Verdict NEEDS_REWORK and explicitly recommends FIX_PR for concrete unresolved branch changes; round budget allows one more handoff.\n\n<!-- sepo-agent-handoff state:dispatched created:1777498835808 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxMzUxMTgyMDU6cmV2aWV3OjQxOmZpeF9wcjo0MTo1 -->",
+      "createdAt": "2026-04-29T21:40:34Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/41#issuecomment-4347710064",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAyU5ew",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `stacked/project-manager-agent-assessment`. Requested by @lolipopshock.\n\nImplemented the follow-up fixes for PR #41.\n\n- `parseManagedLabelPlan()` now distinguishes valid plans from missing/malformed fenced JSON.\n- Real label application (`dry_run=false`, `apply_labels=true`) now fails when the agent output lacks a valid `label_changes` plan.\n- Explicit valid empty plans still succeed as true no-ops.\n- Added regressions for missing/malformed plans and explicit empty plans.\n- Isolated `GITHUB_OUTPUT` in the label-apply test and `GITHUB_OUTPUT`/`GITHUB_STEP_SUMMARY` in the summary publication test to avoid workflow file-command leaks.\n\nVerification: `npm --prefix .agent test` passed, 395 tests.",
+      "createdAt": "2026-04-29T21:43:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/41#issuecomment-4347738491",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAybdaQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review",
+      "createdAt": "2026-04-29T21:59:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/41#issuecomment-4347845993",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAycUtQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #41 is stacked on #39, whose discussion requested prompt-driven PM behavior, `priority/*` plus `effort/*`, six-hour cadence, and Daily Summary posting. The current diff implements that scope. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The workflow reuses repo-local actions for auth/provider/runtime/task execution, and keeps GitHub label/discussion logic in typed CLIs/modules instead of inline workflow glue. See [`agent-project-manager.yml`](https://github.com/self-evolving/repo/blob/44c859d94e15d522f361fba0e97d694439caae4d/.github/workflows/agent-project-manager.yml#L130-L205). |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | The delegated agent run is `approve-reads`, preserves `requested_by: ${{ github.actor }}`, and label writes happen only in the deterministic post-agent CLI. See [`agent-project-manager.yml`](https://github.com/self-evolving/repo/blob/44c859d94e15d522f361fba0e97d694439caae4d/.github/workflows/agent-project-manager.yml#L154-L195). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Workflow docs and configuration docs describe prompt-driven triage, dry-run behavior, deterministic managed-label application, six-hour schedule, and summary posting. See [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/44c859d94e15d522f361fba0e97d694439caae4d/.agent/docs/architecture/supported-workflows.md#L72-L85) and [`configuration-list.md`](https://github.com/self-evolving/repo/blob/44c859d94e15d522f361fba0e97d694439caae4d/.agent/docs/customization/configuration-list.md#L15-L20). |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Real label application now fails if the agent output lacks a valid fenced `label_changes` plan, while tests cover missing, malformed, and explicit empty plans. See [`apply-project-management-labels.ts`](https://github.com/self-evolving/repo/blob/44c859d94e15d522f361fba0e97d694439caae4d/.agent/src/cli/apply-project-management-labels.ts#L37-L43) and [`apply-project-management-labels-cli.test.ts`](https://github.com/self-evolving/repo/blob/44c859d94e15d522f361fba0e97d694439caae4d/.agent/src/__tests__/apply-project-management-labels-cli.test.ts#L160-L225). |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | Docs update behavior and configuration entries only; no per-file inventory table was added. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is scoped to replacing deterministic scoring with prompt-driven assessment, deterministic managed-label application, summary publication, prompt/docs, and focused tests. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The flow is direct: agent emits a markdown summary plus JSON plan, the CLI filters to known managed labels, applies issue/PR label operations, and publishes the summary. See [`project-management-labels.ts`](https://github.com/self-evolving/repo/blob/44c859d94e15d522f361fba0e97d694439caae4d/.agent/src/project-management-labels.ts#L55-L116). |\n\n## Notes\n\n- Main score drivers: the current head fixes the prior authorization and stateful-failure concerns by keeping the agent read-only, validating the label plan, and making label writes deterministic and test-covered.\n- Verification: `npm --prefix .agent test` passed locally on PR head `44c859d` with 395 tests.\n- Not scored: one-shot follow-up orchestration, accepted stop comments, default merge strategy, and rubric-authoring guidance do not apply to this PR’s implementation surface.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** The implementation satisfies the applicable selected rubrics. No rubric-specific blocking or warning findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-04-29T22:01:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/41#issuecomment-4347860149",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAyc91w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #41 replaces deterministic project-management scoring with a prompt-driven project-manager agent.\n- The current head keeps the agent read-only, has it emit a markdown summary plus structured label-change plan, and applies managed label changes through deterministic code.\n- It supports managed `priority/*` and `effort/*` labels, dry-run behavior, six-hour scheduled runs, and optional Daily Summary discussion posting.\n- The PR also updates docs and adds focused tests for label-plan validation, label application, and summary publication.\n\n## Review\nThe latest reviewer inputs agree that the prior blocking issues have been addressed. No unresolved actionable issues remain in the current PR head.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | The write-boundary, invalid-plan handling, and test hermeticity concerns are fixed in the current head. Rubrics review and code review both report no blocking or warning findings. |\n\n## Progress\n- Prior `approve-all` agent mutation authority was fixed by running the project-manager agent with `approve-reads`.\n- Managed label writes now happen in a deterministic post-agent CLI that filters to allowed `priority/*` and `effort/*` operations.\n- Missing or malformed label plans now fail real label-application mode, while explicit valid empty plans remain allowed.\n- Tests now cover missing, malformed, and empty plans, managed label application, unrelated mutation exclusion, and isolated workflow output files.\n- Verification reported by reviewers: `npm --prefix .agent test` / `npm test` passed with 395 tests.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: No unresolved actionable branch-change work remains from the current review inputs.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-04-29T22:03:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/41#issuecomment-4347870679",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAylG4w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to `agent/rubrics` from PR #41.\n\nno rubric changes\n\nI did not update the rubrics branch. PR #41’s reusable lessons were from bot-authored review comments, not trusted human preference, and the substance is already covered by existing active rubrics: `validate-delegated-route-authorization` and `surface-stateful-failures`. The rubrics checkout is clean.\n",
+      "createdAt": "2026-04-29T22:31:35Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/41#issuecomment-4348004067",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-04-29T21:20:55Z",
+  "files": [
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 13,
+      "deletions": 8,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 5,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/agent-project-manager-cli.test.ts",
+      "additions": 0,
+      "deletions": 216,
+      "changeType": "DELETED"
+    },
+    {
+      "path": ".agent/src/__tests__/apply-project-management-labels-cli.test.ts",
+      "additions": 225,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/post-project-management-summary-cli.test.ts",
+      "additions": 99,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/project-management-labels.test.ts",
+      "additions": 57,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/project-management.test.ts",
+      "additions": 0,
+      "deletions": 100,
+      "changeType": "DELETED"
+    },
+    {
+      "path": ".agent/src/cli/agent-project-manager.ts",
+      "additions": 0,
+      "deletions": 265,
+      "changeType": "DELETED"
+    },
+    {
+      "path": ".agent/src/cli/apply-project-management-labels.ts",
+      "additions": 75,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/post-project-management-summary.ts",
+      "additions": 99,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/project-management-labels.ts",
+      "additions": 117,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/project-management.ts",
+      "additions": 0,
+      "deletions": 241,
+      "changeType": "DELETED"
+    },
+    {
+      "path": ".github/prompts/project-manager.md",
+      "additions": 104,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/workflows/agent-project-manager.yml",
+      "additions": 113,
+      "deletions": 11,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "stacked/project-manager-agent-assessment",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": "2026-04-29T22:29:52Z",
+  "number": 41,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM76Y_GC",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-04-29T21:28:53Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "49866ddd5aa59963f6e00760f275870285ff1970"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM76ZOHe",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-04-29T21:39:30Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "2fea5d33eb24a7752cdd4178aaa52660735b608e"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM76ZOHg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-04-29T21:39:30Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "2fea5d33eb24a7752cdd4178aaa52660735b608e"
+      }
+    }
+  ],
+  "state": "MERGED",
+  "title": "Use prompt-driven project manager agent",
+  "updatedAt": "2026-04-29T22:31:35Z",
+  "url": "https://github.com/self-evolving/repo/pull/41"
+}

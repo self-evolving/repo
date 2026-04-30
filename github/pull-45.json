@@ -1,0 +1,409 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Create a linked follow-up issue for concrete `/orchestrate` patch requests on closed or merged PRs\n- Dispatch implementation against the new issue and comment back on the source PR\n- Stop ambiguous closed-PR orchestration with a visible explanation\n- Forward source comment URLs into the orchestrator and document the behavior\n\n## Verification\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/orchestrate-handoff-cli.test.js .agent/dist/__tests__/envelope.test.js`\n- `node --test .agent/dist/__tests__/orchestrate-handoff-cli.test.js`\n\nCloses #43\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAy7qeA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `implement` -> `review` (round 3/10).\n\nagent planner selected review: Implementation succeeded and produced PR #45 for issue #43; no review has run yet, so the next useful automated step is review.\n\n<!-- sepo-agent-handoff state:dispatched created:1777507048847 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxMzk4NjEwMjY6aW1wbGVtZW50OjQzOnJldmlldzo0NToz -->",
+      "createdAt": "2026-04-29T23:57:27Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/45#issuecomment-4348373624",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAy94qA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #45 addresses #43 by allowing `/orchestrate` on merged or closed PRs to turn concrete follow-up patch requests into fresh issue-backed implementation work.\n- It adds closed-PR request classification, follow-up issue creation, source PR comments, implement dispatch, source comment URL forwarding, docs, and regression coverage.\n- The intended behavior matches the issue’s acceptance criteria: concrete code follow-ups should continue against `main`, while ambiguous closed-PR requests should stop visibly.\n- The main remaining risk is operational idempotency during reruns, cancellations, or failed dispatches.\n\n## Review\n- The implementation is directionally correct and keeps delegated `implement` authorization in front of the new side effect.\n- However, the follow-up issue is created before the existing handoff dedupe path can use a stable target, so normal workflow reruns can duplicate issues and dispatches.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Follow-up issue creation is not idempotent | BLOCKING | The new closed-PR path creates an issue before the handoff marker/dedupe block runs, and the dedupe key later uses the newly-created issue number. Rerunning the same orchestration can create another issue and dispatch again instead of finding the prior handoff. |\n\n## Progress\n- The PR already adds docs for closed/merged PR follow-up orchestration.\n- It adds happy-path coverage for creating a follow-up issue and dispatching `implement`.\n- It adds coverage that delegated `implement` authorization is checked before issue creation.\n- I posted one inline comment on `.agent/src/cli/orchestrate-handoff.ts` line 310 for the blocking idempotency issue.\n\n## Issue Details\n\n<details>\n<summary>Follow-up issue creation is not idempotent</summary>\n\n**Cause:** `createFollowupIssueForClosedPr(targetNumber)` runs inside `decideManualOrchestration()` before the existing handoff dedupe block. Because the returned decision points at the newly-created issue, the dedupe key and marker lookup are based on a fresh issue number each time.\n\n**Candidate solutions:** Make the closed-PR follow-up destination stable before creating a new issue. For example, find/reuse an existing source PR/comment marker, create a deterministic marker on the source PR before side effects, or otherwise record enough state on the source target to recover the prior follow-up issue before creating another one. Add a regression test that rerunning the same closed-PR follow-up does not create a second issue or dispatch.\n\n**Comments:** This matters for normal GitHub Actions behavior: reruns, cancellations, and failures after issue creation but before/around dispatch should not duplicate user-visible work.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the unresolved issue requires a concrete branch change and is safe for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Make closed-PR follow-up issue creation idempotent before side effects and add rerun regression coverage.",
+      "createdAt": "2026-04-30T00:01:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/45#issuecomment-4348410024",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAy-R1g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `review` -> `fix-pr` (round 4/10).\n\nagent planner selected fix-pr: Latest review synthesis verdict is NEEDS_REWORK with Recommended Next Step FIX_PR; the unresolved issue is a concrete blocking idempotency bug safe for automated repair.\n\n<!-- sepo-agent-handoff state:dispatched created:1777507331633 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxNDAwNjc0NzI6cmV2aWV3OjQ1OmZpeF9wcjo0NTo0 -->",
+      "createdAt": "2026-04-30T00:02:10Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/45#issuecomment-4348416470",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAzA9pg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-43/codex-25139861026`. Requested by @lolipopshock.\n\n- Made closed/merged PR follow-up issue creation idempotent by recording a stable source-PR follow-up marker before creating the issue.\n- Reruns now reuse the recorded follow-up issue and let the existing handoff marker dedupe prevent duplicate dispatches.\n- Added regression coverage for rerunning the same closed-PR follow-up without creating a second issue or dispatch.\n- Verification: `npm --prefix .agent run build`; `node --test .agent/dist/__tests__/orchestrate-handoff-cli.test.js .agent/dist/__tests__/envelope.test.js`; `git diff --check`.",
+      "createdAt": "2026-04-30T00:06:35Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/45#issuecomment-4348460454",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAzpCYQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer why did the orchestration stopp in the middle ",
+      "createdAt": "2026-04-30T01:54:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/45#issuecomment-4349117025",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABAzpt0A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "It stopped after the `fix-pr` pass because the follow-up orchestrator planner failed to produce a valid planner decision.\n\nWhat happened:\n\n- The chain did continue through `implement -> review -> fix-pr`.\n- The `fix-pr` workflow succeeded and dispatched the next `agent-orchestrator.yml` run.\n- That orchestrator run was in `agent` mode, so it needed the planner to return valid JSON for the next handoff.\n- The planner tried to run `gh pr view 45 ...` to inspect the latest PR state, hit an execution-permission prompt, and that prompt was aborted.\n- Because the planner response was missing/invalid, the handoff code stopped with: `Handoff stop: agent planner decision missing or invalid`.\n\nRelevant run: https://github.com/self-evolving/repo/actions/runs/25140345554\n\nRelevant code paths:\n- `fix-pr` does hand back to orchestration when `orchestration_enabled == true`: https://github.com/self-evolving/repo/blob/agent/implement-issue-43/codex-25139861026/.github/workflows/agent-fix-pr.yml#L277-L297\n- In `agent` mode, a missing planner decision becomes a stop: https://github.com/self-evolving/repo/blob/agent/implement-issue-43/codex-25139861026/.agent/src/handoff.ts#L296-L301\n- The docs describe that `agent` mode depends on planner JSON for action-originated handoffs: https://github.com/self-evolving/repo/blob/agent/implement-issue-43/codex-25139861026/.agent/docs/technical-details/agent-orchestrator.md#L72-L76\n\nSo this was not the max-round limit. It was an orchestration planner failure caused by the planner requesting a `gh` read under a permission mode that could not approve it, which then yielded no valid handoff decision.",
+      "createdAt": "2026-04-30T01:56:09Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/45#issuecomment-4349128144",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0AXlg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate ",
+      "createdAt": "2026-04-30T03:31:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/45#issuecomment-4349499286",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0AzIg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `orchestrate` -> `review` (round 2/10).\n\nmanual orchestrate start on PR; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777520028490 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxNDU4OTc1OTk6b3JjaGVzdHJhdGU6NDU6cmV2aWV3OjQ1OjI -->",
+      "createdAt": "2026-04-30T03:33:46Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/45#issuecomment-4349506338",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0BTsQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 90 | PARTIAL | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Closed-PR follow-up revalidates downstream `implement` access before issue creation/dispatch: [`orchestrate-handoff.ts#L406-L407`](https://github.com/self-evolving/repo/blob/fbf98e0872293d6d45937edbcb9ee8593f4d39b0/.agent/src/cli/orchestrate-handoff.ts#L406-L407), covered by [`orchestrate-handoff-cli.test.ts#L288-L306`](https://github.com/self-evolving/repo/blob/fbf98e0872293d6d45937edbcb9ee8593f4d39b0/.agent/src/__tests__/orchestrate-handoff-cli.test.ts#L288-L306). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Reuses existing access-policy helpers, `createIssue`, `dispatchWorkflow`, and handoff marker utilities instead of rebuilding route policy or dispatch logic. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Orchestrator docs now describe source comment URLs and closed/merged PR follow-up behavior: [`agent-orchestrator.md#L40-L74`](https://github.com/self-evolving/repo/blob/fbf98e0872293d6d45937edbcb9ee8593f4d39b0/.agent/docs/technical-details/agent-orchestrator.md#L40-L74). |\n| coding_workflow / generic | Comment on accepted workflow stops | partial | 4/6 | Ambiguous closed-PR requests get a visible source-PR stop comment: [`orchestrate-handoff.ts#L396-L403`](https://github.com/self-evolving/repo/blob/fbf98e0872293d6d45937edbcb9ee8593f4d39b0/.agent/src/cli/orchestrate-handoff.ts#L396-L403). Policy-denied concrete follow-ups return `authStop` without a visible source comment: [`orchestrate-handoff.ts#L406-L407`](https://github.com/self-evolving/repo/blob/fbf98e0872293d6d45937edbcb9ee8593f4d39b0/.agent/src/cli/orchestrate-handoff.ts#L406-L407). |\n| coding_workflow / generic | Surface stateful failures | partial | 5/7 | Dispatch failures mark handoff state failed and comment back: [`orchestrate-handoff.ts#L664-L687`](https://github.com/self-evolving/repo/blob/fbf98e0872293d6d45937edbcb9ee8593f4d39b0/.agent/src/cli/orchestrate-handoff.ts#L664-L687). However, a failure after issue creation but before updating the source marker with the issue number can still lose retry continuity: [`orchestrate-handoff.ts#L456-L484`](https://github.com/self-evolving/repo/blob/fbf98e0872293d6d45937edbcb9ee8593f4d39b0/.agent/src/cli/orchestrate-handoff.ts#L456-L484). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is limited to orchestrator runtime, workflows forwarding the new input, docs, and focused tests. |\n| coding_style / generic | Prefer simple implementations | pass | 6/7 | The implementation is direct and deterministic; the added marker/idempotency flow is more involved, but justified by rerun and duplicate-dispatch behavior. |\n\n## Notes\n\n- Strong positives: downstream authorization is checked before side effects, docs were updated with behavior changes, and regression tests cover issue creation, idempotent reruns, ambiguous-stop comments, and authorization denial.\n- Main rubric gaps are around visibility for policy stops and one narrow state-continuity failure window after creating a follow-up issue.\n\n## Findings\n\n- **WARNING:** `comment-on-accepted-workflow-stops` is only partially satisfied. A concrete closed-PR follow-up denied by delegated `implement` authorization stops without commenting on the source PR, even though the workflow accepted an explicit `/orchestrate` request.\n- **WARNING:** `surface-stateful-failures` is mostly satisfied, but if `createIssue` succeeds and the reservation marker update at [`orchestrate-handoff.ts#L477-L484`](https://github.com/self-evolving/repo/blob/fbf98e0872293d6d45937edbcb9ee8593f4d39b0/.agent/src/cli/orchestrate-handoff.ts#L477-L484) fails, the created issue number is not durably captured. A later retry can treat the targetless reservation as failed and create another issue.\n\n## Final Rubric Verdict\n\nPARTIAL",
+      "createdAt": "2026-04-30T03:35:55Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/45#issuecomment-4349514673",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0BzCg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #45 addresses #43 by allowing concrete `/orchestrate` follow-up requests on closed or merged PRs to continue as fresh issue-backed implementation work.\n- It creates a linked follow-up issue, forwards the source comment URL, dispatches `implement`, and comments back on the source PR.\n- It also stops ambiguous closed-PR orchestration requests with a visible explanation and documents the new behavior.\n- A prior blocking duplicate-issue concern was fixed by adding a stable closed-PR follow-up marker before issue creation.\n\n## Review\n- The PR is close, and the main idempotency problem from the earlier review appears fixed for normal reruns.\n- Two warning-level gaps remain: one narrow state-continuity failure window after issue creation, and one accepted-stop path that is not visible on the source PR.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Follow-up issue can be orphaned if marker update fails | WARNING | If issue creation succeeds but the source PR reservation marker update fails, a retry can lose the created issue number and later create a duplicate follow-up issue. |\n| Policy-denied closed-PR follow-ups stop silently | WARNING | Delegated `implement` authorization failures return a stop decision before creating an issue, but do not comment on the source PR even though the explicit `/orchestrate` request was accepted. |\n\n## Progress\n- The earlier blocking duplicate-dispatch issue is addressed for normal reruns by reserving and reusing a stable closed-PR follow-up marker.\n- Delegated `implement` authorization is checked before creating the follow-up issue.\n- Docs and focused tests were added for closed/merged PR follow-up orchestration.\n- Existing PR discussion already notes both remaining warning-level concerns, so I did not add duplicate inline comments.\n\n## Issue Details\n\n<details>\n<summary>Follow-up issue can be orphaned if marker update fails</summary>\n\n**Cause:** After `createFollowupIssueForClosedPr()` succeeds, the issue number is only recoverable once the reservation marker is updated with the target issue. If that update fails, the PR is left with a target-less pending marker; after TTL expiry, a retry can mark it failed and create another issue.\n\n**Candidate solutions:** Persist or recover the target issue in this failure window. Options include posting a target-bearing fallback marker/comment, searching for an existing follow-up issue that links the same source PR/comment before creating a new one, or adding a retry path around the marker update. Add regression coverage for the post-create marker-update failure.\n\n**Comments:** Both reviewers flagged this as the main remaining runtime risk.\n\n</details>\n\n<details>\n<summary>Policy-denied closed-PR follow-ups stop silently</summary>\n\n**Cause:** The closed-PR concrete follow-up path returns `authStop` immediately when delegated `implement` authorization fails, without commenting back to the source PR.\n\n**Candidate solutions:** When this accepted `/orchestrate` request is denied by downstream route policy, post a concise source-PR comment explaining that `implement` access is required and no follow-up issue was created. Add focused test coverage for the visible stop.\n\n**Comments:** This is a rubric compliance gap rather than a correctness failure in dispatch authorization.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the remaining findings are concrete branch changes and are safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Make the follow-up issue recoverable if the post-create reservation marker update fails, with regression coverage.\n- [ ] Comment on the source PR when a concrete closed-PR follow-up is denied by delegated `implement` authorization.",
+      "createdAt": "2026-04-30T03:38:21Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/45#issuecomment-4349522698",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0CYxQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `review` -> `fix-pr` (round 3/10).\n\nagent planner selected fix-pr: Source review concluded MINOR_ISSUES within round budget, so one targeted fix-pr pass is warranted for the remaining concrete branch-level review feedback.\n\n<!-- sepo-agent-handoff state:dispatched created:1777520439883 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxNDU5NTU0MTU6cmV2aWV3OjQ1OmZpeF9wcjo0NToz -->",
+      "createdAt": "2026-04-30T03:40:38Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/45#issuecomment-4349532357",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0DYbw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-43/codex-25139861026`. Requested by @lolipopshock.\n\nImplemented the follow-up fixes on the existing PR branch.\n\n- Added a fallback source-PR marker write if the reservation marker update fails after creating a follow-up issue.\n- Added visible source-PR stop comments for policy-denied closed-PR follow-ups.\n- Updated regression coverage, including `RUNNER_TEMP` isolation for the handoff CLI tests.\n\nVerification passed:\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/orchestrate-handoff-cli.test.js .agent/dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nNo commit was created.",
+      "createdAt": "2026-04-30T03:45:42Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/45#issuecomment-4349548655",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0Di6w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `fix-pr` -> `review` (round 4/10).\n\nagent planner selected review: fix-pr succeeded after addressing the latest MINOR_ISSUES review findings; one follow-up review is warranted to verify the branch changes before stopping.\n\n<!-- sepo-agent-handoff state:dispatched created:1777520784270 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxNDYxMjkzODg6Zml4X3ByOjQ1OnJldmlldzo0NTo0 -->",
+      "createdAt": "2026-04-30T03:46:22Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/45#issuecomment-4349551339",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0EbLQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #45 addresses #43 by allowing concrete `/orchestrate` follow-up requests on merged or closed PRs to continue as fresh issue-backed implementation work.\n- It creates a linked follow-up issue, forwards the source comment URL, dispatches `implement`, and comments back on the source PR.\n- It also stops ambiguous closed-PR requests visibly and documents the new behavior.\n- Prior review findings around duplicate follow-up issue creation, marker persistence, and policy-denial visibility have been addressed by follow-up fixes.\n\n## Review\n- The latest implementation is close and the prior state-continuity issues appear resolved.\n- One warning remains: the closed-PR request classifier is broad enough to turn diagnostic or ambiguous non-code requests into implementation work.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Broad keyword matching can dispatch non-code questions | WARNING | The classifier treats words like `failing`, `failure`, `test`, or `workflow` as enough to create a follow-up issue, which can misclassify diagnostic questions that should stop visibly. |\n\n## Progress\n- The earlier blocking duplicate-issue/idempotency concern was fixed with stable closed-PR follow-up markers.\n- The post-create marker update failure path now writes a fallback target-bearing marker.\n- Policy-denied concrete closed-PR follow-ups now comment on the source PR.\n- Focused verification reported by the reviewer passed: build plus `orchestrate-handoff-cli` and `envelope` tests.\n- I posted one new inline comment for the remaining classifier issue on `.agent/src/cli/orchestrate-handoff.ts` line 251.\n\n## Issue Details\n\n<details>\n<summary>Broad keyword matching can dispatch non-code questions</summary>\n\n**Cause:** `isLikelyBranchChangeRequest()` currently accepts a single broad keyword, including `failing`, `failure`, `test`, or `workflow`, after stripping the `/orchestrate` command. That can classify requests like “why is the workflow failing?” or “can you test this?” as concrete patch work.\n\n**Candidate solutions:** Tighten the predicate to require clearer change intent, add diagnostic/question exclusions, or combine verb intent with code-change terms. Add regression coverage for an ambiguous “workflow failing” style closed-PR request that should stop visibly instead of creating a follow-up issue.\n\n**Comments:** This is directly tied to #43’s acceptance criterion that ambiguous non-code requests still stop safely with a visible explanation.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the remaining finding is a concrete branch change with straightforward regression coverage and is safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Tighten closed-PR follow-up classification so ambiguous diagnostic requests do not dispatch `implement`, with regression coverage.",
+      "createdAt": "2026-04-30T03:50:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/45#issuecomment-4349565741",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0Exjw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `review` -> `fix-pr` (round 5/10).\n\nagent planner selected fix-pr: Latest review result is MINOR_ISSUES, round budget remains, and PR #45 still has concrete branch-level follow-up work after the prior fix pass.\n\n<!-- sepo-agent-handoff state:dispatched created:1777521125534 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxNDYyNzY5NzY6cmV2aWV3OjQ1OmZpeF9wcjo0NTo1 -->",
+      "createdAt": "2026-04-30T03:52:03Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/45#issuecomment-4349571471",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0FIbQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-43/codex-25139861026`. Requested by @lolipopshock.\n\nHandled the latest PR #45 orchestration feedback.\n\n- Tightened closed-PR follow-up classification so broad diagnostic wording like “why is the workflow failing?” no longer dispatches `implement`.\n- Added regression coverage that this request stops visibly and does not create an issue or dispatch.\n- Kept concrete patch requests working.\n\nVerification passed:\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/orchestrate-handoff-cli.test.js .agent/dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nNo commit was created.",
+      "createdAt": "2026-04-30T03:54:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/45#issuecomment-4349577325",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0FP_Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `fix-pr` -> `review` (round 6/10).\n\nagent planner selected review: fix-pr succeeded on PR #45 after prior MINOR_ISSUES feedback; a follow-up review should verify the latest branch changes resolved the remaining findings.\n\n<!-- sepo-agent-handoff state:dispatched created:1777521286368 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUxNDY0MjE4MzU6Zml4X3ByOjQ1OnJldmlldzo0NTo2 -->",
+      "createdAt": "2026-04-30T03:54:44Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/45#issuecomment-4349579261",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0FqWg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Delegated `implement` authorization is centralized and checked before closed-PR issue creation/dispatch, with a visible stop on denial: [`orchestrate-handoff.ts#L209-L231`](https://github.com/self-evolving/repo/blob/2b058d4f2750a49381cb6c10c5b2a1ab847b7df7/.agent/src/cli/orchestrate-handoff.ts#L209-L231), [`#L438-L445`](https://github.com/self-evolving/repo/blob/2b058d4f2750a49381cb6c10c5b2a1ab847b7df7/.agent/src/cli/orchestrate-handoff.ts#L438-L445), covered by [`orchestrate-handoff-cli.test.ts#L331-L350`](https://github.com/self-evolving/repo/blob/2b058d4f2750a49381cb6c10c5b2a1ab847b7df7/.agent/src/__tests__/orchestrate-handoff-cli.test.ts#L331-L350). |\n| coding_workflow / specific | Default follow-up orchestration to one-shot | pass | 8/8 | The change keeps orchestration continuation behind explicit orchestrator context; docs still state direct `/implement`, `/review`, and `/fix-pr` runs stop after their own workflow: [`agent-orchestrator.md#L49-L53`](https://github.com/self-evolving/repo/blob/2b058d4f2750a49381cb6c10c5b2a1ab847b7df7/.agent/docs/technical-details/agent-orchestrator.md#L49-L53). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR reuses existing access-policy helpers, `createIssue`, `dispatchWorkflow`, `gh`, and handoff marker utilities rather than embedding new policy/dispatch primitives in workflow glue: [`orchestrate-handoff.ts#L11-L29`](https://github.com/self-evolving/repo/blob/2b058d4f2750a49381cb6c10c5b2a1ab847b7df7/.agent/src/cli/orchestrate-handoff.ts#L11-L29). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Orchestrator docs now describe source comment URLs and closed/merged PR follow-up behavior: [`agent-orchestrator.md#L40-L47`](https://github.com/self-evolving/repo/blob/2b058d4f2750a49381cb6c10c5b2a1ab847b7df7/.agent/docs/technical-details/agent-orchestrator.md#L40-L47), [`#L65-L74`](https://github.com/self-evolving/repo/blob/2b058d4f2750a49381cb6c10c5b2a1ab847b7df7/.agent/docs/technical-details/agent-orchestrator.md#L65-L74). |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Ambiguous closed-PR requests and delegated-authorization denials both comment visibly on the source PR before stopping: [`orchestrate-handoff.ts#L428-L445`](https://github.com/self-evolving/repo/blob/2b058d4f2750a49381cb6c10c5b2a1ab847b7df7/.agent/src/cli/orchestrate-handoff.ts#L428-L445), tested at [`orchestrate-handoff-cli.test.ts#L197-L231`](https://github.com/self-evolving/repo/blob/2b058d4f2750a49381cb6c10c5b2a1ab847b7df7/.agent/src/__tests__/orchestrate-handoff-cli.test.ts#L197-L231) and [`#L331-L350`](https://github.com/self-evolving/repo/blob/2b058d4f2750a49381cb6c10c5b2a1ab847b7df7/.agent/src/__tests__/orchestrate-handoff-cli.test.ts#L331-L350). |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Closed-PR follow-up reservations are durable, stale reservations are failed before retry, issue-creation failures update markers, and post-create marker update failures write a fallback target-bearing marker: [`orchestrate-handoff.ts#L376-L402`](https://github.com/self-evolving/repo/blob/2b058d4f2750a49381cb6c10c5b2a1ab847b7df7/.agent/src/cli/orchestrate-handoff.ts#L376-L402), [`#L448-L520`](https://github.com/self-evolving/repo/blob/2b058d4f2750a49381cb6c10c5b2a1ab847b7df7/.agent/src/cli/orchestrate-handoff.ts#L448-L520), covered by [`orchestrate-handoff-cli.test.ts#L259-L329`](https://github.com/self-evolving/repo/blob/2b058d4f2750a49381cb6c10c5b2a1ab847b7df7/.agent/src/__tests__/orchestrate-handoff-cli.test.ts#L259-L329). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The PR is scoped to orchestrator handoff code, the two workflow inputs that forward source comment URL, orchestrator docs, and focused regression tests. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The approach is direct: classify concrete patch intent, reserve/reuse a source-PR marker, create one follow-up issue, then dispatch existing `implement`; no new workflow family or broad orchestration architecture was added. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | The docs update describes behavior and structural flow without adding a stale per-file inventory table: [`agent-orchestrator.md#L65-L77`](https://github.com/self-evolving/repo/blob/2b058d4f2750a49381cb6c10c5b2a1ab847b7df7/.agent/docs/technical-details/agent-orchestrator.md#L65-L77). |\n\n## Notes\n\n- The latest PR head addresses the earlier rubric-specific gaps: policy-denied closed-PR follow-ups now comment visibly, post-create marker persistence has fallback coverage, and diagnostic closed-PR requests stop instead of dispatching implementation.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings remain.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-04-30T03:57:03Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/45#issuecomment-4349586010",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA0F2rQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #45 addresses #43 by allowing concrete `/orchestrate` follow-up requests on merged or closed PRs to continue as fresh issue-backed implementation work.\n- It creates a linked follow-up issue, forwards the source comment URL, dispatches `implement`, and comments back on the source PR.\n- It also stops ambiguous closed-PR requests visibly, checks delegated `implement` authorization before side effects, and documents the new behavior.\n- The latest reviewer inputs agree that prior concerns around idempotency, marker persistence, policy-denial visibility, and broad diagnostic classification are resolved.\n\n## Review\n- The current head looks ready to ship. Both the code review and rubric review report no remaining actionable findings, and the focused build/test/diff-check verification passed.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | Current reviewer inputs found no BLOCKING or WARNING issues on head `2b058d4f2750a49381cb6c10c5b2a1ab847b7df7`. |\n\n## Progress\n- Earlier duplicate follow-up issue creation was addressed with stable closed-PR follow-up markers.\n- Post-create marker update failures now write a fallback target-bearing marker.\n- Delegated `implement` authorization denials now comment visibly on the source PR.\n- Broad diagnostic wording such as “why is the workflow failing?” now stops visibly instead of dispatching implementation.\n- Rubrics review now scores PASS, including authorization, docs, stateful failure handling, visible stops, and surgical scope.\n- No new inline comments were posted because the current review artifacts did not identify fresh line-specific issues.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved actionable branch-change work remains.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-04-30T03:58:10Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/45#issuecomment-4349589165",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-04-29T23:56:36Z",
+  "files": [
+    {
+      "path": ".agent/docs/technical-details/agent-orchestrator.md",
+      "additions": 7,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 3,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrate-handoff-cli.test.ts",
+      "additions": 189,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/dispatch-agent-orchestrator.ts",
+      "additions": 2,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrate-handoff.ts",
+      "additions": 346,
+      "deletions": 22,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-orchestrator.yml",
+      "additions": 5,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-router.yml",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-43/codex-25139861026",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 45,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM76boF5",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-04-30T00:01:10Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "90975c1b72a08683ae9aee2cd239652264a183d9"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM76el10",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-04-30T03:49:46Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "4c5a5d9fae35ba9821437729297dbea13c7596c8"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Handle closed PR follow-up orchestration",
+  "updatedAt": "2026-04-30T03:58:10Z",
+  "url": "https://github.com/self-evolving/repo/pull/45"
+}
