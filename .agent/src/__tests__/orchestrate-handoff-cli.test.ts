@@ -83,6 +83,10 @@ if [ "\${1-}" = "api" ] && [ "\${2-}" = "--method" ] && [ "\${3-}" = "POST" ] &&
 fi
 
 if [ "\${1-}" = "api" ] && [ "\${2-}" = "--method" ] && [ "\${3-}" = "PATCH" ] && [[ "\${4-}" == repos/*/issues/comments/* ]]; then
+  if [ "\${FAKE_PATCH_FAIL-}" = "true" ]; then
+    printf 'patch failed\\n' >&2
+    exit 1
+  fi
   exit 0
 fi
 
@@ -103,6 +107,7 @@ exit 1
         ...process.env,
         PATH: `${tempDir}:${process.env.PATH || ""}`,
         GITHUB_OUTPUT: outputPath,
+        RUNNER_TEMP: tempDir,
         GH_TOKEN: "fake-token",
         GITHUB_REPOSITORY: "self-evolving/repo",
         DEFAULT_BRANCH: "main",
@@ -162,7 +167,7 @@ test("manual orchestrate stops when round budget is exhausted", () => {
     AUTOMATION_MAX_ROUNDS: "5",
   });
 
-  assert.equal(run.status, 0);
+  assert.equal(run.status, 0, run.stderr);
   assert.equal(run.outputs.get("decision"), "stop");
   assert.equal(run.outputs.get("reason"), "automation round budget exhausted");
 });
@@ -172,7 +177,7 @@ test("manual orchestrate stops for unsupported target kind", () => {
     TARGET_KIND: "discussion",
   });
 
-  assert.equal(run.status, 0);
+  assert.equal(run.status, 0, run.stderr);
   assert.equal(run.outputs.get("decision"), "stop");
   assert.equal(run.outputs.get("reason"), "unsupported target kind discussion");
 });
@@ -184,7 +189,7 @@ test("manual orchestrate stops when PR status cannot be read", () => {
     FAKE_PR_STATUS_MODE: "missing",
   });
 
-  assert.equal(run.status, 0);
+  assert.equal(run.status, 0, run.stderr);
   assert.equal(run.outputs.get("decision"), "stop");
   assert.equal(run.outputs.get("reason"), "could not read pull request status");
 });
@@ -196,7 +201,7 @@ test("manual orchestrate stops for non-open PR targets", () => {
     FAKE_PR_STATE: "CLOSED",
   });
 
-  assert.equal(run.status, 0);
+  assert.equal(run.status, 0, run.stderr);
   assert.equal(run.outputs.get("decision"), "stop");
   assert.equal(
     run.outputs.get("reason"),
@@ -215,7 +220,7 @@ test("manual orchestrate creates an issue for closed PR code follow-ups", () => 
     SOURCE_COMMENT_URL: "https://github.com/self-evolving/repo/pull/39#issuecomment-123",
   });
 
-  assert.equal(run.status, 0);
+  assert.equal(run.status, 0, run.stderr);
   assert.equal(run.outputs.get("decision"), "dispatch");
   assert.equal(run.outputs.get("next_action"), "implement");
   assert.equal(run.outputs.get("target_number"), "88");
@@ -285,6 +290,25 @@ test("manual orchestrate reuses closed PR follow-up issue on rerun", () => {
   assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-implement\.yml\/dispatches/);
 });
 
+test("closed PR follow-ups write fallback marker when reservation update fails", () => {
+  const run = runOrchestrateHandoff({
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "39",
+    FAKE_PR_STATE: "MERGED",
+    REQUEST_TEXT: "@sepo-agent /orchestrate can you do a quick patch for that fix?",
+    SOURCE_COMMENT_URL: "https://github.com/self-evolving/repo/pull/39#issuecomment-123",
+    FAKE_PATCH_FAIL: "true",
+  });
+
+  assert.equal(run.status, 0);
+  assert.equal(run.outputs.get("decision"), "dispatch");
+  assert.equal(run.outputs.get("target_number"), "88");
+  assert.match(run.stderr, /Failed to update closed-PR follow-up marker/);
+  assert.match(run.ghLog, /issue create/);
+  assert.match(run.ghLog, /actions\/workflows\/agent-implement\.yml\/dispatches/);
+  assert.ok([...run.ghLog.matchAll(/repos\/self-evolving\/repo\/issues\/39\/comments/g)].length >= 3);
+});
+
 test("closed PR follow-ups validate implement access before creating an issue", () => {
   const run = runOrchestrateHandoff({
     TARGET_KIND: "pull_request",
@@ -302,6 +326,7 @@ test("closed PR follow-ups validate implement access before creating an issue", 
   assert.equal(run.status, 0);
   assert.equal(run.outputs.get("decision"), "stop");
   assert.equal(run.outputs.get("reason"), "implement requests currently require MEMBER access.");
+  assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/39\/comments/);
   assert.doesNotMatch(run.ghLog, /issue create/);
   assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-implement\.yml\/dispatches/);
 });

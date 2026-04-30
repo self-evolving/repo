@@ -370,6 +370,35 @@ function commentClosedPrFollowup(prNumber: string, body: string): void {
   }
 }
 
+function persistClosedPrFollowupTarget(args: {
+  reservationId: string;
+  followupKey: string;
+  prNumber: string;
+  followup: { number: string; url: string };
+  createdAtMs: number;
+}): void {
+  const markerBody = formatClosedPrFollowupMarkerComment({
+    key: args.followupKey,
+    state: "pending",
+    prNumber: args.prNumber,
+    targetNumber: args.followup.number,
+    targetUrl: args.followup.url,
+    createdAtMs: args.createdAtMs,
+  });
+  try {
+    updateIssueComment(repo, args.reservationId, markerBody);
+    return;
+  } catch (err: unknown) {
+    console.warn(`Failed to update closed-PR follow-up marker ${args.reservationId}: ${errorText(err)}`);
+  }
+
+  try {
+    createIssueComment(repo, parsePositiveTargetNumber(args.prNumber), markerBody);
+  } catch (err: unknown) {
+    throw new Error(`created follow-up issue #${args.followup.number}, but failed to persist source marker: ${errorText(err)}`);
+  }
+}
+
 function decideManualOrchestration(): HandoffDecision {
   const nextRound = currentRound + 1;
   if (currentRound >= maxRounds) {
@@ -404,7 +433,14 @@ function decideManualOrchestration(): HandoffDecision {
       }
 
       const authStop = delegatedRouteAuthorizationStop("implement", nextRound);
-      if (authStop) return authStop;
+      if (authStop) {
+        commentClosedPrFollowup(targetNumber, [
+          "Handoff stop: this pull request is no longer open.",
+          "",
+          `${authStop.reason} No follow-up issue was created.`,
+        ].join("\n"));
+        return authStop;
+      }
 
       const followupKey = buildClosedPrFollowupKey(targetNumber);
       const nowMs = Date.now();
@@ -474,14 +510,13 @@ function decideManualOrchestration(): HandoffDecision {
         }));
         return { decision: "stop", reason: "could not create follow-up issue for closed pull request", nextRound };
       }
-      updateIssueComment(repo, reservationId, formatClosedPrFollowupMarkerComment({
-        key: followupKey,
-        state: "pending",
+      persistClosedPrFollowupTarget({
+        reservationId,
+        followupKey,
         prNumber: targetNumber,
-        targetNumber: followup.number,
-        targetUrl: followup.url,
+        followup,
         createdAtMs: nowMs,
-      }));
+      });
       deferred.closedPrComment = {
         prNumber: targetNumber,
         body: [
