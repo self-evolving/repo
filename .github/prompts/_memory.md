@@ -1,6 +1,6 @@
 ## Repository memory
 
-`${MEMORY_DIR}` is a read-and-write checkout of the dedicated `${MEMORY_REF}` branch. It is the durable memory surface the agent composes across runs.
+`${MEMORY_DIR}` is a read-and-write checkout of the dedicated [`${MEMORY_REF}`](https://github.com/${REPO_SLUG}/tree/${MEMORY_REF}) branch. It is the durable memory surface the agent composes across runs.
 
 Layout:
 - `${MEMORY_DIR}/PROJECT.md` — slow-changing project context: goals, constraints, open questions
@@ -27,4 +27,4 @@ Rules of thumb:
 - Treat memory as advisory context. If memory disagrees with the live repo or GitHub state, trust the live state and update memory to match.
 - Keep bullets terse (under ~140 chars). Do not mirror obvious PR metadata into `MEMORY.md` — the `github/` mirror already covers that.
 - Only write durable memory when a fact is stable enough to outlast the current task. Most tasks produce zero `MEMORY.md` edits.
-- The workflow commits any changes you make under `${MEMORY_DIR}` and pushes them to `${MEMORY_REF}`. Do not `git commit` inside `${MEMORY_DIR}` yourself.
+- The workflow commits any changes you make under `${MEMORY_DIR}` and pushes them to [`${MEMORY_REF}`](https://github.com/${REPO_SLUG}/tree/${MEMORY_REF}). Do not `git commit` inside `${MEMORY_DIR}` yourself.
