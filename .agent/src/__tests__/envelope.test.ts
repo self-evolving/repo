@@ -209,6 +209,15 @@ test("scheduled workflows evaluate skip gates before provider-dependent jobs", (
   assert.match(dailySummaryWorkflow, /Download summary signals[\s\S]*actions\/download-artifact@v4/);
   assert.doesNotMatch(dailySummaryWorkflow, /COMMIT_COUNT/);
   assert.match(dailySummaryWorkflow, /count=\$\(\(ISSUE_COUNT \+ PULL_COUNT \+ DISCUSSION_COUNT\)\)/);
+  assert.match(
+    dailySummaryWorkflow,
+    /signals:[\s\S]*Resolve GitHub auth[\s\S]*Resolve summary discussion gate[\s\S]*discussion-post-gate[\s\S]*Setup agent runtime for activity signals/,
+  );
+  assert.match(dailySummaryWorkflow, /Setup agent runtime for activity signals\n\s+if: steps\.discussion_gate\.outputs\.skip != 'true'/);
+  assert.match(dailySummaryWorkflow, /Gather repository signals\n\s+if: steps\.discussion_gate\.outputs\.skip != 'true'/);
+  assert.match(dailySummaryWorkflow, /Upload summary signals\n\s+if: steps\.discussion_gate\.outputs\.skip != 'true' && steps\.gate\.outputs\.skip != 'true'/);
+  assert.match(dailySummaryWorkflow, /skip: \$\{\{ steps\.discussion_gate\.outputs\.skip == 'true' && 'true' \|\| steps\.gate\.outputs\.skip \}\}/);
+  assert.doesNotMatch(dailySummaryWorkflow, /daily-summary:[\s\S]*Resolve summary discussion gate/);
   assert.match(dailySummaryWorkflow, /Resolve daily summary provider[\s\S]*Setup selected provider/);
   assert.match(dailySummaryWorkflow, /discussion_category:[\s\S]*default:\s*""/);
   assert.match(
