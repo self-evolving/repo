@@ -136,6 +136,16 @@ test("formatFixPrComment formats success", () => {
   assert.match(body, /@alice/);
 });
 
+test("formatFixPrComment accepts preformatted agent handles", () => {
+  const body = formatFixPrComment({
+    status: "success",
+    branch: "feat/my-branch",
+    requestedBy: "@sepo-agent",
+  });
+  assert.match(body, /Requested by @sepo-agent\./);
+  assert.doesNotMatch(body, /@@sepo-agent/);
+});
+
 test("formatFixPrComment formats unsupported", () => {
   const body = formatFixPrComment({ status: "unsupported" });
   assert.match(body, /could not update this PR/);
