@@ -33,3 +33,4 @@
 - Do not add branch URL links in agent prompt fragments; reserve branch links for user-facing comments.
 - Daily summary discussion gate belongs after GitHub auth in signals, before signal/provider setup.
 - Project management owns managed priority/* and effort/* labels; keep urgency signals in summaries, not labels.
+- Prefer issue-backed sub-orchestrators over lane-heavy same-issue orchestration; keep parent/child state in issue metadata.
