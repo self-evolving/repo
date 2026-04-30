@@ -18,6 +18,7 @@
 | `agent-close-stale-issues.yml` | `schedule` (daily), `workflow_dispatch` | Closes open `agent` issues that have had no activity for 30 days by default | None |
 | `agent-daily-summary.yml` | `schedule` (daily), `workflow_dispatch` | Generates a concise repository activity summary and posts it as a Discussion | Auto |
 | `agent-project-manager.yml` | `schedule` (every 6h), `workflow_dispatch` | Opt-in agent-driven triage for open issues and PRs, with dry-run summaries and optional priority/effort label updates | Auto |
+| `agent-onboarding.yml` | `workflow_dispatch` | First-run setup check that creates built-in trigger labels and opens or updates a setup issue | None |
 | `test-scripts.yml` | `pull_request`, `workflow_dispatch` | CI for helper tests, YAML parsing, and shell syntax | None |
 
 `agent-orchestrator.yml` is started explicitly through `/orchestrate` or
@@ -143,6 +144,12 @@ Applying one of these labels triggers the same downstream routing stack without 
 - `agent/review`
 - `agent/orchestrate`
 - `agent/s/<skill>`
+
+Run `Agent / Onboarding / Check Setup` after installing Sepo to create the
+built-in labels. The workflow also opens or updates a `Sepo setup check` issue
+with auth/provider readiness, memory and rubrics branch status, and copyable
+commands for first test runs. Skill labels still use `agent/s/<skill>` and are
+created per skill as needed.
 
 After a label-triggered request is accepted by the router, `agent-label.yml` removes the triggering `agent/*` label so label-based runs behave like one-shot queue entries, including policy-denied requests that resolve to `unsupported`.
 
