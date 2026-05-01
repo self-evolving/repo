@@ -8,12 +8,6 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import {
-  getAllowedAssociationsForRoute,
-  isAssociationAllowedForRoute,
-  isKnownAuthorAssociation,
-  parseAccessPolicy,
-} from "../access-policy.js";
 import { dispatchWorkflow, gh } from "../github.js";
 import { setOutput } from "../output.js";
 import {
@@ -27,6 +21,7 @@ import {
   parsePlannerDecision,
   parseHandoffMarker,
 } from "../handoff.js";
+import { initialOrchestrateCapabilityStopReason } from "../orchestrator-capabilities.js";
 import { collapsePreviousHandoffComments } from "../review-summary-minimize.js";
 import {
   extractClosingIssueNumber,
@@ -55,7 +50,6 @@ interface IssueRecord {
 }
 
 const PENDING_MARKER_TTL_MS = 60 * 60 * 1000;
-const ORCHESTRATE_DELEGATED_ROUTES = ["implement", "review", "fix-pr"] as const;
 
 function positiveInt(value: string, fallback: number): number {
   const parsed = Number.parseInt(value, 10);
@@ -378,7 +372,7 @@ function resolveChildIssueForTerminal(): IssueRecord | null {
     return issue && parseSubOrchestratorMarker(issue.body) ? issue : null;
   }
   if (normalizedKind === "pull_request") {
-    const linkedIssueNumber = extractClosingIssueNumber(readPrBodyStrict(repo, targetNumber));
+    const linkedIssueNumber = extractClosingIssueNumber(readPrBodyStrict(repo, targetNumber), repo);
     if (!linkedIssueNumber) return null;
     const issue = fetchIssueStrict(repo, linkedIssueNumber);
     return issue && parseSubOrchestratorMarker(issue.body) ? issue : null;
@@ -532,34 +526,15 @@ function decideManualOrchestration(): HandoffDecision {
 }
 
 function validateInitialOrchestrateCapabilities(): HandoffDecision | null {
-  if (
-    normalizeToken(sourceAction) !== "orchestrate" ||
-    normalizeToken(sourceConclusion) !== "requested" ||
-    currentRound !== 1
-  ) {
-    return null;
-  }
-  let policy;
-  try {
-    policy = parseAccessPolicy(accessPolicyRaw);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return { decision: "stop", reason: `invalid AGENT_ACCESS_POLICY: ${msg}`, nextRound: currentRound + 1 };
-  }
-
-  const association = isKnownAuthorAssociation(sourceAssociationRaw) ? sourceAssociationRaw : "NONE";
-  for (const route of ORCHESTRATE_DELEGATED_ROUTES) {
-    if (isAssociationAllowedForRoute(policy, route, association, isPublicRepo)) {
-      continue;
-    }
-    const allowed = getAllowedAssociationsForRoute(policy, route, isPublicRepo);
-    return {
-      decision: "stop",
-      reason: `orchestrate requests require ${route} access; ${route} currently requires ${allowed.join(", ")} access.`,
-      nextRound: currentRound + 1,
-    };
-  }
-  return null;
+  const reason = initialOrchestrateCapabilityStopReason({
+    sourceAction,
+    sourceConclusion,
+    currentRound,
+    authorAssociation: sourceAssociationRaw,
+    accessPolicy: accessPolicyRaw,
+    isPublicRepo,
+  });
+  return reason ? { decision: "stop", reason, nextRound: currentRound + 1 } : null;
 }
 
 const authorizationStop = validateInitialOrchestrateCapabilities();
@@ -624,8 +599,24 @@ if (decision.decision === "delegate_issue") {
     decision.targetNumber = dispatchTargetNumber;
     setOutput("target_number", dispatchTargetNumber);
   } catch (err: unknown) {
-    console.error(errorText(err));
-    process.exit(2);
+    const message = `child issue delegation failed: ${errorText(err).slice(0, 1000)}`;
+    const stopDecision: HandoffDecision = {
+      decision: "stop",
+      reason: message,
+      nextRound: decision.nextRound,
+      targetNumber,
+    };
+    setOutput("decision", "stop");
+    setOutput("next_action", "");
+    setOutput("target_number", targetNumber);
+    setOutput("reason", message);
+    console.error(message);
+    try {
+      commentOnInitialOrchestrateStop(stopDecision);
+    } catch (commentErr: unknown) {
+      console.warn(`Failed to report child issue delegation failure: ${errorText(commentErr)}`);
+    }
+    process.exit(0);
   }
 }
 

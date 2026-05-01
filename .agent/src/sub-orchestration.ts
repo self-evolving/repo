@@ -114,13 +114,27 @@ export function formatSubOrchestrationIssueBody(input: {
   return lines.join("\n");
 }
 
-export function extractClosingIssueNumber(text: string): number | null {
-  const match = String(text || "").match(
-    /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?|implement(?:s|ed)?)\s+(?:[\w.-]+\/[\w.-]+)?#(\d+)\b/i,
-  );
-  if (!match) return null;
-  const parsed = Number.parseInt(match[1], 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+function normalizeRepoSlug(value: string): string {
+  return String(value || "").trim().toLowerCase();
+}
+
+export function extractClosingIssueNumber(text: string, currentRepo = ""): number | null {
+  const currentRepoSlug = normalizeRepoSlug(currentRepo);
+  const closingRefRe =
+    /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?|implement(?:s|ed)?)\s+(?:(?<repo>[\w.-]+\/[\w.-]+)#|#)(?<number>\d+)\b/gi;
+
+  for (const match of String(text || "").matchAll(closingRefRe)) {
+    const referencedRepo = normalizeRepoSlug(match.groups?.repo || "");
+    if (referencedRepo && referencedRepo !== currentRepoSlug) {
+      continue;
+    }
+    if (referencedRepo && !currentRepoSlug) {
+      continue;
+    }
+    const parsed = Number.parseInt(match.groups?.number || "", 10);
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  }
+  return null;
 }
 
 export function resultStateFromTerminal(input: {
@@ -132,6 +146,17 @@ export function resultStateFromTerminal(input: {
   const conclusion = input.sourceConclusion.trim().toLowerCase().replace(/[\s-]+/g, "_");
   const reason = input.reason.trim().toLowerCase();
   if (action === "review" && conclusion === "ship") return "done";
-  if (reason.includes("blocked") || reason.includes("policy") || reason.includes("malformed")) return "blocked";
+  if (
+    reason.includes("blocked") ||
+    reason.includes("policy") ||
+    reason.includes("malformed") ||
+    reason.includes("automation round budget exhausted") ||
+    reason.includes("round budget exhausted") ||
+    reason.includes("round limit") ||
+    reason.includes("max rounds") ||
+    reason.includes("maximum rounds")
+  ) {
+    return "blocked";
+  }
   return "failed";
 }

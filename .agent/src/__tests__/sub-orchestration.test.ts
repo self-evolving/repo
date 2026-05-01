@@ -54,9 +54,19 @@ test("sub-orchestration issue body records visible task and hidden marker", () =
 
 test("terminal helpers resolve closing issue references and result states", () => {
   assert.equal(extractClosingIssueNumber("Implements #76"), 76);
-  assert.equal(extractClosingIssueNumber("Fixes self-evolving/repo#76"), 76);
+  assert.equal(extractClosingIssueNumber("Fixes self-evolving/repo#76", "self-evolving/repo"), 76);
+  assert.equal(extractClosingIssueNumber("Fixes other-org/other-repo#76", "self-evolving/repo"), null);
+  assert.equal(extractClosingIssueNumber("Fixes self-evolving/repo#76"), null);
   assert.equal(extractClosingIssueNumber("No linked issue"), null);
   assert.equal(resultStateFromTerminal({ sourceAction: "review", sourceConclusion: "SHIP", reason: "" }), "done");
   assert.equal(resultStateFromTerminal({ sourceAction: "review", sourceConclusion: "failed", reason: "policy stop" }), "blocked");
+  assert.equal(
+    resultStateFromTerminal({
+      sourceAction: "implement",
+      sourceConclusion: "failed",
+      reason: "automation round budget exhausted",
+    }),
+    "blocked",
+  );
   assert.equal(resultStateFromTerminal({ sourceAction: "implement", sourceConclusion: "failed", reason: "" }), "failed");
 });

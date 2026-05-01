@@ -281,6 +281,29 @@ test("agent orchestrate delegates to a child issue without extending AgentAction
   assert.equal(inputs.base_pr, "66");
 });
 
+test("agent orchestrate reports invalid child issue reuse on the parent issue", () => {
+  const run = runOrchestrateHandoff({
+    AUTOMATION_MODE: "agent",
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "76",
+    FAKE_ISSUE_BODY: "<!-- sepo-sub-orchestrator parent:99 stage:stage-1 state:running -->",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "delegate_issue",
+      reason: "Reuse an existing child.",
+      child_stage: "stage 1",
+      child_issue_number: "77",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.match(run.outputs.get("reason") || "", /child issue delegation failed/);
+  assert.match(run.outputs.get("reason") || "", /belongs to parent #99, not #76/);
+  assert.match(run.ghLog, /issue view 77/);
+  assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/76\/comments/);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
+});
+
 test("manual orchestrate collapses old handoff comments after dispatch", () => {
   const run = runOrchestrateHandoff({
     TARGET_KIND: "issue",
@@ -403,4 +426,27 @@ test("terminal child result reports to parent and preserves terminal reruns", ()
   assert.equal(inputs.source_conclusion, "done");
   assert.equal(inputs.target_number, "76");
   assert.equal(inputs.automation_mode, "agent");
+});
+
+test("terminal child round-budget stops report blocked to the parent", () => {
+  const childBody = "<!-- sepo-sub-orchestrator parent:76 stage:stage-1 state:running parent_round:2 -->";
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "implement",
+    SOURCE_CONCLUSION: "success",
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "77",
+    AUTOMATION_MODE: "heuristics",
+    AUTOMATION_CURRENT_ROUND: "5",
+    AUTOMATION_MAX_ROUNDS: "5",
+    FAKE_ISSUE_BODY: childBody,
+  });
+
+  assert.equal(run.status, 0);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.equal(run.outputs.get("reason"), "automation round budget exhausted");
+  assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/76\/comments/);
+  assert.match(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.source_conclusion, "blocked");
+  assert.equal(inputs.target_number, "76");
 });
