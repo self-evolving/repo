@@ -1,0 +1,18 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "## Summary\n\nSubmitting a GitHub PR review with both a top-level `@sepo-agent` command and inline review comments can cause the actual agent invocation to be cancelled before it reaches the router.\n\n## Observed example\n\nOn PR #66, review `pullrequestreview-4207425242` contained:\n\n```text\n@sepo-agent /answer\n\ni haven't fully finished but can you explain to me how this function is structured? ...\n```\n\nGitHub created several Agent Entrypoint runs at the same time:\n\n- `pull_request_review` run `25205475805` — **cancelled**\n- three `pull_request_review_comment` runs — **skipped** because the inline comments did not contain a live agent mention\n\nAs a result, the review-body agent command was not picked up.\n\n## Why this happens\n\n`agent-entrypoint.yml` currently uses a concurrency group keyed mostly by target kind and target number:\n\n```yaml\nagent-${{ github.repository }}-${{ ...kind... }}-${{ ...number... }}\n```\n\nFor a PR review submission with inline comments, GitHub emits multiple webhook events nearly simultaneously:\n\n- `pull_request_review` for the top-level review body\n- `pull_request_review_comment` for each inline comment\n\nThose events all share the same PR-number-based concurrency group. Even with `cancel-in-progress: false`, GitHub Actions only keeps one pending run per concurrency group, so sibling no-mention inline-comment runs can replace/cancel the pending review-body run before it reaches `agent-router.yml`.\n\n## Impact\n\nAgent invocation from top-level PR review bodies is nondeterministic when the review also includes inline comments. Whether the agent responds depends on event ordering and whether the review-body run starts before sibling comment runs are queued.\n\nStandalone inline review comments with `@sepo-agent` are still expected to work; the problematic route is the bundled \"submit review\" path with top-level mention plus inline comments.\n\n## Suggested fix\n\nMake Agent Entrypoint concurrency event/comment/review-specific, or otherwise avoid applying target-wide concurrency before mention validation. For example, include identifiers such as:\n\n- `github.event_name`\n- `github.event.review.id` for `pull_request_review`\n- `github.event.comment.id` for comment events\n- fallback to `github.run_id` when no stable event object id exists\n\nThe goal is that no-mention sibling `pull_request_review_comment` events cannot cancel a mention-bearing `pull_request_review` event.\n\n## Acceptance criteria\n\n- Submitting a PR review with a top-level `@sepo-agent /answer` and several inline comments reliably dispatches the agent route.\n- Sibling inline review-comment events without mentions may skip, but must not cancel the top-level review-body run.\n- Add regression coverage for entrypoint concurrency key generation or equivalent workflow assertions.\n",
+  "closedAt": null,
+  "comments": [],
+  "createdAt": "2026-05-01T07:00:36Z",
+  "labels": [],
+  "number": 75,
+  "state": "OPEN",
+  "title": "Agent review-body commands can be cancelled by sibling inline review-comment events",
+  "updatedAt": "2026-05-01T07:00:36Z",
+  "url": "https://github.com/self-evolving/repo/issues/75"
+}

@@ -1,0 +1,54 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "body": "## Goal\nImplement the requested change from the agent mention.\n\n## Original request\n> I think you are right to push on the design. The current PR is solving the right product problem, but it is muddy because it overloads `orchestrate` as both a user route and an internal planner action.\n> \n> My preferred framing:\n> \n> - **`orchestrate` remains the public user route**: “coordinate work on this issue/PR.”\n> - The parent orchestrator should emit an **internal command**, not a new public route.\n> - That internal command should be named something like `delegate_issue`, `start_child_issue`, or `spawn_child_task`.\n> - The child issue then runs the normal existing `/orchestrate` flow.\n> \n> So I would avoid adding `orchestrate` to `AgentAction`. `AgentAction` currently means concrete follow-up routes like `implement`, `review`, `fix-pr` in [`handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L3). A child-issue delegation is a different kind of decision. It deserves a separate type, roughly:\n> \n> ```ts\n> type OrchestratorDecision =\n>   | { kind: \"dispatch\"; route: \"implement\" | \"review\" | \"fix-pr\"; targetNumber: string }\n>   | { kind: \"delegate_issue\"; stage: string; instructions: string; childIssueNumber?: string; baseBranch?: string; basePr?: string }\n>   | { kind: \"stop\"; reason: string }\n>   | { kind: \"blocked\"; reason: string };\n> ```\n> \n> On access: I agree with your instinct. Passing `author_association` through every child workflow is plumbing we should avoid if we can. The cleaner rule is:\n> \n> 1. At the initial `/orchestrate` request, check whether the requester is allowed to use `orchestrate`.\n> 2. If `orchestrate` can indirectly run `implement`, `review`, and `fix-pr`, then either:\n>    - require `orchestrate` access to imply access to all delegated routes, or\n>    - at orchestrator start, check the requester against the full capability set: `orchestrate + implement + review + fix-pr`.\n> 3. If not sufficient, reject the orchestrate request up front.\n> \n> That makes `orchestrate` a privileged coordinator route. Internal child dispatches then do not need to re-prove the requester’s association on every hop. We can still carry `requested_by` for audit/display, but not use downstream workflow inputs as the authorization mechanism.\n> \n> The larger design principle should be: **separate route authorization, orchestration state, and session continuity**.\n> \n> - **Authorization**: checked once at the user boundary, against the orchestration capability set.\n> - **Orchestration state**: stored in GitHub-visible state: parent issue status comment, child issue marker, child terminal report marker.\n> - **Session continuity**: best-effort LLM continuity for the same target/route/lane only. It should not be the source of truth for parent/child workflow state.\n> \n> The right architecture for this feature is probably:\n> \n> ```text\n> Parent issue #N\n>   meta orchestrator session: issue:N/orchestrator/planner\n> \n>   -> internal command: delegate_issue\n>        creates/reuses child issue #C\n>        child issue marker: parent #N, stage, state running\n> \n>   -> child issue #C\n>        normal orchestrate flow\n>        implement -> review -> fix-pr -> terminal\n> \n>   -> terminal callback\n>        resolves child issue from issue/PR\n>        posts/updates parent progress comment\n>        marks child done/blocked/failed\n>        resumes parent orchestrator\n> ```\n> \n> For tracking/session continuation, I would not solve same-issue hierarchical sessions yet. Use child issues as the boundary. That means every child has its own natural thread key because the target issue number differs. Later, if we want true hierarchical orchestrating inside the same issue, then we can add explicit lanes/chain IDs. But that is a separate design.\n> \n> So my recommendation: keep the idea, but refactor the model before merging. Rename the planner action away from `orchestrate`, remove `orchestrate` from `AgentAction`, make child delegation its own internal decision type, and move authorization to an up-front orchestration capability check.\n\n@sepo-agent /implement good analysis -- please implement a new version starting new pr\n\n## Acceptance criteria\n- Implement the requested change.\n- Preserve existing behavior unless the request requires a change.\n- Update tests or validation as needed.\n\n---\n\nRequested via issue_comment at https://github.com/self-evolving/repo/pull/66\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA8dccQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "implement requests currently require OWNER, MEMBER, COLLABORATOR, CONTRIBUTOR access.\n",
+      "createdAt": "2026-05-01T07:41:19Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/76#issuecomment-4358364273",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABA8eAVg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-76/codex-25206691018`\n- Pull request: https://github.com/self-evolving/repo/pull/77\n\nImplemented issue-backed child orchestration using an internal `delegate_issue` planner decision instead of overloading `AgentAction`, with child issue create/reuse markers, terminal report-back to parent issues, parent resume dispatch, up-front orchestrate capability checks, and visible stop comments for initial guardrail stops. Updated orchestrator prompt/docs and added regression coverage; verification: `npm test` passed in `.agent`.",
+      "createdAt": "2026-05-01T07:44:43Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/76#issuecomment-4358373462",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-01T07:34:03Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 76,
+  "state": "OPEN",
+  "title": "Better subagent orchestrate ",
+  "updatedAt": "2026-05-01T07:44:43Z",
+  "url": "https://github.com/self-evolving/repo/issues/76"
+}
