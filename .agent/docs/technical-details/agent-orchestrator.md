@@ -70,6 +70,32 @@ In `heuristics` mode, manual starts use deterministic status checks:
 - pull request target with `CHANGES_REQUESTED`: dispatch `fix-pr`
 - other open pull request targets: dispatch `review`
 
+In `agent` mode, an issue-level manual start can act as a meta-orchestrator.
+The planner may return `delegate_issue`, which is an internal command rather
+than a public route. The dispatcher creates or reuses one child issue for the
+requested stage, stores a hidden `sepo-sub-orchestrator` marker in that issue,
+and dispatches `agent-orchestrator.yml` for the child issue in heuristic mode.
+The child issue then follows the normal bounded chain of `implement`, `review`,
+and `fix-pr` runs. The public route remains `/orchestrate`; the internal command
+keeps child delegation separate from concrete follow-up actions such as
+`implement`, `review`, and `fix-pr`.
+
+Child issue metadata is intentionally GitHub-visible state, not session state.
+The parent issue keeps the meta planner session, while each child issue gets its
+own normal issue target identity. When the child reaches a terminal stop, the
+handoff dispatcher resolves the child marker from the child issue, or through a
+closing issue reference in the terminal PR body, writes a parent progress
+comment, dispatches the parent issue orchestrator in agent mode with the child
+result, and then marks the child as `done`, `blocked`, or `failed`. The progress
+comment includes a hidden resume marker so reruns can recover a pending report
+or skip an already-dispatched terminal report.
+
+Initial user-launched `/orchestrate` requests validate that the requester has
+access to the delegated route capability set before dispatching work. This keeps
+authorization at the user boundary: child and parent resume dispatches preserve
+`requested_by` for traceability, but they do not need to thread requester
+association and route policy through every downstream workflow.
+
 When an orchestrator dispatches `implement`, it forwards any explicit
 `base_branch` or `base_pr` input. `agent-implement.yml` then resolves a single
 base branch: `base_branch` is used when set, `base_pr` resolves to the open
