@@ -253,6 +253,36 @@ test("manual orchestrate dispatches implement for issue targets", () => {
   assert.equal((run.dispatchPayload?.inputs as Record<string, string>).base_pr, "12");
 });
 
+test("agent orchestrate dispatches implement directly for self-contained issue targets", () => {
+  const run = runOrchestrateHandoff({
+    AUTOMATION_MODE: "agent",
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "76",
+    BASE_BRANCH: "",
+    BASE_PR: "",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "handoff",
+      next_action: "implement",
+      reason: "The requested change is scoped to the current issue.",
+      base_branch: "planner-base",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "dispatch");
+  assert.equal(run.outputs.get("next_action"), "implement");
+  assert.equal(run.outputs.get("target_number"), "76");
+  assert.doesNotMatch(run.ghLog, /issue create/);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
+  assert.match(run.ghLog, /actions\/workflows\/agent-implement\.yml\/dispatches/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.issue_number, "76");
+  assert.equal(inputs.automation_mode, "agent");
+  assert.equal(inputs.automation_current_round, "2");
+  assert.equal(inputs.orchestration_enabled, "true");
+  assert.equal(inputs.base_branch, "planner-base");
+});
+
 test("agent orchestrate delegates to a child issue without extending AgentAction", () => {
   const run = runOrchestrateHandoff({
     AUTOMATION_MODE: "agent",

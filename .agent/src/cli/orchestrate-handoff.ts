@@ -1050,8 +1050,8 @@ try {
       ...commonInputs,
       issue_number: decision.targetNumber,
       approval_comment_url: "",
-      base_branch: baseBranch,
-      base_pr: basePr,
+      base_branch: decision.baseBranch || baseBranch,
+      base_pr: decision.basePr || basePr,
       implementation_route: "implement",
       implementation_prompt: "implement",
     });

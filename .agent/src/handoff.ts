@@ -398,6 +398,27 @@ function decideAgentHandoff(input: HandoffInput): HandoffDecision {
     return { decision: "stop", reason: "agent planner requested handoff without next_action", nextRound };
   }
 
+  const sourceAction = normalizeToken(input.sourceAction);
+  const targetKind = normalizeToken(input.targetKind || "");
+  if (sourceAction === "orchestrate" && plannerDecision.nextAction === "implement") {
+    if (targetKind && targetKind !== "issue") {
+      return { decision: "stop", reason: "issue orchestration can dispatch implement only for issue targets", nextRound };
+    }
+    if (plannerDecision.baseBranch && plannerDecision.basePr) {
+      return { decision: "stop", reason: "agent planner set both base_branch and base_pr", nextRound };
+    }
+    return {
+      decision: "dispatch",
+      nextAction: "implement",
+      targetNumber: input.targetNumber,
+      reason: `agent planner selected implement: ${plannerDecision.reason}`,
+      nextRound,
+      handoffContext: plannerDecision.handoffContext,
+      baseBranch: plannerDecision.baseBranch,
+      basePr: plannerDecision.basePr,
+    };
+  }
+
   const allowed = decideHeuristicHandoff(input);
   if (allowed.decision !== "dispatch" || !allowed.nextAction) {
     return {

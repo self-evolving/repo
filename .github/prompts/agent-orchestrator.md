@@ -26,6 +26,9 @@ these policy rules:
 - `fix-pr` may hand off to `review` only when fixes succeeded. When
   `fix-pr` reports `no_changes`, `failed`, or `verify_failed`, choose a
   visible stop/block path instead of asking for another automatic review.
+- Issue-level `orchestrate` in agent mode may return `handoff` with
+  `next_action: "implement"` to implement the current issue directly when the
+  requested work is small and self-contained within that issue.
 - Issue-level `orchestrate` in agent mode may return `delegate_issue` to
   create, reuse, or adopt one child issue and start the child issue's normal
   orchestrator flow.
@@ -41,14 +44,14 @@ rubrics. Then return exactly one JSON object and nothing else:
 ```json
 {
   "decision": "handoff | delegate_issue | stop | blocked",
-  "next_action": "review | fix-pr",
+  "next_action": "implement | review | fix-pr",
   "reason": "Short explanation for logs and the handoff marker.",
   "handoff_context": "Actionable instructions for the next action, especially fix-pr.",
   "child_stage": "Short child issue stage name when decision is delegate_issue.",
   "child_instructions": "Concrete child issue task instructions when decision is delegate_issue.",
   "child_issue_number": "Optional existing child issue number to reuse or adopt.",
-  "base_branch": "Optional branch to base child implementation PRs on.",
-  "base_pr": "Optional PR number whose head branch child implementation PRs should stack on."
+  "base_branch": "Optional branch to base implementation PRs on.",
+  "base_pr": "Optional PR number whose head branch implementation PRs should stack on."
 }
 ```
 
@@ -57,6 +60,11 @@ Rules:
   as the primary automation signal: hand off on `FIX_PR`, stop on
   `HUMAN_DECISION` or `NO_AUTOMATED_ACTION` unless newer human input overrides it.
 - Use `handoff` only when one more automatic action is clearly warranted.
+- For issue-level `orchestrate`, prefer `handoff` with `next_action:
+  "implement"` when the requested work fits in the current issue. Use
+  `delegate_issue` when a separate child issue materially helps: high-level or
+  multi-stage management, explicit decomposition, adopting an existing child
+  issue, or isolating a distinct workstream.
 - Use `delegate_issue` only for issue-level meta orchestration. Do not set
   `next_action` with `delegate_issue`; it is an internal command, not a public
   route. Provide either `child_instructions`, `handoff_context`, or

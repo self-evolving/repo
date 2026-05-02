@@ -83,6 +83,31 @@ test("agent mode supports issue-level child issue delegation", () => {
   assert.equal(decision.basePr, "66");
 });
 
+test("agent mode supports issue-level orchestrate handoff to implement", () => {
+  const decision = decideHandoff({
+    automationMode: "agent",
+    sourceAction: "orchestrate",
+    sourceConclusion: "requested",
+    targetKind: "issue",
+    targetNumber: "76",
+    currentRound: 1,
+    maxRounds: 5,
+    plannerDecision: {
+      decision: "handoff",
+      nextAction: "implement",
+      reason: "The current issue is small and self-contained.",
+      baseBranch: "feature-base",
+    },
+  });
+
+  assert.equal(decision.decision, "dispatch");
+  assert.equal(decision.nextAction, "implement");
+  assert.equal(decision.targetNumber, "76");
+  assert.equal(decision.nextRound, 2);
+  assert.match(decision.reason, /agent planner selected implement/);
+  assert.equal(decision.baseBranch, "feature-base");
+});
+
 test("agent mode rejects invalid child issue delegation", () => {
   const wrongTarget = decideHandoff({
     automationMode: "agent",
@@ -131,6 +156,26 @@ test("agent mode rejects invalid child issue delegation", () => {
   });
   assert.equal(mixedCommand.decision, "stop");
   assert.match(mixedCommand.reason, /must not set next_action/);
+});
+
+test("agent mode rejects issue-level implement handoffs for non-issue targets", () => {
+  const decision = decideHandoff({
+    automationMode: "agent",
+    sourceAction: "orchestrate",
+    sourceConclusion: "requested",
+    targetKind: "pull_request",
+    targetNumber: "76",
+    currentRound: 1,
+    maxRounds: 5,
+    plannerDecision: {
+      decision: "handoff",
+      nextAction: "implement",
+      reason: "Try to implement from a PR.",
+    },
+  });
+
+  assert.equal(decision.decision, "stop");
+  assert.match(decision.reason, /only for issue targets/);
 });
 
 test("agent mode leaves handoff context empty when planner omits it", () => {
