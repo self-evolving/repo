@@ -909,3 +909,26 @@ test("orchestrated fix-pr no_changes posts visible stop context without review h
   assert.match(run.ghLog, /No follow-up workflow was dispatched/);
   assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-review\.yml\/dispatches/);
 });
+
+test("orchestrated implement no_changes posts visible stop context without review handoff", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "implement",
+    SOURCE_CONCLUSION: "no_changes",
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "84",
+    AUTOMATION_MODE: "heuristics",
+    AUTOMATION_CURRENT_ROUND: "2",
+    SOURCE_RUN_ID: "implement-run-456",
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.equal(run.outputs.get("next_action"), "");
+  assert.match(run.outputs.get("reason") || "", /implement concluded no_changes/);
+  assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/84\/comments/);
+  assert.match(run.ghLog, /Source action: `implement`/);
+  assert.match(run.ghLog, /Source conclusion: `no_changes`/);
+  assert.match(run.ghLog, /Source run ID: `implement-run-456`/);
+  assert.match(run.ghLog, /No follow-up workflow was dispatched/);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-review\.yml\/dispatches/);
+});
