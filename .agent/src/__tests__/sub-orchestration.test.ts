@@ -4,8 +4,10 @@ import { strict as assert } from "node:assert";
 import {
   extractClosingIssueNumber,
   formatSubOrchestrationIssueBody,
+  formatSubOrchestratorChildLinkMarker,
   formatSubOrchestratorMarker,
   normalizeSubOrchestratorStage,
+  parseSubOrchestratorChildLinkMarker,
   parseSubOrchestratorMarker,
   resultStateFromTerminal,
   updateSubOrchestratorMarkerParentRound,
@@ -29,6 +31,22 @@ test("sub-orchestrator markers format, parse, and update", () => {
   assert.equal(normalizeSubOrchestratorStage("  A / B  "), "a-b");
   assert.match(updateSubOrchestratorMarkerState(marker, "done"), /state:done/);
   assert.match(updateSubOrchestratorMarkerParentRound(marker, 4), /parent_round:4/);
+});
+
+test("sub-orchestrator child link markers format and parse", () => {
+  const marker = formatSubOrchestratorChildLinkMarker({
+    parent: 76,
+    stage: "Stage One",
+    child: 77,
+  });
+
+  assert.equal(marker, "<!-- sepo-sub-orchestrator-child parent:76 stage:stage-one child:77 -->");
+  assert.deepEqual(parseSubOrchestratorChildLinkMarker(marker), {
+    parent: 76,
+    stage: "stage-one",
+    child: 77,
+  });
+  assert.equal(parseSubOrchestratorChildLinkMarker("no marker"), null);
 });
 
 test("sub-orchestration issue body records visible task and hidden marker", () => {

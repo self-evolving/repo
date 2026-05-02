@@ -7,8 +7,16 @@ export interface SubOrchestratorMarker {
   parentRound?: number;
 }
 
+export interface SubOrchestratorChildLink {
+  parent: number;
+  stage: string;
+  child: number;
+}
+
 const MARKER_PREFIX = "sepo-sub-orchestrator";
 const MARKER_RE = /<!--\s*sepo-sub-orchestrator\s+([\s\S]*?)-->/i;
+const CHILD_LINK_MARKER_PREFIX = "sepo-sub-orchestrator-child";
+const CHILD_LINK_MARKER_RE = /<!--\s*sepo-sub-orchestrator-child\s+([\s\S]*?)-->/i;
 const VALID_STATES = new Set<SubOrchestratorState>(["running", "done", "blocked", "failed"]);
 
 export function normalizeSubOrchestratorStage(value: string): string {
@@ -68,6 +76,28 @@ export function parseSubOrchestratorMarker(body: string): SubOrchestratorMarker 
     state: rawState,
     ...(parentRound ? { parentRound } : {}),
   };
+}
+
+export function formatSubOrchestratorChildLinkMarker(input: {
+  parent: number;
+  stage: string;
+  child: number;
+}): string {
+  return `<!-- ${CHILD_LINK_MARKER_PREFIX} parent:${input.parent} stage:${normalizeSubOrchestratorStage(input.stage)} child:${input.child} -->`;
+}
+
+export function parseSubOrchestratorChildLinkMarker(body: string): SubOrchestratorChildLink | null {
+  const match = String(body || "").match(CHILD_LINK_MARKER_RE);
+  if (!match) return null;
+
+  const tokens = parseMarkerTokens(match[1] || "");
+  const parent = parsePositiveInteger(tokens.get("parent"));
+  const stageToken = tokens.get("stage");
+  const stage = stageToken ? normalizeSubOrchestratorStage(stageToken) : "";
+  const child = parsePositiveInteger(tokens.get("child"));
+  if (!parent || !stage || !child) return null;
+
+  return { parent, stage, child };
 }
 
 export function updateSubOrchestratorMarkerState(body: string, state: SubOrchestratorState): string {

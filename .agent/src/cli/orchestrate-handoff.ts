@@ -26,7 +26,9 @@ import { collapsePreviousHandoffComments } from "../review-summary-minimize.js";
 import {
   extractClosingIssueNumber,
   formatSubOrchestrationIssueBody,
+  formatSubOrchestratorChildLinkMarker,
   normalizeSubOrchestratorStage,
+  parseSubOrchestratorChildLinkMarker,
   parseSubOrchestratorMarker,
   resultStateFromTerminal,
   updateSubOrchestratorMarkerParentRound,
@@ -249,6 +251,33 @@ function findExistingSubOrchestrationIssue(repoSlug: string, parentIssue: number
   return null;
 }
 
+function findRecordedSubOrchestrationIssue(repoSlug: string, parentIssue: number, stage: string): IssueRecord | null {
+  const expectedStage = normalizeSubOrchestratorStage(stage);
+  const comments = fetchIssueComments(repoSlug, parentIssue);
+  for (const comment of comments.reverse()) {
+    const link = parseSubOrchestratorChildLinkMarker(comment.body || "");
+    if (!link || link.parent !== parentIssue || link.stage !== expectedStage) continue;
+
+    const existing = fetchIssue(repoSlug, link.child);
+    if (!existing) throw new Error(`Could not read recorded child issue #${link.child}`);
+    validateReusableChildIssue(existing, parentIssue, stage);
+    return existing;
+  }
+  return null;
+}
+
+function recordSubOrchestrationIssue(repoSlug: string, parentIssue: number, stage: string, childIssue: number): void {
+  createIssueComment(
+    repoSlug,
+    parentIssue,
+    [
+      `Sub-orchestrator child selected for ${normalizeSubOrchestratorStage(stage)}: #${childIssue}`,
+      "",
+      formatSubOrchestratorChildLinkMarker({ parent: parentIssue, stage, child: childIssue }),
+    ].join("\n"),
+  );
+}
+
 function validateReusableChildIssue(existing: IssueRecord, parentIssue: number, stage: string): void {
   const marker = parseSubOrchestratorMarker(existing.body);
   const expectedStage = normalizeSubOrchestratorStage(stage);
@@ -286,13 +315,22 @@ function ensureSubOrchestrationIssue(decision: HandoffDecision): string {
     validateReusableChildIssue(existing, parentIssue, stage);
     const updatedBody = updateSubOrchestratorMarkerParentRound(existing.body, parentRound);
     if (updatedBody !== existing.body) updateIssueBody(repo, existing.number, updatedBody);
+    recordSubOrchestrationIssue(repo, parentIssue, stage, existing.number);
     return String(existingIssueNumber);
+  }
+
+  const recordedIssue = findRecordedSubOrchestrationIssue(repo, parentIssue, stage);
+  if (recordedIssue) {
+    const updatedBody = updateSubOrchestratorMarkerParentRound(recordedIssue.body, parentRound);
+    if (updatedBody !== recordedIssue.body) updateIssueBody(repo, recordedIssue.number, updatedBody);
+    return String(recordedIssue.number);
   }
 
   const reusableIssue = findExistingSubOrchestrationIssue(repo, parentIssue, stage);
   if (reusableIssue) {
     const updatedBody = updateSubOrchestratorMarkerParentRound(reusableIssue.body, parentRound);
     if (updatedBody !== reusableIssue.body) updateIssueBody(repo, reusableIssue.number, updatedBody);
+    recordSubOrchestrationIssue(repo, parentIssue, stage, reusableIssue.number);
     return String(reusableIssue.number);
   }
 
@@ -308,6 +346,7 @@ function ensureSubOrchestrationIssue(decision: HandoffDecision): string {
   const createdUrl = createIssueFromBody(repo, title, body);
   const createdNumber = parseIssueNumberFromUrl(createdUrl);
   if (!createdNumber) throw new Error(`Could not parse created child issue URL: ${createdUrl}`);
+  recordSubOrchestrationIssue(repo, parentIssue, stage, parsePositiveTargetNumber(createdNumber));
   return createdNumber;
 }
 

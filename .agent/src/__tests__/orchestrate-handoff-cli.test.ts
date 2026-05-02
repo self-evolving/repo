@@ -281,6 +281,37 @@ test("agent orchestrate delegates to a child issue without extending AgentAction
   assert.equal(inputs.base_pr, "66");
 });
 
+test("agent orchestrate reuses parent-recorded child issue before search", () => {
+  const run = runOrchestrateHandoff({
+    AUTOMATION_MODE: "agent",
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "76",
+    FAKE_ISSUE_BODY: "<!-- sepo-sub-orchestrator parent:76 stage:stage-1 state:running -->",
+    FAKE_ISSUE_COMMENTS_JSON: JSON.stringify([
+      {
+        id: "parent-child-link",
+        body: "<!-- sepo-sub-orchestrator-child parent:76 stage:stage-1 child:77 -->",
+      },
+    ]),
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "delegate_issue",
+      reason: "Retry delegated stage.",
+      child_stage: "stage 1",
+      child_instructions: "Implement the delegated stage.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "delegate_issue");
+  assert.equal(run.outputs.get("target_number"), "77");
+  assert.match(run.ghLog, /issue view 77/);
+  assert.doesNotMatch(run.ghLog, /issue list/);
+  assert.doesNotMatch(run.ghLog, /issue create/);
+  assert.match(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.target_number, "77");
+});
+
 test("agent orchestrate reports invalid child issue reuse on the parent issue", () => {
   const run = runOrchestrateHandoff({
     AUTOMATION_MODE: "agent",
