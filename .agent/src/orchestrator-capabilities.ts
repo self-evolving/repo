@@ -5,8 +5,16 @@ import {
   parseAccessPolicy,
 } from "./access-policy.js";
 
+/**
+ * Concrete routes that an initial `/orchestrate` request may launch directly or
+ * through issue-level delegation.
+ */
 export const ORCHESTRATE_DELEGATED_ROUTES = ["implement", "review", "fix-pr"] as const;
 
+/**
+ * Requester and policy context needed to decide whether an initial
+ * `/orchestrate` start can use the full delegated route capability set.
+ */
 export interface InitialOrchestrateCapabilityInput {
   sourceAction: string;
   sourceConclusion: string;
@@ -20,6 +28,11 @@ function normalizeToken(value: string): string {
   return String(value || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
 }
 
+/**
+ * Returns a user-visible stop reason when an initial `/orchestrate` request
+ * lacks delegated route capability. Returns an empty string when the check does
+ * not apply or the requester is authorized.
+ */
 export function initialOrchestrateCapabilityStopReason(input: InitialOrchestrateCapabilityInput): string {
   if (
     normalizeToken(input.sourceAction) !== "orchestrate" ||
