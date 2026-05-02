@@ -57,6 +57,82 @@ test("agent mode validates planner handoff against policy", () => {
   );
 });
 
+test("agent mode supports issue-level child issue delegation", () => {
+  const decision = decideHandoff({
+    automationMode: "agent",
+    sourceAction: "orchestrate",
+    sourceConclusion: "requested",
+    targetKind: "issue",
+    targetNumber: "76",
+    currentRound: 1,
+    maxRounds: 5,
+    plannerDecision: {
+      decision: "delegate_issue",
+      reason: "Split the work into a child task.",
+      childStage: "stage 1",
+      childInstructions: "Implement the first stage.",
+      basePr: "66",
+    },
+  });
+
+  assert.equal(decision.decision, "delegate_issue");
+  assert.equal(decision.nextAction, undefined);
+  assert.equal(decision.targetNumber, "76");
+  assert.equal(decision.childStage, "stage 1");
+  assert.equal(decision.childInstructions, "Implement the first stage.");
+  assert.equal(decision.basePr, "66");
+});
+
+test("agent mode rejects invalid child issue delegation", () => {
+  const wrongTarget = decideHandoff({
+    automationMode: "agent",
+    sourceAction: "orchestrate",
+    sourceConclusion: "requested",
+    targetKind: "pull_request",
+    targetNumber: "66",
+    currentRound: 1,
+    maxRounds: 5,
+    plannerDecision: {
+      decision: "delegate_issue",
+      reason: "Try from a PR.",
+      childInstructions: "Do it.",
+    },
+  });
+  assert.equal(wrongTarget.decision, "stop");
+  assert.match(wrongTarget.reason, /only from issues/);
+
+  const missingInstructions = decideHandoff({
+    automationMode: "agent",
+    sourceAction: "orchestrate",
+    sourceConclusion: "requested",
+    targetKind: "issue",
+    targetNumber: "76",
+    currentRound: 1,
+    maxRounds: 5,
+    plannerDecision: { decision: "delegate_issue", reason: "No task." },
+  });
+  assert.equal(missingInstructions.decision, "stop");
+  assert.match(missingInstructions.reason, /without child instructions/);
+
+  const mixedCommand = decideHandoff({
+    automationMode: "agent",
+    sourceAction: "orchestrate",
+    sourceConclusion: "requested",
+    targetKind: "issue",
+    targetNumber: "76",
+    currentRound: 1,
+    maxRounds: 5,
+    plannerDecision: {
+      decision: "delegate_issue",
+      nextAction: "review",
+      reason: "Mixed command.",
+      childInstructions: "Do it.",
+    },
+  });
+  assert.equal(mixedCommand.decision, "stop");
+  assert.match(mixedCommand.reason, /must not set next_action/);
+});
+
 test("agent mode leaves handoff context empty when planner omits it", () => {
   const decision = decideHandoff({
     automationMode: "agent",
@@ -338,6 +414,19 @@ test("parsePlannerDecision reads planner JSON", () => {
       '{"decision":"handoff","nextAction":"fix-pr","reason":"Alias.","handoffContext":"camel case works"}',
     )?.handoffContext,
     "camel case works",
+  );
+  assert.deepEqual(
+    parsePlannerDecision(
+      '{"decision":"delegate_issue","reason":"Delegate.","child_stage":"Stage One","child_instructions":"Do one thing.","base_pr":"12"}',
+    ),
+    {
+      decision: "delegate_issue",
+      nextAction: undefined,
+      reason: "Delegate.",
+      childStage: "Stage One",
+      childInstructions: "Do one thing.",
+      basePr: "12",
+    },
   );
   assert.equal(parsePlannerDecision("not json"), null);
   assert.equal(parsePlannerDecision('{"decision":"handoff","next_action":"deploy"}')?.nextAction, undefined);

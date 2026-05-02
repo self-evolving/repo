@@ -5,13 +5,9 @@
 //      SESSION_BUNDLE_MODE, SOURCE_RUN_ID, PLANNER_RESPONSE_FILE, TARGET_KIND,
 //      BASE_BRANCH, BASE_PR, AGENT_COLLAPSE_OLD_REVIEWS
 
-import { readFileSync } from "node:fs";
-import {
-  getAllowedAssociationsForRoute,
-  isAssociationAllowedForRoute,
-  isKnownAuthorAssociation,
-  parseAccessPolicy,
-} from "../access-policy.js";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { dispatchWorkflow, gh } from "../github.js";
 import { setOutput } from "../output.js";
 import {
@@ -25,15 +21,36 @@ import {
   parsePlannerDecision,
   parseHandoffMarker,
 } from "../handoff.js";
+import { initialOrchestrateCapabilityStopReason } from "../orchestrator-capabilities.js";
 import { collapsePreviousHandoffComments } from "../review-summary-minimize.js";
+import {
+  extractClosingIssueNumber,
+  formatSubOrchestrationIssueBody,
+  formatSubOrchestratorChildLinkMarker,
+  normalizeSubOrchestratorStage,
+  parseSubOrchestratorChildLinkMarker,
+  parseSubOrchestratorMarker,
+  resultStateFromTerminal,
+  updateSubOrchestratorMarkerParentRound,
+  updateSubOrchestratorMarkerState,
+  type SubOrchestratorState,
+} from "../sub-orchestration.js";
 
 interface CommentRecord {
   id?: string | number;
   body?: string;
+  authorLogin?: string;
 }
 
 interface HandoffMarkerRecord extends HandoffMarkerInfo {
   id: string;
+}
+
+interface IssueRecord {
+  number: number;
+  title: string;
+  body: string;
+  authorLogin?: string;
 }
 
 const PENDING_MARKER_TTL_MS = 60 * 60 * 1000;
@@ -48,6 +65,19 @@ function parsePositiveTargetNumber(value: string): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 }
 
+function parseOptionalChildIssueNumber(value: string | undefined): number {
+  const text = String(value || "").trim();
+  if (!text) return 0;
+  if (!/^\d+$/.test(text)) {
+    throw new Error(`child_issue_number must be a positive issue number: ${text}`);
+  }
+  const parsed = Number.parseInt(text, 10);
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+    throw new Error(`child_issue_number must be a positive issue number: ${text}`);
+  }
+  return parsed;
+}
+
 function errorText(err: unknown): string {
   const record = err as { message?: unknown; stderr?: unknown; stdout?: unknown };
   return [record.message, record.stderr, record.stdout]
@@ -59,10 +89,58 @@ function errorText(err: unknown): string {
     .join("\n") || String(err);
 }
 
+function extractLogin(value: unknown): string {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return "";
+  const login = (value as Record<string, unknown>).login;
+  return typeof login === "string" ? login.trim() : "";
+}
+
+function authorLoginFromRecord(record: Record<string, unknown>): string {
+  return extractLogin(record.author) || extractLogin(record.user);
+}
+
+function normalizeActorLogin(value: string): string {
+  return String(value || "").trim().toLowerCase().replace(/\[bot\]$/i, "");
+}
+
+let authenticatedActorLogin: string | null = null;
+
+function fetchAuthenticatedActorLogin(): string {
+  if (authenticatedActorLogin !== null) return authenticatedActorLogin;
+  const raw = gh([
+    "api",
+    "graphql",
+    "-f",
+    "query=query ViewerLogin { viewer { login } }",
+  ]).trim();
+  const parsed = JSON.parse(raw || "{}") as {
+    data?: { viewer?: { login?: unknown } | null } | null;
+    viewer?: { login?: unknown } | null;
+  };
+  const login = String(parsed.data?.viewer?.login || parsed.viewer?.login || "").trim();
+  if (!login) throw new Error("Could not resolve authenticated GitHub actor login");
+  authenticatedActorLogin = login;
+  return authenticatedActorLogin;
+}
+
+function isTrustedActorLogin(authorLogin: string): boolean {
+  const normalizedAuthor = normalizeActorLogin(authorLogin);
+  if (!normalizedAuthor) return false;
+  return normalizedAuthor === normalizeActorLogin(fetchAuthenticatedActorLogin());
+}
+
+function isTrustedIssueRecord(issue: IssueRecord): boolean {
+  return isTrustedActorLogin(issue.authorLogin || "");
+}
+
 function normalizeCommentRecord(value: unknown): CommentRecord | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const record = value as Record<string, unknown>;
-  return { id: record.id as string | number | undefined, body: String(record.body || "") };
+  return {
+    id: record.id as string | number | undefined,
+    body: String(record.body || ""),
+    authorLogin: authorLoginFromRecord(record),
+  };
 }
 
 function fetchIssueComments(repo: string, issueNumber: number): CommentRecord[] {
@@ -95,7 +173,7 @@ function findHandoffMarkers(
   return fetchIssueComments(repo, issueNumber)
     .map((comment) => {
       const parsed = parseHandoffMarker(comment.body || "", dedupeKey);
-      if (!parsed) return null;
+      if (!parsed || !isTrustedActorLogin(comment.authorLogin || "")) return null;
       return {
         id: String(comment.id || ""),
         ...parsed,
@@ -126,6 +204,231 @@ function updateIssueComment(repo: string, commentId: string, body: string): void
     "-f",
     `body=${body}`,
   ]);
+}
+
+function fetchIssue(repoSlug: string, issueNumber: number): IssueRecord | null {
+  try {
+    return fetchIssueStrict(repoSlug, issueNumber);
+  } catch {
+    return null;
+  }
+}
+
+function fetchIssueStrict(repoSlug: string, issueNumber: number): IssueRecord {
+  const raw = gh([
+    "issue",
+    "view",
+    String(issueNumber),
+    "--repo",
+    repoSlug,
+    "--json",
+    "number,title,body,author",
+  ]).trim();
+  if (!raw) throw new Error(`empty issue response for #${issueNumber}`);
+  const parsed = JSON.parse(raw) as Record<string, unknown>;
+  return {
+    number: Number(parsed.number || issueNumber),
+    title: String(parsed.title || ""),
+    body: String(parsed.body || ""),
+    authorLogin: authorLoginFromRecord(parsed),
+  };
+}
+
+function withTempBodyFile<T>(body: string, fn: (path: string) => T): T {
+  const dir = mkdtempSync(join(tmpdir(), "sepo-sub-orchestrator-"));
+  try {
+    const file = join(dir, "body.md");
+    writeFileSync(file, body, "utf8");
+    return fn(file);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+function updateIssueBody(repoSlug: string, issueNumber: number, body: string): void {
+  withTempBodyFile(body, (bodyFile) => {
+    gh(["issue", "edit", String(issueNumber), "--repo", repoSlug, "--body-file", bodyFile]);
+  });
+}
+
+function createIssueFromBody(repoSlug: string, title: string, body: string): string {
+  return withTempBodyFile(body, (bodyFile) => gh([
+    "issue",
+    "create",
+    "--repo",
+    repoSlug,
+    "--title",
+    title,
+    "--body-file",
+    bodyFile,
+  ]).trim());
+}
+
+function parseIssueNumberFromUrl(url: string): string {
+  const match = String(url || "").trim().match(/\/issues\/(\d+)(?:\D*)?$/);
+  return match ? match[1] : "";
+}
+
+function findExistingSubOrchestrationIssue(repoSlug: string, parentIssue: number, stage: string): IssueRecord | null {
+  const expectedStage = normalizeSubOrchestratorStage(stage);
+  const raw = gh([
+    "issue",
+    "list",
+    "--repo",
+    repoSlug,
+    "--state",
+    "open",
+    "--search",
+    "sepo-sub-orchestrator",
+    "--json",
+    "number,title,body,author",
+    "--limit",
+    "100",
+  ]).trim();
+  const parsed = JSON.parse(raw || "[]") as unknown;
+  if (!Array.isArray(parsed)) {
+    throw new Error("could not parse existing sub-orchestrator issue search results");
+  }
+  for (const entry of parsed) {
+    if (!entry || typeof entry !== "object") continue;
+    const record = entry as Record<string, unknown>;
+    const number = parsePositiveTargetNumber(String(record.number || ""));
+    const body = String(record.body || "");
+    const marker = parseSubOrchestratorMarker(body);
+    if (number && marker?.parent === parentIssue && marker.stage === expectedStage && marker.state === "running") {
+      const issue: IssueRecord = {
+        number,
+        title: String(record.title || ""),
+        body,
+        authorLogin: authorLoginFromRecord(record),
+      };
+      if (isTrustedIssueRecord(issue)) return issue;
+    }
+  }
+  return null;
+}
+
+function findRecordedSubOrchestrationIssue(repoSlug: string, parentIssue: number, stage: string): IssueRecord | null {
+  const expectedStage = normalizeSubOrchestratorStage(stage);
+  const comments = fetchIssueComments(repoSlug, parentIssue);
+  for (const comment of [...comments].reverse()) {
+    const link = parseSubOrchestratorChildLinkMarker(comment.body || "");
+    if (!link || link.parent !== parentIssue || link.stage !== expectedStage) continue;
+    if (!isTrustedActorLogin(comment.authorLogin || "")) continue;
+
+    const existing = fetchIssue(repoSlug, link.child);
+    if (!existing) throw new Error(`Could not read recorded child issue #${link.child}`);
+    validateReusableChildIssue(existing, parentIssue, stage);
+    return existing;
+  }
+  return null;
+}
+
+function hasRecordedSubOrchestrationIssue(
+  repoSlug: string,
+  parentIssue: number,
+  stage: string,
+  childIssue: number,
+): boolean {
+  const expectedStage = normalizeSubOrchestratorStage(stage);
+  return fetchIssueComments(repoSlug, parentIssue).some((comment) => {
+    const link = parseSubOrchestratorChildLinkMarker(comment.body || "");
+    return Boolean(
+      link &&
+      link.parent === parentIssue &&
+      link.stage === expectedStage &&
+      link.child === childIssue &&
+      isTrustedActorLogin(comment.authorLogin || ""),
+    );
+  });
+}
+
+function recordSubOrchestrationIssue(repoSlug: string, parentIssue: number, stage: string, childIssue: number): void {
+  if (hasRecordedSubOrchestrationIssue(repoSlug, parentIssue, stage, childIssue)) return;
+  createIssueComment(
+    repoSlug,
+    parentIssue,
+    [
+      `Sub-orchestrator child selected for ${normalizeSubOrchestratorStage(stage)}: #${childIssue}`,
+      "",
+      formatSubOrchestratorChildLinkMarker({ parent: parentIssue, stage, child: childIssue }),
+    ].join("\n"),
+  );
+}
+
+function validateReusableChildIssue(existing: IssueRecord, parentIssue: number, stage: string): void {
+  const marker = parseSubOrchestratorMarker(existing.body);
+  const expectedStage = normalizeSubOrchestratorStage(stage);
+  if (!isTrustedIssueRecord(existing)) {
+    throw new Error(`child issue #${existing.number} was not created by the authenticated agent`);
+  }
+  if (!marker) {
+    throw new Error(`child issue #${existing.number} is missing a sepo-sub-orchestrator marker`);
+  }
+  if (marker.parent !== parentIssue) {
+    throw new Error(`child issue #${existing.number} belongs to parent #${marker.parent}, not #${parentIssue}`);
+  }
+  if (marker.stage !== expectedStage) {
+    throw new Error(`child issue #${existing.number} is stage ${marker.stage}, not ${expectedStage}`);
+  }
+  if (marker.state !== "running") {
+    throw new Error(`child issue #${existing.number} is ${marker.state}, not reusable`);
+  }
+}
+
+function ensureSubOrchestrationIssue(decision: HandoffDecision): string {
+  const parentIssue = parsePositiveTargetNumber(targetNumber);
+  if (!parentIssue) throw new Error(`Invalid parent issue number: ${targetNumber}`);
+  const effectiveBaseBranch = decision.baseBranch || baseBranch;
+  const effectiveBasePr = decision.basePr || basePr;
+  if (effectiveBaseBranch && effectiveBasePr) {
+    throw new Error("set only one of base_branch or base_pr for child orchestration");
+  }
+
+  const stage = decision.childStage || `stage-${decision.nextRound - 1}`;
+  const instructions = decision.childInstructions || decision.handoffContext || requestText;
+  const existingIssueNumber = parseOptionalChildIssueNumber(decision.childIssueNumber);
+  const parentRound = decision.nextRound;
+
+  if (existingIssueNumber) {
+    const existing = fetchIssue(repo, existingIssueNumber);
+    if (!existing) throw new Error(`Could not read child issue #${existingIssueNumber}`);
+    validateReusableChildIssue(existing, parentIssue, stage);
+    const updatedBody = updateSubOrchestratorMarkerParentRound(existing.body, parentRound);
+    if (updatedBody !== existing.body) updateIssueBody(repo, existing.number, updatedBody);
+    recordSubOrchestrationIssue(repo, parentIssue, stage, existing.number);
+    return String(existingIssueNumber);
+  }
+
+  const recordedIssue = findRecordedSubOrchestrationIssue(repo, parentIssue, stage);
+  if (recordedIssue) {
+    const updatedBody = updateSubOrchestratorMarkerParentRound(recordedIssue.body, parentRound);
+    if (updatedBody !== recordedIssue.body) updateIssueBody(repo, recordedIssue.number, updatedBody);
+    return String(recordedIssue.number);
+  }
+
+  const reusableIssue = findExistingSubOrchestrationIssue(repo, parentIssue, stage);
+  if (reusableIssue) {
+    const updatedBody = updateSubOrchestratorMarkerParentRound(reusableIssue.body, parentRound);
+    if (updatedBody !== reusableIssue.body) updateIssueBody(repo, reusableIssue.number, updatedBody);
+    recordSubOrchestrationIssue(repo, parentIssue, stage, reusableIssue.number);
+    return String(reusableIssue.number);
+  }
+
+  const title = `Sub-orchestrator: ${stage}`;
+  const body = formatSubOrchestrationIssueBody({
+    parentIssue,
+    stage,
+    taskInstructions: instructions,
+    baseBranch: effectiveBaseBranch,
+    basePr: effectiveBasePr,
+    parentRound,
+  });
+  const createdUrl = createIssueFromBody(repo, title, body);
+  const createdNumber = parseIssueNumberFromUrl(createdUrl);
+  if (!createdNumber) throw new Error(`Could not parse created child issue URL: ${createdUrl}`);
+  recordSubOrchestrationIssue(repo, parentIssue, stage, parsePositiveTargetNumber(createdNumber));
+  return createdNumber;
 }
 
 const repo = process.env.GITHUB_REPOSITORY || "";
@@ -186,6 +489,141 @@ function readPrStatus(repoSlug: string, prNumber: string): { state: string; revi
   }
 }
 
+function readPrBodyStrict(repoSlug: string, prNumber: string): string {
+  const raw = gh(["pr", "view", prNumber, "--repo", repoSlug, "--json", "body"]).trim();
+  if (!raw) throw new Error(`empty pull request response for #${prNumber}`);
+  const parsed = JSON.parse(raw) as Record<string, unknown>;
+  return String(parsed.body || "");
+}
+
+function resolveChildIssueForTerminal(): IssueRecord | null {
+  const normalizedKind = normalizeToken(sourceTargetKind);
+  const currentNumber = parsePositiveTargetNumber(targetNumber);
+  if (!repo || !currentNumber) return null;
+  if (normalizedKind === "issue") {
+    const issue = fetchIssueStrict(repo, currentNumber);
+    return issue && isTrustedIssueRecord(issue) && parseSubOrchestratorMarker(issue.body) ? issue : null;
+  }
+  if (normalizedKind === "pull_request") {
+    const linkedIssueNumber = extractClosingIssueNumber(readPrBodyStrict(repo, targetNumber), repo);
+    if (!linkedIssueNumber) return null;
+    const issue = fetchIssueStrict(repo, linkedIssueNumber);
+    return issue && isTrustedIssueRecord(issue) && parseSubOrchestratorMarker(issue.body) ? issue : null;
+  }
+  return null;
+}
+
+function reportTerminalToParent(decision: HandoffDecision): void {
+  const childIssue = resolveChildIssueForTerminal();
+  if (!childIssue) return;
+  const marker = parseSubOrchestratorMarker(childIssue.body);
+  if (!marker || !["running", "done", "blocked", "failed"].includes(marker.state)) return;
+
+  const resultState = marker.state === "running" ? resultStateFromTerminal({
+    sourceAction,
+    sourceConclusion,
+    reason: decision.reason,
+  }) : marker.state;
+  const parentRound = marker.parentRound || 1;
+  const result = resultState === "done" ? "SHIP" : resultState.toUpperCase();
+  const prLine = normalizeToken(sourceTargetKind) === "pull_request" ? `PR: #${targetNumber}\n` : "";
+  const progressMarkerPrefix = `sepo-sub-orchestrator-report child:${childIssue.number}`;
+  const pendingProgressMarker = `<!-- ${progressMarkerPrefix} resume:pending -->`;
+  const dispatchedProgressMarker = `<!-- ${progressMarkerPrefix} resume:dispatched -->`;
+  const progressLines = [
+    `Sub-orchestrator ${marker.stage} finished`,
+    "",
+    `Child issue: #${childIssue.number}`,
+    prLine.trim(),
+    `Result: ${result}`,
+    `Parent round: ${parentRound}/${maxRounds}`,
+    `Summary: ${decision.reason}`,
+    "Next: waiting for meta orchestrator",
+    "",
+  ].filter(Boolean);
+
+  const progressComments = fetchIssueComments(repo, marker.parent).filter((comment) =>
+    String(comment.body || "").includes(progressMarkerPrefix) && isTrustedActorLogin(comment.authorLogin || "")
+  );
+  const existingProgress = progressComments[progressComments.length - 1];
+  const progressWasDispatched = String(existingProgress?.body || "").includes(dispatchedProgressMarker);
+  if (marker.state !== "running" && progressWasDispatched) {
+    return;
+  }
+  let progressCommentId = existingProgress?.id ? String(existingProgress.id) : "";
+  const writeProgress = (progressMarker: string): void => {
+    const progressBody = [...progressLines, progressMarker].join("\n");
+    if (progressCommentId) {
+      updateIssueComment(repo, progressCommentId, progressBody);
+    } else {
+      progressCommentId = createIssueComment(repo, marker.parent, progressBody);
+    }
+  };
+
+  if (!progressWasDispatched) {
+    writeProgress(pendingProgressMarker);
+
+    dispatchWorkflow(repo, "agent-orchestrator.yml", ref, {
+      source_action: "orchestrate",
+      source_conclusion: resultState,
+      source_run_id: sourceRunId,
+      target_kind: "issue",
+      target_number: String(marker.parent),
+      requested_by: requestedBy,
+      request_text: `Child issue #${childIssue.number} finished with ${result}: ${decision.reason}`,
+      automation_mode: "agent",
+      automation_current_round: String(parentRound),
+      automation_max_rounds: String(maxRounds),
+      session_bundle_mode: sessionBundleMode,
+      base_branch: baseBranch,
+      base_pr: basePr,
+    });
+
+    writeProgress(dispatchedProgressMarker);
+  }
+
+  const updatedChildBody = marker.state === "running"
+    ? updateSubOrchestratorMarkerState(childIssue.body, resultState as SubOrchestratorState)
+    : childIssue.body;
+  if (updatedChildBody !== childIssue.body) {
+    updateIssueBody(repo, childIssue.number, updatedChildBody);
+  }
+}
+
+function createOrchestrateStopComment(decision: HandoffDecision): void {
+  const target = parsePositiveTargetNumber(targetNumber);
+  if (!repo || !target || !["issue", "pull_request"].includes(normalizeToken(sourceTargetKind))) {
+    return;
+  }
+  createIssueComment(
+    repo,
+    target,
+    [
+      `Sepo orchestration stopped: ${decision.reason}`,
+      "",
+      "<!-- sepo-agent-orchestrate-stop -->",
+    ].join("\n"),
+  );
+}
+
+function commentOnInitialOrchestrateStop(decision: HandoffDecision): void {
+  if (
+    normalizeToken(sourceAction) !== "orchestrate" ||
+    normalizeToken(sourceConclusion) !== "requested" ||
+    currentRound !== 1
+  ) {
+    return;
+  }
+  createOrchestrateStopComment(decision);
+}
+
+function commentOnDelegationFailure(decision: HandoffDecision): void {
+  if (normalizeToken(sourceAction) !== "orchestrate") {
+    return;
+  }
+  createOrchestrateStopComment(decision);
+}
+
 function decideManualOrchestration(): HandoffDecision {
   const nextRound = currentRound + 1;
   if (currentRound >= maxRounds) {
@@ -232,48 +670,48 @@ function decideManualOrchestration(): HandoffDecision {
   return { decision: "stop", reason: `unsupported target kind ${sourceTargetKind || "missing"}`, nextRound };
 }
 
-function applyDelegatedRouteAuthorization(decision: HandoffDecision): HandoffDecision {
-  if (normalizeToken(sourceAction) !== "orchestrate" || decision.decision !== "dispatch" || !decision.nextAction) {
-    return decision;
-  }
-
-  let policy;
-  try {
-    policy = parseAccessPolicy(accessPolicyRaw);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return { decision: "stop", reason: `invalid AGENT_ACCESS_POLICY: ${msg}`, nextRound: decision.nextRound };
-  }
-
-  const association = isKnownAuthorAssociation(sourceAssociationRaw) ? sourceAssociationRaw : "NONE";
-  if (isAssociationAllowedForRoute(policy, decision.nextAction, association, isPublicRepo)) {
-    return decision;
-  }
-
-  const allowed = getAllowedAssociationsForRoute(policy, decision.nextAction, isPublicRepo);
-  return {
-    decision: "stop",
-    reason: `${decision.nextAction} requests currently require ${allowed.join(", ")} access.`,
-    nextRound: decision.nextRound,
-  };
+function validateInitialOrchestrateCapabilities(): HandoffDecision | null {
+  const reason = initialOrchestrateCapabilityStopReason({
+    sourceAction,
+    sourceConclusion,
+    currentRound,
+    authorAssociation: sourceAssociationRaw,
+    accessPolicy: accessPolicyRaw,
+    isPublicRepo,
+  });
+  return reason ? { decision: "stop", reason, nextRound: currentRound + 1 } : null;
 }
 
-const routeDecision = normalizeToken(sourceAction) === "orchestrate"
-  ? decideManualOrchestration()
+const authorizationStop = validateInitialOrchestrateCapabilities();
+const routeDecision = authorizationStop || (normalizeToken(sourceAction) === "orchestrate"
+  ? automationMode === "agent" && normalizeToken(sourceTargetKind) === "issue"
+    ? decideHandoff({
+      automationMode,
+      sourceAction,
+      sourceConclusion,
+      targetKind: sourceTargetKind,
+      targetNumber,
+      nextTargetNumber: process.env.NEXT_TARGET_NUMBER || "",
+      currentRound,
+      maxRounds,
+      plannerDecision: readPlannerDecision(),
+    })
+    : decideManualOrchestration()
   : decideHandoff({
     automationMode,
     sourceAction,
     sourceConclusion,
+    targetKind: sourceTargetKind,
     targetNumber,
     nextTargetNumber: process.env.NEXT_TARGET_NUMBER || "",
     currentRound,
     maxRounds,
     plannerDecision: automationMode === "agent" ? readPlannerDecision() : null,
-  });
-const decision = applyDelegatedRouteAuthorization(routeDecision);
+  }));
+const decision = routeDecision;
 
 setOutput("decision", decision.decision);
-setOutput("next_action", decision.nextAction || "");
+setOutput("next_action", decision.decision === "delegate_issue" ? "delegate_issue" : decision.nextAction || "");
 setOutput("target_number", decision.targetNumber || "");
 setOutput("reason", decision.reason);
 setOutput("next_round", String(decision.nextRound));
@@ -282,14 +720,49 @@ setOutput("deduped", "false");
 setOutput("dedupe_key", "");
 setOutput("marker_comment_id", "");
 
-if (decision.decision !== "dispatch") {
+if (decision.decision !== "dispatch" && decision.decision !== "delegate_issue") {
   console.log(`Handoff ${decision.decision}: ${decision.reason}`);
+  try {
+    commentOnInitialOrchestrateStop(decision);
+    reportTerminalToParent(decision);
+  } catch (err: unknown) {
+    console.warn(`Failed to report terminal sub-orchestration state: ${errorText(err)}`);
+  }
   process.exit(0);
 }
 
-if (!repo || !ref || !decision.nextAction || !decision.targetNumber) {
+if (!repo || !ref || (!decision.nextAction && decision.decision !== "delegate_issue") || !decision.targetNumber) {
   console.error("Missing required dispatch context for handoff");
   process.exit(2);
+}
+
+let dispatchTargetNumber = decision.targetNumber;
+const dispatchName = decision.decision === "delegate_issue" ? "delegate_issue" : decision.nextAction || "";
+if (decision.decision === "delegate_issue") {
+  try {
+    dispatchTargetNumber = ensureSubOrchestrationIssue(decision);
+    decision.targetNumber = dispatchTargetNumber;
+    setOutput("target_number", dispatchTargetNumber);
+  } catch (err: unknown) {
+    const message = `child issue delegation failed: ${errorText(err).slice(0, 1000)}`;
+    const stopDecision: HandoffDecision = {
+      decision: "stop",
+      reason: message,
+      nextRound: decision.nextRound,
+      targetNumber,
+    };
+    setOutput("decision", "stop");
+    setOutput("next_action", "");
+    setOutput("target_number", targetNumber);
+    setOutput("reason", message);
+    console.error(message);
+    try {
+      commentOnDelegationFailure(stopDecision);
+    } catch (commentErr: unknown) {
+      console.warn(`Failed to report child issue delegation failure: ${errorText(commentErr)}`);
+    }
+    process.exit(0);
+  }
 }
 
 const dedupeKey = buildHandoffDedupeKey({
@@ -297,13 +770,13 @@ const dedupeKey = buildHandoffDedupeKey({
   sourceRunId,
   sourceAction,
   sourceTargetNumber: targetNumber,
-  nextAction: decision.nextAction,
-  nextTargetNumber: decision.targetNumber,
+  nextAction: dispatchName,
+  nextTargetNumber: dispatchTargetNumber,
   nextRound: decision.nextRound,
 });
 setOutput("dedupe_key", dedupeKey);
 
-const markerTargetNumber = parsePositiveTargetNumber(decision.targetNumber);
+const markerTargetNumber = parsePositiveTargetNumber(dispatchTargetNumber);
 if (!markerTargetNumber) {
   console.error(`Invalid handoff marker target number: ${decision.targetNumber}`);
   process.exit(2);
@@ -330,7 +803,7 @@ for (const staleMarker of existingMarkers.filter((marker) =>
       key: dedupeKey,
       state: "failed",
       sourceAction,
-      nextAction: decision.nextAction,
+      nextAction: dispatchName,
       nextRound: decision.nextRound,
       maxRounds,
       reason: decision.reason,
@@ -345,7 +818,7 @@ const pendingBody = formatHandoffMarkerComment({
   key: dedupeKey,
   state: "pending",
   sourceAction,
-  nextAction: decision.nextAction,
+  nextAction: dispatchName,
   nextRound: decision.nextRound,
   maxRounds,
   reason: decision.reason,
@@ -387,6 +860,22 @@ try {
       request_source_kind: "workflow_dispatch",
       orchestrator_context: decision.handoffContext || "",
     });
+  } else if (decision.decision === "delegate_issue") {
+    dispatchWorkflow(repo, "agent-orchestrator.yml", ref, {
+      requested_by: requestedBy,
+      request_text: requestText,
+      automation_max_rounds: String(maxRounds),
+      session_bundle_mode: sessionBundleMode,
+      source_action: "orchestrate",
+      source_conclusion: "delegated",
+      source_run_id: sourceRunId,
+      target_kind: "issue",
+      target_number: dispatchTargetNumber,
+      automation_mode: "heuristics",
+      automation_current_round: "1",
+      base_branch: decision.baseBranch || baseBranch,
+      base_pr: decision.basePr || basePr,
+    });
   } else {
     console.error(`Unsupported next action: ${decision.nextAction}`);
     process.exit(2);
@@ -398,7 +887,7 @@ try {
       key: dedupeKey,
       state: "failed",
       sourceAction,
-      nextAction: decision.nextAction,
+      nextAction: dispatchName,
       nextRound: decision.nextRound,
       maxRounds,
       reason: decision.reason,
@@ -414,7 +903,7 @@ const dispatchedBody = formatHandoffMarkerComment({
   key: dedupeKey,
   state: "dispatched",
   sourceAction,
-  nextAction: decision.nextAction,
+  nextAction: dispatchName,
   nextRound: decision.nextRound,
   maxRounds,
   reason: decision.reason,
@@ -432,7 +921,7 @@ if (collapseOldReviews) {
     const collapsed = collapsePreviousHandoffComments({
       repo,
       targetNumber: markerTargetNumber,
-      targetKind: decision.nextAction === "implement" ? "issue" : "pull_request",
+      targetKind: decision.nextAction === "implement" || decision.decision === "delegate_issue" ? "issue" : "pull_request",
       excludeCommentId: markerCommentId,
       currentCreatedAtMs: nowMs,
     });
@@ -446,4 +935,4 @@ if (collapseOldReviews) {
   }
 }
 
-console.log(`Handoff dispatched ${decision.nextAction} for #${decision.targetNumber}: ${decision.reason}`);
+console.log(`Handoff dispatched ${dispatchName} for #${decision.targetNumber}: ${decision.reason}`);

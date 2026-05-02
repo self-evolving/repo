@@ -772,6 +772,12 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestratorWorkflow, /uses: \.\/\.github\/actions\/resolve-agent-provider/);
   assert.match(orchestratorWorkflow, /route:\s*orchestrator/);
   assert.match(orchestratorWorkflow, /node \.agent\/dist\/cli\/orchestrator-preflight\.js/);
+  assert.match(orchestratorWorkflow, /Check handoff preflight[\s\S]*AUTHOR_ASSOCIATION:/);
+  assert.match(orchestratorWorkflow, /Check handoff preflight[\s\S]*ACCESS_POLICY:/);
+  assert.match(
+    orchestratorWorkflow,
+    /Plan next action with agent[\s\S]*if:\s*\$\{\{\s*steps\.preflight\.outputs\.planner_enabled == 'true'\s*\}\}/,
+  );
   assert.match(orchestratorWorkflow, /install_claude:\s*\$\{\{\s*steps\.provider\.outputs\.install_claude\s*\}\}/);
   assert.match(orchestratorWorkflow, /prompt:\s*orchestrator/);
   assert.match(orchestratorWorkflow, /permission_mode:\s*approve-all/);

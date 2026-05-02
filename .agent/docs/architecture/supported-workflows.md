@@ -26,15 +26,36 @@ dispatches one built-in action (`implement`, `review`, or `fix-pr`) when useful.
 That dispatch includes explicit orchestration context; only those orchestrator
 launched action runs hand back to `agent-orchestrator.yml` after post-processing.
 Direct `/implement`, `/review`, and `/fix-pr` runs remain one-shot.
-Explicit `/orchestrate` starts are deterministic in both `heuristics` and
-`agent` modes today. Planner-based selection is only used for action-originated
-handoff runs. The planner can include a
+Explicit `/orchestrate` starts on pull requests are deterministic in both
+`heuristics` and `agent` modes. Issue-level `/orchestrate` starts in `agent`
+mode may use the planner as a meta-orchestrator. Instead of adding a new public
+route, the planner can return an internal `delegate_issue` command. That
+command creates or reuses a child issue with parent/stage metadata, dispatches
+the child issue through the normal `/orchestrate` flow in heuristic mode, and
+keeps the parent/child relationship in GitHub issue state rather than session
+identity.
+
+Planner-based selection is also used for action-originated handoff runs. The planner can include a
 `handoff_context` string for the next action; `fix-pr` receives it as explicit
 initial steering when the planner dispatches a PR-fix pass. The planner mounts
 memory and rubrics read-only so automated control-flow planning can use steering
 context without mutating those state branches. Orchestration stops when target
 state indicates no safe next action, a route fails, a duplicate handoff marker
 is found, the planner stops or blocks, or the max-round budget is exhausted.
+
+When a child issue reaches a terminal stop, the handoff dispatcher resolves the
+child metadata from the issue body, or from the pull request body's closing issue
+reference when the terminal target is a PR. It then posts or updates a visible
+progress comment on the parent issue, dispatches the parent issue orchestrator
+again in agent mode, and only then marks the child marker as `done`, `blocked`,
+or `failed`. Already-dispatched terminal reports are idempotent so reruns do not
+overwrite completed child state.
+
+Because `/orchestrate` can delegate into implementation, review, and fix
+workflows, initial user-launched orchestrate requests validate the requester
+against the delegated route capability set up front. Internal child and parent
+resume dispatches carry `requested_by` for audit and display, but they do not
+thread route authorization inputs through every child workflow.
 
 Implementation dispatches default to the repository default branch. Callers can
 set `base_branch` to stack directly on another branch, or `base_pr` to stack on
