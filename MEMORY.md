@@ -35,5 +35,5 @@
 - Project management owns managed priority/* and effort/* labels; keep urgency signals in summaries, not labels.
 - Prefer issue-backed sub-orchestrators over lane-heavy same-issue orchestration; keep parent/child state in issue metadata.
 - .agent workflows use npm ci; dependency updates must refresh .agent/package-lock.json or runtime installs stay pinned.
-- Trust sub-orchestration markers only when authored by the authenticated agent/app actor.
+- Trust sub-orchestration state only from agent-authored issue bodies or deterministic adoption comments, not generic app comments.
 - delegate_issue is an internal orchestrator planner decision; keep AgentAction limited to concrete routes.
