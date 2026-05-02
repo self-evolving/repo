@@ -106,8 +106,8 @@
       "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Initial `/orchestrate` capability checks now run in preflight before planner/provider work, and the dispatcher repeats the same stop check before dispatch ([preflight](https://github.com/self-evolving/repo/blob/380e2635bf7f1bfc55452c57d1ff849166aefd03/.agent/src/cli/orchestrator-preflight.ts#L23), [capabilities](https://github.com/self-evolving/repo/blob/380e2635bf7f1bfc55452c57d1ff849166aefd03/.agent/src/orchestrator-capabilities.ts#L23), [dispatcher](https://github.com/self-evolving/repo/blob/380e2635bf7f1bfc55452c57d1ff849166aefd03/.agent/src/cli/orchestrate-handoff.ts#L529)). |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Guardrail stops and child delegation failures post visible parent comments through `commentOnInitialOrchestrateStop` ([orchestrate-handoff.ts](https://github.com/self-evolving/repo/blob/380e2635bf7f1bfc55452c57d1ff849166aefd03/.agent/src/cli/orchestrate-handoff.ts#L459), [failure path](https://github.com/self-evolving/repo/blob/380e2635bf7f1bfc55452c57d1ff849166aefd03/.agent/src/cli/orchestrate-handoff.ts#L602)). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR reuses existing handoff decisions, markers, dispatch helpers, access-policy parsing, and comment APIs, adding focused capability and sub-orchestration helpers rather than embedding all logic in workflow YAML. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The implementation matches issue #76’s design: `AgentAction` remains concrete while `delegate_issue` is an internal planner decision ([handoff.ts](https://github.com/self-evolving/repo/blob/380e2635bf7f1bfc55452c57d1ff849166aefd03/.agent/src/handoff.ts#L3)). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Technical and architecture docs plus the orchestrator prompt describe issue-level meta-orchestration, terminal report-back, and authorization behavior ([docs](https://github.com/self-evolving/repo/blob/380e2635bf7f1bfc55452c57d1ff849166aefd03/.agent/docs/technical-details/agent-orchestrator.md#L72), [prompt](https://github.com/self-evolving/repo/blob/380e2635bf7f1bfc55452c57d1ff849166aefd03/.github/prompts/agent-orchestrator.md#L41)). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Planner fields are separate and validated: `child_stage`, `child_instructions`, `child_issue_number`, `base_branch`, and `base_pr`; mixed `delegate_issue` plus `next_action` is rejected ([handoff.ts](https://github.com/self-evolving/repo/blob/380e2635bf7f1bfc55452c57d1ff849166aefd03/.agent/src/handoff.ts#L146), [validation](https://github.com/self-evolving/repo/blob/380e2635bf7f1bfc55452c57d1ff849166aefd03/.agent/src/handoff.ts#L358)). |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Terminal child results are reported to the parent with pending/dispatched markers, child issue state is updated after resume dispatch, and invalid child issue reuse becomes a visible stop instead of an unreported failure ([reporting](https://github.com/self-evolving/repo/blob/380e2635bf7f1bfc55452c57d1ff849166aefd03/.agent/src/cli/orchestrate-handoff.ts#L383), [tests](https://github.com/self-evolving/repo/blob/380e2635bf7f1bfc55452c57d1ff849166aefd03/.agent/src/__tests__/orchestrate-handoff-cli.test.ts#L274)). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are scoped to orchestrator docs, prompt, preflight, handoff/sub-orchestration runtime, and focused regression tests. No unrelated cleanup or broad refactor is evident. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation keeps public routing unchanged, uses two small typed helper modules, and keeps child orchestration state in GitHub issue markers rather than introducing a new persistence system. |\n\n## Notes\n\n- The current PR head addresses the earlier authorization-order and stale-doc concerns: preflight now disables the planner for unauthorized initial issue orchestration, and docs distinguish deterministic PR starts from issue-level agent meta-orchestration.\n- Regression coverage is targeted at the rubric-sensitive paths: delegated authorization, invalid child reuse, terminal report-back, marker parsing, cross-repo closing refs, and round-budget blocked reporting.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
       "createdAt": "2026-05-01T15:23:23Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/77#issuecomment-4360028279",
       "viewerDidAuthor": true
@@ -121,8 +121,8 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #77 implements issue #76’s child-orchestration design: `/orchestrate` remains the public route while `delegate_issue` is an internal planner decision.\n- The PR creates or reuses child issues, stores parent/child state in GitHub-visible markers, dispatches child issue orchestration, and reports terminal child results back to the parent.\n- A fix-pr pass has already addressed the earlier blocking authorization-order issue and the prior stale-doc/runtime edge cases.\n- The current head is substantially improved, with only minor edge-case hardening left.\n\n## Review\nNo BLOCKING issues remain. The remaining findings are warning-level structured-input and visibility gaps; both are concrete and safe for an automated fix-pr pass.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Malformed child issue numbers create new child issues | WARNING | `child_issue_number` is parsed with the permissive positive-target helper, so values like `\"#77\"` or `\"abc\"` fall through as “not provided” and create a new child issue. Planner-controlled structured input should fail visibly when malformed. |\n| Round 2+ child setup failures can still be silent | WARNING | The new delegation failure path calls `commentOnInitialOrchestrateStop()`, but that helper returns early unless `currentRound === 1`. Multi-stage parent orchestration can still lose visible failure status on later rounds. |\n\n## Progress\n- Previous BLOCKING authorization concern is fixed: preflight now gates planner/provider execution before the approve-all planner runs.\n- Previous cross-repo closing-reference, round-budget state, invalid child-reuse visibility, and stale-doc findings were addressed by the fix-pr pass.\n- Rubrics review now reports PASS with 100/100.\n- Reviewer-reported verification: `npm test` from `.agent` passed with 429 tests.\n\n## Issue Details\n\n<details>\n<summary>Malformed child issue numbers create new child issues</summary>\n\n**Cause:** [`ensureSubOrchestrationIssue()`](https://github.com/self-evolving/repo/blob/380e2635bf7f1bfc55452c57d1ff849166aefd03/.agent/src/cli/orchestrate-handoff.ts#L267) uses `parsePositiveTargetNumber(decision.childIssueNumber || \"\")`, which treats malformed provided values the same as missing values.\n\n**Candidate solutions:** Add strict validation that distinguishes omitted `child_issue_number` from malformed input. If the planner provides the field and it is not a plain positive integer, stop visibly instead of creating a fresh child issue.\n\n**Comments:** This is the main Codex warning and is tied to the structured-input contract.\n\n</details>\n\n<details>\n<summary>Round 2+ child setup failures can still be silent</summary>\n\n**Cause:** The catch path calls [`commentOnInitialOrchestrateStop()`](https://github.com/self-evolving/repo/blob/380e2635bf7f1bfc55452c57d1ff849166aefd03/.agent/src/cli/orchestrate-handoff.ts#L615), but that helper is guarded to initial round-1 requests.\n\n**Candidate solutions:** Use a parent stop/progress comment path that works for all meta-orchestrator rounds, or allow the delegation-failure path to bypass the `currentRound === 1` guard. Add regression coverage for round-2 child setup failure.\n\n**Comments:** Rubrics review considered visible stop handling fixed for the covered round-1 case; Claude identified this remaining multi-round edge case.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: The remaining warnings are concrete branch changes with clear tests and are safe for automation.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Strictly validate provided `child_issue_number` values before falling back to new child creation.\n- [ ] Surface child setup failures visibly for resumed parent rounds, with regression coverage for round 2+.",
       "createdAt": "2026-05-01T15:33:42Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/77#issuecomment-4360080357",
       "viewerDidAuthor": true
@@ -136,8 +136,8 @@
       "body": "Sepo automation handoff dispatched: `review` -> `fix-pr` (round 5/10).\n\nagent planner selected fix-pr: Latest review synthesis recommends FIX_PR for two concrete MINOR_ISSUES findings that require small branch changes and are safe to automate.\n\n<!-- sepo-agent-handoff state:dispatched created:1777649668886 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyMjAwNjU3OTg6cmV2aWV3Ojc3OmZpeF9wcjo3Nzo1 -->",
       "createdAt": "2026-05-01T15:34:29Z",
       "includesCreatedEdit": true,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/77#issuecomment-4360084278",
       "viewerDidAuthor": true
@@ -230,6 +230,425 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/77#issuecomment-4362812776",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBA_LUw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> * `child_issue_number` parsing is too permissive/ambiguous. In `ensureSubOrchestrationIssue()`, the code does `parsePositiveTargetNumber(decision.childIssueNumber || \"\")`; malformed provided values can be treated like “not provided,” so the dispatcher may create a new child issue instead of failing visibly. See:\r\n\r\n@sepo-agent /fix-pr",
+      "createdAt": "2026-05-02T06:04:03Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/77#issuecomment-4363111251",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBA_Zwg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-76/codex-25206691018`. Requested by @lolipopshock.\n\nImplemented the requested fix.\n\n- `child_issue_number` is now parsed strictly when present.\n- Malformed values like `issue-77` fail visibly through the existing parent stop-comment path.\n- The dispatcher no longer treats malformed child issue numbers as “not provided,” so it will not create or search for a new child issue in that case.\n- Added regression coverage proving malformed values stop, comment on the parent, and do not dispatch child orchestration.\n\nVerification passed: `npm test` from `.agent` with 430 tests passing.",
+      "createdAt": "2026-05-02T06:06:20Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/77#issuecomment-4363114946",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBA_uKA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review",
+      "createdAt": "2026-05-02T06:09:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/77#issuecomment-4363120168",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBBAEPA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 91 | PARTIAL | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Initial `/orchestrate` capability checks are centralized in preflight and repeated before dispatch ([capabilities](https://github.com/self-evolving/repo/blob/65e4cf4e085d16819ca969fe7a0aa1a3ce748d9c/.agent/src/orchestrator-capabilities.ts#L23), [preflight](https://github.com/self-evolving/repo/blob/65e4cf4e085d16819ca969fe7a0aa1a3ce748d9c/.agent/src/cli/orchestrator-preflight.ts#L23), [dispatch check](https://github.com/self-evolving/repo/blob/65e4cf4e085d16819ca969fe7a0aa1a3ce748d9c/.agent/src/cli/orchestrate-handoff.ts#L542)). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR keeps `AgentAction` concrete, reuses existing handoff/dispatch/comment helpers, and adds focused capability/sub-orchestration helpers instead of embedding the feature in workflow YAML. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Docs and prompt now describe issue-level `delegate_issue`, parent/child state, terminal report-back, and the corrected deterministic PR-start behavior ([technical docs](https://github.com/self-evolving/repo/blob/65e4cf4e085d16819ca969fe7a0aa1a3ce748d9c/.agent/docs/technical-details/agent-orchestrator.md#L74), [workflow docs](https://github.com/self-evolving/repo/blob/65e4cf4e085d16819ca969fe7a0aa1a3ce748d9c/.agent/docs/architecture/supported-workflows.md#L46), [prompt](https://github.com/self-evolving/repo/blob/65e4cf4e085d16819ca969fe7a0aa1a3ce748d9c/.github/prompts/agent-orchestrator.md#L27)). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Planner fields remain separate and validated; the latest head strictly rejects malformed `child_issue_number` instead of treating it as omitted ([parser](https://github.com/self-evolving/repo/blob/65e4cf4e085d16819ca969fe7a0aa1a3ce748d9c/.agent/src/cli/orchestrate-handoff.ts#L64), [use](https://github.com/self-evolving/repo/blob/65e4cf4e085d16819ca969fe7a0aa1a3ce748d9c/.agent/src/cli/orchestrate-handoff.ts#L280), [test](https://github.com/self-evolving/repo/blob/65e4cf4e085d16819ca969fe7a0aa1a3ce748d9c/.agent/src/__tests__/orchestrate-handoff-cli.test.ts#L307)). |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The implementation follows issue #76’s requested model: public `/orchestrate`, internal `delegate_issue`, child issue boundary, and up-front delegated capability checks. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are scoped to orchestrator docs/prompt/workflow, handoff runtime, capability/sub-orchestration helpers, and targeted tests. |\n| coding_workflow / generic | Surface stateful failures | partial | 5/7 | Terminal child state and malformed child issue numbers are surfaced, but child delegation setup failures in resumed parent rounds can still exit without a visible parent status because the catch path calls a round-1-only commenter ([guard](https://github.com/self-evolving/repo/blob/65e4cf4e085d16819ca969fe7a0aa1a3ce748d9c/.agent/src/cli/orchestrate-handoff.ts#L472), [catch path](https://github.com/self-evolving/repo/blob/65e4cf4e085d16819ca969fe7a0aa1a3ce748d9c/.agent/src/cli/orchestrate-handoff.ts#L628)). |\n| coding_workflow / generic | Comment on accepted workflow stops | partial | 4/6 | Initial guardrail stops are visible, but the same visible-stop path does not cover resumed parent orchestration rounds. |\n| coding_style / generic | Prefer simple implementations | pass | 6/7 | The design is direct and avoids new persistence, though `orchestrate-handoff.ts` is now fairly dense with child issue and terminal reporting logic. |\n\n## Notes\n\n- The latest PR head fixes the previously called-out malformed `child_issue_number` issue with strict parsing and regression coverage.\n- The remaining rubric-specific gap is visibility for child setup failures after round 1.\n- Smallest useful follow-up: add a parent-visible delegation failure comment path that works for resumed parent rounds, with a round-2 regression test.\n\n## Findings\n\n- **WARNING:** Resumed parent child-delegation failures can still be silent. `commentOnInitialOrchestrateStop()` returns unless `currentRound === 1`, but the `delegate_issue` setup failure catch path uses that helper for all rounds. This weakens both `surface-stateful-failures` and `comment-on-accepted-workflow-stops`.\n\n## Final Rubric Verdict\n\nPARTIAL",
+      "createdAt": "2026-05-02T06:12:29Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/77#issuecomment-4363125820",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBBAoHQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #77 implements issue #76’s requested child-orchestration model.\n- `orchestrate` stays the public user route, while `delegate_issue` becomes internal planner state for creating or reusing child issues.\n- The PR stores parent/child progress in GitHub-visible issue markers, dispatches child work through normal `/orchestrate`, and reports terminal child results back to the parent.\n- The latest fix-pr pass addressed malformed `child_issue_number` handling; the remaining concerns are edge-case hardening, not core design blockers.\n\n## Review\nNo BLOCKING findings remain. The current review inputs leave two WARNING-level issues: one visibility gap for resumed parent rounds, and one terminal-state classification edge case.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Round 2+ child setup failures lack a parent-visible stop | WARNING | The delegation setup catch path still reports through a helper that only comments on initial round-1 orchestration. Resumed parent rounds can stop without a visible parent status. |\n| Broad policy reason matching can misclassify child outcomes | WARNING | `resultStateFromTerminal()` treats any reason containing `policy` as `blocked`. Configuration failures like `invalid AGENT_ACCESS_POLICY` can be reported as permanent policy blocks instead of failed/retryable child results. |\n\n## Progress\n- Earlier authorization-order, stale-doc, cross-repo closing-reference, round-budget, invalid child-reuse, and malformed `child_issue_number` findings are reported fixed.\n- The rubrics review now passes most criteria and only remains partial on resumed-round failure visibility.\n- Existing inline feedback already covers the round-2 visibility gap, so I did not duplicate it.\n- I posted one new inline comment for the broad `policy` reason matching issue.\n\n## Issue Details\n\n<details>\n<summary>Round 2+ child setup failures lack a parent-visible stop</summary>\n\n**Cause:** [`commentOnInitialOrchestrateStop()`](https://github.com/self-evolving/repo/blob/65e4cf4e085d16819ca969fe7a0aa1a3ce748d9c/.agent/src/cli/orchestrate-handoff.ts#L472) returns unless `currentRound === 1`, but the `delegate_issue` failure catch path still calls it at [`orchestrate-handoff.ts#L628`](https://github.com/self-evolving/repo/blob/65e4cf4e085d16819ca969fe7a0aa1a3ce748d9c/.agent/src/cli/orchestrate-handoff.ts#L628).\n\n**Candidate solutions:** Add a parent-visible delegation-failure comment path that works for resumed rounds, or let this specific catch path bypass the round-1 guard. Add regression coverage with `currentRound > 1` and child issue creation/reuse failure.\n\n**Comments:** This is the shared unresolved issue across the latest Claude, Codex, and rubrics review artifacts.\n\n</details>\n\n<details>\n<summary>Broad policy reason matching can misclassify child outcomes</summary>\n\n**Cause:** [`resultStateFromTerminal()`](https://github.com/self-evolving/repo/blob/65e4cf4e085d16819ca969fe7a0aa1a3ce748d9c/.agent/src/sub-orchestration.ts#L151) uses `reason.includes(\"policy\")`, which is broader than the intended authorization-blocked cases.\n\n**Candidate solutions:** Match exact authorization-stop wording such as `orchestrate requests require`, introduce a structured terminal reason code, and add a regression proving `invalid AGENT_ACCESS_POLICY` maps to `failed` rather than `blocked`.\n\n**Comments:** This affects parent planner semantics: a retryable configuration failure can look like a permanent child block.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: The remaining issues are concrete, localized branch changes with focused tests, so they are safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Surface child setup failures visibly for resumed parent rounds, with regression coverage for round 2+.\n- [ ] Narrow terminal child `policy` reason matching or replace it with structured stop classification, with regression coverage for policy-configuration errors.",
+      "createdAt": "2026-05-02T06:16:26Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/77#issuecomment-4363135005",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBBIM_Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, that concern is valid.\n\nThe algorithm is cleaner than the earlier direction: public `/orchestrate`, internal `delegate_issue`, child issues as the state boundary, and upfront capability checks are the right shape. But the implementation is still carrying too much orchestration behavior inside `.agent/src/cli/orchestrate-handoff.ts`, and that is where most of the quality issues are coming from.\n\nThe current head is better than the previous one because the malformed `child_issue_number` issue was fixed in `65e4cf4`. But the latest review still has two real warning-level problems:\n\n- Resumed parent rounds can still lose visible failure status because the delegation failure path calls a helper that only comments on round 1: https://github.com/self-evolving/repo/blob/65e4cf4e085d16819ca969fe7a0aa1a3ce748d9c/.agent/src/cli/orchestrate-handoff.ts#L472 and https://github.com/self-evolving/repo/blob/65e4cf4e085d16819ca969fe7a0aa1a3ce748d9c/.agent/src/cli/orchestrate-handoff.ts#L628\n- Terminal child classification is still too stringly-typed; `reason.includes(\"policy\")` can misclassify configuration failures as blocked child outcomes: https://github.com/self-evolving/repo/blob/65e4cf4e085d16819ca969fe7a0aa1a3ce748d9c/.agent/src/sub-orchestration.ts#L151\n\nOn rubrics: the rubrics mostly rewarded architectural alignment and the presence of tests/docs, but they were not strict enough about adversarial edge cases. They treated “stateful failures are surfaced” as satisfied once the initial round path worked, but did not force the review to ask “does this hold for resumed parent rounds?” Same for structured inputs: it rewarded having explicit fields before verifying malformed provided values are rejected rather than silently reinterpreted.\n\nSo I’d summarize it this way: the design is now sound, the code is workable, but the implementation is not yet as clean as the algorithm. Before merge, I’d want one more focused fix pass for the two current warnings, and longer-term I’d split child issue setup/reporting out of `orchestrate-handoff.ts` so the CLI becomes dispatch glue instead of the place where all orchestration semantics accumulate.",
+      "createdAt": "2026-05-02T07:09:25Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/77#issuecomment-4363259133",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBBIZ1Q",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /fix-pr can you fix the issues from the code issue and quality comments above? \r\n\r\n> So I’d summarize it this way: the design is now sound, the code is workable, but the implementation is not yet as clean as the algorithm. Before merge, I’d want one more focused fix pass for the two current warnings, and longer-term I’d split child issue setup/reporting out of orchestrate-handoff.ts so the CLI becomes dispatch glue instead of the place where all orchestration semantics accumulate.\r\n\r\n> Round 2+ child setup failures lack a parent-visible stop\r\n\r\n> Cause: [commentOnInitialOrchestrateStop()](https://github.com/self-evolving/repo/blob/65e4cf4e085d16819ca969fe7a0aa1a3ce748d9c/.agent/src/cli/orchestrate-handoff.ts#L472) returns unless currentRound === 1, but the delegate_issue failure catch path still calls it at [orchestrate-handoff.ts#L628](https://github.com/self-evolving/repo/blob/65e4cf4e085d16819ca969fe7a0aa1a3ce748d9c/.agent/src/cli/orchestrate-handoff.ts#L628).\r\n> \r\n> Candidate solutions: Add a parent-visible delegation-failure comment path that works for resumed rounds, or let this specific catch path bypass the round-1 guard. Add regression coverage with currentRound > 1 and child issue creation/reuse failure.\r\n> \r\n> Comments: This is the shared unresolved issue across the latest Claude, Codex, and rubrics review artifacts.\r\n> \r\n> Broad policy reason matching can misclassify child outcomes\r\n> Cause: [resultStateFromTerminal()](https://github.com/self-evolving/repo/blob/65e4cf4e085d16819ca969fe7a0aa1a3ce748d9c/.agent/src/sub-orchestration.ts#L151) uses reason.includes(\"policy\"), which is broader than the intended authorization-blocked cases.\r\n> \r\n> Candidate solutions: Match exact authorization-stop wording such as orchestrate requests require, introduce a structured terminal reason code, and add a regression proving invalid AGENT_ACCESS_POLICY maps to failed rather than blocked.\r\n> \r\n> Comments: This affects parent planner semantics: a retryable configuration failure can look like a permanent child block.",
+      "createdAt": "2026-05-02T07:11:21Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/77#issuecomment-4363262421",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBBIrJQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-76/codex-25206691018`. Requested by @lolipopshock.\n\nFixed the two requested warnings.\n\n- Delegation setup failures now use a parent-visible stop comment path that works for resumed parent rounds, not only initial round 1 starts.\n- Narrowed terminal child classification so generic `\"policy\"` text no longer maps to `blocked`; invalid `AGENT_ACCESS_POLICY` now reports `failed`, while authorization-denial wording still reports `blocked`.\n- Added regressions for resumed-round child setup failure visibility and invalid access-policy terminal reporting.\n\nVerification passed: `npm test` from `.agent` with 432 tests passing.",
+      "createdAt": "2026-05-02T07:14:23Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/77#issuecomment-4363266853",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBBJM9g",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review",
+      "createdAt": "2026-05-02T07:19:33Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/77#issuecomment-4363275510",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBBJc_A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 98 | PARTIAL | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Initial `/orchestrate` checks evaluate `implement`, `review`, and `fix-pr` capability up front before planner/provider work ([capabilities](https://github.com/self-evolving/repo/blob/41bd1e21005174af59b302751b64d71aab987259/.agent/src/orchestrator-capabilities.ts#L23), [preflight](https://github.com/self-evolving/repo/blob/41bd1e21005174af59b302751b64d71aab987259/.agent/src/cli/orchestrator-preflight.ts#L23), [workflow gating](https://github.com/self-evolving/repo/blob/41bd1e21005174af59b302751b64d71aab987259/.github/workflows/agent-orchestrator.yml#L116)). |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Guardrail and delegation failures post visible parent comments, including resumed delegation failures ([comment helper](https://github.com/self-evolving/repo/blob/41bd1e21005174af59b302751b64d71aab987259/.agent/src/cli/orchestrate-handoff.ts#L472), [delegation path](https://github.com/self-evolving/repo/blob/41bd1e21005174af59b302751b64d71aab987259/.agent/src/cli/orchestrate-handoff.ts#L625), [round-2 test](https://github.com/self-evolving/repo/blob/41bd1e21005174af59b302751b64d71aab987259/.agent/src/__tests__/orchestrate-handoff-cli.test.ts#L330)). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR keeps `AgentAction` concrete, reuses existing handoff, dispatch, marker, access-policy, and comment helpers, and adds focused `orchestrator-capabilities` / `sub-orchestration` modules instead of workflow-only logic. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Architecture and technical docs now describe issue-level `delegate_issue`, parent/child markers, terminal report-back, and up-front capability checks ([workflow docs](https://github.com/self-evolving/repo/blob/41bd1e21005174af59b302751b64d71aab987259/.agent/docs/architecture/supported-workflows.md#L29), [technical docs](https://github.com/self-evolving/repo/blob/41bd1e21005174af59b302751b64d71aab987259/.agent/docs/technical-details/agent-orchestrator.md#L73)). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Planner fields are separate and validated; malformed `child_issue_number` now throws instead of being treated as omitted ([parser](https://github.com/self-evolving/repo/blob/41bd1e21005174af59b302751b64d71aab987259/.agent/src/cli/orchestrate-handoff.ts#L64), [use](https://github.com/self-evolving/repo/blob/41bd1e21005174af59b302751b64d71aab987259/.agent/src/cli/orchestrate-handoff.ts#L280), [test](https://github.com/self-evolving/repo/blob/41bd1e21005174af59b302751b64d71aab987259/.agent/src/__tests__/orchestrate-handoff-cli.test.ts#L307)). |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The implementation matches issue #76’s requested design: public `/orchestrate`, internal `delegate_issue`, child issues as the state boundary, and authorization checked at the user boundary. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Terminal child reports use pending/dispatched markers and update child state after parent resume dispatch; invalid access-policy text now maps to `failed`, not a misleading blocked state ([terminal report](https://github.com/self-evolving/repo/blob/41bd1e21005174af59b302751b64d71aab987259/.agent/src/cli/orchestrate-handoff.ts#L396), [classification](https://github.com/self-evolving/repo/blob/41bd1e21005174af59b302751b64d71aab987259/.agent/src/sub-orchestration.ts#L140), [test](https://github.com/self-evolving/repo/blob/41bd1e21005174af59b302751b64d71aab987259/.agent/src/__tests__/sub-orchestration.test.ts#L70)). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is limited to orchestrator docs/prompt/workflow, handoff runtime, focused helper modules, and targeted regression tests. |\n| coding_style / generic | Prefer simple implementations | partial | 6/7 | The architecture stays simple and avoids new persistence, but `.agent/src/cli/orchestrate-handoff.ts` still carries substantial child setup/reporting behavior; future changes would benefit from extracting more of that orchestration logic. |\n\n## Notes\n\n- The latest head addresses the previously raised rubric gaps: authorization happens before planner work, malformed child issue numbers fail visibly, resumed parent delegation failures comment on the parent, and broad `\"policy\"` matching no longer misclassifies invalid access-policy failures.\n- No blocking rubric-specific follow-up needed.\n- Smallest useful follow-up: when this area changes again, extract child setup/reporting out of `orchestrate-handoff.ts` so the CLI remains dispatch glue.\n\n## Findings\n\n- **INFO:** No blocking or warning-level rubric findings remain. The only partial score is maintainability pressure from the growing handoff CLI.\n\n## Final Rubric Verdict\n\nPARTIAL",
+      "createdAt": "2026-05-02T07:22:23Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/77#issuecomment-4363279612",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBBKIaQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #77 implements issue #76’s child-orchestration design.\n- Public `/orchestrate` remains the user-facing coordinator route, while `delegate_issue` is an internal planner decision.\n- The PR creates or reuses child issues, stores parent/child state in GitHub-visible markers, dispatches child orchestration, and reports terminal child results back to the parent.\n- The latest fix-pr pass addressed the prior authorization, visible-stop, malformed-input, closing-reference, and policy-classification findings.\n\n## Review\nNo BLOCKING findings remain. Codex and the rubrics review consider the current head shippable; Claude flags one remaining edge-case warning around child issue auto-discovery, plus lower-priority maintainability debt.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Child issue auto-discovery can duplicate work | WARNING | `findExistingSubOrchestrationIssue()` relies on GitHub issue search and `--limit 100`; search lag or result caps can miss an existing child and create a duplicate for the same parent/stage. |\n| Terminal outcome mapping remains string-based | INFO | The broad `\"policy\"` bug is fixed, but terminal state classification still depends on reason substrings. Reviewers treat this as known debt rather than a blocker. |\n| Handoff CLI remains dense | INFO | `.agent/src/cli/orchestrate-handoff.ts` still carries substantial child setup/reporting logic. This is maintainability pressure for future changes, not a required fix here. |\n\n## Progress\n- Earlier BLOCKING authorization-order feedback is fixed: capability checks now gate planner/provider work in preflight.\n- Prior warnings around malformed `child_issue_number`, resumed-round delegation failure visibility, cross-repo closing refs, and invalid access-policy classification are reported fixed.\n- The latest rubrics review has no blocking or warning-level rubric findings.\n- I posted one new inline comment for the non-duplicated child issue search/reuse race.\n\n## Issue Details\n\n<details>\n<summary>Child issue auto-discovery can duplicate work</summary>\n\n**Cause:** `findExistingSubOrchestrationIssue()` searches open issues for `sepo-sub-orchestrator` and scans up to 100 results. GitHub issue search can be eventually consistent, so a retry soon after child creation can miss the child issue; the result cap can also hide the intended child in a busy repo.\n\n**Candidate solutions:** Persist the chosen child issue number in parent-visible state and consult that first, or otherwise add a strongly identified reuse path before falling back to search. Add focused coverage for stale/empty search results after a child issue was already created.\n\n**Comments:** This is the only current warning-level issue from the review inputs; Codex and rubrics did not mark it blocking.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: The remaining warning is a concrete, localized hardening change with a clear regression test path, though it is not a merge blocker.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Make child issue reuse robust to GitHub search lag/result limits, with focused regression coverage.",
+      "createdAt": "2026-05-02T07:30:07Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/77#issuecomment-4363290729",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBBKNhw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /fix-pr \r\n\r\n\".agent/src/orchestrator-capabilities.ts\" for this file, can you follow other files and add some simple jsdocs? ",
+      "createdAt": "2026-05-02T07:30:55Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/77#issuecomment-4363292039",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBBKW3A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-76/codex-25206691018`. Requested by @lolipopshock.\n\nAdded concise JSDoc comments to `.agent/src/orchestrator-capabilities.ts` for the exported delegated-route list, input interface, and stop-reason helper.\n\nVerification: `npm run build` from `.agent` passed.",
+      "createdAt": "2026-05-02T07:32:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/77#issuecomment-4363294428",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBBKxZQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /fix-pr \r\n\r\nalso fix this? what's the right way to fix this? \r\n\r\nCause: findExistingSubOrchestrationIssue() searches open issues for sepo-sub-orchestrator and scans up to 100 results. GitHub issue search can be eventually consistent, so a retry soon after child creation can miss the child issue; the result cap can also hide the intended child in a busy repo.\r\n\r\nCandidate solutions: Persist the chosen child issue number in parent-visible state and consult that first, or otherwise add a strongly identified reuse path before falling back to search. Add focused coverage for stale/empty search results after a child issue was already created.\r\n\r\n",
+      "createdAt": "2026-05-02T07:36:27Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/77#issuecomment-4363301221",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBBLIFg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-76/codex-25206691018`. Requested by @lolipopshock.\n\nImplemented the deterministic reuse path.\n\n- Added a parent-visible `sepo-sub-orchestrator-child` marker that records the chosen child issue for a parent/stage.\n- `ensureSubOrchestrationIssue()` now checks that parent-side record before falling back to `issue list --search`, so retries can reuse the already selected child even when GitHub search is stale or capped.\n- The recorded child is still validated against the child issue’s own marker before reuse.\n- Added focused coverage for child-link marker parsing and for stale/empty search results after a child issue was already recorded.\n\nVerification passed: `npm test` from `.agent` with 434 tests passing.",
+      "createdAt": "2026-05-02T07:39:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/77#issuecomment-4363307030",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBBLORw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review ",
+      "createdAt": "2026-05-02T07:40:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/77#issuecomment-4363308615",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBBLgTg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 99 | PARTIAL | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Initial `/orchestrate` checks cover delegated `implement`, `review`, and `fix-pr` access before planner/provider work ([capabilities](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/src/orchestrator-capabilities.ts#L36), [preflight](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/src/cli/orchestrator-preflight.ts#L23)). |\n| coding_workflow / specific | Default follow-up orchestration to one-shot | pass | 8/8 | Docs preserve direct `/implement`, `/review`, and `/fix-pr` as one-shot, with follow-up chains only from orchestrator-launched runs ([supported-workflows](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/docs/architecture/supported-workflows.md#L26)). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR reuses existing handoff decisions, access-policy helpers, `dispatchWorkflow`, GitHub comment helpers, and marker patterns, adding focused capability/sub-orchestration helpers. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Architecture docs, technical docs, and the orchestrator prompt now describe `delegate_issue`, child state markers, terminal report-back, and up-front capability checks ([technical docs](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/docs/technical-details/agent-orchestrator.md#L73), [prompt](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.github/prompts/agent-orchestrator.md#L41)). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Planner output uses separate fields like `child_stage`, `child_instructions`, `child_issue_number`, `base_branch`, and `base_pr`; mixed `delegate_issue` plus `next_action` is rejected ([handoff](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/src/handoff.ts#L358)). |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Delegation setup failures become visible parent stops, terminal child results update parent/child markers, and recorded child links avoid search-lag duplication ([failure path](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/src/cli/orchestrate-handoff.ts#L665), [child link reuse](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/src/cli/orchestrate-handoff.ts#L254)). |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Initial guardrail stops and delegation failures post parent-visible comments instead of becoming silent exits ([stop path](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/src/cli/orchestrate-handoff.ts#L641), [delegation catch](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/src/cli/orchestrate-handoff.ts#L677)). |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The implementation matches issue #76’s requested architecture: public `/orchestrate`, internal `delegate_issue`, child issues as state boundary, and authorization checked at the user boundary. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is scoped to orchestrator docs/prompt/workflow, handoff runtime, helper modules, and focused tests. No unrelated subsystem churn is apparent. |\n| coding_style / generic | Prefer simple implementations | partial | 6/7 | The design avoids a new persistence system and uses GitHub-visible markers, but `.agent/src/cli/orchestrate-handoff.ts` still carries substantial child setup/reporting behavior. |\n\n## Notes\n\n- The latest head addresses the prior rubric-sensitive gaps: authorization runs before planner work, resumed delegation failures are parent-visible, malformed child issue numbers fail clearly, terminal classification is narrower, and parent-recorded child links make reuse deterministic before issue search.\n- Verification: `npm test` from `.agent` passed with 434 tests.\n- Smallest useful follow-up: in a future change, extract child issue setup/reporting out of `orchestrate-handoff.ts` so the CLI stays closer to dispatch glue.\n\n## Findings\n\n- **INFO:** No blocking or warning-level rubric findings remain. The only partial score is maintainability pressure from the growing handoff CLI.\n\n## Final Rubric Verdict\n\nPARTIAL",
+      "createdAt": "2026-05-02T07:43:17Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/77#issuecomment-4363313230",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBBMV8Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #77 implements issue #76’s child-orchestration design while keeping `orchestrate` as the public user route.\n- It adds an internal `delegate_issue` planner decision, child issue create/reuse state, terminal report-back to the parent, and resumed parent orchestration.\n- The PR also moves delegated-route authorization to the initial orchestrate boundary and updates tests, prompts, and several docs.\n- Recent fix-pr rounds addressed earlier findings around authorization timing, cross-repo closing refs, malformed child issue numbers, resumed failure visibility, and search-lag child reuse.\n\n## Review\nThe high-level architecture matches issue #76, and many earlier review findings are fixed. One new trust-boundary issue remains blocking because user-writable issue bodies/comments can currently influence orchestration state without source validation.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Untrusted marker sources can forge child orchestration state | BLOCKING | Child issue markers, parent child-link comments, and terminal report comments are trusted without verifying that the marker was written by the agent/app account. This can let a user-writable marker hijack child reuse or skip parent resume dispatch. |\n| Agent action docs still describe old orchestrator behavior | WARNING | [`agent-actions.md`](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/docs/actions/agent-actions.md#L16) still says explicit `/orchestrate` is deterministic in agent mode and planner mode is reserved for action-originated handoffs, contradicting issue-level meta-orchestration. |\n| Non-blocking cleanup notes remain | INFO | Claude noted stale terminal-reason clauses, duplicate child-link comment accumulation on repeated explicit reuse, and an in-place `reverse()` call. These are maintainability notes, not current merge blockers. |\n\n## Progress\n- Prior BLOCKING authorization-order feedback is fixed: preflight gates planner/provider work before agent-mode orchestration proceeds.\n- Prior warnings around malformed `child_issue_number`, resumed delegation failure visibility, cross-repo closing refs, terminal classification, and search-lag child reuse are reported fixed.\n- The latest rubrics review has no blocking or warning-level rubric findings, with only handoff CLI density noted as future maintainability pressure.\n- I posted one new inline comment for the forged-marker trust-boundary issue at [`orchestrate-handoff.ts#L464`](https://github.com/self-evolving/repo/pull/77#discussion_r3176351745).\n\n## Issue Details\n\n<details>\n<summary>Untrusted marker sources can forge child orchestration state</summary>\n\n**Cause:** [`findExistingSubOrchestrationIssue()`](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/src/cli/orchestrate-handoff.ts#L247), [`findRecordedSubOrchestrationIssue()`](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/src/cli/orchestrate-handoff.ts#L257), and terminal report lookup at [`orchestrate-handoff.ts#L464`](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/src/cli/orchestrate-handoff.ts#L464) parse markers from issue bodies/comments without validating author/source.\n\n**Candidate solutions:** Fetch enough issue/comment author metadata to trust only markers written by the authenticated agent/app account, or add another unforgeable source check before accepting these markers. Add regression coverage showing user-authored fake child links/report markers are ignored.\n\n**Comments:** Codex is the only reviewer to flag this specific trust boundary, while Claude’s overall verdict is SHIP and rubrics show no warning-level findings. The synthesis treats it as blocking because it undercuts the PR’s authorization model.\n\n</details>\n\n<details>\n<summary>Agent action docs still describe old orchestrator behavior</summary>\n\n**Cause:** [`agent-actions.md`](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/docs/actions/agent-actions.md#L16) was not updated with the issue-level agent-mode `delegate_issue` behavior.\n\n**Candidate solutions:** Rewrite the paragraph to distinguish deterministic PR starts/direct route handoffs from issue-level agent-mode `/orchestrate`, which may invoke the planner for internal `delegate_issue`.\n\n**Comments:** Rubrics considered the updated architecture/technical docs sufficient, but this action-level doc remains user-facing and contradictory.\n\n</details>\n\n<details>\n<summary>Non-blocking cleanup notes remain</summary>\n\n**Cause:** [`resultStateFromTerminal()`](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/src/sub-orchestration.ts#L182) still has stale reason-substring clauses, explicit child reuse can add duplicate parent child-link comments, and `comments.reverse()` mutates a fresh local array.\n\n**Candidate solutions:** Clean these up opportunistically: remove or document stale reason clauses, avoid duplicate child-link comments for the same parent/stage/child, and use a non-mutating reverse pattern.\n\n**Comments:** These do not need to block the PR once the marker trust issue and stale docs are fixed.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: The remaining required work is concrete, branch-local, and safe for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Validate marker author/source before trusting reusable child issue bodies, parent child-link comments, and terminal report comments; add forged-marker regression coverage.\n- [ ] Update `.agent/docs/actions/agent-actions.md` so explicit issue-level agent-mode `/orchestrate` and `delegate_issue` behavior are documented correctly.",
+      "createdAt": "2026-05-02T07:50:01Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/77#issuecomment-4363326961",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBBMbZg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate ",
+      "createdAt": "2026-05-02T07:50:36Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/77#issuecomment-4363328358",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBBMgig",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `orchestrate` -> `review` (round 2/10).\n\nmanual orchestrate start on PR; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777708273778 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNDcyNTUyMDE6b3JjaGVzdHJhdGU6Nzc6cmV2aWV3Ojc3OjI -->",
+      "createdAt": "2026-05-02T07:51:14Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/77#issuecomment-4363329674",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBBMzog",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 89 | PARTIAL | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Initial `/orchestrate` requests check delegated `implement`, `review`, and `fix-pr` capability in preflight before planner/provider work, and the dispatcher repeats the same stop check before dispatch ([preflight](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/src/cli/orchestrator-preflight.ts#L23), [workflow gate](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.github/workflows/agent-orchestrator.yml#L116), [dispatcher](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/src/cli/orchestrate-handoff.ts#L591)). |\n| coding_workflow / specific | Default follow-up orchestration to one-shot | pass | 8/8 | Docs keep direct `/implement`, `/review`, and `/fix-pr` one-shot, with follow-up chains limited to orchestrator-launched runs ([supported workflows](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/docs/architecture/supported-workflows.md#L26)). |\n| coding_workflow / generic | Reuse existing code | partial | 7/8 | The PR reuses handoff decisions, access-policy helpers, dispatch helpers, and marker/comment utilities, but substantial child orchestration logic is still concentrated in the handoff CLI ([orchestrate-handoff.ts](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/src/cli/orchestrate-handoff.ts#L221)). |\n| coding_workflow / generic | Keep docs in sync | partial | 5/7 | Technical docs and prompt describe `delegate_issue`, but `agent-actions.md` still says explicit `/orchestrate` starts are deterministic in `agent` mode and planner mode is reserved for action-originated handoffs ([agent-actions.md](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/docs/actions/agent-actions.md#L16)). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Planner output uses separate structured fields and rejects mixed `delegate_issue` plus `next_action` or both base inputs ([parse](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/src/handoff.ts#L143), [validation](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/src/handoff.ts#L358)). |\n| coding_workflow / generic | Surface stateful failures | partial | 4/7 | Delegation failures and terminal reports are visible, but reusable child markers, parent child-link markers, and terminal report markers are trusted from issue bodies/comments without author/source validation ([child search](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/src/cli/orchestrate-handoff.ts#L221), [recorded child link](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/src/cli/orchestrate-handoff.ts#L254), [terminal report lookup](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/src/cli/orchestrate-handoff.ts#L464)). |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Initial guardrail stops and delegation setup failures post parent-visible comments instead of silently exiting ([stop comment](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/src/cli/orchestrate-handoff.ts#L511), [delegation failure](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/src/cli/orchestrate-handoff.ts#L538)). |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The implementation follows issue #76’s design: `AgentAction` remains concrete while `delegate_issue` is an internal planner decision ([issue context](https://github.com/self-evolving/repo/issues/76), [handoff type](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/src/handoff.ts#L3)). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is scoped to orchestrator docs/prompt/workflow, handoff runtime, sub-orchestration helpers, capability checks, and focused tests. |\n| coding_style / generic | Prefer simple implementations | partial | 5/7 | The design avoids a new persistence backend and uses GitHub-visible markers, but the handoff CLI now owns child issue reuse, terminal reporting, parent resume dispatch, and marker mutation paths, which is maintainability pressure. |\n\n## Notes\n\n- Strongest positives: the public route model is clean, delegated authorization moved to the user boundary, `AgentAction` was not widened, and structured planner fields are validated.\n- Main score drivers against a full pass: user-writable marker sources are trusted as orchestration state, and one canonical action doc still describes the old deterministic `agent` mode behavior.\n- Smallest useful follow-up: validate marker/comment authors before trusting orchestration state, and update `.agent/docs/actions/agent-actions.md`.\n\n## Findings\n\n- **WARNING:** The GitHub-visible orchestration markers are stateful control inputs, but the current code does not verify that child markers, parent child-link comments, or terminal report markers were written by the agent/app account. This weakens the `surface-stateful-failures` rubric because forged or stale user-authored state can influence child reuse or parent resume behavior.\n\n- **WARNING:** `.agent/docs/actions/agent-actions.md` still says explicit `/orchestrate` starts are deterministic in `agent` mode and planner mode is reserved for action-originated handoffs, contradicting the new issue-level `delegate_issue` meta-orchestration behavior.\n\n## Final Rubric Verdict\n\nPARTIAL",
+      "createdAt": "2026-05-02T07:53:36Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/77#issuecomment-4363334562",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-01T07:44:40Z",
@@ -260,7 +679,7 @@
     },
     {
       "path": ".agent/src/__tests__/orchestrate-handoff-cli.test.ts",
-      "additions": 145,
+      "additions": 245,
       "deletions": 5,
       "changeType": "MODIFIED"
     },
@@ -272,13 +691,13 @@
     },
     {
       "path": ".agent/src/__tests__/sub-orchestration.test.ts",
-      "additions": 72,
+      "additions": 105,
       "deletions": 0,
       "changeType": "ADDED"
     },
     {
       "path": ".agent/src/cli/orchestrate-handoff.ts",
-      "additions": 391,
+      "additions": 454,
       "deletions": 47,
       "changeType": "MODIFIED"
     },
@@ -296,13 +715,13 @@
     },
     {
       "path": ".agent/src/orchestrator-capabilities.ts",
-      "additions": 50,
+      "additions": 63,
       "deletions": 0,
       "changeType": "ADDED"
     },
     {
       "path": ".agent/src/sub-orchestration.ts",
-      "additions": 162,
+      "additions": 193,
       "deletions": 0,
       "changeType": "ADDED"
     },
@@ -433,10 +852,92 @@
       "commit": {
         "oid": "380e2635bf7f1bfc55452c57d1ff849166aefd03"
       }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM77NRVV",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-02T06:15:45Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "65e4cf4e085d16819ca969fe7a0aa1a3ce748d9c"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM77NVD3",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\n1. the code quality here is kinda of concerning, and it seems the rubrics reward do not catch these problems? \n\n2. overall the algorithm is cleaner; but I worry that the implementation is not that clean? ",
+      "submittedAt": "2026-05-02T07:08:06Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "65e4cf4e085d16819ca969fe7a0aa1a3ce748d9c"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM77NqqE",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-02T07:29:00Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "41bd1e21005174af59b302751b64d71aab987259"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM77N1sj",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-02T07:48:50Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "3a9bac391348c96e006a5527816eeb3cd86a8ccb"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM77N3kF",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-02T07:58:48Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "3a9bac391348c96e006a5527816eeb3cd86a8ccb"
+      }
     }
   ],
   "state": "OPEN",
   "title": "Add delegate_issue child orchestration",
-  "updatedAt": "2026-05-02T03:33:27Z",
+  "updatedAt": "2026-05-02T07:58:48Z",
   "url": "https://github.com/self-evolving/repo/pull/77"
 }
