@@ -304,6 +304,29 @@ test("agent orchestrate reports invalid child issue reuse on the parent issue", 
   assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
 });
 
+test("agent orchestrate rejects malformed child issue numbers visibly", () => {
+  const run = runOrchestrateHandoff({
+    AUTOMATION_MODE: "agent",
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "76",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "delegate_issue",
+      reason: "Reuse a malformed child.",
+      child_stage: "stage 1",
+      child_issue_number: "issue-77",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.match(run.outputs.get("reason") || "", /child issue delegation failed/);
+  assert.match(run.outputs.get("reason") || "", /child_issue_number must be a positive issue number: issue-77/);
+  assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/76\/comments/);
+  assert.doesNotMatch(run.ghLog, /issue create/);
+  assert.doesNotMatch(run.ghLog, /issue list/);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
+});
+
 test("manual orchestrate collapses old handoff comments after dispatch", () => {
   const run = runOrchestrateHandoff({
     TARGET_KIND: "issue",

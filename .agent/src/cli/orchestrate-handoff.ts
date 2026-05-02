@@ -61,6 +61,19 @@ function parsePositiveTargetNumber(value: string): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 }
 
+function parseOptionalChildIssueNumber(value: string | undefined): number {
+  const text = String(value || "").trim();
+  if (!text) return 0;
+  if (!/^\d+$/.test(text)) {
+    throw new Error(`child_issue_number must be a positive issue number: ${text}`);
+  }
+  const parsed = Number.parseInt(text, 10);
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+    throw new Error(`child_issue_number must be a positive issue number: ${text}`);
+  }
+  return parsed;
+}
+
 function errorText(err: unknown): string {
   const record = err as { message?: unknown; stderr?: unknown; stdout?: unknown };
   return [record.message, record.stderr, record.stdout]
@@ -264,7 +277,7 @@ function ensureSubOrchestrationIssue(decision: HandoffDecision): string {
 
   const stage = decision.childStage || `stage-${decision.nextRound - 1}`;
   const instructions = decision.childInstructions || decision.handoffContext || requestText;
-  const existingIssueNumber = parsePositiveTargetNumber(decision.childIssueNumber || "");
+  const existingIssueNumber = parseOptionalChildIssueNumber(decision.childIssueNumber);
   const parentRound = decision.nextRound;
 
   if (existingIssueNumber) {
