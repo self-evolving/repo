@@ -53,6 +53,8 @@ interface IssueRecord {
   title: string;
   body: string;
   authorLogin?: string;
+  state?: string;
+  url?: string;
 }
 
 interface TrustedSubOrchestratorMarkerRecord {
@@ -235,7 +237,7 @@ function fetchIssueStrict(repoSlug: string, issueNumber: number): IssueRecord {
     "--repo",
     repoSlug,
     "--json",
-    "number,title,body,author",
+    "number,title,body,author,state,url",
   ]).trim();
   if (!raw) throw new Error(`empty issue response for #${issueNumber}`);
   const parsed = JSON.parse(raw) as Record<string, unknown>;
@@ -244,6 +246,8 @@ function fetchIssueStrict(repoSlug: string, issueNumber: number): IssueRecord {
     title: String(parsed.title || ""),
     body: String(parsed.body || ""),
     authorLogin: authorLoginFromRecord(parsed),
+    state: String(parsed.state || ""),
+    url: String(parsed.url || ""),
   };
 }
 
@@ -483,6 +487,19 @@ function adoptExistingSubOrchestrationIssue(
   };
 }
 
+function validateExplicitChildIssueTarget(existing: IssueRecord): void {
+  if (/\/pull\/\d+(?:\D*)?$/.test(existing.url || "")) {
+    throw new Error(`child_issue_number #${existing.number} is a pull request, not an issue`);
+  }
+  if (!/\/issues\/\d+(?:\D*)?$/.test(existing.url || "")) {
+    throw new Error(`child_issue_number #${existing.number} could not be verified as an issue`);
+  }
+  const state = String(existing.state || "").trim().toUpperCase();
+  if (state !== "OPEN") {
+    throw new Error(`child_issue_number #${existing.number} is ${state ? state.toLowerCase() : "not open"}, not open`);
+  }
+}
+
 function validateReusableChildIssue(
   existing: SubOrchestrationIssueRecord,
   parentIssue: number,
@@ -518,6 +535,7 @@ function ensureSubOrchestrationIssue(decision: HandoffDecision): string {
   if (existingIssueNumber) {
     const existing = fetchIssue(repo, existingIssueNumber);
     if (!existing) throw new Error(`Could not read child issue #${existingIssueNumber}`);
+    validateExplicitChildIssueTarget(existing);
     const trustedIssue = trustedSubOrchestrationIssue(repo, existing);
     const childIssue = trustedIssue || adoptExistingSubOrchestrationIssue(
       repo,

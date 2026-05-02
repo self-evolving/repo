@@ -63,7 +63,11 @@ if [ "\${1-}" = "issue" ] && [ "\${2-}" = "view" ]; then
   if [ "\${FAKE_ISSUE_VIEW_MODE-}" = "missing" ]; then
     exit 1
   fi
-  printf '{"number":%s,"title":"%s","body":"%s","author":{"login":"%s"}}\\n' "\${3}" "\${FAKE_ISSUE_TITLE-Child issue}" "\${FAKE_ISSUE_BODY-}" "\${FAKE_ISSUE_AUTHOR-sepo-agent-app[bot]}"
+  issue_url="\${FAKE_ISSUE_URL-}"
+  if [ -z "$issue_url" ]; then
+    issue_url="https://github.com/self-evolving/repo/issues/\${3}"
+  fi
+  printf '{"number":%s,"title":"%s","body":"%s","author":{"login":"%s"},"state":"%s","url":"%s"}\\n' "\${3}" "\${FAKE_ISSUE_TITLE-Child issue}" "\${FAKE_ISSUE_BODY-}" "\${FAKE_ISSUE_AUTHOR-sepo-agent-app[bot]}" "\${FAKE_ISSUE_STATE-OPEN}" "$issue_url"
   exit 0
 fi
 
@@ -398,6 +402,57 @@ test("agent orchestrate adopts explicit user-authored child issues with trusted 
   assert.doesNotMatch(run.ghLog, /issue create/);
   assert.doesNotMatch(run.ghLog, /issue list/);
   assert.match(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
+});
+
+test("agent orchestrate rejects explicit child targets that are pull requests", () => {
+  const run = runOrchestrateHandoff({
+    AUTOMATION_MODE: "agent",
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "76",
+    FAKE_ISSUE_URL: "https://github.com/self-evolving/repo/pull/77",
+    FAKE_ISSUE_BODY: "<!-- sepo-sub-orchestrator parent:76 stage:stage-1 state:running -->",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "delegate_issue",
+      reason: "Reuse an existing child.",
+      child_stage: "stage 1",
+      child_issue_number: "77",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.match(run.outputs.get("reason") || "", /child issue delegation failed/);
+  assert.match(run.outputs.get("reason") || "", /child_issue_number #77 is a pull request, not an issue/);
+  assert.match(run.ghLog, /issue view 77/);
+  assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/76\/comments/);
+  assert.doesNotMatch(run.ghLog, /repos\/self-evolving\/repo\/issues\/77\/comments/);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
+});
+
+test("agent orchestrate rejects explicit child targets that are closed issues", () => {
+  const run = runOrchestrateHandoff({
+    AUTOMATION_MODE: "agent",
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "76",
+    FAKE_ISSUE_STATE: "CLOSED",
+    FAKE_ISSUE_AUTHOR: "lolipopshock",
+    FAKE_ISSUE_BODY: "Existing issue body.",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "delegate_issue",
+      reason: "Adopt an existing child issue.",
+      child_stage: "stage 1",
+      child_issue_number: "77",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.match(run.outputs.get("reason") || "", /child issue delegation failed/);
+  assert.match(run.outputs.get("reason") || "", /child_issue_number #77 is closed, not open/);
+  assert.match(run.ghLog, /issue view 77/);
+  assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/76\/comments/);
+  assert.doesNotMatch(run.ghLog, /repos\/self-evolving\/repo\/issues\/77\/comments/);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
 });
 
 test("agent orchestrate reports invalid child issue reuse on the parent issue", () => {
