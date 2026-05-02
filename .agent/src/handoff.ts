@@ -1,15 +1,16 @@
 import { extractJsonObject } from "./response.js";
 
 export type AgentAction = "implement" | "review" | "fix-pr";
-export type HandoffDecisionKind = "dispatch" | "stop" | "skip";
+export type HandoffDecisionKind = "dispatch" | "delegate_issue" | "stop" | "skip";
 export type AutomationMode = "disabled" | "heuristics" | "agent";
 export type HandoffMarkerState = "pending" | "dispatched" | "failed";
-export type PlannerDecisionKind = "handoff" | "stop" | "blocked";
+export type PlannerDecisionKind = "handoff" | "delegate_issue" | "stop" | "blocked";
 
 export interface HandoffInput {
   automationMode: string;
   sourceAction: string;
   sourceConclusion: string;
+  targetKind?: string;
   targetNumber: string;
   nextTargetNumber?: string;
   currentRound: number;
@@ -24,6 +25,11 @@ export interface HandoffDecision {
   reason: string;
   nextRound: number;
   handoffContext?: string;
+  childStage?: string;
+  childInstructions?: string;
+  childIssueNumber?: string;
+  baseBranch?: string;
+  basePr?: string;
 }
 
 export interface HandoffDedupeInput {
@@ -46,6 +52,11 @@ export interface PlannerDecision {
   nextAction?: AgentAction;
   reason: string;
   handoffContext?: string;
+  childStage?: string;
+  childInstructions?: string;
+  childIssueNumber?: string;
+  baseBranch?: string;
+  basePr?: string;
 }
 
 const REVIEW_TO_FIX_PR = new Set(["minor_issues", "needs_rework", "changes_requested"]);
@@ -120,6 +131,8 @@ export function parsePlannerDecision(raw: string): PlannerDecision | null {
   const decisionToken = normalizeToken(String(record.decision || ""));
   const decision: PlannerDecisionKind | null = decisionToken === "handoff"
     ? "handoff"
+    : decisionToken === "delegate_issue"
+      ? "delegate_issue"
     : decisionToken === "stop"
       ? "stop"
       : decisionToken === "blocked"
@@ -130,6 +143,15 @@ export function parsePlannerDecision(raw: string): PlannerDecision | null {
   const nextAction = normalizeAgentAction(String(record.next_action ?? record.nextAction ?? ""));
   const reason = String(record.reason || "").trim();
   const handoffContext = String(record.handoff_context ?? record.handoffContext ?? "").trim();
+  const childStage = String(record.child_stage ?? record.childStage ?? record.stage ?? "").trim();
+  const childInstructions = String(
+    record.child_instructions ?? record.childInstructions ?? record.task_instructions ?? record.taskInstructions ?? "",
+  ).trim();
+  const childIssueNumber = String(
+    record.child_issue_number ?? record.childIssueNumber ?? record.target_issue_number ?? record.targetIssueNumber ?? "",
+  ).trim();
+  const baseBranch = String(record.base_branch ?? record.baseBranch ?? "").trim();
+  const basePr = String(record.base_pr ?? record.basePr ?? "").trim();
   const plannerDecision: PlannerDecision = {
     decision,
     nextAction: nextAction || undefined,
@@ -138,6 +160,11 @@ export function parsePlannerDecision(raw: string): PlannerDecision | null {
   if (handoffContext) {
     plannerDecision.handoffContext = handoffContext;
   }
+  if (childStage) plannerDecision.childStage = childStage;
+  if (childInstructions) plannerDecision.childInstructions = childInstructions;
+  if (childIssueNumber) plannerDecision.childIssueNumber = childIssueNumber;
+  if (baseBranch) plannerDecision.baseBranch = baseBranch;
+  if (basePr) plannerDecision.basePr = basePr;
   return plannerDecision;
 }
 
@@ -326,6 +353,41 @@ function decideAgentHandoff(input: HandoffInput): HandoffDecision {
       decision: "stop",
       reason: `agent planner ${plannerDecision.decision}: ${plannerDecision.reason}`,
       nextRound,
+    };
+  }
+  if (plannerDecision.decision === "delegate_issue") {
+    const sourceAction = normalizeToken(input.sourceAction);
+    const targetKind = normalizeToken(input.targetKind || "");
+    if (plannerDecision.nextAction) {
+      return { decision: "stop", reason: "delegate_issue must not set next_action", nextRound };
+    }
+    if (sourceAction !== "orchestrate") {
+      return { decision: "stop", reason: "delegate_issue is only allowed from meta orchestration", nextRound };
+    }
+    if (targetKind && targetKind !== "issue") {
+      return { decision: "stop", reason: "meta orchestration can delegate child issues only from issues", nextRound };
+    }
+    if (plannerDecision.baseBranch && plannerDecision.basePr) {
+      return { decision: "stop", reason: "agent planner set both base_branch and base_pr", nextRound };
+    }
+    if (!plannerDecision.childIssueNumber && !plannerDecision.childInstructions && !plannerDecision.handoffContext) {
+      return {
+        decision: "stop",
+        reason: "agent planner requested child issue delegation without child instructions or existing issue",
+        nextRound,
+      };
+    }
+    return {
+      decision: "delegate_issue",
+      reason: `agent planner selected child issue delegation: ${plannerDecision.reason}`,
+      nextRound,
+      targetNumber: plannerDecision.childIssueNumber || input.targetNumber,
+      handoffContext: plannerDecision.handoffContext,
+      childStage: plannerDecision.childStage || `stage-${nextRound - 1}`,
+      childInstructions: plannerDecision.childInstructions || plannerDecision.handoffContext,
+      childIssueNumber: plannerDecision.childIssueNumber,
+      baseBranch: plannerDecision.baseBranch,
+      basePr: plannerDecision.basePr,
     };
   }
   if (!plannerDecision.nextAction) {

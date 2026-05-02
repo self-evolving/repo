@@ -70,18 +70,45 @@ In `heuristics` mode, manual starts use deterministic status checks:
 - pull request target with `CHANGES_REQUESTED`: dispatch `fix-pr`
 - other open pull request targets: dispatch `review`
 
+In `agent` mode, an issue-level manual start can act as a meta-orchestrator.
+The planner may return `delegate_issue`, which is an internal command rather
+than a public route. The dispatcher creates or reuses one child issue for the
+requested stage, stores a hidden `sepo-sub-orchestrator` marker in that issue,
+and dispatches `agent-orchestrator.yml` for the child issue in heuristic mode.
+The child issue then follows the normal bounded chain of `implement`, `review`,
+and `fix-pr` runs. The public route remains `/orchestrate`; the internal command
+keeps child delegation separate from concrete follow-up actions such as
+`implement`, `review`, and `fix-pr`.
+
+Child issue metadata is intentionally GitHub-visible state, not session state.
+The parent issue keeps the meta planner session, while each child issue gets its
+own normal issue target identity. When the child reaches a terminal stop, the
+handoff dispatcher resolves the child marker from the child issue, or through a
+closing issue reference in the terminal PR body, writes a parent progress
+comment, dispatches the parent issue orchestrator in agent mode with the child
+result, and then marks the child as `done`, `blocked`, or `failed`. The progress
+comment includes a hidden resume marker so reruns can recover a pending report
+or skip an already-dispatched terminal report.
+
+Initial user-launched `/orchestrate` requests validate that the requester has
+access to the delegated route capability set before dispatching work. This keeps
+authorization at the user boundary: child and parent resume dispatches preserve
+`requested_by` for traceability, but they do not need to thread requester
+association and route policy through every downstream workflow.
+
 When an orchestrator dispatches `implement`, it forwards any explicit
 `base_branch` or `base_pr` input. `agent-implement.yml` then resolves a single
 base branch: `base_branch` is used when set, `base_pr` resolves to the open
 same-repository PR head branch, and the repository default branch is used when
 neither input is present. Setting both base inputs is rejected.
 
-Manual `/orchestrate` starts are deterministic in `agent` mode as well. Planner
-runs are reserved for action-originated handoff envelopes.
+Manual pull request starts remain deterministic in `agent` mode. Issue-level
+manual starts may invoke the planner for `delegate_issue` meta-orchestration,
+and action-originated handoff envelopes use the planner path when enabled.
 
 In `heuristics` mode, action-originated handoff decisions still use the fixed transition policy and round budget checks.
 
-In `agent` mode, the orchestrator first runs a scoped planner prompt through the same resolved-provider runtime used by other agent actions. The planner has its own `orchestrator` route and `planner` lane, so session continuation is separate from implement, review, and fix-pr sessions. The planner runs with `approve-all` tool permission so it can gather current GitHub and repository context in non-interactive workflows. It still receives read-only repository memory, selected read-only rubrics, the handoff envelope, and original request, and returns JSON describing whether to stop, block, or hand off. For handoffs, the planner may also return `handoff_context`: explicit, action-oriented instructions for the next workflow. When the next action is `fix-pr`, the dispatcher passes that context into `agent-fix-pr.yml`, and the fix-pr prompt treats it as initial steering for the automated fix pass. The workflow uses the runtime preflight CLI to skip this planner when the max-round budget is already exhausted, and the runtime still validates planner JSON against the fixed transition policy and max-round budget before dispatching anything.
+In `agent` mode, the orchestrator first runs a scoped planner prompt through the same resolved-provider runtime used by other agent actions. The planner has its own `orchestrator` route and `planner` lane, so session continuation is separate from implement, review, and fix-pr sessions. The planner runs with `approve-all` tool permission so it can gather current GitHub and repository context in non-interactive workflows. It still receives read-only repository memory, selected read-only rubrics, the handoff envelope, and original request, and returns JSON describing whether to stop, block, delegate a child issue, or hand off. For handoffs, the planner may also return `handoff_context`: explicit, action-oriented instructions for the next workflow. When the next action is `fix-pr`, the dispatcher passes that context into `agent-fix-pr.yml`, and the fix-pr prompt treats it as initial steering for the automated fix pass. The workflow uses the runtime preflight CLI to skip this planner when the max-round budget is already exhausted or the initial requester lacks delegated-route capability, and the runtime still validates planner JSON against the fixed transition policy and max-round budget before dispatching anything.
 
 Before dispatching, the orchestrator checks for a hidden handoff marker on the destination issue or pull request. It then writes a `pending` marker for the current source run, source action, destination action, target, and round, dispatches the next workflow, and updates the marker to `dispatched` after `workflow_dispatch` succeeds. After a successful dispatch, it minimizes older visible handoff marker comments from the same authenticated agent account as outdated unless `AGENT_COLLAPSE_OLD_REVIEWS=false` is set. If dispatch fails, the marker is updated to `failed` so a rerun can retry. Rerunning the same source action or orchestrator run skips fresh `pending` or `dispatched` markers instead of enqueueing a duplicate next action. A `pending` marker records its creation time; if it is older than the one-hour stale threshold, the orchestrator marks it `failed` and retries so cancelled runs do not permanently block handoff. Non-success statuses and unsupported verdicts stop the chain.
 

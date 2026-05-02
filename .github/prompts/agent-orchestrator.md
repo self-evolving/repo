@@ -24,6 +24,9 @@ these policy rules:
 - `review` may hand off to `fix-pr` only for `MINOR_ISSUES`,
   `NEEDS_REWORK`, or `CHANGES_REQUESTED`.
 - `fix-pr` may hand off to `review` only when fixes succeeded.
+- Issue-level `orchestrate` in agent mode may return `delegate_issue` to
+  create or reuse one child issue and start the child issue's normal
+  orchestrator flow.
 - Duplicate handoffs are skipped by the orchestrator marker dedupe logic.
 - You may always choose to stop when another automatic action is not useful.
 
@@ -35,10 +38,15 @@ rubrics. Then return exactly one JSON object and nothing else:
 
 ```json
 {
-  "decision": "handoff | stop | blocked",
+  "decision": "handoff | delegate_issue | stop | blocked",
   "next_action": "review | fix-pr",
   "reason": "Short explanation for logs and the handoff marker.",
-  "handoff_context": "Actionable instructions for the next action, especially fix-pr."
+  "handoff_context": "Actionable instructions for the next action, especially fix-pr.",
+  "child_stage": "Short child issue stage name when decision is delegate_issue.",
+  "child_instructions": "Concrete child issue task instructions when decision is delegate_issue.",
+  "child_issue_number": "Optional existing child issue number to reuse.",
+  "base_branch": "Optional branch to base child implementation PRs on.",
+  "base_pr": "Optional PR number whose head branch child implementation PRs should stack on."
 }
 ```
 
@@ -47,6 +55,10 @@ Rules:
   as the primary automation signal: hand off on `FIX_PR`, stop on
   `HUMAN_DECISION` or `NO_AUTOMATED_ACTION` unless newer human input overrides it.
 - Use `handoff` only when one more automatic action is clearly warranted.
+- Use `delegate_issue` only for issue-level meta orchestration. Do not set
+  `next_action` with `delegate_issue`; it is an internal command, not a public
+  route. Provide either `child_instructions`, `handoff_context`, or
+  `child_issue_number`.
 - Be conservative for `MINOR_ISSUES`, especially in late rounds. Hand off to
   `fix-pr` only for concrete unresolved findings that require a branch change
   and are safe for an automated agent to apply.
