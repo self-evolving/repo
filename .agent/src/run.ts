@@ -50,6 +50,10 @@ import {
 } from "./runtime-state.js";
 import { configureBotIdentity } from "./git.js";
 import { setOutput } from "./output.js";
+import {
+  buildContinuationPrompt,
+  selectContinuationPromptForResume,
+} from "./prompt-continuation.js";
 
 // --- Logging ---
 
@@ -319,19 +323,18 @@ function main(): void {
   promptVars.GITHUB_REPOSITORY = promptVars.REPO_SLUG;
 
   const prompt = renderPrompt(templatePath, promptVars, repoRoot);
-  const continuationPrompt = [
-    "Trigger metadata:",
-    `- Triggering source kind: \`${promptVars.REQUEST_SOURCE_KIND || ""}\``,
-    `- Triggering comment/review ID: \`${promptVars.REQUEST_COMMENT_ID || ""}\``,
-    `- Triggering comment/review URL: \`${promptVars.REQUEST_COMMENT_URL || ""}\``,
-    "",
-    promptVars.REQUEST_TEXT,
-  ].join("\n");
+  const continuationPrompt = buildContinuationPrompt(promptVars);
+  const resumeContinuationPrompt = selectContinuationPromptForResume({
+    route: envelope.route,
+    promptVars,
+    continuationPrompt,
+  });
 
   log("info", "Prompt rendered", {
     template: templatePath,
     prompt_length: prompt.length,
     continuation_prompt_length: continuationPrompt.length,
+    resume_prompt_mode: resumeContinuationPrompt ? "continuation" : "full",
   });
 
   // 4. Preflight
@@ -367,8 +370,15 @@ function main(): void {
   const sharedEnv = buildSharedEnv();
   const permissionMode = parsePermissionModeOrSetDefault(process.env.ACPX_PERMISSION_MODE);
   runDirectPath({
-    agent, repoRoot, prompt, continuationPrompt, envelope, permissionMode,
-    sharedEnv, runnerTemp, fileId,
+    agent,
+    repoRoot,
+    prompt,
+    continuationPrompt: resumeContinuationPrompt,
+    envelope,
+    permissionMode,
+    sharedEnv,
+    runnerTemp,
+    fileId,
   });
 }
 
@@ -378,7 +388,7 @@ function runDirectPath(opts: {
   agent: string;
   repoRoot: string;
   prompt: string;
-  continuationPrompt: string;
+  continuationPrompt?: string;
   envelope: RuntimeEnvelope;
   permissionMode: "approve-all" | "approve-reads" | "deny-all";
   sharedEnv: Record<string, string>;

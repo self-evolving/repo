@@ -65,6 +65,7 @@ flowchart TD
 
 - reusable workflows and direct route workflows fall back to repository variable `AGENT_SESSION_BUNDLE_MODE` before using the built-in `auto` default
 - `fix-pr` uses `resume-best-effort` so repeated fix attempts resume when a session identity is available, but can start fresh instead of deadlocking when older thread state lacks an `acpxSessionId`
+- resumed orchestrator-launched `fix-pr` runs with non-empty handoff context replay the full current route prompt so the latest planner instructions are not lost to a lightweight continuation prompt
 - self-hosted runners can choose to set `AGENT_SESSION_BUNDLE_MODE=never` to prefer local session state over artifact-backed continuity, but the backend does not switch this automatically
 
 See [Self-hosted GitHub Action runner](../deployment/self-hosted-github-action-runner.md) for the runner side of that trade-off.
