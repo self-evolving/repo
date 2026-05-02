@@ -83,6 +83,10 @@ chain of `implement`, `review`, and `fix-pr` runs. The public route remains
 `/orchestrate`; the internal command keeps child delegation separate from
 concrete follow-up actions such as `implement`, `review`, and `fix-pr`.
 
+When the meta-orchestrator continues sequential child implementation work after
+a prior child produced an open, unmerged PR, the planner should set `base_pr` to
+that prior child PR unless the next child is intentionally independent.
+
 Child issue metadata is intentionally GitHub-visible state, not session state.
 The parent issue keeps the meta planner session, while each child issue gets its
 own normal issue target identity. When the child reaches a terminal stop, the

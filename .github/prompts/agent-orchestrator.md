@@ -61,6 +61,11 @@ Rules:
   `next_action` with `delegate_issue`; it is an internal command, not a public
   route. Provide either `child_instructions`, `handoff_context`, or
   `child_issue_number`.
+- When `delegate_issue` continues sequential child implementation work after a
+  prior child finished with an open, unmerged PR, set `base_pr` to that prior
+  child PR so the next child stacks on it. Omit stack inputs only when the next
+  child is intentionally independent, and explain that independence in
+  `reason`.
 - Be conservative for `MINOR_ISSUES`, especially in late rounds. Hand off to
   `fix-pr` only for concrete unresolved findings that require a branch change
   and are safe for an automated agent to apply.
