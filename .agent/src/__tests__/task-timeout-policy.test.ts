@@ -3,6 +3,7 @@ import { strict as assert } from "node:assert";
 
 import {
   DEFAULT_TASK_TIMEOUT_MINUTES,
+  MAX_TASK_TIMEOUT_MINUTES,
   getTaskTimeoutMinutesForRoute,
   parseTaskTimeoutPolicy,
 } from "../task-timeout-policy.js";
@@ -12,6 +13,7 @@ test("parseTaskTimeoutPolicy falls back to default minutes when unset", () => {
   assert.equal(policy.defaultMinutes, DEFAULT_TASK_TIMEOUT_MINUTES);
   assert.deepEqual(policy.routeOverrides, {});
   assert.equal(DEFAULT_TASK_TIMEOUT_MINUTES, 30);
+  assert.equal(MAX_TASK_TIMEOUT_MINUTES, 360);
 });
 
 test("parseTaskTimeoutPolicy accepts default_minutes alone", () => {
@@ -47,6 +49,14 @@ test("parseTaskTimeoutPolicy rejects invalid minute values", () => {
   assert.throws(
     () => parseTaskTimeoutPolicy('{"route_overrides": {"answer": "30"}}'),
     /route_overrides\.answer must be a positive integer/,
+  );
+  assert.throws(
+    () => parseTaskTimeoutPolicy('{"default_minutes": 361}'),
+    /default_minutes must be at most 360/,
+  );
+  assert.throws(
+    () => parseTaskTimeoutPolicy('{"route_overrides": {"answer": 1000}}'),
+    /route_overrides\.answer must be at most 360/,
   );
 });
 

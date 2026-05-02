@@ -726,6 +726,7 @@ test("workflow docs record the minimal metadata contract and developer notes", (
 
   assert.match(configurationList, /AGENT_RUNS_ON/);
   assert.match(configurationList, /AGENT_TASK_TIMEOUT_POLICY/);
+  assert.match(configurationList, /Values must be 1-360 minutes/);
   assert.match(configurationList, /AGENT_MEMORY_POLICY/);
   assert.match(configurationList, /AGENT_MEMORY_REF/);
   assert.match(configurationList, /AGENT_RUBRICS_POLICY/);

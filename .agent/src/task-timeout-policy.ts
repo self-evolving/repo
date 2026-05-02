@@ -13,6 +13,7 @@
 // Default when empty or unset: every route gets 30 minutes.
 
 export const DEFAULT_TASK_TIMEOUT_MINUTES = 30;
+export const MAX_TASK_TIMEOUT_MINUTES = 360;
 
 const VALID_ROUTE_KEY = /^[a-z0-9][a-z0-9._-]*$/;
 
@@ -25,7 +26,11 @@ function normalizeMinutes(value: unknown, label: string): number {
   if (!Number.isInteger(value) || Number(value) <= 0) {
     throw new Error(`${label} must be a positive integer`);
   }
-  return Number(value);
+  const minutes = Number(value);
+  if (minutes > MAX_TASK_TIMEOUT_MINUTES) {
+    throw new Error(`${label} must be at most ${MAX_TASK_TIMEOUT_MINUTES}`);
+  }
+  return minutes;
 }
 
 export function parseTaskTimeoutPolicy(raw: string): TaskTimeoutPolicy {
