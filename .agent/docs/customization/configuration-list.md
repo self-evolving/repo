@@ -19,6 +19,7 @@
 | `AGENT_PROJECT_MANAGEMENT_DISCUSSION_CATEGORY` | Discussion category shared by Daily Summary discussion creation and project-management summary comments. Defaults to `General`. |
 | `AGENT_PROJECT_MANAGEMENT_LIMIT` | Maximum open issues and pull requests for the agent to inspect per kind. Defaults to `100`. |
 | `AGENT_ACCESS_POLICY` | JSON trigger allowlist policy. See [Trigger access policy](../access-policy.md). |
+| `AGENT_TASK_TIMEOUT_POLICY` | JSON policy for GitHub Actions step timeouts on agent tasks. Defaults to `{"default_minutes":30}` and accepts route overrides, for example `{"default_minutes":30,"route_overrides":{"implement":60,"review":45}}`. |
 | `AGENT_MEMORY_POLICY` | JSON policy controlling which routes can read or write repository memory. See [Repository memory](../architecture/memory.md). |
 | `AGENT_MEMORY_REF` | Default branch name used when workflows mount repository memory. Defaults to `agent/memory`. |
 | `AGENT_SCHEDULE_POLICY` | JSON policy controlling scheduled workflow runs. See [Repository memory](../architecture/memory.md#scheduled-workflow-policy-agent_schedule_policy). |

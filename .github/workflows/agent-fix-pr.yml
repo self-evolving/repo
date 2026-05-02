@@ -166,9 +166,18 @@ jobs:
           TARGET_NUMBER: ${{ env.PR_NUMBER }}
         run: node .agent/dist/cli/add-label.js
 
+      - name: Resolve task timeout
+        if: steps.pr.outputs.cross_repo != 'true' && steps.pr.outputs.pr_state == 'OPEN'
+        id: task_timeout
+        env:
+          AGENT_TASK_TIMEOUT_POLICY: ${{ vars.AGENT_TASK_TIMEOUT_POLICY || '' }}
+          ROUTE: fix-pr
+        run: node .agent/dist/cli/resolve-task-timeout.js
+
       - name: Run agent
         if: steps.pr.outputs.cross_repo != 'true' && steps.pr.outputs.pr_state == 'OPEN'
         id: agent
+        timeout-minutes: ${{ fromJson(steps.task_timeout.outputs.minutes || '30') }}
         uses: ./.github/actions/run-agent-task
         with:
           agent: ${{ steps.provider.outputs.provider }}

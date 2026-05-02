@@ -188,11 +188,22 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
+      - name: Resolve task timeout
+        if: >-
+          steps.context.outputs.should_respond == 'true' &&
+          steps.context.outputs.requested_route == ''
+        id: task_timeout
+        env:
+          AGENT_TASK_TIMEOUT_POLICY: ${{ vars.AGENT_TASK_TIMEOUT_POLICY || '' }}
+          ROUTE: dispatch
+        run: node .agent/dist/cli/resolve-task-timeout.js
+
       - name: Run dispatch triage
         if: >-
           steps.context.outputs.should_respond == 'true' &&
           steps.context.outputs.requested_route == ''
         id: triage
+        timeout-minutes: ${{ fromJson(steps.task_timeout.outputs.minutes || '30') }}
         uses: ./.github/actions/run-agent-task
         with:
           agent: ${{ steps.dispatch_provider.outputs.provider }}
@@ -298,9 +309,18 @@ jobs:
           install_codex: ${{ needs.portal.outputs.route == 'answer' && steps.provider.outputs.install_codex || 'false' }}
           install_claude: ${{ needs.portal.outputs.route == 'answer' && steps.provider.outputs.install_claude || 'false' }}
 
+      - name: Resolve task timeout
+        if: needs.portal.outputs.route == 'answer'
+        id: task_timeout
+        env:
+          AGENT_TASK_TIMEOUT_POLICY: ${{ vars.AGENT_TASK_TIMEOUT_POLICY || '' }}
+          ROUTE: answer
+        run: node .agent/dist/cli/resolve-task-timeout.js
+
       - name: Run answer agent
         if: needs.portal.outputs.route == 'answer'
         id: answer
+        timeout-minutes: ${{ fromJson(steps.task_timeout.outputs.minutes || '30') }}
         uses: ./.github/actions/run-agent-task
         with:
           agent: ${{ steps.provider.outputs.provider }}
@@ -437,9 +457,18 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
+      - name: Resolve task timeout
+        if: steps.check-skill.outputs.exists == 'true'
+        id: task_timeout
+        env:
+          AGENT_TASK_TIMEOUT_POLICY: ${{ vars.AGENT_TASK_TIMEOUT_POLICY || '' }}
+          ROUTE: skill
+        run: node .agent/dist/cli/resolve-task-timeout.js
+
       - name: Run skill
         id: skill
         if: steps.check-skill.outputs.exists == 'true'
+        timeout-minutes: ${{ fromJson(steps.task_timeout.outputs.minutes || '30') }}
         uses: ./.github/actions/run-agent-task
         with:
           agent: ${{ steps.skill_provider.outputs.provider }}

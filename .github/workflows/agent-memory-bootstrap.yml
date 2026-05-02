@@ -164,8 +164,17 @@ jobs:
           SYNC_PULL_CURSOR: ${{ steps.sync.outputs.pull_cursor }}
         run: node .agent/dist/cli/memory/write-sync-state.js
 
+      - name: Resolve task timeout
+        if: steps.sync.outcome == 'success'
+        id: task_timeout
+        env:
+          AGENT_TASK_TIMEOUT_POLICY: ${{ vars.AGENT_TASK_TIMEOUT_POLICY || '' }}
+          ROUTE: answer
+        run: node .agent/dist/cli/resolve-task-timeout.js
+
       - name: Curate memory from recent activity
         if: steps.sync.outcome == 'success'
+        timeout-minutes: ${{ fromJson(steps.task_timeout.outputs.minutes || '30') }}
         uses: ./.github/actions/run-agent-task
         with:
           agent: ${{ steps.provider.outputs.provider }}
