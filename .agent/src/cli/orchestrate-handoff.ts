@@ -27,12 +27,14 @@ import {
   extractClosingIssueNumber,
   formatSubOrchestrationIssueBody,
   formatSubOrchestratorChildLinkMarker,
+  formatSubOrchestratorMarker,
   normalizeSubOrchestratorStage,
   parseSubOrchestratorChildLinkMarker,
   parseSubOrchestratorMarker,
   resultStateFromTerminal,
   updateSubOrchestratorMarkerParentRound,
   updateSubOrchestratorMarkerState,
+  type SubOrchestratorMarker,
   type SubOrchestratorState,
 } from "../sub-orchestration.js";
 
@@ -51,8 +53,22 @@ interface IssueRecord {
   title: string;
   body: string;
   authorLogin?: string;
+  state?: string;
+  url?: string;
 }
 
+interface TrustedSubOrchestratorMarkerRecord {
+  marker: SubOrchestratorMarker;
+  sourceKind: "body" | "comment";
+  body: string;
+  commentId?: string;
+}
+
+interface SubOrchestrationIssueRecord extends IssueRecord {
+  subOrchestrator: TrustedSubOrchestratorMarkerRecord;
+}
+
+const SUB_ORCHESTRATION_ADOPTION_COMMENT_MARKER = "<!-- sepo-sub-orchestrator-adoption -->";
 const PENDING_MARKER_TTL_MS = 60 * 60 * 1000;
 
 function positiveInt(value: string, fallback: number): number {
@@ -222,7 +238,7 @@ function fetchIssueStrict(repoSlug: string, issueNumber: number): IssueRecord {
     "--repo",
     repoSlug,
     "--json",
-    "number,title,body,author",
+    "number,title,body,author,state,url",
   ]).trim();
   if (!raw) throw new Error(`empty issue response for #${issueNumber}`);
   const parsed = JSON.parse(raw) as Record<string, unknown>;
@@ -231,6 +247,8 @@ function fetchIssueStrict(repoSlug: string, issueNumber: number): IssueRecord {
     title: String(parsed.title || ""),
     body: String(parsed.body || ""),
     authorLogin: authorLoginFromRecord(parsed),
+    state: String(parsed.state || ""),
+    url: String(parsed.url || ""),
   };
 }
 
@@ -269,7 +287,85 @@ function parseIssueNumberFromUrl(url: string): string {
   return match ? match[1] : "";
 }
 
-function findExistingSubOrchestrationIssue(repoSlug: string, parentIssue: number, stage: string): IssueRecord | null {
+function trustedSubOrchestratorMarkerFromBody(issue: IssueRecord): TrustedSubOrchestratorMarkerRecord | null {
+  const marker = parseSubOrchestratorMarker(issue.body);
+  if (!marker || !isTrustedIssueRecord(issue)) return null;
+  return { marker, sourceKind: "body", body: issue.body };
+}
+
+function isSubOrchestrationAdoptionComment(body: string): boolean {
+  const text = String(body || "").trim();
+  return (
+    text.startsWith("Sepo adopted this issue as a sub-orchestrator child of #") &&
+    text.includes(SUB_ORCHESTRATION_ADOPTION_COMMENT_MARKER)
+  );
+}
+
+function trustedSubOrchestratorMarkerFromComments(
+  repoSlug: string,
+  issueNumber: number,
+): TrustedSubOrchestratorMarkerRecord | null {
+  for (const comment of [...fetchIssueComments(repoSlug, issueNumber)].reverse()) {
+    const body = comment.body || "";
+    const marker = parseSubOrchestratorMarker(body);
+    if (
+      !marker ||
+      !comment.id ||
+      !isTrustedActorLogin(comment.authorLogin || "") ||
+      !isSubOrchestrationAdoptionComment(body)
+    ) {
+      continue;
+    }
+    return {
+      marker,
+      sourceKind: "comment",
+      body,
+      commentId: String(comment.id),
+    };
+  }
+  return null;
+}
+
+function trustedSubOrchestrationIssue(
+  repoSlug: string,
+  issue: IssueRecord,
+): SubOrchestrationIssueRecord | null {
+  const subOrchestrator = trustedSubOrchestratorMarkerFromBody(issue) ||
+    trustedSubOrchestratorMarkerFromComments(repoSlug, issue.number);
+  return subOrchestrator ? { ...issue, subOrchestrator } : null;
+}
+
+function updateTrustedSubOrchestratorMarker(
+  repoSlug: string,
+  issue: SubOrchestrationIssueRecord,
+  body: string,
+): void {
+  if (issue.subOrchestrator.sourceKind === "body") {
+    updateIssueBody(repoSlug, issue.number, body);
+    return;
+  }
+  if (!issue.subOrchestrator.commentId) {
+    throw new Error(`child issue #${issue.number} marker comment is missing an id`);
+  }
+  updateIssueComment(repoSlug, issue.subOrchestrator.commentId, body);
+}
+
+function updateSubOrchestrationParentRound(
+  repoSlug: string,
+  issue: SubOrchestrationIssueRecord,
+  parentRound: number,
+): void {
+  const updatedBody = updateSubOrchestratorMarkerParentRound(issue.subOrchestrator.body, parentRound);
+  if (updatedBody !== issue.subOrchestrator.body) {
+    updateTrustedSubOrchestratorMarker(repoSlug, issue, updatedBody);
+  }
+}
+
+function findExistingSubOrchestrationIssue(
+  repoSlug: string,
+  parentIssue: number,
+  stage: string,
+): SubOrchestrationIssueRecord | null {
   const expectedStage = normalizeSubOrchestratorStage(stage);
   const raw = gh([
     "issue",
@@ -293,22 +389,26 @@ function findExistingSubOrchestrationIssue(repoSlug: string, parentIssue: number
     if (!entry || typeof entry !== "object") continue;
     const record = entry as Record<string, unknown>;
     const number = parsePositiveTargetNumber(String(record.number || ""));
-    const body = String(record.body || "");
-    const marker = parseSubOrchestratorMarker(body);
-    if (number && marker?.parent === parentIssue && marker.stage === expectedStage && marker.state === "running") {
-      const issue: IssueRecord = {
-        number,
-        title: String(record.title || ""),
-        body,
-        authorLogin: authorLoginFromRecord(record),
-      };
-      if (isTrustedIssueRecord(issue)) return issue;
+    const issue: IssueRecord = {
+      number,
+      title: String(record.title || ""),
+      body: String(record.body || ""),
+      authorLogin: authorLoginFromRecord(record),
+    };
+    const markerRecord = number ? trustedSubOrchestratorMarkerFromBody(issue) : null;
+    const marker = markerRecord?.marker;
+    if (markerRecord && marker?.parent === parentIssue && marker.stage === expectedStage && marker.state === "running") {
+      return { ...issue, subOrchestrator: markerRecord };
     }
   }
   return null;
 }
 
-function findRecordedSubOrchestrationIssue(repoSlug: string, parentIssue: number, stage: string): IssueRecord | null {
+function findRecordedSubOrchestrationIssue(
+  repoSlug: string,
+  parentIssue: number,
+  stage: string,
+): SubOrchestrationIssueRecord | null {
   const expectedStage = normalizeSubOrchestratorStage(stage);
   const comments = fetchIssueComments(repoSlug, parentIssue);
   for (const comment of [...comments].reverse()) {
@@ -318,8 +418,12 @@ function findRecordedSubOrchestrationIssue(repoSlug: string, parentIssue: number
 
     const existing = fetchIssue(repoSlug, link.child);
     if (!existing) throw new Error(`Could not read recorded child issue #${link.child}`);
-    validateReusableChildIssue(existing, parentIssue, stage);
-    return existing;
+    const subIssue = trustedSubOrchestrationIssue(repoSlug, existing);
+    if (!subIssue) {
+      throw new Error(`recorded child issue #${link.child} is missing a trusted sepo-sub-orchestrator marker`);
+    }
+    validateReusableChildIssue(subIssue, parentIssue, stage);
+    return subIssue;
   }
   return null;
 }
@@ -356,15 +460,71 @@ function recordSubOrchestrationIssue(repoSlug: string, parentIssue: number, stag
   );
 }
 
-function validateReusableChildIssue(existing: IssueRecord, parentIssue: number, stage: string): void {
-  const marker = parseSubOrchestratorMarker(existing.body);
+function formatSubOrchestrationAdoptionComment(input: {
+  parentIssue: number;
+  stage: string;
+  parentRound: number;
+}): string {
+  return [
+    `Sepo adopted this issue as a sub-orchestrator child of #${input.parentIssue}.`,
+    "",
+    `Stage: ${normalizeSubOrchestratorStage(input.stage)}`,
+    `Parent round: ${input.parentRound}`,
+    "",
+    formatSubOrchestratorMarker({
+      parent: input.parentIssue,
+      stage: input.stage,
+      parentRound: input.parentRound,
+    }),
+    SUB_ORCHESTRATION_ADOPTION_COMMENT_MARKER,
+  ].join("\n");
+}
+
+function adoptExistingSubOrchestrationIssue(
+  repoSlug: string,
+  existing: IssueRecord,
+  parentIssue: number,
+  stage: string,
+  parentRound: number,
+): SubOrchestrationIssueRecord {
+  if (existing.number === parentIssue) {
+    throw new Error(`child issue #${existing.number} cannot be the parent issue`);
+  }
+  const body = formatSubOrchestrationAdoptionComment({ parentIssue, stage, parentRound });
+  const commentId = createIssueComment(repoSlug, existing.number, body);
+  const marker = parseSubOrchestratorMarker(body);
+  if (!marker) throw new Error(`could not create sub-orchestrator marker for child issue #${existing.number}`);
+  return {
+    ...existing,
+    subOrchestrator: {
+      marker,
+      sourceKind: "comment",
+      body,
+      commentId,
+    },
+  };
+}
+
+function validateExplicitChildIssueTarget(existing: IssueRecord): void {
+  if (/\/pull\/\d+(?:\D*)?$/.test(existing.url || "")) {
+    throw new Error(`child_issue_number #${existing.number} is a pull request, not an issue`);
+  }
+  if (!/\/issues\/\d+(?:\D*)?$/.test(existing.url || "")) {
+    throw new Error(`child_issue_number #${existing.number} could not be verified as an issue`);
+  }
+  const state = String(existing.state || "").trim().toUpperCase();
+  if (state !== "OPEN") {
+    throw new Error(`child_issue_number #${existing.number} is ${state ? state.toLowerCase() : "not open"}, not open`);
+  }
+}
+
+function validateReusableChildIssue(
+  existing: SubOrchestrationIssueRecord,
+  parentIssue: number,
+  stage: string,
+): void {
+  const marker = existing.subOrchestrator.marker;
   const expectedStage = normalizeSubOrchestratorStage(stage);
-  if (!isTrustedIssueRecord(existing)) {
-    throw new Error(`child issue #${existing.number} was not created by the authenticated agent`);
-  }
-  if (!marker) {
-    throw new Error(`child issue #${existing.number} is missing a sepo-sub-orchestrator marker`);
-  }
   if (marker.parent !== parentIssue) {
     throw new Error(`child issue #${existing.number} belongs to parent #${marker.parent}, not #${parentIssue}`);
   }
@@ -393,24 +553,30 @@ function ensureSubOrchestrationIssue(decision: HandoffDecision): string {
   if (existingIssueNumber) {
     const existing = fetchIssue(repo, existingIssueNumber);
     if (!existing) throw new Error(`Could not read child issue #${existingIssueNumber}`);
-    validateReusableChildIssue(existing, parentIssue, stage);
-    const updatedBody = updateSubOrchestratorMarkerParentRound(existing.body, parentRound);
-    if (updatedBody !== existing.body) updateIssueBody(repo, existing.number, updatedBody);
-    recordSubOrchestrationIssue(repo, parentIssue, stage, existing.number);
+    validateExplicitChildIssueTarget(existing);
+    const trustedIssue = trustedSubOrchestrationIssue(repo, existing);
+    const childIssue = trustedIssue || adoptExistingSubOrchestrationIssue(
+      repo,
+      existing,
+      parentIssue,
+      stage,
+      parentRound,
+    );
+    validateReusableChildIssue(childIssue, parentIssue, stage);
+    updateSubOrchestrationParentRound(repo, childIssue, parentRound);
+    recordSubOrchestrationIssue(repo, parentIssue, stage, childIssue.number);
     return String(existingIssueNumber);
   }
 
   const recordedIssue = findRecordedSubOrchestrationIssue(repo, parentIssue, stage);
   if (recordedIssue) {
-    const updatedBody = updateSubOrchestratorMarkerParentRound(recordedIssue.body, parentRound);
-    if (updatedBody !== recordedIssue.body) updateIssueBody(repo, recordedIssue.number, updatedBody);
+    updateSubOrchestrationParentRound(repo, recordedIssue, parentRound);
     return String(recordedIssue.number);
   }
 
   const reusableIssue = findExistingSubOrchestrationIssue(repo, parentIssue, stage);
   if (reusableIssue) {
-    const updatedBody = updateSubOrchestratorMarkerParentRound(reusableIssue.body, parentRound);
-    if (updatedBody !== reusableIssue.body) updateIssueBody(repo, reusableIssue.number, updatedBody);
+    updateSubOrchestrationParentRound(repo, reusableIssue, parentRound);
     recordSubOrchestrationIssue(repo, parentIssue, stage, reusableIssue.number);
     return String(reusableIssue.number);
   }
@@ -496,19 +662,17 @@ function readPrBodyStrict(repoSlug: string, prNumber: string): string {
   return String(parsed.body || "");
 }
 
-function resolveChildIssueForTerminal(): IssueRecord | null {
+function resolveChildIssueForTerminal(): SubOrchestrationIssueRecord | null {
   const normalizedKind = normalizeToken(sourceTargetKind);
   const currentNumber = parsePositiveTargetNumber(targetNumber);
   if (!repo || !currentNumber) return null;
   if (normalizedKind === "issue") {
-    const issue = fetchIssueStrict(repo, currentNumber);
-    return issue && isTrustedIssueRecord(issue) && parseSubOrchestratorMarker(issue.body) ? issue : null;
+    return trustedSubOrchestrationIssue(repo, fetchIssueStrict(repo, currentNumber));
   }
   if (normalizedKind === "pull_request") {
     const linkedIssueNumber = extractClosingIssueNumber(readPrBodyStrict(repo, targetNumber), repo);
     if (!linkedIssueNumber) return null;
-    const issue = fetchIssueStrict(repo, linkedIssueNumber);
-    return issue && isTrustedIssueRecord(issue) && parseSubOrchestratorMarker(issue.body) ? issue : null;
+    return trustedSubOrchestrationIssue(repo, fetchIssueStrict(repo, linkedIssueNumber));
   }
   return null;
 }
@@ -516,8 +680,8 @@ function resolveChildIssueForTerminal(): IssueRecord | null {
 function reportTerminalToParent(decision: HandoffDecision): void {
   const childIssue = resolveChildIssueForTerminal();
   if (!childIssue) return;
-  const marker = parseSubOrchestratorMarker(childIssue.body);
-  if (!marker || !["running", "done", "blocked", "failed"].includes(marker.state)) return;
+  const marker = childIssue.subOrchestrator.marker;
+  if (!["running", "done", "blocked", "failed"].includes(marker.state)) return;
 
   const resultState = marker.state === "running" ? resultStateFromTerminal({
     sourceAction,
@@ -582,11 +746,11 @@ function reportTerminalToParent(decision: HandoffDecision): void {
     writeProgress(dispatchedProgressMarker);
   }
 
-  const updatedChildBody = marker.state === "running"
-    ? updateSubOrchestratorMarkerState(childIssue.body, resultState as SubOrchestratorState)
-    : childIssue.body;
-  if (updatedChildBody !== childIssue.body) {
-    updateIssueBody(repo, childIssue.number, updatedChildBody);
+  const updatedChildMarkerBody = marker.state === "running"
+    ? updateSubOrchestratorMarkerState(childIssue.subOrchestrator.body, resultState as SubOrchestratorState)
+    : childIssue.subOrchestrator.body;
+  if (updatedChildMarkerBody !== childIssue.subOrchestrator.body) {
+    updateTrustedSubOrchestratorMarker(repo, childIssue, updatedChildMarkerBody);
   }
 }
 

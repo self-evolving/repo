@@ -33,7 +33,9 @@ route, the planner can return an internal `delegate_issue` command. That
 command creates or reuses a child issue with parent/stage metadata, dispatches
 the child issue through the normal `/orchestrate` flow in heuristic mode, and
 keeps the parent/child relationship in GitHub issue state rather than session
-identity.
+identity. When `delegate_issue` names an existing user-authored issue, the
+orchestrator adopts it by writing the trusted child marker in an agent-authored
+issue comment and recording the parent/child link on the parent issue.
 
 Planner-based selection is also used for action-originated handoff runs. The planner can include a
 `handoff_context` string for the next action; `fix-pr` receives it as explicit
@@ -44,12 +46,13 @@ state indicates no safe next action, a route fails, a duplicate handoff marker
 is found, the planner stops or blocks, or the max-round budget is exhausted.
 
 When a child issue reaches a terminal stop, the handoff dispatcher resolves the
-child metadata from the issue body, or from the pull request body's closing issue
-reference when the terminal target is a PR. It then posts or updates a visible
-progress comment on the parent issue, dispatches the parent issue orchestrator
-again in agent mode, and only then marks the child marker as `done`, `blocked`,
-or `failed`. Already-dispatched terminal reports are idempotent so reruns do not
-overwrite completed child state.
+trusted child metadata from the issue body or an agent-authored child issue
+comment, or from the pull request body's closing issue reference when the
+terminal target is a PR. It then posts or updates a visible progress comment on
+the parent issue, dispatches the parent issue orchestrator again in agent mode,
+and only then marks the trusted child marker as `done`, `blocked`, or `failed`.
+Already-dispatched terminal reports are idempotent so reruns do not overwrite
+completed child state.
 
 Because `/orchestrate` can delegate into implementation, review, and fix
 workflows, initial user-launched orchestrate requests validate the requester
