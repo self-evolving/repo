@@ -193,6 +193,43 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/77#issuecomment-4360958497",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBAsmZQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer how's the current code? Why did last implement not fix the code? ",
+      "createdAt": "2026-05-02T03:31:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/77#issuecomment-4362806885",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBAs9aA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "The current code is in decent shape structurally, but I would not call it fully finished. The main design is right: `orchestrate` remains the public route, `delegate_issue` is internal planner state, child orchestration uses GitHub-visible issue markers, and the earlier blocking authorization-order problem was fixed by moving the capability check into preflight.\n\nThe remaining problems are smaller but real:\n\n- `child_issue_number` parsing is too permissive/ambiguous. In `ensureSubOrchestrationIssue()`, the code does `parsePositiveTargetNumber(decision.childIssueNumber || \"\")`; malformed provided values can be treated like “not provided,” so the dispatcher may create a new child issue instead of failing visibly. See: https://github.com/self-evolving/repo/blob/380e2635bf7f1bfc55452c57d1ff849166aefd03/.agent/src/cli/orchestrate-handoff.ts#L267\n- Child setup failures are only visibly commented for initial round-1 `/orchestrate` requests. The failure path calls `commentOnInitialOrchestrateStop()`, but that helper returns early unless `currentRound === 1`, so resumed parent rounds can still fail without a parent-visible status comment. See: https://github.com/self-evolving/repo/blob/380e2635bf7f1bfc55452c57d1ff849166aefd03/.agent/src/cli/orchestrate-handoff.ts#L459-L466 and https://github.com/self-evolving/repo/blob/380e2635bf7f1bfc55452c57d1ff849166aefd03/.agent/src/cli/orchestrate-handoff.ts#L602-L615\n\nWhy the last run did not fix it: the last no-op was actually the automated `fix-pr` pass, not the original implementation. The review synthesis gave two concrete minor findings, but that fix run concluded “the branch already contains the `delegate_issue` child orchestration implementation and related regression coverage” and left the tree unchanged. So it appears the agent optimized around the broad implementation being present and tests passing, but failed to translate the two specific review warnings into edits.\n\nThe right follow-up is small: add strict validation for a provided `child_issue_number`, add a parent-visible delegation failure comment path that works beyond round 1, and cover both with focused tests.",
+      "createdAt": "2026-05-02T03:33:27Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/77#issuecomment-4362812776",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-01T07:44:40Z",
@@ -400,6 +437,6 @@
   ],
   "state": "OPEN",
   "title": "Add delegate_issue child orchestration",
-  "updatedAt": "2026-05-01T18:34:14Z",
+  "updatedAt": "2026-05-02T03:33:27Z",
   "url": "https://github.com/self-evolving/repo/pull/77"
 }
