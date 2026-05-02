@@ -34,3 +34,4 @@
 - Daily summary discussion gate belongs after GitHub auth in signals, before signal/provider setup.
 - Project management owns managed priority/* and effort/* labels; keep urgency signals in summaries, not labels.
 - Prefer issue-backed sub-orchestrators over lane-heavy same-issue orchestration; keep parent/child state in issue metadata.
+- .agent workflows use npm ci; dependency updates must refresh .agent/package-lock.json or runtime installs stay pinned.
