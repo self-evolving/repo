@@ -314,6 +314,24 @@ test("fix-pr success dispatches review until the round budget is exhausted", () 
   assert.match(exhausted.reason, /budget/);
 });
 
+test("fix-pr unsatisfactory conclusions stop without re-review", () => {
+  for (const conclusion of ["no_changes", "failed", "verify_failed"]) {
+    const decision = decideHandoff({
+      automationMode: "heuristics",
+      sourceAction: "fix-pr",
+      sourceConclusion: conclusion,
+      targetNumber: "99",
+      currentRound: 3,
+      maxRounds: 5,
+    });
+
+    assert.equal(decision.decision, "stop");
+    assert.equal(decision.nextAction, undefined);
+    assert.match(decision.reason, new RegExp(`fix-pr concluded ${conclusion}`));
+    assert.match(decision.reason, /must succeed before re-review/);
+  }
+});
+
 test("unsupported actions stop", () => {
   const decision = decideHandoff({
     automationMode: "heuristics",

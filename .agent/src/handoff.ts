@@ -312,7 +312,11 @@ function decideHeuristicHandoff(input: HandoffInput): HandoffDecision {
 
   if (sourceAction === "fix_pr") {
     if (conclusion !== "success") {
-      return { decision: "stop", reason: `fix-pr concluded ${conclusion}`, nextRound };
+      return {
+        decision: "stop",
+        reason: `fix-pr concluded ${conclusion}; no automatic handoff was dispatched because fix-pr must succeed before re-review`,
+        nextRound,
+      };
     }
     return {
       decision: "dispatch",

@@ -29,7 +29,7 @@ stateDiagram-v2
     Review --> Stop: failed or unsupported verdict
 
     FixPR --> Review: success
-    FixPR --> Stop: failed or unsupported PR
+    FixPR --> Stop: no_changes / failed / verify_failed / unsupported PR
 
     Review --> Stop: max rounds exhausted
     FixPR --> Stop: max rounds exhausted
@@ -113,6 +113,13 @@ and action-originated handoff envelopes use the planner path when enabled.
 In `heuristics` mode, action-originated handoff decisions still use the fixed transition policy and round budget checks.
 
 In `agent` mode, the orchestrator first runs a scoped planner prompt through the same resolved-provider runtime used by other agent actions. The planner has its own `orchestrator` route and `planner` lane, so session continuation is separate from implement, review, and fix-pr sessions. The planner runs with `approve-all` tool permission so it can gather current GitHub and repository context in non-interactive workflows. It still receives read-only repository memory, selected read-only rubrics, the handoff envelope, and original request, and returns JSON describing whether to stop, block, delegate a child issue, or hand off. For handoffs, the planner may also return `handoff_context`: explicit, action-oriented instructions for the next workflow. When the next action is `fix-pr`, the dispatcher passes that context into `agent-fix-pr.yml`, and the fix-pr prompt treats it as initial steering for the automated fix pass. The workflow uses the runtime preflight CLI to skip this planner when the max-round budget is already exhausted or the initial requester lacks delegated-route capability, and the runtime still validates planner JSON against the fixed transition policy and max-round budget before dispatching anything.
+
+When an orchestrator-launched `implement` or `fix-pr` run reports
+`no_changes`, `failed`, `verify_failed`, or `unsupported`, the dispatcher stops
+and posts a structured stop comment on the current target with the source
+action, conclusion, target, round, reason, and source run ID. For `fix-pr`, the
+runtime does not re-review automatically after those conclusions; `fix-pr` must
+succeed before the chain can hand back to `review`.
 
 Before dispatching, the orchestrator checks for a hidden handoff marker on the destination issue or pull request. It then writes a `pending` marker for the current source run, source action, destination action, target, and round, dispatches the next workflow, and updates the marker to `dispatched` after `workflow_dispatch` succeeds. After a successful dispatch, it minimizes older visible handoff marker comments from the same authenticated agent account as outdated unless `AGENT_COLLAPSE_OLD_REVIEWS=false` is set. If dispatch fails, the marker is updated to `failed` so a rerun can retry. Rerunning the same source action or orchestrator run skips fresh `pending` or `dispatched` markers instead of enqueueing a duplicate next action. A `pending` marker records its creation time; if it is older than the one-hour stale threshold, the orchestrator marks it `failed` and retries so cancelled runs do not permanently block handoff. Non-success statuses and unsupported verdicts stop the chain.
 
