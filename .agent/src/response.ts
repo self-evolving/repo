@@ -184,6 +184,31 @@ export function formatRubricsUpdateComment(data: {
   return lines.join("\n");
 }
 
+export function formatAddRubricsComment(data: {
+  rubricsRef: string;
+  rubricsCommitted: boolean;
+  runSucceeded: boolean;
+  summary?: string;
+}): string {
+  const rubricsRef = String(data.rubricsRef || "").trim() || "agent/rubrics";
+  const lines = ["## Add Rubrics", ""];
+
+  if (!data.runSucceeded) {
+    lines.push(`Rubrics update did not complete successfully; inspect the workflow logs.`);
+  } else if (data.rubricsCommitted) {
+    lines.push(`Updated \`${rubricsRef}\`.`);
+  } else {
+    lines.push(`No changes were committed to \`${rubricsRef}\`.`);
+  }
+
+  const summary = String(data.summary || "").trim();
+  if (summary) {
+    lines.push("", summary);
+  }
+
+  return lines.join("\n");
+}
+
 // --- JSON response parsing ---
 
 /**

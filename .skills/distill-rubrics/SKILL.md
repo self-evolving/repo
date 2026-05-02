@@ -78,7 +78,7 @@ examples:
 ```
 
 Allowed domains are `coding_style`, `coding_workflow`, `communication`, and `review_quality`.
-Allowed routes are `answer`, `implement`, `create-action`, `fix-pr`, `review`, `skill`, `rubrics-review`, `rubrics-initialization`, and `rubrics-update`.
+Allowed routes are `answer`, `implement`, `add-rubrics`, `create-action`, `fix-pr`, `review`, `skill`, `rubrics-review`, `rubrics-initialization`, and `rubrics-update`.
 Allowed severities are `must`, `should`, and `consider`; reserve `must` for clear repeated requirements.
 
 ## Final Response

@@ -55,6 +55,7 @@ export const DEFAULT_LANE = "default";
 export const VALID_ROUTES = new Set([
   "review",
   "implement",
+  "add-rubrics",
   "fix-pr",
   "answer",
   "create-action",

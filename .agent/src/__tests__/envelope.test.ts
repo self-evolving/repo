@@ -914,6 +914,7 @@ test("validateEnvelope catches invalid route", () => {
 test("validateEnvelope accepts dispatch, action, and rubrics as first-class routes", () => {
   for (const route of [
     "dispatch",
+    "add-rubrics",
     "create-action",
     "rubrics-review",
     "rubrics-initialization",
@@ -1097,6 +1098,26 @@ test("normal workflows honor rubrics policy instead of forcing read-only", () =>
   assert.match(rubricsUpdateWorkflow, /Prepare rubrics update summary/);
   assert.match(rubricsUpdateWorkflow, /prepare-rubrics-update-summary\.js/);
   assert.match(rubricsUpdateWorkflow, /Post rubrics update summary/);
+});
+
+test("add-rubrics route dispatches dedicated rubric writer workflow", () => {
+  const routerWorkflow = readRepoFile(".github/workflows/agent-router.yml");
+  const addRubricsWorkflow = readRepoFile(".github/workflows/agent-add-rubrics.yml");
+  const addRubricsPrompt = readRepoFile(".github/prompts/agent-add-rubrics.md");
+  const runSource = readRepoFile(".agent/src/run.ts");
+
+  assert.match(routerWorkflow, /needs\.portal\.outputs\.route == 'add-rubrics'/);
+  assert.match(routerWorkflow, /uses:\s*\.\/\.github\/workflows\/agent-add-rubrics\.yml/);
+  assert.match(addRubricsWorkflow, /^name: Agent \/ Rubrics \/ Add$/m);
+  assert.match(addRubricsWorkflow, /Resolve add-rubrics provider/);
+  assert.match(addRubricsWorkflow, /prompt:\s*add-rubrics/);
+  assert.match(addRubricsWorkflow, /route:\s*add-rubrics/);
+  assert.match(addRubricsWorkflow, /rubrics_mode_override:\s*'enabled'/);
+  assert.match(addRubricsWorkflow, /Prepare add-rubrics summary/);
+  assert.match(addRubricsWorkflow, /prepare-add-rubrics-summary\.js/);
+  assert.match(addRubricsWorkflow, /Post add-rubrics summary/);
+  assert.match(addRubricsPrompt, /Return a concise markdown summary/);
+  assert.match(runSource, /"add-rubrics": ".github\/prompts\/agent-add-rubrics\.md"/);
 });
 
 test("rubrics-review prompt chooses from full active rubric context", () => {

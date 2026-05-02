@@ -10,6 +10,7 @@ ${MENTION_BODY}
 Choose exactly one route:
 - `answer`: answer inline now
 - `implement`: request approval to run the implementation workflow
+- `add-rubrics`: update `agent/rubrics` directly from a rubric-request message
 - `fix-pr`: start the PR-fix workflow immediately; only valid for `pull_request`
 - `review`: start the review workflow immediately; only valid for `pull_request`
 - `create-action`: request approval to create a scheduled GitHub Actions workflow for recurring agent automation
@@ -19,7 +20,7 @@ Return exactly one JSON object and nothing else:
 
 ```json
 {
-  "route": "answer | implement | fix-pr | review | create-action | unsupported",
+  "route": "answer | implement | add-rubrics | fix-pr | review | create-action | unsupported",
   "needs_approval": true,
   "summary": "One short sentence for the user describing what the agent will do next.",
   "confidence": "low | medium | high",
@@ -33,6 +34,7 @@ Rules:
 - Use `fix-pr` when the user is explicitly asking the agent to update an existing PR to address review feedback or requested changes.
 - Use `review` only when the user is explicitly asking for a PR review or another review pass.
 - Use `create-action` when the user asks to create an automatically running or durable automation, monitor, scheduled job, or recurring check.
+- Use `add-rubrics` when the user asks to add or update rubric preferences directly from the conversation.
 - Use `answer` for questions, clarification, lightweight analysis, or discussion.
   - Sometimes the user may also ask the agent to review some code (and the user could be explicit about just review and launch a review agent). In this case, we should also resolve to `answer`.
 - Use `unsupported` when the user asks for a workflow this repo does not support yet.

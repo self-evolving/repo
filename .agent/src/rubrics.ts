@@ -33,6 +33,7 @@ export type RubricStatus = typeof RUBRIC_STATUSES[number];
 export const RUBRIC_ROUTE_NAMES = [
   "answer",
   "implement",
+  "add-rubrics",
   "create-action",
   "fix-pr",
   "review",

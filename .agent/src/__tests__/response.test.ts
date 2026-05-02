@@ -9,6 +9,7 @@ import {
   formatImplementComment,
   formatFixPrComment,
   formatReviewComment,
+  formatAddRubricsComment,
   formatRubricsUpdateComment,
 } from "../response.js";
 
@@ -211,4 +212,38 @@ test("formatRubricsUpdateComment reports failed runs", () => {
     runSucceeded: false,
   });
   assert.match(body, /did not complete successfully/);
+});
+
+// --- formatAddRubricsComment ---
+
+test("formatAddRubricsComment reports failed runs", () => {
+  const body = formatAddRubricsComment({
+    rubricsRef: "agent/rubrics",
+    rubricsCommitted: false,
+    runSucceeded: false,
+  });
+  assert.match(body, /Add Rubrics/);
+  assert.match(body, /did not complete successfully/);
+});
+
+test("formatAddRubricsComment reports committed updates with summary", () => {
+  const body = formatAddRubricsComment({
+    rubricsRef: "agent/rubrics",
+    rubricsCommitted: true,
+    runSucceeded: true,
+    summary: "Updated `simple-implementation`.",
+  });
+  assert.match(body, /Updated `agent\/rubrics`\./);
+  assert.match(body, /Updated `simple-implementation`\./);
+});
+
+test("formatAddRubricsComment reports no committed changes", () => {
+  const body = formatAddRubricsComment({
+    rubricsRef: "agent/rubrics",
+    rubricsCommitted: false,
+    runSucceeded: true,
+    summary: "no rubric changes",
+  });
+  assert.match(body, /No changes were committed to `agent\/rubrics`\./);
+  assert.match(body, /no rubric changes/);
 });
