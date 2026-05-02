@@ -544,7 +544,7 @@ function ensureSubOrchestrationIssue(decision: HandoffDecision): string {
       stage,
       parentRound,
     );
-    if (trustedIssue) validateReusableChildIssue(childIssue, parentIssue, stage);
+    validateReusableChildIssue(childIssue, parentIssue, stage);
     updateSubOrchestrationParentRound(repo, childIssue, parentRound);
     recordSubOrchestrationIssue(repo, parentIssue, stage, childIssue.number);
     return String(existingIssueNumber);

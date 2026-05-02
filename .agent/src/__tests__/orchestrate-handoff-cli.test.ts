@@ -404,6 +404,44 @@ test("agent orchestrate adopts explicit user-authored child issues with trusted 
   assert.match(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
 });
 
+test("agent orchestrate reuses explicit adopted child marker comments on rerun", () => {
+  const run = runOrchestrateHandoff({
+    AUTOMATION_MODE: "agent",
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "76",
+    FAKE_ISSUE_AUTHOR: "lolipopshock",
+    FAKE_ISSUE_BODY: "Existing issue body.",
+    FAKE_ISSUE_COMMENTS_JSON: JSON.stringify([
+      {
+        id: "existing-adoption-marker",
+        body: [
+          "Sepo adopted this issue as a sub-orchestrator child of #76.",
+          "",
+          "Stage: stage-1",
+          "Parent round: 2",
+          "",
+          "<!-- sepo-sub-orchestrator parent:76 stage:stage-1 state:running parent_round:2 -->",
+        ].join("\n"),
+        user: { login: "sepo-agent-app[bot]" },
+      },
+    ]),
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "delegate_issue",
+      reason: "Reuse an adopted child issue.",
+      child_stage: "stage 1",
+      child_issue_number: "77",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "delegate_issue");
+  assert.equal(run.outputs.get("target_number"), "77");
+  assert.match(run.ghLog, /issue view 77/);
+  assert.match(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
+  assert.doesNotMatch(run.ghLog, /Sepo adopted this issue as a sub-orchestrator child/);
+  assert.doesNotMatch(run.ghLog, /issue create/);
+});
+
 test("agent orchestrate rejects explicit child targets that are pull requests", () => {
   const run = runOrchestrateHandoff({
     AUTOMATION_MODE: "agent",
