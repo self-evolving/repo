@@ -283,6 +283,29 @@ test("agent orchestrate dispatches implement directly for self-contained issue t
   assert.equal(inputs.base_branch, "planner-base");
 });
 
+test("agent orchestrate rejects effective implement base input conflicts", () => {
+  const run = runOrchestrateHandoff({
+    AUTOMATION_MODE: "agent",
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "76",
+    BASE_PR: "12",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "handoff",
+      next_action: "implement",
+      reason: "The requested change is scoped to the current issue.",
+      base_branch: "planner-base",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.equal(run.outputs.get("next_action"), "");
+  assert.equal(run.outputs.get("target_number"), "76");
+  assert.equal(run.outputs.get("reason"), "set only one of base_branch or base_pr for implementation");
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-implement\.yml\/dispatches/);
+  assert.equal(run.dispatchPayload, null);
+});
+
 test("agent orchestrate delegates to a child issue without extending AgentAction", () => {
   const run = runOrchestrateHandoff({
     AUTOMATION_MODE: "agent",

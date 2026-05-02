@@ -808,8 +808,12 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestratorWorkflow, /base_pr:/);
   assert.match(orchestratorWorkflow, /AGENT_COLLAPSE_OLD_REVIEWS:\s*\$\{\{ vars\.AGENT_COLLAPSE_OLD_REVIEWS \}\}/);
   assert.match(orchestratorWorkflow, /BASE_BRANCH:\s*\$\{\{ inputs\.base_branch \}\}/);
-  assert.match(orchestrateHandoffCli, /base_branch:\s*baseBranch/);
-  assert.match(orchestrateHandoffCli, /base_pr:\s*basePr/);
+  assert.match(orchestrateHandoffCli, /resolveEffectiveBaseInputs/);
+  assert.match(orchestrateHandoffCli, /baseBranch:\s*decision\.baseBranch \|\| baseBranch/);
+  assert.match(orchestrateHandoffCli, /basePr:\s*decision\.basePr \|\| basePr/);
+  assert.match(orchestrateHandoffCli, /base_branch:\s*effectiveBaseBranch/);
+  assert.match(orchestrateHandoffCli, /base_pr:\s*effectiveBasePr/);
+  assert.match(orchestrateHandoffCli, /set only one of base_branch or base_pr for implementation/);
   assert.match(orchestratorWorkflow, /target_kind:/);
   assert.match(orchestratorWorkflow, /TARGET_KIND:/);
   assert.match(orchestrateHandoffCli, /orchestration_enabled:\s*"true"/);

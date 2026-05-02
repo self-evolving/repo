@@ -537,11 +537,17 @@ function validateReusableChildIssue(
   }
 }
 
+function resolveEffectiveBaseInputs(decision: HandoffDecision): { baseBranch: string; basePr: string } {
+  return {
+    baseBranch: decision.baseBranch || baseBranch,
+    basePr: decision.basePr || basePr,
+  };
+}
+
 function ensureSubOrchestrationIssue(decision: HandoffDecision): string {
   const parentIssue = parsePositiveTargetNumber(targetNumber);
   if (!parentIssue) throw new Error(`Invalid parent issue number: ${targetNumber}`);
-  const effectiveBaseBranch = decision.baseBranch || baseBranch;
-  const effectiveBasePr = decision.basePr || basePr;
+  const { baseBranch: effectiveBaseBranch, basePr: effectiveBasePr } = resolveEffectiveBaseInputs(decision);
   if (effectiveBaseBranch && effectiveBasePr) {
     throw new Error("set only one of base_branch or base_pr for child orchestration");
   }
@@ -967,6 +973,28 @@ if (decision.decision === "delegate_issue") {
   }
 }
 
+const { baseBranch: effectiveBaseBranch, basePr: effectiveBasePr } = resolveEffectiveBaseInputs(decision);
+if (decision.nextAction === "implement" && effectiveBaseBranch && effectiveBasePr) {
+  const message = "set only one of base_branch or base_pr for implementation";
+  const stopDecision: HandoffDecision = {
+    decision: "stop",
+    reason: message,
+    nextRound: decision.nextRound,
+    targetNumber: decision.targetNumber,
+  };
+  setOutput("decision", "stop");
+  setOutput("next_action", "");
+  setOutput("target_number", decision.targetNumber || "");
+  setOutput("reason", message);
+  console.error(message);
+  try {
+    commentOnInitialOrchestrateStop(stopDecision);
+  } catch (err: unknown) {
+    console.warn(`Failed to report implementation base input conflict: ${errorText(err)}`);
+  }
+  process.exit(0);
+}
+
 const dedupeKey = buildHandoffDedupeKey({
   repo,
   sourceRunId,
@@ -1050,8 +1078,8 @@ try {
       ...commonInputs,
       issue_number: decision.targetNumber,
       approval_comment_url: "",
-      base_branch: decision.baseBranch || baseBranch,
-      base_pr: decision.basePr || basePr,
+      base_branch: effectiveBaseBranch,
+      base_pr: effectiveBasePr,
       implementation_route: "implement",
       implementation_prompt: "implement",
     });
@@ -1075,8 +1103,8 @@ try {
       target_number: dispatchTargetNumber,
       automation_mode: "heuristics",
       automation_current_round: "1",
-      base_branch: decision.baseBranch || baseBranch,
-      base_pr: decision.basePr || basePr,
+      base_branch: effectiveBaseBranch,
+      base_pr: effectiveBasePr,
     });
   } else {
     console.error(`Unsupported next action: ${decision.nextAction}`);
