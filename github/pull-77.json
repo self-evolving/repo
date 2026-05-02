@@ -586,8 +586,8 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #77 implements issue #76’s child-orchestration design while keeping `orchestrate` as the public user route.\n- It adds an internal `delegate_issue` planner decision, child issue create/reuse state, terminal report-back to the parent, and resumed parent orchestration.\n- The PR also moves delegated-route authorization to the initial orchestrate boundary and updates tests, prompts, and several docs.\n- Recent fix-pr rounds addressed earlier findings around authorization timing, cross-repo closing refs, malformed child issue numbers, resumed failure visibility, and search-lag child reuse.\n\n## Review\nThe high-level architecture matches issue #76, and many earlier review findings are fixed. One new trust-boundary issue remains blocking because user-writable issue bodies/comments can currently influence orchestration state without source validation.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Untrusted marker sources can forge child orchestration state | BLOCKING | Child issue markers, parent child-link comments, and terminal report comments are trusted without verifying that the marker was written by the agent/app account. This can let a user-writable marker hijack child reuse or skip parent resume dispatch. |\n| Agent action docs still describe old orchestrator behavior | WARNING | [`agent-actions.md`](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/docs/actions/agent-actions.md#L16) still says explicit `/orchestrate` is deterministic in agent mode and planner mode is reserved for action-originated handoffs, contradicting issue-level meta-orchestration. |\n| Non-blocking cleanup notes remain | INFO | Claude noted stale terminal-reason clauses, duplicate child-link comment accumulation on repeated explicit reuse, and an in-place `reverse()` call. These are maintainability notes, not current merge blockers. |\n\n## Progress\n- Prior BLOCKING authorization-order feedback is fixed: preflight gates planner/provider work before agent-mode orchestration proceeds.\n- Prior warnings around malformed `child_issue_number`, resumed delegation failure visibility, cross-repo closing refs, terminal classification, and search-lag child reuse are reported fixed.\n- The latest rubrics review has no blocking or warning-level rubric findings, with only handoff CLI density noted as future maintainability pressure.\n- I posted one new inline comment for the forged-marker trust-boundary issue at [`orchestrate-handoff.ts#L464`](https://github.com/self-evolving/repo/pull/77#discussion_r3176351745).\n\n## Issue Details\n\n<details>\n<summary>Untrusted marker sources can forge child orchestration state</summary>\n\n**Cause:** [`findExistingSubOrchestrationIssue()`](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/src/cli/orchestrate-handoff.ts#L247), [`findRecordedSubOrchestrationIssue()`](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/src/cli/orchestrate-handoff.ts#L257), and terminal report lookup at [`orchestrate-handoff.ts#L464`](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/src/cli/orchestrate-handoff.ts#L464) parse markers from issue bodies/comments without validating author/source.\n\n**Candidate solutions:** Fetch enough issue/comment author metadata to trust only markers written by the authenticated agent/app account, or add another unforgeable source check before accepting these markers. Add regression coverage showing user-authored fake child links/report markers are ignored.\n\n**Comments:** Codex is the only reviewer to flag this specific trust boundary, while Claude’s overall verdict is SHIP and rubrics show no warning-level findings. The synthesis treats it as blocking because it undercuts the PR’s authorization model.\n\n</details>\n\n<details>\n<summary>Agent action docs still describe old orchestrator behavior</summary>\n\n**Cause:** [`agent-actions.md`](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/docs/actions/agent-actions.md#L16) was not updated with the issue-level agent-mode `delegate_issue` behavior.\n\n**Candidate solutions:** Rewrite the paragraph to distinguish deterministic PR starts/direct route handoffs from issue-level agent-mode `/orchestrate`, which may invoke the planner for internal `delegate_issue`.\n\n**Comments:** Rubrics considered the updated architecture/technical docs sufficient, but this action-level doc remains user-facing and contradictory.\n\n</details>\n\n<details>\n<summary>Non-blocking cleanup notes remain</summary>\n\n**Cause:** [`resultStateFromTerminal()`](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/src/sub-orchestration.ts#L182) still has stale reason-substring clauses, explicit child reuse can add duplicate parent child-link comments, and `comments.reverse()` mutates a fresh local array.\n\n**Candidate solutions:** Clean these up opportunistically: remove or document stale reason clauses, avoid duplicate child-link comments for the same parent/stage/child, and use a non-mutating reverse pattern.\n\n**Comments:** These do not need to block the PR once the marker trust issue and stale docs are fixed.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: The remaining required work is concrete, branch-local, and safe for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Validate marker author/source before trusting reusable child issue bodies, parent child-link comments, and terminal report comments; add forged-marker regression coverage.\n- [ ] Update `.agent/docs/actions/agent-actions.md` so explicit issue-level agent-mode `/orchestrate` and `delegate_issue` behavior are documented correctly.",
       "createdAt": "2026-05-02T07:50:01Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/77#issuecomment-4363326961",
       "viewerDidAuthor": true
@@ -629,8 +629,8 @@
       "body": "Sepo automation handoff dispatched: `orchestrate` -> `review` (round 2/10).\n\nmanual orchestrate start on PR; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777708273778 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNDcyNTUyMDE6b3JjaGVzdHJhdGU6Nzc6cmV2aWV3Ojc3OjI -->",
       "createdAt": "2026-05-02T07:51:14Z",
       "includesCreatedEdit": true,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/77#issuecomment-4363329674",
       "viewerDidAuthor": true
@@ -648,6 +648,51 @@
       "minimizedReason": "",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/77#issuecomment-4363334562",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBBNmUA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #77 implements issue #76’s design for issue-backed child orchestration while keeping `/orchestrate` as the public route.\n- It adds internal `delegate_issue` planner decisions, child issue create/reuse state, terminal report-back to the parent, and resumed parent planning.\n- Recent fix-pr rounds addressed earlier issues around authorization timing, malformed child numbers, resumed failure visibility, cross-repo refs, and child reuse.\n- The current remaining concern is whether GitHub-visible orchestration markers are trusted safely enough to serve as control state.\n\n## Review\nThe core architecture is still sound, but one trust-boundary issue remains blocking. Reviewers disagree on severity: Codex treats untrusted marker provenance as BLOCKING, rubrics flags it as WARNING/partial, and Claude does not call it blocking; this synthesis treats it as BLOCKING because user-writable markers can affect orchestration control flow.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Untrusted marker sources can forge child orchestration state | BLOCKING | Child issue markers, parent child-link comments, and terminal report markers are parsed as control state without verifying they were written by the agent/app account. A user-authored marker could influence child reuse or terminal resume behavior. |\n| Agent action docs still describe old orchestrator behavior | WARNING | `.agent/docs/actions/agent-actions.md` still says explicit `/orchestrate` starts are deterministic in `agent` mode and planner mode is reserved for action-originated handoffs. That contradicts issue-level `delegate_issue` meta-orchestration. |\n| Terminal state classification still depends on reason text | WARNING | `resultStateFromTerminal()` classifies terminal child state by substring-matching human-readable reason text. This can drift as reason messages change and silently misclassify parent-visible child state. |\n| Preflight emits unused authorization-stop outputs | INFO | `authorization_stop` and `authorization_stop_reason` are emitted but not consumed by the workflow; only `planner_enabled` is used. This is low-risk but confusing maintenance surface. |\n\n## Progress\n- Earlier BLOCKING authorization-order issue is fixed: preflight now gates planner/provider work before agent-mode orchestration proceeds.\n- Prior malformed child-number, round-2 delegation failure, cross-repo ref, and search-lag child reuse issues are reported fixed.\n- Existing inline feedback already covers the marker trust issue at the terminal report path; no duplicate marker comments were posted.\n- One new inline comment was posted for the unused preflight authorization outputs.\n\n## Issue Details\n\n<details>\n<summary>Untrusted marker sources can forge child orchestration state</summary>\n\n**Cause:** [`findExistingSubOrchestrationIssue()`](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/src/cli/orchestrate-handoff.ts#L221), recorded child-link lookup around [`orchestrate-handoff.ts#L254](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/src/cli/orchestrate-handoff.ts#L254), and terminal report lookup around [`orchestrate-handoff.ts#L464](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/src/cli/orchestrate-handoff.ts#L464) trust markers from issue bodies/comments without author/source validation.\n\n**Candidate solutions:** Fetch author metadata and only accept markers written by the authenticated agent/app account, or add an equivalent unforgeable provenance check. Add regression tests for forged user-authored child links, child issue markers, and terminal report markers.\n\n**Comments:** This is the only current BLOCKING item because it weakens the authorization/state boundary requested in issue #76.\n\n</details>\n\n<details>\n<summary>Agent action docs still describe old orchestrator behavior</summary>\n\n**Cause:** [`agent-actions.md`](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/docs/actions/agent-actions.md#L16) still describes all explicit `/orchestrate` starts as deterministic in `agent` mode.\n\n**Candidate solutions:** Update the action docs to distinguish deterministic PR starts from issue-level agent-mode starts that may invoke the planner for internal `delegate_issue`.\n\n**Comments:** Codex and rubrics both identify this stale user-facing doc; Claude’s docs pass focused on the technical/architecture docs.\n\n</details>\n\n<details>\n<summary>Terminal state classification still depends on reason text</summary>\n\n**Cause:** [`resultStateFromTerminal()`](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/src/sub-orchestration.ts#L170) uses substring matching against reason messages.\n\n**Candidate solutions:** Prefer a typed terminal reason code on `HandoffDecision`, or narrow matching to explicit, stable stop categories instead of human-readable messages.\n\n**Comments:** This is a warning from Claude; prior inline feedback already covered the broader free-form reason-matching risk.\n\n</details>\n\n<details>\n<summary>Preflight emits unused authorization-stop outputs</summary>\n\n**Cause:** [`orchestrator-preflight.ts`](https://github.com/self-evolving/repo/blob/3a9bac391348c96e006a5527816eeb3cd86a8ccb/.agent/src/cli/orchestrator-preflight.ts#L40) emits outputs that the workflow does not currently read.\n\n**Candidate solutions:** Remove the unused outputs, or document that they are diagnostic/future-facing while the handoff CLI remains responsible for visible stop comments.\n\n**Comments:** Low-risk cleanup only; not required for the automation action items.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: The remaining required work is concrete, branch-local, and safe for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Validate marker author/source before trusting reusable child issue markers, parent child-link comments, or terminal report comments; add forged-marker regression coverage.\n- [ ] Update `.agent/docs/actions/agent-actions.md` to document issue-level agent-mode `/orchestrate` and `delegate_issue` behavior correctly.\n- [ ] Replace or narrow reason-text matching in terminal child state classification.",
+      "createdAt": "2026-05-02T07:59:34Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/77#issuecomment-4363347536",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBBNvgg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `review` -> `fix-pr` (round 3/10).\n\nagent planner selected fix-pr: Latest review synthesis recommends FIX_PR for concrete NEEDS_REWORK findings that require branch changes and are safe to automate.\n\n<!-- sepo-agent-handoff state:dispatched created:1777708832794 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNDcyNjUxNjU6cmV2aWV3Ojc3OmZpeF9wcjo3Nzoz -->",
+      "createdAt": "2026-05-02T08:00:33Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/77#issuecomment-4363349890",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBBN5mw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo did not produce code changes for this PR.**\n\nPlease add more context or restate the requested fixes, then try again.\n\nNo actionable branch work found for this `/orchestrate` run.\n\nThe worktree is clean on `agent/implement-issue-76/codex-25206691018`, and there are no local changes pending in this checkout. I did not make edits or rerun the full test suite for this invocation.",
+      "createdAt": "2026-05-02T08:01:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/77#issuecomment-4363352475",
       "viewerDidAuthor": true
     }
   ],
@@ -938,6 +983,6 @@
   ],
   "state": "OPEN",
   "title": "Add delegate_issue child orchestration",
-  "updatedAt": "2026-05-02T07:58:48Z",
+  "updatedAt": "2026-05-02T08:01:32Z",
   "url": "https://github.com/self-evolving/repo/pull/77"
 }
