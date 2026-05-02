@@ -82,6 +82,7 @@ trusting the user-authored body. The child issue then follows the normal bounded
 chain of `implement`, `review`, and `fix-pr` runs. The public route remains
 `/orchestrate`; the internal command keeps child delegation separate from
 concrete follow-up actions such as `implement`, `review`, and `fix-pr`.
+
 When the meta-orchestrator continues sequential child implementation work after
 a prior child produced an open, unmerged PR, the planner should set `base_pr` to
 that prior child PR unless the next child is intentionally independent.
