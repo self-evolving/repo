@@ -73,20 +73,24 @@ In `heuristics` mode, manual starts use deterministic status checks:
 In `agent` mode, an issue-level manual start can act as a meta-orchestrator.
 The planner may return `delegate_issue`, which is an internal command rather
 than a public route. The dispatcher creates or reuses one child issue for the
-requested stage, stores a hidden `sepo-sub-orchestrator` marker in that issue,
-and dispatches `agent-orchestrator.yml` for the child issue in heuristic mode.
-The child issue then follows the normal bounded chain of `implement`, `review`,
-and `fix-pr` runs. The public route remains `/orchestrate`; the internal command
-keeps child delegation separate from concrete follow-up actions such as
-`implement`, `review`, and `fix-pr`.
+requested stage and dispatches `agent-orchestrator.yml` for the child issue in
+heuristic mode. New agent-created child issues store a hidden
+`sepo-sub-orchestrator` marker in the issue body. Existing user-authored issues
+can also be adopted when the planner provides `child_issue_number`; adoption
+stores the marker in an agent-authored child issue comment instead of editing or
+trusting the user-authored body. The child issue then follows the normal bounded
+chain of `implement`, `review`, and `fix-pr` runs. The public route remains
+`/orchestrate`; the internal command keeps child delegation separate from
+concrete follow-up actions such as `implement`, `review`, and `fix-pr`.
 
 Child issue metadata is intentionally GitHub-visible state, not session state.
 The parent issue keeps the meta planner session, while each child issue gets its
 own normal issue target identity. When the child reaches a terminal stop, the
-handoff dispatcher resolves the child marker from the child issue, or through a
-closing issue reference in the terminal PR body, writes a parent progress
-comment, dispatches the parent issue orchestrator in agent mode with the child
-result, and then marks the child as `done`, `blocked`, or `failed`. The progress
+handoff dispatcher resolves the trusted child marker from the child issue body or
+from agent-authored child issue comments, or through a closing issue reference in
+the terminal PR body. It then writes a parent progress comment, dispatches the
+parent issue orchestrator in agent mode with the child result, and marks the
+same trusted child marker as `done`, `blocked`, or `failed`. The progress
 comment includes a hidden resume marker so reruns can recover a pending report
 or skip an already-dispatched terminal report.
 

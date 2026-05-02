@@ -25,7 +25,7 @@ these policy rules:
   `NEEDS_REWORK`, or `CHANGES_REQUESTED`.
 - `fix-pr` may hand off to `review` only when fixes succeeded.
 - Issue-level `orchestrate` in agent mode may return `delegate_issue` to
-  create or reuse one child issue and start the child issue's normal
+  create, reuse, or adopt one child issue and start the child issue's normal
   orchestrator flow.
 - Duplicate handoffs are skipped by the orchestrator marker dedupe logic.
 - You may always choose to stop when another automatic action is not useful.
@@ -44,7 +44,7 @@ rubrics. Then return exactly one JSON object and nothing else:
   "handoff_context": "Actionable instructions for the next action, especially fix-pr.",
   "child_stage": "Short child issue stage name when decision is delegate_issue.",
   "child_instructions": "Concrete child issue task instructions when decision is delegate_issue.",
-  "child_issue_number": "Optional existing child issue number to reuse.",
+  "child_issue_number": "Optional existing child issue number to reuse or adopt.",
   "base_branch": "Optional branch to base child implementation PRs on.",
   "base_pr": "Optional PR number whose head branch child implementation PRs should stack on."
 }
