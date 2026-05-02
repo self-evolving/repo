@@ -37,3 +37,4 @@
 - .agent workflows use npm ci; dependency updates must refresh .agent/package-lock.json or runtime installs stay pinned.
 - Trust sub-orchestration state only from agent-authored issue bodies or deterministic adoption comments, not generic app comments.
 - delegate_issue is an internal orchestrator planner decision; keep AgentAction limited to concrete routes.
+- Resumed orchestrator-launched fix-pr with non-empty handoff context must replay the full route prompt once.
