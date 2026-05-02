@@ -68,6 +68,7 @@ interface SubOrchestrationIssueRecord extends IssueRecord {
   subOrchestrator: TrustedSubOrchestratorMarkerRecord;
 }
 
+const SUB_ORCHESTRATION_ADOPTION_COMMENT_MARKER = "<!-- sepo-sub-orchestrator-adoption -->";
 const PENDING_MARKER_TTL_MS = 60 * 60 * 1000;
 
 function positiveInt(value: string, fallback: number): number {
@@ -292,17 +293,33 @@ function trustedSubOrchestratorMarkerFromBody(issue: IssueRecord): TrustedSubOrc
   return { marker, sourceKind: "body", body: issue.body };
 }
 
+function isSubOrchestrationAdoptionComment(body: string): boolean {
+  const text = String(body || "").trim();
+  return (
+    text.startsWith("Sepo adopted this issue as a sub-orchestrator child of #") &&
+    text.includes(SUB_ORCHESTRATION_ADOPTION_COMMENT_MARKER)
+  );
+}
+
 function trustedSubOrchestratorMarkerFromComments(
   repoSlug: string,
   issueNumber: number,
 ): TrustedSubOrchestratorMarkerRecord | null {
   for (const comment of [...fetchIssueComments(repoSlug, issueNumber)].reverse()) {
-    const marker = parseSubOrchestratorMarker(comment.body || "");
-    if (!marker || !comment.id || !isTrustedActorLogin(comment.authorLogin || "")) continue;
+    const body = comment.body || "";
+    const marker = parseSubOrchestratorMarker(body);
+    if (
+      !marker ||
+      !comment.id ||
+      !isTrustedActorLogin(comment.authorLogin || "") ||
+      !isSubOrchestrationAdoptionComment(body)
+    ) {
+      continue;
+    }
     return {
       marker,
       sourceKind: "comment",
-      body: comment.body || "",
+      body,
       commentId: String(comment.id),
     };
   }
@@ -459,6 +476,7 @@ function formatSubOrchestrationAdoptionComment(input: {
       stage: input.stage,
       parentRound: input.parentRound,
     }),
+    SUB_ORCHESTRATION_ADOPTION_COMMENT_MARKER,
   ].join("\n");
 }
 
