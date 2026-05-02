@@ -70,6 +70,7 @@ interface SubOrchestrationIssueRecord extends IssueRecord {
 
 const SUB_ORCHESTRATION_ADOPTION_COMMENT_MARKER = "<!-- sepo-sub-orchestrator-adoption -->";
 const PENDING_MARKER_TTL_MS = 60 * 60 * 1000;
+const UNSATISFACTORY_ACTION_CONCLUSIONS = new Set(["no_changes", "failed", "verify_failed", "unsupported"]);
 
 function positiveInt(value: string, fallback: number): number {
   const parsed = Number.parseInt(value, 10);
@@ -754,20 +755,45 @@ function reportTerminalToParent(decision: HandoffDecision): void {
   }
 }
 
+function formatOrchestrateStopComment(decision: HandoffDecision): string {
+  const normalizedSourceAction = normalizeToken(sourceAction);
+  if (normalizedSourceAction === "orchestrate") {
+    return [
+      `Sepo orchestration stopped: ${decision.reason}`,
+      "",
+      "<!-- sepo-agent-orchestrate-stop -->",
+    ].join("\n");
+  }
+
+  const lines = [
+    `Sepo orchestration stopped after \`${sourceAction || "unknown"}\` concluded \`${sourceConclusion || "unknown"}\`.`,
+    "",
+    `- Source action: \`${sourceAction || "unknown"}\``,
+    `- Source conclusion: \`${sourceConclusion || "unknown"}\``,
+    `- Target: \`${sourceTargetKind || "unknown"} #${targetNumber || "unknown"}\``,
+    `- Round: \`${currentRound}/${maxRounds}\``,
+    `- Reason: ${decision.reason}`,
+  ];
+
+  if (sourceRunId) {
+    lines.push(`- Source run ID: \`${sourceRunId}\``);
+  }
+
+  lines.push(
+    "",
+    "No follow-up workflow was dispatched. Inspect the source action status comment and workflow logs before retrying or continuing manually.",
+    "",
+    "<!-- sepo-agent-orchestrate-stop -->",
+  );
+  return lines.join("\n");
+}
+
 function createOrchestrateStopComment(decision: HandoffDecision): void {
   const target = parsePositiveTargetNumber(targetNumber);
   if (!repo || !target || !["issue", "pull_request"].includes(normalizeToken(sourceTargetKind))) {
     return;
   }
-  createIssueComment(
-    repo,
-    target,
-    [
-      `Sepo orchestration stopped: ${decision.reason}`,
-      "",
-      "<!-- sepo-agent-orchestrate-stop -->",
-    ].join("\n"),
-  );
+  createIssueComment(repo, target, formatOrchestrateStopComment(decision));
 }
 
 function commentOnInitialOrchestrateStop(decision: HandoffDecision): void {
@@ -783,6 +809,17 @@ function commentOnInitialOrchestrateStop(decision: HandoffDecision): void {
 
 function commentOnDelegationFailure(decision: HandoffDecision): void {
   if (normalizeToken(sourceAction) !== "orchestrate") {
+    return;
+  }
+  createOrchestrateStopComment(decision);
+}
+
+function commentOnUnsatisfactoryActionStop(decision: HandoffDecision): void {
+  const normalizedSourceAction = normalizeToken(sourceAction);
+  if (normalizedSourceAction !== "implement" && normalizedSourceAction !== "fix_pr") {
+    return;
+  }
+  if (!UNSATISFACTORY_ACTION_CONCLUSIONS.has(normalizeToken(sourceConclusion))) {
     return;
   }
   createOrchestrateStopComment(decision);
@@ -888,6 +925,7 @@ if (decision.decision !== "dispatch" && decision.decision !== "delegate_issue") 
   console.log(`Handoff ${decision.decision}: ${decision.reason}`);
   try {
     commentOnInitialOrchestrateStop(decision);
+    commentOnUnsatisfactoryActionStop(decision);
     reportTerminalToParent(decision);
   } catch (err: unknown) {
     console.warn(`Failed to report terminal sub-orchestration state: ${errorText(err)}`);

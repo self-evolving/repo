@@ -23,7 +23,9 @@ these policy rules:
   produced a pull request target.
 - `review` may hand off to `fix-pr` only for `MINOR_ISSUES`,
   `NEEDS_REWORK`, or `CHANGES_REQUESTED`.
-- `fix-pr` may hand off to `review` only when fixes succeeded.
+- `fix-pr` may hand off to `review` only when fixes succeeded. When
+  `fix-pr` reports `no_changes`, `failed`, or `verify_failed`, choose a
+  visible stop/block path instead of asking for another automatic review.
 - Issue-level `orchestrate` in agent mode may return `delegate_issue` to
   create, reuse, or adopt one child issue and start the child issue's normal
   orchestrator flow.
