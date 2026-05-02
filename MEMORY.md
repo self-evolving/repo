@@ -38,3 +38,4 @@
 - Trust sub-orchestration state only from agent-authored issue bodies or deterministic adoption comments, not generic app comments.
 - delegate_issue is an internal orchestrator planner decision; keep AgentAction limited to concrete routes.
 - Resumed orchestrator-launched fix-pr with non-empty handoff context must replay the full route prompt once.
+- Orchestrated implement/fix-pr unsatisfactory results stop visibly; fix-pr hands to review only after success.
