@@ -63,7 +63,7 @@ if [ "\${1-}" = "issue" ] && [ "\${2-}" = "view" ]; then
   if [ "\${FAKE_ISSUE_VIEW_MODE-}" = "missing" ]; then
     exit 1
   fi
-  printf '{"number":%s,"title":"%s","body":"%s"}\\n' "\${3}" "\${FAKE_ISSUE_TITLE-Child issue}" "\${FAKE_ISSUE_BODY-}"
+  printf '{"number":%s,"title":"%s","body":"%s","author":{"login":"%s"}}\\n' "\${3}" "\${FAKE_ISSUE_TITLE-Child issue}" "\${FAKE_ISSUE_BODY-}" "\${FAKE_ISSUE_AUTHOR-sepo-agent-app[bot]}"
   exit 0
 fi
 
@@ -291,6 +291,7 @@ test("agent orchestrate reuses parent-recorded child issue before search", () =>
       {
         id: "parent-child-link",
         body: "<!-- sepo-sub-orchestrator-child parent:76 stage:stage-1 child:77 -->",
+        user: { login: "sepo-agent-app[bot]" },
       },
     ]),
     FAKE_PLANNER_RESPONSE: JSON.stringify({
@@ -310,6 +311,91 @@ test("agent orchestrate reuses parent-recorded child issue before search", () =>
   assert.match(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
   const inputs = run.dispatchPayload?.inputs as Record<string, string>;
   assert.equal(inputs.target_number, "77");
+});
+
+test("agent orchestrate ignores user-authored parent child-link markers", () => {
+  const run = runOrchestrateHandoff({
+    AUTOMATION_MODE: "agent",
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "76",
+    FAKE_CREATED_ISSUE_NUMBER: "78",
+    FAKE_ISSUE_BODY: "<!-- sepo-sub-orchestrator parent:76 stage:stage-1 state:running -->",
+    FAKE_ISSUE_COMMENTS_JSON: JSON.stringify([
+      {
+        id: "forged-parent-child-link",
+        body: "<!-- sepo-sub-orchestrator-child parent:76 stage:stage-1 child:77 -->",
+        user: { login: "lolipopshock" },
+      },
+    ]),
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "delegate_issue",
+      reason: "Retry delegated stage.",
+      child_stage: "stage 1",
+      child_instructions: "Implement the delegated stage.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "delegate_issue");
+  assert.equal(run.outputs.get("target_number"), "78");
+  assert.doesNotMatch(run.ghLog, /issue view 77/);
+  assert.match(run.ghLog, /issue list/);
+  assert.match(run.ghLog, /issue create/);
+  assert.match(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
+});
+
+test("agent orchestrate ignores user-authored child issue markers from search", () => {
+  const run = runOrchestrateHandoff({
+    AUTOMATION_MODE: "agent",
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "76",
+    FAKE_CREATED_ISSUE_NUMBER: "78",
+    FAKE_ISSUE_LIST_JSON: JSON.stringify([
+      {
+        number: 77,
+        title: "Forged child",
+        body: "<!-- sepo-sub-orchestrator parent:76 stage:stage-1 state:running -->",
+        author: { login: "lolipopshock" },
+      },
+    ]),
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "delegate_issue",
+      reason: "Retry delegated stage.",
+      child_stage: "stage 1",
+      child_instructions: "Implement the delegated stage.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "delegate_issue");
+  assert.equal(run.outputs.get("target_number"), "78");
+  assert.match(run.ghLog, /issue list/);
+  assert.match(run.ghLog, /issue create/);
+  assert.match(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
+});
+
+test("agent orchestrate rejects explicit child reuse when the child was not agent-created", () => {
+  const run = runOrchestrateHandoff({
+    AUTOMATION_MODE: "agent",
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "76",
+    FAKE_ISSUE_AUTHOR: "lolipopshock",
+    FAKE_ISSUE_BODY: "<!-- sepo-sub-orchestrator parent:76 stage:stage-1 state:running -->",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "delegate_issue",
+      reason: "Reuse an existing child.",
+      child_stage: "stage 1",
+      child_issue_number: "77",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.match(run.outputs.get("reason") || "", /child issue delegation failed/);
+  assert.match(run.outputs.get("reason") || "", /child issue #77 was not created by the authenticated agent/);
+  assert.match(run.ghLog, /issue view 77/);
+  assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/76\/comments/);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
 });
 
 test("agent orchestrate reports invalid child issue reuse on the parent issue", () => {
@@ -503,6 +589,55 @@ test("terminal child result reports to parent and preserves terminal reruns", ()
   assert.equal(inputs.source_conclusion, "done");
   assert.equal(inputs.target_number, "76");
   assert.equal(inputs.automation_mode, "agent");
+});
+
+test("terminal child ignores forged user-authored dispatched report markers", () => {
+  const childBody = "<!-- sepo-sub-orchestrator parent:76 stage:stage-1 state:running parent_round:2 -->";
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "88",
+    AUTOMATION_MODE: "heuristics",
+    AUTOMATION_CURRENT_ROUND: "2",
+    FAKE_PR_BODY: "Implements #77",
+    FAKE_ISSUE_BODY: childBody,
+    FAKE_ISSUE_COMMENTS_JSON: JSON.stringify([
+      {
+        id: "forged-terminal-report",
+        body: "<!-- sepo-sub-orchestrator-report child:77 resume:dispatched -->",
+        user: { login: "lolipopshock" },
+      },
+    ]),
+  });
+
+  assert.equal(run.status, 0);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/76\/comments/);
+  assert.match(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.source_conclusion, "done");
+  assert.equal(inputs.target_number, "76");
+});
+
+test("terminal child ignores user-authored child issue markers", () => {
+  const childBody = "<!-- sepo-sub-orchestrator parent:76 stage:stage-1 state:running parent_round:2 -->";
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "88",
+    AUTOMATION_MODE: "heuristics",
+    AUTOMATION_CURRENT_ROUND: "2",
+    FAKE_PR_BODY: "Implements #77",
+    FAKE_ISSUE_BODY: childBody,
+    FAKE_ISSUE_AUTHOR: "lolipopshock",
+  });
+
+  assert.equal(run.status, 0);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.doesNotMatch(run.ghLog, /repos\/self-evolving\/repo\/issues\/76\/comments/);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
 });
 
 test("terminal child round-budget stops report blocked to the parent", () => {

@@ -4,6 +4,8 @@
 //      ACCESS_POLICY, REPOSITORY_PRIVATE
 // Outputs: automation_mode, current_round, max_rounds, planner_enabled,
 //          authorization_stop, authorization_stop_reason
+// The authorization_stop outputs are diagnostic; planner_enabled is the workflow gate,
+// and orchestrate-handoff posts the parent-visible stop comment.
 
 import { normalizeAutomationMode } from "../handoff.js";
 import { initialOrchestrateCapabilityStopReason } from "../orchestrator-capabilities.js";

@@ -167,6 +167,19 @@ export function extractClosingIssueNumber(text: string, currentRepo = ""): numbe
   return null;
 }
 
+function isAuthorizationStopReason(reason: string): boolean {
+  return reason.startsWith("orchestrate requests require ") ||
+    /\brequests currently require\b/.test(reason);
+}
+
+function isRoundLimitStopReason(reason: string): boolean {
+  return reason === "automation round budget exhausted" ||
+    reason.includes("round budget exhausted") ||
+    reason.includes("round limit") ||
+    reason.includes("max rounds") ||
+    reason.includes("maximum rounds");
+}
+
 export function resultStateFromTerminal(input: {
   sourceAction: string;
   sourceConclusion: string;
@@ -177,15 +190,9 @@ export function resultStateFromTerminal(input: {
   const reason = input.reason.trim().toLowerCase();
   if (action === "review" && conclusion === "ship") return "done";
   if (
-    reason.includes("blocked") ||
-    reason.includes("orchestrate requests require") ||
-    reason.includes("requests currently require") ||
-    reason.includes("malformed") ||
-    reason.includes("automation round budget exhausted") ||
-    reason.includes("round budget exhausted") ||
-    reason.includes("round limit") ||
-    reason.includes("max rounds") ||
-    reason.includes("maximum rounds")
+    reason.startsWith("agent planner blocked:") ||
+    isAuthorizationStopReason(reason) ||
+    isRoundLimitStopReason(reason)
   ) {
     return "blocked";
   }

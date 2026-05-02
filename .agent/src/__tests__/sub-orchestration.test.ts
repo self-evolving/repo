@@ -101,5 +101,21 @@ test("terminal helpers resolve closing issue references and result states", () =
     }),
     "blocked",
   );
+  assert.equal(
+    resultStateFromTerminal({
+      sourceAction: "orchestrate",
+      sourceConclusion: "failed",
+      reason: "agent planner blocked: waiting for user input",
+    }),
+    "blocked",
+  );
+  assert.equal(
+    resultStateFromTerminal({
+      sourceAction: "implement",
+      sourceConclusion: "failed",
+      reason: "provider said blocked while parsing output",
+    }),
+    "failed",
+  );
   assert.equal(resultStateFromTerminal({ sourceAction: "implement", sourceConclusion: "failed", reason: "" }), "failed");
 });

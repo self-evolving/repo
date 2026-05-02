@@ -39,6 +39,7 @@ import {
 interface CommentRecord {
   id?: string | number;
   body?: string;
+  authorLogin?: string;
 }
 
 interface HandoffMarkerRecord extends HandoffMarkerInfo {
@@ -49,6 +50,7 @@ interface IssueRecord {
   number: number;
   title: string;
   body: string;
+  authorLogin?: string;
 }
 
 const PENDING_MARKER_TTL_MS = 60 * 60 * 1000;
@@ -87,10 +89,58 @@ function errorText(err: unknown): string {
     .join("\n") || String(err);
 }
 
+function extractLogin(value: unknown): string {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return "";
+  const login = (value as Record<string, unknown>).login;
+  return typeof login === "string" ? login.trim() : "";
+}
+
+function authorLoginFromRecord(record: Record<string, unknown>): string {
+  return extractLogin(record.author) || extractLogin(record.user);
+}
+
+function normalizeActorLogin(value: string): string {
+  return String(value || "").trim().toLowerCase().replace(/\[bot\]$/i, "");
+}
+
+let authenticatedActorLogin: string | null = null;
+
+function fetchAuthenticatedActorLogin(): string {
+  if (authenticatedActorLogin !== null) return authenticatedActorLogin;
+  const raw = gh([
+    "api",
+    "graphql",
+    "-f",
+    "query=query ViewerLogin { viewer { login } }",
+  ]).trim();
+  const parsed = JSON.parse(raw || "{}") as {
+    data?: { viewer?: { login?: unknown } | null } | null;
+    viewer?: { login?: unknown } | null;
+  };
+  const login = String(parsed.data?.viewer?.login || parsed.viewer?.login || "").trim();
+  if (!login) throw new Error("Could not resolve authenticated GitHub actor login");
+  authenticatedActorLogin = login;
+  return authenticatedActorLogin;
+}
+
+function isTrustedActorLogin(authorLogin: string): boolean {
+  const normalizedAuthor = normalizeActorLogin(authorLogin);
+  if (!normalizedAuthor) return false;
+  return normalizedAuthor === normalizeActorLogin(fetchAuthenticatedActorLogin());
+}
+
+function isTrustedIssueRecord(issue: IssueRecord): boolean {
+  return isTrustedActorLogin(issue.authorLogin || "");
+}
+
 function normalizeCommentRecord(value: unknown): CommentRecord | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const record = value as Record<string, unknown>;
-  return { id: record.id as string | number | undefined, body: String(record.body || "") };
+  return {
+    id: record.id as string | number | undefined,
+    body: String(record.body || ""),
+    authorLogin: authorLoginFromRecord(record),
+  };
 }
 
 function fetchIssueComments(repo: string, issueNumber: number): CommentRecord[] {
@@ -172,7 +222,7 @@ function fetchIssueStrict(repoSlug: string, issueNumber: number): IssueRecord {
     "--repo",
     repoSlug,
     "--json",
-    "number,title,body",
+    "number,title,body,author",
   ]).trim();
   if (!raw) throw new Error(`empty issue response for #${issueNumber}`);
   const parsed = JSON.parse(raw) as Record<string, unknown>;
@@ -180,6 +230,7 @@ function fetchIssueStrict(repoSlug: string, issueNumber: number): IssueRecord {
     number: Number(parsed.number || issueNumber),
     title: String(parsed.title || ""),
     body: String(parsed.body || ""),
+    authorLogin: authorLoginFromRecord(parsed),
   };
 }
 
@@ -230,7 +281,7 @@ function findExistingSubOrchestrationIssue(repoSlug: string, parentIssue: number
     "--search",
     "sepo-sub-orchestrator",
     "--json",
-    "number,title,body",
+    "number,title,body,author",
     "--limit",
     "100",
   ]).trim();
@@ -245,7 +296,13 @@ function findExistingSubOrchestrationIssue(repoSlug: string, parentIssue: number
     const body = String(record.body || "");
     const marker = parseSubOrchestratorMarker(body);
     if (number && marker?.parent === parentIssue && marker.stage === expectedStage && marker.state === "running") {
-      return { number, title: String(record.title || ""), body };
+      const issue: IssueRecord = {
+        number,
+        title: String(record.title || ""),
+        body,
+        authorLogin: authorLoginFromRecord(record),
+      };
+      if (isTrustedIssueRecord(issue)) return issue;
     }
   }
   return null;
@@ -254,9 +311,10 @@ function findExistingSubOrchestrationIssue(repoSlug: string, parentIssue: number
 function findRecordedSubOrchestrationIssue(repoSlug: string, parentIssue: number, stage: string): IssueRecord | null {
   const expectedStage = normalizeSubOrchestratorStage(stage);
   const comments = fetchIssueComments(repoSlug, parentIssue);
-  for (const comment of comments.reverse()) {
+  for (const comment of [...comments].reverse()) {
     const link = parseSubOrchestratorChildLinkMarker(comment.body || "");
     if (!link || link.parent !== parentIssue || link.stage !== expectedStage) continue;
+    if (!isTrustedActorLogin(comment.authorLogin || "")) continue;
 
     const existing = fetchIssue(repoSlug, link.child);
     if (!existing) throw new Error(`Could not read recorded child issue #${link.child}`);
@@ -281,6 +339,9 @@ function recordSubOrchestrationIssue(repoSlug: string, parentIssue: number, stag
 function validateReusableChildIssue(existing: IssueRecord, parentIssue: number, stage: string): void {
   const marker = parseSubOrchestratorMarker(existing.body);
   const expectedStage = normalizeSubOrchestratorStage(stage);
+  if (!isTrustedIssueRecord(existing)) {
+    throw new Error(`child issue #${existing.number} was not created by the authenticated agent`);
+  }
   if (!marker) {
     throw new Error(`child issue #${existing.number} is missing a sepo-sub-orchestrator marker`);
   }
@@ -421,13 +482,13 @@ function resolveChildIssueForTerminal(): IssueRecord | null {
   if (!repo || !currentNumber) return null;
   if (normalizedKind === "issue") {
     const issue = fetchIssueStrict(repo, currentNumber);
-    return issue && parseSubOrchestratorMarker(issue.body) ? issue : null;
+    return issue && isTrustedIssueRecord(issue) && parseSubOrchestratorMarker(issue.body) ? issue : null;
   }
   if (normalizedKind === "pull_request") {
     const linkedIssueNumber = extractClosingIssueNumber(readPrBodyStrict(repo, targetNumber), repo);
     if (!linkedIssueNumber) return null;
     const issue = fetchIssueStrict(repo, linkedIssueNumber);
-    return issue && parseSubOrchestratorMarker(issue.body) ? issue : null;
+    return issue && isTrustedIssueRecord(issue) && parseSubOrchestratorMarker(issue.body) ? issue : null;
   }
   return null;
 }
@@ -462,7 +523,7 @@ function reportTerminalToParent(decision: HandoffDecision): void {
   ].filter(Boolean);
 
   const existingProgress = fetchIssueComments(repo, marker.parent).find((comment) =>
-    String(comment.body || "").includes(progressMarkerPrefix)
+    String(comment.body || "").includes(progressMarkerPrefix) && isTrustedActorLogin(comment.authorLogin || "")
   );
   const progressWasDispatched = String(existingProgress?.body || "").includes(dispatchedProgressMarker);
   if (marker.state !== "running" && progressWasDispatched) {
