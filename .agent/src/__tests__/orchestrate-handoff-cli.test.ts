@@ -327,6 +327,29 @@ test("agent orchestrate rejects malformed child issue numbers visibly", () => {
   assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
 });
 
+test("agent orchestrate reports resumed child setup failures on the parent issue", () => {
+  const run = runOrchestrateHandoff({
+    AUTOMATION_MODE: "agent",
+    AUTOMATION_CURRENT_ROUND: "2",
+    SOURCE_CONCLUSION: "done",
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "76",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "delegate_issue",
+      reason: "Reuse a malformed child in a later round.",
+      child_stage: "stage 2",
+      child_issue_number: "issue-78",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.match(run.outputs.get("reason") || "", /child issue delegation failed/);
+  assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/76\/comments/);
+  assert.doesNotMatch(run.ghLog, /issue create/);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
+});
+
 test("manual orchestrate collapses old handoff comments after dispatch", () => {
   const run = runOrchestrateHandoff({
     TARGET_KIND: "issue",
@@ -471,5 +494,28 @@ test("terminal child round-budget stops report blocked to the parent", () => {
   assert.match(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
   const inputs = run.dispatchPayload?.inputs as Record<string, string>;
   assert.equal(inputs.source_conclusion, "blocked");
+  assert.equal(inputs.target_number, "76");
+});
+
+test("terminal child invalid access policy reports failed to the parent", () => {
+  const childBody = "<!-- sepo-sub-orchestrator parent:76 stage:stage-1 state:running parent_round:2 -->";
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "orchestrate",
+    SOURCE_CONCLUSION: "requested",
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "77",
+    AUTOMATION_MODE: "agent",
+    AUTOMATION_CURRENT_ROUND: "1",
+    ACCESS_POLICY: "{",
+    FAKE_ISSUE_BODY: childBody,
+  });
+
+  assert.equal(run.status, 0);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.match(run.outputs.get("reason") || "", /invalid AGENT_ACCESS_POLICY/);
+  assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/76\/comments/);
+  assert.match(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.source_conclusion, "failed");
   assert.equal(inputs.target_number, "76");
 });

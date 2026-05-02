@@ -59,7 +59,22 @@ test("terminal helpers resolve closing issue references and result states", () =
   assert.equal(extractClosingIssueNumber("Fixes self-evolving/repo#76"), null);
   assert.equal(extractClosingIssueNumber("No linked issue"), null);
   assert.equal(resultStateFromTerminal({ sourceAction: "review", sourceConclusion: "SHIP", reason: "" }), "done");
-  assert.equal(resultStateFromTerminal({ sourceAction: "review", sourceConclusion: "failed", reason: "policy stop" }), "blocked");
+  assert.equal(
+    resultStateFromTerminal({
+      sourceAction: "review",
+      sourceConclusion: "failed",
+      reason: "orchestrate requests require implement access; implement currently requires MEMBER access.",
+    }),
+    "blocked",
+  );
+  assert.equal(
+    resultStateFromTerminal({
+      sourceAction: "review",
+      sourceConclusion: "failed",
+      reason: "invalid AGENT_ACCESS_POLICY: Access policy must be a JSON object",
+    }),
+    "failed",
+  );
   assert.equal(
     resultStateFromTerminal({
       sourceAction: "implement",

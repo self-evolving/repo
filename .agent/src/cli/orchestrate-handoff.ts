@@ -469,14 +469,7 @@ function reportTerminalToParent(decision: HandoffDecision): void {
   }
 }
 
-function commentOnInitialOrchestrateStop(decision: HandoffDecision): void {
-  if (
-    normalizeToken(sourceAction) !== "orchestrate" ||
-    normalizeToken(sourceConclusion) !== "requested" ||
-    currentRound !== 1
-  ) {
-    return;
-  }
+function createOrchestrateStopComment(decision: HandoffDecision): void {
   const target = parsePositiveTargetNumber(targetNumber);
   if (!repo || !target || !["issue", "pull_request"].includes(normalizeToken(sourceTargetKind))) {
     return;
@@ -490,6 +483,24 @@ function commentOnInitialOrchestrateStop(decision: HandoffDecision): void {
       "<!-- sepo-agent-orchestrate-stop -->",
     ].join("\n"),
   );
+}
+
+function commentOnInitialOrchestrateStop(decision: HandoffDecision): void {
+  if (
+    normalizeToken(sourceAction) !== "orchestrate" ||
+    normalizeToken(sourceConclusion) !== "requested" ||
+    currentRound !== 1
+  ) {
+    return;
+  }
+  createOrchestrateStopComment(decision);
+}
+
+function commentOnDelegationFailure(decision: HandoffDecision): void {
+  if (normalizeToken(sourceAction) !== "orchestrate") {
+    return;
+  }
+  createOrchestrateStopComment(decision);
 }
 
 function decideManualOrchestration(): HandoffDecision {
@@ -625,7 +636,7 @@ if (decision.decision === "delegate_issue") {
     setOutput("reason", message);
     console.error(message);
     try {
-      commentOnInitialOrchestrateStop(stopDecision);
+      commentOnDelegationFailure(stopDecision);
     } catch (commentErr: unknown) {
       console.warn(`Failed to report child issue delegation failure: ${errorText(commentErr)}`);
     }

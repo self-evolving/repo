@@ -148,7 +148,8 @@ export function resultStateFromTerminal(input: {
   if (action === "review" && conclusion === "ship") return "done";
   if (
     reason.includes("blocked") ||
-    reason.includes("policy") ||
+    reason.includes("orchestrate requests require") ||
+    reason.includes("requests currently require") ||
     reason.includes("malformed") ||
     reason.includes("automation round budget exhausted") ||
     reason.includes("round budget exhausted") ||
