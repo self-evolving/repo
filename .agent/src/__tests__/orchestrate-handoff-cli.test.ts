@@ -285,6 +285,56 @@ test("agent orchestrate delegates to a child issue without extending AgentAction
   assert.equal(inputs.base_pr, "66");
 });
 
+test("agent orchestrate stacks sequential existing child on prior child PR", () => {
+  const priorChildReport = [
+    "Sub-orchestrator fix-resumed-fix-pr-handoff-context finished",
+    "Child issue: #84",
+    "PR: #89",
+    "Result: SHIP",
+    "Parent round: 2/10",
+    "Summary: review verdict is SHIP",
+    "Next: waiting for meta orchestrator",
+    "<!-- sepo-sub-orchestrator-report child:84 resume:dispatched -->",
+  ].join("\n");
+  const run = runOrchestrateHandoff({
+    AUTOMATION_MODE: "agent",
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "83",
+    AUTOMATION_CURRENT_ROUND: "2",
+    AUTOMATION_MAX_ROUNDS: "10",
+    BASE_BRANCH: "",
+    BASE_PR: "",
+    FAKE_ISSUE_AUTHOR: "lolipopshock",
+    FAKE_ISSUE_BODY: "Existing child issue body.",
+    FAKE_ISSUE_COMMENTS_JSON: JSON.stringify([
+      {
+        id: "prior-child-report",
+        body: priorChildReport,
+        user: { login: "sepo-agent-app[bot]" },
+      },
+    ]),
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "delegate_issue",
+      reason: "Continue one-by-one and stack on prior child PR #89.",
+      child_stage: "handle-unsatisfactory-action-results",
+      child_issue_number: "79",
+      child_instructions: "Implement the second child issue.",
+      base_pr: "89",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "delegate_issue");
+  assert.equal(run.outputs.get("target_number"), "79");
+  assert.match(run.ghLog, /issue view 79/);
+  assert.doesNotMatch(run.ghLog, /issue create/);
+  assert.match(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.target_number, "79");
+  assert.equal(inputs.base_branch, "");
+  assert.equal(inputs.base_pr, "89");
+});
+
 test("agent orchestrate reuses parent-recorded child issue before search", () => {
   const run = runOrchestrateHandoff({
     AUTOMATION_MODE: "agent",
