@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "@sepo-agent /answer \n\n1. how to create the minimal function in this repo, such that we can run end to end tests with workflows in a separate repo (e.g., self-evolving/repo-test) -> i.e., minimize the boilerplate code that people may duplicate in the workflows \n\n2. how to configure the access for the separate repo? ",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCNTyg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Short answer:** today the repo already has the right internal abstraction, but it is still “installed repo” oriented. The minimal reusable function should be a cross-repo `workflow_call` wrapper in `self-evolving/repo` that owns runtime checkout/setup/routing, so `self-evolving/repo-test` only keeps thin trigger/dispatch shims.\n\nCurrent evidence:\n- [`agent-entrypoint.yml`](https://github.com/self-evolving/repo/blob/abf823c435605b4fa30b648ecd6c93227f499380/.github/workflows/agent-entrypoint.yml#L3-L5) is already intended as a thin trigger wrapper.\n- [`agent-router.yml`](https://github.com/self-evolving/repo/blob/abf823c435605b4fa30b648ecd6c93227f499380/.github/workflows/agent-router.yml#L19-L70) is already a reusable `workflow_call`, but it assumes the caller has copied the local runtime and actions; it uses local actions like `./.github/actions/resolve-github-auth` and `./.github/actions/setup-agent-runtime` in the checked-out repo ([router lines 130-158](https://github.com/self-evolving/repo/blob/abf823c435605b4fa30b648ecd6c93227f499380/.github/workflows/agent-router.yml#L130-L158)).\n- [`run-agent-task`](https://github.com/self-evolving/repo/blob/abf823c435605b4fa30b648ecd6c93227f499380/.github/actions/run-agent-task/action.yml#L1-L7) is the real shared “function” today: it builds the envelope, prompt, session, memory/rubrics, and agent invocation.\n- The runtime still resolves prompts from `.github/prompts` under the current repo root ([`run.ts` lines 104-156](https://github.com/self-evolving/repo/blob/abf823c435605b4fa30b648ecd6c93227f499380/.agent/src/run.ts#L104-L156)), and setup builds `.agent` in the workspace ([setup action lines 72-87](https://github.com/self-evolving/repo/blob/abf823c435605b4fa30b648ecd6c93227f499380/.github/actions/setup-agent-runtime/action.yml#L72-L87)). That is the main blocker to using this repo as a central runtime without copying `.agent/` and `.github/`.\n\n**Recommended implementation approach**\n\nCreate a new remote-capable public API, for example:\n\n```yaml\nuses: self-evolving/repo/.github/workflows/agent-router-remote.yml@main\n```\n\nThat workflow should:\n1. Check out the caller/test repo into `$GITHUB_WORKSPACE`.\n2. Check out `self-evolving/repo` at an input ref, e.g. `agent_ref`, into `$RUNNER_TEMP/sepo-runtime`.\n3. Run Sepo setup/build from `$RUNNER_TEMP/sepo-runtime/.agent`.\n4. Run route CLIs from the runtime checkout, but keep `GITHUB_REPOSITORY` and repo writes pointed at the caller repo.\n5. Add `runtime_root`, `workspace_root`, `prompt_root`, and `skill_root` inputs/env support to the shared actions/CLIs, so prompts can default to the Sepo runtime while repo changes happen in `repo-test`.\n\nFor `repo-test`, the boilerplate becomes only thin shims. Example trigger shim after the remote workflow exists:\n\n```yaml\nname: Agent Entrypoint\n\non:\n  issues:\n    types: [opened, edited]\n  issue_comment:\n    types: [created, edited]\n  pull_request:\n    types: [opened, edited]\n  pull_request_review_comment:\n    types: [created, edited]\n  pull_request_review:\n    types: [submitted]\n\npermissions:\n  actions: write\n  contents: write\n  issues: write\n  pull-requests: write\n  discussions: write\n  id-token: write\n\njobs:\n  agent:\n    if: contains(toJSON(github.event), vars.AGENT_HANDLE || '@sepo-agent')\n    uses: self-evolving/repo/.github/workflows/agent-router-remote.yml@main\n    with:\n      agent_handle: ${{ vars.AGENT_HANDLE || '@sepo-agent' }}\n      runs_on: ${{ vars.AGENT_RUNS_ON || '[\"ubuntu-latest\"]' }}\n      access_policy: ${{ vars.AGENT_ACCESS_POLICY || '' }}\n      agent_ref: main\n    secrets: inherit\n```\n\nFor full route coverage, `repo-test` will also need thin workflow files for dispatch targets whose filenames are currently referenced by the router, especially `agent-implement.yml`, `agent-fix-pr.yml`, `agent-review.yml`, `agent-approve.yml`, and label/memory/rubrics workflows if those are part of the E2E matrix. Each shim should only call the matching reusable workflow in `self-evolving/repo`.\n\n**Access configuration for `repo-test`**\n\nConfigure access in the separate repo, because the workflow runs against that repo’s events and writes back to that repo.\n\nMinimum:\n- Enable GitHub Actions in `self-evolving/repo-test`.\n- Install `sepo-agent-app` on `self-evolving/repo-test`, or configure BYO app secrets `AGENT_APP_ID` + `AGENT_APP_PRIVATE_KEY`.\n- Add at least one model provider secret in `repo-test` or org secrets: `OPENAI_API_KEY` and/or `CLAUDE_CODE_OAUTH_TOKEN`.\n- Keep workflow permissions aligned with the current router: `actions`, `contents`, `issues`, `pull-requests`, `discussions`, and `id-token` as needed. The existing setup guide documents the auth priority and options ([setup guide lines 5-21](https://github.com/self-evolving/repo/blob/abf823c435605b4fa30b648ecd6c93227f499380/.agent/docs/deployment/setup-guide.md#L5-L21)).\n\nRecommended variable for a test repo:\n\n```json\n{\n  \"allowed_associations\": [\"OWNER\", \"MEMBER\", \"COLLABORATOR\"]\n}\n```\n\nThat uses the existing `AGENT_ACCESS_POLICY` shape documented here: [access-policy lines 3-31](https://github.com/self-evolving/repo/blob/abf823c435605b4fa30b648ecd6c93227f499380/.agent/docs/access-policy.md#L3-L31). For public E2E repos, I would avoid the current default `CONTRIBUTOR` allowance unless intentionally testing public contributor access.\n\n**Execution plan**\n\n1. Add remote-root support to `setup-agent-runtime`, `run-agent-task`, and the CLIs that currently assume `.agent` / `.github/prompts` live in `$GITHUB_WORKSPACE`.\n2. Add `agent-router-remote.yml` as the first reusable cross-repo API.\n3. Add remote-capable reusable versions or wrappers for implementation/review/fix/approval dispatch workflows.\n4. Create `repo-test` with only shim workflows plus a few fixture files/issues.\n5. Configure app/provider secrets and `AGENT_ACCESS_POLICY` in `repo-test`.\n6. Add an E2E matrix: `/answer`, `/implement`, `/review`, `/fix-pr`, `/approve`, labels, and memory/rubrics if desired.\n\nI also checked `self-evolving/repo-test` from this runner and it is not currently resolvable to me, so the repo either still needs to be created or access needs to be granted before wiring the E2E setup. Please confirm whether to proceed with the remote reusable-workflow approach above versus the faster installed-template approach that copies `.agent/` and `.github/` into `repo-test`.",
+      "createdAt": "2026-05-02T17:51:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/88#issuecomment-4364391370",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-02T17:45:29Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 88,
+  "state": "OPEN",
+  "title": "Idea: creating repo-test for testing all the workflows and routes",
+  "updatedAt": "2026-05-02T17:51:47Z",
+  "url": "https://github.com/self-evolving/repo/issues/88"
+}

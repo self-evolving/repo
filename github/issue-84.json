@@ -1,0 +1,31 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "## Problem\n\nRepeated or orchestrated `fix-pr` runs can miss the current orchestrator handoff instructions when the agent session resumes. This can make `fix-pr` no-op even when the preceding review synthesis and orchestrator handoff contain concrete, actionable fixes.\n\nExample from PR #77:\n\n- Review/orchestrator context had concrete fixes to apply: marker source validation, docs correction, terminal-state classification, and regressions.\n- The `fix-pr` run still posted: https://github.com/self-evolving/repo/pull/77#issuecomment-4363352475\n- The response said: `No actionable branch work found for this /orchestrate run.`\n\nRun-log clues from the failing `fix-pr` run:\n\n- `ORCHESTRATOR_CONTEXT` contained the concrete fix instructions.\n- The full prompt was rendered with a large `prompt_length`, but the resumed run used a tiny continuation prompt.\n- Existing `fix-pr` thread state was found and `session_ensure_outcome` was `resumed`.\n- The agent behaved as if it was responding to the original `/orchestrate` request rather than the current `fix-pr` handoff.\n\nThis suggests route-critical dynamic context such as `ORCHESTRATOR_CONTEXT` is not included in resumed-session continuation prompts.\n\nRelated issues:\n\n- #79 tracks what the orchestrator should do after an orchestrated task reports `no_changes`/failure.\n- #58 is related background on orchestrator/session continuity.\n\n## Why this matters\n\nThe orchestrator can correctly decide `review -> fix-pr` and pass concrete `handoff_context`, but the receiving `fix-pr` agent may not see that context after session resume. This turns actionable review feedback into a false `no_changes` result.\n\n## Potential fixes\n\nOne or more of:\n\n1. Include `ORCHESTRATOR_CONTEXT` and other route-critical supplemental variables in the continuation prompt.\n2. For `fix-pr`, send the full rendered route prompt whenever `ORCHESTRATOR_CONTEXT` is non-empty.\n3. When dispatching orchestrated `fix-pr`, also copy concise handoff instructions into `request_text` so continuation prompts contain the actionable request.\n4. Add a route-specific continuation prompt builder instead of using the same minimal metadata prompt for all routes.\n\n## Acceptance criteria\n\n- A resumed `fix-pr` run receives the current actionable orchestrator handoff context.\n- A regression test covers resumed `fix-pr` prompt construction with non-empty `ORCHESTRATOR_CONTEXT`.\n- A regression test or fixture verifies that the agent-facing prompt contains enough context to address the latest review synthesis/handoff, not just the original trigger text.\n- Existing direct/manual `fix-pr` behavior remains unchanged when no orchestrator context is present.\n",
+  "closedAt": null,
+  "comments": [],
+  "createdAt": "2026-05-02T16:53:33Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChVB4QQ",
+      "name": "priority/p1",
+      "description": "Project management: high priority",
+      "color": "d93f0b"
+    },
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChVB5QA",
+      "name": "effort/medium",
+      "description": "Project management: medium effort",
+      "color": "fbca04"
+    }
+  ],
+  "number": 84,
+  "state": "OPEN",
+  "title": "Preserve orchestrator handoff context for resumed fix-pr runs",
+  "updatedAt": "2026-05-02T16:53:33Z",
+  "url": "https://github.com/self-evolving/repo/issues/84"
+}

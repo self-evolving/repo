@@ -1,0 +1,183 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "baseRefName": "main",
+  "body": "Supersedes #77 with the initial `delegate_issue` implementation plus the review follow-ups folded into a single clean commit.\n\n## Summary\n- keep `/orchestrate` as the public coordinator route while adding internal issue-level `delegate_issue` planner decisions\n- create/reuse child issues with GitHub-visible parent/stage/state markers, deterministic parent child-link reuse, and terminal report-back that resumes the parent planner\n- move delegated-route capability checks into orchestrator preflight and keep the dispatcher-side visible stop path\n- harden child reuse/report state: strict `child_issue_number` parsing, same-repo closing refs, trusted agent/app-authored markers only, resumed-round failure comments, and narrower terminal state classification\n- update orchestrator docs/prompt/workflow inputs and add regression coverage for the original review findings\n\n## Validation\n- `npm --prefix .agent test` (439 tests passed)\n- `npm --prefix .agent run build`\n",
+  "closedAt": "2026-05-02T16:49:49Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCEj-A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `orchestrate` -> `review` (round 2/10).\n\nmanual orchestrate start on PR; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777739498159 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNTY1MDM1OTI6b3JjaGVzdHJhdGU6ODI6cmV2aWV3OjgyOjI -->",
+      "createdAt": "2026-05-02T16:31:38Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/82#issuecomment-4364248056",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCExeQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Adds `initialOrchestrateCapabilityStopReason()` and gates initial `/orchestrate` against `implement`, `review`, and `fix-pr` capability before planner/dispatch; covered by preflight and handoff CLI tests. |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Stop paths now create visible orchestration stop comments, including authorization stops and child delegation setup failures. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Planner contract uses explicit fields: `decision`, `child_stage`, `child_instructions`, `child_issue_number`, `base_branch`, and `base_pr`; ambiguous `base_branch` + `base_pr` is rejected. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Child issue reuse/setup failures are surfaced as parent comments and stop outputs; terminal report state uses pending/dispatched markers and regression tests cover reruns and malformed state. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates `.agent/docs/actions/agent-actions.md`, supported workflows, technical orchestrator docs, workflow inputs, and orchestrator prompt for `delegate_issue`. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Reuses existing access-policy helpers, handoff decision parsing, workflow dispatch helper, GitHub comment marker style, and review-summary minimization flow. |\n| coding_workflow / generic | Surgical changes | pass | 8/8 | Changes stay scoped to orchestrator docs, prompt, workflow preflight, handoff CLI, sub-orchestration helpers, and focused tests. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The design keeps `/orchestrate` public, models `delegate_issue` as an internal decision, and stores parent/child state in issue markers rather than adding a broader route system. |\n\n## Notes\n\n- Main score drivers are strong authorization handling, visible stop reporting, strict child marker trust checks, and regression coverage for the review follow-ups.\n- The PR also preserves the documented one-shot behavior for direct `/implement`, `/review`, and `/fix-pr`; the new multi-step behavior is limited to explicit `/orchestrate` meta-orchestration.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No blocking or warning findings against the selected applicable rubrics.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-02T16:33:29Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/82#issuecomment-4364251513",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCFxag",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #82 supersedes #77 and implements the issue #76 design for issue-backed child orchestration.\n- It keeps `/orchestrate` as the public coordinator route while adding internal `delegate_issue` planner decisions for issue-level meta-orchestration.\n- Child issue state, parent links, terminal reports, and resumed parent planning are stored in GitHub-visible markers with trusted actor checks.\n- The PR also folds in prior review follow-ups around authorization preflight, visible stop paths, same-repo closing refs, stricter child reuse, docs, prompt updates, and regression coverage.\n\n## Review\nThe synthesized review outcome is clean: no reviewer raised a current blocking or required warning-level branch change. Claude noted a few design trade-offs and optional cleanups, while Codex and the rubrics review both concluded the current head is ready to ship.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | Independent reviews found no unresolved required branch-change work. Optional notes around terminal-state semantics, partial-access behavior, prompt clarity, and future extraction do not block merge. |\n\n## Progress\n- Prior #77 authorization-order, malformed child issue number, child setup visibility, cross-repo closing ref, marker trust, and stale docs concerns are reported fixed in #82.\n- Current PR discussion already includes a passing rubrics review with no rubric-specific follow-up.\n- Existing inline comments on PR #82 are empty, and no new inline comments were posted because there are no concrete required line-specific findings.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: No unresolved actionable branch work remains, and the remaining reviewer notes are optional design or maintenance observations.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-02T16:41:14Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/82#issuecomment-4364267882",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCG4lA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #82.\n\nno rubric changes\n\nI found no trusted, non-duplicate durable preference in PR #82 that warranted a rubric edit. The PR conversation itself only had bot/agent comments, no inline comments, and no human reviews. Linked #77 context had a human concern about implementation cleanliness, but the reusable parts are already covered by active rubrics like `simple-implementation`, `reuse-existing-code`, `surgical-changes`, `keep-docs-in-sync`, and `surface-stateful-failures`.\n\nRubrics checkout remains clean.\n",
+      "createdAt": "2026-05-02T16:51:24Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/82#issuecomment-4364286100",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-02T16:29:25Z",
+  "files": [
+    {
+      "path": ".agent/docs/actions/agent-actions.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 24,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/agent-orchestrator.md",
+      "additions": 30,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 6,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/handoff.test.ts",
+      "additions": 89,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrate-handoff-cli.test.ts",
+      "additions": 380,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrator-preflight-cli.test.ts",
+      "additions": 84,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/sub-orchestration.test.ts",
+      "additions": 121,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrate-handoff.ts",
+      "additions": 538,
+      "deletions": 49,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrator-preflight.ts",
+      "additions": 25,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/handoff.ts",
+      "additions": 64,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/orchestrator-capabilities.ts",
+      "additions": 63,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/sub-orchestration.ts",
+      "additions": 202,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/prompts/agent-orchestrator.md",
+      "additions": 14,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-orchestrator.yml",
+      "additions": 5,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "fix/pr77-clean-child-orchestration",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": "2026-05-02T16:49:49Z",
+  "number": 82,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "MERGED",
+  "title": "Add delegate_issue child orchestration",
+  "updatedAt": "2026-05-02T16:51:24Z",
+  "url": "https://github.com/self-evolving/repo/pull/82"
+}
