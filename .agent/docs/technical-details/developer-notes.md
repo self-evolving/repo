@@ -25,7 +25,7 @@ For manual continuity checks, use a disposable `HOME` or container. Do not delet
 
 - Workflow-level GitHub token permissions are broader than route-level `acpx` permission modes.
 - `skill_root` is advertised on `agent-router.yml` but is not wired through yet.
-- Slash routes are hardcoded to `/answer`, `/implement`, `/create-action`, `/update`, `/fix-pr`, `/review`, and `/skill`.
+- Slash routes are hardcoded to `/answer`, `/implement`, `/create-action`, `/update`, `/fix-pr`, `/review`, `/orchestrate`, and `/skill`.
 - Mention parsing does not fully handle lazy blockquote continuations or multi-backtick inline code spans.
 - Implementation approval uses comments, not reactions.
 - The verify chain is a lightweight post-agent check, not a full CI substitute.
