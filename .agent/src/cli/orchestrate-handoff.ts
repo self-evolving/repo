@@ -69,6 +69,7 @@ interface SubOrchestrationIssueRecord extends IssueRecord {
 }
 
 const SUB_ORCHESTRATION_ADOPTION_COMMENT_MARKER = "<!-- sepo-sub-orchestrator-adoption -->";
+const ORCHESTRATE_STOP_MARKER = "<!-- sepo-agent-orchestrate-stop -->";
 const PENDING_MARKER_TTL_MS = 60 * 60 * 1000;
 const UNSATISFACTORY_ACTION_CONCLUSIONS = new Set(["no_changes", "failed", "verify_failed", "unsupported"]);
 
@@ -840,15 +841,6 @@ function reportTerminalToParent(decision: HandoffDecision): void {
 }
 
 function formatOrchestrateStopComment(decision: HandoffDecision): string {
-  const normalizedSourceAction = normalizeToken(sourceAction);
-  if (normalizedSourceAction === "orchestrate") {
-    return [
-      `Sepo orchestration stopped: ${decision.reason}`,
-      "",
-      "<!-- sepo-agent-orchestrate-stop -->",
-    ].join("\n");
-  }
-
   const lines = [
     `Sepo orchestration stopped after \`${sourceAction || "unknown"}\` concluded \`${sourceConclusion || "unknown"}\`.`,
     "",
@@ -867,9 +859,26 @@ function formatOrchestrateStopComment(decision: HandoffDecision): string {
     "",
     "No follow-up workflow was dispatched. Inspect the source action status comment and workflow logs before retrying or continuing manually.",
     "",
-    "<!-- sepo-agent-orchestrate-stop -->",
+    ORCHESTRATE_STOP_MARKER,
   );
   return lines.join("\n");
+}
+
+function hasMatchingOrchestrateStopComment(repoSlug: string, issueNumber: number, body: string): boolean {
+  try {
+    const expectedBody = body.trim();
+    return fetchIssueComments(repoSlug, issueNumber).some((comment) => {
+      const commentBody = String(comment.body || "");
+      return (
+        commentBody.includes(ORCHESTRATE_STOP_MARKER) &&
+        commentBody.trim() === expectedBody &&
+        isTrustedActorLogin(comment.authorLogin || "")
+      );
+    });
+  } catch (err: unknown) {
+    console.warn(`Failed to inspect existing orchestrator stop comments: ${errorText(err)}`);
+    return false;
+  }
 }
 
 function createOrchestrateStopComment(decision: HandoffDecision): void {
@@ -877,7 +886,11 @@ function createOrchestrateStopComment(decision: HandoffDecision): void {
   if (!repo || !target || !["issue", "pull_request"].includes(normalizeToken(sourceTargetKind))) {
     return;
   }
-  createIssueComment(repo, target, formatOrchestrateStopComment(decision));
+  const body = formatOrchestrateStopComment(decision);
+  if (hasMatchingOrchestrateStopComment(repo, target, body)) {
+    return;
+  }
+  createIssueComment(repo, target, body);
 }
 
 function commentOnInitialOrchestrateStop(decision: HandoffDecision): void {
@@ -904,6 +917,23 @@ function commentOnUnsatisfactoryActionStop(decision: HandoffDecision): void {
     return;
   }
   if (!UNSATISFACTORY_ACTION_CONCLUSIONS.has(normalizeToken(sourceConclusion))) {
+    return;
+  }
+  createOrchestrateStopComment(decision);
+}
+
+function commentOnTerminalMetaOrchestratorStop(decision: HandoffDecision): void {
+  if (decision.decision !== "stop") {
+    return;
+  }
+  if (
+    normalizeToken(sourceAction) !== "orchestrate" ||
+    automationMode !== "agent" ||
+    normalizeToken(sourceTargetKind) !== "issue"
+  ) {
+    return;
+  }
+  if (currentRound === 1 && normalizeToken(sourceConclusion) === "requested") {
     return;
   }
   createOrchestrateStopComment(decision);
@@ -1011,6 +1041,7 @@ if (decision.decision !== "dispatch" && decision.decision !== "delegate_issue") 
     commentOnInitialOrchestrateStop(decision);
     commentOnUnsatisfactoryActionStop(decision);
     reportTerminalToParent(decision);
+    commentOnTerminalMetaOrchestratorStop(decision);
   } catch (err: unknown) {
     console.warn(`Failed to report terminal sub-orchestration state: ${errorText(err)}`);
   }

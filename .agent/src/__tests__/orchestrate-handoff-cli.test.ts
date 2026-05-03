@@ -809,7 +809,84 @@ test("initial orchestrate checks delegated route capabilities before dispatch", 
     "orchestrate requests require implement access; implement currently requires MEMBER access.",
   );
   assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/20\/comments/);
+  assert.match(run.ghLog, /Source conclusion: `requested`/);
   assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-implement\.yml\/dispatches/);
+});
+
+test("agent parent orchestrate stop posts final comment without follow-up", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "orchestrate",
+    SOURCE_CONCLUSION: "done",
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "76",
+    AUTOMATION_MODE: "agent",
+    AUTOMATION_CURRENT_ROUND: "2",
+    AUTOMATION_MAX_ROUNDS: "10",
+    SOURCE_RUN_ID: "parent-run-123",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "stop",
+      reason: "All child work is complete.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.equal(run.outputs.get("reason"), "agent planner stop: All child work is complete.");
+  assert.match(run.ghLog, /api --method POST repos\/self-evolving\/repo\/issues\/76\/comments/);
+  assert.match(run.ghLog, /Sepo orchestration stopped after `orchestrate` concluded `done`\./);
+  assert.match(run.ghLog, /Source conclusion: `done`/);
+  assert.match(run.ghLog, /Target: `issue #76`/);
+  assert.match(run.ghLog, /Round: `2\/10`/);
+  assert.match(run.ghLog, /Reason: agent planner stop: All child work is complete\./);
+  assert.match(run.ghLog, /Source run ID: `parent-run-123`/);
+  assert.match(run.ghLog, /No follow-up workflow was dispatched/);
+  assert.match(run.ghLog, /<!-- sepo-agent-orchestrate-stop -->/);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\//);
+  assert.equal(run.dispatchPayload, null);
+});
+
+test("agent parent orchestrate stop skips matching trusted final comment", () => {
+  const existingStopBody = [
+    "Sepo orchestration stopped after `orchestrate` concluded `done`.",
+    "",
+    "- Source action: `orchestrate`",
+    "- Source conclusion: `done`",
+    "- Target: `issue #76`",
+    "- Round: `2/10`",
+    "- Reason: agent planner stop: All child work is complete.",
+    "- Source run ID: `parent-run-123`",
+    "",
+    "No follow-up workflow was dispatched. Inspect the source action status comment and workflow logs before retrying or continuing manually.",
+    "",
+    "<!-- sepo-agent-orchestrate-stop -->",
+  ].join("\n");
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "orchestrate",
+    SOURCE_CONCLUSION: "done",
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "76",
+    AUTOMATION_MODE: "agent",
+    AUTOMATION_CURRENT_ROUND: "2",
+    AUTOMATION_MAX_ROUNDS: "10",
+    SOURCE_RUN_ID: "parent-run-123",
+    FAKE_ISSUE_COMMENTS_JSON: JSON.stringify([
+      {
+        id: "existing-stop",
+        body: existingStopBody,
+        user: { login: "sepo-agent-app[bot]" },
+      },
+    ]),
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "stop",
+      reason: "All child work is complete.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.doesNotMatch(run.ghLog, /api --method POST repos\/self-evolving\/repo\/issues\/76\/comments/);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\//);
+  assert.equal(run.dispatchPayload, null);
 });
 
 test("terminal child result reports to parent and preserves terminal reruns", () => {
@@ -834,6 +911,7 @@ test("terminal child result reports to parent and preserves terminal reruns", ()
   assert.match(run.ghLog, /\| #77 \| #88 \| Ready to ship \| 2 \/ 5 \| Resuming parent orchestration \|/);
   assert.match(run.ghLog, /Summary: review verdict is SHIP/);
   assert.match(run.ghLog, /<!-- sepo-sub-orchestrator-report child:77 resume:dispatched -->/);
+  assert.doesNotMatch(run.ghLog, /<!-- sepo-agent-orchestrate-stop -->/);
   const inputs = run.dispatchPayload?.inputs as Record<string, string>;
   assert.equal(inputs.source_action, "orchestrate");
   assert.equal(inputs.source_conclusion, "done");
