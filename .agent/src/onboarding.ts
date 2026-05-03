@@ -70,7 +70,7 @@ function findExistingOnboardingIssue(repo: string): ExistingIssue | null {
 
 function createOnboardingIssue(opts: OnboardingOptions): number {
   const bodyFile = join(opts.runnerTemp, `sepo-onboarding-${randomBytes(8).toString("hex")}.md`);
-  writeFileSync(bodyFile, issueBody(), "utf8");
+  writeFileSync(bodyFile, setupIssueBody(), "utf8");
   const issueUrl = createIssue({ title: ONBOARDING_TITLE, bodyFile, repo: opts.repo });
   const match = issueUrl.match(/(\d+)$/);
   if (!match) {
@@ -99,7 +99,7 @@ function updateIssueComment(repo: string, commentId: number, body: string): void
   ]);
 }
 
-function issueBody(): string {
+export function setupIssueBody(): string {
   return `Use this issue to verify that Sepo is installed and ready in this repository.
 
 Try a basic answer run:

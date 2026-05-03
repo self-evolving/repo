@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createIssue, dispatchWorkflow, gh, postIssueComment } from "./github.js";
+import { setupIssueBody } from "./onboarding.js";
 
 const ONBOARDING_WORKFLOW = "agent-onboarding.yml";
 const SETUP_ISSUE_TITLE = "Sepo setup check";
@@ -117,7 +118,7 @@ function findExistingSetupIssue(repo: string): ExistingIssue | null {
 
 function createSetupIssue(opts: InstallationBootstrapOptions): number {
   const bodyFile = join(opts.runnerTemp, `sepo-install-bootstrap-${randomBytes(8).toString("hex")}.md`);
-  writeFileSync(bodyFile, issueBody(), "utf8");
+  writeFileSync(bodyFile, setupIssueBody(), "utf8");
   const issueUrl = createIssue({ title: SETUP_ISSUE_TITLE, bodyFile, repo: opts.repo });
   const match = issueUrl.match(/(\d+)$/);
   if (!match) {
@@ -146,15 +147,6 @@ function updateIssueComment(repo: string, commentId: number, body: string): void
     "-f",
     `body=${body}`,
   ]);
-}
-
-function issueBody(): string {
-  return `Use this issue to finish Sepo installation for this repository.
-
-The Sepo GitHub App tried to start onboarding automatically. If the status
-comment below says the onboarding workflow could not be dispatched, follow the
-listed next steps and rerun \`Agent / Onboarding / Check Setup\` manually.
-`;
 }
 
 function fallbackComment(opts: InstallationBootstrapOptions, reason: string): string {
