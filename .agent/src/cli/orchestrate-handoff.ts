@@ -711,6 +711,7 @@ function ensureSubOrchestrationIssue(decision: HandoffDecision): string {
   const recordedIssue = findRecordedSubOrchestrationIssue(repo, parentIssue, stage);
   if (recordedIssue) {
     updateSubOrchestrationParentRound(repo, recordedIssue, parentRound);
+    ensureGitHubSubIssueRelation(repo, parentIssue, recordedIssue.number);
     return String(recordedIssue.number);
   }
 

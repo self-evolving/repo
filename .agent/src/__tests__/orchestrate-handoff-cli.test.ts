@@ -491,6 +491,9 @@ test("agent orchestrate reuses parent-recorded child issue before search", () =>
   assert.equal(run.outputs.get("decision"), "delegate_issue");
   assert.equal(run.outputs.get("target_number"), "77");
   assert.match(run.ghLog, /issue view 77/);
+  assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/76\/sub_issues/);
+  assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/77 --jq \.id/);
+  assert.match(run.ghLog, /-F sub_issue_id=170077/);
   assert.doesNotMatch(run.ghLog, /issue list/);
   assert.doesNotMatch(run.ghLog, /issue create/);
   assert.match(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
