@@ -889,6 +889,49 @@ test("agent parent orchestrate stop skips matching trusted final comment", () =>
   assert.equal(run.dispatchPayload, null);
 });
 
+test("heuristics parent orchestrate stops do not post final comments", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "orchestrate",
+    SOURCE_CONCLUSION: "done",
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "76",
+    AUTOMATION_MODE: "heuristics",
+    AUTOMATION_CURRENT_ROUND: "10",
+    AUTOMATION_MAX_ROUNDS: "10",
+    SOURCE_RUN_ID: "parent-run-123",
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.equal(run.outputs.get("reason"), "automation round budget exhausted");
+  assert.doesNotMatch(run.ghLog, /api --method POST repos\/self-evolving\/repo\/issues\/76\/comments/);
+  assert.doesNotMatch(run.ghLog, /<!-- sepo-agent-orchestrate-stop -->/);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\//);
+  assert.equal(run.dispatchPayload, null);
+});
+
+test("agent parent orchestrate stops for pull requests do not post final comments", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "orchestrate",
+    SOURCE_CONCLUSION: "done",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "76",
+    AUTOMATION_MODE: "agent",
+    AUTOMATION_CURRENT_ROUND: "2",
+    AUTOMATION_MAX_ROUNDS: "10",
+    SOURCE_RUN_ID: "parent-run-123",
+    FAKE_PR_STATE: "CLOSED",
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.equal(run.outputs.get("reason"), "pull request is closed");
+  assert.doesNotMatch(run.ghLog, /api --method POST repos\/self-evolving\/repo\/issues\/76\/comments/);
+  assert.doesNotMatch(run.ghLog, /<!-- sepo-agent-orchestrate-stop -->/);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\//);
+  assert.equal(run.dispatchPayload, null);
+});
+
 test("terminal child result reports to parent and preserves terminal reruns", () => {
   const childBody = "<!-- sepo-sub-orchestrator parent:76 stage:stage-1 state:running parent_round:2 -->";
   const run = runOrchestrateHandoff({
