@@ -1320,6 +1320,20 @@ test("branch cleanup preserves shared agent branches", () => {
   assert.match(cleanup, /head\.ref != \(vars\.AGENT_RUBRICS_REF \|\| 'agent\/rubrics'\)/);
 });
 
+test("branch cleanup retargets stacked PRs before deleting merged branches", () => {
+  const cleanup = readRepoFile(".github/workflows/agent-branch-cleanup.yml");
+  assert.match(cleanup, /^permissions:\s*\n\s+contents: write\s*\n\s+pull-requests: write/m);
+  assert.match(cleanup, /const retargetBase = context\.payload\.pull_request\?\.base\?\.ref/);
+  assert.match(cleanup, /github\.paginate\(github\.rest\.pulls\.list[\s\S]*base: branch/);
+  assert.match(cleanup, /github\.rest\.pulls\.update[\s\S]*base: retargetBase/);
+
+  const retargetIndex = cleanup.indexOf("github.rest.pulls.update");
+  const deleteIndex = cleanup.indexOf("github.rest.git.deleteRef");
+  assert.notEqual(retargetIndex, -1);
+  assert.notEqual(deleteIndex, -1);
+  assert.ok(retargetIndex < deleteIndex);
+});
+
 test("memory and rubric guidance live in dedicated conditional prompt fragments", () => {
   const base = readRepoFile(".github/prompts/_base.md");
   const memory = readRepoFile(".github/prompts/_memory.md");

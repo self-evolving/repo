@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
   id-token: write # required for GitHub Actions OIDC broker exchange
 
 jobs:
@@ -37,10 +38,34 @@ jobs:
           github-token: ${{ steps.auth.outputs.token }}
           script: |
             const branch = context.payload.pull_request?.head?.ref;
+            const retargetBase = context.payload.pull_request?.base?.ref;
 
             if (!branch) {
               core.setFailed("Missing pull request head ref.");
               return;
+            }
+
+            if (!retargetBase) {
+              core.setFailed("Missing pull request base ref.");
+              return;
+            }
+
+            const dependentPulls = await github.paginate(github.rest.pulls.list, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              base: branch,
+              per_page: 100,
+            });
+
+            for (const pull of dependentPulls) {
+              core.info(`Retargeting dependent PR #${pull.number} from ${branch} to ${retargetBase}.`);
+              await github.rest.pulls.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pull.number,
+                base: retargetBase,
+              });
             }
 
             try {
