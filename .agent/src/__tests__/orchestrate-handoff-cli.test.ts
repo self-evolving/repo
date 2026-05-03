@@ -90,6 +90,15 @@ if [ "\${1-}" = "api" ] && [ "\${2-}" = "--paginate" ] && [ "\${3-}" = "--slurp"
   exit 0
 fi
 
+if [ "\${1-}" = "api" ] && [ "\${2-}" = "--paginate" ] && [[ "\${3-}" == repos/*/issues/*/sub_issues ]]; then
+  if [ "\${FAKE_SUB_ISSUES_MODE-}" = "error" ]; then
+    printf 'sub-issues unavailable\\n' >&2
+    exit 1
+  fi
+  printf '%s\\n' "\${FAKE_SUB_ISSUE_NUMBERS-}"
+  exit 0
+fi
+
 if [ "\${1-}" = "api" ] && [ "\${2-}" = "graphql" ]; then
   if [ "\${FAKE_GRAPHQL_MODE-}" = "error" ]; then
     printf '{"errors":[{"message":"graphql unavailable"}]}\\n'
@@ -113,6 +122,23 @@ if [ "\${1-}" = "api" ] && [ "\${2-}" = "graphql" ]; then
       exit 1
       ;;
   esac
+  exit 0
+fi
+
+if [ "\${1-}" = "api" ] && [[ "\${2-}" == repos/*/issues/* ]] && [ "\${3-}" = "--jq" ] && [ "\${4-}" = ".id" ]; then
+  if [ "\${FAKE_ISSUE_REST_MODE-}" = "missing" ]; then
+    printf 'issue rest lookup failed\\n' >&2
+    exit 1
+  fi
+  printf '%s\\n' "\${FAKE_ISSUE_REST_ID-170077}"
+  exit 0
+fi
+
+if [ "\${1-}" = "api" ] && [ "\${2-}" = "--method" ] && [ "\${3-}" = "POST" ] && [[ "\${4-}" == repos/*/issues/*/sub_issues ]]; then
+  if [ "\${FAKE_SUB_ISSUE_LINK_MODE-}" = "error" ]; then
+    printf 'sub-issue link failed\\n' >&2
+    exit 1
+  fi
   exit 0
 fi
 
@@ -333,6 +359,9 @@ test("agent orchestrate delegates to a child issue without extending AgentAction
   assert.match(run.ghLog, /\| Child task \| Focus \| Parent issue \| Status \|/);
   assert.match(run.ghLog, /\| #77 \| stage-1 \| #76 \| Running \|/);
   assert.match(run.ghLog, /<!-- sepo-sub-orchestrator-child parent:76 stage:stage-1 child:77 -->/);
+  assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/76\/sub_issues/);
+  assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/77 --jq \.id/);
+  assert.match(run.ghLog, /-F sub_issue_id=170077/);
   const inputs = run.dispatchPayload?.inputs as Record<string, string>;
   assert.equal(inputs.source_action, "orchestrate");
   assert.equal(inputs.source_conclusion, "delegated");
@@ -340,6 +369,51 @@ test("agent orchestrate delegates to a child issue without extending AgentAction
   assert.equal(inputs.target_number, "77");
   assert.equal(inputs.automation_mode, "heuristics");
   assert.equal(inputs.base_pr, "66");
+});
+
+test("agent orchestrate skips GitHub sub-issue POST when relation already exists", () => {
+  const run = runOrchestrateHandoff({
+    AUTOMATION_MODE: "agent",
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "76",
+    FAKE_CREATED_ISSUE_NUMBER: "77",
+    FAKE_SUB_ISSUE_NUMBERS: "77",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "delegate_issue",
+      reason: "Split into a child task.",
+      child_stage: "stage 1",
+      child_instructions: "Implement the delegated stage.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "delegate_issue");
+  assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/76\/sub_issues/);
+  assert.doesNotMatch(run.ghLog, /repos\/self-evolving\/repo\/issues\/77 --jq \.id/);
+  assert.doesNotMatch(run.ghLog, /-F sub_issue_id=/);
+  assert.match(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
+});
+
+test("agent orchestrate continues when GitHub sub-issue linking fails", () => {
+  const run = runOrchestrateHandoff({
+    AUTOMATION_MODE: "agent",
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "76",
+    FAKE_CREATED_ISSUE_NUMBER: "77",
+    FAKE_SUB_ISSUE_LINK_MODE: "error",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "delegate_issue",
+      reason: "Split into a child task.",
+      child_stage: "stage 1",
+      child_instructions: "Implement the delegated stage.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "delegate_issue");
+  assert.match(run.stderr, /Could not link child issue #77 as a GitHub sub-issue of #76/);
+  assert.match(run.ghLog, /-F sub_issue_id=170077/);
+  assert.match(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
 });
 
 test("agent orchestrate stacks sequential existing child on prior child PR", () => {
@@ -417,6 +491,9 @@ test("agent orchestrate reuses parent-recorded child issue before search", () =>
   assert.equal(run.outputs.get("decision"), "delegate_issue");
   assert.equal(run.outputs.get("target_number"), "77");
   assert.match(run.ghLog, /issue view 77/);
+  assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/76\/sub_issues/);
+  assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/77 --jq \.id/);
+  assert.match(run.ghLog, /-F sub_issue_id=170077/);
   assert.doesNotMatch(run.ghLog, /issue list/);
   assert.doesNotMatch(run.ghLog, /issue create/);
   assert.match(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
@@ -841,6 +918,72 @@ test("agent parent orchestrate stop posts final comment without follow-up", () =
   assert.match(run.ghLog, /Source run ID: `parent-run-123`/);
   assert.match(run.ghLog, /No follow-up workflow was dispatched/);
   assert.match(run.ghLog, /<!-- sepo-agent-orchestrate-stop -->/);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\//);
+  assert.equal(run.dispatchPayload, null);
+});
+
+test("agent parent orchestrate blocked posts planner clarification", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "orchestrate",
+    SOURCE_CONCLUSION: "done",
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "76",
+    AUTOMATION_MODE: "agent",
+    AUTOMATION_CURRENT_ROUND: "2",
+    AUTOMATION_MAX_ROUNDS: "10",
+    SOURCE_RUN_ID: "parent-run-123",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "blocked",
+      reason: "Need maintainer input before choosing the next child.",
+      user_message: "I need a maintainer decision before continuing the orchestration.",
+      clarification_request: "Should the next child stack on PR #112 or wait for it to merge?",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.equal(
+    run.outputs.get("reason"),
+    "agent planner blocked: Need maintainer input before choosing the next child.",
+  );
+  assert.match(run.ghLog, /api --method POST repos\/self-evolving\/repo\/issues\/76\/comments/);
+  assert.match(run.ghLog, /Sepo orchestration needs clarification before it can continue\./);
+  assert.match(run.ghLog, /I need a maintainer decision before continuing the orchestration\./);
+  assert.match(run.ghLog, /Clarification request: Should the next child stack on PR #112 or wait for it to merge\?/);
+  assert.match(run.ghLog, /Reason: agent planner blocked: Need maintainer input before choosing the next child\./);
+  assert.match(run.ghLog, /No follow-up workflow was dispatched/);
+  assert.match(run.ghLog, /<!-- sepo-agent-orchestrate-stop -->/);
+  assert.doesNotMatch(run.ghLog, /Sepo orchestration stopped after/);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\//);
+  assert.equal(run.dispatchPayload, null);
+});
+
+test("agent parent orchestrate blocked without message posts generic stop", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "orchestrate",
+    SOURCE_CONCLUSION: "done",
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "76",
+    AUTOMATION_MODE: "agent",
+    AUTOMATION_CURRENT_ROUND: "2",
+    AUTOMATION_MAX_ROUNDS: "10",
+    SOURCE_RUN_ID: "parent-run-123",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "blocked",
+      reason: "Context missing.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.equal(run.outputs.get("reason"), "agent planner blocked: Context missing.");
+  assert.match(run.ghLog, /api --method POST repos\/self-evolving\/repo\/issues\/76\/comments/);
+  assert.match(run.ghLog, /Sepo orchestration stopped after `orchestrate` concluded `done`\./);
+  assert.match(run.ghLog, /Reason: agent planner blocked: Context missing\./);
+  assert.match(run.ghLog, /No follow-up workflow was dispatched/);
+  assert.match(run.ghLog, /<!-- sepo-agent-orchestrate-stop -->/);
+  assert.doesNotMatch(run.ghLog, /Sepo orchestration needs clarification before it can continue\./);
+  assert.doesNotMatch(run.ghLog, /Clarification request:/);
   assert.doesNotMatch(run.ghLog, /actions\/workflows\//);
   assert.equal(run.dispatchPayload, null);
 });
