@@ -31,6 +31,11 @@ interface ExistingComment {
   body: string;
 }
 
+type WorkflowLookupResult =
+  | { status: "exists" }
+  | { status: "missing" }
+  | { status: "error"; reason: string };
+
 function apiPath(repo: string, suffix: string): string {
   return `repos/${repo}/${suffix}`;
 }
@@ -47,7 +52,17 @@ function commandErrorText(err: unknown): string {
     .trim();
 }
 
-function workflowFileExists(repo: string, ref: string): boolean {
+function isMissingWorkflowFileError(err: unknown): boolean {
+  const text = commandErrorText(err);
+  return /\bHTTP 404\b/i.test(text) && /not found/i.test(text);
+}
+
+function workflowFileLookupErrorReason(err: unknown): string {
+  const text = commandErrorText(err);
+  return text ? `Workflow lookup failed: ${text}` : "Workflow lookup failed.";
+}
+
+function lookupWorkflowFile(repo: string, ref: string): WorkflowLookupResult {
   try {
     gh([
       "api",
@@ -57,10 +72,30 @@ function workflowFileExists(repo: string, ref: string): boolean {
       "-f",
       `ref=${ref}`,
     ]);
-    return true;
-  } catch {
-    return false;
+    return { status: "exists" };
+  } catch (err: unknown) {
+    if (isMissingWorkflowFileError(err)) return { status: "missing" };
+    return { status: "error", reason: workflowFileLookupErrorReason(err) };
   }
+}
+
+function isExistingComment(value: unknown): value is ExistingComment {
+  if (typeof value !== "object" || value === null) return false;
+  const record = value as { id?: unknown; body?: unknown };
+  return typeof record.id === "number" && typeof record.body === "string";
+}
+
+function flattenCommentPages(value: unknown): ExistingComment[] {
+  if (!Array.isArray(value)) return [];
+
+  return value.flatMap((item) => {
+    if (Array.isArray(item)) return item.filter(isExistingComment);
+    return isExistingComment(item) ? [item] : [];
+  });
+}
+
+function parseComments(output: string): ExistingComment[] {
+  return flattenCommentPages(JSON.parse(output) as unknown);
 }
 
 function findExistingSetupIssue(repo: string): ExistingIssue | null {
@@ -94,9 +129,11 @@ function createSetupIssue(opts: InstallationBootstrapOptions): number {
 function findBootstrapComment(repo: string, issueNumber: number): ExistingComment | null {
   const output = gh([
     "api",
+    "--paginate",
+    "--slurp",
     apiPath(repo, `issues/${issueNumber}/comments`),
   ]);
-  const comments = JSON.parse(output) as ExistingComment[];
+  const comments = parseComments(output);
   return comments.find((comment) => comment.body.includes(BOOTSTRAP_MARKER)) ?? null;
 }
 
@@ -170,10 +207,15 @@ export function runInstallationBootstrap(opts: InstallationBootstrapOptions): In
   if (!ref) throw new Error("ref is required");
 
   const normalized = { ...opts, repo, ref };
-  if (!workflowFileExists(repo, ref)) {
+  const workflowLookup = lookupWorkflowFile(repo, ref);
+  if (workflowLookup.status === "missing") {
     const reason = `\`${ONBOARDING_WORKFLOW}\` was not found on \`${ref}\`.`;
     const issueNumber = createOrUpdateFallbackIssue(normalized, reason);
     return { status: "fallback_issue", issueNumber, reason };
+  }
+  if (workflowLookup.status === "error") {
+    const issueNumber = createOrUpdateFallbackIssue(normalized, workflowLookup.reason);
+    return { status: "fallback_issue", issueNumber, reason: workflowLookup.reason };
   }
 
   try {
