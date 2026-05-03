@@ -46,6 +46,12 @@ named `agent-action-<short-slug>.yml`. Generated workflows use native
 generated scheduled workflows use `.github/actions/check-agent-action-expiration`
 and skip provider setup/agent execution once expired.
 
+The built-in `agent-update.yml` workflow is the default recurring maintenance
+path for Sepo itself. It runs near-biweekly, calls the existing `update-agent`
+skill, and opens an update PR only when the target repository differs from the
+configured source. A pre-runtime pending-PR guard skips the run while an
+`agent/update-agent-infra-*` PR is already open.
+
 ## Self-documenting pattern
 
 The desired source of truth for generated agent-action docs is a pair of small metadata blocks: one near the workflow wiring and one near the prompt.
