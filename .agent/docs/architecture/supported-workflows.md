@@ -21,6 +21,13 @@
 | `agent-onboarding.yml` | `workflow_dispatch` | First-run setup check that creates built-in trigger labels and opens or updates a setup issue | None |
 | `test-scripts.yml` | `pull_request`, `workflow_dispatch` | CI for helper tests, YAML parsing, and shell syntax | None |
 
+The hosted Sepo GitHub App can try to start `agent-onboarding.yml`
+automatically after installation by dispatching the workflow on the repository
+default branch. The repo-side helper for that hosted webhook path is
+`node .agent/dist/cli/installation-bootstrap.js`: it dispatches onboarding when
+the workflow file exists, and otherwise creates or updates one `Sepo setup
+check` fallback issue with manual next steps.
+
 `agent-orchestrator.yml` is started explicitly through `/orchestrate` or
 `agent/orchestrate`. On start, it inspects the current target state and
 dispatches one built-in action (`implement`, `review`, or `fix-pr`) when useful.

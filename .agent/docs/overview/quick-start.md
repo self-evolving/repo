@@ -4,6 +4,7 @@
 
 1. Fork this repository or use it as a template.
 2. Install the [Sepo GitHub App](https://github.com/apps/sepo-agent-app/installations/select_target) and ensure GitHub Actions is enabled for the repository.
+   - The hosted App can try to dispatch `Agent / Onboarding / Check Setup` automatically. If that cannot start, it opens or updates a `Sepo setup check` issue with manual next steps.
 3. Choose a GitHub authentication path:
    - Use the built-in hosted app/OIDC path for the simplest setup. Do not set `AGENT_APP_ID` / `AGENT_APP_PRIVATE_KEY` for this path; those secrets are only for a self-managed app.
    - Use [your own GitHub App](../deployment/using-your-own-github-app.md) when you want a self-managed app identity.
@@ -11,7 +12,7 @@
 4. Add at least one model-provider credential as a repository secret:
    - `OPENAI_API_KEY` for Codex-backed runs.
    - `CLAUDE_CODE_OAUTH_TOKEN` for Claude-backed runs.
-5. Run `Agent / Onboarding / Check Setup` from GitHub Actions. It creates the built-in `agent/*` trigger labels if they are missing and opens or updates a `Sepo setup check` issue with configuration status and copyable test commands.
+5. Review the `Sepo setup check` issue. If automatic onboarding did not run, run `Agent / Onboarding / Check Setup` from GitHub Actions. It creates the built-in `agent/*` trigger labels if they are missing and opens or updates the setup issue with configuration status and copyable test commands.
 6. Open an issue and mention `@sepo-agent` in the issue body or a comment. After a short delay, the workflow should add an eyes reaction and then post a response.
 
 ## Install into an existing repository
