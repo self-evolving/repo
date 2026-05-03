@@ -183,8 +183,10 @@ test("single-agent workflows resolve provider before runtime setup", () => {
   const routerWorkflow = readRepoFile(".github/workflows/agent-router.yml");
   const implementWorkflow = readRepoFile(".github/workflows/agent-implement.yml");
   const fixPrWorkflow = readRepoFile(".github/workflows/agent-fix-pr.yml");
+  const updateWorkflow = readRepoFile(".github/workflows/agent-update.yml");
   const reviewWorkflow = readRepoFile(".github/workflows/agent-review.yml");
   const autonomousWorkflows = [
+    updateWorkflow,
     readRepoFile(".github/workflows/agent-daily-summary.yml"),
     readRepoFile(".github/workflows/agent-memory-bootstrap.yml"),
     readRepoFile(".github/workflows/agent-memory-pr-closed.yml"),
@@ -242,6 +244,7 @@ test("scheduled workflows evaluate skip gates before provider-dependent jobs", (
   const dailySummaryWorkflow = readRepoFile(".github/workflows/agent-daily-summary.yml");
   const memoryScanWorkflow = readRepoFile(".github/workflows/agent-memory-scan.yml");
   const memorySyncWorkflow = readRepoFile(".github/workflows/agent-memory-sync.yml");
+  const updateWorkflow = readRepoFile(".github/workflows/agent-update.yml");
   const gateAction = readRepoFile(".github/actions/scheduled-activity-gate/action.yml");
 
   assert.match(gateAction, /\.agent\/scripts\/resolve-scheduled-activity-gate\.sh/);
@@ -256,6 +259,11 @@ test("scheduled workflows evaluate skip gates before provider-dependent jobs", (
   assert.match(memorySyncWorkflow, /gate:\n[\s\S]*Resolve scheduled activity gate/);
   assert.match(memorySyncWorkflow, /sync:\n\s+needs: gate\n\s+if: needs\.gate\.outputs\.skip != 'true'/);
   assert.doesNotMatch(memorySyncWorkflow, /if: steps\.gate\.outputs\.skip != 'true'/);
+
+  assert.match(updateWorkflow, /gate:\n[\s\S]*Resolve scheduled activity gate/);
+  assert.match(updateWorkflow, /Check pending update PR[\s\S]*resolve-pending-update-pr\.sh/);
+  assert.match(updateWorkflow, /update:\n\s+needs: gate\n\s+if: needs\.gate\.outputs\.skip != 'true'/);
+  assert.match(updateWorkflow, /Resolve update provider[\s\S]*Setup agent runtime/);
 
   assert.match(dailySummaryWorkflow, /pre_gate:\n[\s\S]*Resolve scheduled disabled gate/);
   assert.match(dailySummaryWorkflow, /signals:\n\s+needs: pre_gate\n\s+if: needs\.pre_gate\.outputs\.skip != 'true'/);
