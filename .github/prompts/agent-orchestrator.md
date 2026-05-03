@@ -47,6 +47,8 @@ rubrics. Then return exactly one JSON object and nothing else:
   "next_action": "implement | review | fix-pr",
   "reason": "Short explanation for logs and the handoff marker.",
   "handoff_context": "Actionable instructions for the next action, especially fix-pr.",
+  "user_message": "Optional user-facing message to post when decision is blocked.",
+  "clarification_request": "Optional focused question to post when decision is blocked.",
   "child_stage": "Short child issue stage name when decision is delegate_issue.",
   "child_instructions": "Concrete child issue task instructions when decision is delegate_issue.",
   "child_issue_number": "Optional existing child issue number to reuse or adopt.",
@@ -84,7 +86,10 @@ Rules:
   notes, style or naming preferences, already-fixed findings, or other
   human-judgment nits.
 - Use `blocked` when required context is missing or the chain cannot proceed
-  safely.
+  safely. Include `user_message` and/or `clarification_request` with text that
+  can be posted directly as the visible clarification comment.
+- Do not use `answer` as `next_action`; if the automation needs to ask the user
+  a question, choose `blocked` with a clarification message.
 - Omit `next_action` unless `decision` is `handoff`.
 - Include `handoff_context` for `handoff` decisions when useful. For `fix-pr`,
   make it concrete: summarize the exact review findings to address, constraints

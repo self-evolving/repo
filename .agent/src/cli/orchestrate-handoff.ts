@@ -840,7 +840,57 @@ function reportTerminalToParent(decision: HandoffDecision): void {
   }
 }
 
+function pushUniqueMarkdownBlock(lines: string[], value: string | undefined): void {
+  const text = String(value || "").trim();
+  if (!text || lines.includes(text)) return;
+  lines.push(text);
+}
+
+function formatPlannerClarificationComment(decision: HandoffDecision): string | null {
+  if (decision.plannerDecisionKind !== "blocked") {
+    return null;
+  }
+
+  const messageLines: string[] = [];
+  pushUniqueMarkdownBlock(messageLines, decision.userMessage);
+  if (decision.clarificationRequest) {
+    pushUniqueMarkdownBlock(messageLines, `Clarification request: ${decision.clarificationRequest}`);
+  }
+  if (!messageLines.length) {
+    return null;
+  }
+
+  const lines = [
+    "Sepo orchestration needs clarification before it can continue.",
+    "",
+    ...messageLines.flatMap((message, index) => index === 0 ? [message] : ["", message]),
+    "",
+    `- Source action: \`${sourceAction || "unknown"}\``,
+    `- Source conclusion: \`${sourceConclusion || "unknown"}\``,
+    `- Target: \`${sourceTargetKind || "unknown"} #${targetNumber || "unknown"}\``,
+    `- Round: \`${currentRound}/${maxRounds}\``,
+    `- Reason: ${decision.reason}`,
+  ];
+
+  if (sourceRunId) {
+    lines.push(`- Source run ID: \`${sourceRunId}\``);
+  }
+
+  lines.push(
+    "",
+    "No follow-up workflow was dispatched. Reply with the requested context, then continue with `/orchestrate`, `/implement`, or `/answer` when ready.",
+    "",
+    ORCHESTRATE_STOP_MARKER,
+  );
+  return lines.join("\n");
+}
+
 function formatOrchestrateStopComment(decision: HandoffDecision): string {
+  const clarificationComment = formatPlannerClarificationComment(decision);
+  if (clarificationComment) {
+    return clarificationComment;
+  }
+
   const lines = [
     `Sepo orchestration stopped after \`${sourceAction || "unknown"}\` concluded \`${sourceConclusion || "unknown"}\`.`,
     "",
@@ -894,11 +944,21 @@ function createOrchestrateStopComment(decision: HandoffDecision): void {
 }
 
 function commentOnInitialOrchestrateStop(decision: HandoffDecision): void {
+  if (formatPlannerClarificationComment(decision)) {
+    return;
+  }
   if (
     normalizeToken(sourceAction) !== "orchestrate" ||
     normalizeToken(sourceConclusion) !== "requested" ||
     currentRound !== 1
   ) {
+    return;
+  }
+  createOrchestrateStopComment(decision);
+}
+
+function commentOnPlannerClarificationStop(decision: HandoffDecision): void {
+  if (!formatPlannerClarificationComment(decision)) {
     return;
   }
   createOrchestrateStopComment(decision);
@@ -912,6 +972,9 @@ function commentOnDelegationFailure(decision: HandoffDecision): void {
 }
 
 function commentOnUnsatisfactoryActionStop(decision: HandoffDecision): void {
+  if (formatPlannerClarificationComment(decision)) {
+    return;
+  }
   const normalizedSourceAction = normalizeToken(sourceAction);
   if (normalizedSourceAction !== "implement" && normalizedSourceAction !== "fix_pr") {
     return;
@@ -924,6 +987,9 @@ function commentOnUnsatisfactoryActionStop(decision: HandoffDecision): void {
 
 function commentOnTerminalMetaOrchestratorStop(decision: HandoffDecision): void {
   if (decision.decision !== "stop") {
+    return;
+  }
+  if (formatPlannerClarificationComment(decision)) {
     return;
   }
   if (
@@ -1038,6 +1104,7 @@ setOutput("marker_comment_id", "");
 if (decision.decision !== "dispatch" && decision.decision !== "delegate_issue") {
   console.log(`Handoff ${decision.decision}: ${decision.reason}`);
   try {
+    commentOnPlannerClarificationStop(decision);
     commentOnInitialOrchestrateStop(decision);
     commentOnUnsatisfactoryActionStop(decision);
     reportTerminalToParent(decision);

@@ -886,6 +886,8 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(fixPrWorkflow, /ORCHESTRATOR_CONTEXT:\s*\$\{\{ inputs\.orchestrator_context \}\}/);
   assert.match(fixPrPrompt, /\$\{ORCHESTRATOR_CONTEXT\}/);
   assert.match(orchestratorPrompt, /"handoff_context"/);
+  assert.match(orchestratorPrompt, /"user_message"/);
+  assert.match(orchestratorPrompt, /"clarification_request"/);
   assert.match(orchestratorPrompt, /prior child finished with an open, unmerged PR/);
   assert.match(runSource, /"ORCHESTRATOR_CONTEXT"/);
   assert.match(orchestratorDoc, /Implement --> Review: success \+ PR created/);

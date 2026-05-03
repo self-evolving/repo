@@ -238,6 +238,27 @@ test("agent mode respects planner stop, invalid planner output, and round budget
   assert.equal(stopped.decision, "stop");
   assert.match(stopped.reason, /agent planner stop/);
 
+  const blocked = decideHandoff({
+    automationMode: "agent",
+    sourceAction: "orchestrate",
+    sourceConclusion: "done",
+    targetKind: "issue",
+    targetNumber: "76",
+    currentRound: 2,
+    maxRounds: 5,
+    plannerDecision: {
+      decision: "blocked",
+      reason: "Need the next child scope.",
+      userMessage: "I need a maintainer decision before continuing.",
+      clarificationRequest: "Should the next child stack on #112?",
+    },
+  });
+  assert.equal(blocked.decision, "stop");
+  assert.equal(blocked.plannerDecisionKind, "blocked");
+  assert.equal(blocked.userMessage, "I need a maintainer decision before continuing.");
+  assert.equal(blocked.clarificationRequest, "Should the next child stack on #112?");
+  assert.match(blocked.reason, /agent planner blocked/);
+
   const invalid = decideHandoff({
     automationMode: "agent",
     sourceAction: "review",
@@ -469,8 +490,16 @@ test("parsePlannerDecision reads planner JSON", () => {
     },
   );
   assert.deepEqual(
-    parsePlannerDecision('{"decision":"blocked","reason":"Missing PR."}'),
-    { decision: "blocked", nextAction: undefined, reason: "Missing PR." },
+    parsePlannerDecision(
+      '{"decision":"blocked","reason":"Missing PR.","user_message":"I need the PR number.","clarification_request":"Which PR should I inspect?"}',
+    ),
+    {
+      decision: "blocked",
+      nextAction: undefined,
+      reason: "Missing PR.",
+      userMessage: "I need the PR number.",
+      clarificationRequest: "Which PR should I inspect?",
+    },
   );
   assert.equal(
     parsePlannerDecision(

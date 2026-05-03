@@ -25,6 +25,9 @@ export interface HandoffDecision {
   reason: string;
   nextRound: number;
   handoffContext?: string;
+  plannerDecisionKind?: PlannerDecisionKind;
+  userMessage?: string;
+  clarificationRequest?: string;
   childStage?: string;
   childInstructions?: string;
   childIssueNumber?: string;
@@ -52,6 +55,8 @@ export interface PlannerDecision {
   nextAction?: AgentAction;
   reason: string;
   handoffContext?: string;
+  userMessage?: string;
+  clarificationRequest?: string;
   childStage?: string;
   childInstructions?: string;
   childIssueNumber?: string;
@@ -143,6 +148,10 @@ export function parsePlannerDecision(raw: string): PlannerDecision | null {
   const nextAction = normalizeAgentAction(String(record.next_action ?? record.nextAction ?? ""));
   const reason = String(record.reason || "").trim();
   const handoffContext = String(record.handoff_context ?? record.handoffContext ?? "").trim();
+  const userMessage = String(record.user_message ?? record.userMessage ?? "").trim();
+  const clarificationRequest = String(
+    record.clarification_request ?? record.clarificationRequest ?? "",
+  ).trim();
   const childStage = String(record.child_stage ?? record.childStage ?? record.stage ?? "").trim();
   const childInstructions = String(
     record.child_instructions ?? record.childInstructions ?? record.task_instructions ?? record.taskInstructions ?? "",
@@ -160,6 +169,8 @@ export function parsePlannerDecision(raw: string): PlannerDecision | null {
   if (handoffContext) {
     plannerDecision.handoffContext = handoffContext;
   }
+  if (userMessage) plannerDecision.userMessage = userMessage;
+  if (clarificationRequest) plannerDecision.clarificationRequest = clarificationRequest;
   if (childStage) plannerDecision.childStage = childStage;
   if (childInstructions) plannerDecision.childInstructions = childInstructions;
   if (childIssueNumber) plannerDecision.childIssueNumber = childIssueNumber;
@@ -357,6 +368,9 @@ function decideAgentHandoff(input: HandoffInput): HandoffDecision {
       decision: "stop",
       reason: `agent planner ${plannerDecision.decision}: ${plannerDecision.reason}`,
       nextRound,
+      plannerDecisionKind: plannerDecision.decision,
+      userMessage: plannerDecision.userMessage,
+      clarificationRequest: plannerDecision.clarificationRequest,
     };
   }
   if (plannerDecision.decision === "delegate_issue") {
