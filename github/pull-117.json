@@ -1,0 +1,422 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "agent/implement-issue-27/codex-25272756852",
+  "body": "## Summary\n- Add a shared failure-report CLI/helper that groups failed agent runs by fingerprint in GitHub Discussions.\n- Wire `AGENT_FAILURE_REPORT_*` config through bundled `run-agent-task` callers and grant Discussion write permission where needed.\n- Document defaults, opt-out behavior, and Bug Report intake setup.\n\n## Tests\n- `npm --prefix .agent run build`\n- `cd .agent && node --test dist/__tests__/failure-report.test.js dist/__tests__/discussion.test.js dist/__tests__/envelope.test.js`\n- Workflow/action YAML parse with Ruby\n- `git diff --check`\n\nNote: full `npm --prefix .agent test` was attempted but failed on an ignored stale `.agent/dist/__tests__/orchestrator-preflight-cli.test.js` artifact with no matching source file in this worktree.\n\nCloses #26\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDgPMw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `implement` -> `review` (round 3/10).\n\nimplementation succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777796817742 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNzM5NDgxOTA6aW1wbGVtZW50OjI2OnJldmlldzoxMTc6Mw -->",
+      "createdAt": "2026-05-03T08:26:58Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/117#issuecomment-4365750067",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDgbvQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 98 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | `run-agent-task` adds separate `failure_report_enabled`, `failure_report_repository`, and `failure_report_discussion_category` inputs, and invalid enable values fail clearly in `resolveFailureReportEnabled`. Evidence: [action.yml](https://github.com/self-evolving/repo/blob/b29a617ccff9faed74c527bccd23654a0fde4f81/.github/actions/run-agent-task/action.yml#L62), [failure-report.ts](https://github.com/self-evolving/repo/blob/b29a617ccff9faed74c527bccd23654a0fde4f81/.agent/src/failure-report.ts#L79). |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The implementation matches issue #26’s discussed direction: default public reporting, private opt-in, Bug Report Discussions intake, fingerprint grouping, and docs. PR body also notes focused verification. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are scoped to shared `run-agent-task`, Discussion helpers, workflow callers that use the shared action, docs, and focused tests. No unrelated broad refactor is evident. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The new reporter reuses and extends existing Discussion helpers instead of embedding GraphQL directly in workflow YAML. Evidence: [failure-report.ts](https://github.com/self-evolving/repo/blob/b29a617ccff9faed74c527bccd23654a0fde4f81/.agent/src/failure-report.ts#L1), [discussion.ts](https://github.com/self-evolving/repo/blob/b29a617ccff9faed74c527bccd23654a0fde4f81/.agent/src/discussion.ts#L65). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Docs cover defaults, opt-out, alternate repository/category, token permission expectations, and action-template behavior. Evidence: [supported-workflows.md](https://github.com/self-evolving/repo/blob/b29a617ccff9faed74c527bccd23654a0fde4f81/.agent/docs/architecture/supported-workflows.md#L104), [configuration-list.md](https://github.com/self-evolving/repo/blob/b29a617ccff9faed74c527bccd23654a0fde4f81/.agent/docs/customization/configuration-list.md#L10), [setup-guide.md](https://github.com/self-evolving/repo/blob/b29a617ccff9faed74c527bccd23654a0fde4f81/.agent/docs/deployment/setup-guide.md#L23). |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | The reporter records failure state by fingerprint, skips duplicate run attempts, reports skipped/created/commented/duplicate status outputs, and logs reporter failures through a dedicated CLI. Evidence: [failure-report.ts](https://github.com/self-evolving/repo/blob/b29a617ccff9faed74c527bccd23654a0fde4f81/.agent/src/failure-report.ts#L356), [action.yml](https://github.com/self-evolving/repo/blob/b29a617ccff9faed74c527bccd23654a0fde4f81/.github/actions/run-agent-task/action.yml#L211). |\n| communication / generic | Keep status comments compact | pass | 5/6 | Failure discussions use a compact field table plus a bounded error-summary block. This is scannable, though the field table is moderately dense. Evidence: [failure-report.ts](https://github.com/self-evolving/repo/blob/b29a617ccff9faed74c527bccd23654a0fde4f81/.agent/src/failure-report.ts#L275). |\n\n## Notes\n\n- Strongest rubric fit: the PR uses explicit action inputs, existing typed Discussion helpers, focused regression tests for defaults/redaction/create/comment/duplicate/skip paths, and updates the relevant docs.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No blocking or warning-level rubric findings. The only minor deduction is that the generated failure-report table is somewhat dense, but still acceptable for the compact-status rubric.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-03T08:29:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/117#issuecomment-4365753277",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDhVcg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #117 implements issue #26 by adding automatic failed-agent-run reporting to GitHub Discussions.\n- The intended v1 design is a central `Bug Report` Discussions intake in `self-evolving/repo`, one Discussion per fingerprint, repeat failures as comments, public repos enabled by default, and private repos opt-in.\n- The implementation adds a shared `.agent` failure-report helper/CLI, wires it through `run-agent-task`, grants Discussion permissions across callers, and updates docs/tests.\n- This work is also part of the broader #107 user-facing distribution/customization plan.\n\n## Review\nThe implementation is well structured and mostly matches the agreed design, but one auth-path issue blocks the main installed-repo use case. Reviewers agreed the shared helper, docs, and tests are strong; severity differs because the rubrics review passed while the code review identified a central-intake credential gap.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Central reporting uses the source repository token | BLOCKING | The default intake is `self-evolving/repo`, but `run-agent-task` writes with the same token resolved for the source repo. External installed repos using `GITHUB_TOKEN` or a source-repo installation token will not be able to create central Discussions. |\n| Failure reporter can run with an empty exit code | WARNING | The action condition treats an empty `steps.run.outputs.exit_code` as nonzero. If the run step is interrupted before writing the output, this can create a misleading report with an unknown exit code. |\n\n## Progress\n- Rubrics review already passed with no blocking or warning-level rubric findings.\n- Existing PR discussion had no inline review comments before synthesis.\n- Inline comments were posted on `.github/actions/run-agent-task/action.yml` lines 372 and 361 for the two actionable findings.\n- Optional reviewer notes about fingerprint granularity, sanitizer breadth, pagination coverage, and docs clarity are not treated as required branch changes.\n\n## Issue Details\n\n<details>\n<summary>Central reporting uses the source repository token</summary>\n\n**Cause:** `run-agent-task` sets `GH_TOKEN`/`GITHUB_TOKEN` for failure reporting from `inputs.github_token`, while callers default `failure_report_repository` to `self-evolving/repo`.\n\n**Candidate solutions:** Add an intake-scoped token or hosted broker path for failure reports, or change defaults so reports only target a repo the resolved token can write to after validating access. Update docs/tests to reflect the chosen auth model.\n\n**Comments:** This is the main reviewer disagreement: the rubrics review considered docs and wiring acceptable, while the code review treats this as blocking because it misses the #26 external-installed-repo goal.\n\n</details>\n\n<details>\n<summary>Failure reporter can run with an empty exit code</summary>\n\n**Cause:** `if: always() && steps.run.outputs.exit_code != '0'` also passes when `exit_code` is empty.\n\n**Candidate solutions:** Require a non-empty output in the action condition, or make `postAgentFailureReport` skip empty exit codes before fingerprinting/posting.\n\n</details>\n\n## Recommended Next Step\n`HUMAN_DECISION`: the empty-exit-code guard is straightforward, but the blocking central-intake fix needs a maintainer decision on the credential model before an automated fix-pr pass can safely implement it.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Choose and implement an intake-capable auth path so default public-repo failure reports can write to `self-evolving/repo` Discussions from installed external repos, with matching docs/tests.\n- [ ] Guard failure reporting against empty `steps.run.outputs.exit_code` values.",
+      "createdAt": "2026-05-03T08:37:53Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/117#issuecomment-4365768050",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDhXIA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `review` -> `fix-pr` (round 4/10).\n\nreview verdict is needs_rework; dispatching fix-pr\n\n<!-- sepo-agent-handoff state:dispatched created:1777797485936 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNzQyNTAwMTA6cmV2aWV3OjExNzpmaXhfcHI6MTE3OjQ -->",
+      "createdAt": "2026-05-03T08:38:06Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/117#issuecomment-4365768480",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDinHg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-26/codex-25273948190`. Requested by @sepo-agent.\n\n- Added an intake-scoped failure-report auth flow: same-repo reports use the source token, custom intakes can use `AGENT_FAILURE_REPORT_TOKEN`, and cross-repo central reporting requests a hosted OIDC broker token.\n- Guarded failure reporting against missing `exit_code`; the reporter now skips empty exit codes and missing intake tokens before fingerprinting or posting.\n- Wired the new token input through `run-agent-task` callers, entrypoint/label secret forwarding, docs, and focused tests.\n- Checks: `npm --prefix .agent run build`; `cd .agent && node --test dist/__tests__/failure-report.test.js dist/__tests__/envelope.test.js dist/__tests__/discussion.test.js`; Ruby workflow/action YAML parse; `bash -n .github/actions/resolve-github-auth/exchange-oidc.sh`; `git diff --check`.",
+      "createdAt": "2026-05-03T08:48:21Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/117#issuecomment-4365788958",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDiobQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `fix-pr` -> `review` (round 5/10).\n\nPR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777798115514 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNzQ0NzI3NDc6Zml4X3ByOjExNzpyZXZpZXc6MTE3OjU -->",
+      "createdAt": "2026-05-03T08:48:35Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/117#issuecomment-4365789293",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDi73w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 98 | PASS | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | `run-agent-task` adds separate typed inputs for failure reporting token, enabled mode, repository, and category instead of overloading one string. Invalid enable values fail clearly in `resolveFailureReportEnabled`. Evidence: https://github.com/self-evolving/repo/blob/958f3ffcbe7b39868206a0a35cb0e007c38860ef/.github/actions/run-agent-task/action.yml#L62 and https://github.com/self-evolving/repo/blob/958f3ffcbe7b39868206a0a35cb0e007c38860ef/.agent/src/failure-report.ts#L80 |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #117 is scoped to issue #26 under parent #107, and the implementation matches the linked discussion direction: central Bug Report Discussions intake, public auto-enable/private opt-in, fingerprint grouping, repeat comments, and manual issue promotion. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The PR-specific diff is limited to shared `run-agent-task` wiring, Discussion helpers, failure-report CLI/helper, workflow callers, docs, and focused tests. The PR is correctly based on the shipped #27 branch, so #27 work is not part of this PR’s GitHub file list. |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Cross-repo central reporting no longer reuses the source repo token blindly: it uses direct intake token, same-repo source token, or hosted OIDC with `OIDC_TARGET_REPOSITORY`. Evidence: https://github.com/self-evolving/repo/blob/958f3ffcbe7b39868206a0a35cb0e007c38860ef/.github/actions/run-agent-task/action.yml#L364 |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The reporter reuses and extends existing typed Discussion helpers rather than embedding GraphQL directly in workflow YAML. Evidence: https://github.com/self-evolving/repo/blob/958f3ffcbe7b39868206a0a35cb0e007c38860ef/.agent/src/discussion.ts#L180 |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Docs cover defaults, opt-out, custom repository/category, intake token/OIDC behavior, and skip behavior when no intake-capable token exists. Evidence: https://github.com/self-evolving/repo/blob/958f3ffcbe7b39868206a0a35cb0e007c38860ef/.agent/docs/architecture/supported-workflows.md#L101 |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | The reporter surfaces `created/commented/duplicate/skipped` outputs, skips missing exit codes before fingerprinting, skips missing intake tokens explicitly, and dedupes run attempts by hidden markers. Evidence: https://github.com/self-evolving/repo/blob/958f3ffcbe7b39868206a0a35cb0e007c38860ef/.agent/src/failure-report.ts#L390 |\n| communication / generic | Keep status comments compact | partial | 5/6 | Failure reports use a compact field table plus a bounded error-summary block. It is scannable, though the table is fairly dense with 12 rows. Evidence: https://github.com/self-evolving/repo/blob/958f3ffcbe7b39868206a0a35cb0e007c38860ef/.agent/src/failure-report.ts#L295 |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation centralizes the behavior in one helper and one small CLI, with shell limited to token selection and action glue. This fits existing repo patterns without introducing a new framework. |\n\n## Notes\n\n- The previous blocking auth concern appears addressed: default central intake can request an intake-scoped hosted token, while custom intakes can use `AGENT_FAILURE_REPORT_TOKEN`.\n- Verification run on PR head `958f3ffc`: `npm --prefix .agent ci`, `npm --prefix .agent run build`, focused Node tests for `failure-report`, `discussion`, and `envelope` all passed; workflow/action YAML parsing passed.\n- Smallest useful follow-up: consider shortening the generated report field table later if maintainers find Discussion comments visually heavy.\n\n## Findings\n\n- **INFO:** No blocking or warning-level rubric findings. Minor compactness deduction only.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-03T08:51:48Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/117#issuecomment-4365794271",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDjtGw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #117 implements issue #26 by adding automatic failed-agent-run reporting to GitHub Discussions.\n- The work supports the broader #107 distribution/customization plan by giving installed repos a central Bug Report intake in `self-evolving/repo`.\n- Failed runs are grouped by fingerprint, repeat occurrences comment on the existing Discussion, public repos report by default, and private repos skip unless opted in.\n- The earlier blocking auth and empty-exit-code findings were addressed by the fix-pr pass on head `958f3ffc`.\n\n## Review\nThe current implementation is close to ready. Reviewers agree the major design and prior blockers are resolved; one reviewer raised a small best-effort hardening issue in the new auth step.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Failure report auth can add a secondary failure marker | WARNING | `failure_report_auth` lacks `continue-on-error: true`, so an unexpected auth-step shell failure can pollute the already-failing job result instead of staying best-effort. |\n| Optional edge-case hardening remains | INFO | One reviewer noted low-risk follow-ups around scheduled private-repo visibility detection and redacting `ghe_` GitHub Enterprise token prefixes. |\n\n## Progress\n- Prior blocker “central reporting uses the source repository token” is fixed with same-repo, direct intake token, and hosted OIDC broker token paths.\n- Prior blocker/warning around empty `exit_code` is fixed in both the action condition and TypeScript reporter skip path.\n- Codex review and rubrics review report no blocking or warning-level findings on current head `958f3ffc`.\n- A new inline comment was posted on `.github/actions/run-agent-task/action.yml` line 366 for the remaining warning.\n\n## Issue Details\n\n<details>\n<summary>Failure report auth can add a secondary failure marker</summary>\n\n**Cause:** The `Resolve failure report token` step is part of best-effort failure reporting but does not set `continue-on-error: true`, while the downstream `Report agent failure to discussion` step does.\n\n**Candidate solutions:** Add `continue-on-error: true` to the `failure_report_auth` step so auth resolution failures do not obscure the original agent failure.\n\n**Comments:** Reviewers differ on priority: Claude called this a WARNING, while Codex and rubrics review considered the PR shippable overall.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: the only unresolved actionable issue is a small, safe branch change in the composite action.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Add `continue-on-error: true` to the `failure_report_auth` step in `.github/actions/run-agent-task/action.yml`.",
+      "createdAt": "2026-05-03T08:59:41Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/117#issuecomment-4365806875",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDjubA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `review` -> `fix-pr` (round 6/10).\n\nreview verdict is minor_issues; dispatching fix-pr\n\n<!-- sepo-agent-handoff state:dispatched created:1777798794697 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNzQ2NzQzNzA6cmV2aWV3OjExNzpmaXhfcHI6MTE3OjY -->",
+      "createdAt": "2026-05-03T08:59:55Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/117#issuecomment-4365807212",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDj0Rg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo did not produce code changes for this PR.**\n\nPlease add more context or restate the requested fixes, then try again.\n\nAcknowledged. Child issue #27 completed with a SHIP review verdict. No actionable target or requested next step was included in this trigger.",
+      "createdAt": "2026-05-03T09:00:42Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/117#issuecomment-4365808710",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDj15A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo orchestration stopped after `fix-pr` concluded `no_changes`.\n\n- Source action: `fix-pr`\n- Source conclusion: `no_changes`\n- Target: `pull_request #117`\n- Round: `6/10`\n- Reason: fix-pr concluded no_changes; no automatic handoff was dispatched because fix-pr must succeed before re-review\n- Source run ID: `25274892749`\n\nNo follow-up workflow was dispatched. Inspect the source action status comment and workflow logs before retrying or continuing manually.\n\n<!-- sepo-agent-orchestrate-stop -->",
+      "createdAt": "2026-05-03T09:00:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/117#issuecomment-4365809124",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-03T08:26:43Z",
+  "files": [
+    {
+      "path": ".agent/action-templates/agent-action-template.yml",
+      "additions": 8,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 14,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 4,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/creating-your-own-actions.md",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/deployment/setup-guide.md",
+      "additions": 12,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 48,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/failure-report.test.ts",
+      "additions": 252,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/report-agent-failure.ts",
+      "additions": 40,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/discussion.ts",
+      "additions": 60,
+      "deletions": 34,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/failure-report.ts",
+      "additions": 478,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/actions/resolve-github-auth/exchange-oidc.sh",
+      "additions": 7,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/run-agent-task/action.yml",
+      "additions": 106,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-create-action.md",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-daily-summary.yml",
+      "additions": 4,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-entrypoint.yml",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-fix-pr.yml",
+      "additions": 5,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-implement.yml",
+      "additions": 5,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-label.yml",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-memory-bootstrap.yml",
+      "additions": 5,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-memory-pr-closed.yml",
+      "additions": 5,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-memory-scan.yml",
+      "additions": 5,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-orchestrator.yml",
+      "additions": 5,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-project-manager.yml",
+      "additions": 4,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-review.yml",
+      "additions": 13,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-router.yml",
+      "additions": 15,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-rubrics-initialization.yml",
+      "additions": 5,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-rubrics-review.yml",
+      "additions": 5,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-rubrics-update.yml",
+      "additions": 5,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-update.yml",
+      "additions": 5,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": "README.md",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-26/codex-25273948190",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 117,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM77TE46",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-03T08:36:39Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "b29a617ccff9faed74c527bccd23654a0fde4f81"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM77TE6d",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-03T08:36:46Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "b29a617ccff9faed74c527bccd23654a0fde4f81"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM77TLE9",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-03T08:58:57Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "958f3ffcbe7b39868206a0a35cb0e007c38860ef"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Report failed agent runs to Discussions",
+  "updatedAt": "2026-05-03T09:00:54Z",
+  "url": "https://github.com/self-evolving/repo/pull/117"
+}
