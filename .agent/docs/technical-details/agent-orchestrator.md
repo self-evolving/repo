@@ -99,8 +99,10 @@ from agent-authored child issue comments, or through a closing issue reference i
 the terminal PR body. It then writes a parent progress comment, dispatches the
 parent issue orchestrator in agent mode with the child result, and marks the
 same trusted child marker as `done`, `blocked`, or `failed`. The progress
-comment includes a hidden resume marker so reruns can recover a pending report
-or skip an already-dispatched terminal report.
+comment includes a compact transposed Markdown table for the visible status and
+a hidden resume marker so reruns can recover a pending report or skip an
+already-dispatched terminal report. Child selection and adoption comments use
+the same compact table style while preserving their hidden durable markers.
 
 Initial user-launched `/orchestrate` requests validate that the requester has
 access to the delegated route capability set before dispatching work. This keeps

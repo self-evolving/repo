@@ -95,6 +95,87 @@ function parseOptionalChildIssueNumber(value: string | undefined): number {
   return parsed;
 }
 
+function formatMarkdownTableCell(value: string | number): string {
+  return String(value)
+    .replace(/\r?\n/g, " ")
+    .replace(/\|/g, "\\|")
+    .trim() || " ";
+}
+
+function formatTransposedMarkdownTable(headers: string[], values: Array<string | number>): string[] {
+  return [
+    `| ${headers.map(formatMarkdownTableCell).join(" | ")} |`,
+    `| ${headers.map(() => "---").join(" | ")} |`,
+    `| ${values.map(formatMarkdownTableCell).join(" | ")} |`,
+  ];
+}
+
+function formatSubOrchestrationSelectionComment(input: {
+  parentIssue: number;
+  stage: string;
+  childIssue: number;
+}): string {
+  const stage = normalizeSubOrchestratorStage(input.stage);
+  return [
+    "Sepo is starting a focused child task for this orchestration.",
+    "",
+    ...formatTransposedMarkdownTable(
+      ["Child task", "Focus", "Parent issue", "Status"],
+      [`#${input.childIssue}`, stage, `#${input.parentIssue}`, "Running"],
+    ),
+    "",
+    "I'll report back here when the child task finishes.",
+    "",
+    formatSubOrchestratorChildLinkMarker({ parent: input.parentIssue, stage, child: input.childIssue }),
+  ].join("\n");
+}
+
+function formatSubOrchestrationOutcome(state: SubOrchestratorState): string {
+  switch (state) {
+    case "done":
+      return "Ready to ship";
+    case "blocked":
+      return "Blocked";
+    case "failed":
+      return "Failed";
+    case "running":
+      return "Running";
+  }
+}
+
+function formatSubOrchestrationProgressComment(input: {
+  childIssue: number;
+  prNumber?: string;
+  resultState: SubOrchestratorState;
+  parentRound: number;
+  maxRounds: number;
+  summary: string;
+  marker: string;
+}): string {
+  const headers = ["Child task"];
+  const values: Array<string | number> = [`#${input.childIssue}`];
+  if (input.prNumber) {
+    headers.push("PR");
+    values.push(`#${input.prNumber}`);
+  }
+  headers.push("Outcome", "Parent round", "Next step");
+  values.push(
+    formatSubOrchestrationOutcome(input.resultState),
+    `${input.parentRound} / ${input.maxRounds}`,
+    "Resuming parent orchestration",
+  );
+
+  return [
+    "Child task completed.",
+    "",
+    ...formatTransposedMarkdownTable(headers, values),
+    "",
+    `Summary: ${input.summary || "No summary provided."}`,
+    "",
+    input.marker,
+  ].join("\n");
+}
+
 function errorText(err: unknown): string {
   const record = err as { message?: unknown; stderr?: unknown; stdout?: unknown };
   return [record.message, record.stderr, record.stdout]
@@ -450,15 +531,11 @@ function hasRecordedSubOrchestrationIssue(
 
 function recordSubOrchestrationIssue(repoSlug: string, parentIssue: number, stage: string, childIssue: number): void {
   if (hasRecordedSubOrchestrationIssue(repoSlug, parentIssue, stage, childIssue)) return;
-  createIssueComment(
-    repoSlug,
+  createIssueComment(repoSlug, parentIssue, formatSubOrchestrationSelectionComment({
     parentIssue,
-    [
-      `Sub-orchestrator child selected for ${normalizeSubOrchestratorStage(stage)}: #${childIssue}`,
-      "",
-      formatSubOrchestratorChildLinkMarker({ parent: parentIssue, stage, child: childIssue }),
-    ].join("\n"),
-  );
+    stage,
+    childIssue,
+  }));
 }
 
 function formatSubOrchestrationAdoptionComment(input: {
@@ -466,15 +543,18 @@ function formatSubOrchestrationAdoptionComment(input: {
   stage: string;
   parentRound: number;
 }): string {
+  const stage = normalizeSubOrchestratorStage(input.stage);
   return [
     `Sepo adopted this issue as a sub-orchestrator child of #${input.parentIssue}.`,
     "",
-    `Stage: ${normalizeSubOrchestratorStage(input.stage)}`,
-    `Parent round: ${input.parentRound}`,
+    ...formatTransposedMarkdownTable(
+      ["Parent issue", "Stage", "Parent round", "Status"],
+      [`#${input.parentIssue}`, stage, input.parentRound, "Running"],
+    ),
     "",
     formatSubOrchestratorMarker({
       parent: input.parentIssue,
-      stage: input.stage,
+      stage,
       parentRound: input.parentRound,
     }),
     SUB_ORCHESTRATION_ADOPTION_COMMENT_MARKER,
@@ -697,21 +777,10 @@ function reportTerminalToParent(decision: HandoffDecision): void {
   }) : marker.state;
   const parentRound = marker.parentRound || 1;
   const result = resultState === "done" ? "SHIP" : resultState.toUpperCase();
-  const prLine = normalizeToken(sourceTargetKind) === "pull_request" ? `PR: #${targetNumber}\n` : "";
+  const prNumber = normalizeToken(sourceTargetKind) === "pull_request" ? targetNumber : "";
   const progressMarkerPrefix = `sepo-sub-orchestrator-report child:${childIssue.number}`;
   const pendingProgressMarker = `<!-- ${progressMarkerPrefix} resume:pending -->`;
   const dispatchedProgressMarker = `<!-- ${progressMarkerPrefix} resume:dispatched -->`;
-  const progressLines = [
-    `Sub-orchestrator ${marker.stage} finished`,
-    "",
-    `Child issue: #${childIssue.number}`,
-    prLine.trim(),
-    `Result: ${result}`,
-    `Parent round: ${parentRound}/${maxRounds}`,
-    `Summary: ${decision.reason}`,
-    "Next: waiting for meta orchestrator",
-    "",
-  ].filter(Boolean);
 
   const progressComments = fetchIssueComments(repo, marker.parent).filter((comment) =>
     String(comment.body || "").includes(progressMarkerPrefix) && isTrustedActorLogin(comment.authorLogin || "")
@@ -723,7 +792,15 @@ function reportTerminalToParent(decision: HandoffDecision): void {
   }
   let progressCommentId = existingProgress?.id ? String(existingProgress.id) : "";
   const writeProgress = (progressMarker: string): void => {
-    const progressBody = [...progressLines, progressMarker].join("\n");
+    const progressBody = formatSubOrchestrationProgressComment({
+      childIssue: childIssue.number,
+      prNumber,
+      resultState,
+      parentRound,
+      maxRounds,
+      summary: decision.reason,
+      marker: progressMarker,
+    });
     if (progressCommentId) {
       updateIssueComment(repo, progressCommentId, progressBody);
     } else {
