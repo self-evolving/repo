@@ -1,7 +1,8 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
+import { parse as parseYaml } from "yaml";
 
 import {
   buildEnvelope,
@@ -16,6 +17,10 @@ const repoRoot = path.resolve(__dirname, "../../..");
 
 function readRepoFile(relativePath: string): string {
   return readFileSync(path.join(repoRoot, relativePath), "utf8");
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
 }
 
 const VALID_PARAMS = {
@@ -118,6 +123,60 @@ test("all execution workflows use the shared run-agent-task action", () => {
   }
 
   assert.doesNotMatch(fixPrWorkflow, /build-linked-context\.cjs/);
+});
+
+test("run-agent-task workflow steps are guarded by resolved task timeouts", () => {
+  const workflowPaths = readdirSync(path.join(repoRoot, ".github/workflows"))
+    .filter((file) => file.endsWith(".yml"))
+    .map((file) => `.github/workflows/${file}`)
+    .concat(".agent/action-templates/agent-action-template.yml");
+  let guardedSteps = 0;
+
+  for (const workflowPath of workflowPaths) {
+    const workflow = parseYaml(readRepoFile(workflowPath)) as unknown;
+    assert.ok(isRecord(workflow), `${workflowPath} should parse as a YAML object`);
+    const jobs = workflow.jobs;
+    if (!isRecord(jobs)) continue;
+
+    for (const [jobId, job] of Object.entries(jobs)) {
+      if (!isRecord(job) || !Array.isArray(job.steps)) continue;
+
+      const resolverStepIds = new Set<string>();
+      for (const step of job.steps) {
+        if (!isRecord(step)) continue;
+        if (String(step.run || "").includes("node .agent/dist/cli/resolve-task-timeout.js")) {
+          const id = String(step.id || "");
+          assert.ok(id, `${workflowPath} job ${jobId} timeout resolver needs an id`);
+          assert.ok(isRecord(step.env), `${workflowPath} job ${jobId} timeout resolver needs env`);
+          assert.equal(
+            step.env.AGENT_TASK_TIMEOUT_POLICY,
+            "${{ vars.AGENT_TASK_TIMEOUT_POLICY || '' }}",
+            `${workflowPath} job ${jobId} timeout resolver should read AGENT_TASK_TIMEOUT_POLICY`,
+          );
+          assert.ok(step.env.ROUTE, `${workflowPath} job ${jobId} timeout resolver needs ROUTE`);
+          resolverStepIds.add(id);
+        }
+
+        if (step.uses === "./.github/actions/run-agent-task") {
+          const timeout = String(step["timeout-minutes"] || "");
+          const match = timeout.match(/steps\.([a-zA-Z0-9_-]+)\.outputs\.minutes/);
+          assert.ok(match, `${workflowPath} job ${jobId} run-agent-task step needs timeout-minutes from resolver output`);
+          assert.ok(
+            resolverStepIds.has(match[1]!),
+            `${workflowPath} job ${jobId} timeout resolver must precede run-agent-task`,
+          );
+          assert.equal(
+            timeout,
+            "${{ fromJson(steps.task_timeout.outputs.minutes || '30') }}",
+            `${workflowPath} job ${jobId} should coerce resolved timeout minutes`,
+          );
+          guardedSteps += 1;
+        }
+      }
+    }
+  }
+
+  assert.ok(guardedSteps > 0);
 });
 
 test("single-agent workflows resolve provider before runtime setup", () => {
@@ -666,6 +725,8 @@ test("workflow docs record the minimal metadata contract and developer notes", (
   assert.match(requestLifecycle, /agent\/<route>-<target_kind>-<number>\/<agent>-<run_id>/);
 
   assert.match(configurationList, /AGENT_RUNS_ON/);
+  assert.match(configurationList, /AGENT_TASK_TIMEOUT_POLICY/);
+  assert.match(configurationList, /Values must be 1-360 minutes/);
   assert.match(configurationList, /AGENT_MEMORY_POLICY/);
   assert.match(configurationList, /AGENT_MEMORY_REF/);
   assert.match(configurationList, /AGENT_RUBRICS_POLICY/);

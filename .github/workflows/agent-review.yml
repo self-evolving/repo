@@ -129,9 +129,17 @@ jobs:
           install_codex: ${{ matrix.agent == 'codex' && 'true' || 'false' }}
           install_claude: ${{ matrix.agent == 'claude' && 'true' || 'false' }}
 
+      - name: Resolve task timeout
+        id: task_timeout
+        env:
+          AGENT_TASK_TIMEOUT_POLICY: ${{ vars.AGENT_TASK_TIMEOUT_POLICY || '' }}
+          ROUTE: review
+        run: node .agent/dist/cli/resolve-task-timeout.js
+
       - name: Run ${{ matrix.agent }} review
         id: agent
         continue-on-error: true
+        timeout-minutes: ${{ fromJson(steps.task_timeout.outputs.minutes || '30') }}
         uses: ./.github/actions/run-agent-task
         with:
           agent: ${{ matrix.agent }}
@@ -256,8 +264,16 @@ jobs:
           install_codex: ${{ steps.synthesis_provider.outputs.install_codex }}
           install_claude: ${{ steps.synthesis_provider.outputs.install_claude }}
 
+      - name: Resolve task timeout
+        id: task_timeout
+        env:
+          AGENT_TASK_TIMEOUT_POLICY: ${{ vars.AGENT_TASK_TIMEOUT_POLICY || '' }}
+          ROUTE: review
+        run: node .agent/dist/cli/resolve-task-timeout.js
+
       - name: Run synthesis
         id: synthesis
+        timeout-minutes: ${{ fromJson(steps.task_timeout.outputs.minutes || '30') }}
         uses: ./.github/actions/run-agent-task
         with:
           agent: ${{ steps.synthesis_provider.outputs.provider }}

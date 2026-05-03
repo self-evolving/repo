@@ -198,8 +198,16 @@ jobs:
           git -c "http.${GITHUB_SERVER_URL}/.extraheader=AUTHORIZATION: basic ${AUTH_HEADER}" fetch origin "refs/heads/${BASE_BRANCH}"
           git checkout -b "${BRANCH}" FETCH_HEAD
 
+      - name: Resolve task timeout
+        id: task_timeout
+        env:
+          AGENT_TASK_TIMEOUT_POLICY: ${{ vars.AGENT_TASK_TIMEOUT_POLICY || '' }}
+          ROUTE: ${{ env.IMPLEMENTATION_ROUTE }}
+        run: node .agent/dist/cli/resolve-task-timeout.js
+
       - name: Run agent
         id: agent
+        timeout-minutes: ${{ fromJson(steps.task_timeout.outputs.minutes || '30') }}
         uses: ./.github/actions/run-agent-task
         with:
           agent: ${{ steps.provider.outputs.provider }}

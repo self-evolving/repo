@@ -130,10 +130,19 @@ jobs:
           install_codex: ${{ steps.provider.outputs.install_codex }}
           install_claude: ${{ steps.provider.outputs.install_claude }}
 
+      - name: Resolve task timeout
+        if: ${{ steps.preflight.outputs.planner_enabled == 'true' }}
+        id: task_timeout
+        env:
+          AGENT_TASK_TIMEOUT_POLICY: ${{ vars.AGENT_TASK_TIMEOUT_POLICY || '' }}
+          ROUTE: orchestrator
+        run: node .agent/dist/cli/resolve-task-timeout.js
+
       - name: Plan next action with agent
         id: planner
         if: ${{ steps.preflight.outputs.planner_enabled == 'true' }}
         continue-on-error: true
+        timeout-minutes: ${{ fromJson(steps.task_timeout.outputs.minutes || '30') }}
         uses: ./.github/actions/run-agent-task
         env:
           ORCHESTRATOR_SOURCE_ACTION: ${{ inputs.source_action }}
