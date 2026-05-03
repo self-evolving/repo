@@ -20,6 +20,12 @@ The shared action `.github/actions/resolve-github-auth` handles all four modes t
 3. `AGENT_PAT`
 4. fallback workflow token `github.token`
 
+Failed agent runs are reported through the same resolved GitHub token. The
+default intake is the `Bug Report` Discussion category in `self-evolving/repo`;
+if you point `AGENT_FAILURE_REPORT_REPOSITORY` at another repository, make sure
+the resolved token can write Discussions there. Public repositories report by
+default; private repositories must opt in with `AGENT_FAILURE_REPORT_ENABLED=true`.
+
 ## Comparing agent setups
 
 - **Official hosted app via OIDC broker:** the least setup, but authentication is brokered through the official hosted exchange. That means the workflow sends an auth exchange request to a public Sepo service, similar to how the [Claude Code action](https://github.com/anthropics/claude-code-action) handles user requests.

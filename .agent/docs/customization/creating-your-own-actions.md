@@ -35,6 +35,7 @@ Generated workflows should:
 - gate provider-backed steps with `if: steps.expiration.outputs.expired != 'true'`
 - use `permission_mode: approve-all`, `memory_mode_override: read-only`, and `session_policy: track-only`
 - use a unique lane such as `agent-action-<short-slug>`
+- keep `discussions: write` so shared failed-agent-run reporting can post to the configured Discussion intake
 - add `issues: write` only when setting `REPORT_ISSUE_NUMBER` for issue reporting
 
 GitHub does not automatically expire scheduled workflows. The shared expiration

@@ -31,6 +31,7 @@ export interface RepositoryDiscussionSummary {
   title: string;
   url: string;
   category: string;
+  body: string;
 }
 
 /**
@@ -65,6 +66,7 @@ export function fetchDiscussionComments(
   owner: string,
   repo: string,
   number: number,
+  client: GraphQLClient = createGhGraphqlClient(),
 ): DiscussionComment[] {
   const query = `
     query($owner: String!, $repo: String!, $number: Int!, $cursor: String) {
@@ -105,7 +107,7 @@ export function fetchDiscussionComments(
       vars.cursor = cursor;
     }
 
-    const data = ghGraphqlData<{
+    const data = client.graphql<{
       repository?: {
         discussion?: {
           comments?: {
@@ -152,7 +154,11 @@ export function updateDiscussionComment(
   }>(query, { commentId, body });
 }
 
-export function addDiscussionComment(discussionId: string, body: string): string {
+export function addDiscussionComment(
+  discussionId: string,
+  body: string,
+  client: GraphQLClient = createGhGraphqlClient(),
+): string {
   const query = `
     mutation($discussionId: ID!, $body: String!) {
       addDiscussionComment(input: { discussionId: $discussionId, body: $body }) {
@@ -160,7 +166,7 @@ export function addDiscussionComment(discussionId: string, body: string): string
       }
     }
   `;
-  const data = ghGraphqlData<{
+  const data = client.graphql<{
     addDiscussionComment?: { comment?: { url?: string } | null } | null;
   }>(query, { discussionId, body });
   const url = data.addDiscussionComment?.comment?.url || "";
@@ -178,50 +184,70 @@ export function findRepositoryDiscussionByTitle(
   client: GraphQLClient = createGhGraphqlClient(),
 ): RepositoryDiscussionSummary | null {
   const query = `
-    query($owner: String!, $repo: String!) {
+    query($owner: String!, $repo: String!, $cursor: String) {
       repository(owner: $owner, name: $repo) {
-        discussions(first: 50, orderBy: { field: UPDATED_AT, direction: DESC }) {
+        discussions(first: 100, after: $cursor, orderBy: { field: UPDATED_AT, direction: DESC }) {
+          pageInfo { hasNextPage endCursor }
           nodes {
             id
             number
             title
             url
+            body
             category { name }
           }
         }
       }
     }
   `;
-  const data = client.graphql<{
-    repository?: {
-      discussions?: {
-        nodes?: Array<{
-          id?: string;
-          number?: number;
-          title?: string;
-          url?: string;
-          category?: { name?: string | null } | null;
-        } | null> | null;
-      } | null;
-    } | null;
-  }>(query, { owner, repo });
 
-  for (const node of data.repository?.discussions?.nodes || []) {
-    const nodeTitle = node?.title || "";
-    const category = node?.category?.name || "";
-    if (
-      node?.id &&
-      Number.isInteger(node.number) &&
-      nodeTitle === title &&
-      (!categoryName || category === categoryName)
-    ) {
-      return {
-        id: node.id,
-        number: node.number as number,
-        title: nodeTitle,
-        url: node.url || "",
-        category,
-      };
+  let cursor = "";
+  let hasNextPage = true;
+  while (hasNextPage) {
+    const variables: { owner: string; repo: string; cursor?: string } = { owner, repo };
+    if (cursor) variables.cursor = cursor;
+
+    const data = client.graphql<{
+      repository?: {
+        discussions?: {
+          pageInfo?: { hasNextPage?: boolean; endCursor?: string | null } | null;
+          nodes?: Array<{
+            id?: string;
+            number?: number;
+            title?: string;
+            url?: string;
+            body?: string;
+            category?: { name?: string | null } | null;
+          } | null> | null;
+        } | null;
+      } | null;
+    }>(query, variables);
+
+    const discussions = data.repository?.discussions;
+    for (const node of discussions?.nodes || []) {
+      const nodeTitle = node?.title || "";
+      const category = node?.category?.name || "";
+      if (
+        node?.id &&
+        Number.isInteger(node.number) &&
+        nodeTitle === title &&
+        (!categoryName || category === categoryName)
+      ) {
+        return {
+          id: node.id,
+          number: node.number as number,
+          title: nodeTitle,
+          url: node.url || "",
+          body: node.body || "",
+          category,
+        };
+      }
+    }
+
+    hasNextPage = discussions?.pageInfo?.hasNextPage ?? false;
+    cursor = discussions?.pageInfo?.endCursor || "";
+    if (hasNextPage && !cursor) {
+      throw new Error("GitHub discussion pagination response was missing endCursor.");
     }
   }
 

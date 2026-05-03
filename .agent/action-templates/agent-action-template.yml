@@ -1,7 +1,8 @@
 # Template for generated scheduled agent-action workflows.
 # Copy this file to .github/workflows/agent-action-<short-slug>.yml and
 # replace the placeholder name, cron, expiration, lane, request text, and
-# optional issue-report target.
+# optional issue-report target. Failed agent runs report to Discussions through
+# run-agent-task unless AGENT_FAILURE_REPORT_ENABLED is false.
 
 name: Agent Action / Example
 
@@ -13,6 +14,7 @@ on:
 permissions:
   actions: read
   contents: read
+  discussions: write
   # If enabling REPORT_ISSUE_NUMBER below, add issue write permission.
   id-token: write
 
@@ -73,6 +75,9 @@ jobs:
         with:
           agent: ${{ steps.provider.outputs.provider }}
           github_token: ${{ steps.auth.outputs.token }}
+          failure_report_enabled: ${{ vars.AGENT_FAILURE_REPORT_ENABLED || 'auto' }}
+          failure_report_repository: ${{ vars.AGENT_FAILURE_REPORT_REPOSITORY || 'self-evolving/repo' }}
+          failure_report_discussion_category: ${{ vars.AGENT_FAILURE_REPORT_DISCUSSION_CATEGORY || 'Bug Report' }}
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           permission_mode: approve-all
@@ -90,7 +95,7 @@ jobs:
           target_url: ${{ github.server_url }}/${{ github.repository }}
           workflow: agent-action-example.yml
 
-      # Optional: set REPORT_ISSUE_NUMBER and add issue write permission only when the workflow should report to an issue.
+      # Optional: set REPORT_ISSUE_NUMBER and add issue write permission only when the workflow should report successful output to an issue.
       - name: Post report to issue
         if: >-
           steps.expiration.outputs.expired != 'true' &&

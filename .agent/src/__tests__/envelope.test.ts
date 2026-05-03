@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
@@ -507,6 +507,40 @@ test("shared run-agent-task action exists and requires explicit prompt/skill/lan
   assert.match(action, /LANE/);
   assert.match(action, /SESSION_POLICY/);
   assert.match(action, /\.agent\/dist\/run\.js/);
+  assert.match(action, /failure_report_enabled:/);
+  assert.match(action, /failure_report_repository:/);
+  assert.match(action, /failure_report_discussion_category:/);
+  assert.match(action, /Report agent failure to discussion[\s\S]*steps\.run\.outputs\.exit_code != '0'/);
+  assert.match(action, /node \.agent\/dist\/cli\/report-agent-failure\.js/);
+});
+
+test("run-agent-task callers pass failure report configuration", () => {
+  const workflowPaths = readdirSync(path.join(repoRoot, ".github/workflows"))
+    .filter((file) => file.endsWith(".yml"))
+    .map((file) => `.github/workflows/${file}`);
+  workflowPaths.push(".agent/action-templates/agent-action-template.yml");
+
+  for (const workflowPath of workflowPaths) {
+    const workflow = readRepoFile(workflowPath);
+    if (!workflow.includes("uses: ./.github/actions/run-agent-task")) continue;
+
+    assert.match(
+      workflow,
+      /failure_report_enabled:\s*\$\{\{ vars\.AGENT_FAILURE_REPORT_ENABLED \|\| 'auto' \}\}/,
+      workflowPath,
+    );
+    assert.match(
+      workflow,
+      /failure_report_repository:\s*\$\{\{ vars\.AGENT_FAILURE_REPORT_REPOSITORY \|\| 'self-evolving\/repo' \}\}/,
+      workflowPath,
+    );
+    assert.match(
+      workflow,
+      /failure_report_discussion_category:\s*\$\{\{ vars\.AGENT_FAILURE_REPORT_DISCUSSION_CATEGORY \|\| 'Bug Report' \}\}/,
+      workflowPath,
+    );
+    assert.match(workflow, /discussions:\s*write/, workflowPath);
+  }
 });
 
 test("shared setup-agent-runtime action exists and is referenced by reusable workflows", () => {
@@ -1230,17 +1264,17 @@ test("main execution workflows rely on the default memory policy (no explicit ov
   assert.match(reviewWorkflow, /memory_policy:\s*\$\{\{\s*vars\.AGENT_MEMORY_POLICY \|\| ''\s*\}\}/);
 });
 
-test("agent-review permissions are scoped per-job: reviewers read-only, synthesize writes", () => {
+test("agent-review permissions are scoped per-job: reviewers avoid content writes, synthesize writes", () => {
   const reviewWorkflow = readRepoFile(".github/workflows/agent-review.yml");
 
   // Top-level workflow permissions keep contents read-only; actions write
   // allows the synthesize job to dispatch automation handoffs.
   assert.match(reviewWorkflow, /^permissions:\s*\n\s+actions: write\s*\n\s+contents: read/m);
 
-  // Reviewer job keeps contents:read.
+  // Reviewer job keeps contents:read while allowing discussion failure reports.
   assert.match(
     reviewWorkflow,
-    /review:\s*\n\s+# Reviewer lanes are best-effort[\s\S]*?permissions:\s*\n\s+# Reviewer jobs stay read-only[\s\S]*?contents: read/,
+    /review:\s*\n\s+# Reviewer lanes are best-effort[\s\S]*?permissions:\s*\n\s+# Reviewer jobs avoid content writes[\s\S]*?contents: read[\s\S]*?discussions: write/,
   );
 
   // Synthesize job upgrades to contents:write for the memory commit.

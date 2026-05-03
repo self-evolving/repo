@@ -98,6 +98,16 @@ the configured summary discussion category does not exist, the workflow skips
 signal collection and summary generation instead of spending runtime only to
 fail while posting.
 
+Failed `run-agent-task` executions post a best-effort report to Discussions
+before the workflow rethrows the agent exit code. Reporting defaults to
+`auto`: public repositories report to `self-evolving/repo` in the `Bug Report`
+category, while private repositories skip unless `AGENT_FAILURE_REPORT_ENABLED`
+is set to `true`. Set `AGENT_FAILURE_REPORT_ENABLED=false` to opt out, or
+change `AGENT_FAILURE_REPORT_REPOSITORY` and
+`AGENT_FAILURE_REPORT_DISCUSSION_CATEGORY` to use a different intake. Each
+distinct fingerprint gets one Discussion; later matching failures add repeat
+occurrence comments and duplicate run attempts are skipped.
+
 `agent-update.yml` runs near-biweekly because GitHub cron does not support a
 native every-14-days cadence. It invokes the existing `update-agent` skill from
 the repository default branch, skips when `AGENT_SCHEDULE_POLICY` disables the

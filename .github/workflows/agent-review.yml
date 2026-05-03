@@ -75,6 +75,7 @@ on:
 permissions:
   actions: write
   contents: read
+  discussions: write
   pull-requests: write
   id-token: write # required for GitHub Actions OIDC broker exchange
 
@@ -85,10 +86,11 @@ jobs:
     # Reviewer lanes are best-effort; synthesis fails later if no lane uploads a review.
     continue-on-error: true
     permissions:
-      # Reviewer jobs stay read-only; memory writes happen only in synthesize
-      # (see memory_mode_override below and per-job permissions on synthesize).
+      # Reviewer jobs avoid content writes; memory writes happen only in
+      # synthesize. Discussions write supports shared failure reporting.
       actions: read
       contents: read
+      discussions: write
       pull-requests: write
       id-token: write
     runs-on: ${{ fromJson(inputs.runs_on || vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
@@ -136,6 +138,9 @@ jobs:
         with:
           agent: ${{ matrix.agent }}
           github_token: ${{ steps.auth.outputs.token }}
+          failure_report_enabled: ${{ vars.AGENT_FAILURE_REPORT_ENABLED || 'auto' }}
+          failure_report_repository: ${{ vars.AGENT_FAILURE_REPORT_REPOSITORY || 'self-evolving/repo' }}
+          failure_report_discussion_category: ${{ vars.AGENT_FAILURE_REPORT_DISCUSSION_CATEGORY || 'Bug Report' }}
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           permission_mode: ${{ matrix.permission_mode }}
@@ -201,6 +206,7 @@ jobs:
       # also avoids the parallel-push race.
       actions: write
       contents: write
+      discussions: write
       pull-requests: write
       id-token: write
     runs-on: ${{ fromJson(inputs.runs_on || vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
@@ -262,6 +268,9 @@ jobs:
         with:
           agent: ${{ steps.synthesis_provider.outputs.provider }}
           github_token: ${{ steps.auth.outputs.token }}
+          failure_report_enabled: ${{ vars.AGENT_FAILURE_REPORT_ENABLED || 'auto' }}
+          failure_report_repository: ${{ vars.AGENT_FAILURE_REPORT_REPOSITORY || 'self-evolving/repo' }}
+          failure_report_discussion_category: ${{ vars.AGENT_FAILURE_REPORT_DISCUSSION_CATEGORY || 'Bug Report' }}
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           permission_mode: approve-all

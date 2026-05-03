@@ -61,6 +61,7 @@ Sepo persists long-lived context in `agent/memory` and preference rules in `agen
 ### Scheduled Jobs
 You can run Sepo on a schedule to handle recurring maintenance, triage, or monitoring tasks without a manual mention. For example, [`agent-daily-summary.yml`](.github/workflows/agent-daily-summary.yml) can publish a daily repository activity summary discussion, and [`agent-update.yml`](.github/workflows/agent-update.yml) checks near-biweekly for Sepo agent infrastructure updates. Scheduled workflows still route through the same policy and memory layers, so they behave consistently with on-demand runs.
 
+For public repositories, failed agent runs also create or update a grouped report in the `Bug Report` Discussions intake by default. Set `AGENT_FAILURE_REPORT_ENABLED=false` to opt out.
 
 ## How It Works
 

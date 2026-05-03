@@ -16,7 +16,7 @@ Use GitHub Actions as the scheduler and activation mechanism:
 - Set a unique `lane` such as `agent-action-<short-slug>` so scheduled runs do not share session identity with normal answer traffic.
 - Set `permission_mode: approve-all`, `memory_mode_override: read-only`, and `session_policy: track-only` for the scheduled agent task so recurring runs do not write repository memory or try to resume interactive sessions.
 - Prefer `prompt: answer` and `route: answer`; put the bounded recurring task in `request_text`.
-- If the workflow should report to an issue, set `REPORT_ISSUE_NUMBER`, add `issues: write`, and post `steps.agent.outputs.response_file` to that issue after the agent run.
+- Keep `discussions: write` so shared failed-agent-run reporting can post to the configured Discussion intake. If the workflow should report normal successful output to an issue, set `REPORT_ISSUE_NUMBER`, add `issues: write`, and post `steps.agent.outputs.response_file` to that issue after the agent run.
 
 ## Expiration Guard
 
@@ -44,7 +44,7 @@ Do not add automatic extension or cleanup logic in the first generated workflow 
 
 1. Read the issue and linked context with `gh`.
 2. Inspect `.github/workflows/` for an existing generated workflow that should be updated instead of adding a duplicate.
-3. Copy `.agent/action-templates/agent-action-template.yml` to the generated workflow path and fill in the workflow name, cron, expiration, lane, request text, and optional reporting target. Add `issues: write` only when setting `REPORT_ISSUE_NUMBER` for issue reporting.
+3. Copy `.agent/action-templates/agent-action-template.yml` to the generated workflow path and fill in the workflow name, cron, expiration, lane, request text, and optional reporting target. Keep `discussions: write` for failure reporting; add `issues: write` only when setting `REPORT_ISSUE_NUMBER` for issue reporting.
 4. Add or update exactly one standalone workflow unless the request clearly requires more.
 5. Keep the recurring task bounded: describe what to check, allowed side effects, expiration, and where to report.
 6. Do not add custom scheduler code, `.agent/actions` specs, or a new `run-action` route.
