@@ -329,6 +329,10 @@ test("agent orchestrate delegates to a child issue without extending AgentAction
   assert.equal(run.outputs.get("target_number"), "77");
   assert.match(run.ghLog, /issue create/);
   assert.match(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
+  assert.match(run.ghLog, /Sepo is starting a focused child task for this orchestration\./);
+  assert.match(run.ghLog, /\| Child task \| Focus \| Parent issue \| Status \|/);
+  assert.match(run.ghLog, /\| #77 \| stage-1 \| #76 \| Running \|/);
+  assert.match(run.ghLog, /<!-- sepo-sub-orchestrator-child parent:76 stage:stage-1 child:77 -->/);
   const inputs = run.dispatchPayload?.inputs as Record<string, string>;
   assert.equal(inputs.source_action, "orchestrate");
   assert.equal(inputs.source_conclusion, "delegated");
@@ -502,6 +506,10 @@ test("agent orchestrate adopts explicit user-authored child issues with trusted 
   assert.match(run.ghLog, /issue view 77/);
   assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/77\/comments/);
   assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/76\/comments/);
+  assert.match(run.ghLog, /\| Parent issue \| Stage \| Parent round \| Status \|/);
+  assert.match(run.ghLog, /\| #76 \| stage-1 \| 2 \| Running \|/);
+  assert.match(run.ghLog, /\| Child task \| Focus \| Parent issue \| Status \|/);
+  assert.match(run.ghLog, /\| #77 \| stage-1 \| #76 \| Running \|/);
   assert.doesNotMatch(run.ghLog, /issue create/);
   assert.doesNotMatch(run.ghLog, /issue list/);
   assert.match(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
@@ -577,6 +585,8 @@ test("agent orchestrate ignores forged app-authored child marker comments", () =
   assert.equal(run.outputs.get("target_number"), "77");
   assert.match(run.ghLog, /issue view 77/);
   assert.match(run.ghLog, /Sepo adopted this issue as a sub-orchestrator child/);
+  assert.match(run.ghLog, /\| Parent issue \| Stage \| Parent round \| Status \|/);
+  assert.match(run.ghLog, /\| #76 \| stage-1 \| 2 \| Running \|/);
   assert.match(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
   assert.doesNotMatch(run.ghLog, /repos\/self-evolving\/repo\/issues\/comments\/forged-agent-output/);
   assert.doesNotMatch(run.ghLog, /issue create/);
@@ -799,7 +809,127 @@ test("initial orchestrate checks delegated route capabilities before dispatch", 
     "orchestrate requests require implement access; implement currently requires MEMBER access.",
   );
   assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/20\/comments/);
+  assert.match(run.ghLog, /Source conclusion: `requested`/);
   assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-implement\.yml\/dispatches/);
+});
+
+test("agent parent orchestrate stop posts final comment without follow-up", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "orchestrate",
+    SOURCE_CONCLUSION: "done",
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "76",
+    AUTOMATION_MODE: "agent",
+    AUTOMATION_CURRENT_ROUND: "2",
+    AUTOMATION_MAX_ROUNDS: "10",
+    SOURCE_RUN_ID: "parent-run-123",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "stop",
+      reason: "All child work is complete.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.equal(run.outputs.get("reason"), "agent planner stop: All child work is complete.");
+  assert.match(run.ghLog, /api --method POST repos\/self-evolving\/repo\/issues\/76\/comments/);
+  assert.match(run.ghLog, /Sepo orchestration stopped after `orchestrate` concluded `done`\./);
+  assert.match(run.ghLog, /Source conclusion: `done`/);
+  assert.match(run.ghLog, /Target: `issue #76`/);
+  assert.match(run.ghLog, /Round: `2\/10`/);
+  assert.match(run.ghLog, /Reason: agent planner stop: All child work is complete\./);
+  assert.match(run.ghLog, /Source run ID: `parent-run-123`/);
+  assert.match(run.ghLog, /No follow-up workflow was dispatched/);
+  assert.match(run.ghLog, /<!-- sepo-agent-orchestrate-stop -->/);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\//);
+  assert.equal(run.dispatchPayload, null);
+});
+
+test("agent parent orchestrate stop skips matching trusted final comment", () => {
+  const existingStopBody = [
+    "Sepo orchestration stopped after `orchestrate` concluded `done`.",
+    "",
+    "- Source action: `orchestrate`",
+    "- Source conclusion: `done`",
+    "- Target: `issue #76`",
+    "- Round: `2/10`",
+    "- Reason: agent planner stop: All child work is complete.",
+    "- Source run ID: `parent-run-123`",
+    "",
+    "No follow-up workflow was dispatched. Inspect the source action status comment and workflow logs before retrying or continuing manually.",
+    "",
+    "<!-- sepo-agent-orchestrate-stop -->",
+  ].join("\n");
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "orchestrate",
+    SOURCE_CONCLUSION: "done",
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "76",
+    AUTOMATION_MODE: "agent",
+    AUTOMATION_CURRENT_ROUND: "2",
+    AUTOMATION_MAX_ROUNDS: "10",
+    SOURCE_RUN_ID: "parent-run-123",
+    FAKE_ISSUE_COMMENTS_JSON: JSON.stringify([
+      {
+        id: "existing-stop",
+        body: existingStopBody,
+        user: { login: "sepo-agent-app[bot]" },
+      },
+    ]),
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "stop",
+      reason: "All child work is complete.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.doesNotMatch(run.ghLog, /api --method POST repos\/self-evolving\/repo\/issues\/76\/comments/);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\//);
+  assert.equal(run.dispatchPayload, null);
+});
+
+test("heuristics parent orchestrate stops do not post final comments", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "orchestrate",
+    SOURCE_CONCLUSION: "done",
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "76",
+    AUTOMATION_MODE: "heuristics",
+    AUTOMATION_CURRENT_ROUND: "10",
+    AUTOMATION_MAX_ROUNDS: "10",
+    SOURCE_RUN_ID: "parent-run-123",
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.equal(run.outputs.get("reason"), "automation round budget exhausted");
+  assert.doesNotMatch(run.ghLog, /api --method POST repos\/self-evolving\/repo\/issues\/76\/comments/);
+  assert.doesNotMatch(run.ghLog, /<!-- sepo-agent-orchestrate-stop -->/);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\//);
+  assert.equal(run.dispatchPayload, null);
+});
+
+test("agent parent orchestrate stops for pull requests do not post final comments", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "orchestrate",
+    SOURCE_CONCLUSION: "done",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "76",
+    AUTOMATION_MODE: "agent",
+    AUTOMATION_CURRENT_ROUND: "2",
+    AUTOMATION_MAX_ROUNDS: "10",
+    SOURCE_RUN_ID: "parent-run-123",
+    FAKE_PR_STATE: "CLOSED",
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.equal(run.outputs.get("reason"), "pull request is closed");
+  assert.doesNotMatch(run.ghLog, /api --method POST repos\/self-evolving\/repo\/issues\/76\/comments/);
+  assert.doesNotMatch(run.ghLog, /<!-- sepo-agent-orchestrate-stop -->/);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\//);
+  assert.equal(run.dispatchPayload, null);
 });
 
 test("terminal child result reports to parent and preserves terminal reruns", () => {
@@ -819,6 +949,12 @@ test("terminal child result reports to parent and preserves terminal reruns", ()
   assert.equal(run.outputs.get("decision"), "stop");
   assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/76\/comments/);
   assert.match(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
+  assert.match(run.ghLog, /Child task completed\./);
+  assert.match(run.ghLog, /\| Child task \| PR \| Outcome \| Parent round \| Next step \|/);
+  assert.match(run.ghLog, /\| #77 \| #88 \| Ready to ship \| 2 \/ 5 \| Resuming parent orchestration \|/);
+  assert.match(run.ghLog, /Summary: review verdict is SHIP/);
+  assert.match(run.ghLog, /<!-- sepo-sub-orchestrator-report child:77 resume:dispatched -->/);
+  assert.doesNotMatch(run.ghLog, /<!-- sepo-agent-orchestrate-stop -->/);
   const inputs = run.dispatchPayload?.inputs as Record<string, string>;
   assert.equal(inputs.source_action, "orchestrate");
   assert.equal(inputs.source_conclusion, "done");
@@ -962,6 +1098,10 @@ test("terminal child round-budget stops report blocked to the parent", () => {
   assert.equal(run.outputs.get("reason"), "automation round budget exhausted");
   assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/76\/comments/);
   assert.match(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
+  assert.match(run.ghLog, /Child task completed\./);
+  assert.match(run.ghLog, /\| Child task \| Outcome \| Parent round \| Next step \|/);
+  assert.match(run.ghLog, /\| #77 \| Blocked \| 2 \/ 5 \| Resuming parent orchestration \|/);
+  assert.match(run.ghLog, /<!-- sepo-sub-orchestrator-report child:77 resume:dispatched -->/);
   const inputs = run.dispatchPayload?.inputs as Record<string, string>;
   assert.equal(inputs.source_conclusion, "blocked");
   assert.equal(inputs.target_number, "76");
