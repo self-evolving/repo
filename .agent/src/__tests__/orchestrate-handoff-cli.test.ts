@@ -881,6 +881,36 @@ test("agent parent orchestrate blocked posts planner clarification", () => {
   assert.equal(run.dispatchPayload, null);
 });
 
+test("agent parent orchestrate blocked without message posts generic stop", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "orchestrate",
+    SOURCE_CONCLUSION: "done",
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "76",
+    AUTOMATION_MODE: "agent",
+    AUTOMATION_CURRENT_ROUND: "2",
+    AUTOMATION_MAX_ROUNDS: "10",
+    SOURCE_RUN_ID: "parent-run-123",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "blocked",
+      reason: "Context missing.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.equal(run.outputs.get("reason"), "agent planner blocked: Context missing.");
+  assert.match(run.ghLog, /api --method POST repos\/self-evolving\/repo\/issues\/76\/comments/);
+  assert.match(run.ghLog, /Sepo orchestration stopped after `orchestrate` concluded `done`\./);
+  assert.match(run.ghLog, /Reason: agent planner blocked: Context missing\./);
+  assert.match(run.ghLog, /No follow-up workflow was dispatched/);
+  assert.match(run.ghLog, /<!-- sepo-agent-orchestrate-stop -->/);
+  assert.doesNotMatch(run.ghLog, /Sepo orchestration needs clarification before it can continue\./);
+  assert.doesNotMatch(run.ghLog, /Clarification request:/);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\//);
+  assert.equal(run.dispatchPayload, null);
+});
+
 test("agent parent orchestrate stop skips matching trusted final comment", () => {
   const existingStopBody = [
     "Sepo orchestration stopped after `orchestrate` concluded `done`.",
