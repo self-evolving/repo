@@ -59,6 +59,10 @@ inputs:
   github_token:
     description: "GitHub token for API access"
     required: true
+  failure_report_github_token:
+    description: "Optional GitHub token scoped to the failure report intake"
+    required: false
+    default: ""
   failure_report_enabled:
     description: "Agent failure discussion reporting: auto, true, or false"
     required: false
@@ -357,8 +361,64 @@ runs:
         echo "exit_code=${exit_code}" >> "$GITHUB_OUTPUT"
         exit 0
 
+    - name: Resolve failure report token
+      if: always() && steps.run.outputs.exit_code != '' && steps.run.outputs.exit_code != '0'
+      id: failure_report_auth
+      shell: bash
+      env:
+        DIRECT_FAILURE_REPORT_TOKEN: ${{ inputs.failure_report_github_token }}
+        FAILURE_REPORT_ENABLED_INPUT: ${{ inputs.failure_report_enabled }}
+        FAILURE_REPORT_REPOSITORY_INPUT: ${{ inputs.failure_report_repository }}
+        OIDC_AUDIENCE: sepo
+        OIDC_EXCHANGE_URL: https://oidc.self-evolving.app/api/github/github-app-token-exchange
+        SOURCE_REPOSITORY: ${{ github.repository }}
+        SOURCE_REPOSITORY_PRIVATE: ${{ github.event.repository.private && 'true' || 'false' }}
+        SOURCE_TOKEN: ${{ inputs.github_token }}
+      run: |
+        set -euo pipefail
+
+        enabled_input="$(printf '%s' "${FAILURE_REPORT_ENABLED_INPUT:-auto}" | tr '[:upper:]' '[:lower:]' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+        if [ -z "${enabled_input}" ]; then
+          enabled_input="auto"
+        fi
+
+        if [ "${enabled_input}" = "0" ] ||
+           [ "${enabled_input}" = "false" ] ||
+           [ "${enabled_input}" = "no" ] ||
+           [ "${enabled_input}" = "off" ] ||
+           { [ "${enabled_input}" = "auto" ] && [ "${SOURCE_REPOSITORY_PRIVATE:-false}" = "true" ]; }; then
+          {
+            echo "token="
+            echo "auth_mode=skipped"
+          } >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        report_repository="${FAILURE_REPORT_REPOSITORY_INPUT:-self-evolving/repo}"
+        source_repository="${SOURCE_REPOSITORY:-}"
+
+        if [ -n "${DIRECT_FAILURE_REPORT_TOKEN}" ]; then
+          echo "::add-mask::${DIRECT_FAILURE_REPORT_TOKEN}"
+          {
+            echo "token=${DIRECT_FAILURE_REPORT_TOKEN}"
+            echo "auth_mode=direct"
+          } >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        if [ -n "${source_repository}" ] && [ "${report_repository}" = "${source_repository}" ]; then
+          echo "::add-mask::${SOURCE_TOKEN}"
+          {
+            echo "token=${SOURCE_TOKEN}"
+            echo "auth_mode=source"
+          } >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        OIDC_TARGET_REPOSITORY="${report_repository}" bash .github/actions/resolve-github-auth/exchange-oidc.sh
+
     - name: Report agent failure to discussion
-      if: always() && steps.run.outputs.exit_code != '0'
+      if: always() && steps.run.outputs.exit_code != '' && steps.run.outputs.exit_code != '0'
       id: failure_report
       continue-on-error: true
       shell: bash
@@ -369,8 +429,8 @@ runs:
         FAILURE_REPORT_DISCUSSION_CATEGORY_INPUT: ${{ inputs.failure_report_discussion_category }}
         FAILURE_REPORT_ENABLED_INPUT: ${{ inputs.failure_report_enabled }}
         FAILURE_REPORT_REPOSITORY_INPUT: ${{ inputs.failure_report_repository }}
-        GH_TOKEN: ${{ inputs.github_token }}
-        GITHUB_TOKEN: ${{ inputs.github_token }}
+        GH_TOKEN: ${{ steps.failure_report_auth.outputs.token }}
+        GITHUB_TOKEN: ${{ steps.failure_report_auth.outputs.token }}
         REQUESTED_BY: ${{ inputs.requested_by }}
         ROUTE: ${{ inputs.route }}
         SOURCE_KIND: ${{ inputs.source_kind }}

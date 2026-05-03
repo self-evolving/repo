@@ -507,10 +507,14 @@ test("shared run-agent-task action exists and requires explicit prompt/skill/lan
   assert.match(action, /LANE/);
   assert.match(action, /SESSION_POLICY/);
   assert.match(action, /\.agent\/dist\/run\.js/);
+  assert.match(action, /failure_report_github_token:/);
   assert.match(action, /failure_report_enabled:/);
   assert.match(action, /failure_report_repository:/);
   assert.match(action, /failure_report_discussion_category:/);
-  assert.match(action, /Report agent failure to discussion[\s\S]*steps\.run\.outputs\.exit_code != '0'/);
+  assert.match(action, /Resolve failure report token[\s\S]*steps\.run\.outputs\.exit_code != ''[\s\S]*steps\.run\.outputs\.exit_code != '0'/);
+  assert.match(action, /auth_mode=skipped/);
+  assert.match(action, /OIDC_TARGET_REPOSITORY="\$\{report_repository\}" bash \.github\/actions\/resolve-github-auth\/exchange-oidc\.sh/);
+  assert.match(action, /Report agent failure to discussion[\s\S]*steps\.run\.outputs\.exit_code != ''[\s\S]*steps\.run\.outputs\.exit_code != '0'/);
   assert.match(action, /node \.agent\/dist\/cli\/report-agent-failure\.js/);
 });
 
@@ -524,6 +528,11 @@ test("run-agent-task callers pass failure report configuration", () => {
     const workflow = readRepoFile(workflowPath);
     if (!workflow.includes("uses: ./.github/actions/run-agent-task")) continue;
 
+    assert.match(
+      workflow,
+      /failure_report_github_token:\s*\$\{\{ secrets\.AGENT_FAILURE_REPORT_TOKEN \}\}/,
+      workflowPath,
+    );
     assert.match(
       workflow,
       /failure_report_enabled:\s*\$\{\{ vars\.AGENT_FAILURE_REPORT_ENABLED \|\| 'auto' \}\}/,
@@ -580,6 +589,7 @@ test("shared auth action supports the built-in hosted OIDC broker mode", () => {
   assert.match(oidcScript, /for cmd in curl jq/);
   assert.match(oidcScript, /run_with_retries\(\)/);
   assert.match(oidcScript, /jq -r '\.value \/\/ empty' 2>\/dev\/null \|\| true/);
+  assert.match(oidcScript, /target_repository: \$target_repository/);
   assert.match(oidcScript, /jq -r '\.token \/\/ \.app_token \/\/ empty' .*2>\/dev\/null \|\| true/);
   assert.match(oidcScript, /--max-time 30/);
   assert.match(oidcScript, /auth_mode=oidc_broker/);

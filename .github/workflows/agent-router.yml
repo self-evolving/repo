@@ -78,6 +78,9 @@ on:
       AGENT_PAT:
         description: "Fine-grained PAT or machine-user token"
         required: false
+      AGENT_FAILURE_REPORT_TOKEN:
+        description: "GitHub token scoped to the failure report intake"
+        required: false
       OPENAI_API_KEY:
         description: "OpenAI API key for Codex agent"
         required: false
@@ -197,6 +200,7 @@ jobs:
         with:
           agent: ${{ steps.dispatch_provider.outputs.provider }}
           github_token: ${{ steps.auth.outputs.token }}
+          failure_report_github_token: ${{ secrets.AGENT_FAILURE_REPORT_TOKEN }}
           failure_report_enabled: ${{ vars.AGENT_FAILURE_REPORT_ENABLED || 'auto' }}
           failure_report_repository: ${{ vars.AGENT_FAILURE_REPORT_REPOSITORY || 'self-evolving/repo' }}
           failure_report_discussion_category: ${{ vars.AGENT_FAILURE_REPORT_DISCUSSION_CATEGORY || 'Bug Report' }}
@@ -308,6 +312,7 @@ jobs:
         with:
           agent: ${{ steps.provider.outputs.provider }}
           github_token: ${{ steps.auth.outputs.token }}
+          failure_report_github_token: ${{ secrets.AGENT_FAILURE_REPORT_TOKEN }}
           failure_report_enabled: ${{ vars.AGENT_FAILURE_REPORT_ENABLED || 'auto' }}
           failure_report_repository: ${{ vars.AGENT_FAILURE_REPORT_REPOSITORY || 'self-evolving/repo' }}
           failure_report_discussion_category: ${{ vars.AGENT_FAILURE_REPORT_DISCUSSION_CATEGORY || 'Bug Report' }}
@@ -450,6 +455,7 @@ jobs:
         with:
           agent: ${{ steps.skill_provider.outputs.provider }}
           github_token: ${{ steps.auth.outputs.token }}
+          failure_report_github_token: ${{ secrets.AGENT_FAILURE_REPORT_TOKEN }}
           failure_report_enabled: ${{ vars.AGENT_FAILURE_REPORT_ENABLED || 'auto' }}
           failure_report_repository: ${{ vars.AGENT_FAILURE_REPORT_REPOSITORY || 'self-evolving/repo' }}
           failure_report_discussion_category: ${{ vars.AGENT_FAILURE_REPORT_DISCUSSION_CATEGORY || 'Bug Report' }}

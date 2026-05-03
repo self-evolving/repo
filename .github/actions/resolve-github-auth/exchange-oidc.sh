@@ -63,6 +63,7 @@ trap 'rm -f "${exchange_request_file}" "${exchange_response_file}"' EXIT
 if ! jq -n \
   --arg oidc_token "${oidc_token}" \
   --arg repository "${GITHUB_REPOSITORY:-}" \
+  --arg target_repository "${OIDC_TARGET_REPOSITORY:-}" \
   --arg workflow_ref "${GITHUB_WORKFLOW_REF:-}" \
   --arg run_id "${GITHUB_RUN_ID:-}" \
   '{
@@ -70,7 +71,12 @@ if ! jq -n \
     repository: $repository,
     workflow_ref: $workflow_ref,
     run_id: $run_id
-  }' > "${exchange_request_file}"; then
+  } + (
+    if $target_repository != "" and $target_repository != $repository
+    then { target_repository: $target_repository }
+    else {}
+    end
+  )' > "${exchange_request_file}"; then
   echo "Failed to build hosted broker exchange request; skipping hosted broker auth." >&2
   exit 0
 fi

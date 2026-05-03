@@ -20,11 +20,16 @@ The shared action `.github/actions/resolve-github-auth` handles all four modes t
 3. `AGENT_PAT`
 4. fallback workflow token `github.token`
 
-Failed agent runs are reported through the same resolved GitHub token. The
-default intake is the `Bug Report` Discussion category in `self-evolving/repo`;
-if you point `AGENT_FAILURE_REPORT_REPOSITORY` at another repository, make sure
-the resolved token can write Discussions there. Public repositories report by
-default; private repositories must opt in with `AGENT_FAILURE_REPORT_ENABLED=true`.
+Failed agent runs report to the configured Discussion intake with an
+intake-scoped token. The default intake is the `Bug Report` Discussion category
+in `self-evolving/repo`: same-repository reports use the normal resolved GitHub
+token, while external public repositories use the hosted OIDC broker to request
+a central Sepo intake token. For a custom intake repository, either point
+`AGENT_FAILURE_REPORT_REPOSITORY` at the source repository or configure
+`AGENT_FAILURE_REPORT_TOKEN` with Discussion write access to that intake. If no
+intake-capable token is available, failure reporting skips without masking the
+original agent failure. Public repositories report by default; private
+repositories must opt in with `AGENT_FAILURE_REPORT_ENABLED=true`.
 
 ## Comparing agent setups
 
@@ -65,7 +70,7 @@ If you use a fine-grained PAT, start with these repository permissions:
 - **Contents:** read and write
 - **Pull requests:** read and write
 - **Issues:** read and write
-- **Discussions:** read and write, only if you use discussion triggers
+- **Discussions:** read and write if you use discussion triggers, daily summaries, or a custom `AGENT_FAILURE_REPORT_TOKEN`
 - **Actions:** read and write, for approval dispatch and review artifact flows
 
 ## Workflow token fallback

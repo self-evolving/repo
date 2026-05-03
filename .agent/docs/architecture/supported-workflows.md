@@ -104,9 +104,13 @@ before the workflow rethrows the agent exit code. Reporting defaults to
 category, while private repositories skip unless `AGENT_FAILURE_REPORT_ENABLED`
 is set to `true`. Set `AGENT_FAILURE_REPORT_ENABLED=false` to opt out, or
 change `AGENT_FAILURE_REPORT_REPOSITORY` and
-`AGENT_FAILURE_REPORT_DISCUSSION_CATEGORY` to use a different intake. Each
-distinct fingerprint gets one Discussion; later matching failures add repeat
-occurrence comments and duplicate run attempts are skipped.
+`AGENT_FAILURE_REPORT_DISCUSSION_CATEGORY` to use a different intake. The
+reporter uses the source GitHub token for same-repository intakes, an optional
+`AGENT_FAILURE_REPORT_TOKEN` for custom intake repositories, or the hosted OIDC
+broker for the default central Sepo intake. If no intake-capable token is
+available, the report is skipped instead of attempting an unauthorized write.
+Each distinct fingerprint gets one Discussion; later matching failures add
+repeat occurrence comments and duplicate run attempts are skipped.
 
 `agent-update.yml` runs near-biweekly because GitHub cron does not support a
 native every-14-days cadence. It invokes the existing `update-agent` skill from

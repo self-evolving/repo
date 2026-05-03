@@ -36,6 +36,7 @@ function baseInput(overrides: Partial<AgentFailureReportInput> = {}): AgentFailu
     enabled: "auto",
     reportRepository: "self-evolving/repo",
     discussionCategory: "Bug Report",
+    reportTokenAvailable: true,
     sourceRepository: "example/project",
     sourceRepositoryPrivate: false,
     route: "implement",
@@ -91,10 +92,12 @@ test("buildAgentFailureReportInput uses defaults and redacts captured failure ou
       TARGET_NUMBER: "0",
       AGENT_EXIT_CODE: "1",
       SOURCE_REPOSITORY_PRIVATE: "false",
+      GH_TOKEN: "ghs_example",
     } as NodeJS.ProcessEnv, new Date("2026-05-03T00:00:00.000Z"));
 
     assert.equal(input.reportRepository, DEFAULT_FAILURE_REPORT_REPOSITORY);
     assert.equal(input.discussionCategory, DEFAULT_FAILURE_REPORT_DISCUSSION_CATEGORY);
+    assert.equal(input.reportTokenAvailable, true);
     assert.equal(input.runUrl, "https://github.com/example/project/actions/runs/123");
     assert.match(input.errorSummary, /redacted github token/);
     assert.doesNotMatch(input.errorSummary, /github_pat_/);
@@ -221,5 +224,29 @@ test("postAgentFailureReport does not call GitHub when reporting is skipped", ()
   );
 
   assert.equal(result.status, "skipped");
+  assert.equal(calls.length, 0);
+});
+
+test("postAgentFailureReport skips missing exit codes before fingerprinting", () => {
+  const { client, calls } = queuedClient([]);
+  const result = postAgentFailureReport(
+    baseInput({ exitCode: "" }),
+    client,
+  );
+
+  assert.equal(result.status, "skipped");
+  assert.equal(result.reason, "agent exit code was not recorded");
+  assert.equal(calls.length, 0);
+});
+
+test("postAgentFailureReport skips when no intake token is available", () => {
+  const { client, calls } = queuedClient([]);
+  const result = postAgentFailureReport(
+    baseInput({ reportTokenAvailable: false }),
+    client,
+  );
+
+  assert.equal(result.status, "skipped");
+  assert.equal(result.reason, "failure report GitHub token is not configured");
   assert.equal(calls.length, 0);
 });

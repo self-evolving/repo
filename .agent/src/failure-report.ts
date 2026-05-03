@@ -25,6 +25,7 @@ export interface AgentFailureReportInput {
   enabled: string;
   reportRepository: string;
   discussionCategory: string;
+  reportTokenAvailable: boolean;
   sourceRepository: string;
   sourceRepositoryPrivate: boolean;
   route: string;
@@ -106,6 +107,10 @@ export function resolveFailureReportEnabled(
 
 function isTruthyString(raw: string): boolean {
   return TRUE_VALUES.has(trim(raw).toLowerCase());
+}
+
+function hasFailureReportToken(env: NodeJS.ProcessEnv): boolean {
+  return Boolean(trim(env.GH_TOKEN || env.GITHUB_TOKEN || env.INPUT_GITHUB_TOKEN || ""));
 }
 
 function buildRunUrl(env: NodeJS.ProcessEnv): string {
@@ -192,6 +197,7 @@ export function buildAgentFailureReportInput(
       env.FAILURE_REPORT_DISCUSSION_CATEGORY_INPUT || "",
       env.AGENT_FAILURE_REPORT_DISCUSSION_CATEGORY || "",
     ], DEFAULT_FAILURE_REPORT_DISCUSSION_CATEGORY),
+    reportTokenAvailable: hasFailureReportToken(env),
     sourceRepository,
     sourceRepositoryPrivate: isTruthyString(firstValue([
       env.SOURCE_REPOSITORY_PRIVATE || "",
@@ -381,10 +387,31 @@ export function postAgentFailureReport(
     };
   }
 
-  if (trim(input.exitCode) === "0") {
+  const exitCode = trim(input.exitCode);
+  if (!exitCode) {
+    return {
+      status: "skipped",
+      reason: "agent exit code was not recorded",
+      fingerprint: "",
+      discussionUrl: "",
+      commentUrl: "",
+    };
+  }
+
+  if (exitCode === "0") {
     return {
       status: "skipped",
       reason: "agent exit code was zero",
+      fingerprint: "",
+      discussionUrl: "",
+      commentUrl: "",
+    };
+  }
+
+  if (!input.reportTokenAvailable) {
+    return {
+      status: "skipped",
+      reason: "failure report GitHub token is not configured",
       fingerprint: "",
       discussionUrl: "",
       commentUrl: "",
