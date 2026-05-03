@@ -205,6 +205,12 @@ test("scheduled workflows evaluate skip gates before provider-dependent jobs", (
   assert.match(updateWorkflow, /Check pending update PR[\s\S]*resolve-pending-update-pr\.sh/);
   assert.match(updateWorkflow, /update:\n\s+needs: gate\n\s+if: needs\.gate\.outputs\.skip != 'true'/);
   assert.match(updateWorkflow, /Resolve update provider[\s\S]*Setup agent runtime/);
+  assert.match(updateWorkflow, /Resolve task timeout[\s\S]*ROUTE: skill[\s\S]*resolve-task-timeout\.js/);
+  assert.match(
+    updateWorkflow,
+    /Run update agent\n\s+id: agent\n\s+timeout-minutes: \$\{\{ fromJson\(steps\.task_timeout\.outputs\.minutes \|\| '30'\) \}\}/,
+  );
+  assert.doesNotMatch(updateWorkflow, /if: steps\.gate\.outputs\.skip != 'true'/);
 
   assert.match(dailySummaryWorkflow, /pre_gate:\n[\s\S]*Resolve scheduled disabled gate/);
   assert.match(dailySummaryWorkflow, /signals:\n\s+needs: pre_gate\n\s+if: needs\.pre_gate\.outputs\.skip != 'true'/);

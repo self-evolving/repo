@@ -93,15 +93,26 @@ jobs:
           SCHEDULE_SKIP: ${{ steps.schedule.outputs.skip }}
         run: |
           set -euo pipefail
+          write_output() {
+            local name="$1"
+            local value="$2"
+            local delim="DELIM_${RANDOM}_${RANDOM}_$$"
+            {
+              printf '%s<<%s\n' "$name" "$delim"
+              printf '%s\n' "$value"
+              printf '%s\n' "$delim"
+            } >> "$GITHUB_OUTPUT"
+          }
+
           if [ "${SCHEDULE_SKIP}" = "true" ]; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "reason=${SCHEDULE_REASON}" >> "$GITHUB_OUTPUT"
+            write_output "skip" "true"
+            write_output "reason" "${SCHEDULE_REASON}"
           elif [ "${PENDING_SKIP}" = "true" ]; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "reason=${PENDING_REASON}" >> "$GITHUB_OUTPUT"
+            write_output "skip" "true"
+            write_output "reason" "${PENDING_REASON}"
           else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-            echo "reason=${PENDING_REASON:-${SCHEDULE_REASON}}" >> "$GITHUB_OUTPUT"
+            write_output "skip" "false"
+            write_output "reason" "${PENDING_REASON:-${SCHEDULE_REASON}}"
           fi
 
       - name: Write skipped summary
@@ -153,8 +164,16 @@ jobs:
           install_codex: ${{ steps.provider.outputs.install_codex }}
           install_claude: ${{ steps.provider.outputs.install_claude }}
 
+      - name: Resolve task timeout
+        id: task_timeout
+        env:
+          AGENT_TASK_TIMEOUT_POLICY: ${{ vars.AGENT_TASK_TIMEOUT_POLICY || '' }}
+          ROUTE: skill
+        run: node .agent/dist/cli/resolve-task-timeout.js
+
       - name: Run update agent
         id: agent
+        timeout-minutes: ${{ fromJson(steps.task_timeout.outputs.minutes || '30') }}
         uses: ./.github/actions/run-agent-task
         with:
           agent: ${{ steps.provider.outputs.provider }}
