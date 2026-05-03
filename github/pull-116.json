@@ -126,25 +126,105 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4365718652",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBEWC7Q",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /fix-pr can we add an configurable variable for AGENT_AUTO_UPDATE and by default set to be true (but people can disable that)?  ",
+      "createdAt": "2026-05-03T16:28:57Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4366631661",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBEWl4w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-27/codex-25272756852`. Requested by @lolipopshock.\n\nImplemented `AGENT_AUTO_UPDATE` for PR #116. The scheduled `agent-update.yml` run now treats `AGENT_AUTO_UPDATE=false` as a disabled workflow override, while manual `workflow_dispatch` still works.\n\nUpdated docs/tests in the same pass:\n- Documented `AGENT_AUTO_UPDATE` in README, workflow docs, config list, and update skill guidance.\n- Added workflow contract assertions and a scheduled-activity test proving only automatic update checks are disabled.\n\nChecks passed:\n- `npm --prefix .agent run build`\n- Focused Node tests from `.agent`\n- YAML parse\n- `bash -n .agent/scripts/resolve-pending-update-pr.sh`\n- `git diff --check`",
+      "createdAt": "2026-05-03T16:33:23Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4366640611",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBEd4xw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer can users trigger it themselves? or they have to go to click the button in the actions? ",
+      "createdAt": "2026-05-03T17:35:30Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4366760135",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBEeIDw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, but in the current PR “trigger it themselves” means GitHub’s manual workflow trigger, not an `@sepo-agent` comment command.\n\nCurrent behavior:\n- It runs automatically by default on the near-biweekly schedule: [`agent-update.yml#L3-L8`](https://github.com/self-evolving/repo/blob/3f810d4f1d398bea4e98fd80e658913efd3fd4ca/.github/workflows/agent-update.yml#L3-L8).\n- It also supports `workflow_dispatch`, so someone with permission to run repo workflows can start it from **Actions -> Agent / Update -> Run workflow**: [`agent-update.yml#L8-L32`](https://github.com/self-evolving/repo/blob/3f810d4f1d398bea4e98fd80e658913efd3fd4ca/.github/workflows/agent-update.yml#L8-L32).\n- They do not have to use the UI specifically; the same manual trigger can be invoked through GitHub CLI/API, for example `gh workflow run agent-update.yml`.\n- `AGENT_AUTO_UPDATE=false` only disables the scheduled runs; manual dispatch remains available: [docs](https://github.com/self-evolving/repo/blob/3f810d4f1d398bea4e98fd80e658913efd3fd4ca/.agent/docs/actions/agent-actions.md#L49-L54), [config](https://github.com/self-evolving/repo/blob/3f810d4f1d398bea4e98fd80e658913efd3fd4ca/.agent/docs/customization/configuration-list.md#L21-L23).\n\nSo: no, users do not need to wait for the schedule; yes, they can trigger it manually if they have Actions permission. But this PR does **not** add an `@sepo-agent /update` style comment trigger.",
+      "createdAt": "2026-05-03T17:37:44Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4366764047",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-03T07:19:42Z",
   "files": [
     {
       "path": ".agent/docs/actions/agent-actions.md",
-      "additions": 6,
-      "deletions": 0,
-      "changeType": "MODIFIED"
-    },
-    {
-      "path": ".agent/docs/architecture/supported-workflows.md",
       "additions": 7,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 8,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
       "path": ".agent/docs/customization/configuration-list.md",
-      "additions": 1,
+      "additions": 2,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
@@ -156,7 +236,7 @@
     },
     {
       "path": ".agent/src/__tests__/envelope.test.ts",
-      "additions": 14,
+      "additions": 17,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
@@ -171,6 +251,12 @@
       "additions": 70,
       "deletions": 0,
       "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/scheduled-activity.test.ts",
+      "additions": 21,
+      "deletions": 0,
+      "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/cli/resolve-task-timeout.ts",
@@ -198,7 +284,7 @@
     },
     {
       "path": ".skills/update-agent/SKILL.md",
-      "additions": 11,
+      "additions": 12,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
@@ -267,6 +353,6 @@
   ],
   "state": "OPEN",
   "title": "Add scheduled Sepo update checks",
-  "updatedAt": "2026-05-03T08:16:51Z",
+  "updatedAt": "2026-05-03T17:37:44Z",
   "url": "https://github.com/self-evolving/repo/pull/116"
 }

@@ -1,0 +1,84 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "https://github.com/self-evolving/repo/pull/62#issuecomment-4365221643\n\nWhat are the needed changes in this current local repo? Make it concrete?\n\n@sepo-agent /answer",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBEeb8g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I checked the linked PR comment plus the broader issue chain. The concrete answer is: this needs **two layers**.\n\n1. **Repo-local onboarding baseline** from PR #62.\n   That PR is still open, and current `main` does **not** have `.github/workflows/agent-onboarding.yml`, `.agent/src/onboarding.ts`, or the trigger-label constants/tests. Merge or recreate those first. That gives us an idempotent `Agent / Onboarding / Check Setup` workflow that can create labels and the `Sepo setup check` issue.\n\n2. **Hosted GitHub App installation bootstrap**.\n   This cannot be done by repo-local Actions alone. GitHub App installation events are delivered to the App webhook URL, not to workflows in the newly installed repo. The current repo has workflow/auth helpers, but no hosted app webhook service.\n\nConcrete current-repo changes I’d make:\n\n- Add/land PR #62 onboarding files:\n  - `.github/workflows/agent-onboarding.yml`\n  - `.agent/src/onboarding.ts`\n  - `.agent/src/cli/onboarding-check.ts`\n  - `.agent/src/trigger-labels.ts`\n  - `.agent/src/__tests__/onboarding-check-cli.test.ts`\n  - docs updates in `README.md`, `.agent/docs/overview/quick-start.md`, `.agent/docs/deployment/install-existing-repository.md`, `.agent/docs/architecture/supported-workflows.md`\n\n- Add a reusable bootstrap module/CLI for the hosted app path, for example:\n  - `.agent/src/installation-bootstrap.ts`\n  - `.agent/src/cli/installation-bootstrap.ts`\n  - `.agent/src/__tests__/installation-bootstrap.test.ts`\n\n  This should:\n  - accept `GITHUB_REPOSITORY`, `INSTALLATION_ID`, `DEFAULT_BRANCH`, and a GitHub token\n  - check for `.github/workflows/agent-onboarding.yml`\n  - call existing `dispatchWorkflow()` from [`github.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/github.ts#L224) to dispatch `agent-onboarding.yml`\n  - if dispatch fails, create/update one fallback `Sepo setup check` issue using existing issue/comment helpers in [`github.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/github.ts#L47)\n  - use a hidden marker like `<!-- sepo-agent-installation-bootstrap -->` for idempotency\n\n- Add docs for the app-install path:\n  - update [`using-your-own-github-app.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/deployment/using-your-own-github-app.md)\n  - update [`setup-guide.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/deployment/setup-guide.md)\n  - update quick start to say: installing the Sepo App will try automatic onboarding, but provider secrets still need owner setup\n\n- Add/confirm app permission docs:\n  - `Actions: write` for workflow dispatch\n  - `Issues: write` for setup issue/comment fallback\n  - `Metadata: read` for repository metadata\n  - current docs already mention `Actions` and `Issues` in [`using-your-own-github-app.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/deployment/using-your-own-github-app.md#L10)\n\nNeeded outside this repo:\n\n- Add a hosted webhook endpoint for the Sepo GitHub App, likely in the existing hosted service behind `self-evolving.app` / the OIDC broker.\n- It must receive `installation` and `installation_repositories` events, verify `X-Hub-Signature-256`, mint an installation token, then call the new bootstrap logic.\n- If that hosted service code lives in another repo, this repo can only add the repo-side workflow/helper/docs, not the actual webhook receiver.\n\nExecution plan before coding:\n\n1. Merge or recreate PR #62’s onboarding workflow and CLI in this branch.\n2. Add `installation-bootstrap` helper with dispatch-first, issue-fallback behavior.\n3. Add tests with fake `gh` calls covering workflow-present, workflow-missing, dispatch-failure, and idempotent issue update.\n4. Update deployment docs with the exact automatic-install behavior and limitations.\n5. Run `npm --prefix .agent test` and YAML parsing.\n\nI’d proceed with the repo-local side first. The only blocker is where the hosted GitHub App webhook code actually lives; if it is not in this repository, the endpoint implementation needs a separate change in that service.",
+      "createdAt": "2026-05-03T17:40:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/119#issuecomment-4366769138",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBEgk-w",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /implement \n\nCan you create a follow up pr stacked on top of the existing onboarding pr? ",
+      "createdAt": "2026-05-03T17:59:03Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/119#issuecomment-4366804219",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBEh0ig",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-119/codex-25286562888`\n- Pull request: https://github.com/self-evolving/repo/pull/120\n\nStacked this follow-up on PR #62 and added a repo-side installation bootstrap CLI/module for hosted or self-managed GitHub App webhooks. It dispatches the onboarding workflow when available, otherwise creates or updates one marked `Sepo setup check` fallback issue; docs now describe the automatic install path and provider-secret limitation. Verified with build, focused bootstrap/onboarding CLI tests, and workflow YAML parsing; the full local suite was attempted but stale ignored `.agent/dist` artifacts from another branch caused obsolete dist-only tests to run.",
+      "createdAt": "2026-05-03T18:09:16Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/119#issuecomment-4366824586",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-03T17:37:49Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 119,
+  "state": "OPEN",
+  "title": "App installation automation",
+  "updatedAt": "2026-05-03T18:09:16Z",
+  "url": "https://github.com/self-evolving/repo/issues/119"
+}
