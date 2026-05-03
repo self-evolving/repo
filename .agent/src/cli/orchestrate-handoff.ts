@@ -776,7 +776,6 @@ function reportTerminalToParent(decision: HandoffDecision): void {
     reason: decision.reason,
   }) : marker.state;
   const parentRound = marker.parentRound || 1;
-  const result = resultState === "done" ? "SHIP" : resultState.toUpperCase();
   const prNumber = normalizeToken(sourceTargetKind) === "pull_request" ? targetNumber : "";
   const progressMarkerPrefix = `sepo-sub-orchestrator-report child:${childIssue.number}`;
   const pendingProgressMarker = `<!-- ${progressMarkerPrefix} resume:pending -->`;
@@ -818,7 +817,9 @@ function reportTerminalToParent(decision: HandoffDecision): void {
       target_kind: "issue",
       target_number: String(marker.parent),
       requested_by: requestedBy,
-      request_text: `Child issue #${childIssue.number} finished with ${result}: ${decision.reason}`,
+      request_text: `Child issue #${childIssue.number} finished with ${
+        resultState === "done" ? "SHIP" : resultState.toUpperCase()
+      }: ${decision.reason}`,
       automation_mode: "agent",
       automation_current_round: String(parentRound),
       automation_max_rounds: String(maxRounds),
