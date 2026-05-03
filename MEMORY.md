@@ -47,3 +47,4 @@
 - Sub-orchestrator comments use compact tables; preserve hidden markers for recovery and dedupe.
 - Blocked orchestrator planners surface user_message/clarification_request in stop comments; answer is not a handoff.
 - Failed-agent reports use source tokens only for same-repo intakes; cross-repo intake needs AGENT_FAILURE_REPORT_TOKEN or hosted OIDC.
+- Failure-report intake should default to GitHub Discussions by fingerprint; promote actionable reports to Issues manually.
