@@ -70,11 +70,15 @@ In `heuristics` mode, manual starts use deterministic status checks:
 - pull request target with `CHANGES_REQUESTED`: dispatch `fix-pr`
 - other open pull request targets: dispatch `review`
 
-In `agent` mode, an issue-level manual start can act as a meta-orchestrator.
-The planner may return `delegate_issue`, which is an internal command rather
-than a public route. The dispatcher creates or reuses one child issue for the
-requested stage and dispatches `agent-orchestrator.yml` for the child issue in
-heuristic mode. New agent-created child issues store a hidden
+In `agent` mode, an issue-level manual start can either dispatch `implement`
+directly for a small, self-contained change on the current issue, or act as a
+meta-orchestrator when a separate child issue materially helps. For direct
+implementation, the planner returns `handoff` with `next_action: "implement"`,
+and the dispatcher launches `agent-implement.yml` for the current issue. For
+child work, the planner may return `delegate_issue`, which is an internal
+command rather than a public route. The dispatcher creates or reuses one child
+issue for the requested stage and dispatches `agent-orchestrator.yml` for the
+child issue in heuristic mode. New agent-created child issues store a hidden
 `sepo-sub-orchestrator` marker in the issue body. Existing user-authored issues
 can also be adopted when the planner provides `child_issue_number`; adoption
 stores the marker in an agent-authored child issue comment instead of editing or
@@ -104,19 +108,21 @@ authorization at the user boundary: child and parent resume dispatches preserve
 `requested_by` for traceability, but they do not need to thread requester
 association and route policy through every downstream workflow.
 
-When an orchestrator dispatches `implement`, it forwards any explicit
-`base_branch` or `base_pr` input. `agent-implement.yml` then resolves a single
-base branch: `base_branch` is used when set, `base_pr` resolves to the open
-same-repository PR head branch, and the repository default branch is used when
-neither input is present. Setting both base inputs is rejected.
+When an orchestrator dispatches `implement`, it forwards any planner-provided
+or explicit `base_branch` or `base_pr` input. `agent-implement.yml` then
+resolves a single base branch: `base_branch` is used when set, `base_pr`
+resolves to the open same-repository PR head branch, and the repository default
+branch is used when neither input is present. Setting both base inputs is
+rejected.
 
 Manual pull request starts remain deterministic in `agent` mode. Issue-level
-manual starts may invoke the planner for `delegate_issue` meta-orchestration,
-and action-originated handoff envelopes use the planner path when enabled.
+manual starts may invoke the planner for direct `implement` handoff or
+`delegate_issue` meta-orchestration, and action-originated handoff envelopes use
+the planner path when enabled.
 
 In `heuristics` mode, action-originated handoff decisions still use the fixed transition policy and round budget checks.
 
-In `agent` mode, the orchestrator first runs a scoped planner prompt through the same resolved-provider runtime used by other agent actions. The planner has its own `orchestrator` route and `planner` lane, so session continuation is separate from implement, review, and fix-pr sessions. The planner runs with `approve-all` tool permission so it can gather current GitHub and repository context in non-interactive workflows. It still receives read-only repository memory, selected read-only rubrics, the handoff envelope, and original request, and returns JSON describing whether to stop, block, delegate a child issue, or hand off. For handoffs, the planner may also return `handoff_context`: explicit, action-oriented instructions for the next workflow. When the next action is `fix-pr`, the dispatcher passes that context into `agent-fix-pr.yml`, and the fix-pr prompt treats it as initial steering for the automated fix pass. The workflow uses the runtime preflight CLI to skip this planner when the max-round budget is already exhausted or the initial requester lacks delegated-route capability, and the runtime still validates planner JSON against the fixed transition policy and max-round budget before dispatching anything.
+In `agent` mode, the orchestrator first runs a scoped planner prompt through the same resolved-provider runtime used by other agent actions. The planner has its own `orchestrator` route and `planner` lane, so session continuation is separate from implement, review, and fix-pr sessions. The planner runs with `approve-all` tool permission so it can gather current GitHub and repository context in non-interactive workflows. It still receives read-only repository memory, selected read-only rubrics, the handoff envelope, and original request, and returns JSON describing whether to stop, block, delegate a child issue, or hand off. For handoffs, the planner may also return `handoff_context`: explicit, action-oriented instructions for the next workflow. When the next action is `fix-pr`, the dispatcher passes that context into `agent-fix-pr.yml`, and the fix-pr prompt treats it as initial steering for the automated fix pass. The workflow uses the runtime preflight CLI to skip this planner when the max-round budget is already exhausted or the initial requester lacks delegated-route capability, and the runtime still validates planner JSON against the fixed transition policy, the issue-only direct-implement rule, and max-round budget before dispatching anything.
 
 When an orchestrator-launched `implement` or `fix-pr` run reports
 `no_changes`, `failed`, `verify_failed`, or `unsupported`, the dispatcher stops

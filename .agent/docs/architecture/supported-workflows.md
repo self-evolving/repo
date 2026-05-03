@@ -28,14 +28,16 @@ launched action runs hand back to `agent-orchestrator.yml` after post-processing
 Direct `/implement`, `/review`, and `/fix-pr` runs remain one-shot.
 Explicit `/orchestrate` starts on pull requests are deterministic in both
 `heuristics` and `agent` modes. Issue-level `/orchestrate` starts in `agent`
-mode may use the planner as a meta-orchestrator. Instead of adding a new public
-route, the planner can return an internal `delegate_issue` command. That
-command creates or reuses a child issue with parent/stage metadata, dispatches
-the child issue through the normal `/orchestrate` flow in heuristic mode, and
-keeps the parent/child relationship in GitHub issue state rather than session
-identity. When `delegate_issue` names an existing user-authored issue, the
-orchestrator adopts it by writing the trusted child marker in an agent-authored
-issue comment and recording the parent/child link on the parent issue.
+mode may use the planner. For small self-contained issue work, the planner can
+return a normal handoff to `implement` on the current issue. For
+meta-orchestration, the planner can return an internal `delegate_issue` command
+instead of adding a new public route. That command creates or reuses a child
+issue with parent/stage metadata, dispatches the child issue through the normal
+`/orchestrate` flow in heuristic mode, and keeps the parent/child relationship
+in GitHub issue state rather than session identity. When `delegate_issue` names
+an existing user-authored issue, the orchestrator adopts it by writing the
+trusted child marker in an agent-authored issue comment and recording the
+parent/child link on the parent issue.
 
 Planner-based selection is also used for action-originated handoff runs. The planner can include a
 `handoff_context` string for the next action; `fix-pr` receives it as explicit
