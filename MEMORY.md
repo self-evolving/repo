@@ -43,3 +43,4 @@
 - Issue-level /orchestrate may hand off directly to implement for small current-issue work; use delegate_issue when a child materially helps.
 - AGENT_TASK_TIMEOUT_POLICY configures per-route outer GitHub Actions timeouts; typed inner timeout reporting remains separate.
 - Resumed parent orchestrator stops should post visible parent-issue terminal comments and skip trusted exact duplicates.
+- Sub-orchestrator parent/child links use GitHub sub-issues best-effort; trusted marker comments remain the fallback.
