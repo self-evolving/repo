@@ -1,0 +1,260 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "agent/implement-issue-23/codex-25151531035",
+  "body": "## Summary\n- Add `agent-update.yml` for near-biweekly Sepo infrastructure update checks using the existing `update-agent` skill.\n- Add a pre-runtime pending update PR guard to avoid duplicate `agent/update-agent-infra-*` PRs, with a manual `force` override.\n- Update docs, skill guidance, and focused workflow/script coverage.\n\n## Tests\n- `npm --prefix .agent run build`\n- `node --test dist/__tests__/pending-update-pr-gate-shell.test.js dist/__tests__/envelope.test.js` from `.agent`\n- `bash -n .agent/scripts/resolve-pending-update-pr.sh`\n- YAML parse for `agent-update.yml` and `test-scripts.yml`\n- `git diff --check`\n\nCloses #27\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDZrEA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `implement` -> `review` (round 3/10).\n\nimplementation succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777792797824 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNzI3NTY4NTI6aW1wbGVtZW50OjI3OnJldmlldzoxMTY6Mw -->",
+      "createdAt": "2026-05-03T07:19:58Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4365642512",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDZ1lQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 89 | PARTIAL | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| workflow/generic | Validate delegated route authorization | pass | 8/8 | The new workflow is a GitHub `schedule`/`workflow_dispatch` entrypoint, passes `requested_by: ${{ github.actor }}`, and uses resolved GitHub auth before invoking the `update-agent` skill. |\n| workflow/generic | Prefer explicit structured inputs | pass | 7/7 | `agent-update.yml` uses separate typed inputs for `source_repo`, `source_ref`, `update_skills`, `update_agent_md`, and `force` instead of overloading one command string. |\n| coding/generic | Make surgical changes | pass | 8/8 | Changes are limited to the scheduled update workflow, pending-PR gate script, focused tests, and directly related docs/skill guidance. |\n| coding/generic | Reuse existing code | partial | 6/8 | The PR reuses `scheduled-activity-gate`, `resolve-github-auth`, `resolve-agent-provider`, `setup-agent-runtime`, `run-agent-task`, and the existing `update-agent` skill, but misses the established `resolve-task-timeout` + `timeout-minutes` pattern for `run-agent-task`. |\n| workflow/generic | Read docs and linked context first | pass | 6/6 | The implementation matches issue #27’s requested default scheduled action, near-biweekly cadence, update skill reuse, and no duplicate/no-op PR behavior. |\n| workflow/generic | Keep docs in sync | pass | 7/7 | Updates `.agent/docs/actions/agent-actions.md`, `.agent/docs/architecture/supported-workflows.md`, `.skills/update-agent/SKILL.md`, and `README.md`. |\n| workflow/generic | Surface stateful failures | pass | 7/7 | `resolve-pending-update-pr.sh` fails clearly on missing repo or empty branch prefix and emits structured skip/reason outputs rather than silently treating bad config as success. |\n| coding_style/generic | Prefer simple implementations | pass | 7/7 | The pending-PR gate is a small shell script using `gh pr list` and `jq`; the workflow composes existing actions without adding new runtime architecture. |\n\n## Notes\n\n- Main score driver: the PR fits issue #27 well and mostly follows established workflow composition patterns.\n- The only rubric-specific follow-up is to add the standard task timeout resolver before the new `run-agent-task` step.\n\n## Findings\n\n- **WARNING:** `agent-update.yml` invokes `./.github/actions/run-agent-task` without the established `Resolve task timeout` step and without `timeout-minutes: ${{ fromJson(steps.task_timeout.outputs.minutes || '30') }}`. Existing workflow tests in `.agent/src/__tests__/envelope.test.ts` scan all workflow YAML files and require that contract for every `run-agent-task` step, so this weakens reuse of the shared runtime pattern and likely breaks the envelope test once the new workflow is present.\n\n## Final Rubric Verdict\n\nPARTIAL",
+      "createdAt": "2026-05-03T07:21:49Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4365645205",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDc8Xg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #116 implements issue #27, a child workstream from #107, by adding a default scheduled Sepo update workflow.\n- The new workflow runs near-biweekly, supports manual dispatch inputs, invokes the existing `update-agent` skill, and skips when scheduling is disabled or a matching update PR is already open.\n- The PR also adds a shell guard for pending update PRs, focused tests, and docs/skill guidance for the new maintenance path.\n- Reviewers agree the overall design matches the request and reuses the right workflow/runtime pieces.\n\n## Review\nOverall judgment: the PR is structurally sound, but it has a few small workflow/test guardrail issues that should be fixed before merge.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Missing task timeout guard on update agent | WARNING | The new `run-agent-task` invocation does not include the shared task-timeout resolver pattern expected by newer workflow conventions. |\n| Missing negative gate assertion for update workflow | WARNING | The new envelope test assertions cover the positive gate path but omit the matching guard that prevents step-level `steps.gate.outputs.skip` usage. |\n| Gate result outputs use brittle echo writes | WARNING | The workflow writes `reason` outputs with bare `echo`, unlike the delimiter-safe helpers used by the gate scripts. |\n| Pending update PR scan is capped at 100 | INFO | The pending-PR guard could miss an existing update PR in repositories with more than 100 open PRs. |\n\n## Progress\n- Issue #27 and parent context in #107 were reviewed; the PR matches the requested near-biweekly, non-spammy update workflow.\n- The existing PR discussion already covers the timeout-resolver concern, so no duplicate inline timeout comment was posted.\n- Inline comments were posted for the missing negative gate assertion and delimiter-safe output handling.\n- Duplicated shell helpers were treated as intentional because these scripts run before runtime setup.\n\n## Issue Details\n\n<details>\n<summary>Missing task timeout guard on update agent</summary>\n\n**Cause:** The new [`Run update agent`](https://github.com/self-evolving/repo/blob/20ecaa3bfe5ba5b0f38cc6462ad76c63e7be022b/.github/workflows/agent-update.yml#L156) step calls `run-agent-task` without a preceding `Resolve task timeout` step or `timeout-minutes` wiring.\n\n**Candidate solutions:** Add the standard timeout resolver before the step and set `timeout-minutes: ${{ fromJson(steps.task_timeout.outputs.minutes || '30') }}` on the `run-agent-task` step.\n\n**Comments:** The rubrics review flagged this as the main consistency gap; the other review did not call it out, so this is treated as a warning rather than a blocker.\n\n</details>\n\n<details>\n<summary>Missing negative gate assertion for update workflow</summary>\n\n**Cause:** The new [`updateWorkflow` assertions](https://github.com/self-evolving/repo/blob/20ecaa3bfe5ba5b0f38cc6462ad76c63e7be022b/.agent/src/__tests__/envelope.test.ts#L204) mirror the positive scheduled-gate checks but omit the matching `assert.doesNotMatch` used for other scheduled workflows.\n\n**Candidate solutions:** Add `assert.doesNotMatch(updateWorkflow, /if: steps\\.gate\\.outputs\\.skip != 'true'/);` after the existing update workflow assertions.\n\n**Comments:** Inline comment posted at `.agent/src/__tests__/envelope.test.ts:207`.\n\n</details>\n\n<details>\n<summary>Gate result outputs use brittle echo writes</summary>\n\n**Cause:** The [`Resolve gate result`](https://github.com/self-evolving/repo/blob/20ecaa3bfe5ba5b0f38cc6462ad76c63e7be022b/.github/workflows/agent-update.yml#L87) step writes `reason` directly to `$GITHUB_OUTPUT` with `echo`, which can break if a future reason includes a newline.\n\n**Candidate solutions:** Use the delimiter-safe output pattern already used by the shell gate scripts, or move this merge logic into a small script/helper.\n\n**Comments:** Inline comment posted at `.github/workflows/agent-update.yml:98`.\n\n</details>\n\n<details>\n<summary>Pending update PR scan is capped at 100</summary>\n\n**Cause:** [`resolve-pending-update-pr.sh`](https://github.com/self-evolving/repo/blob/20ecaa3bfe5ba5b0f38cc6462ad76c63e7be022b/.agent/scripts/resolve-pending-update-pr.sh#L74) uses `gh pr list --limit 100`, so a matching update PR beyond that window would be missed.\n\n**Candidate solutions:** Raise the limit, use pagination if practical, or document the cap as an accepted low-probability edge case.\n\n**Comments:** Low risk for this repository, so this should not drive automation unless maintainers want the extra hardening.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: The remaining required work is a small set of deterministic workflow/test edits that is safe for an automated fix-pr pass.\n\n## Final Verdict\n`MINOR_ISSUES`\n\n## Action Items\n- [ ] Add the standard task timeout resolver and `timeout-minutes` wiring to the update workflow’s `run-agent-task` step.\n- [ ] Add the missing `assert.doesNotMatch` guard for `updateWorkflow` in `envelope.test.ts`.\n- [ ] Replace bare `$GITHUB_OUTPUT` `echo` writes in `Resolve gate result` with delimiter-safe output writes.",
+      "createdAt": "2026-05-03T07:54:53Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4365696094",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDc9uw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `review` -> `fix-pr` (round 4/10).\n\nreview verdict is minor_issues; dispatching fix-pr\n\n<!-- sepo-agent-handoff state:dispatched created:1777794905992 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNzI5NDQ4MDI6cmV2aWV3OjExNjpmaXhfcHI6MTE2OjQ -->",
+      "createdAt": "2026-05-03T07:55:06Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4365696443",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDdgBw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-27/codex-25272756852`. Requested by @sepo-agent.\n\n- Addressed the PR #116 review items: delimiter-safe gate outputs, task-timeout wiring for the update agent step, and the missing negative gate assertion.\n- Added the supporting task-timeout policy CLI/test coverage and documented `AGENT_TASK_TIMEOUT_POLICY`.\n- Checks: `npm --prefix .agent run build`; focused Node tests from `.agent`; `bash -n .agent/scripts/resolve-pending-update-pr.sh`; workflow/action YAML parse; `git diff --check`.",
+      "createdAt": "2026-05-03T08:00:40Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4365705223",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDdhWw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `fix-pr` -> `review` (round 5/10).\n\nPR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777795253350 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNzM2MzU0MDc6Zml4X3ByOjExNjpyZXZpZXc6MTE2OjU -->",
+      "createdAt": "2026-05-03T08:00:53Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4365705563",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDdq8Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | `agent-update.yml` is a scheduled/manual workflow entrypoint, runs through resolved GitHub auth, invokes `run-agent-task` with `route: skill`, and preserves audit context with `requested_by: ${{ github.actor }}`. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Manual inputs are separate typed fields: `source_repo`, `source_ref`, `update_skills`, `update_agent_md`, and `force`; no overloaded command string is introduced. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff stays scoped to the update workflow, pending-update gate, timeout wiring needed by workflow conventions, focused tests, and matching docs/skill guidance. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The workflow composes existing shared actions including `scheduled-activity-gate`, `resolve-github-auth`, `resolve-agent-provider`, `setup-agent-runtime`, and `run-agent-task`; it also now uses the shared timeout resolver pattern expected by envelope tests. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The implementation matches issue #27’s requested default scheduled action, near-14-day cadence, update skill reuse, PR-on-change behavior, and non-spammy no-duplicate guard; #107 context explains why #27 was selected instead of #94. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates `.agent/docs/actions/agent-actions.md`, `.agent/docs/architecture/supported-workflows.md`, `.agent/docs/customization/configuration-list.md`, `.skills/update-agent/SKILL.md`, and `README.md`. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | `resolve-pending-update-pr.sh` fails clearly for missing repo or empty branch prefix, emits structured skip/reason outputs, and has focused shell regression coverage. Malformed timeout policy also returns a clear CLI error with tests. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The pending-PR guard is a small shell script around `gh pr list` and `jq`; the workflow remains mostly composition of existing actions rather than new runtime architecture. |\n\n## Notes\n\n- The previous rubric warning about missing task-timeout wiring appears resolved in the current PR diff: `agent-update.yml` now has `Resolve task timeout` and `timeout-minutes` on `Run update agent`.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No selected-rubric failures found in the current PR diff.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-03T08:02:18Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4365708017",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDeUfA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #116 adds a default near-biweekly Sepo update workflow for issue #27, which was selected as the focused child task under parent issue #107.\n- The workflow uses the existing `update-agent` skill, checks for existing update PRs before runtime setup, and only opens a PR when updates produce changes.\n- The latest fix-pr pass also added task-timeout policy wiring, delimiter-safe workflow outputs, and the missing scheduled-gate test guard.\n- Docs, skill guidance, shell/script tests, and workflow contract tests are updated alongside the runtime changes.\n\n## Review\nOverall judgment: the current PR head appears ready to ship. The prior required review items are fixed, and the latest review artifacts report either PASS/SHIP or only optional INFO notes.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | Current reviews agree the required fixes are resolved. Remaining notes are optional cleanup, such as unused gate job outputs or low-risk defensive test expansion. |\n\n## Progress\n- Previous review items were addressed by fix-pr: timeout wiring, delimiter-safe gate outputs, and the missing `updateWorkflow` negative assertion.\n- Current rubrics review is PASS with no rubric-specific follow-up.\n- Claude’s latest review verdict is SHIP; Codex reports no BLOCKING, WARNING, or INFO findings.\n- Existing inline comments are from the prior commit and are now covered by the current head; no new inline comments were needed.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: No unresolved actionable branch-change work remains; optional INFO cleanup can be left to maintainer preference.\n\n## Final Verdict\n`SHIP`\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-03T08:08:46Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4365718652",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-03T07:19:42Z",
+  "files": [
+    {
+      "path": ".agent/docs/actions/agent-actions.md",
+      "additions": 6,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 7,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/scripts/resolve-pending-update-pr.sh",
+      "additions": 116,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 14,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/pending-update-pr-gate-shell.test.ts",
+      "additions": 110,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/resolve-task-timeout-cli.test.ts",
+      "additions": 70,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/resolve-task-timeout.ts",
+      "additions": 38,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/task-timeout-policy.ts",
+      "additions": 87,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/workflows/agent-update.yml",
+      "additions": 223,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/workflows/test-scripts.yml",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".skills/update-agent/SKILL.md",
+      "additions": 11,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": "README.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-27/codex-25272756852",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 116,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM77S7x8",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-03T07:53:40Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "20ecaa3bfe5ba5b0f38cc6462ad76c63e7be022b"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM77S7x9",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-03T07:53:40Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "20ecaa3bfe5ba5b0f38cc6462ad76c63e7be022b"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Add scheduled Sepo update checks",
+  "updatedAt": "2026-05-03T08:08:46Z",
+  "url": "https://github.com/self-evolving/repo/pull/116"
+}

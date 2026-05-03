@@ -5,7 +5,7 @@
   },
   "baseRefName": "agent/implement-issue-86/codex-25268550985",
   "body": "## Summary\n- Add an explicit `/update` route and `agent/update` label mapping to the existing `update-agent` skill.\n- Add `agent-update.yml` for scheduled/manual Sepo update checks with schedule-policy gating and repository-scoped update runs.\n- Update docs and focused route/workflow tests for the new update path.\n\n## Tests\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/triage.test.js .agent/dist/__tests__/resolve-dispatch-cli.test.js .agent/dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nCloses #94\nRelated #27\n",
-  "closedAt": null,
+  "closedAt": "2026-05-03T06:21:02Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABBDHXww",
@@ -31,8 +31,8 @@
       "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 94 | PARTIAL | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Validate delegated route authorization | pass | 8/8 | The PR adds `update` as a first-class dispatch route, maps `/update` and `agent/update` to `update-agent`, and `applyDispatchPolicy` still applies `AGENT_ACCESS_POLICY` before route-specific handling. |\n| coding_workflow/generic | Prefer explicit structured inputs | pass | 7/7 | `agent-update.yml` uses separate `workflow_dispatch` inputs for `source_repo`, `source_ref`, `update_skills`, and `update_agent_md`, instead of overloading one command string. |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | The implementation reuses the existing `.skills/update-agent/SKILL.md`, router skill execution path, provider resolution action, scheduled activity gate, timeout resolver, and dispatch helpers. |\n| coding_workflow/generic | Read docs and linked context first | pass | 6/6 | The PR addresses #94 and related #27: explicit `/update`, default scheduled update check, near-biweekly cadence, and PR creation only when update changes exist. |\n| coding_workflow/generic | Make surgical changes | pass | 8/8 | Changes are scoped to route registration, dispatch policy/tests, one new workflow, update-skill invocation guidance, and matching docs. No unrelated refactor is visible in the PR diff. |\n| coding_style/generic | Prefer simple implementations | pass | 7/7 | The route is added by extending existing route sets and the existing skill job instead of introducing a separate router architecture. The scheduled workflow is straightforward and follows existing action composition. |\n| coding_workflow/generic | Keep docs in sync | partial | 5/7 | Most route/workflow docs are updated, but `.agent/src/rubrics.ts` adds `update` to valid rubric routes while `.agent/docs/architecture/rubrics.md` still documents the `applies_to` route list without `update`. |\n\n## Notes\n\n- The strongest rubric alignment is reuse: this PR wires a new public route to the existing `update-agent` skill and existing workflow/action helpers.\n- The main rubric-specific gap is a small docs sync miss in the rubrics documentation after adding `update` as a rubric-selectable route.\n- No rubric-specific blocking issue found.\n\n## Findings\n\n- **WARNING:** Keep docs in sync: `.agent/src/rubrics.ts` adds `update` to `RUBRIC_ROUTE_NAMES`, but `.agent/docs/architecture/rubrics.md` still lists accepted `applies_to` values without `update`. Add `update` to that documented route list so rubric authors know the new route is valid.\n\n## Final Rubric Verdict\n\nPARTIAL",
       "createdAt": "2026-05-03T03:58:23Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/115#issuecomment-4365344687",
       "viewerDidAuthor": true
@@ -46,8 +46,8 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #115 adds a first-class Sepo `update` route, mapping explicit `/update` and `agent/update` requests to the existing `update-agent` skill. It also adds a default `agent-update.yml` scheduled/manual workflow that checks for Sepo infrastructure updates and should only open a PR when changes exist. This addresses #94, relates to #27, and is part of the broader #107 user-facing distribution plan. The implementation generally reuses existing route, skill, provider, schedule-gate, and docs patterns.\n\n## Review\nOverall, the PR is close and has no blocking authorization or runtime design failure in the reviewed paths. The remaining issues are small but concrete workflow/docs fixes, plus one optional regression-test gap.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Manual update workflow can run from a non-default ref | WARNING | Manual `workflow_dispatch` runs can be launched with `--ref`, but checkout follows that ref while the prompt says the target is the default branch. |\n| Route documentation inventories are incomplete | WARNING | Rubrics route docs omit `update`, and the touched developer-notes slash-route list still omits `/orchestrate`. |\n| Missing explicit update access-policy regression test | INFO | Existing authorization logic appears correct, but there is no focused test proving `AGENT_ACCESS_POLICY` can restrict the new `update` route. |\n\n## Progress\n- Existing reviewer outputs agree the route is explicit-only and reuses the existing `update-agent` skill path.\n- The rubrics review already posted the `.agent/docs/architecture/rubrics.md` docs-sync warning, so I did not duplicate it inline.\n- I posted inline comments for the manual checkout-ref issue and the touched developer-notes route list.\n- Codex review verification reported `npm --prefix .agent test` passing with 481 tests.\n\n## Issue Details\n\n<details>\n<summary>Manual update workflow can run from a non-default ref</summary>\n\n**Cause:** `actions/checkout@v4` in `.github/workflows/agent-update.yml` has no `ref`, so manual dispatch can check out a non-default ref while the update prompt advertises `${{ github.event.repository.default_branch }}`.\n\n**Candidate solutions:** Pin checkout to `ref: ${{ github.event.repository.default_branch }}` so manual and scheduled update checks operate from the same default-branch baseline.\n\n**Comments:** This is not a scheduled-run issue, but it can make manual update runs audit and branch from the wrong checkout.\n\n</details>\n\n<details>\n<summary>Route documentation inventories are incomplete</summary>\n\n**Cause:** `.agent/src/rubrics.ts` now accepts `update` in `RUBRIC_ROUTE_NAMES`, but `.agent/docs/architecture/rubrics.md` still omits it from the documented `applies_to` route list. Also, `.agent/docs/technical-details/developer-notes.md` was updated for `/update` but still omits existing `/orchestrate`.\n\n**Candidate solutions:** Add `update` to the rubrics docs route list and add `/orchestrate` to the developer-notes hardcoded slash-route list.\n\n**Comments:** The rubrics-docs issue is already covered by the existing rubrics review comment; only the developer-notes issue needed a new inline comment.\n\n</details>\n\n<details>\n<summary>Missing explicit update access-policy regression test</summary>\n\n**Cause:** The new route relies on the shared top-level `applyDispatchPolicy` access check, but tests only cover immediate explicit `update`, implicit rejection, and existing route restriction examples.\n\n**Candidate solutions:** Add a focused test mirroring the existing explicit `implement` restriction test, using an access policy that denies or narrows `update`.\n\n**Comments:** This is coverage-only; reviewers did not identify a live authorization bypass.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: The unresolved workflow and docs findings are concrete branch changes and are safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Pin `.github/workflows/agent-update.yml` checkout to `${{ github.event.repository.default_branch }}`.\n- [ ] Add `update` to `.agent/docs/architecture/rubrics.md` documented `applies_to` route values.\n- [ ] Add `/orchestrate` to `.agent/docs/technical-details/developer-notes.md` hardcoded slash-route list.",
       "createdAt": "2026-05-03T04:07:30Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/115#issuecomment-4365358139",
       "viewerDidAuthor": true
@@ -91,10 +91,85 @@
       "body": "Sepo automation handoff dispatched: `fix-pr` -> `review` (round 5/10).\n\nPR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777781418813 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNjk0NzY0NzE6Zml4X3ByOjExNTpyZXZpZXc6MTE1OjU -->",
       "createdAt": "2026-05-03T04:10:19Z",
       "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/115#issuecomment-4365361839",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDIrvw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Validate delegated route authorization | pass | 8/8 | `/update` is added as a first-class route and still flows through dispatch policy before the shared skill/update job; `resolve-dispatch` maps it to `update-agent` only after route resolution. Evidence: [triage.ts](https://github.com/self-evolving/repo/blob/b3afa8d34edc19badc1a18f720152f8188f5b797/.agent/src/triage.ts), [resolve-dispatch.ts](https://github.com/self-evolving/repo/blob/b3afa8d34edc19badc1a18f720152f8188f5b797/.agent/src/cli/resolve-dispatch.ts), [agent-router.yml](https://github.com/self-evolving/repo/blob/b3afa8d34edc19badc1a18f720152f8188f5b797/.github/workflows/agent-router.yml). |\n| coding_workflow/generic | Prefer explicit structured inputs | pass | 7/7 | `agent-update.yml` uses separate typed `workflow_dispatch` inputs for `source_repo`, `source_ref`, `update_skills`, and `update_agent_md`; it does not encode multiple update options into one command string. |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | The PR wires `/update`, `agent/update`, and the scheduled workflow to the existing `.skills/update-agent/SKILL.md`, existing provider resolution, scheduled gate, timeout, envelope, and run-agent-task paths. |\n| coding_workflow/generic | Read docs and linked context first | pass | 6/6 | The implementation matches #94 and related #27/#107 context: explicit update route, near-biweekly scheduled check, reuse of update skills, and PR creation only when update changes exist. |\n| coding_workflow/generic | Make surgical changes | pass | 8/8 | The diff is scoped to route registration, dispatch handling/tests, the new update workflow, the update skill instructions, and matching docs. No unrelated refactor is visible. |\n| coding_style/generic | Prefer simple implementations | pass | 7/7 | The route is added by extending existing route lists and the existing skill execution path, while the scheduled workflow follows the project’s standard action composition. |\n| coding_workflow/generic | Keep docs in sync | pass | 7/7 | The earlier docs-sync gap is fixed at current head: `update` now appears in rubrics docs, developer notes, supported workflows, quick start, key concepts, AGENT.md, README, and agent action docs. |\n\n## Notes\n\n- The current PR head includes the follow-up fixes from the prior review: default-branch checkout is pinned in `agent-update.yml`, rubrics route docs include `update`, and developer notes include both `/update` and `/orchestrate`.\n- I did not score selected rubrics that do not apply to this PR’s implementation surface, including merge strategy, preview contracts, stateful persistence failures, rubric authoring, and accepted workflow stops.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings at current PR head.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-03T04:12:09Z",
+      "includesCreatedEdit": false,
       "isMinimized": false,
       "minimizedReason": "",
       "reactionGroups": [],
-      "url": "https://github.com/self-evolving/repo/pull/115#issuecomment-4365361839",
+      "url": "https://github.com/self-evolving/repo/pull/115#issuecomment-4365364159",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDJVvw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #115 adds a first-class Sepo `update` route, mapping `/update` and `agent/update` to the existing `update-agent` skill. It also adds `agent-update.yml`, a scheduled/manual workflow intended to check installed Sepo infrastructure and open an update PR only when changes exist. The work closes #94, relates to #27’s near-biweekly “not too annoying” update-check request, and is part of the broader #107 distribution plan. Current reviewers agree the core route, access-policy path, reuse of the skill infrastructure, and docs coverage are generally sound.\n\n## Review\nOverall, the PR is close: no reviewer found a blocking route authorization or runtime design issue. The remaining concern is one concrete scheduled-workflow behavior gap, with a few INFO-level cleanup or coverage notes.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Scheduled updater can duplicate a pending update PR | WARNING | The new workflow tells the skill to use its default date-based update branch, so a later scheduled run can recreate the same update as another PR while an earlier one is still open. |\n| Rubric prompt examples still omit `update` | INFO | `update` is now a valid rubric route, but the rubric initialization/update prompt schema examples still list the older route set. |\n| Optional update route hardening notes | INFO | Claude noted low-risk gaps: no dedicated `AGENT_ACCESS_POLICY` denial test for `update`, and redundant `update-agent` ternaries in the router despite `resolve-dispatch` already emitting the skill. |\n\n## Progress\n- Earlier warnings about default-branch checkout and route documentation were fixed in the current PR head.\n- The current rubrics review is PASS with no rubric-specific follow-up.\n- Existing inline comments already cover the older checkout/docs issues, so I did not duplicate them.\n- I posted one new inline comment on `.github/workflows/agent-update.yml` line 127 for the duplicate pending update PR risk.\n\n## Issue Details\n\n<details>\n<summary>Scheduled updater can duplicate a pending update PR</summary>\n\n**Cause:** The workflow prompt says `update branch: use the update-agent skill default`; reviewers identified that default as date-based. If an update PR remains open, the next 1st/15th run can compare against the unchanged default branch, see the same diff, and open another dated PR.\n\n**Candidate solutions:** Add a pending-update guard in [`agent-update.yml`](https://github.com/self-evolving/repo/blob/b3afa8d34edc19badc1a18f720152f8188f5b797/.github/workflows/agent-update.yml#L127) or in the `update-agent` skill. Reuse or report an existing open `agent/update-agent-infra-*` PR/branch before creating a new branch.\n\n**Comments:** This matters because #27 explicitly raised the “too annoying” concern. Rubrics/Claude did not mark this as blocking, while Codex elevated it to WARNING based on the scheduled-update acceptance context.\n\n</details>\n\n<details>\n<summary>Rubric prompt examples still omit `update`</summary>\n\n**Cause:** `.agent/src/rubrics.ts` and `.agent/docs/architecture/rubrics.md` now include `update`, but `.github/prompts/rubrics-initialization.md` and `.github/prompts/rubrics-update.md` still show schema examples without it.\n\n**Candidate solutions:** Add `update` to those prompt examples’ `applies_to` route lists.\n\n**Comments:** This is not runtime-blocking and was not called out by the rubrics reviewer, but it can steer future rubric-writing agents away from a valid route.\n\n</details>\n\n<details>\n<summary>Optional update route hardening notes</summary>\n\n**Cause:** The shared access-policy path appears correct, but there is no focused test proving `AGENT_ACCESS_POLICY` can restrict `update`. In `agent-router.yml`, the router also repeats `needs.portal.outputs.route == 'update' && 'update-agent' || needs.portal.outputs.skill` even though the portal already emits `skill=update-agent`.\n\n**Candidate solutions:** Add a small update-specific denial test mirroring the existing implement restriction test. Optionally simplify the router to use the emitted `skill` output.\n\n**Comments:** These were Claude INFO notes only. They do not change the recommended automation action.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: The duplicate pending update PR guard is a concrete branch change and is safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Add a pending-update guard so scheduled `/update` runs reuse/report an existing open update PR or branch instead of creating duplicate dated PRs.",
+      "createdAt": "2026-05-03T04:19:56Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/115#issuecomment-4365374911",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDJXIA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `review` -> `fix-pr` (round 6/10).\n\nreview verdict is minor_issues; dispatching fix-pr\n\n<!-- sepo-agent-handoff state:dispatched created:1777782009972 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNjk1MjIyMzk6cmV2aWV3OjExNTpmaXhfcHI6MTE1OjY -->",
+      "createdAt": "2026-05-03T04:20:10Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/115#issuecomment-4365375264",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDJiCg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo did not produce code changes for this PR.**\n\nPlease add more context or restate the requested fixes, then try again.\n\nBased on the latest open PR, the plan should stay on PR #115 first.\n\n**Current State**\n- Latest open PR: [#115 Add Sepo update route and scheduled workflow](https://github.com/self-evolving/repo/pull/115).\n- It handles #94 / #27 under the broader [#107 distribution plan](https://github.com/self-evolving/repo/issues/107).\n- Earlier checkout/docs feedback was already fixed.\n- Latest review synthesis now has one actionable item: prevent scheduled update runs from creating duplicate pending update PRs.\n\n**Immediate Plan**\n1. Finish PR #115 before starting another workstream.\n2. Add a pending-update guard to `agent-update.yml` before provider/runtime setup.\n3. Guard behavior:\n   - Look for an open same-repo PR whose head branch starts with `agent/update-agent-infra-`.\n   - If found, skip the update agent run and report the existing PR URL in the workflow summary.\n   - If none exists, proceed with the scheduled update check.\n4. Keep the logic deterministic and testable, preferably in a small `.agent/src/cli/*` helper rather than embedding nontrivial GitHub API logic directly in workflow YAML.\n5. Add focused coverage proving the guard runs before expensive provider/runtime setup and skips when a pending update PR exists.\n6. Run focused checks: build if source changes, relevant node tests, YAML parsing if workflow changed, and `git diff --check`.\n7. Send PR #115 back through review.\n\n**After PR #115 Is Clean**\n1. Merge #115 using the repo’s normal merge flow.\n2. Return to #107 and pick the next workstream.\n3. Suggested order:\n   - Onboarding/install automation: follow up on PR #62 discussion about GitHub App installation webhook bootstrap.\n   - Repo-specific update signal/badge: clarify scope, then implement only after update workflow is stable.\n   - Failure/bug reporting: implement #26 as Discussion-based intake with dedupe, not auto-created issues.\n\nI would not start #26 or the install webhook work until #115’s duplicate-update risk is fixed, because #115 is the active latest PR and directly affects the update/distribution foundation.",
+      "createdAt": "2026-05-03T04:22:08Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/115#issuecomment-4365378058",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDJjQw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo orchestration stopped after `fix-pr` concluded `no_changes`.\n\n- Source action: `fix-pr`\n- Source conclusion: `no_changes`\n- Target: `pull_request #115`\n- Round: `6/10`\n- Reason: fix-pr concluded no_changes; no automatic handoff was dispatched because fix-pr must succeed before re-review\n- Source run ID: `25269695494`\n\nNo follow-up workflow was dispatched. Inspect the source action status comment and workflow logs before retrying or continuing manually.\n\n<!-- sepo-agent-orchestrate-stop -->",
+      "createdAt": "2026-05-03T04:22:20Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/115#issuecomment-4365378371",
       "viewerDidAuthor": true
     }
   ],
@@ -228,6 +303,18 @@
       "name": "agent",
       "description": "Handled by the agent",
       "color": "0e8a16"
+    },
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChVB4QQ",
+      "name": "priority/p1",
+      "description": "Project management: high priority",
+      "color": "d93f0b"
+    },
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChVB5QA",
+      "name": "effort/medium",
+      "description": "Project management: medium effort",
+      "color": "fbca04"
     }
   ],
   "mergedAt": null,
@@ -263,10 +350,25 @@
       "commit": {
         "oid": "59cacb63d8c66c43caff5d61af4daebbcaab3c98"
       }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM77SROH",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-03T04:19:04Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "b3afa8d34edc19badc1a18f720152f8188f5b797"
+      }
     }
   ],
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Add Sepo update route and scheduled workflow",
-  "updatedAt": "2026-05-03T04:10:22Z",
+  "updatedAt": "2026-05-03T06:21:02Z",
   "url": "https://github.com/self-evolving/repo/pull/115"
 }
