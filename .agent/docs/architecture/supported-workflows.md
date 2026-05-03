@@ -37,7 +37,9 @@ issue with parent/stage metadata, dispatches the child issue through the normal
 in GitHub issue state rather than session identity. When `delegate_issue` names
 an existing user-authored issue, the orchestrator adopts it by writing the
 trusted child marker in an agent-authored issue comment and recording the
-parent/child link on the parent issue.
+parent/child link on the parent issue. The dispatcher also best-effort adds the
+child as a GitHub sub-issue of the parent when the repository supports that REST
+API; trusted markers remain the fallback relation if the API is unavailable.
 
 Planner-based selection is also used for action-originated handoff runs. The planner can include a
 `handoff_context` string for the next action; `fix-pr` receives it as explicit

@@ -530,13 +530,65 @@ function hasRecordedSubOrchestrationIssue(
   });
 }
 
+function fetchIssueDatabaseId(repoSlug: string, issueNumber: number): number {
+  const raw = gh([
+    "api",
+    `repos/${repoSlug}/issues/${issueNumber}`,
+    "--jq",
+    ".id",
+  ]).trim();
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+    throw new Error(`could not resolve database id for issue #${issueNumber}`);
+  }
+  return parsed;
+}
+
+function hasGitHubSubIssueRelation(repoSlug: string, parentIssue: number, childIssue: number): boolean {
+  try {
+    const raw = gh([
+      "api",
+      "--paginate",
+      `repos/${repoSlug}/issues/${parentIssue}/sub_issues`,
+      "--jq",
+      ".[].number",
+    ]).trim();
+    return raw.split(/\r?\n/).some((line) => parsePositiveTargetNumber(line) === childIssue);
+  } catch {
+    return false;
+  }
+}
+
+function ensureGitHubSubIssueRelation(repoSlug: string, parentIssue: number, childIssue: number): void {
+  if (hasGitHubSubIssueRelation(repoSlug, parentIssue, childIssue)) return;
+
+  try {
+    const childIssueId = fetchIssueDatabaseId(repoSlug, childIssue);
+    gh([
+      "api",
+      "--method",
+      "POST",
+      `repos/${repoSlug}/issues/${parentIssue}/sub_issues`,
+      "-F",
+      `sub_issue_id=${childIssueId}`,
+      "--silent",
+    ]);
+  } catch (err: unknown) {
+    console.warn(
+      `Could not link child issue #${childIssue} as a GitHub sub-issue of #${parentIssue}: ${errorText(err)}`,
+    );
+  }
+}
+
 function recordSubOrchestrationIssue(repoSlug: string, parentIssue: number, stage: string, childIssue: number): void {
-  if (hasRecordedSubOrchestrationIssue(repoSlug, parentIssue, stage, childIssue)) return;
-  createIssueComment(repoSlug, parentIssue, formatSubOrchestrationSelectionComment({
-    parentIssue,
-    stage,
-    childIssue,
-  }));
+  if (!hasRecordedSubOrchestrationIssue(repoSlug, parentIssue, stage, childIssue)) {
+    createIssueComment(repoSlug, parentIssue, formatSubOrchestrationSelectionComment({
+      parentIssue,
+      stage,
+      childIssue,
+    }));
+  }
+  ensureGitHubSubIssueRelation(repoSlug, parentIssue, childIssue);
 }
 
 function formatSubOrchestrationAdoptionComment(input: {

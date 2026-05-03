@@ -82,10 +82,15 @@ child issue in heuristic mode. New agent-created child issues store a hidden
 `sepo-sub-orchestrator` marker in the issue body. Existing user-authored issues
 can also be adopted when the planner provides `child_issue_number`; adoption
 stores the marker in an agent-authored child issue comment instead of editing or
-trusting the user-authored body. The child issue then follows the normal bounded
-chain of `implement`, `review`, and `fix-pr` runs. The public route remains
-`/orchestrate`; the internal command keeps child delegation separate from
-concrete follow-up actions such as `implement`, `review`, and `fix-pr`.
+trusting the user-authored body. After recording the trusted parent/child marker
+on the parent issue, the dispatcher also best-effort links the child through
+GitHub's sub-issue REST API when that endpoint is available. If the API is
+unavailable or rejects the link, the marker/comment relation remains the durable
+fallback and child orchestration continues. The child issue then follows the
+normal bounded chain of `implement`, `review`, and `fix-pr` runs. The public
+route remains `/orchestrate`; the internal command keeps child delegation
+separate from concrete follow-up actions such as `implement`, `review`, and
+`fix-pr`.
 
 When the meta-orchestrator continues sequential child implementation work after
 a prior child produced an open, unmerged PR, the planner should set `base_pr` to
