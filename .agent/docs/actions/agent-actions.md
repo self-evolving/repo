@@ -50,7 +50,8 @@ The built-in `agent-update.yml` workflow is the default recurring maintenance
 path for Sepo itself. It runs near-biweekly, calls the existing `update-agent`
 skill, and opens an update PR only when the target repository differs from the
 configured source. A pre-runtime pending-PR guard skips the run while an
-`agent/update-agent-infra-*` PR is already open.
+`agent/update-agent-infra-*` PR is already open. Set `AGENT_AUTO_UPDATE=false`
+to disable scheduled update checks while keeping manual dispatch available.
 
 ## Self-documenting pattern
 

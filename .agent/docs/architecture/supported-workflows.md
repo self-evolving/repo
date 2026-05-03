@@ -129,9 +129,10 @@ fail while posting.
 
 `agent-update.yml` runs near-biweekly because GitHub cron does not support a
 native every-14-days cadence. It invokes the existing `update-agent` skill from
-the repository default branch, skips when `AGENT_SCHEDULE_POLICY` disables the
-workflow, and skips when a same-repository `agent/update-agent-infra-*` PR is
-already open unless a manual run uses `force=true`.
+the repository default branch, skips when `AGENT_AUTO_UPDATE=false` or
+`AGENT_SCHEDULE_POLICY` disables the workflow, and skips when a same-repository
+`agent/update-agent-infra-*` PR is already open unless a manual run uses
+`force=true`.
 
 Single-agent routes, autonomous agent workflows, and the review synthesis step resolve their provider before installing provider CLIs. Explicit provider choices from `AGENT_DEFAULT_PROVIDER` or a route-specific override are authoritative: the workflows select that provider even when the matching repository secret is absent, so self-hosted runners can rely on local Codex or Claude authentication. When the provider is `auto`, detection uses configured provider secrets and prefers Codex when both `OPENAI_API_KEY` and `CLAUDE_CODE_OAUTH_TOKEN` are present. Route-specific overrides are available by editing the relevant workflow's `resolve-agent-provider` step inline. Portal and skill jobs use non-fatal early resolution before non-agent response paths, then require a provider only immediately before invoking an agent.
 

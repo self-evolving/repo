@@ -71,7 +71,7 @@ jobs:
         uses: ./.github/actions/scheduled-activity-gate
         with:
           github_token: ${{ github.token }}
-          schedule_policy: ${{ vars.AGENT_SCHEDULE_POLICY || '' }}
+          schedule_policy: ${{ vars.AGENT_AUTO_UPDATE == 'false' && '{"workflow_overrides":{"agent-update.yml":"disabled"}}' || vars.AGENT_SCHEDULE_POLICY || '' }}
           workflow: agent-update.yml
 
       - name: Check pending update PR

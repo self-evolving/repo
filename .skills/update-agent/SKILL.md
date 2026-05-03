@@ -30,7 +30,8 @@ the default source is `self-evolving/repo@main`, optional `.skills/` and
 post-merge workflows should be documented only unless the request explicitly
 says otherwise. The workflow skips before invoking this skill when an
 `agent/update-agent-infra-*` PR is already open, unless the manual run uses
-`force=true`.
+`force=true`. Scheduled invocations are enabled by default and can be disabled
+with `AGENT_AUTO_UPDATE=false`; manual dispatch remains available.
 
 Stop if the target repo, installed agent scaffold, or source revision is
 ambiguous.

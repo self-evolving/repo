@@ -59,7 +59,7 @@ Use `@sepo-agent /orchestrate` (or `agent/orchestrate`) to run the orchestration
 Sepo persists long-lived context in `agent/memory` and preference rules in `agent/rubrics`, both as repository-owned branches. This lets later runs resume with durable project context and team-specific guidance.
 
 ### Scheduled Jobs
-You can run Sepo on a schedule to handle recurring maintenance, triage, or monitoring tasks without a manual mention. For example, [`agent-daily-summary.yml`](.github/workflows/agent-daily-summary.yml) can publish a daily repository activity summary discussion, and [`agent-update.yml`](.github/workflows/agent-update.yml) checks near-biweekly for Sepo agent infrastructure updates. Scheduled workflows still route through the same policy and memory layers, so they behave consistently with on-demand runs.
+You can run Sepo on a schedule to handle recurring maintenance, triage, or monitoring tasks without a manual mention. For example, [`agent-daily-summary.yml`](.github/workflows/agent-daily-summary.yml) can publish a daily repository activity summary discussion, and [`agent-update.yml`](.github/workflows/agent-update.yml) checks near-biweekly for Sepo agent infrastructure updates. Set `AGENT_AUTO_UPDATE=false` to disable the scheduled update check. Scheduled workflows still route through the same policy and memory layers, so they behave consistently with on-demand runs.
 
 
 ## How It Works
