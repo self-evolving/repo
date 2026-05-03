@@ -171,7 +171,7 @@ Next steps:
 
 1. Confirm this repository contains \`.github/workflows/${ONBOARDING_WORKFLOW}\` on \`${opts.ref}\`.
 2. Enable GitHub Actions for the repository.
-3. Confirm the Sepo GitHub App has \`Actions: write\` and \`Issues: write\`.
+3. Confirm the Sepo GitHub App has \`Contents: read\`, \`Actions: write\`, and \`Issues: write\`.
 4. Configure \`OPENAI_API_KEY\` or \`CLAUDE_CODE_OAUTH_TOKEN\` as a repository secret.
 5. Run \`Agent / Onboarding / Check Setup\` from GitHub Actions.
 `;

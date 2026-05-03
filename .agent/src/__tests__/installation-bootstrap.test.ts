@@ -111,6 +111,7 @@ exit 1
     assert.match(log, /^issue create --title Sepo setup check --body-file .+ --repo self-evolving\/repo$/m);
     assert.match(log, /^issue comment 88 --body <!-- sepo-agent-installation-bootstrap -->/m);
     assert.match(log, /agent-onboarding.yml` was not found/);
+    assert.match(log, /Contents: read/);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
