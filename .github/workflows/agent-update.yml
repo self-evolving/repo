@@ -1,0 +1,148 @@
+name: Agent / Update
+
+on:
+  schedule:
+    # GitHub cron has no native every-14-days interval; run near-biweekly on
+    # the 1st and 15th of each month.
+    - cron: "17 9 1,15 * *"
+  workflow_dispatch:
+    inputs:
+      source_repo:
+        description: "Source Sepo agent repository to update from"
+        required: false
+        default: "self-evolving/repo"
+      source_ref:
+        description: "Source Sepo agent ref to update from"
+        required: false
+        default: "main"
+      update_skills:
+        description: "Also update .skills directories"
+        required: false
+        type: boolean
+        default: false
+      update_agent_md:
+        description: "Also update AGENT.md when it is agent-owned"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  actions: write
+  contents: write
+  issues: write
+  pull-requests: write
+  id-token: write # required for GitHub Actions OIDC broker exchange
+
+concurrency:
+  group: agent-update-${{ github.repository }}
+  cancel-in-progress: false
+
+env:
+  UPDATE_SOURCE_REPO: ${{ inputs.source_repo || 'self-evolving/repo' }}
+  UPDATE_SOURCE_REF: ${{ inputs.source_ref || 'main' }}
+  UPDATE_SKILLS: ${{ inputs.update_skills && 'true' || 'false' }}
+  UPDATE_AGENT_MD: ${{ inputs.update_agent_md && 'true' || 'false' }}
+
+jobs:
+  update:
+    runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ github.token }}
+
+      - name: Resolve scheduled activity gate
+        id: gate
+        uses: ./.github/actions/scheduled-activity-gate
+        with:
+          github_token: ${{ github.token }}
+          schedule_policy: ${{ vars.AGENT_SCHEDULE_POLICY || '' }}
+          workflow: agent-update.yml
+
+      - name: Write skipped summary
+        if: steps.gate.outputs.skip == 'true'
+        run: |
+          printf '%s\n' "Skipped Sepo update check: ${{ steps.gate.outputs.reason }}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Resolve GitHub auth
+        if: steps.gate.outputs.skip != 'true'
+        id: auth
+        uses: ./.github/actions/resolve-github-auth
+        with:
+          app_id: ${{ secrets.AGENT_APP_ID }}
+          app_private_key: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
+          pat: ${{ secrets.AGENT_PAT }}
+          fallback_token: ${{ github.token }}
+
+      - name: Resolve update provider
+        if: steps.gate.outputs.skip != 'true'
+        id: provider
+        uses: ./.github/actions/resolve-agent-provider
+        with:
+          route: update
+          default_provider: ${{ vars.AGENT_DEFAULT_PROVIDER || 'auto' }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+      - name: Setup agent runtime
+        if: steps.gate.outputs.skip != 'true'
+        uses: ./.github/actions/setup-agent-runtime
+        with:
+          install_codex: ${{ steps.provider.outputs.install_codex }}
+          install_claude: ${{ steps.provider.outputs.install_claude }}
+
+      - name: Resolve task timeout
+        if: steps.gate.outputs.skip != 'true'
+        id: task_timeout
+        env:
+          AGENT_TASK_TIMEOUT_POLICY: ${{ vars.AGENT_TASK_TIMEOUT_POLICY || '' }}
+          ROUTE: update
+        run: node .agent/dist/cli/resolve-task-timeout.js
+
+      - name: Run update agent
+        if: steps.gate.outputs.skip != 'true'
+        id: agent
+        timeout-minutes: ${{ fromJson(steps.task_timeout.outputs.minutes || '30') }}
+        uses: ./.github/actions/run-agent-task
+        with:
+          agent: ${{ steps.provider.outputs.provider }}
+          github_token: ${{ steps.auth.outputs.token }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          permission_mode: approve-all
+          skill: update-agent
+          route: update
+          lane: scheduled
+          memory_mode_override: read-only
+          session_policy: track-only
+          request_text: |
+            Run a Sepo agent infrastructure update check for this repository.
+
+            Confirmed inputs:
+            - target repository: ${{ github.repository }}
+            - target default branch: ${{ github.event.repository.default_branch }}
+            - source agent repo/ref: ${{ env.UPDATE_SOURCE_REPO }}@${{ env.UPDATE_SOURCE_REF }}
+            - update branch: use the update-agent skill default
+            - update .skills directories: ${{ env.UPDATE_SKILLS }}
+            - update AGENT.md when agent-owned: ${{ env.UPDATE_AGENT_MD }}
+            - remove obsolete or legacy files: false
+            - post-merge workflows: document only
+
+            Open a pull request only when the update produces changes. If the target
+            is already current, leave no PR and report that no update was needed.
+          requested_by: ${{ github.actor }}
+          source_kind: workflow_dispatch
+          target_kind: repository
+          target_number: "0"
+          target_url: ${{ github.server_url }}/${{ github.repository }}
+          workflow: agent-update.yml
+
+      - name: Write update summary
+        if: always() && steps.agent.outputs.response_file != ''
+        env:
+          BODY_FILE: ${{ steps.agent.outputs.response_file }}
+        run: |
+          if [ -f "$BODY_FILE" ]; then
+            cat "$BODY_FILE" >> "$GITHUB_STEP_SUMMARY"
+          fi

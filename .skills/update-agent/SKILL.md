@@ -23,6 +23,13 @@ Confirm these before editing:
 - whether obsolete/legacy agent files should be removed; default is no
 - whether post-merge workflows should be dispatched by you or only documented
 
+When invoked by Sepo's built-in `/update` route or `agent-update.yml`, treat
+the route/workflow request as that confirmation: the target repository is the
+current checkout, the default source is `self-evolving/repo@main`, optional
+`.skills/` and `AGENT.md` updates default to no, obsolete-file removal defaults
+to no, and post-merge workflows should be documented only unless the request
+explicitly says otherwise.
+
 Stop if the target repo, installed agent scaffold, or source revision is
 ambiguous.
 

@@ -16,6 +16,7 @@ export const ROUTES = new Set([
   "review",
   "orchestrate",
   "create-action",
+  "update",
   "unsupported",
 ]);
 
@@ -28,7 +29,15 @@ export interface DispatchDecision {
   issueBody: string;
 }
 
-const EXPLICIT_ROUTE_COMMANDS = ["answer", "implement", "fix-pr", "review", "orchestrate", "create-action"] as const;
+const EXPLICIT_ROUTE_COMMANDS = [
+  "answer",
+  "implement",
+  "fix-pr",
+  "review",
+  "orchestrate",
+  "create-action",
+  "update",
+] as const;
 const LABEL_ROUTE_PREFIX = "agent/";
 const LABEL_SKILL_PREFIX = "agent/s/";
 const VALID_SKILL_LABEL = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
@@ -150,6 +159,17 @@ export function buildRequestedRouteDecision(route: string, requestText: string):
     };
   }
 
+  if (normalizedRoute === "update") {
+    return {
+      route: "update",
+      needsApproval: false,
+      confidence: "high",
+      summary: "I’ll run the Sepo update workflow for this repository.",
+      issueTitle: "",
+      issueBody: "",
+    };
+  }
+
   if (normalizedRoute === "fix-pr") {
     return {
       route: "fix-pr",
@@ -235,6 +255,9 @@ export function resolveRequestedLabel(labelName: string): RequestedLabelDecision
   }
   if (normalized === "agent/create-action") {
     return { route: "create-action", skill: "" };
+  }
+  if (normalized === "agent/update") {
+    return { route: "update", skill: "update-agent" };
   }
   if (normalized.startsWith(LABEL_SKILL_PREFIX)) {
     const skill = raw.slice(LABEL_SKILL_PREFIX.length).trim().toLowerCase();
@@ -331,6 +354,25 @@ export function applyDispatchPolicy(
     if (!normalized.issueBody) {
       normalized.issueBody = "Create a scheduled GitHub Actions workflow for the requested automation.";
     }
+    return normalized;
+  }
+
+  if (normalized.route === "update") {
+    if (!isExplicit) {
+      return {
+        ...normalized,
+        route: "unsupported",
+        needsApproval: false,
+        summary:
+          "Sepo update checks require an explicit /update request or agent/update label.",
+        issueTitle: "",
+        issueBody: "",
+      };
+    }
+
+    normalized.needsApproval = false;
+    normalized.issueTitle = "";
+    normalized.issueBody = "";
     return normalized;
   }
 

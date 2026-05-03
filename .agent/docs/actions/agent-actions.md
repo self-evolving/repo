@@ -10,6 +10,7 @@ Agent actions are route-level behaviors exposed by the `.agent` backend. They ar
 | Review | `review` | `.github/prompts/review.md` and `.github/prompts/review-synthesize.md` | parallel review jobs plus synthesis in `agent-review.yml` |
 | Orchestrate | `orchestrate` | `.github/prompts/agent-orchestrator.md` | explicit `/orchestrate` or `agent/orchestrate` dispatches `agent-orchestrator.yml`, which selects the next action based on current target state |
 | Create action | `create-action` | `.github/prompts/agent-create-action.md` | implementation PR that adds or updates a standalone scheduled workflow under `.github/workflows/` |
+| Update | `update` | `.skills/update-agent/SKILL.md` | explicit `/update`, `agent/update`, or `agent-update.yml` runs the update skill to open a PR only when installed Sepo infrastructure changes |
 | Skill | `skill` | `.skills/<name>/SKILL.md` | inline skill route through `agent-router.yml` |
 | Dispatch | `dispatch` | `.github/prompts/agent-dispatch.md` | route triage inside `agent-router.yml` |
 
@@ -45,6 +46,13 @@ named `agent-action-<short-slug>.yml`. Generated workflows use native
 `run-agent-task`). GitHub does not expire scheduled workflows automatically, so
 generated scheduled workflows use `.github/actions/check-agent-action-expiration`
 and skip provider setup/agent execution once expired.
+
+The built-in `agent-update.yml` workflow is different from generated
+agent-action workflows: it is part of the default Sepo distribution and runs the
+same `update-agent` skill exposed by `/update`. It uses a repository-scoped
+thread, read-only memory, and `track-only` session policy, then relies on the
+skill to preserve local customizations and create a normal update PR only when
+the target is not already current.
 
 ## Self-documenting pattern
 

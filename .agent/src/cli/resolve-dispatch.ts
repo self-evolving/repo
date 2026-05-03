@@ -53,7 +53,14 @@ function emitDecision(accessPolicy: AccessPolicy): void {
     setOutput("summary", result.summary);
     setOutput("issue_title", result.issueTitle);
     setOutput("issue_body", result.issueBody);
-    setOutput("skill", result.route === "skill" ? requestedSkill : "");
+    setOutput(
+      "skill",
+      result.route === "skill"
+        ? requestedSkill
+        : result.route === "update"
+          ? "update-agent"
+          : "",
+    );
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`Dispatch resolution failed: ${msg}`);

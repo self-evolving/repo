@@ -32,6 +32,7 @@ Use an explicit slash route when you already know the action:
 | Answer | Ask a question, or request plan-only procedure guidance before coding. | `@sepo-agent /answer ...` |
 | Implement | Turn an issue request into a branch and draft PR. | `@sepo-agent /implement ...` |
 | Create action | Propose a standalone scheduled agent workflow through a PR. | `@sepo-agent /create-action ...` |
+| Update | Check installed Sepo infrastructure and open an update PR when needed. | `@sepo-agent /update` |
 | Review | Run the dual-agent PR review flow. | `@sepo-agent /review` |
 | Fix PR | Push fixes to the current PR branch. | `@sepo-agent /fix-pr` |
 | Skill | Run a repository skill from `.skills/<name>/SKILL.md`. | `@sepo-agent /skill <name>` |
@@ -43,6 +44,7 @@ You can also trigger the same built-in routes with labels:
 | `agent/answer` | Answer |
 | `agent/implement` | Implement |
 | `agent/create-action` | Create action |
+| `agent/update` | Update |
 | `agent/review` | Review |
 | `agent/fix-pr` | Fix PR |
 | `agent/s/<name>` | Skill |

@@ -12,6 +12,7 @@
 | `agent-approve.yml` | approval comments | Resolves pending approvals, creates issues when needed, dispatches implementation | None |
 | `agent-orchestrator.yml` | `workflow_dispatch` | Explicit orchestration route that decides whether to dispatch the next action | None in `heuristics` mode; resolved-provider planner in `agent` mode |
 | `agent-implement.yml` | `workflow_dispatch` | Implementation flow: branch, commit, draft PR; supports `base_branch` or `base_pr` for stacked PRs | Auto |
+| `agent-update.yml` | `schedule` (1st and 15th monthly), `workflow_dispatch` | Runs the `update-agent` skill to check installed Sepo infrastructure and open an update PR only when changes are found | Auto |
 | `agent-fix-pr.yml` | `workflow_dispatch`, `workflow_call` | PR fix flow: update existing PR branch, verify, push | Auto |
 | `agent-review.yml` | `workflow_dispatch`, `workflow_call` | Parallel Claude and Codex review with resolved-provider synthesis, plus a separate rubric review comment | Claude + Codex reviewers; configurable synthesis |
 | `agent-branch-cleanup.yml` | `pull_request_target.closed` | Event-driven cleanup of agent-created branches after PR close. Excludes the shared `agent/memory` and `agent/rubrics` branches. | None |
@@ -68,6 +69,14 @@ Implementation dispatches default to the repository default branch. Callers can
 set `base_branch` to stack directly on another branch, or `base_pr` to stack on
 an open same-repository PR head branch. The implementation workflow rejects
 ambiguous input when both are set.
+
+`agent-update.yml` and the explicit `/update` route both run
+`.skills/update-agent/SKILL.md`. The route is policy-checkable as `update` and
+is intentionally explicit-only: implicit dispatch output that asks for `update`
+is rejected with guidance to use `/update` or the `agent/update` label. The
+scheduled workflow runs near-biweekly because GitHub cron has no native
+every-14-days interval, honors `AGENT_SCHEDULE_POLICY=disabled`, and asks the
+skill to open a pull request only when the target repository has update changes.
 
 When a new review synthesis, rubrics review, or orchestrator handoff marker is
 posted, the workflows minimize prior visible matching comments and reviews from
@@ -152,6 +161,7 @@ Explicit routes are:
 - `@sepo-agent /answer`
 - `@sepo-agent /implement`
 - `@sepo-agent /create-action`
+- `@sepo-agent /update`
 - `@sepo-agent /fix-pr`
 - `@sepo-agent /review`
 - `@sepo-agent /orchestrate`
@@ -168,6 +178,7 @@ Applying one of these labels triggers the same downstream routing stack without 
 - `agent/answer`
 - `agent/implement`
 - `agent/create-action`
+- `agent/update`
 - `agent/fix-pr`
 - `agent/review`
 - `agent/orchestrate`

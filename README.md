@@ -1,6 +1,6 @@
 # sepo: self-evolving repository
 
-Mention `@sepo-agent` on a GitHub issue, pull request, or discussion to answer questions, implement issues, review PRs, fix PR branches, or create durable scheduled agent workflows. Sepo runs inside GitHub Actions and keeps working context in repository-owned branches, so collaboration stays in GitHub instead of moving to a separate chat surface.
+Mention `@sepo-agent` on a GitHub issue, pull request, or discussion to answer questions, implement issues, review PRs, fix PR branches, update installed Sepo infrastructure, or create durable scheduled agent workflows. Sepo runs inside GitHub Actions and keeps working context in repository-owned branches, so collaboration stays in GitHub instead of moving to a separate chat surface.
 
 Sepo turns a repository into a **self-evolving repository**: a codebase that can react to user requests, preserve agent-facing memory and user/team rubrics, and improve both application code and its own automation over time. For the concept behind that architecture, see [What is a self-evolving repository?](.agent/docs/overview/what-is-self-evolving-repo.md).
 
@@ -33,6 +33,7 @@ Check [Install into an existing repository](.agent/docs/deployment/install-exist
 
 # Use an explicit slash route when you already know the action
 @sepo-agent /implement implement issue #2
+@sepo-agent /update
 
 # Invoke arbitrary skills
 @sepo-agent /skill <skill-name>
@@ -58,7 +59,7 @@ Use `@sepo-agent /orchestrate` (or `agent/orchestrate`) to run the orchestration
 Sepo persists long-lived context in `agent/memory` and preference rules in `agent/rubrics`, both as repository-owned branches. This lets later runs resume with durable project context and team-specific guidance.
 
 ### Scheduled Jobs
-You can run Sepo on a schedule to handle recurring maintenance, triage, or monitoring tasks without a manual mention. For example, [`agent-daily-summary.yml`](.github/workflows/agent-daily-summary.yml) can publish a daily repository activity summary discussion. Scheduled workflows still route through the same policy and memory layers, so they behave consistently with on-demand runs.
+You can run Sepo on a schedule to handle recurring maintenance, triage, or monitoring tasks without a manual mention. For example, [`agent-update.yml`](.github/workflows/agent-update.yml) checks for Sepo infrastructure updates on the 1st and 15th of each month, and [`agent-daily-summary.yml`](.github/workflows/agent-daily-summary.yml) can publish a daily repository activity summary discussion. Scheduled workflows still route through the same policy and memory layers, so they behave consistently with on-demand runs.
 
 
 ## How It Works
