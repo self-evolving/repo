@@ -5,4 +5,4 @@
 - Public defaults use `@sepo-agent` and the `sepo-agent-app` GitHub App.
 
 ## Open Questions
-- Should run-agent-task expose a default/configurable timeout for all agent route runs?
+- Should Sepo add inner/reportable timeouts in run.ts/runAcpx/acpx-adapter after the GitHub-step timeout first pass?

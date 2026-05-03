@@ -41,3 +41,4 @@
 - Orchestrated implement/fix-pr unsatisfactory results stop visibly; fix-pr hands to review only after success.
 - Sequential sub-orchestrator child work should set base_pr to the prior open child PR unless intentionally independent.
 - Issue-level /orchestrate may hand off directly to implement for small current-issue work; use delegate_issue when a child materially helps.
+- AGENT_TASK_TIMEOUT_POLICY configures per-route outer GitHub Actions timeouts; typed inner timeout reporting remains separate.
