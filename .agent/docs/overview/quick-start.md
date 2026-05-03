@@ -11,11 +11,12 @@
 4. Add at least one model-provider credential as a repository secret:
    - `OPENAI_API_KEY` for Codex-backed runs.
    - `CLAUDE_CODE_OAUTH_TOKEN` for Claude-backed runs.
-5. Open an issue and mention `@sepo-agent` in the issue body or a comment. After a short delay, the workflow should add an eyes reaction and then post a response.
+5. Run `Agent / Onboarding / Check Setup` from GitHub Actions. It creates the built-in `agent/*` trigger labels if they are missing and opens or updates a `Sepo setup check` issue with configuration status and copyable test commands.
+6. Open an issue and mention `@sepo-agent` in the issue body or a comment. After a short delay, the workflow should add an eyes reaction and then post a response.
 
 ## Install into an existing repository
 
-Use [Install into an existing repository](../deployment/install-existing-repository.md) for the minimal non-template flow. It covers copying `.agent/` and `.github/`, configuring secrets, and bootstrapping `agent/memory` from GitHub Actions.
+Use [Install into an existing repository](../deployment/install-existing-repository.md) for the minimal non-template flow. It covers copying `.agent/` and `.github/`, configuring secrets, running the onboarding setup check, and bootstrapping `agent/memory` from GitHub Actions.
 
 ## Trigger Sepo
 
@@ -48,3 +49,5 @@ You can also trigger the same built-in routes with labels:
 | `agent/s/<name>` | Skill |
 
 Only authorized repository users can trigger Sepo. By default, repositories allow `OWNER`, `MEMBER`, `COLLABORATOR`, and `CONTRIBUTOR` associations; public repositories can tighten this with `AGENT_ACCESS_POLICY`. See [Trigger access policy](../access-policy.md) to customize that behavior.
+
+`Agent / Onboarding / Check Setup` creates the built-in labels listed above. Custom skill labels still use the `agent/s/<name>` pattern and can be created as needed.

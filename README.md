@@ -17,11 +17,12 @@ Sepo turns a repository into a **self-evolving repository**: a codebase that can
 3. Add at least one model-provider credential as a repository secret:
    - `OPENAI_API_KEY` for Codex-backed runs.
    - `CLAUDE_CODE_OAUTH_TOKEN` for Claude-backed runs.
-4. Open an issue and mention `@sepo-agent` in the issue body or a comment. After a short delay, the workflow should add an eyes reaction and then post a response.
+4. Run `Agent / Onboarding / Check Setup` from GitHub Actions. It creates the built-in `agent/*` trigger labels if they are missing and opens or updates a `Sepo setup check` issue with configuration status and copyable test commands.
+5. Open an issue and mention `@sepo-agent` in the issue body or a comment. After a short delay, the workflow should add an eyes reaction and then post a response.
 
 ### Install into an existing repository
 
-Check [Install into an existing repository](.agent/docs/deployment/install-existing-repository.md) for the detailed guide. TL;DR: you (or your agent) should copy `.agent/` and `.github/`, configure secrets, and initialize agent memory from GitHub Actions.
+Check [Install into an existing repository](.agent/docs/deployment/install-existing-repository.md) for the detailed guide. TL;DR: you (or your agent) should copy `.agent/` and `.github/`, configure secrets, run the onboarding setup check, and initialize agent memory from GitHub Actions.
 
 ## What You Can Ask It To Do
 
@@ -49,7 +50,7 @@ Check [Install into an existing repository](.agent/docs/deployment/install-exist
 
 ### You can also trigger the same built-in routes by adding `agent/*` labels to PRs
 
-For example, adding the `agent/review` label will run the review agent.
+For example, adding the `agent/review` label will run the review agent. The `Agent / Onboarding / Check Setup` workflow creates the built-in trigger labels on first run.
 
 ### Task Orchestration Route
 Use `@sepo-agent /orchestrate` (or `agent/orchestrate`) to run the orchestration route explicitly. It checks current target state, dispatches the right built-in action (`implement`, `review`, or `fix-pr`), and keeps that explicitly started chain moving through bounded follow-up handoffs until a stop condition is reached. Direct `/implement`, `/review`, and `/fix-pr` requests remain one-shot.
