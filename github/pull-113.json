@@ -1,0 +1,209 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "agent/implement-issue-95/codex-25267543686",
+  "body": "## Summary\n- Parse planner `user_message` and `clarification_request` fields for blocked decisions.\n- Post blocked planner messages as visible terminal clarification comments without treating `answer` as a handoff action.\n- Update orchestrator prompt/docs and focused regression coverage.\n\n## Tests\n- `npm run build`\n- `env -u BASE_BRANCH node --test .agent/dist/__tests__/handoff.test.js .agent/dist/__tests__/orchestrate-handoff-cli.test.js .agent/dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nCloses #105\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDBt_w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `implement` -> `review` (round 3/10).\n\nimplementation succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777776732415 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNjgwMTk1ODM6aW1wbGVtZW50OjEwNTpyZXZpZXc6MTEzOjM -->",
+      "createdAt": "2026-05-03T02:52:12Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/113#issuecomment-4365250047",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDB03Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "The linked issue confirms the intended design: blocked planner output should ask a visible question and pause, not add `answer` as a dispatchable action. I’m mapping that against the selected rubrics now; most applicable checks are workflow shape, docs sync, explicit fields, and stopping visibly without unintended automation.## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Adds separate planner fields `user_message` and `clarification_request` in `.agent/src/handoff.ts` and `.github/prompts/agent-orchestrator.md`, instead of overloading `next_action` or dispatching `answer`. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The patch follows issue #105’s stated design: terminal clarification path, keep `answer` out of orchestrator actions, pause the chain. It also builds on child #95’s terminal stop comment surface. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are limited to orchestrator planner parsing, handoff comment formatting, prompt/docs, and focused regression tests. No unrelated refactors or broad rewrites are present. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Reuses existing `PlannerDecision`, `HandoffDecision`, `decideHandoff`, `createOrchestrateStopComment`, and stop-marker comment flow rather than adding a parallel workflow or new dispatch path. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates `.agent/docs/technical-details/agent-orchestrator.md` and `.github/prompts/agent-orchestrator.md` to document blocked planner clarification behavior and the `answer` non-handoff rule. |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Adds `formatPlannerClarificationComment` / `commentOnPlannerClarificationStop` so blocked planner stops post a visible terminal clarification comment with reason and no-dispatch status. |\n| coding_workflow / specific | Default follow-up orchestration to one-shot | pass | 8/8 | The prompt explicitly says not to use `answer` as `next_action`; the CLI test asserts no workflow dispatch and `dispatchPayload` remains `null` for blocked clarification. |\n\n## Notes\n\n- The strongest rubric alignment is that the implementation chooses a visible terminal clarification comment instead of expanding the orchestrator action set. That matches the linked issue’s design and avoids creating a broader delegated route surface.\n- The regression coverage is focused on the changed contract: parsing planner fields, carrying them through `decideHandoff`, and verifying the CLI posts the clarification while dispatching no follow-up workflow.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings. The selected applicable rubrics are satisfied by the PR diff and linked issue context.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-03T02:53:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/113#issuecomment-4365251805",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDCqPg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #113 addresses #105 by letting the orchestrator surface planner clarification prompts when automation is blocked.\n- It adds explicit `user_message` and `clarification_request` fields, keeps `answer` out of the dispatchable action set, and posts a visible terminal stop comment instead of silently stopping.\n- The implementation updates the prompt, technical docs, handoff parsing, stop-comment formatting, and focused tests.\n- This fits the broader orchestrator plan: ask the user for missing context, pause, and let the user explicitly resume.\n\n## Review\nThe reviewers mostly agree the design and implementation are correct. One reviewer found a focused regression-test gap for the fallback path where a blocked planner response omits both user-facing message fields.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Missing fallback test for blocked planner responses without message fields | WARNING | The new golden-path test covers `blocked` with both clarification fields, but not `blocked` with only a `reason`. That fallback should still post the generic stop comment and avoid dispatching a workflow. |\n\n## Progress\n- Rubrics review passed with no rubric-specific findings.\n- One code review found no blocking, warning, or info findings.\n- A single inline comment was posted on `.agent/src/__tests__/orchestrate-handoff-cli.test.ts` line 848 for the missing fallback coverage.\n- The repeated formatter-call concern from one reviewer is informational only and does not require branch work.\n\n## Issue Details\n\n<details>\n<summary>Missing fallback test for blocked planner responses without message fields</summary>\n\n**Cause:** `formatPlannerClarificationComment()` returns `null` when the planner decision is `blocked` but both `userMessage` and `clarificationRequest` are empty. The current behavior appears correct because the generic orchestrator stop comment should still be posted, but this fallback is not covered by the new tests.\n\n**Candidate solutions:** Add an adjacent CLI regression test where `FAKE_PLANNER_RESPONSE` is `{\"decision\":\"blocked\",\"reason\":\"Context missing.\"}`. Assert that the generic `Sepo orchestration stopped after` comment posts, the clarification comment does not post, and no workflow dispatch occurs.\n\n**Comments:** Reviewers did not disagree on behavior. The disagreement is only priority: two reviews found the PR shippable as-is, while one reviewer recommended locking down this fallback before merge.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: The only unresolved finding is a small, concrete regression test that is safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Add regression coverage for `blocked` planner responses that omit `user_message` and `clarification_request`, asserting the generic stop comment still posts and no workflow dispatch occurs.",
+      "createdAt": "2026-05-03T03:03:17Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/113#issuecomment-4365265470",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDCrvQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `review` -> `fix-pr` (round 4/10).\n\nreview verdict is minor_issues; dispatching fix-pr\n\n<!-- sepo-agent-handoff state:dispatched created:1777777409814 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNjgxNTc0NTA6cmV2aWV3OjExMzpmaXhfcHI6MTEzOjQ -->",
+      "createdAt": "2026-05-03T03:03:30Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/113#issuecomment-4365265853",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDC91Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-105/codex-25268019583`. Requested by @sepo-agent.\n\n- Added regression coverage for blocked planner responses without `user_message` or `clarification_request`, asserting the generic stop comment posts and no workflow dispatch occurs.\n- Verified with `npm run build`, focused handoff/envelope tests, and `git diff --check`.",
+      "createdAt": "2026-05-03T03:06:31Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/113#issuecomment-4365270485",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDC-6Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `fix-pr` -> `review` (round 5/10).\n\nPR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777777603586 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNjgzNDc4MTQ6Zml4X3ByOjExMzpyZXZpZXc6MTEzOjU -->",
+      "createdAt": "2026-05-03T03:06:43Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/113#issuecomment-4365270761",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDDGzA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The planner contract adds separate `user_message` and `clarification_request` fields in [`handoff.ts`](https://github.com/self-evolving/repo/blob/da15c596e88ac189b84c0fc78d37e5c4e4b5a53b/.agent/src/handoff.ts) and the orchestrator prompt, rather than overloading `next_action` or encoding clarification in a command string. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The PR follows issue #105’s accepted design: use `blocked` plus user-facing clarification fields, keep `answer` out of the orchestrator action set, and pause. It also builds on child #95’s terminal stop comment surface. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is limited to planner parsing, handoff stop-comment formatting, focused tests, and docs/prompt updates across seven files. No unrelated refactor or broad cleanup is present. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The implementation extends existing `PlannerDecision`, `HandoffDecision`, `decideHandoff`, `createOrchestrateStopComment`, and orchestrate stop marker flow instead of adding a parallel workflow or new dispatch path. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates [`agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/da15c596e88ac189b84c0fc78d37e5c4e4b5a53b/.agent/docs/technical-details/agent-orchestrator.md) and [`agent-orchestrator.md` prompt](https://github.com/self-evolving/repo/blob/da15c596e88ac189b84c0fc78d37e5c4e4b5a53b/.github/prompts/agent-orchestrator.md) to document blocked clarification behavior and the `answer` non-handoff rule. |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/da15c596e88ac189b84c0fc78d37e5c4e4b5a53b/.agent/src/cli/orchestrate-handoff.ts) now formats blocked planner decisions as visible terminal clarification comments with reason, round, target, and no-dispatch status. |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | The prompt explicitly says not to use `answer` as `next_action`, avoiding expansion of delegated orchestrator routes beyond the existing authorized action set. Dispatch remains limited to existing validated handoff paths. |\n| coding_workflow / specific | Default follow-up orchestration to one-shot | pass | 8/8 | Tests assert blocked clarification stops do not dispatch a workflow and leave `dispatchPayload` as `null`; the follow-up fix added coverage for blocked planner responses without message fields falling back to a generic stop comment. |\n\n## Notes\n\n- The PR aligns well with the selected rubrics because it solves the UX gap with a terminal clarification stop, not by broadening the orchestrator into an `answer` dispatcher.\n- The current head includes the follow-up regression test requested by prior review: blocked planner output with only `reason` posts the generic stop comment and dispatches no workflow.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings. The selected applicable rubrics are satisfied by the current PR diff, linked issue context, docs updates, and focused regression coverage.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-03T03:08:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/113#issuecomment-4365272780",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDDj7g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #113 implements issue #105 by letting the orchestrator ask for missing user context through blocked planner decisions.\n- It adds explicit `user_message` and `clarification_request` fields, surfaces them in a visible terminal stop comment, and keeps `answer` out of the dispatchable handoff action set.\n- This fits the broader #104 stacked orchestrator UX plan and builds on #112’s parent terminal stop-comment surface.\n- The PR also updates prompt/docs and adds focused regression coverage for clarification and generic fallback stop behavior.\n\n## Review\nThe reviewers agree the current head is ready to ship. The prior warning about missing fallback coverage was addressed, and the remaining reviewer notes are optional INFO-level observations that do not require branch work.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | Codex, Claude, and the rubrics review found no unresolved required changes after the follow-up fix added the missing blocked-without-message fallback coverage. |\n\n## Progress\n- Earlier synthesis identified missing fallback coverage for blocked planner responses without message fields.\n- Fix-pr added the fallback test asserting the generic stop comment posts and no workflow dispatch occurs.\n- Rubrics review passed 100/100 across the applicable workflow and coding rubrics.\n- No new inline comments were posted; the only prior inline test-gap comment is already addressed on the current PR head.\n- Optional notes about repeated pure formatter calls and an additional parser-unit test were treated as non-blocking and left out of automation action items.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved actionable branch work remains, so the PR is ready for human merge review.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-03T03:13:13Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/113#issuecomment-4365280238",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-03T02:51:56Z",
+  "files": [
+    {
+      "path": ".agent/docs/technical-details/agent-orchestrator.md",
+      "additions": 4,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/handoff.test.ts",
+      "additions": 31,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrate-handoff-cli.test.ts",
+      "additions": 66,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrate-handoff.ts",
+      "additions": 67,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/handoff.ts",
+      "additions": 14,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-orchestrator.md",
+      "additions": 6,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-105/codex-25268019583",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 113,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM77SBTG",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-03T03:02:52Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "6ee00c6ae786927785a75050b8b42d62c9166a84"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Surface orchestrator clarification prompts",
+  "updatedAt": "2026-05-03T03:13:13Z",
+  "url": "https://github.com/self-evolving/repo/pull/113"
+}

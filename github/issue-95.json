@@ -1,0 +1,101 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "Example: https://github.com/self-evolving/repo/issues/83#issuecomment-4364710458 \n\nWhen the task is completed the orchestrate agent doesn't post a final comment; this is not ideal from a ux perspective.\n\n@sepo-agent /answer",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCqnVw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I agree this is a real UX gap. The current flow reports child completion, then can silently stop on the parent when the planner decides there is no next child/action.\n\nRelevant code paths:\n\n- [`agent-orchestrator.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-orchestrator.yml#L82-L196) runs the planner, then calls `orchestrate-handoff`.\n- [`reportTerminalToParent`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L681-L756) posts the child completion comment and re-dispatches the parent orchestrator.\n- When the parent later stops, the non-dispatch path only comments for initial `/orchestrate` stops, unsatisfactory `implement`/`fix-pr` stops, and child terminal reports: [`orchestrate-handoff.ts#L924-L929`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L924-L929). It does not post a final parent-level terminal comment for `source_action=orchestrate`.\n- Planner stop/block decisions are normalized in [`handoff.ts#L349-L360`](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L349-L360).\n\nProposed fix:\n\n1. Add a parent-terminal stop comment path in `orchestrate-handoff.ts` for meta-orchestrator runs, e.g. `source_action=orchestrate`, `target_kind=issue`, `automation_mode=agent`, and a non-dispatch decision after the initial start.\n2. Reuse `createOrchestrateStopComment`, but improve the `orchestrate` stop format so it includes source conclusion, target, round, and reason instead of only `Sepo orchestration stopped: ...`.\n3. Add a small dedupe guard using the existing `<!-- sepo-agent-orchestrate-stop -->` marker, so reruns do not spam identical final comments.\n4. Add tests in [`orchestrate-handoff-cli.test.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/orchestrate-handoff-cli.test.ts), covering:\n   - parent meta-orchestrator stop after child result posts a final comment on the parent issue;\n   - no follow-up workflow is dispatched;\n   - existing initial-stop and child-terminal-report behavior remains unchanged.\n5. Update orchestrator docs, likely [`agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/technical-details/agent-orchestrator.md), to state that terminal parent orchestration stops are visible on the parent issue.\n\nPlease approve this plan before coding; I would implement it via `/implement`.",
+      "createdAt": "2026-05-02T22:37:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/95#issuecomment-4364871511",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBC-ZUw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo adopted this issue as a sub-orchestrator child of #104.\n\nStage: parent-terminal-stop-comment\nParent round: 3\n\n<!-- sepo-sub-orchestrator parent:104 stage:parent-terminal-stop-comment state:done parent_round:3 -->\n<!-- sepo-sub-orchestrator-adoption -->",
+      "createdAt": "2026-05-03T02:16:09Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/95#issuecomment-4365195603",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBC-Zqw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `orchestrate` -> `delegate_issue` (round 3/10).\n\nagent planner selected child issue delegation: Continue the issue #104 sequential child plan. Child #90 finished with SHIP and open PR #108; #95 is the next concrete UX fix and should stack on #108 because it touches the same orchestrator comment surface.\n\n<!-- sepo-agent-handoff state:dispatched created:1777774570701 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNjc0MjkwMjM6b3JjaGVzdHJhdGU6MTA0OmRlbGVnYXRlX2lzc3VlOjk1OjM -->",
+      "createdAt": "2026-05-03T02:16:11Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/95#issuecomment-4365195691",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBC-bfg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `orchestrate` -> `implement` (round 2/10).\n\nmanual orchestrate start on issue; dispatching implement\n\n<!-- sepo-agent-handoff state:dispatched created:1777774583671 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNjc0MjkwMjM6b3JjaGVzdHJhdGU6OTU6aW1wbGVtZW50Ojk1OjI -->",
+      "createdAt": "2026-05-03T02:16:23Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/95#issuecomment-4365196158",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBC_OOA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-95/codex-25267543686`\n- Pull request: https://github.com/self-evolving/repo/pull/112\n\nAdded a parent meta-orchestrator terminal stop comment path with structured stop details and trusted exact-match dedupe, updated focused handoff tests and orchestrator docs, and verified with `npm run build`, the focused compiled handoff test, and `git diff --check`.",
+      "createdAt": "2026-05-03T02:22:14Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/95#issuecomment-4365209144",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-02T22:35:52Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 95,
+  "state": "OPEN",
+  "title": "Orchestrator no terminal prompt",
+  "updatedAt": "2026-05-03T02:43:05Z",
+  "url": "https://github.com/self-evolving/repo/issues/95"
+}

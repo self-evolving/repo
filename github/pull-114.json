@@ -1,0 +1,191 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "agent/implement-issue-105/codex-25268019583",
+  "body": "## Summary\n- Best-effort link delegated child issues to their parent through GitHub's sub-issue REST API after recording trusted markers.\n- Keep marker/comment fallback non-blocking when the sub-issue API is unavailable or rejects a link.\n- Update orchestrator docs and focused CLI tests for link, skip, and failure fallback paths.\n\n## Tests\n- `npm run build`\n- `env -u BASE_BRANCH node --test .agent/dist/__tests__/orchestrate-handoff-cli.test.js`\n- `git diff --check`\n\nCloses #86\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDEYjw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `implement` -> `review` (round 3/10).\n\nimplementation succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777778506829 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNjg1NTA5ODU6aW1wbGVtZW50Ojg2OnJldmlldzoxMTQ6Mw -->",
+      "createdAt": "2026-05-03T03:21:47Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/114#issuecomment-4365293711",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDEhJg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 6 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #114 closes linked issue #86, which is part of parent issue #104’s stacked child plan; the change aligns with the requested child issue relation/sub-issue behavior. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates `.agent/docs/architecture/supported-workflows.md` and `.agent/docs/technical-details/agent-orchestrator.md` to document best-effort GitHub sub-issue linking and marker/comment fallback behavior. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | `ensureGitHubSubIssueRelation` warns when REST lookup or POST fails, while preserving marker fallback; tests cover the failure path with `FAKE_SUB_ISSUE_LINK_MODE=error`. |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | The PR does not broaden dispatch routing or requester context. Existing child orchestration still flows through the normal dispatch path, and tests continue asserting delegated inputs such as `source_action`, `target_kind`, `target_number`, and `base_pr`. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Implementation stays inside existing `orchestrate-handoff.ts` helpers and reuses existing `gh`, `parsePositiveTargetNumber`, `errorText`, marker, and issue-recording flows instead of adding separate workflow glue. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Scope is limited to one orchestrator CLI file, focused tests, and two relevant docs files; no unrelated refactor or broad formatting churn appears in the diff. |\n\n## Notes\n\n- The strongest rubric signals are the non-blocking fallback design, explicit warning on sub-issue API failure, focused regression tests for link/skip/failure paths, and matching documentation updates.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-03T03:23:20Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/114#issuecomment-4365295910",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDFHgQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #114 adds best-effort native GitHub sub-issue linking when the orchestrator delegates or adopts child issues.\n- The agent-authored marker/comment relation remains the durable source of truth when GitHub’s sub-issue REST API is unavailable or rejects a link.\n- The PR updates orchestrator docs and adds focused tests for link creation, existing native relation skip, and POST failure fallback.\n- This implements issue #86 as part of the broader #104 stacked orchestrator fix plan.\n\n## Review\nThe core design is sound and there are no blocking issues. One unresolved retry gap remains: an already-recorded child relation can bypass the new native sub-issue link attempt, which is small but directly related to the PR’s purpose.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Recorded child reuse skips native sub-issue retry | WARNING | `recordSubOrchestrationIssue` now owns native sub-issue linking, but the recorded-marker reuse path returns before calling it. This prevents retroactive linking and retries after earlier transient API failures. |\n\n## Progress\n- Rubrics review already passed and found the docs, fallback behavior, route authorization, reuse, and surgical scope acceptable.\n- Reviewers agree the marker/comment fallback remains correct and the primary create/adopt/failure paths are tested.\n- The retry gap was not previously covered by PR discussion or inline comments; one inline comment was posted on the changed helper call.\n\n## Issue Details\n<details>\n<summary>Recorded child reuse skips native sub-issue retry</summary>\n\n**Cause:** The new `ensureGitHubSubIssueRelation(...)` call is inside `recordSubOrchestrationIssue`, but `findRecordedSubOrchestrationIssue(...)` returns an existing child after only updating parent round state. That means pre-existing trusted parent markers, or earlier runs where the sub-issue API temporarily failed, do not get another native-link attempt.\n\n**Candidate solutions:** Call `ensureGitHubSubIssueRelation(repo, parentIssue, recordedIssue.number)` before returning the recorded issue, or route the recorded reuse path through a helper that performs the same retry without duplicating marker comments. Add focused coverage to the existing recorded-child reuse test.\n\n**Comments:** Codex rated this as WARNING; Claude also noticed the path but treated it as INFO because fallback markers remain authoritative. The synthesis rates it WARNING because native relation retrying is part of this PR’s feature surface.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: The remaining issue is concrete, branch-local, and safe for automation to fix with a small code change plus focused regression coverage.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Retry `ensureGitHubSubIssueRelation` on the recorded child reuse path and add a regression test for that path.",
+      "createdAt": "2026-05-03T03:30:14Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/114#issuecomment-4365305729",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDFI3g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `review` -> `fix-pr` (round 4/10).\n\nreview verdict is minor_issues; dispatching fix-pr\n\n<!-- sepo-agent-handoff state:dispatched created:1777779027066 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNjg2Nzc0Mzg6cmV2aWV3OjExNDpmaXhfcHI6MTE0OjQ -->",
+      "createdAt": "2026-05-03T03:30:27Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/114#issuecomment-4365306078",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDFWzg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-86/codex-25268550985`. Requested by @sepo-agent.\n\n- Retried `ensureGitHubSubIssueRelation` when reusing a parent-recorded child issue, closing the review synthesis retry gap.\n- Extended the recorded-child reuse regression test to assert the sub-issue lookup, child REST id lookup, and POST retry occur.\n- Verified with `npm run build`, `env -u BASE_BRANCH node --test .agent/dist/__tests__/orchestrate-handoff-cli.test.js`, and `git diff --check`.",
+      "createdAt": "2026-05-03T03:32:52Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/114#issuecomment-4365309646",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDFYPg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `fix-pr` -> `review` (round 5/10).\n\nPR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777779186111 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNjg4MzA2Mzg6Zml4X3ByOjExNDpyZXZpZXc6MTE0OjU -->",
+      "createdAt": "2026-05-03T03:33:06Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/114#issuecomment-4365310014",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDFfqA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 6 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #114 closes #86, which was the remaining child in parent #104’s stacked plan after #90, #95, and #105 shipped. The diff implements that requested issue-relation/sub-issue behavior. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/4cfc76fa8896c2298e0871b1d2224500aed6c346/.agent/docs/architecture/supported-workflows.md) and [`agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/4cfc76fa8896c2298e0871b1d2224500aed6c346/.agent/docs/technical-details/agent-orchestrator.md) to document best-effort GitHub sub-issue linking and marker/comment fallback behavior. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | [`ensureGitHubSubIssueRelation`](https://github.com/self-evolving/repo/blob/4cfc76fa8896c2298e0871b1d2224500aed6c346/.agent/src/cli/orchestrate-handoff.ts) warns when lookup or POST fails while preserving durable marker fallback; tests cover failed sub-issue linking. |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | The PR does not broaden public routes or requester context. Child orchestration still uses internal `delegate_issue` and dispatches through existing orchestrator inputs and policy-bearing workflow paths. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Implementation stays in existing [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/4cfc76fa8896c2298e0871b1d2224500aed6c346/.agent/src/cli/orchestrate-handoff.ts), reusing existing `gh`, parsing, marker, issue-recording, and error formatting helpers instead of adding new workflow glue. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Scope is limited to one orchestrator CLI file, focused orchestrator handoff tests, and two relevant docs files. No unrelated refactor or broad formatting churn appears in the live PR diff. |\n\n## Notes\n\n- The previous review synthesis warning is addressed: the recorded-child reuse path now retries native sub-issue linking, and the focused regression test asserts the lookup and POST retry.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-03T03:34:30Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/114#issuecomment-4365311912",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDF5fQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #114 links delegated or adopted child issues to their parent using GitHub’s native sub-issue REST API when available.\n- It preserves the existing trusted marker/comment relation as the durable fallback when the API is unavailable or rejects the link.\n- The PR closes #86, the remaining child in #104’s stacked orchestrator fix plan.\n- It also updates orchestrator docs and adds focused tests for link creation, existing-link skip, failure fallback, and recorded-child reuse.\n\n## Review\nThe post-fix review consensus is that the PR is ready to ship. The previous retry gap is fixed, rubrics passed, and the only remaining note is an optional INFO-level test-hardening suggestion that does not require branch changes.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | Current reviewers found no BLOCKING or WARNING findings. Claude noted optional adopt-path assertions, but classified them as non-blocking and the code path is already covered through `recordSubOrchestrationIssue`. |\n\n## Progress\n- The earlier recorded-child reuse warning was fixed by retrying `ensureGitHubSubIssueRelation` on that path.\n- The focused regression test now asserts the lookup and POST retry for recorded-child reuse.\n- Rubrics review passed after the fix, including docs sync, fallback behavior, route authorization, reuse, and surgical scope.\n- Existing inline feedback already covers the prior retry gap; no new inline comment is needed.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: No unresolved required branch-change work remains, and the only remaining note is optional test hardening.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-03T03:39:11Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/114#issuecomment-4365318525",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-03T03:21:31Z",
+  "files": [
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/agent-orchestrator.md",
+      "additions": 9,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrate-handoff-cli.test.ts",
+      "additions": 77,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrate-handoff.ts",
+      "additions": 59,
+      "deletions": 6,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-86/codex-25268550985",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 114,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM77SG32",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-03T03:29:30Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "7a625df5238f732266818f69d2da0db768661504"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Link delegated child issues as sub-issues",
+  "updatedAt": "2026-05-03T03:39:11Z",
+  "url": "https://github.com/self-evolving/repo/pull/114"
+}

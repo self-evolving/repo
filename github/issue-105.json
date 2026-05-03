@@ -1,0 +1,123 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBC70dw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\nWhat do you think?",
+      "createdAt": "2026-05-03T01:49:19Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/105#issuecomment-4365153399",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBC7-3A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I think yes, but I would not model it as another normal `next_action` beside `implement | review | fix-pr`.\n\nToday the orchestrator’s action set is deliberately limited: [`AgentAction`](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L3) and delegated capabilities only include `implement`, `review`, and `fix-pr` ([capabilities](https://github.com/self-evolving/repo/blob/main/.agent/src/orchestrator-capabilities.ts#L8-L12)). The top-level `/answer` route already exists in the router and posts inline responses ([router answer job](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L270-L365)), but the orchestrator currently only dispatches implementation/review/fix workflows or child orchestration ([handoff dispatch](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L1060-L1109)).\n\nMy recommendation: add a **terminal clarification path** to the orchestrator, not an automated handoff loop through `answer`.\n\nConcretely:\n- Extend planner output with something like `decision: \"blocked\"` plus `user_message` / `clarification_request`.\n- Teach `orchestrate-handoff` to post that message as the visible stop comment instead of the current generic `Sepo orchestration stopped: ...`.\n- Keep `answer` out of `AgentAction` unless we also create a real reusable `agent-answer.yml` workflow, because right now answer is a router job, not a dispatchable orchestrator action.\n- Keep the chain paused after asking. The user can reply with `/answer`, `/orchestrate`, or `/implement` once they provide the missing context.\n\nThat gives the behavior we want: the orchestrator can ask focused questions when it cannot proceed safely, without pretending that “answer” is another autonomous execution step.",
+      "createdAt": "2026-05-03T01:51:16Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/105#issuecomment-4365156060",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDBE5w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo adopted this issue as a sub-orchestrator child of #104.\n\nStage: terminal-clarification-message\nParent round: 4\n\n<!-- sepo-sub-orchestrator parent:104 stage:terminal-clarification-message state:done parent_round:4 -->\n<!-- sepo-sub-orchestrator-adoption -->",
+      "createdAt": "2026-05-03T02:44:19Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/105#issuecomment-4365239527",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDBFEw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `orchestrate` -> `delegate_issue` (round 4/10).\n\nagent planner selected child issue delegation: Continue the issue #104 sequential child plan. Child #95 finished with SHIP and open PR #112 stacked on #108; #105 is the next concrete orchestrator UX fix and should stack on #112 because it extends the parent stop/blocked comment surface added by #95. Issue #86 is broader and less specified, so leave it for after the clarification/terminal-message path is in place.\n\n<!-- sepo-agent-handoff state:dispatched created:1777776261656 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNjc4NzE2ODc6b3JjaGVzdHJhdGU6MTA0OmRlbGVnYXRlX2lzc3VlOjEwNTo0 -->",
+      "createdAt": "2026-05-03T02:44:21Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/105#issuecomment-4365239571",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDBGBA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `orchestrate` -> `implement` (round 2/10).\n\nmanual orchestrate start on issue; dispatching implement\n\n<!-- sepo-agent-handoff state:dispatched created:1777776273339 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNjc4NzE2ODc6b3JjaGVzdHJhdGU6MTA1OmltcGxlbWVudDoxMDU6Mg -->",
+      "createdAt": "2026-05-03T02:44:33Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/105#issuecomment-4365239812",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDBtCg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-105/codex-25268019583`\n- Pull request: https://github.com/self-evolving/repo/pull/113\n\nAdded planner clarification fields for blocked orchestrator decisions, surfaced them as visible terminal stop comments without dispatching `answer`, updated prompt/docs, and verified with `npm run build`, focused node tests, and `git diff --check`.",
+      "createdAt": "2026-05-03T02:52:00Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/105#issuecomment-4365249802",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-03T01:49:01Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 105,
+  "state": "OPEN",
+  "title": "Orchestrator should also include an \"answer\" route -> such that it can ask users for feedback and clarification?",
+  "updatedAt": "2026-05-03T03:13:29Z",
+  "url": "https://github.com/self-evolving/repo/issues/105"
+}

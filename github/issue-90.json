@@ -1,0 +1,175 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "https://github.com/self-evolving/repo/issues/83#issuecomment-4364641926\n\nhttps://github.com/self-evolving/repo/issues/83#issuecomment-4364664576\n\nIt's a bit too dry and not informative to users -> they are kinda like \"logs\" \n\n@sepo-agent /answer any thoughts?",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCeQ7g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, I agree. The current comments are technically useful but read like workflow logs:\n\n- Selection comment is built in [`.agent/src/cli/orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts): `Sub-orchestrator child selected...`\n- Terminal progress comment is also built there: `Result`, `Parent round`, `Next: waiting for meta orchestrator`\n- Machine state is already separated into hidden markers in [`.agent/src/sub-orchestration.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/sub-orchestration.ts), so we can improve the visible copy without breaking recovery/dedupe.\n\nI’d keep the hidden HTML markers exactly as-is, but make the visible comments more user-facing. For example:\n\n```md\nSepo is splitting this orchestration into a focused child task.\n\nChild task: #84\nFocus: fix resumed fix-pr handoff context\n\nI’ll let the child issue run through the normal implement/review/fix loop, then report back here before choosing the next parent step.\n\n<!-- sepo-sub-orchestrator-child ... -->\n```\n\nAnd terminal report:\n\n```md\nChild task #84 finished.\n\nOutcome: ready to ship\nPR: #89\nWhat happened: review verdict is SHIP\n\nI’m resuming the parent orchestration now to decide whether another child task is needed.\n\n<!-- sepo-sub-orchestrator-report ... -->\n```\n\nImplementation plan:\n\n1. Add small formatter helpers in [`.agent/src/cli/orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts) for child selection, adoption, and terminal report comments.\n2. Keep markers from [`.agent/src/sub-orchestration.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/sub-orchestration.ts) unchanged and still present at the end of each comment.\n3. Update expectations in [`.agent/src/__tests__/orchestrate-handoff-cli.test.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/orchestrate-handoff-cli.test.ts), especially tests around child selection, adoption comments, and terminal child reports.\n4. Optionally update [`.agent/docs/technical-details/agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/technical-details/agent-orchestrator.md) to document that visible parent comments are user-facing status updates while hidden markers remain the durable state.\n\nI’d treat this as a copy/formatting improvement only, not a behavior change. If approved, I can implement it in a small PR.",
+      "createdAt": "2026-05-02T20:34:49Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/90#issuecomment-4364669166",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCh-Rw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \nCan we create a simple tabular format? ",
+      "createdAt": "2026-05-02T21:11:22Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/90#issuecomment-4364729927",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCiElQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, a simple table is probably the right shape here. It keeps the status scannable without making the comment feel like raw logs.\n\nFor the child-selection comment, I’d use:\n\n```md\nSepo is starting a focused child task for this orchestration.\n\n| Field | Value |\n| --- | --- |\n| Child task | #84 |\n| Focus | fix resumed fix-pr handoff context |\n| Parent issue | #83 |\n| Status | Running |\n\nI’ll report back here when the child task finishes.\n\n<!-- sepo-sub-orchestrator-child ... -->\n```\n\nFor the completion report:\n\n```md\nChild task completed.\n\n| Field | Value |\n| --- | --- |\n| Child task | #84 |\n| PR | #89 |\n| Outcome | Ready to ship |\n| Parent round | 2 / 10 |\n| Summary | Review verdict is SHIP |\n| Next step | Resuming parent orchestration |\n\n<!-- sepo-sub-orchestrator-report ... -->\n```\n\nI’d keep the hidden marker comments unchanged so the existing parsing/recovery logic in [`.agent/src/sub-orchestration.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/sub-orchestration.ts) keeps working. The visible formatting change should live in [`.agent/src/cli/orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts), where the current parent progress comments are assembled.\n\nSuggested implementation:\n\n1. Add formatter helpers for parent child-selection and child-completion comments.\n2. Render user-facing fields as Markdown tables.\n3. Keep hidden markers at the bottom of each comment.\n4. Update [`.agent/src/__tests__/orchestrate-handoff-cli.test.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/orchestrate-handoff-cli.test.ts) to assert the table rows plus unchanged markers.\n\nSo yes: table for the visible status, hidden marker for state. That gives users a clearer “what happened / what’s next” view without weakening orchestration state handling.",
+      "createdAt": "2026-05-02T21:12:19Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/90#issuecomment-4364731541",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBC74wA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\n| Field | Value |\n| --- | --- |\n| Child task | #84 |\n| Focus | fix resumed fix-pr handoff context |\n| Parent issue | #83 |\n| Status | Running |\n\nCan we transpose the table such that it will just have two rows (to reduce the vertical space taken) ",
+      "createdAt": "2026-05-03T01:50:09Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/90#issuecomment-4365154496",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBC79dw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes. A transposed table is better for compact status comments.\n\nExample:\n\n```md\nSepo is starting a focused child task for this orchestration.\n\n| Child task | Focus | Parent issue | Status |\n| --- | --- | --- | --- |\n| #84 | fix resumed fix-pr handoff context | #83 | Running |\n\nI’ll report back here when the child task finishes.\n\n<!-- sepo-sub-orchestrator-child ... -->\n```\n\nAnd for completion:\n\n```md\nChild task completed.\n\n| Child task | PR | Outcome | Parent round | Next step |\n| --- | --- | --- | --- | --- |\n| #84 | #89 | Ready to ship | 2 / 10 | Resuming parent orchestration |\n\nSummary: review verdict is SHIP\n\n<!-- sepo-sub-orchestrator-report ... -->\n```\n\nI’d use the transposed format for short, stable fields and keep longer text like `Summary` outside the table. That avoids wide, hard-to-read rows when the planner reason is verbose.",
+      "createdAt": "2026-05-03T01:51:01Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/90#issuecomment-4365155703",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBC8Fag",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo adopted this issue as a sub-orchestrator child of #104.\n\nStage: format-sub-orchestrator-comments\nParent round: 2\n\n<!-- sepo-sub-orchestrator parent:104 stage:format-sub-orchestrator-comments state:done parent_round:2 -->\n<!-- sepo-sub-orchestrator-adoption -->",
+      "createdAt": "2026-05-03T01:52:33Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/90#issuecomment-4365157738",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBC8FnA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `orchestrate` -> `delegate_issue` (round 2/10).\n\nagent planner selected child issue delegation: Issue #104 is a meta orchestration request over existing issues. Start with #90 because compact user-facing sub-orchestrator status formatting improves the parent/child comments that the later tasks (#95, #105, and possibly #86) build on; later children should stack on the prior open PR.\n\n<!-- sepo-agent-handoff state:dispatched created:1777773155338 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNjcwNzk4MjY6b3JjaGVzdHJhdGU6MTA0OmRlbGVnYXRlX2lzc3VlOjkwOjI -->",
+      "createdAt": "2026-05-03T01:52:35Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/90#issuecomment-4365157788",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBC8Gqw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `orchestrate` -> `implement` (round 2/10).\n\nmanual orchestrate start on issue; dispatching implement\n\n<!-- sepo-agent-handoff state:dispatched created:1777773167989 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNjcwNzk4MjY6b3JjaGVzdHJhdGU6OTA6aW1wbGVtZW50OjkwOjI -->",
+      "createdAt": "2026-05-03T01:52:48Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/90#issuecomment-4365158059",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBC8lMg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-90/codex-25267116262`\n- Pull request: https://github.com/self-evolving/repo/pull/108\n\nUpdated sub-orchestrator child selection, adoption, and completion comments to use compact transposed Markdown tables while preserving hidden markers for recovery/dedupe, and documented the visible comment contract. Verified with `npm run build`, `env -u BASE_BRANCH node --test dist/__tests__/orchestrate-handoff-cli.test.js`, and `git diff --check`.",
+      "createdAt": "2026-05-03T01:58:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/90#issuecomment-4365165874",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-02T20:33:16Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 90,
+  "state": "OPEN",
+  "title": "Better formatting the sub-orchestrator communication",
+  "updatedAt": "2026-05-03T02:14:48Z",
+  "url": "https://github.com/self-evolving/repo/issues/90"
+}

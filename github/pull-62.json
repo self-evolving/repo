@@ -126,6 +126,154 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/62#issuecomment-4350371082",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBC8pIA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \r\n\r\n1. What are the updates that will be posted on the first issue? \r\n2. Second, that doesn't need any API access right? \r\n3. Further, is there specific instruction for users to conduct certain tasks or asks after the setup? \r\n ",
+      "createdAt": "2026-05-03T01:59:29Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/62#issuecomment-4365166880",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBC8zYA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Based on PR #62:\n\n1. The first issue will be titled `Sepo setup check`. It includes copyable test prompts for:\n   - `@sepo-agent /answer Is Sepo configured correctly in this repository?`\n   - `@sepo-agent /implement Create a small README update that verifies the agent can open a PR.`\n   - `@sepo-agent /review`\n\n   The workflow then posts or updates one checklist comment with:\n   - GitHub auth status\n   - agent provider status\n   - whether `OPENAI_API_KEY` is configured\n   - whether `CLAUDE_CODE_OAUTH_TOKEN` is configured\n   - whether `agent/memory` exists\n   - whether `agent/rubrics` exists\n   - confirmation that built-in trigger labels were ensured\n   - the built-in label list: `agent/answer`, `agent/implement`, `agent/create-action`, `agent/review`, `agent/fix-pr`, `agent/orchestrate`\n   - next steps for missing auth/provider/memory/rubrics setup\n\n   See the issue body and checklist generation in [`onboarding.ts`](https://github.com/self-evolving/repo/blob/agent/implement-issue-23/codex-25151531035/.agent/src/onboarding.ts#L102-L156).\n\n2. It does **not** need model API access to run the onboarding check. The workflow only checks whether provider credentials are configured; it does not run Codex or Claude. It does need GitHub access because it creates labels, creates/updates the setup issue, checks branch refs, and posts/patches comments. The workflow permissions are `contents: read`, `issues: write`, and `id-token: write`; it uses resolved GitHub auth or the workflow token fallback. See [`agent-onboarding.yml`](https://github.com/self-evolving/repo/blob/agent/implement-issue-23/codex-25151531035/.github/workflows/agent-onboarding.yml#L13-L69).\n\n3. Yes. The user-facing flow after setup is:\n   - Run `Agent / Onboarding / Check Setup`.\n   - Review the `Sepo setup check` issue.\n   - Run one of the copyable commands from that issue, or open another issue and mention `@sepo-agent`.\n   - Wait for the eyes reaction and follow-up workflow run.\n\n   The setup issue also tells users to run `Agent / Memory / Initialization` if the memory branch is missing, and `Agent / Rubrics / Initialization` if the rubrics branch is missing and they want team rubrics. This is documented in [`install-existing-repository.md`](https://github.com/self-evolving/repo/blob/agent/implement-issue-23/codex-25151531035/.agent/docs/deployment/install-existing-repository.md#L38-L50).",
+      "createdAt": "2026-05-03T02:01:14Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/62#issuecomment-4365169504",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBC9BCw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "Is \"Run `Agent / Onboarding / Check Setup\" executed automatically or that needs manual execution?  \r\n\r\n@sepo-agent /answer ",
+      "createdAt": "2026-05-03T02:03:20Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/62#issuecomment-4365173003",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBC9Pdg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "It needs **manual execution**.\n\nIn PR #62, `Agent / Onboarding / Check Setup` is defined as a `workflow_dispatch` workflow, which means it runs only when someone starts it from GitHub Actions, or when another workflow explicitly dispatches it. It is **not** automatically run on install, push, issue creation, or first mention.\n\nExpected flow after installing Sepo:\n\n1. Go to **Actions**.\n2. Select **Agent / Onboarding / Check Setup**.\n3. Click **Run workflow**.\n4. Review the created/updated `Sepo setup check` issue.\n5. Use one of the copyable test prompts from that issue.\n\nIt is safe to rerun; reruns update the same setup issue/comment rather than creating duplicates.",
+      "createdAt": "2026-05-03T02:04:23Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/62#issuecomment-4365176694",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBC9wEA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> It needs **manual execution**.\r\n> \r\n> In PR #62, `Agent / Onboarding / Check Setup` is defined as a `workflow_dispatch` workflow, which means it runs only when someone starts it from GitHub Actions, or when another workflow explicitly dispatches it. It is **not** automatically run on install, push, issue creation, or first mention.\r\n> \r\n> Expected flow after installing Sepo:\r\n> \r\n> 1. Go to **Actions**.\r\n> 2. Select **Agent / Onboarding / Check Setup**.\r\n> 3. Click **Run workflow**.\r\n> 4. Review the created/updated `Sepo setup check` issue.\r\n> 5. Use one of the copyable test prompts from that issue.\r\n> \r\n> It is safe to rerun; reruns update the same setup issue/comment rather than creating duplicates.\r\n\r\n@sepo-agent /answer \r\nBut can we actually automatically run this when one just fork a repo or set up ours in their own repo?",
+      "createdAt": "2026-05-03T02:09:53Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/62#issuecomment-4365185040",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBC92dQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I’ll answer this at the GitHub Actions behavior level: whether there is an event Sepo can rely on, and what would be needed if we want a more automatic first-run path.Yes, but not automatically in the current PR, and not reliably from **just forking** with GitHub Actions alone.\n\nThe practical split is:\n\n1. **When someone forks the repo**\n   - GitHub does not give the new fork a dependable “first run in this fork” workflow trigger that can immediately create issues/labels inside the fork.\n   - A `fork` event exists on the **source/upstream** repo, not as a setup event running inside the new fork.\n   - Also, Actions may require the fork owner to enable workflows, and secrets/app credentials will not be configured yet.\n   - So for forks, the safest default is still: user enables Actions/configures secrets, then manually runs `Agent / Onboarding / Check Setup`.\n\n2. **When someone installs/copies Sepo into their own repo**\n   - We *could* make this more automatic by adding a `push` trigger to `agent-onboarding.yml`, probably limited to the default branch and guarded so it only creates/updates the setup issue once.\n   - Example behavior: after `.agent/` and `.github/` are merged into the target repo, the next push to `main` runs onboarding automatically.\n   - This would still require GitHub issue/label write permission via `GITHUB_TOKEN`, GitHub App auth, or PAT, because creating labels/issues/comments uses the GitHub API.\n\n3. **If we want true automatic setup on install/fork**\n   - That would need an external GitHub App/webhook flow: on app installation or repo creation, the app creates the setup issue or dispatches the onboarding workflow.\n   - That is outside plain repo-local GitHub Actions and would require API access from the app/backend.\n\nMy recommendation: keep the current manual `workflow_dispatch` as the reliable baseline, and optionally add a guarded `push` trigger for newly installed repos. I would not rely on fork-time automation unless we add a GitHub App installation webhook path.",
+      "createdAt": "2026-05-03T02:11:00Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/62#issuecomment-4365186677",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBC_22g",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\nwe add a GitHub App installation webhook path.\n\nThis is an interesting proposal-- how?",
+      "createdAt": "2026-05-03T02:29:22Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/62#issuecomment-4365219546",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBC__Cw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes. The clean version is: the **Sepo GitHub App backend** listens for GitHub App installation events, then bootstraps the installed repository by either creating the setup issue directly or dispatching `Agent / Onboarding / Check Setup`.\n\nExisting pieces already line up with this:\n\n- Sepo already treats GitHub App auth as a first-class path via `.github/actions/resolve-github-auth/action.yml`, which resolves direct app credentials, hosted OIDC broker, PAT, or `github.token`.\n- Workflow dispatch already exists as a repo helper in `.agent/src/github.ts` through `dispatchWorkflow()`.\n- Existing orchestration already uses workflow dispatch plus dedupe markers, documented in `.agent/docs/technical-details/agent-orchestrator.md`.\n- The app permission model already says `Actions: read/write` is needed for workflow dispatch and `Issues: read/write` for issue/comment work in `.agent/docs/deployment/using-your-own-github-app.md`.\n\nThe implementation shape I’d propose:\n\n1. Add a small hosted webhook endpoint for the Sepo GitHub App.\n   - Receive GitHub `installation` and `installation_repositories` events.\n   - Verify `X-Hub-Signature-256` with the app webhook secret.\n   - Extract `installation.id` and the selected repositories.\n\n2. For each installed repo, mint a GitHub App installation token.\n   - Use the Sepo App private key server-side.\n   - Token needs at least `metadata: read`, `issues: write`, and optionally `actions: write`.\n\n3. Check whether the repo actually contains Sepo.\n   - Look for `.github/workflows/agent-onboarding.yml` on the default branch.\n   - If missing, create a lightweight issue saying “Sepo App is installed, but the repo files are not installed yet.”\n   - If present, continue.\n\n4. Prefer dispatching the onboarding workflow.\n   - Call GitHub’s workflow dispatch endpoint for `agent-onboarding.yml`.\n   - Use the repo default branch as `ref`.\n   - This lets the repo-local workflow perform the real checks: auth mode, provider secrets, memory/rubrics refs, labels, and the setup issue.\n\n5. Fall back to direct issue creation if dispatch fails.\n   - Common failures: Actions disabled, workflow file missing on default branch, app lacks `actions: write`.\n   - The app can still create/update `Sepo setup check` directly with instructions to enable Actions and run the workflow manually.\n\n6. Add idempotency.\n   - Search for an open `Sepo setup check` issue or a hidden marker comment before creating anything.\n   - Store a marker like `<!-- sepo-agent-installation-bootstrap -->`.\n   - Reinstallation or adding more repositories should update the same issue/comment, not spam duplicates.\n\n7. Document the behavior.\n   - “Installing the Sepo App will try to start onboarding automatically.”\n   - “If Actions are disabled or Sepo files are missing, the app posts a setup issue instead.”\n   - “Provider secrets still must be configured by the repository owner.”\n\nImportant limitation: the App installation webhook cannot read or configure repository Actions secrets like `OPENAI_API_KEY`. It can only detect installation, create labels/issues, dispatch workflows, and guide the user. The repo-local onboarding workflow is still the right place to check provider readiness because it runs inside the target repo’s Actions context.\n\nI’d implement this as a hosted bootstrap path with **dispatch-first, issue-fallback** behavior. That gives the smoothest onboarding without making fork/template setup depend on a fragile GitHub Actions event.",
+      "createdAt": "2026-05-03T02:30:57Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/62#issuecomment-4365221643",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-04-30T06:52:19Z",
@@ -228,6 +376,6 @@
   ],
   "state": "OPEN",
   "title": "Add first-run onboarding setup workflow",
-  "updatedAt": "2026-04-30T08:37:57Z",
+  "updatedAt": "2026-05-03T02:30:57Z",
   "url": "https://github.com/self-evolving/repo/pull/62"
 }

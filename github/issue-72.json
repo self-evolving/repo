@@ -6,7 +6,7 @@
     "name": "Shannon Shen"
   },
   "body": "@sepo-agent /answer \n\n1. In #21 , it uses github action timeout, which i think actually is a good idea. \n2. But also it suggests using acpx's native implementation; I am not sure but it seems less clean than the default github action implementation \n3. I think reporting timeout is also critical to orchestrator flow -> otherwise in the current version it will just stop working there  (#66 for example, there is a few failure agent stopped in the middle \n ",
-  "closedAt": null,
+  "closedAt": "2026-05-03T01:32:28Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABA4_AEA",
@@ -21,6 +21,86 @@
       "minimizedReason": "",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/72#issuecomment-4354719760",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCq4Aw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer\n\n> Outer/hard GitHub timeout: add timeout-minutes on the workflow steps that call run-agent-task, with a small grace buffer above the inner timeout. This catches runtime bugs, shell deadlocks, or cases where the inner timeout itself fails.\n\nI think let's start from a simple solution first using GitHub timeout? \n\nAlso the timeout should be configurable - see the similar route  access policy that defines a json for the base value and route specific ones ",
+      "createdAt": "2026-05-02T22:40:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/72#issuecomment-4364875779",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCrCPw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, starting with GitHub Actions timeout only is reasonable for the first pass.\n\nI’d scope it as a workflow-level guard, not an `acpx` runtime change yet:\n\n- Add a timeout policy JSON, probably `AGENT_TASK_TIMEOUT_POLICY`.\n- Resolve the effective timeout before each `run-agent-task` call.\n- Put `timeout-minutes: ${{ steps.<timeout>.outputs.minutes }}` directly on the workflow step that uses [`run-agent-task`](https://github.com/self-evolving/repo/blob/main/.github/actions/run-agent-task/action.yml#L1-L7).\n- Keep timeout reporting simple for now: timed-out agent steps become workflow failures, and existing `always()` post-processing/orchestrator steps can report a failed run.\n\nFor config shape, I’d mirror the existing policy style from [`AGENT_ACCESS_POLICY`](https://github.com/self-evolving/repo/blob/main/.agent/docs/access-policy.md#L5-L31) / [`memory-policy.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/memory-policy.ts#L4-L11):\n\n```json\n{\n  \"default_minutes\": 30,\n  \"route_overrides\": {\n    \"answer\": 15,\n    \"orchestrator\": 15,\n    \"review\": 45,\n    \"implement\": 60,\n    \"fix-pr\": 45,\n    \"rubrics-review\": 30\n  }\n}\n```\n\nImplementation shape I’d propose:\n\n1. Add `.agent/src/task-timeout-policy.ts` with parser/validation:\n   - empty policy => default, e.g. `30`\n   - `default_minutes` must be a positive integer\n   - `route_overrides.<route>` must be positive integers\n   - route keys use the same normalized route-key pattern as access/memory policies\n\n2. Add a small CLI, e.g. `.agent/src/cli/resolve-task-timeout.ts`, that reads:\n   - `AGENT_TASK_TIMEOUT_POLICY`\n   - `ROUTE`\n   - outputs `minutes`\n\n3. In every workflow step that calls `run-agent-task`, add a preceding “Resolve task timeout” step and then set `timeout-minutes` on the actual agent step. The call sites are already centralized enough and enforced by tests around shared action usage in [`envelope.test.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/envelope.test.ts#L110-L116).\n\n4. Update docs/config list to include `AGENT_TASK_TIMEOUT_POLICY`, next to the existing policy vars.\n\n5. Add regression tests:\n   - policy parser default/override/invalid cases\n   - workflow contract test that every `uses: ./.github/actions/run-agent-task` step has a timeout\n   - docs mention the new policy\n\nOne caveat: GitHub-only timeout will not produce a typed `timed_out` agent response file because GitHub kills the step from outside. For this first pass, I think that’s acceptable if the goal is “don’t hang indefinitely.” If we later need precise “timed out after N minutes” comments and session-state marking, that should be a second PR using the inner runtime timeout path.\n\nProposed next step: approve an implementation pass for the GitHub-timeout-only version with `AGENT_TASK_TIMEOUT_POLICY`.",
+      "createdAt": "2026-05-02T22:42:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/72#issuecomment-4364878399",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCrcgQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate implement this issue ",
+      "createdAt": "2026-05-02T22:47:00Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/72#issuecomment-4364885121",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCrmug",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sub-orchestrator child selected for task-timeout-policy: #99\n\n<!-- sepo-sub-orchestrator-child parent:72 stage:task-timeout-policy child:99 -->",
+      "createdAt": "2026-05-02T22:48:46Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/72#issuecomment-4364887738",
       "viewerDidAuthor": true
     }
   ],
@@ -46,8 +126,8 @@
     }
   ],
   "number": 72,
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Adding timeout for agent tasks",
-  "updatedAt": "2026-04-30T19:51:32Z",
+  "updatedAt": "2026-05-03T01:32:28Z",
   "url": "https://github.com/self-evolving/repo/issues/72"
 }

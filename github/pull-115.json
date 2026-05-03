@@ -1,0 +1,272 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "agent/implement-issue-86/codex-25268550985",
+  "body": "## Summary\n- Add an explicit `/update` route and `agent/update` label mapping to the existing `update-agent` skill.\n- Add `agent-update.yml` for scheduled/manual Sepo update checks with schedule-policy gating and repository-scoped update runs.\n- Update docs and focused route/workflow tests for the new update path.\n\n## Tests\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/triage.test.js .agent/dist/__tests__/resolve-dispatch-cli.test.js .agent/dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nCloses #94\nRelated #27\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDHXww",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `implement` -> `review` (round 3/10).\n\nimplementation succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777780598316 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNjkwODEwMDk6aW1wbGVtZW50Ojk0OnJldmlldzoxMTU6Mw -->",
+      "createdAt": "2026-05-03T03:56:38Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/115#issuecomment-4365342659",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDHfrw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 94 | PARTIAL | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Validate delegated route authorization | pass | 8/8 | The PR adds `update` as a first-class dispatch route, maps `/update` and `agent/update` to `update-agent`, and `applyDispatchPolicy` still applies `AGENT_ACCESS_POLICY` before route-specific handling. |\n| coding_workflow/generic | Prefer explicit structured inputs | pass | 7/7 | `agent-update.yml` uses separate `workflow_dispatch` inputs for `source_repo`, `source_ref`, `update_skills`, and `update_agent_md`, instead of overloading one command string. |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | The implementation reuses the existing `.skills/update-agent/SKILL.md`, router skill execution path, provider resolution action, scheduled activity gate, timeout resolver, and dispatch helpers. |\n| coding_workflow/generic | Read docs and linked context first | pass | 6/6 | The PR addresses #94 and related #27: explicit `/update`, default scheduled update check, near-biweekly cadence, and PR creation only when update changes exist. |\n| coding_workflow/generic | Make surgical changes | pass | 8/8 | Changes are scoped to route registration, dispatch policy/tests, one new workflow, update-skill invocation guidance, and matching docs. No unrelated refactor is visible in the PR diff. |\n| coding_style/generic | Prefer simple implementations | pass | 7/7 | The route is added by extending existing route sets and the existing skill job instead of introducing a separate router architecture. The scheduled workflow is straightforward and follows existing action composition. |\n| coding_workflow/generic | Keep docs in sync | partial | 5/7 | Most route/workflow docs are updated, but `.agent/src/rubrics.ts` adds `update` to valid rubric routes while `.agent/docs/architecture/rubrics.md` still documents the `applies_to` route list without `update`. |\n\n## Notes\n\n- The strongest rubric alignment is reuse: this PR wires a new public route to the existing `update-agent` skill and existing workflow/action helpers.\n- The main rubric-specific gap is a small docs sync miss in the rubrics documentation after adding `update` as a rubric-selectable route.\n- No rubric-specific blocking issue found.\n\n## Findings\n\n- **WARNING:** Keep docs in sync: `.agent/src/rubrics.ts` adds `update` to `RUBRIC_ROUTE_NAMES`, but `.agent/docs/architecture/rubrics.md` still lists accepted `applies_to` values without `update`. Add `update` to that documented route list so rubric authors know the new route is valid.\n\n## Final Rubric Verdict\n\nPARTIAL",
+      "createdAt": "2026-05-03T03:58:23Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/115#issuecomment-4365344687",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDIUOw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #115 adds a first-class Sepo `update` route, mapping explicit `/update` and `agent/update` requests to the existing `update-agent` skill. It also adds a default `agent-update.yml` scheduled/manual workflow that checks for Sepo infrastructure updates and should only open a PR when changes exist. This addresses #94, relates to #27, and is part of the broader #107 user-facing distribution plan. The implementation generally reuses existing route, skill, provider, schedule-gate, and docs patterns.\n\n## Review\nOverall, the PR is close and has no blocking authorization or runtime design failure in the reviewed paths. The remaining issues are small but concrete workflow/docs fixes, plus one optional regression-test gap.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Manual update workflow can run from a non-default ref | WARNING | Manual `workflow_dispatch` runs can be launched with `--ref`, but checkout follows that ref while the prompt says the target is the default branch. |\n| Route documentation inventories are incomplete | WARNING | Rubrics route docs omit `update`, and the touched developer-notes slash-route list still omits `/orchestrate`. |\n| Missing explicit update access-policy regression test | INFO | Existing authorization logic appears correct, but there is no focused test proving `AGENT_ACCESS_POLICY` can restrict the new `update` route. |\n\n## Progress\n- Existing reviewer outputs agree the route is explicit-only and reuses the existing `update-agent` skill path.\n- The rubrics review already posted the `.agent/docs/architecture/rubrics.md` docs-sync warning, so I did not duplicate it inline.\n- I posted inline comments for the manual checkout-ref issue and the touched developer-notes route list.\n- Codex review verification reported `npm --prefix .agent test` passing with 481 tests.\n\n## Issue Details\n\n<details>\n<summary>Manual update workflow can run from a non-default ref</summary>\n\n**Cause:** `actions/checkout@v4` in `.github/workflows/agent-update.yml` has no `ref`, so manual dispatch can check out a non-default ref while the update prompt advertises `${{ github.event.repository.default_branch }}`.\n\n**Candidate solutions:** Pin checkout to `ref: ${{ github.event.repository.default_branch }}` so manual and scheduled update checks operate from the same default-branch baseline.\n\n**Comments:** This is not a scheduled-run issue, but it can make manual update runs audit and branch from the wrong checkout.\n\n</details>\n\n<details>\n<summary>Route documentation inventories are incomplete</summary>\n\n**Cause:** `.agent/src/rubrics.ts` now accepts `update` in `RUBRIC_ROUTE_NAMES`, but `.agent/docs/architecture/rubrics.md` still omits it from the documented `applies_to` route list. Also, `.agent/docs/technical-details/developer-notes.md` was updated for `/update` but still omits existing `/orchestrate`.\n\n**Candidate solutions:** Add `update` to the rubrics docs route list and add `/orchestrate` to the developer-notes hardcoded slash-route list.\n\n**Comments:** The rubrics-docs issue is already covered by the existing rubrics review comment; only the developer-notes issue needed a new inline comment.\n\n</details>\n\n<details>\n<summary>Missing explicit update access-policy regression test</summary>\n\n**Cause:** The new route relies on the shared top-level `applyDispatchPolicy` access check, but tests only cover immediate explicit `update`, implicit rejection, and existing route restriction examples.\n\n**Candidate solutions:** Add a focused test mirroring the existing explicit `implement` restriction test, using an access policy that denies or narrows `update`.\n\n**Comments:** This is coverage-only; reviewers did not identify a live authorization bypass.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: The unresolved workflow and docs findings are concrete branch changes and are safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Pin `.github/workflows/agent-update.yml` checkout to `${{ github.event.repository.default_branch }}`.\n- [ ] Add `update` to `.agent/docs/architecture/rubrics.md` documented `applies_to` route values.\n- [ ] Add `/orchestrate` to `.agent/docs/technical-details/developer-notes.md` hardcoded slash-route list.",
+      "createdAt": "2026-05-03T04:07:30Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/115#issuecomment-4365358139",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDIVaw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `review` -> `fix-pr` (round 4/10).\n\nreview verdict is minor_issues; dispatching fix-pr\n\n<!-- sepo-agent-handoff state:dispatched created:1777781262484 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNjkyNzk3MTY6cmV2aWV3OjExNTpmaXhfcHI6MTE1OjQ -->",
+      "createdAt": "2026-05-03T04:07:42Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/115#issuecomment-4365358443",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDIhlg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-94/codex-25269081009`. Requested by @sepo-agent.\n\n- Pinned [`agent-update.yml`](https://github.com/self-evolving/repo/blob/agent/implement-issue-94/codex-25269081009/.github/workflows/agent-update.yml) checkout to the repository default branch for manual dispatch consistency.\n- Synced route inventories in [`rubrics.md`](https://github.com/self-evolving/repo/blob/agent/implement-issue-94/codex-25269081009/.agent/docs/architecture/rubrics.md) and [`developer-notes.md`](https://github.com/self-evolving/repo/blob/agent/implement-issue-94/codex-25269081009/.agent/docs/technical-details/developer-notes.md).\n- Checks passed: `git diff --check`; `node --test .agent/dist/__tests__/envelope.test.js`.",
+      "createdAt": "2026-05-03T04:10:06Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/115#issuecomment-4365361558",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDIirw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `fix-pr` -> `review` (round 5/10).\n\nPR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777781418813 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNjk0NzY0NzE6Zml4X3ByOjExNTpyZXZpZXc6MTE1OjU -->",
+      "createdAt": "2026-05-03T04:10:19Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/115#issuecomment-4365361839",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-03T03:56:24Z",
+  "files": [
+    {
+      "path": ".agent/docs/actions/agent-actions.md",
+      "additions": 8,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/request-lifecycle.md",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/rubrics.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 11,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/overview/quick-start.md",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/developer-notes.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/key-concepts.md",
+      "additions": 2,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 8,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/resolve-dispatch-cli.test.ts",
+      "additions": 63,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/triage.test.ts",
+      "additions": 42,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/resolve-dispatch.ts",
+      "additions": 8,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/envelope.ts",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/rubrics.ts",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/triage.ts",
+      "additions": 43,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/run-agent-task/action.yml",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-router.yml",
+      "additions": 11,
+      "deletions": 11,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-update.yml",
+      "additions": 149,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".skills/update-agent/SKILL.md",
+      "additions": 7,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": "AGENT.md",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": "README.md",
+      "additions": 3,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-94/codex-25269081009",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 115,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM77SPhY",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-03T04:06:39Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "59cacb63d8c66c43caff5d61af4daebbcaab3c98"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM77SPhZ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-03T04:06:39Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "59cacb63d8c66c43caff5d61af4daebbcaab3c98"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Add Sepo update route and scheduled workflow",
+  "updatedAt": "2026-05-03T04:10:22Z",
+  "url": "https://github.com/self-evolving/repo/pull/115"
+}

@@ -1,0 +1,354 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Add `AGENT_TASK_TIMEOUT_POLICY` parsing and `resolve-task-timeout` CLI support.\n- Resolve timeout minutes before every `run-agent-task` workflow/template step and wire `timeout-minutes` from the resolver output.\n- Document the policy and add parser, CLI, docs, and workflow contract tests.\n\n## Verification\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/task-timeout-policy.test.js .agent/dist/__tests__/resolve-task-timeout-cli.test.js .agent/dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nCloses #99\n",
+  "closedAt": "2026-05-03T01:19:52Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCsYiA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `implement` -> `review` (round 3/10).\n\nimplementation succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777762688311 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNjM4Mjc0MTU6aW1wbGVtZW50Ojk5OnJldmlldzoxMDA6Mw -->",
+      "createdAt": "2026-05-02T22:58:08Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/100#issuecomment-4364900488",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCsgmg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR closes #99, which is the child of parent #72; the diff implements the narrowed GitHub-timeout-only plan approved there. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Adds `AGENT_TASK_TIMEOUT_POLICY` with explicit `default_minutes` and `route_overrides`, and resolves the current `ROUTE` separately instead of overloading a string. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Adds typed `.agent/src/task-timeout-policy.ts` and CLI `.agent/src/cli/resolve-task-timeout.ts`, reusing the existing `setOutput` helper and matching memory/rubrics policy parser style. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates `.agent/docs/customization/configuration-list.md` and adds docs coverage in `.agent/src/__tests__/envelope.test.ts`. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Malformed timeout policy returns code `2` with `Invalid AGENT_TASK_TIMEOUT_POLICY` instead of silently falling back to a misleading clean timeout. |\n| coding_style / generic | Make surgical changes | pass | 8/8 | Changes are limited to the new timeout policy, resolver, direct workflow call sites for `run-agent-task`, docs, and focused tests. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Keeps the first pass as an outer GitHub Actions `timeout-minutes` guard and does not thread timeout into `run.ts`, `runAcpx`, or `acpx-adapter`. |\n\n## Notes\n\n- The strongest score drivers are the typed policy/CLI implementation, clear invalid-policy failure behavior, and a workflow contract test requiring every `run-agent-task` step to be guarded by the resolver.\n- I verified the locally available compiled envelope suite with `node --test .agent/dist/__tests__/envelope.test.js`; the new source tests are present in the PR diff, but the local `dist` tree in this checkout did not include those newly compiled files.\n\n## Findings\n\n- **INFO:** No rubric-specific issues found.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-02T22:59:44Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/100#issuecomment-4364902554",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCtRaQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #100 adds configurable GitHub Actions step timeouts for Sepo agent task runs.\n- It closes #99, a child of #72, and implements the approved first pass: an outer GitHub Actions timeout only.\n- The change adds `AGENT_TASK_TIMEOUT_POLICY`, a typed parser, a resolver CLI, workflow wiring for every `run-agent-task` use, docs, and focused tests.\n- Inner `acpx` timeout handling and typed timeout responses are intentionally out of scope for this PR.\n\n## Review\nThe implementation matches the requested scope and the rubric review passed, but two small validation/test gaps remain. There was no meaningful reviewer disagreement: both code reviews identified the max-timeout validation issue, and one also requested direct CLI success-path coverage.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Timeout policy allows unsupported durations | WARNING | [`normalizeMinutes`](https://github.com/self-evolving/repo/blob/3c619d468bea47f5ff961a57c951e4425570aadc/.agent/src/task-timeout-policy.ts#L24) accepts any positive integer, but GitHub Actions step `timeout-minutes` has a maximum of 360. Values like `1000` can pass parser validation and fail later at workflow runtime. |\n| CLI success path is not directly tested | WARNING | [`runResolveTaskTimeoutCli`](https://github.com/self-evolving/repo/blob/3c619d468bea47f5ff961a57c951e4425570aadc/.agent/src/cli/resolve-task-timeout.ts#L22) has malformed-policy coverage, but no test asserts return code `0` and the `minutes` output for valid input. |\n| Optional docs polish remains | INFO | One reviewer noted that internal route names such as `dispatch` and `skill` are only discoverable in workflows, and the workflow fallback `|| '30'` duplicates the TypeScript default. These are non-blocking polish notes. |\n\n## Progress\n- The PR implements the scoped GitHub-timeout-only design approved in #72 and delegated through #99.\n- Rubrics review passed with no rubric-specific issues.\n- Docs and workflow contract tests are already present.\n- Existing inline review comments were empty before synthesis; one inline comment was posted on `.agent/src/task-timeout-policy.ts:25` for the max-bound issue.\n\n## Issue Details\n<details>\n<summary>Timeout policy allows unsupported durations</summary>\n\n**Cause:** The parser validates only positive integers, then workflows pass the resolver output directly to `timeout-minutes`.\n\n**Candidate solutions:** Add a `MAX_TASK_TIMEOUT_MINUTES = 360` guard in `normalizeMinutes`, reject larger values with a clear error, and add parser/docs coverage for the bound.\n\n**Comments:** GitHub documents step `timeout-minutes` as a positive integer with a [maximum of 360 minutes](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idstepsstepstimeout-minutes).\n</details>\n\n<details>\n<summary>CLI success path is not directly tested</summary>\n\n**Cause:** The CLI test covers route override resolution and malformed-policy failure, but not the side-effecting success contract.\n\n**Candidate solutions:** Add a test that calls `runResolveTaskTimeoutCli` with valid env, verifies exit code `0`, and captures `GITHUB_OUTPUT` or the output helper behavior to assert `minutes` is written.\n\n**Comments:** This is small coverage, but it protects the workflow-facing contract.\n</details>\n\n<details>\n<summary>Optional docs polish remains</summary>\n\n**Cause:** The new docs give an example policy but do not list all route values used by workflows, and workflow expressions keep a literal fallback default.\n\n**Candidate solutions:** Document route names only if maintainers want that operator-facing detail; leave the fallback as-is unless default drift becomes a practical concern.\n\n**Comments:** Not required for this PR’s current scope.\n</details>\n\n## Recommended Next Step\nFIX_PR\n\nThe unresolved warnings are concrete parser/docs/test updates and are safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Enforce a 360-minute maximum for `AGENT_TASK_TIMEOUT_POLICY` values and add parser/docs coverage for that bound.\n- [ ] Add a `runResolveTaskTimeoutCli` success-path test that verifies exit code `0` and the `minutes` output.",
+      "createdAt": "2026-05-02T23:08:20Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/100#issuecomment-4364915049",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCtSnQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `review` -> `fix-pr` (round 4/10).\n\nreview verdict is minor_issues; dispatching fix-pr\n\n<!-- sepo-agent-handoff state:dispatched created:1777763312448 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNjM5ODYyMDU6cmV2aWV3OjEwMDpmaXhfcHI6MTAwOjQ -->",
+      "createdAt": "2026-05-02T23:08:32Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/100#issuecomment-4364915357",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCtkNg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-99/codex-25263827415`. Requested by @sepo-agent.\n\n- Enforced the 1-360 minute GitHub Actions step-timeout bound in [`task-timeout-policy.ts`](https://github.com/self-evolving/repo/blob/agent/implement-issue-99/codex-25263827415/.agent/src/task-timeout-policy.ts).\n- Added parser max-bound coverage, docs-contract coverage, and direct resolver CLI success-path output coverage.\n- Verification: `npm --prefix .agent run build`; `node --test .agent/dist/__tests__/task-timeout-policy.test.js .agent/dist/__tests__/resolve-task-timeout-cli.test.js .agent/dist/__tests__/envelope.test.js`; `git diff --check`.",
+      "createdAt": "2026-05-02T23:11:42Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/100#issuecomment-4364919862",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCtlXQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `fix-pr` -> `review` (round 5/10).\n\nPR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777763514848 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNjQxNzg4NDY6Zml4X3ByOjEwMDpyZXZpZXc6MTAwOjU -->",
+      "createdAt": "2026-05-02T23:11:55Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/100#issuecomment-4364920157",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCtsLg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #100 closes #99, whose body explicitly scopes the child task from parent #72 to a GitHub-timeout-only first pass. The diff follows that narrowed plan. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Adds `AGENT_TASK_TIMEOUT_POLICY` as JSON with separate `default_minutes` and `route_overrides`, and each resolver step passes an explicit `ROUTE`. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Implements policy parsing in `.agent/src/task-timeout-policy.ts` and a CLI in `.agent/src/cli/resolve-task-timeout.ts`, reusing the existing `setOutput` helper instead of embedding parsing in workflow shell. |\n| coding_workflow / generic | Validate preview contracts | not applicable | N/A | PR does not add preview, dry-run, or read-only behavior. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates `.agent/docs/customization/configuration-list.md` with the new policy, default, example, and 1-360 minute bound; `envelope.test.ts` asserts docs coverage. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Invalid timeout policy returns exit code `2` and logs `Invalid AGENT_TASK_TIMEOUT_POLICY`; tests cover malformed policy failure rather than silent fallback. |\n| coding_style / generic | Make surgical changes | pass | 8/8 | Diff is limited to timeout policy parsing, resolver CLI, workflow/template timeout wiring, focused docs, and tests. No unrelated refactors are present. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Matches the approved first pass by applying GitHub Actions `timeout-minutes` only, without threading timeout into `run.ts`, `runAcpx`, or `acpx-adapter`. |\n\n## Notes\n\n- The current head includes fixes from the prior review cycle: `MAX_TASK_TIMEOUT_MINUTES = 360`, parser coverage for values over 360, docs coverage for the bound, and direct CLI success-path output coverage.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific issues found.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-02T23:13:07Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/100#issuecomment-4364921902",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCuMNg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #100 adds `AGENT_TASK_TIMEOUT_POLICY` for configurable GitHub Actions step timeouts on Sepo agent tasks.\n- It closes #99, which is the task-timeout-policy child of parent issue #72.\n- The approved scope is a GitHub-timeout-only first pass: no `run.ts`, `runAcpx`, or `acpx-adapter` timeout plumbing.\n- Current head `7838f4d6499620acb7b4424be3562dfe01af5b43` includes the follow-up fixes from the prior review round.\n\n## Review\nThe current PR head is ready to ship. Both prior WARNING findings were fixed, and the remaining reviewer comments are INFO-level operator-docs polish rather than required branch work.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable issues | INFO | The 1-360 minute bound, docs coverage for that bound, and CLI success-path output test are now present. Remaining notes are optional route-name/default-fallback polish only. |\n\n## Progress\n- Prior review requested enforcing GitHub’s 360-minute step timeout bound; current head adds `MAX_TASK_TIMEOUT_MINUTES = 360`.\n- Prior review requested CLI success-path coverage; current head adds output-contract coverage for `runResolveTaskTimeoutCli`.\n- Rubrics review passes with no required follow-up.\n- Codex review reports build plus targeted parser, CLI, and envelope tests passing with 68 tests total.\n- Existing inline max-bound feedback is already covered by the fix; no new inline comments were posted.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION\n\nNo unresolved actionable branch changes remain, so automation should stop and leave any optional docs polish to maintainer preference.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-02T23:18:21Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/100#issuecomment-4364930102",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBC5FcQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Correct: PR #100 does **not** add one global wall-clock timeout for the entire orchestrated chain.\n\nWhat it adds is a per-`run-agent-task` GitHub Actions step timeout. For the orchestrator workflow specifically, it resolves `ROUTE: orchestrator` and applies `timeout-minutes` only to the `Plan next action with agent` step: https://github.com/self-evolving/repo/blob/7838f4d6499620acb7b4424be3562dfe01af5b43/.github/workflows/agent-orchestrator.yml#L133-L146\n\nSo the behavior is:\n\n- The orchestrator planner agent run is bounded, defaulting to `30` minutes unless `AGENT_TASK_TIMEOUT_POLICY.route_overrides.orchestrator` overrides it.\n- Each downstream route run, like implement/review/fix-pr, gets its own route-specific step timeout.\n- There is still no single “whole process must finish within N minutes” timer spanning the full orchestration chain.\n- The chain is bounded structurally by rounds, e.g. `automation_current_round < automation_max_rounds`, default max `5`: https://github.com/self-evolving/repo/blob/7838f4d6499620acb7b4424be3562dfe01af5b43/.agent/src/cli/orchestrator-preflight.ts#L33-L36\n\nAlso, this is still the GitHub-timeout-only first pass, so a timeout kills the step externally rather than producing a typed `timed_out` agent response.",
+      "createdAt": "2026-05-03T01:18:40Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/100#issuecomment-4365108593",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBC5Juw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "One quick question: right now for the orchestrate route: it doesn't limit the time for the whole process right?\n\n@sepo-agent /answer",
+      "createdAt": "2026-05-03T01:19:20Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/100#issuecomment-4365109691",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBC5QnA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Correct. In the current `main` checkout, the orchestrator route does **not** have a time limit for the whole process.\n\nSpecifically:\n\n- `.github/workflows/agent-orchestrator.yml` runs the planner through `./.github/actions/run-agent-task`, but that step has no `timeout-minutes`.\n- There is also no global wall-clock timeout across the full orchestrated chain.\n- The only built-in bound is structural: `automation_current_round < automation_max_rounds`, defaulting to max `5` rounds in `.agent/src/cli/orchestrator-preflight.ts`.\n\nSo an orchestrated flow is round-limited, not time-limited. A GitHub Actions job may still hit GitHub’s platform/job limits, but Sepo currently does not enforce its own whole-process timeout.",
+      "createdAt": "2026-05-03T01:20:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/100#issuecomment-4365111452",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBC5UQQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #100.\n\nno rubric changes\n\nI read PR #100 metadata, issue comments, review comments, reviews, diff, linked issue #99, parent issue #72, collaborator/owner signals, and existing active rubrics. The PR conversation did not contain a trusted new durable user/team preference that is not already covered.\n\nThe reusable lessons present are already represented by existing rubrics like `simple-implementation`, `prefer-explicit-structured-inputs`, `keep-docs-in-sync`, `read-docs-first`, and `abstract-learned-rubrics`. The remaining details are project-specific timeout phasing or bot/agent advisory review content, so I left the rubrics branch unchanged.\n",
+      "createdAt": "2026-05-03T01:21:14Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/100#issuecomment-4365112385",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-02T22:57:54Z",
+  "files": [
+    {
+      "path": ".agent/action-templates/agent-action-template.yml",
+      "additions": 9,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 62,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/resolve-task-timeout-cli.test.ts",
+      "additions": 70,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/task-timeout-policy.test.ts",
+      "additions": 83,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/resolve-task-timeout.ts",
+      "additions": 38,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/task-timeout-policy.ts",
+      "additions": 87,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/workflows/agent-daily-summary.yml",
+      "additions": 8,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-fix-pr.yml",
+      "additions": 9,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-implement.yml",
+      "additions": 8,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-memory-bootstrap.yml",
+      "additions": 9,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-memory-pr-closed.yml",
+      "additions": 8,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-memory-scan.yml",
+      "additions": 8,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-orchestrator.yml",
+      "additions": 9,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-project-manager.yml",
+      "additions": 8,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-review.yml",
+      "additions": 16,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-router.yml",
+      "additions": 29,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-rubrics-initialization.yml",
+      "additions": 8,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-rubrics-review.yml",
+      "additions": 8,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-rubrics-update.yml",
+      "additions": 8,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-99/codex-25263827415",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": "2026-05-03T01:19:52Z",
+  "number": 100,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM77RWAn",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-02T23:07:21Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "3c619d468bea47f5ff961a57c951e4425570aadc"
+      }
+    }
+  ],
+  "state": "MERGED",
+  "title": "Add configurable agent task timeouts",
+  "updatedAt": "2026-05-03T01:21:14Z",
+  "url": "https://github.com/self-evolving/repo/pull/100"
+}

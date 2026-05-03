@@ -1,0 +1,121 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "In #92 while my intention is to orchestrate to fix the bug, the agent could have just launched an orchestrate to implement route. Instead it launched a sub orchestrate route. Is it a prompt issue? Or we should seriously consider rename the whole stack so there route to launch sub orchestrate will have a different name? \n\n@sepo-agent /answer",
+  "closedAt": "2026-05-03T01:20:13Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCrlgw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Short answer: this is mostly a route-policy/product semantics issue, not just a prompt wording issue. I would **not rename the whole stack** yet. I’d first make issue-level `/orchestrate` more conservative: use direct `implement` for small single-target fixes, and reserve `delegate_issue` / sub-orchestration for explicit high-level management or multi-child work.\n\nConcrete evidence:\n- `/orchestrate` is a public explicit route today in [`triage.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/triage.ts#L31).\n- The router starts it with `SOURCE_ACTION=orchestrate` in [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L626-L671).\n- In agent mode, issue-level `/orchestrate` enables the planner in [`orchestrator-preflight.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrator-preflight.ts#L33-L36).\n- The planner prompt explicitly allows `delegate_issue` for issue-level meta orchestration in [`agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-orchestrator.md#L29-L31).\n- Runtime only allows `delegate_issue` from meta orchestration and does not currently let the planner choose direct `implement` from `source_action=orchestrate`; see [`handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L362-L395) and the heuristic direct-implement path in [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L828-L842).\n\nSo in #92, once `/orchestrate` entered agent-mode issue planning, the system was biased toward “meta-orchestrate by delegating a child issue” rather than “run implementation directly.” PR #97 already addresses the narrower stacking-policy bug for sequential child PRs, but it does not solve this route semantics problem.\n\nRecommended approach:\n1. Keep `/implement` as the clear route for one-shot bug fixes.\n2. Keep `/orchestrate` as the bounded chain route, but update issue-level agent-mode behavior so the planner can choose direct `implement` when the target is a normal single-fix issue.\n3. Use `delegate_issue` only when the request explicitly asks for decomposition, an existing tracking issue, multiple stages, adoption of child issues, or high-level management.\n4. Update docs/prompts to say: “For small controlled fixes, prefer direct `implement`; do not create a child issue unless decomposition is useful.”\n5. Add tests for both cases: `/orchestrate` on a small fix dispatches `implement`; `/orchestrate` on a tracking/meta issue can still return `delegate_issue`.\n\nI’d defer a public route rename unless this still feels confusing after that. If we do split names later, I’d add a new high-level route like `/manage` or `/coordinate` for child-issue delegation, keep `/orchestrate` as the direct bounded chain, and leave internal `delegate_issue` as-is. That is a larger migration because it touches slash route parsing, labels, docs, access policy examples, tests, and user habits.\n\nApproval request: should I turn this into a small implementation plan for changing issue-level `/orchestrate` to prefer direct `implement` and reserve `delegate_issue` for explicit meta-management?",
+      "createdAt": "2026-05-02T22:48:31Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/98#issuecomment-4364887427",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCsKuw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\n> Approval request: should I turn this into a small implementation plan for changing issue-level /orchestrate to prefer direct implement and reserve delegate_issue for explicit meta-management?\n\nWe should not be too prescriptive-- just say when it's a small issue within the scope of the current issue, then no need to use meta orchestrating and can launch the implement directly? ",
+      "createdAt": "2026-05-02T22:55:35Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/98#issuecomment-4364896955",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCsPuQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Agreed. The guidance should be judgment-based, not a rigid rule.\n\nI’d frame it as:\n\n> For issue-level `/orchestrate`, if the requested work is a small, self-contained change within the scope of the current issue, prefer launching `implement` directly on the current issue. Use `delegate_issue` only when a separate child issue materially helps: multi-stage work, tracking/meta issues, explicit decomposition, adopting an existing child issue, or isolating a distinct workstream.\n\nSo the fix is not “never meta-orchestrate unless X exact condition,” and not a full route rename. It’s more like: **do not create a sub-orchestrator child just to implement the obvious next change on the same issue.**\n\nImplementation-wise, that means the planner/runtime should support direct `orchestrate -> implement` for issue targets in agent mode, while keeping `delegate_issue` available for genuinely high-level management.",
+      "createdAt": "2026-05-02T22:56:30Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/98#issuecomment-4364898233",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCse_Q",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate implement this?  ",
+      "createdAt": "2026-05-02T22:59:24Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/98#issuecomment-4364902141",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCsv7Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sub-orchestrator child selected for direct-implement-orchestrate: #101\n\n<!-- sepo-sub-orchestrator-child parent:98 stage:direct-implement-orchestrate child:101 -->",
+      "createdAt": "2026-05-02T23:02:26Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/98#issuecomment-4364906477",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-02T22:46:15Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 98,
+  "state": "CLOSED",
+  "title": "Only use orchestrate when necessary? Or change a route name for the high level management tasks",
+  "updatedAt": "2026-05-03T01:20:13Z",
+  "url": "https://github.com/self-evolving/repo/issues/98"
+}

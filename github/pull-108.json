@@ -1,0 +1,169 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Render sub-orchestrator child selection, adoption, and completion comments as compact transposed Markdown tables.\n- Keep hidden sub-orchestration markers unchanged for recovery and dedupe.\n- Document the visible table plus hidden marker contract.\n\n## Tests\n- `npm run build`\n- `env -u BASE_BRANCH node --test dist/__tests__/orchestrate-handoff-cli.test.js`\n- `git diff --check`\n\nCloses #90\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBC8mVA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `implement` -> `review` (round 3/10).\n\nimplementation succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777773539125 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNjcxMTYyNjI6aW1wbGVtZW50OjkwOnJldmlldzoxMDg6Mw -->",
+      "createdAt": "2026-05-03T01:58:59Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/108#issuecomment-4365166164",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBC8sVQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 91 | PASS | 6 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR closes #90 and implements the later issue-thread request for compact transposed tables, including the decision to keep long `Summary` text outside the table. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | `.agent/docs/technical-details/agent-orchestrator.md` now documents compact visible tables and unchanged hidden durable markers. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | The doc update describes the status-comment contract, not a per-file inventory. |\n| coding_workflow / generic | Make surgical changes | partial | 6/8 | The change is scoped to one CLI, focused tests, and matching docs, but `reportTerminalToParent` leaves `const result = resultState === \"done\" ? \"SHIP\" : resultState.toUpperCase();` unused after replacing `progressLines`. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | New formatters reuse existing normalization and marker helpers: `normalizeSubOrchestratorStage`, `formatSubOrchestratorChildLinkMarker`, and `formatSubOrchestratorMarker`. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation adds small formatting helpers and keeps existing orchestration flow, marker parsing, and dispatch behavior intact. |\n\n## Notes\n\n- The PR satisfies the core rubric expectations for a small user-facing orchestration formatting change: live issue context requested compact transposed tables, hidden markers remain unchanged, docs were updated, and tests cover selection, adoption, completion, and blocked terminal reporting.\n- The only rubric-specific follow-up is to remove the now-unused `result` local in `.agent/src/cli/orchestrate-handoff.ts`.\n\n## Findings\n\n- **WARNING:** `Make surgical changes` asks changes to avoid unrelated cleanup and remove unused code introduced by the change. In `.agent/src/cli/orchestrate-handoff.ts`, `const result = resultState === \"done\" ? \"SHIP\" : resultState.toUpperCase();` is left behind after the old `progressLines` assembly was removed, so this PR introduces dead local state even though behavior appears covered.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-03T02:00:05Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/108#issuecomment-4365167701",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBC9f1g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\nPR #108 implements issue #90, the first child task under the broader #104 orchestrator cleanup plan. It changes visible sub-orchestrator selection, adoption, and terminal progress comments from log-like text into compact transposed Markdown tables. The hidden HTML markers used for recovery, dedupe, and trusted state remain unchanged. Tests and `.agent` technical docs were updated to cover and describe the visible table plus hidden marker contract.\n\n## Review\n\nOverall, reviewers found the implementation correct, scoped, and aligned with the user-approved issue discussion. The only required branch cleanup is a leftover unused local introduced by the progress-comment rewrite.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Unused terminal result local remains | WARNING | `.agent/src/cli/orchestrate-handoff.ts` still computes `result` after the new table formatter replaced the old `progressLines` body. This is dead local state with no behavioral impact, but it should be removed. |\n| Minor maintainability nits are optional | INFO | One reviewer noted an old-format test fixture and small helper typing/reusability constraints. Reviewers agreed these do not affect runtime behavior or PR correctness. |\n\n## Progress\n\n- The linked #90 discussion explicitly approved compact transposed tables and keeping long summaries outside tables.\n- Existing PR discussion already includes the rubrics review comment calling out the unused `result` local, so I did not post a duplicate inline comment.\n- Codex review verified `npm ci`, `npm run build`, the focused node test, and `git diff --check` passed on PR head `01c586e`.\n- Claude and Codex both concluded the changed orchestration behavior is safe to ship aside from optional cleanup.\n\n## Issue Details\n\n<details>\n<summary>Unused terminal result local remains</summary>\n\n**Cause:** The old terminal progress body used `result` inside `progressLines`; the PR now delegates visible output to `formatSubOrchestrationProgressComment`, leaving `result` unused.\n\n**Candidate solutions:** Remove the `const result = resultState === \"done\" ? \"SHIP\" : resultState.toUpperCase();` line.\n\n**Comments:** This is already covered in the top-level rubrics review comment, so no duplicate inline comment was posted.\n\n</details>\n\n<details>\n<summary>Minor maintainability nits are optional</summary>\n\n**Cause:** The stacking test fixture still uses the old visible terminal report text, and one reviewer noted minor type/general-helper constraints that are harmless in current call paths.\n\n**Candidate solutions:** Leave as-is, or update the fixture to the new table format/add a comment saying only the hidden marker matters. If touching the formatter, `prNumber` typing can also be tightened.\n\n**Comments:** These are INFO-level observations only and should not drive automation unless a maintainer wants polish beyond the required cleanup.\n\n</details>\n\n## Recommended Next Step\n\nFIX_PR: one small, safe branch change remains to remove the unused local.\n\n## Final Verdict\n\nMINOR_ISSUES\n\n## Action Items\n\n- [ ] Remove the unused `result` local from `.agent/src/cli/orchestrate-handoff.ts`.",
+      "createdAt": "2026-05-03T02:07:08Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/108#issuecomment-4365180886",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBC9hVg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `review` -> `fix-pr` (round 4/10).\n\nreview verdict is minor_issues; dispatching fix-pr\n\n<!-- sepo-agent-handoff state:dispatched created:1777774041767 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNjcyMTI5NDI6cmV2aWV3OjEwODpmaXhfcHI6MTA4OjQ -->",
+      "createdAt": "2026-05-03T02:07:22Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/108#issuecomment-4365181270",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBC9zlQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-90/codex-25267116262`. Requested by @sepo-agent.\n\n- Addressed latest review synthesis action item by removing the `result` local in `.agent/src/cli/orchestrate-handoff.ts` while preserving the dispatched parent request text.\n- Verified with `npm run build`, `env -u BASE_BRANCH node --test dist/__tests__/orchestrate-handoff-cli.test.js`, and `git diff --check`.",
+      "createdAt": "2026-05-03T02:10:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/108#issuecomment-4365185941",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBC907g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `fix-pr` -> `review` (round 5/10).\n\nPR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777774241739 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNjczNjY2NDg6Zml4X3ByOjEwODpyZXZpZXc6MTA4OjU -->",
+      "createdAt": "2026-05-03T02:10:42Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/108#issuecomment-4365186286",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBC98Ew",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 6 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR closes #90, whose discussion specifically requested compact transposed tables and keeping long summaries outside the table; #104 selected #90 as the first stacked orchestrator task. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | `.agent/docs/technical-details/agent-orchestrator.md` documents compact visible tables and preserved hidden durable markers. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | The doc update describes the orchestration comment contract, not a per-file inventory. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is limited to one orchestrator CLI, focused tests, and matching docs; the earlier unused `result` local has been removed in current head `39144a0`. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | New comment formatters continue using existing marker/stage helpers such as `normalizeSubOrchestratorStage`, `formatSubOrchestratorChildLinkMarker`, and `formatSubOrchestratorMarker`. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation adds small Markdown table formatting helpers without changing dispatch, recovery, dedupe, or marker parsing behavior. |\n\n## Notes\n\n- I did not score route authorization, one-shot follow-up, merge strategy, preview-contract, structured-input, stateful-failure, or rubric-authoring rules because this PR changes visible comment formatting, tests, and docs rather than those policy surfaces.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-03T02:11:56Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/108#issuecomment-4365188115",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBC-LnQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #108 closes #90, the first child task selected from the broader #104 orchestrator cleanup plan. It changes visible sub-orchestrator selection, adoption, and terminal progress comments into compact transposed Markdown tables. The hidden markers used for recovery, dedupe, and trusted state remain preserved. The PR also updates focused tests and `.agent` technical documentation for the visible table plus hidden-marker contract.\n\n## Review\nOverall, the current head looks ready to ship. The earlier unused-local warning was fixed, and the latest review inputs do not identify any unresolved required branch changes.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | Latest rubrics and Codex reviews found no unresolved findings on head `39144a0`. Claude noted optional maintainability observations, but none require a branch change. |\n\n## Progress\n- The earlier unused `result` local warning was acknowledged and fixed by the follow-up fix-pr pass.\n- Current rubrics review is `PASS` with no rubric-specific findings.\n- Latest verification reported `npm run build`, the focused orchestrate handoff test, and `git diff --check` all passed.\n- Existing inline review comments are empty; no new inline comments were posted because there are no unresolved line-specific actionable findings.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved actionable work remains for automation after the latest fix.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-03T02:14:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/108#issuecomment-4365192093",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-03T01:58:44Z",
+  "files": [
+    {
+      "path": ".agent/docs/technical-details/agent-orchestrator.md",
+      "additions": 4,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrate-handoff-cli.test.ts",
+      "additions": 19,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrate-handoff.ts",
+      "additions": 104,
+      "deletions": 26,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-90/codex-25267116262",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 108,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "OPEN",
+  "title": "Format sub-orchestrator comments as compact tables",
+  "updatedAt": "2026-05-03T02:14:32Z",
+  "url": "https://github.com/self-evolving/repo/pull/108"
+}

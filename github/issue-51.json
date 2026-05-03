@@ -6,7 +6,7 @@
     "name": "Shannon Shen"
   },
   "body": "After reviewing #43 and #45 , I think this is just a temporary hack. I think the simplest and a bit more elegant fix is the following: \n\n1. orchestrator can dispatch back to another orchestrator \n    - example: there is a bigger task, and the meta orchestrator breaks down the tasks into substages; and it can dispatch to sub orchestrators to execute the task; when the sub orchestrator finishes the task, then it reports back, and the meta-orchestrator then decides to work on the next issue. \n2. in that case, we should perhaps should consider implementing this function #30 -> we should be able to stack PRs on other branches? \n3. if this is implemented properly, this should represent a better model of the fix in #45 \n4. Question: does our session envelop system support creating different orchestrators inside the same route? \n    - say in the same issue, can it create multiple different target orchestrators?\n\n@sepo-agent /answer can you check this, understand what's implemented, and is this feasible?",
-  "closedAt": null,
+  "closedAt": "2026-05-03T01:31:48Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABA0KOUQ",
@@ -249,6 +249,43 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/51#issuecomment-4353804435",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCrAtg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer seems can be closed after the latest sub orchestration merge? Can you double check? ",
+      "createdAt": "2026-05-02T22:42:23Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/51#issuecomment-4364878006",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCrMbA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, I think #51 can be closed now.\n\nI double-checked the current state:\n\n- #51 is still open.\n- #61 and #66 were closed without merge.\n- The actual merged implementation is #82: https://github.com/self-evolving/repo/pull/82\n- #82 merged on May 2, 2026 and implements the cleaner issue-backed model:\n  - `/orchestrate` stays the public route.\n  - `delegate_issue` is the internal planner decision.\n  - parent orchestrator creates/reuses child issues.\n  - child issues run the normal `/orchestrate` flow.\n  - terminal child results report back to the parent and resume the parent planner.\n  - validation passed: `npm --prefix .agent test` and `npm --prefix .agent run build`.\n  - review synthesis verdict was `SHIP`.\n\nCurrent main also reflects the intended design:\n\n- Docs describe issue-level `delegate_issue` meta-orchestration and child issue report-back: https://github.com/self-evolving/repo/blob/main/.agent/docs/technical-details/agent-orchestrator.md#L73-L101\n- `delegate_issue` is parsed as an internal planner decision, not a public action route: https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L130-L168\n- Child issue markers and parent/child metadata live in GitHub issue state: https://github.com/self-evolving/repo/blob/main/.agent/src/sub-orchestration.ts#L1-L147\n\nThe only caveat: native GitHub sub-issue linking was not implemented, but that was explicitly framed as optional/follow-up. The required model for #51 is now covered.\n\nI would close #51. I would keep #58 open only if we still want to separately solve manual PR `/orchestrate` session-continuation semantics; #82 addresses this feature through child issues rather than making manual PR orchestration resume an earlier issue route.",
+      "createdAt": "2026-05-02T22:44:21Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/51#issuecomment-4364881004",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-04-30T04:18:56Z",
@@ -273,8 +310,8 @@
     }
   ],
   "number": 51,
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Orchestrator to dispatch to another orchestrator",
-  "updatedAt": "2026-04-30T15:27:51Z",
+  "updatedAt": "2026-05-03T01:31:48Z",
   "url": "https://github.com/self-evolving/repo/issues/51"
 }

@@ -1,0 +1,206 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Add planner guidance to set `base_pr` when sequential child work follows an open, unmerged child PR.\n- Document the sub-orchestrator stacking policy.\n- Add a #83-shaped regression for delegating an existing second child with `base_pr: \"89\"` preserved into the runtime handoff.\n\n## Tests\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/orchestrate-handoff-cli.test.js .agent/dist/__tests__/envelope.test.js`\n\nCloses #96\n",
+  "closedAt": "2026-05-02T23:01:43Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCrG3g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `implement` -> `review` (round 3/10).\n\nimplementation succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777761804724 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNjM2NDYxODQ6aW1wbGVtZW50Ojk2OnJldmlldzo5Nzoz -->",
+      "createdAt": "2026-05-02T22:43:25Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/97#issuecomment-4364879582",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCrOMg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 6 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #97 closes #96, which is the focused child of parent #92; the diff addresses the exact #92/#96 request for planner guidance plus a #83-shaped regression. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates both `.github/prompts/agent-orchestrator.md` and `.agent/docs/technical-details/agent-orchestrator.md` to document the sequential child stacking policy. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The fix uses the existing structured `base_pr` planner/runtime field and the regression asserts `inputs.base_pr === \"89\"` rather than encoding stack intent in free-form handoff text. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The implementation relies on existing `delegate_issue` base input plumbing and adds prompt/docs/test coverage instead of introducing new runtime machinery. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The PR touches four targeted files: planner prompt, technical docs, one envelope assertion test, and one focused orchestrator handoff regression. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The change is the smallest policy-level fix requested: explicit planner guidance plus a regression proving the planner/runtime handoff preserves `base_pr`. |\n\n## Notes\n\n- The strongest score drivers are the narrow scope and the use of the existing `base_pr` contract. This matches the requested “small controlled fix” and avoids broadening into the adoption metadata wrinkle.\n- The regression covers the important #83 shape: prior child report includes `PR: #89` plus `SHIP`, the planner delegates existing issue #79, and the dispatch payload carries `base_pr: \"89\"`.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings. The optional idea to surface the terminal child PR as a structured parent input was intentionally left out, and I would not penalize that under the selected rubrics because the requested controlled fix was prompt guidance plus regression coverage.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-02T22:44:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/97#issuecomment-4364881458",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCr9VQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #97 addresses the stacking-policy gap raised in #96, which is a focused child of parent issue #92. The underlying problem was that sequential sub-orchestrator child work could continue after a prior child produced an open PR, but the planner was not explicitly told to set `base_pr` for the next child. The PR adds planner guidance, mirrors the behavior in technical docs, and adds a #83-shaped regression proving an existing child handoff preserves `base_pr: \"89\"`. The optional runtime enhancement to surface the terminal child PR as structured parent input remains out of scope.\n\n## Review\nOverall, reviewers agree the PR is narrow, uses the existing `base_pr` contract, and covers the requested behavior at the right boundary. One reviewer identified a minor docs-rendering issue; the other reviews found no actionable concerns.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Docs Paragraph Formatting | WARNING | The new technical-docs sentence is inserted directly after the previous paragraph without a blank line, so Markdown renders it as part of the previous paragraph instead of a distinct policy note. |\n\n## Progress\n- Rubrics review passed with no rubric-specific follow-up.\n- Codex review found no blocking, warning, or info findings and verified the focused build/test commands.\n- The optional structured terminal-child-PR input was intentionally left out of scope and no reviewer treated that as required for this PR.\n- I posted one inline comment on `.agent/docs/technical-details/agent-orchestrator.md` line 85 for the formatting issue.\n\n## Issue Details\n<details>\n<summary>Docs Paragraph Formatting</summary>\n\n**Cause:** The added docs sentence starts immediately after the prior paragraph’s final line, without the blank line CommonMark needs to begin a new paragraph.\n\n**Candidate solutions:** Add a blank line before `When the meta-orchestrator continues sequential child implementation work...`.\n\n**Comments:** This is minor and does not affect runtime behavior or the regression, but it is a concrete docs fix and safe for automation.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the only unresolved finding is a small, concrete branch change that an automated fix-pr pass can safely apply.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Add a blank line before the new sequential child stacking paragraph in `.agent/docs/technical-details/agent-orchestrator.md`.",
+      "createdAt": "2026-05-02T22:52:57Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/97#issuecomment-4364893525",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCr-Zw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `review` -> `fix-pr` (round 4/10).\n\nreview verdict is minor_issues; dispatching fix-pr\n\n<!-- sepo-agent-handoff state:dispatched created:1777762389907 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNjM3Mjk5NjA6cmV2aWV3Ojk3OmZpeF9wcjo5Nzo0 -->",
+      "createdAt": "2026-05-02T22:53:10Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/97#issuecomment-4364893799",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCsHVw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-96/codex-25263646184`. Requested by @sepo-agent.\n\n- Added the missing blank line before the sequential child stacking policy paragraph in `.agent/docs/technical-details/agent-orchestrator.md`.\n- Addressed the latest review synthesis action item without changing runtime behavior.\n- Checks passed: `git diff --check`; `node --test .agent/dist/__tests__/envelope.test.js`.",
+      "createdAt": "2026-05-02T22:54:56Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/97#issuecomment-4364896087",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCsIfg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `fix-pr` -> `review` (round 5/10).\n\nPR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777762509530 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNjM5MDAzNjE6Zml4X3ByOjk3OnJldmlldzo5Nzo1 -->",
+      "createdAt": "2026-05-02T22:55:09Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/97#issuecomment-4364896382",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCsOtQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 6 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #97 closes #96, whose body explicitly scopes the child of parent #92 to planner guidance plus a #83-shaped regression; the diff follows that scope. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The PR updates both `.github/prompts/agent-orchestrator.md` and `.agent/docs/technical-details/agent-orchestrator.md` with the sequential child stacking policy. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The implementation uses the existing structured `base_pr` field, and the regression asserts the dispatch payload carries `inputs.base_pr === \"89\"`. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR relies on existing `delegate_issue` base input plumbing and adds prompt/docs/test coverage instead of adding new runtime machinery. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is limited to four targeted files: planner prompt, technical docs, one envelope assertion, and one focused handoff regression. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The change implements the smallest controlled fix requested: explicit planner policy plus focused regression coverage for preserving `base_pr`. |\n\n## Notes\n\n- The strongest score drivers are scope control and use of the existing `base_pr` contract. This matches the requested controlled fix and avoids broadening into unrelated adoption metadata behavior.\n- The #83-shaped regression covers the key runtime handoff: prior child report includes `PR: #89` plus `SHIP`, planner delegates existing child #79, and the resulting workflow dispatch includes `base_pr: \"89\"`.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings. The optional runtime enhancement to surface the terminal child PR as a structured parent input remains out of scope, and the selected rubrics do not require it for this PR.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-02T22:56:18Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/97#issuecomment-4364897973",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCsmRA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #97 addresses the sub-orchestrator stacking-policy gap from #96, a focused child of parent issue #92. The issue was that sequential child work could continue after a prior child produced an open PR, but the planner was not explicitly guided to set `base_pr` for the next child. The PR now adds planner guidance, updates technical docs, and includes a #83-shaped regression proving an existing child handoff preserves `base_pr: \"89\"`. The broader optional idea of surfacing the terminal child PR as structured parent input remains intentionally out of scope.\n\n## Review\nThe current PR head has no unresolved actionable findings. Claude’s earlier docs-formatting warning was concrete and valid on the original head, but the follow-up fix-pr run added the missing blank line; Rubrics and Codex reviews now find no remaining issues.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | The prior docs paragraph formatting issue has been fixed, and the current diff shows the stacking-policy paragraph separated by blank lines. |\n\n## Progress\n- Rubrics review passed with no rubric-specific follow-up.\n- Codex review found no blocking, warning, or info findings on PR head `1f36965` and reported build plus focused tests passing.\n- The prior inline docs-formatting comment already exists and is resolved by the latest diff; no duplicate inline comment was posted.\n- The optional runtime enhancement to surface terminal child PR state remains out of scope and does not block this PR.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved actionable branch-change work remains after the follow-up formatting fix.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-02T23:00:43Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/97#issuecomment-4364904004",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCszDQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #97.\n\nno rubric changes\n\nI reviewed PR #97 history, linked issues #96 and #92, author associations, repository owner metadata, and the active rubric set. The PR conversation contained only bot/agent-authored review and handoff comments with `author_association: NONE`; the linked human context from `lolipopshock` requested a small controlled fix, not a durable rubric update.\n\nThe durable lessons present here are already covered by active rubrics: surgical changes, simple implementation, keep docs in sync, prefer explicit structured inputs, and read linked context first. No rubric files were modified.\n",
+      "createdAt": "2026-05-02T23:02:59Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/97#issuecomment-4364907277",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-02T22:43:10Z",
+  "files": [
+    {
+      "path": ".agent/docs/technical-details/agent-orchestrator.md",
+      "additions": 4,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrate-handoff-cli.test.ts",
+      "additions": 50,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-orchestrator.md",
+      "additions": 5,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-96/codex-25263646184",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": "2026-05-02T23:01:43Z",
+  "number": 97,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM77RTrP",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-02T22:52:33Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "e45e5802d90aaa88f904a2c45fbff4a5619fcb23"
+      }
+    }
+  ],
+  "state": "MERGED",
+  "title": "Guide sequential sub-orchestrator PR stacking",
+  "updatedAt": "2026-05-02T23:02:59Z",
+  "url": "https://github.com/self-evolving/repo/pull/97"
+}

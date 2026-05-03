@@ -1,0 +1,121 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "#89 and #91 are done inside an orchestrate route; however they are not in stacked PRs? \n\n@sepo-agent /answer check what happened?",
+  "closedAt": "2026-05-02T23:02:20Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCgVTA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Confirmed: #89 and #91 are **not stacked** because no `base_pr` was carried into the second child implementation.\n\nEvidence:\n- PR #89 base is `main`. Its implement run resolved `BASE_BRANCH=main`, `BASE_PR=` from explicit `base_branch`.\n- Parent planner for #84 returned `base_branch: \"main\"` and no `base_pr`.\n- PR #91 base is also `main`. Its implement run had `BASE_BRANCH=` and `BASE_PR=`, then resolved `main` from `default_branch`.\n- Parent planner for #79 returned no base field, and its handoff context said #84/PR #89 was complete and to avoid modifying #89 unless needed.\n\nSo this was not a PR-creation failure. Current orchestrate stacking only happens when `base_branch` or `base_pr` is explicitly supplied. The runtime path supports it, but does not infer “next child should stack on previous child PR” automatically.\n\nRelevant code paths:\n- `.agent/src/handoff.ts` accepts planner `base_branch` / `base_pr` for `delegate_issue`.\n- `.agent/src/cli/orchestrate-handoff.ts` forwards those fields into child `agent-orchestrator.yml`, and forwards workflow-level base fields into `agent-implement.yml`.\n- `.agent/src/implementation-base.ts` defaults to the repo default branch when neither field is set.\n- `.agent/docs/technical-details/agent-orchestrator.md` documents stacked PRs as explicit `base_branch` / `base_pr` inputs.\n\nConclusion: this is an orchestration policy/planner gap. If we expect meta-orchestrated child issues to form a PR stack, we need to add explicit behavior, likely: when a parent continues from a completed child PR that is open/unmerged, carry `base_pr: <previous child PR>` into the next `delegate_issue`, or make the planner prompt require this when “one by one” work should be stacked.",
+      "createdAt": "2026-05-02T20:55:25Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/92#issuecomment-4364703052",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCh2Kw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\nSo that seems to be a small bug on the sub-orchestrator planning side -> does it happen only when it attaches to existing issues or? Can you look into it?",
+      "createdAt": "2026-05-02T21:10:05Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/92#issuecomment-4364727851",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCiD-Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I don’t think it happens **only** when attaching to existing issues. The existing-issue path exposed it here, but the underlying gap is more general: sub-orchestrator planning does not currently have a deterministic rule to stack the next child PR on the previous child PR.\n\nWhat I found:\n\n- The runtime **can** pass stack inputs through `delegate_issue`: [`orchestrate-handoff.ts#L1040-L1041`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L1040-L1041).\n- It also validates/carries effective base inputs while ensuring/creating a child issue: [`orchestrate-handoff.ts#L542-L545`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L542-L545).\n- But the planner prompt only says `base_pr` is optional; it does **not** say “when continuing one-by-one child work after an open child PR, stack the next child on that PR”: [`agent-orchestrator.md#L47-L49`](https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-orchestrator.md#L47-L49).\n- When a child finishes, the parent resume dispatch only carries the current workflow’s `base_branch/base_pr`, not the terminal child PR number as a structured stack candidate: [`orchestrate-handoff.ts#L730-L743`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L730-L743).\n\nFor #83 specifically:\n\n- First planner run delegated #84 with `base_branch: \"main\"` and no `base_pr`; #89 was therefore based on `main`.\n- After #84/#89 reached SHIP, the parent planner delegated #79 with **no** `base_branch` or `base_pr`; #91 therefore defaulted to `main`.\n- The planner did see #89 and treated it as complete, but chose “continue one-by-one” as independent child work, not as a stack.\n\nThere is one existing-issue-specific wrinkle: newly-created child issues can store a `## Base` section in their body, while adopted existing issues only get an adoption marker and do not get base metadata written into the issue body. But that is not what caused #91. If the planner had returned `base_pr: \"89\"` when delegating existing issue #79, the immediate dispatch path would have passed it.\n\nSo I’d classify this as a **sub-orchestrator stacking policy gap**, not an adoption-only bug.\n\nSuggested fix:\n- Add planner guidance: when a parent meta-orchestrator continues sequential child implementation work and the prior child produced an open unmerged PR, set `base_pr` to that PR unless the next child is intentionally independent.\n- Add a regression for the #83 shape: parent child #1 reports `PR: #89` + SHIP, planner delegates child #2, and the expected planner/runtime handoff includes `base_pr: \"89\"`.\n- Optionally make runtime more deterministic by surfacing the terminal child PR number as structured parent-orchestrator input, so the planner does not have to infer it from comments.",
+      "createdAt": "2026-05-02T21:12:14Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/92#issuecomment-4364731385",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCqj_w",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> I don’t think it happens **only** when attaching to existing issues. The existing-issue path exposed it here, but the underlying gap is more general: sub-orchestrator planning does not currently have a deterministic rule to stack the next child PR on the previous child PR.\n> \n> What I found:\n> \n> - The runtime **can** pass stack inputs through `delegate_issue`: [`orchestrate-handoff.ts#L1040-L1041`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L1040-L1041).\n> - It also validates/carries effective base inputs while ensuring/creating a child issue: [`orchestrate-handoff.ts#L542-L545`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L542-L545).\n> - But the planner prompt only says `base_pr` is optional; it does **not** say “when continuing one-by-one child work after an open child PR, stack the next child on that PR”: [`agent-orchestrator.md#L47-L49`](https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-orchestrator.md#L47-L49).\n> - When a child finishes, the parent resume dispatch only carries the current workflow’s `base_branch/base_pr`, not the terminal child PR number as a structured stack candidate: [`orchestrate-handoff.ts#L730-L743`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L730-L743).\n> \n> For #83 specifically:\n> \n> - First planner run delegated #84 with `base_branch: \"main\"` and no `base_pr`; #89 was therefore based on `main`.\n> - After #84/#89 reached SHIP, the parent planner delegated #79 with **no** `base_branch` or `base_pr`; #91 therefore defaulted to `main`.\n> - The planner did see #89 and treated it as complete, but chose “continue one-by-one” as independent child work, not as a stack.\n> \n> There is one existing-issue-specific wrinkle: newly-created child issues can store a `## Base` section in their body, while adopted existing issues only get an adoption marker and do not get base metadata written into the issue body. But that is not what caused #91. If the planner had returned `base_pr: \"89\"` when delegating existing issue #79, the immediate dispatch path would have passed it.\n> \n> So I’d classify this as a **sub-orchestrator stacking policy gap**, not an adoption-only bug.\n> \n> Suggested fix:\n> - Add planner guidance: when a parent meta-orchestrator continues sequential child implementation work and the prior child produced an open unmerged PR, set `base_pr` to that PR unless the next child is intentionally independent.\n> - Add a regression for the #83 shape: parent child #1 reports `PR: #89` + SHIP, planner delegates child #2, and the expected planner/runtime handoff includes `base_pr: \"89\"`.\n> - Optionally make runtime more deterministic by surfacing the terminal child PR number as structured parent-orchestrator input, so the planner does not have to infer it from comments.\n\n\n\n@sepo-agent /orchestrate let's plan for a small controlled fix here? ",
+      "createdAt": "2026-05-02T22:37:10Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/92#issuecomment-4364870655",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCqrZQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sub-orchestrator child selected for stacking-policy-fix: #96\n\n<!-- sepo-sub-orchestrator-child parent:92 stage:stacking-policy-fix child:96 -->",
+      "createdAt": "2026-05-02T22:38:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/92#issuecomment-4364872549",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-02T20:52:39Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 92,
+  "state": "CLOSED",
+  "title": "Investigate orchestrate stacked PRs",
+  "updatedAt": "2026-05-02T23:02:20Z",
+  "url": "https://github.com/self-evolving/repo/issues/92"
+}

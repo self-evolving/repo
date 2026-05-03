@@ -1,0 +1,152 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Replay the full route prompt for resumed `fix-pr` runs when `ORCHESTRATOR_CONTEXT` is present.\n- Keep direct/manual `fix-pr` continuation behavior unchanged.\n- Add regression coverage for agent-facing prompt selection and document the session-continuity behavior.\n\n## Tests\n- `npm --prefix .agent test`\n- `npm --prefix .agent run build && node --test .agent/dist/__tests__/prompt-continuation.test.js`\n\nCloses #84\n",
+  "closedAt": "2026-05-02T22:29:33Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCdIWA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `implement` -> `review` (round 3/10).\n\nimplementation succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777753455408 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNjA5NTk4NTg6aW1wbGVtZW50Ojg0OnJldmlldzo4OToz -->",
+      "createdAt": "2026-05-02T20:24:15Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/89#issuecomment-4364650584",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCdQKA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 5 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR closes #84 and implements its stated acceptance criteria for resumed orchestrated `fix-pr` context, including preserving direct/manual behavior. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates `.agent/docs/technical-details/session-continuity.md` to document full-prompt replay for resumed orchestrator-launched `fix-pr` runs. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Keeps prompt selection integrated with existing `selectPromptForSessionOutcome`; new helper only extracts continuation-prompt construction/selection logic from `run.ts`. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is limited to runtime prompt selection, one helper, focused tests, and one docs bullet. No unrelated workflow or orchestration refactor. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Uses a direct predicate: replay full prompt only when `route === \"fix-pr\"` and `ORCHESTRATOR_CONTEXT` is non-empty. |\n\n## Notes\n\n- The strongest rubric alignment is that the PR fixes the precise #84 failure mode without broadening orchestration behavior: resumed orchestrated `fix-pr` gets the full route prompt, while direct `fix-pr` and non-`fix-pr` routes keep lightweight continuation prompts.\n- The regression tests cover the important contract points: full prompt for orchestrated resumed `fix-pr`, continuation prompt for direct `fix-pr`, and unchanged behavior for other routes.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric violations found.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-02T20:25:27Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/89#issuecomment-4364652584",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCd9Sg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #89 fixes #84, where resumed orchestrator-launched `fix-pr` runs could lose the current handoff instructions.\n- The change makes resumed `fix-pr` runs with non-empty `ORCHESTRATOR_CONTEXT` replay the full route prompt instead of the lightweight continuation prompt.\n- Direct/manual `fix-pr` continuation behavior remains unchanged when no orchestrator context is present.\n- The PR adds focused regression coverage and updates the session-continuity docs.\n\n## Review\nThe independent reviews agree the PR is focused, correct, and aligned with #84’s acceptance criteria. One reviewer noted optional follow-up improvements around log naming and future template-render coverage, but no reviewer identified required branch changes.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable findings | INFO | No blocking or required warning-level branch changes remain. Optional follow-ups were noted but are not necessary for this PR to ship. |\n\n## Progress\n- Rubrics review passed with no violations.\n- Existing PR discussion already includes a rubrics PASS comment.\n- Existing inline review comments were checked; none were present.\n- #79 remains intentionally out of scope; this PR addresses #84’s context-delivery root cause.\n- CI check is passing on the PR.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: no unresolved actionable branch work remains, and the remaining reviewer notes are optional follow-up considerations.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change action items.",
+      "createdAt": "2026-05-02T20:32:01Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/89#issuecomment-4364664138",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCiKuw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Replay the full route prompt for resumed fix-pr runs when ORCHESTRATOR_CONTEXT is present.\r\n\r\n@sepo-agent /answer \r\n\r\nWait, so after this update, for fix-pr, it will \r\n- keep the session continuation behavior \r\n- and for each step, it will add the whole fix-pr prompt again? ",
+      "createdAt": "2026-05-02T21:13:15Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/89#issuecomment-4364733115",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCiWWw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Mostly yes on session continuity, but **no** if “add” means append/duplicate the whole prompt at every internal step.\n\nAfter this PR:\n\n- `fix-pr` still keeps the existing `resume-best-effort` session behavior.\n- For a **resumed `fix-pr` run with non-empty `ORCHESTRATOR_CONTEXT`**, it skips the lightweight continuation prompt, so ACP receives the **full current `fix-pr` route prompt once for that run**.\n- It does **not** repeatedly inject the full prompt into every model step/turn.\n- It does **not** concatenate the full prompt onto the prior transcript; the prior session context is resumed separately by the session backend.\n- Direct/manual `fix-pr` runs without `ORCHESTRATOR_CONTEXT` still use the lightweight continuation prompt.\n- Non-`fix-pr` routes are unchanged.\n\nThe key predicate is in [`shouldReplayFullPromptOnResume`](https://github.com/self-evolving/repo/blob/agent/implement-issue-84/codex-25260959858/.agent/src/prompt-continuation.ts): only `route === \"fix-pr\"` plus non-empty `ORCHESTRATOR_CONTEXT` flips resumed runs back to the full prompt. The docs update states the same behavior in [`session-continuity.md`](https://github.com/self-evolving/repo/blob/agent/implement-issue-84/codex-25260959858/.agent/docs/technical-details/session-continuity.md).",
+      "createdAt": "2026-05-02T21:15:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/89#issuecomment-4364736091",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCqAXg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #89.\n\nno rubric changes\n\nI read PR #89 history, linked issue #84, PR comments/reviews, collaborator/owner context, diff, and existing rubrics. The only human PR comment was a clarification question from `lolipopshock`; it did not establish a reusable implementation/review preference. The remaining discussion was bot/agent-authored or project-specific behavior already covered by existing rubrics like `keep-docs-in-sync`, `read-docs-first`, `reuse-existing-code`, and `surgical-changes`.\n\nI left `/agent-rubrics` unchanged.\n",
+      "createdAt": "2026-05-02T22:31:10Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/89#issuecomment-4364861534",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-02T20:24:00Z",
+  "files": [
+    {
+      "path": ".agent/docs/technical-details/session-continuity.md",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/prompt-continuation.test.ts",
+      "additions": 81,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/prompt-continuation.ts",
+      "additions": 28,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/run.ts",
+      "additions": 21,
+      "deletions": 11,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-84/codex-25260959858",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": "2026-05-02T22:29:33Z",
+  "number": 89,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "MERGED",
+  "title": "Preserve resumed fix-pr handoff context",
+  "updatedAt": "2026-05-02T22:31:10Z",
+  "url": "https://github.com/self-evolving/repo/pull/89"
+}

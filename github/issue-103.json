@@ -1,0 +1,78 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "For example, when i want to launch a set of tasks (from existing issues) and do not want to create a new dedicated parent issue, I kinda want to \n- create a comment in a discussion (like https://github.com/self-evolving/repo/discussions/80 ) then tag the orchestrate agent \n- then the orchestrate agent can work on it, and then comment inside the thread. \n    - a thread in the discussion is kinda acting as an \"issue\" now and share its own context for managing the tasks and handoffs \n\n\n@sepo-agent /answer what do you think?",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBC7AZw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I think this is the right product shape, with one important design constraint: the discussion thread should become the **coordination surface**, but execution should still reuse the existing issue/PR-backed action workflows.\n\nCurrent state:\n- Discussion mentions and replies are already recognized trigger surfaces: [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/supported-workflows.md#L136-L158).\n- Responses can already be posted back into a discussion comment thread via `replyToId`: [`respond.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/respond.ts#L56-L64).\n- But `/orchestrate` is currently gated to only issues and PRs: [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L655-L662).\n- The orchestrator workflow itself also models `target_number` / `target_kind` as issue-or-PR state: [`agent-orchestrator.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-orchestrator.yml#L16-L22).\n- Existing sub-orchestration is intentionally issue-backed: child state markers, parent progress comments, and parent resume all assume an issue parent: [`agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/technical-details/agent-orchestrator.md#L73-L103), [`sub-orchestration.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/sub-orchestration.ts#L117-L146).\n\nSo I would not make the discussion comment literally masquerade as an issue inside the existing issue-only code. I would add a thin first-class **discussion-thread orchestration parent** layer:\n\n1. Treat a discussion comment/reply mention as an orchestration parent target keyed by:\n   - discussion number\n   - discussion node id\n   - anchor comment/reply node id\n   - requester/auth context\n2. Let the planner run against that thread transcript as the parent context.\n3. For each concrete task, reuse the existing `delegate_issue` path to create/adopt child issues.\n4. Report child completion back into the original discussion thread, using the existing threaded discussion reply support.\n5. Resume the discussion-thread parent orchestrator from that report, just like issue parent orchestration resumes today.\n6. Store hidden deterministic markers in agent-authored discussion replies, not user-authored discussion text.\n\nThat preserves the UX you want: “this discussion thread acts like the parent issue,” while keeping implementation/review/fix-pr workflows anchored to normal GitHub issues and PRs where labels, closing refs, branches, and PR review state already work.\n\nExecution plan I’d propose:\n\n1. Extend router orchestration gating to allow `target_kind == discussion` when the source is `discussion_comment`.\n2. Add a discussion-thread parent identity, probably not just `discussion#80`, because multiple comments inside the same discussion need separate orchestration state.\n3. Add GraphQL helpers for fetching a focused discussion comment thread transcript and for updating/creating trusted agent marker replies.\n4. Extend orchestrator preflight/dispatch to accept `discussion_thread` parent targets for planner starts only.\n5. Keep `delegate_issue` children as normal issues, but allow their terminal report path to post back to either an issue parent or a discussion-thread parent.\n6. Update docs/tests around supported workflows, request lifecycle, orchestrator details, and discussion reply behavior.\n\nI’d be comfortable implementing this behind the existing explicit `/orchestrate` route. Approval question: should the first version support only **top-level discussion comments as orchestration parents**, or should replies nested under a discussion comment also be valid separate parent threads?",
+      "createdAt": "2026-05-03T01:40:05Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/103#issuecomment-4365140071",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBC7uSg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\nThis might be too complicated: \n\n1. What I think: besides the existing functions (issue/PR based orchestration), we can just add a way to coordinate multiple issues in a thread inside a discussion page (like https://github.com/self-evolving/repo/discussions/80 ) \n2. let's say we can create a comment on a series of tasks to do(without creating a new redundant issue), and the agent orchestrator can use the reply threads as a way to coordinate the work there. \n3. we do not need to remove existing functions, but just add this smaller layer of discussion based management. \n",
+      "createdAt": "2026-05-03T01:48:17Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/103#issuecomment-4365151818",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBC71YQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, I agree with this narrower version. It is much cleaner than making discussions a full replacement for issue/PR orchestration.\n\nThe split I’d use:\n\n- Existing issue/PR orchestration stays unchanged.\n- A discussion reply thread becomes a lightweight **coordination surface**.\n- The actual tasks remain existing issues/PRs.\n- The agent posts progress, handoffs, blockers, and final summaries back into that discussion thread.\n\nThat fits the current architecture well because discussion mentions are already supported as trigger surfaces in [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/supported-workflows.md#L136-L158), and threaded discussion replies are already supported in [`respond.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/respond.ts#L56-L121). The main missing piece is that `/orchestrate` currently only dispatches for issue or PR targets in [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L655-L662).\n\nI would implement this as a small “discussion coordinator” layer:\n\n1. User writes a discussion comment like:\n   ```md\n   @sepo-agent /orchestrate\n   Coordinate #101, #102, #103. Do them in this order...\n   ```\n2. Router allows `/orchestrate` from `discussion_comment`, but marks it as `discussion coordination`, not normal issue orchestration.\n3. The coordinator parses/derives the issue list from the thread.\n4. For each issue, it dispatches the existing issue orchestration path.\n5. It stores a hidden marker in an agent-authored discussion reply with the coordinated issue list and current state.\n6. Child issue completions report back to the same discussion reply thread.\n7. The discussion thread becomes the human-readable “control room,” without creating a redundant parent issue.\n\nThis avoids changing the core invariant documented in [`agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/technical-details/agent-orchestrator.md#L73-L103): implementation/review/fix-pr work still happens through issue/PR targets. We only add a lightweight discussion-level manager above it.\n\nThe first version can be modest:\n\n- only explicit `/orchestrate` in discussion comments\n- only existing issue numbers, no automatic task creation\n- post progress into the same discussion reply thread\n- no labels/milestones/project metadata\n- no replacement for parent issue orchestration\n\nI think that’s the right scope. It gives you the workflow you want without overloading Discussions with all the semantics of Issues.",
+      "createdAt": "2026-05-03T01:49:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/103#issuecomment-4365153633",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-03T01:37:54Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 103,
+  "state": "OPEN",
+  "title": "(sub)-Orchestration inside discussion threads",
+  "updatedAt": "2026-05-03T01:49:28Z",
+  "url": "https://github.com/self-evolving/repo/issues/103"
+}

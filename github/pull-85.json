@@ -7,7 +7,7 @@
   },
   "baseRefName": "main",
   "body": "## Summary\n- allow `delegate_issue` with `child_issue_number` to adopt an existing user-authored issue instead of requiring the child issue itself to be agent-created\n- store adopted child state in an agent-authored child issue comment, while keeping parent child-link and terminal report markers agent-authored/trusted\n- resolve and update terminal child state from either trusted issue-body markers or trusted child-comment markers\n- update orchestrator docs/prompt to describe create/reuse/adopt behavior\n\nThis unblocks the #83 case where the parent issue links existing issues (#84, #79) and asks the orchestrator to work through them one at a time.\n\n## Validation\n- `npm --prefix .agent test` (440 tests passed)\n- `npm --prefix .agent run build`\n",
-  "closedAt": null,
+  "closedAt": "2026-05-02T20:16:34Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABBCKoZw",
@@ -248,8 +248,8 @@
       "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 99 | PASS | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR body ties the change to #83 and linked child issues #84/#79; implementation/docs target that broader orchestration case. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Keeps `child_issue_number` as a distinct planner field and validates explicit targets, instead of overloading free-form instructions. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Reuses existing sub-orchestrator marker parsing/formatting, child-link markers, trusted actor checks, and issue/comment helpers. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates `.agent/docs/actions/agent-actions.md`, supported workflows, technical orchestrator docs, and `.github/prompts/agent-orchestrator.md`. |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Invalid explicit child targets stop visibly through the parent issue comment path; adoption records visible agent-authored child and parent comments. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Missing marker comment ids throw; PR-number and closed-issue adoption targets are rejected with focused tests; terminal state updates use the trusted marker source. |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | User-authored issue bodies are not trusted for child state; adopted child markers are stored in trusted agent-authored comments, and downstream child dispatch remains explicit. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | Docs describe create/reuse/adopt behavior and trusted marker ownership without adding stale file inventory tables. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is limited to orchestrator handoff code, focused orchestrator tests, and matching docs/prompt text. |\n| coding_style / generic | Prefer simple implementations | partial | 6/7 | Implementation is localized and direct; the extra marker source record plumbing is somewhat heavier, but justified by body-vs-comment trust handling. |\n\n## Notes\n\n- The latest PR state addresses the prior warning-level follow-ups: reusable-child validation now runs after explicit reuse or adoption resolves `childIssue`, and a rerun regression verifies an existing trusted adoption marker is reused without posting a duplicate adoption comment.\n- The strongest rubric alignment is the trust boundary: existing user-authored issues can be adopted without trusting user-authored markers.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No blocking or warning rubric findings. The implementation satisfies the applicable selected rubrics.\n\n## Final Rubric Verdict\n\nPASS",
       "createdAt": "2026-05-02T18:08:33Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/85#issuecomment-4364420190",
       "viewerDidAuthor": true
@@ -263,8 +263,8 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #85 lets `delegate_issue` adopt existing user-authored issues as child orchestrator targets, unblocking #83’s request to process linked issues #84 and #79 one at a time.\n- The PR stores adopted child state in an agent-authored child issue comment, while keeping parent child-link and terminal report markers trusted.\n- Follow-up fixes already added PR/closed-issue rejection, unconditional reusable-child validation, and an idempotency regression for reused adopted child markers.\n- Docs and the orchestrator prompt were updated to describe create, reuse, and adopt behavior.\n\n## Review\n- The core adoption design is aligned with the requested workflow, but one new trust-boundary issue remains blocking.\n- Reviewers disagreed on final verdict: Claude considered the PR shippable with only a pre-existing test-harness limitation, while Codex found a blocking marker-injection risk in comment-sourced child markers.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Comment-sourced child markers are too broadly trusted | BLOCKING | The new comment marker path trusts any app-authored issue comment containing `sepo-sub-orchestrator`, including model-authored comments from other routes under the same app identity. |\n| Parent child-link rerun idempotency is not directly proven | WARNING | The rerun test proves no second child adoption comment is posted, but the global comment mock does not prove the parent child-link comment is also deduplicated. |\n| Rubrics and docs are aligned | INFO | The rubrics review passed, and docs/prompt updates match the intended create/reuse/adopt behavior. |\n\n## Progress\n- The earlier blocking issue around adopting PR numbers or closed issues has been fixed with regressions.\n- The later warning about asymmetric reusable-child validation has been fixed.\n- A rerun regression now verifies already-adopted child marker comments are reused without posting another adoption marker.\n- I posted a new inline comment for the remaining blocking trust-boundary issue: https://github.com/self-evolving/repo/pull/85#discussion_r3177029584\n\n## Issue Details\n<details>\n<summary>Comment-sourced child markers are too broadly trusted</summary>\n\n**Cause:** [`trustedSubOrchestratorMarkerFromComments`](https://github.com/self-evolving/repo/blob/dc121109ff5b99fe6e81fc3c73587ff9df47a999/.agent/src/cli/orchestrate-handoff.ts#L296) accepts any trusted app-authored issue comment with a `sepo-sub-orchestrator` marker. Other routes can post model-authored comments as the same app, so reserved markers can be injected through ordinary agent output.\n\n**Candidate solutions:** Restrict comment-sourced markers to deterministic orchestrator/adoption comments with an additional route-specific marker/signature, or sanitize model-authored outputs so reserved `sepo-*` hidden markers cannot be emitted. Add regression coverage showing an unrelated app-authored answer/summary comment containing a forged marker is ignored.\n\n**Comments:** This is the main reviewer disagreement: the adoption model is otherwise sound, but the trust predicate for comment markers is too broad.\n\n</details>\n\n<details>\n<summary>Parent child-link rerun idempotency is not directly proven</summary>\n\n**Cause:** The test harness returns the same `FAKE_ISSUE_COMMENTS_JSON` for every issue comment fetch, so the child and parent comment lists are not independently modeled.\n\n**Candidate solutions:** Optionally extend the fake `gh` comment mock to vary by issue number and add a focused assertion that reruns do not post a duplicate parent child-link comment.\n\n**Comments:** Claude rated this as a warning but also judged the production code correct by inspection; it is secondary to the blocking trust-boundary issue.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the remaining blocking issue is a concrete trust-boundary branch change that is safe for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Restrict trusted comment-sourced `sepo-sub-orchestrator` markers to deterministic orchestrator/adoption comments or sanitize model-authored outputs so reserved `sepo-*` markers cannot be injected.\n- [ ] Add regression coverage proving unrelated app-authored model output with a forged sub-orchestrator marker is ignored.",
       "createdAt": "2026-05-02T18:15:31Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/85#issuecomment-4364432352",
       "viewerDidAuthor": true
@@ -310,6 +310,51 @@
       "minimizedReason": "",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/85#issuecomment-4364535679",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCYBeQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 99 | PASS | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR body and comments tie the work to #83 and linked child issues #84/#79; implementation targets that parent/child orchestration flow. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Keeps `child_issue_number` as a distinct planner field and validates explicit targets instead of overloading free-form instructions. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Reuses existing sub-orchestrator marker parsing/formatting, trusted actor checks, child-link markers, and issue/comment helpers. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates `.agent/docs/actions/agent-actions.md`, supported workflows, technical orchestrator docs, and `.github/prompts/agent-orchestrator.md`. |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Invalid explicit child targets stop through the parent issue comment path; adoption records visible trusted child and parent state comments. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | PR-number and closed-issue targets are rejected with regression coverage; missing marker comment ids throw; terminal updates use trusted marker source. |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | User-authored bodies are not trusted for child state; comment-sourced state now requires trusted actor plus deterministic adoption marker. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | Docs describe create/reuse/adopt behavior and state ownership without adding inventory tables. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is scoped to orchestrator handoff logic, focused tests, and matching docs/prompt updates. |\n| coding_style / generic | Prefer simple implementations | partial | 6/7 | The implementation is localized and direct; added marker-source plumbing is heavier than the old body-only path, but justified by the body-vs-comment trust boundary. |\n\n## Notes\n\n- The latest PR state addresses the prior rubric-relevant trust findings: comment-sourced `sepo-sub-orchestrator` state is restricted to deterministic adoption comments carrying `<!-- sepo-sub-orchestrator-adoption -->`.\n- Regression coverage now includes adoption of user-authored issues, rerun reuse without duplicate adoption comments, PR-number rejection, closed-issue rejection, and ignoring forged app-authored model-output marker comments.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No blocking or warning rubric findings. The implementation satisfies the applicable selected rubrics.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-02T19:34:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/85#issuecomment-4364566905",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCYY6Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #85 lets `delegate_issue` adopt existing user-authored issues as sub-orchestrator children, unblocking #83’s request to process #84 and #79 one at a time.\n- Adopted child state is stored in trusted agent-authored adoption comments instead of trusting user-authored issue bodies.\n- Follow-up fixes added explicit PR/closed-issue rejection, unconditional reusable-child validation, rerun idempotency coverage, and tighter trust checks for comment-sourced markers.\n- Docs and planner prompt text now describe create, reuse, and adopt behavior.\n\n## Review\n- Overall, the latest PR head is shippable. Claude’s earlier warnings are now addressed, while Codex and the rubrics review report no remaining blocking or warning findings.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | The latest head addresses the prior validation, idempotency, and marker-injection findings. No new branch changes are required. |\n\n## Progress\n- Prior PR-number and closed-issue adoption concerns were fixed with regression coverage.\n- Prior asymmetric validation and rerun idempotency warnings were fixed.\n- Prior comment-marker trust concern was fixed by requiring deterministic adoption comments.\n- No new inline comments were posted because current line-specific issues are already resolved or covered by existing comments.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved actionable work remains for an automated fix-pr pass.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change action items.",
+      "createdAt": "2026-05-02T19:37:45Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/85#issuecomment-4364572905",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCce0w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #85.\n\nno rubric changes\n\nI found no trusted, durable user/team preference in PR #85 that warrants a new or updated rubric. The PR conversation’s substantive feedback came from bot/agent reviews, and the only human comment was a `/fix-pr` command. The reusable lessons are already covered by existing rubrics like `validate-delegated-route-authorization`, `surface-stateful-failures`, `prefer-explicit-structured-inputs`, and `keep-docs-in-sync`.\n\nRubrics checkout remains clean.\n",
+      "createdAt": "2026-05-02T20:18:01Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/85#issuecomment-4364639955",
       "viewerDidAuthor": true
     }
   ],
@@ -359,9 +404,21 @@
       "name": "agent",
       "description": "Handled by the agent",
       "color": "0e8a16"
+    },
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChVB4QQ",
+      "name": "priority/p1",
+      "description": "Project management: high priority",
+      "color": "d93f0b"
+    },
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChVB5QA",
+      "name": "effort/medium",
+      "description": "Project management: medium effort",
+      "color": "fbca04"
     }
   ],
-  "mergedAt": null,
+  "mergedAt": "2026-05-02T20:16:34Z",
   "number": 85,
   "reviewDecision": "",
   "reviews": [
@@ -411,8 +468,8 @@
       }
     }
   ],
-  "state": "OPEN",
+  "state": "MERGED",
   "title": "Allow delegate_issue to adopt existing issues",
-  "updatedAt": "2026-05-02T19:15:07Z",
+  "updatedAt": "2026-05-02T20:18:01Z",
   "url": "https://github.com/self-evolving/repo/pull/85"
 }

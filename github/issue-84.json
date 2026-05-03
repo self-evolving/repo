@@ -6,10 +6,77 @@
     "name": "Shannon Shen"
   },
   "body": "## Problem\n\nRepeated or orchestrated `fix-pr` runs can miss the current orchestrator handoff instructions when the agent session resumes. This can make `fix-pr` no-op even when the preceding review synthesis and orchestrator handoff contain concrete, actionable fixes.\n\nExample from PR #77:\n\n- Review/orchestrator context had concrete fixes to apply: marker source validation, docs correction, terminal-state classification, and regressions.\n- The `fix-pr` run still posted: https://github.com/self-evolving/repo/pull/77#issuecomment-4363352475\n- The response said: `No actionable branch work found for this /orchestrate run.`\n\nRun-log clues from the failing `fix-pr` run:\n\n- `ORCHESTRATOR_CONTEXT` contained the concrete fix instructions.\n- The full prompt was rendered with a large `prompt_length`, but the resumed run used a tiny continuation prompt.\n- Existing `fix-pr` thread state was found and `session_ensure_outcome` was `resumed`.\n- The agent behaved as if it was responding to the original `/orchestrate` request rather than the current `fix-pr` handoff.\n\nThis suggests route-critical dynamic context such as `ORCHESTRATOR_CONTEXT` is not included in resumed-session continuation prompts.\n\nRelated issues:\n\n- #79 tracks what the orchestrator should do after an orchestrated task reports `no_changes`/failure.\n- #58 is related background on orchestrator/session continuity.\n\n## Why this matters\n\nThe orchestrator can correctly decide `review -> fix-pr` and pass concrete `handoff_context`, but the receiving `fix-pr` agent may not see that context after session resume. This turns actionable review feedback into a false `no_changes` result.\n\n## Potential fixes\n\nOne or more of:\n\n1. Include `ORCHESTRATOR_CONTEXT` and other route-critical supplemental variables in the continuation prompt.\n2. For `fix-pr`, send the full rendered route prompt whenever `ORCHESTRATOR_CONTEXT` is non-empty.\n3. When dispatching orchestrated `fix-pr`, also copy concise handoff instructions into `request_text` so continuation prompts contain the actionable request.\n4. Add a route-specific continuation prompt builder instead of using the same minimal metadata prompt for all routes.\n\n## Acceptance criteria\n\n- A resumed `fix-pr` run receives the current actionable orchestrator handoff context.\n- A regression test covers resumed `fix-pr` prompt construction with non-empty `ORCHESTRATOR_CONTEXT`.\n- A regression test or fixture verifies that the agent-facing prompt contains enough context to address the latest review synthesis/handoff, not just the original trigger text.\n- Existing direct/manual `fix-pr` behavior remains unchanged when no orchestrator context is present.\n",
-  "closedAt": null,
-  "comments": [],
+  "closedAt": "2026-05-02T22:29:34Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCcmcQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo adopted this issue as a sub-orchestrator child of #83.\n\nStage: fix-resumed-fix-pr-handoff-context\nParent round: 2\n\n<!-- sepo-sub-orchestrator parent:83 stage:fix-resumed-fix-pr-handoff-context state:done parent_round:2 -->\n<!-- sepo-sub-orchestrator-adoption -->",
+      "createdAt": "2026-05-02T20:19:10Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/84#issuecomment-4364641905",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCcmnA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `orchestrate` -> `delegate_issue` (round 2/10).\n\nagent planner selected child issue delegation: Issue #83 is a meta-orchestration request for linked issues #84 and #79; delegate the first linked/root-cause issue now that existing user-authored issue adoption is supported.\n\n<!-- sepo-agent-handoff state:dispatched created:1777753152190 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNjA5MTk1OTY6b3JjaGVzdHJhdGU6ODM6ZGVsZWdhdGVfaXNzdWU6ODQ6Mg -->",
+      "createdAt": "2026-05-02T20:19:12Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/84#issuecomment-4364641948",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCcoDg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `orchestrate` -> `implement` (round 2/10).\n\nmanual orchestrate start on issue; dispatching implement\n\n<!-- sepo-agent-handoff state:dispatched created:1777753164399 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNjA5MTk1OTY6b3JjaGVzdHJhdGU6ODQ6aW1wbGVtZW50Ojg0OjI -->",
+      "createdAt": "2026-05-02T20:19:24Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/84#issuecomment-4364642318",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCdHIg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-84/codex-25260959858`\n- Pull request: https://github.com/self-evolving/repo/pull/89\n\nUpdated the agent runtime so resumed orchestrator-launched fix-pr runs with non-empty handoff context replay the full current fix-pr prompt instead of a minimal continuation prompt; added prompt-continuation regression tests and documented the behavior. Verified with npm --prefix .agent test and a focused rebuild/test.",
+      "createdAt": "2026-05-02T20:24:03Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/84#issuecomment-4364650274",
+      "viewerDidAuthor": true
+    }
+  ],
   "createdAt": "2026-05-02T16:53:33Z",
   "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    },
     {
       "id": "LA_kwDOSOhEMM8AAAAChVB4QQ",
       "name": "priority/p1",
@@ -24,8 +91,8 @@
     }
   ],
   "number": 84,
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Preserve orchestrator handoff context for resumed fix-pr runs",
-  "updatedAt": "2026-05-02T16:53:33Z",
+  "updatedAt": "2026-05-02T22:29:34Z",
   "url": "https://github.com/self-evolving/repo/issues/84"
 }

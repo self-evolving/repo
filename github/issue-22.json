@@ -22,10 +22,53 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/22#issuecomment-4339909860",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCtjyg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\nMaybe the solution is to make the route dispatcher a bit more sophisticated:\n\n1. If it decides to choose the answer route, then it will just output answer and nothing more.\n2. For non answer route, it will provide some analysis and then dispatch execution? And we answer there in conjunction. \n\nBut this is effectively similar to our latest orchestrator route? ",
+      "createdAt": "2026-05-02T23:11:36Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/22#issuecomment-4364919754",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCtt-Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, that would overlap heavily with the latest `/orchestrate` path, but there is one useful distinction:\n\n- The route dispatcher should stay a thin entry classifier: pick a route, apply access/policy, and avoid doing substantive work. Current prompt shape already says “choose exactly one route” in [`.github/prompts/agent-dispatch.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-dispatch.md#L10-L17).\n- The orchestrator is the right place for “analyze current state, decide next executable action, dispatch it, continue bounded handoffs.” That is already documented in [`.agent/docs/technical-details/agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/technical-details/agent-orchestrator.md#L1-L12) and [`.agent/docs/actions/agent-actions.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/actions/agent-actions.md#L16-L16).\n\nSo I would avoid making `dispatch` into a second orchestrator.\n\nThe likely fix for dual intent is smaller:\n\n1. Keep explicit `/answer` strict: answer only, no dispatch.\n2. Keep explicit `/implement`, `/review`, `/fix-pr`, `/orchestrate` strict: execute that route only.\n3. For implicit mixed intent, route to `orchestrate` when the request contains both “answer/analyze” and “do/fix/implement” intent.\n4. Extend the orchestrator or dispatched workflow with a user-facing “analysis/answer preface” when useful, while runtime still validates all handoffs, max rounds, and permissions.\n\nOne concrete gap: `triage.ts` already recognizes `orchestrate` as a valid route and explicit slash command, but the dispatch prompt’s route list does **not** include `orchestrate`. See [`triage.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/triage.ts#L12-L20) and [`agent-dispatch.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-dispatch.md#L10-L17). That means implicit dual-intent comments cannot naturally be triaged into orchestration today.\n\nI’d implement this as:\n\n1. Add `orchestrate` to the dispatch prompt schema and route rules.\n2. Add a rule like: “Use `orchestrate` for mixed answer + execution requests where the user expects both analysis and follow-up work.”\n3. Teach the orchestrator prompt/runtime to include concise `handoff_context` and optionally a visible explanation before dispatch.\n4. Add tests covering: pure question -> `answer`; pure explicit implementation -> `implement`; mixed question + implementation -> `orchestrate`; explicit `/answer` with implementation wording -> still `answer`.\n\nThat keeps `dispatch` declarative and lets the existing orchestrator own the more sophisticated behavior.",
+      "createdAt": "2026-05-02T23:13:25Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/22#issuecomment-4364922361",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-04-28T23:51:54Z",
   "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    },
     {
       "id": "LA_kwDOSOhEMM8AAAAChVB4ig",
       "name": "priority/p2",
@@ -42,6 +85,6 @@
   "number": 22,
   "state": "OPEN",
   "title": "Dealing with complex intent",
-  "updatedAt": "2026-04-30T04:06:37Z",
+  "updatedAt": "2026-05-02T23:13:25Z",
   "url": "https://github.com/self-evolving/repo/issues/22"
 }

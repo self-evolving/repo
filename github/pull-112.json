@@ -1,0 +1,185 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "agent/implement-issue-90/codex-25267116262",
+  "body": "## Summary\n- Post a structured terminal stop comment when a resumed parent meta-orchestrator stops without dispatching another action.\n- Dedupe exact trusted stop comments using the existing orchestrate stop marker.\n- Document the parent terminal stop behavior.\n\n## Tests\n- `npm run build`\n- `env -u BASE_BRANCH node --test .agent/dist/__tests__/orchestrate-handoff-cli.test.js`\n- `git diff --check`\n\nCloses #95\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBC_PoA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `implement` -> `review` (round 3/10).\n\nimplementation succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777774946188 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNjc1NDM2ODY6aW1wbGVtZW50Ojk1OnJldmlldzoxMTI6Mw -->",
+      "createdAt": "2026-05-03T02:22:26Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/112#issuecomment-4365209504",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBC_Zeg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | PR adds `commentOnTerminalMetaOrchestratorStop` for resumed parent `orchestrate` stops, posting a visible final comment when no follow-up workflow is dispatched. |\n| coding_workflow / specific | Default follow-up orchestration to one-shot | pass | 8/8 | The new terminal parent stop path explicitly avoids dispatching another workflow; tests assert no `actions/workflows/` dispatch and `dispatchPayload` is `null`. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR follows the accepted #95 plan and parent #104 child sequence after #90; the implementation matches the requested final parent stop UX. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is limited to `.agent/src/cli/orchestrate-handoff.ts`, focused handoff tests, and the orchestrator technical doc. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Reuses existing stop comment creation, `fetchIssueComments`, `createIssueComment`, `isTrustedActorLogin`, `normalizeToken`, and hidden marker conventions instead of adding a parallel mechanism. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | `.agent/docs/technical-details/agent-orchestrator.md` now documents parent terminal stop comments and trusted exact duplicate skipping. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Dedupe lookup failures are surfaced with `console.warn`, and the code falls back to posting the stop comment rather than silently treating the state as clean. |\n\n## Notes\n\n- The strongest rubric fit is the workflow-stop UX: PR #112 directly addresses #95 by making resumed parent meta-orchestrator stops visible instead of silent.\n- The implementation is narrow and consistent with existing orchestration state markers.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric violations found. The PR satisfies the applicable selected rubrics with focused code, regression coverage, and matching docs.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-03T02:23:51Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/112#issuecomment-4365212026",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDAE8g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #112 addresses issue #95, where resumed parent `orchestrate` runs could stop silently after child work completed.\n- It adds a visible terminal stop comment for parent agent-mode issue orchestration when no follow-up action is dispatched.\n- The change reuses existing stop-comment machinery, adds trusted exact-match dedupe, and updates orchestrator docs.\n- This is part of the broader #104 stacked orchestrator-fixes sequence, following #90/#108 comment-format work.\n\n## Review\nThe reviewers agree there are no blocking correctness issues and that the PR solves the intended UX gap surgically. One concrete test-coverage gap remains around the new guard scope; I posted an inline comment for that.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Missing negative guard coverage | WARNING | The new terminal parent stop behavior is covered for the agent/issue happy path, but not for `heuristics` mode or `pull_request` targets. Focused tests would lock down the intended scope. |\n| Exact-match dedupe scope is narrow | INFO | One reviewer noted that dedupe only skips exact trusted duplicate bodies. That matches the PR’s stated “exact duplicate” behavior, but broader cross-body/rerun dedupe would require an intentional design choice. |\n\n## Progress\n- Codex review found no findings and validated `npm run build`, the focused compiled handoff test, and `git diff --check`.\n- Rubrics review passed 100/100 across the applicable workflow and coding rubrics.\n- Existing PR conversation already acknowledges the #95 UX gap and the #104 stacked child plan.\n- No prior inline comments existed; one new inline comment was posted for the negative guard coverage gap.\n\n## Issue Details\n\n<details>\n<summary>Missing negative guard coverage</summary>\n\n**Cause:** `commentOnTerminalMetaOrchestratorStop` has new guard logic limiting comments to agent-mode issue orchestration, but tests only cover the posting path and exact-match dedupe path.\n\n**Candidate solutions:** Add focused tests asserting no orchestrate-stop comment is posted when `AUTOMATION_MODE` is `heuristics`, and when `TARGET_KIND` / `sourceTargetKind` is `pull_request`.\n\n**Comments:** This is not a functional blocker, but it is a small, safe regression-coverage fix for the main scope constraint.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: The remaining branch work is concrete, low-risk test coverage and is safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Add negative-path tests for `heuristics` mode and `pull_request` targets so terminal parent stop comments remain scoped to agent-mode issue orchestration.",
+      "createdAt": "2026-05-03T02:32:05Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/112#issuecomment-4365223154",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDAGPA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `review` -> `fix-pr` (round 4/10).\n\nreview verdict is minor_issues; dispatching fix-pr\n\n<!-- sepo-agent-handoff state:dispatched created:1777775538882 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNjc2NTExMDM6cmV2aWV3OjExMjpmaXhfcHI6MTEyOjQ -->",
+      "createdAt": "2026-05-03T02:32:19Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/112#issuecomment-4365223484",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDAZew",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-95/codex-25267543686`. Requested by @sepo-agent.\n\n- Added focused regression coverage for the review item: heuristic parent stops and pull-request parent stops do not post terminal orchestrator stop comments or dispatch follow-up workflows.\n- Verified with `npm run build`, `env -u BASE_BRANCH node --test .agent/dist/__tests__/orchestrate-handoff-cli.test.js`, and `git diff --check`.",
+      "createdAt": "2026-05-03T02:35:39Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/112#issuecomment-4365228411",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDAarQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `fix-pr` -> `review` (round 5/10).\n\nPR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777775751411 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNjc4MTMwMjI6Zml4X3ByOjExMjpyZXZpZXc6MTEyOjU -->",
+      "createdAt": "2026-05-03T02:35:51Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/112#issuecomment-4365228717",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDAjPg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | PR adds a terminal parent orchestrator stop comment path for resumed agent-mode issue orchestration when no follow-up dispatch occurs. |\n| coding_workflow / specific | Default follow-up orchestration to one-shot | pass | 8/8 | Tests assert terminal parent stops do not dispatch `actions/workflows/` and leave `dispatchPayload` as `null`; fix-pr added negative coverage for heuristics and PR targets. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | Implementation matches issue #95’s approved plan and the #104 stacked sequence after #90 completed with SHIP. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is limited to `.agent/src/cli/orchestrate-handoff.ts`, focused handoff tests, and `.agent/docs/technical-details/agent-orchestrator.md`. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Reuses existing stop-comment formatting path, `fetchIssueComments`, `createIssueComment`, `isTrustedActorLogin`, `normalizeToken`, and hidden marker conventions. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Orchestrator technical docs now describe terminal parent stop comments and trusted exact duplicate skipping. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Existing stop-comment dedupe lookup failures are surfaced with `console.warn`, and the path falls back to posting rather than silently treating failed inspection as clean state. |\n\n## Notes\n\n- The strongest rubric fit is the workflow-stop UX: PR #112 directly fixes #95 by making resumed parent meta-orchestrator stops visible.\n- The post-review fix addressed the main coverage gap by adding negative tests for `heuristics` mode and `pull_request` targets.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric violations found. The PR satisfies the applicable selected rubrics with focused code, regression coverage, and matching documentation.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-03T02:37:23Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/112#issuecomment-4365230910",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBDA85w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #112 fixes issue #95 by making resumed parent `orchestrate` runs post a visible terminal stop comment when no follow-up action is dispatched.\n- The implementation is part of the broader #104 stacked orchestrator-fixes plan, following the earlier child work on orchestrator comment formatting.\n- It reuses the existing orchestrate stop-comment path, adds trusted exact-match dedupe, and scopes the new terminal comment behavior to agent-mode issue orchestration.\n- The PR also updates focused handoff tests and the orchestrator technical documentation.\n\n## Review\nThe reviewers agree the PR is now complete and safe to ship. The earlier coverage warning was addressed by the fix-pr pass, and no unresolved blocking, warning, or required branch-change issues remain.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | Codex, Claude, and the rubrics review found no unresolved required changes after the follow-up fix added the missing negative-path coverage. |\n\n## Progress\n- The prior inline warning about missing negative guard coverage was addressed with tests for `heuristics` mode and `pull_request` targets.\n- Reviewer validation passed: `npm run build`, focused `orchestrate-handoff-cli` tests, full `npm test`, and `git diff --check`.\n- Rubrics review passed 100/100, including surgical scope, docs sync, one-shot follow-up behavior, and visible workflow-stop reporting.\n- Informational notes about exact-match dedupe, the structured initial-stop format, and a low-risk round-1 edge case were treated as non-blocking and not automation action items.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: no unresolved actionable branch work remains, so the PR is ready for human merge review.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-03T02:42:48Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/112#issuecomment-4365237479",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-03T02:22:11Z",
+  "files": [
+    {
+      "path": ".agent/docs/technical-details/agent-orchestrator.md",
+      "additions": 8,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrate-handoff-cli.test.ts",
+      "additions": 121,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrate-handoff.ts",
+      "additions": 42,
+      "deletions": 11,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-95/codex-25267543686",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 112,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM77R6u2",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-03T02:31:38Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "8b78e9cc6bf5f370795eadd633b7c8d7d9978194"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Post parent orchestrator terminal stop comments",
+  "updatedAt": "2026-05-03T02:42:48Z",
+  "url": "https://github.com/self-evolving/repo/pull/112"
+}

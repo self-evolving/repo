@@ -6,10 +6,77 @@
     "name": "Shannon Shen"
   },
   "body": "## Problem\n\nAn orchestrated action can finish with an unsatisfactory result (`no_changes`, failure, or verify failure), after which the orchestrator stops without enough recovery or visibility.\n\nOriginal example:\n\n- https://github.com/self-evolving/repo/pull/77#issuecomment-4360090765\n\nAdditional recent example from PR #77:\n\n- The review/orchestrator selected `fix-pr` for concrete unresolved findings.\n- The `fix-pr` run posted `Sepo did not produce code changes`: https://github.com/self-evolving/repo/pull/77#issuecomment-4363352475\n- The follow-up orchestrator run received `source_action=fix-pr` and `source_conclusion=no_changes`, then stopped because the current policy only permits `fix-pr -> review` when `fix-pr` concludes `success`.\n\nThis issue tracks the orchestration-level behavior after a child action reports an unsatisfactory result. The separate root-cause/context-delivery problem for resumed `fix-pr` runs is tracked in #84.\n\n## Current behavior\n\n`fix-pr` only hands back to `review` when the conclusion is `success`. If `fix-pr` returns `no_changes`, the orchestrator treats the chain as terminal even if the previous review synthesis had concrete unresolved action items.\n\nRelevant areas:\n\n- `.agent/src/handoff.ts` — handoff policy for `fix-pr` conclusions\n- `.agent/src/cli/dispatch-agent-orchestrator.ts` — passes source action/conclusion back to the orchestrator\n- `.agent/src/response.ts` — maps no branch edits to `no_changes`\n- `.github/prompts/agent-orchestrator.md` — documents planner policy\n\n## Desired behavior\n\nWhen an orchestrated action fails or produces no changes, the orchestrator should not silently dead-end. It should choose an explicit recovery/stop path, such as:\n\n1. dispatch a follow-up `review` once to re-evaluate whether the findings are still present, especially for `fix-pr -> no_changes`; or\n2. stop visibly with a parent/PR comment that includes the failed action, conclusion, and attempted handoff context; or\n3. classify the chain as blocked/failed with enough structured detail for a maintainer or future orchestrator run to continue safely.\n\nThe policy should avoid infinite loops and remain bounded by the existing round budget/dedupe markers.\n\n## Acceptance criteria\n\n- Orchestrated `fix-pr -> no_changes` has an explicit tested behavior: re-review once, blocked stop, or another documented recovery path.\n- The visible stop/error comment includes enough context to understand what action was attempted and why it did not progress.\n- The orchestrator prompt and handoff policy agree on the behavior for `fix-pr` `no_changes`, `failed`, and `verify_failed`.\n- Regression coverage prevents a concrete review finding from becoming an opaque `fix-pr concluded no_changes` stop with no actionable context.\n- Loop prevention remains intact through round budget and handoff dedupe markers.\n",
-  "closedAt": null,
-  "comments": [],
+  "closedAt": "2026-05-02T22:32:47Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCeG2A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo adopted this issue as a sub-orchestrator child of #83.\n\nStage: handle-unsatisfactory-action-results\nParent round: 3\n\n<!-- sepo-sub-orchestrator parent:83 stage:handle-unsatisfactory-action-results state:done parent_round:3 -->\n<!-- sepo-sub-orchestrator-adoption -->",
+      "createdAt": "2026-05-02T20:33:20Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/79#issuecomment-4364666584",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCeHBQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `orchestrate` -> `delegate_issue` (round 3/10).\n\nagent planner selected child issue delegation: Child #84 has finished with SHIP and PR #89 has no required automated follow-up. Parent issue #83 also explicitly lists open issue #79 as the next robustness fix, so continue the one-by-one child orchestration.\n\n<!-- sepo-agent-handoff state:dispatched created:1777754002191 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNjEwNTY0Mzk6b3JjaGVzdHJhdGU6ODM6ZGVsZWdhdGVfaXNzdWU6Nzk6Mw -->",
+      "createdAt": "2026-05-02T20:33:22Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/79#issuecomment-4364666629",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCeIZw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `orchestrate` -> `implement` (round 2/10).\n\nmanual orchestrate start on issue; dispatching implement\n\n<!-- sepo-agent-handoff state:dispatched created:1777754014458 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNjEwNTY0Mzk6b3JjaGVzdHJhdGU6Nzk6aW1wbGVtZW50Ojc5OjI -->",
+      "createdAt": "2026-05-02T20:33:34Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/79#issuecomment-4364666983",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBCevUA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-79/codex-25261241439`\n- Pull request: https://github.com/self-evolving/repo/pull/91\n\nImplemented explicit bounded stop behavior for orchestrated `fix-pr` no-op/failure conclusions: non-success `fix-pr` results no longer produce an opaque stop reason, and orchestrated `implement`/`fix-pr` no_changes/failed/verify_failed/unsupported stops now post a structured target-visible comment with action, conclusion, target, round, reason, and run ID. Updated the orchestrator prompt/docs and added focused regression coverage. Verified with `npm --prefix .agent run build` and `node --test .agent/dist/__tests__/handoff.test.js .agent/dist/__tests__/orchestrate-handoff-cli.test.js`.",
+      "createdAt": "2026-05-02T20:39:19Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/79#issuecomment-4364676944",
+      "viewerDidAuthor": true
+    }
+  ],
   "createdAt": "2026-05-01T16:48:03Z",
   "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    },
     {
       "id": "LA_kwDOSOhEMM8AAAAChVB4QQ",
       "name": "priority/p1",
@@ -24,8 +91,8 @@
     }
   ],
   "number": 79,
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Handle orchestrated task no_changes/failure visibly and recover when safe",
-  "updatedAt": "2026-05-02T16:53:49Z",
+  "updatedAt": "2026-05-02T22:32:47Z",
   "url": "https://github.com/self-evolving/repo/issues/79"
 }
