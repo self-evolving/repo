@@ -460,11 +460,15 @@ test("accepted issue and PR work is best-effort assigned from AGENT_HANDLE", () 
   assert.match(assigneeModule, /DEFAULT_AGENT_HANDLE = "@sepo-agent"/);
   assert.match(assigneeModule, /deriveAssigneeLogin/);
   assert.match(assigneeModule, /isRepoAssigneeAssignable/);
+  assert.match(
+    assigneeModule,
+    /resolveAgentAssignee\(input:\s*\{\s*agentHandle\?: string;\s*repo: string;\s*\}\): AgentAssigneeResolution/,
+  );
   assert.doesNotMatch(assigneeModule, /AGENT_ASSIGNEE/);
 
   assert.match(
     routerWorkflow,
-    /Assign handled issue or PR[\s\S]*steps\.dispatch\.outputs\.route != 'unsupported'[\s\S]*AGENT_HANDLE:\s*\$\{\{ inputs\.agent_handle \|\| '@sepo-agent' \}\}[\s\S]*node \.agent\/dist\/cli\/assign-agent\.js/,
+    /Assign handled issue or PR[\s\S]*steps\.dispatch\.outputs\.needs_approval != 'true'[\s\S]*steps\.dispatch\.outputs\.route != 'unsupported'[\s\S]*AGENT_HANDLE:\s*\$\{\{ inputs\.agent_handle \|\| '@sepo-agent' \}\}[\s\S]*node \.agent\/dist\/cli\/assign-agent\.js/,
   );
   assert.match(
     labelWorkflow,

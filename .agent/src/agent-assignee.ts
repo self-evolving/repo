@@ -46,8 +46,6 @@ export function targetKindLabel(targetKind: AgentAssigneeTargetKind): string {
 export function resolveAgentAssignee(input: {
   agentHandle?: string;
   repo: string;
-  targetNumber: number;
-  targetKind: AgentAssigneeTargetKind;
 }): AgentAssigneeResolution {
   const handle = normalizeAgentHandle(input.agentHandle);
   const login = deriveAssigneeLogin(handle);
@@ -85,7 +83,10 @@ export function assignAgentHandleToTarget(input: {
   targetKind: AgentAssigneeTargetKind;
   targetNumber: number;
 }): string {
-  const resolution = resolveAgentAssignee(input);
+  const resolution = resolveAgentAssignee({
+    agentHandle: input.agentHandle,
+    repo: input.repo,
+  });
   if (!resolution.assignable) {
     return `Skipping assignment: ${resolution.warning || "assignee is not assignable"}.`;
   }

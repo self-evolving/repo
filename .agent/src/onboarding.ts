@@ -182,8 +182,6 @@ export function runOnboardingCheck(opts: OnboardingOptions): number {
   const assignee = resolveAgentAssignee({
     agentHandle: opts.agentHandle,
     repo: opts.repo,
-    targetKind: "issue",
-    targetNumber: issueNumber,
   });
   const body = checklistBody(opts, memoryReady, rubricsReady, assignee);
   const existingComment = findOnboardingComment(opts.repo, issueNumber);
