@@ -37,7 +37,7 @@ Field semantics:
 | `version` | Sepo SemVer string without a leading `v`. |
 | `channel` | `pre-release`, `release-candidate`, or `stable`. |
 | `source_repo` | GitHub `owner/repo` slug for the Sepo source used by the install. |
-| `source_ref` | Source branch, tag, or ref used by the install. Release installs should use a tag such as `v0.1.0`. |
+| `source_ref` | Source branch, tag, or ref used by the install. Release installs should use a tag such as `v0.1.0`; values must be git-ref-like and cannot include whitespace, control characters, or invalid ref punctuation. |
 | `source_sha` | Exact source commit SHA when known. Moving-branch source checkouts may leave this as `null`; release installs should record it. |
 | `installed_from` | Install source kind: `source`, `release`, `template`, `manual-copy`, or `update`. |
 | `agent_files_hash` | Optional `sha256:<hex>` digest for the installed agent-owned files. `null` means no digest has been recorded yet. |

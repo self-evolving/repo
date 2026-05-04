@@ -70,6 +70,50 @@ test("validateSepoVersionMetadata accepts release metadata with exact source ide
   );
 });
 
+test("validateSepoVersionMetadata accepts git-ref-like source refs", () => {
+  for (const sourceRef of [
+    "main",
+    "develop",
+    "v0.1.0",
+    "feature/version-metadata",
+    "refs/tags/v0.1.0",
+  ]) {
+    assert.equal(
+      validateSepoVersionMetadata(validMetadata({ source_ref: sourceRef })).source_ref,
+      sourceRef,
+    );
+  }
+});
+
+test("validateSepoVersionMetadata rejects invalid source refs", () => {
+  for (const sourceRef of [
+    "feature branch",
+    "feature\nbranch",
+    "feature..branch",
+    "feature//branch",
+    "feature@{branch",
+    "feature~branch",
+    "feature^branch",
+    "feature:branch",
+    "feature?branch",
+    "feature*branch",
+    "feature[branch",
+    "feature\\branch",
+    "/feature",
+    "feature/",
+    "feature.",
+    "feature/.branch",
+    "feature/branch.lock",
+    "@",
+  ]) {
+    assert.throws(
+      () => validateSepoVersionMetadata(validMetadata({ source_ref: sourceRef })),
+      /source_ref must be a git ref name without whitespace, control characters, or invalid syntax/,
+      sourceRef,
+    );
+  }
+});
+
 test("validateSepoVersionMetadata enforces version channel policy", () => {
   assert.throws(
     () => validateSepoVersionMetadata(validMetadata({ version: "1.0.0", channel: "pre-release" })),

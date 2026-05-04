@@ -48,6 +48,7 @@ const SEMVER_RE =
 const SOURCE_REPO_RE = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const FULL_GIT_SHA_RE = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i;
 const AGENT_FILES_HASH_RE = /^sha256:[0-9a-f]{64}$/;
+const INVALID_SOURCE_REF_CHARS_RE = /[\x00-\x20\x7f~^:?*[\\]/;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
@@ -136,6 +137,26 @@ function validateVersionChannel(version: string, channel: SepoVersionChannel): v
   }
 }
 
+function validateSourceRef(sourceRef: string): void {
+  const invalid =
+    sourceRef === "@" ||
+    sourceRef.startsWith("/") ||
+    sourceRef.endsWith("/") ||
+    sourceRef.endsWith(".") ||
+    sourceRef.includes("//") ||
+    sourceRef.includes("..") ||
+    sourceRef.includes("@{") ||
+    INVALID_SOURCE_REF_CHARS_RE.test(sourceRef) ||
+    sourceRef
+      .split("/")
+      .some((component) => component.startsWith(".") || component.endsWith(".lock"));
+  if (invalid) {
+    throw new Error(
+      "source_ref must be a git ref name without whitespace, control characters, or invalid syntax",
+    );
+  }
+}
+
 export function validateSepoVersionMetadata(value: unknown): SepoVersionMetadata {
   if (!isRecord(value)) {
     throw new Error("Sepo version metadata must be a JSON object");
@@ -171,6 +192,7 @@ export function validateSepoVersionMetadata(value: unknown): SepoVersionMetadata
   }
 
   const sourceRef = requireStringField(value, "source_ref");
+  validateSourceRef(sourceRef);
   const sourceSha = requireNullableStringField(value, "source_sha");
   if (sourceSha && !FULL_GIT_SHA_RE.test(sourceSha)) {
     throw new Error("source_sha must be null or a full Git commit SHA");
