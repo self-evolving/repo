@@ -5,7 +5,7 @@
   },
   "baseRefName": "main",
   "body": "## Summary\n- Render generic handoff marker comments as compact status tables while preserving hidden markers.\n- Derive review-to-fix-pr task context from synthesis action items and pass it through orchestrator/fix-pr workflows.\n- Tighten orchestrator/fix-pr prompts and docs around fix-pr handoff context.\n\n## Tests\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/handoff.test.js .agent/dist/__tests__/orchestrate-handoff-cli.test.js .agent/dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nCloses #129\n",
-  "closedAt": null,
+  "closedAt": "2026-05-04T04:49:55Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABBFs4NA",
@@ -126,6 +126,58 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/131#issuecomment-4368149693",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBF01CQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \r\n\r\n1. Summarize what's been implemented? \r\n2. why does it turned out to be a relatively big PR? can we simplify it? ",
+      "createdAt": "2026-05-04T04:13:27Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/131#issuecomment-4368184585",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBF1Y6g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Implemented in PR #131:\n\n- Generic handoff comments now render as compact status tables instead of log-style sentences, while preserving the hidden `sepo-agent-handoff` marker for dedupe/minimization: [`handoff.ts`](https://github.com/self-evolving/repo/blob/96f2ca43025cbff7705a4d622d6978d9b2493798/.agent/src/handoff.ts#L354).\n- `fix-pr` handoffs now include a visible `Task for fix-pr:` block: [`handoff.ts`](https://github.com/self-evolving/repo/blob/96f2ca43025cbff7705a4d622d6978d9b2493798/.agent/src/handoff.ts#L394).\n- Review synthesis action items are extracted into actionable downstream context for `fix-pr`: [`handoff.ts`](https://github.com/self-evolving/repo/blob/96f2ca43025cbff7705a4d622d6978d9b2493798/.agent/src/handoff.ts#L162) and [`dispatch-agent-orchestrator.ts`](https://github.com/self-evolving/repo/blob/96f2ca43025cbff7705a4d622d6978d9b2493798/.agent/src/cli/dispatch-agent-orchestrator.ts#L47).\n- The new `source_handoff_context` is passed through the orchestrator workflow and made visible to the planner: [`agent-orchestrator.yml`](https://github.com/self-evolving/repo/blob/96f2ca43025cbff7705a4d622d6978d9b2493798/.github/workflows/agent-orchestrator.yml#L39), [`agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/96f2ca43025cbff7705a4d622d6978d9b2493798/.github/prompts/agent-orchestrator.md#L15), [`run.ts`](https://github.com/self-evolving/repo/blob/96f2ca43025cbff7705a4d622d6978d9b2493798/.agent/src/run.ts#L56).\n- Manual PR `/orchestrate` with `CHANGES_REQUESTED` now gives `fix-pr` requested-change context instead of review-synthesis-only fallback text: [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/96f2ca43025cbff7705a4d622d6978d9b2493798/.agent/src/cli/orchestrate-handoff.ts#L751).\n- Tests and docs were updated. The diff is `11 files changed, 352 insertions(+), 31 deletions(-)`, with a large chunk in tests.\n\nWhy it got relatively big: the original ask had two parts. The table formatting is small. The “be more explicit about the followup message and task for the fix-pr agent” part crosses several boundaries: synthesis output -> dispatch CLI -> workflow input -> planner prompt env -> handoff decision -> visible marker comment -> fix-pr prompt. The first review also found two propagation gaps, which added the `run.ts` allowlist test and the manual PR fallback.\n\nCan we simplify? Yes, but only by narrowing scope:\n\n1. **Minimal version:** only change visible handoff comments to compact tables plus a generic `Task for fix-pr`. That would likely touch `handoff.ts`, one test file, and docs. It would be much smaller, but `fix-pr` would not reliably receive the exact synthesis action items.\n2. **Current behavior, smaller cleanup:** keep the feature but move the manual PR fallback directly into the manual PR decision path instead of post-processing the decision. That would make the flow easier to read, but it will not shrink the PR dramatically.\n3. **My recommendation:** keep the current scope if we want reliable downstream `fix-pr` task context. If the priority is a small PR, split it into two PRs: first compact comment formatting, second explicit `fix-pr` context plumbing.",
+      "createdAt": "2026-05-04T04:16:16Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/131#issuecomment-4368193770",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBF-sLw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #131.\n\nno rubric changes\n\nI reviewed PR #131, linked issue #129, existing rubrics, and trust signals. The reusable preference around compact/scannable automation status comments is already covered by `compact-user-facing-status-comments`. The remaining PR feedback was bot/agent-authored or one-off implementation review, and the human comments did not provide a trusted maintainer signal for a new rubric under the learning rules. No files were changed in `agent-rubrics`.\n",
+      "createdAt": "2026-05-04T04:51:10Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/131#issuecomment-4368346159",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-04T03:45:00Z",
@@ -204,9 +256,21 @@
       "name": "agent",
       "description": "Handled by the agent",
       "color": "0e8a16"
+    },
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChVB4ig",
+      "name": "priority/p2",
+      "description": "Project management: medium priority",
+      "color": "fbca04"
+    },
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChVB5QA",
+      "name": "effort/medium",
+      "description": "Project management: medium effort",
+      "color": "fbca04"
     }
   ],
-  "mergedAt": null,
+  "mergedAt": "2026-05-04T04:49:55Z",
   "number": 131,
   "reviewDecision": "",
   "reviews": [
@@ -241,8 +305,8 @@
       }
     }
   ],
-  "state": "OPEN",
+  "state": "MERGED",
   "title": "Improve orchestrator handoff comments",
-  "updatedAt": "2026-05-04T04:05:39Z",
+  "updatedAt": "2026-05-04T04:51:10Z",
   "url": "https://github.com/self-evolving/repo/pull/131"
 }

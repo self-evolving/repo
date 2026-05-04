@@ -6,9 +6,70 @@
     "name": "Shannon Shen"
   },
   "baseRefName": "main",
-  "body": "## Summary\n- Add a committed `.agent/sepo-version.json` install metadata file.\n- Add a small typed reader/validator and `print-sepo-version` CLI with deterministic default path lookup.\n- Document the SemVer policy and install source-identity model, with focused tests.\n\nThis is a simpler alternative to #128 for #127 / #74. It intentionally avoids the stricter release-policy enforcement, exhaustive git-ref validation, unknown-field rejection, and cwd fallback behavior.\n\n## Tests\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/sepo-version.test.js`\n- `node .agent/dist/cli/print-sepo-version.js --json`\n- `env -u BASE_BRANCH -u BASE_PR npm --prefix .agent test`\n- `git diff --check`",
-  "closedAt": null,
-  "comments": [],
+  "body": "## Summary\n- Add a committed `.agent/sepo-version.json` install metadata file.\n- Document Sepo SemVer policy and installed source-identity fields.\n- Update setup/install docs to tell users to keep the metadata file with `.agent/`.\n\nThis is a minimal alternative to #128 for #127 / #74. It intentionally does not add a reader, CLI, validation library, tests, updater rewriting, bug-report integration, or release workflows yet. Those can be added in the later PRs that actually consume the metadata.\n\n## Tests\n- `python3 -m json.tool .agent/sepo-version.json >/dev/null`\n- `git diff --check`",
+  "closedAt": "2026-05-04T05:12:16Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBF93UQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `orchestrate` -> `review` (round 2/10).\n\nmanual orchestrate start on PR; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777870125116 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzMDE1ODA2MDk6b3JjaGVzdHJhdGU6MTMwOnJldmlldzoxMzA6Mg -->",
+      "createdAt": "2026-05-04T04:48:45Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/130#issuecomment-4368332625",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBF-TVw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 6 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The PR adds discrete metadata fields in `.agent/sepo-version.json`: `schema_version`, `version`, `channel`, `source_repo`, `source_ref`, `source_sha`, `installed_from`, and `agent_files_hash`, instead of encoding source identity into one overloaded string. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The diff updates `.agent/docs/deployment/install-existing-repository.md`, `.agent/docs/deployment/setup-guide.md`, and `.agent/docs/README.md`, and adds `.agent/docs/technical-details/versioning.md` to document the new metadata file and SemVer/source-identity policy. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The PR body explicitly ties this to #127 / #74 and scopes it as a minimal alternative to #128. The diff matches the parent #74 policy direction: SemVer, pre-release `v0.x`, source identity fields, and install docs. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | The new docs include a metadata field table, not a per-file inventory table. They describe policy and schema semantics rather than listing repository files and purposes. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is limited to one metadata JSON file and directly related documentation. It intentionally avoids reader/CLI/validation/updater/bug-report/release workflow changes. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | This is the smallest foundation slice: committed metadata plus docs. It avoids new runtime code, dependencies, validation layers, tests, and workflow automation that the PR body explicitly defers. |\n\n## Notes\n\n- The strongest rubric fit is scope control: this PR is narrower than #128 and matches the requested minimal foundation.\n- I did not score unrelated authorization, orchestration, idempotency, preview, status-comment, merge-flow, or runtime failure rubrics because this PR does not change those behaviors.\n- I verified the live PR metadata and diff with `gh pr view` / `gh pr diff`. A local `python3 -m json.tool .agent/sepo-version.json` could not be run because the local checkout was not on the PR head and did not contain the new file; the PR diff itself shows valid JSON structure.\n\n## Findings\n\n- **INFO:** No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-04T04:50:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/130#issuecomment-4368339799",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBF_hRA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #130 adds a committed `.agent/sepo-version.json` metadata file and documents Sepo SemVer/source-identity policy.\n- It is a narrower alternative to #128 for the version-management plan in #74 / #127.\n- The PR intentionally limits this slice to metadata plus docs, leaving readers, validation helpers, CLI output, tests, updater behavior, bug-report wiring, and release workflows for later work.\n- The change gives future install/update/reporting work a shared metadata contract without adding runtime behavior yet.\n\n## Review\nThe synthesized review finds no required branch-change defects. Claude raised caution around deferred validation/tests and the still-open overlap with #128, while Codex and the rubrics review treated both as intentional scope or maintainer sequencing rather than code issues.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable branch issues | INFO | The metadata schema and docs are coherent, scoped, and aligned with #74. Remaining concerns are optional follow-up or human sequencing decisions, not required fixes to this branch. |\n\n## Progress\n- Rubrics review passed with no rubric-specific findings.\n- The PR body already acknowledges the intentionally deferred work: reader, CLI, validation library, tests, updater rewriting, bug-report integration, and release workflows.\n- Existing inline review comments are empty; no new inline comment was posted because the synthesized concerns are not concrete changed-line defects.\n- Reviewer disagreement was resolved in favor of the PR’s explicit minimal scope.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved required branch-change work remains for an automated fix-pr pass.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-04T04:54:10Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/130#issuecomment-4368359748",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBGEXIw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #130.\n\nno rubric changes\n\nI found no trusted human review/comment feedback on PR #130 that warranted a new durable rubric. The PR conversation is agent-authored status/review output only, and the broader linked context mainly reinforces preferences already covered by active rubrics: small scoped changes, reading linked context, docs in sync, simple implementation, and structured metadata. No files were changed under `agent-rubrics`.\n",
+      "createdAt": "2026-05-04T05:14:09Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/130#issuecomment-4368439075",
+      "viewerDidAuthor": true
+    }
+  ],
   "createdAt": "2026-05-04T03:34:26Z",
   "files": [
     {
@@ -31,7 +92,7 @@
     },
     {
       "path": ".agent/docs/technical-details/versioning.md",
-      "additions": 55,
+      "additions": 47,
       "deletions": 0,
       "changeType": "ADDED"
     },
@@ -40,34 +101,35 @@
       "additions": 10,
       "deletions": 0,
       "changeType": "ADDED"
-    },
-    {
-      "path": ".agent/src/__tests__/sepo-version.test.ts",
-      "additions": 150,
-      "deletions": 0,
-      "changeType": "ADDED"
-    },
-    {
-      "path": ".agent/src/cli/print-sepo-version.ts",
-      "additions": 82,
-      "deletions": 0,
-      "changeType": "ADDED"
-    },
-    {
-      "path": ".agent/src/sepo-version.ts",
-      "additions": 166,
-      "deletions": 0,
-      "changeType": "ADDED"
     }
   ],
   "headRefName": "simple-sepo-version-foundation",
-  "labels": [],
-  "mergedAt": null,
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    },
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChVB4QQ",
+      "name": "priority/p1",
+      "description": "Project management: high priority",
+      "color": "d93f0b"
+    },
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChVB5QA",
+      "name": "effort/medium",
+      "description": "Project management: medium effort",
+      "color": "fbca04"
+    }
+  ],
+  "mergedAt": "2026-05-04T05:12:16Z",
   "number": 130,
   "reviewDecision": "",
   "reviews": [],
-  "state": "OPEN",
+  "state": "MERGED",
   "title": "Add simplified Sepo version metadata foundation",
-  "updatedAt": "2026-05-04T03:34:26Z",
+  "updatedAt": "2026-05-04T05:14:10Z",
   "url": "https://github.com/self-evolving/repo/pull/130"
 }
