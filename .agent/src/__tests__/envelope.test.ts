@@ -474,8 +474,14 @@ test("long-running routes use non-trigger activity labels", () => {
   assert.match(reviewWorkflow, /Clear review activity label[\s\S]*ACTIVITY_LABEL_ACTION: remove/);
   assert.match(
     reviewWorkflow,
-    /Clear orchestration root activity label after review failure[\s\S]*needs\.synthesize\.result != 'success'/,
+    /synthesize:\s*\n\s+needs: \[review\][\s\S]*?outputs:\s*\n\s+orchestration_handoff_outcome: \$\{\{ steps\.orchestrate_handoff\.outcome \|\| 'missing' \}\}/,
   );
+  assert.match(reviewWorkflow, /Orchestrate automation handoff\s*\n\s+id: orchestrate_handoff/);
+  assert.match(
+    reviewWorkflow,
+    /Clear orchestration root activity label after review failure[\s\S]*needs\.synthesize\.outputs\.orchestration_handoff_outcome != 'success'/,
+  );
+  assert.doesNotMatch(reviewWorkflow, /Clear orchestration root activity label after review failure[\s\S]*needs\.synthesize\.result != 'success'/);
   assert.match(
     reviewWorkflow,
     /Clear orchestration root activity label after review failure[\s\S]*ROUTE: orchestrate[\s\S]*TARGET_KIND:\s*\$\{\{ inputs\.orchestration_root_kind \}\}[\s\S]*TARGET_NUMBER:\s*\$\{\{ inputs\.orchestration_root_number \}\}/,
@@ -485,6 +491,7 @@ test("long-running routes use non-trigger activity labels", () => {
   assert.match(orchestratorWorkflow, /Clear orchestrator activity label[\s\S]*steps\.handoff\.outputs\.decision == 'stop'/);
   assert.doesNotMatch(orchestratorWorkflow, /steps\.handoff\.outputs\.decision == 'blocked'/);
   assert.match(orchestratorWorkflow, /steps\.handoff\.outcome == 'failure'/);
+  assert.match(orchestratorWorkflow, /Clear orchestrator activity label[\s\S]*failure\(\) && steps\.handoff\.outcome != 'success'/);
   assert.match(routerWorkflow, /ORCHESTRATION_ROOT_KIND:\s*\$\{\{ needs\.portal\.outputs\.target_kind \}\}/);
   assert.match(implementWorkflow, /ORCHESTRATION_ROOT_KIND:\s*\$\{\{ inputs\.orchestration_root_kind \}\}/);
   assert.match(fixPrWorkflow, /ORCHESTRATION_ROOT_KIND:\s*\$\{\{ inputs\.orchestration_root_kind \}\}/);
@@ -1425,13 +1432,22 @@ test("agent-review permissions keep reviewer contents read-only and synthesize w
   // Synthesize job upgrades to contents:write for the memory commit.
   assert.match(
     reviewWorkflow,
-    /synthesize:\s*\n\s+needs: \[review\]\s*\n\s+if: \$\{\{ !cancelled\(\) \}\}\s*\n\s+permissions:[\s\S]*?contents: write/,
+    /synthesize:\s*\n\s+needs: \[review\]\s*\n\s+if: \$\{\{ !cancelled\(\) \}\}[\s\S]*?permissions:[\s\S]*?contents: write/,
   );
 
   // Cleanup removes labels from PRs, including best-effort failure cleanup.
   assert.match(
     reviewWorkflow,
     /cleanup-activity-label:\s*\n\s+needs: \[review, rubrics-review, synthesize\]\s*\n\s+if: \$\{\{ always\(\) \}\}\s*\n\s+permissions:\s*\n\s+contents: read\s*\n\s+issues: write\s*\n\s+pull-requests: write\s*\n\s+id-token: write/,
+  );
+});
+
+test("agent-orchestrator permissions cover root activity label mutation", () => {
+  const orchestratorWorkflow = readRepoFile(".github/workflows/agent-orchestrator.yml");
+
+  assert.match(
+    orchestratorWorkflow,
+    /^permissions:\s*\n\s+actions: write\s*\n\s+contents: read\s*\n\s+issues: write\s*\n\s+pull-requests: write\s*\n\s+id-token: write/m,
   );
 });
 

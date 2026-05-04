@@ -232,6 +232,8 @@ jobs:
   synthesize:
     needs: [review]
     if: ${{ !cancelled() }}
+    outputs:
+      orchestration_handoff_outcome: ${{ steps.orchestrate_handoff.outcome || 'missing' }}
     permissions:
       # Synthesize is the only review-path job that writes memory, so it's the
       # only one that needs contents:write. Running after both reviewers
@@ -353,6 +355,7 @@ jobs:
           retention-days: 30
 
       - name: Orchestrate automation handoff
+        id: orchestrate_handoff
         if: >-
           always() &&
           steps.auth.outputs.token &&
@@ -421,7 +424,7 @@ jobs:
           steps.auth.outputs.token &&
           inputs.orchestration_root_kind != '' &&
           inputs.orchestration_root_number != '' &&
-          needs.synthesize.result != 'success'
+          needs.synthesize.outputs.orchestration_handoff_outcome != 'success'
         continue-on-error: true
         env:
           ACTIVITY_LABEL_ACTION: remove

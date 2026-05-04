@@ -83,7 +83,7 @@ permissions:
   actions: write
   contents: read
   issues: write
-  pull-requests: read
+  pull-requests: write
   id-token: write # required for GitHub Actions OIDC broker exchange
 
 concurrency:
@@ -239,7 +239,8 @@ jobs:
           (
             steps.handoff.outputs.decision == 'stop' ||
             steps.handoff.outputs.decision == 'skip' ||
-            steps.handoff.outcome == 'failure'
+            steps.handoff.outcome == 'failure' ||
+            (failure() && steps.handoff.outcome != 'success')
           )
         continue-on-error: true
         env:
