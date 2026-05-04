@@ -114,6 +114,10 @@ comment includes a compact transposed Markdown table for the visible status and
 a hidden resume marker so reruns can recover a pending report or skip an
 already-dispatched terminal report. Child selection and adoption comments use
 the same compact table style while preserving their hidden durable markers.
+If terminal child metadata is found but rejected by trust checks or cannot be
+safely updated, the dispatcher posts a compact stop comment on the current
+terminal issue or PR with a hidden dedupe marker. Ordinary terminal PR stops
+without sub-orchestrator metadata remain silent.
 If the resumed parent planner decides there is no next child or action, the
 parent run posts a terminal stop comment on the parent issue with the source
 conclusion, target, round, reason, and hidden `sepo-agent-orchestrate-stop`
