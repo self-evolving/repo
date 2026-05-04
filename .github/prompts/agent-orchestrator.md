@@ -12,6 +12,7 @@ chain should stop or hand off to exactly one allowed next action.
 - Max rounds: `${ORCHESTRATOR_MAX_ROUNDS}`
 - Current target: `${TARGET_KIND} #${TARGET_NUMBER}`
 - Next target from source action, if any: `${ORCHESTRATOR_NEXT_TARGET_NUMBER}`
+- Source handoff context, if any: `${ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT}`
 
 ## Runtime Policy
 
@@ -92,5 +93,6 @@ Rules:
   a question, choose `blocked` with a clarification message.
 - Omit `next_action` unless `decision` is `handoff`.
 - Include `handoff_context` for `handoff` decisions when useful. For `fix-pr`,
-  make it concrete: summarize the exact review findings to address, constraints
-  to preserve, and unrelated work to avoid.
+  it is required: preserve any non-empty source handoff context, or make the
+  task concrete by summarizing the exact review findings to address,
+  constraints to preserve, and unrelated work to avoid.

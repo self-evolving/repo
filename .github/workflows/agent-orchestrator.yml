@@ -36,6 +36,10 @@ on:
         description: "Optional next target number produced by the source action"
         required: false
         default: ""
+      source_handoff_context:
+        description: "Optional action-oriented context derived by the source action"
+        required: false
+        default: ""
       requested_by:
         description: "GitHub login that requested the original run"
         required: false
@@ -149,6 +153,7 @@ jobs:
           ORCHESTRATOR_SOURCE_CONCLUSION: ${{ inputs.source_conclusion }}
           ORCHESTRATOR_SOURCE_RUN_ID: ${{ inputs.source_run_id || github.run_id }}
           ORCHESTRATOR_NEXT_TARGET_NUMBER: ${{ inputs.next_target_number }}
+          ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT: ${{ inputs.source_handoff_context }}
           ORCHESTRATOR_CURRENT_ROUND: ${{ inputs.automation_current_round }}
           ORCHESTRATOR_MAX_ROUNDS: ${{ inputs.automation_max_rounds }}
         with:
@@ -195,6 +200,7 @@ jobs:
           SESSION_BUNDLE_MODE: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
           SOURCE_ACTION: ${{ inputs.source_action }}
           SOURCE_CONCLUSION: ${{ inputs.source_conclusion }}
+          SOURCE_HANDOFF_CONTEXT: ${{ inputs.source_handoff_context }}
           SOURCE_RUN_ID: ${{ inputs.source_run_id || github.run_id }}
           AUTHOR_ASSOCIATION: ${{ inputs.author_association }}
           ACCESS_POLICY: ${{ inputs.access_policy }}
