@@ -188,7 +188,7 @@ Built-in labels map directly to the existing routes. `agent/s/<skill>` runs `.sk
 
 If `AGENT_STATUS_LABEL_ENABLED=true`, accepted non-unsupported issue and pull request requests also get the fixed `agent` status label. This status label is separate from the `agent/*` trigger labels and does not select a route.
 
-Accepted issue and pull request work is best-effort assigned to the login derived from `AGENT_HANDLE` (default `@sepo-agent` -> `sepo-agent`) when GitHub reports that login is assignable for the target. Assignment failures only produce workflow/setup warnings; labels and mentions remain the automation signal layer.
+Accepted issue and pull request work is best-effort assigned to the login derived from `AGENT_HANDLE` (default `@sepo-agent` -> `sepo-agent`) when GitHub reports that login is assignable in the repository. Assignment failures only produce workflow/setup warnings; labels and mentions remain the automation signal layer.
 
 Long-running execution routes use temporary `agent-running/<route>` activity labels such as `agent-running/implement`, `agent-running/review`, `agent-running/fix-pr`, and `agent-running/orchestrate`. These labels are not under the `agent/` trigger prefix, so adding them does not trigger `agent-label.yml`. Route activity labels are added when the route workflow starts and removed when that route finishes. `agent-running/orchestrate` is tied to the original orchestration target and is removed only when the orchestration chain reaches a terminal stop.
 

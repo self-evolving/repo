@@ -144,10 +144,8 @@ function repoApiPath(repo: string, suffix: string): string {
   return `repos/${trimmed}/${suffix}`;
 }
 
-export function isIssueAssigneeAssignable(issueNumber: number, assignee: string, repo: string): boolean {
-  return ghApiOk([
-    repoApiPath(repo, `issues/${issueNumber}/assignees/${encodeURIComponent(assignee)}`),
-  ]);
+export function isRepoAssigneeAssignable(assignee: string, repo: string): boolean {
+  return ghApiOk([repoApiPath(repo, `assignees/${encodeURIComponent(assignee)}`)]);
 }
 
 export function addIssueAssignee(issueNumber: number, assignee: string, repo: string): void {

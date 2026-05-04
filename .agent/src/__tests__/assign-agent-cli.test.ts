@@ -32,7 +32,7 @@ test("assign-agent CLI defaults from AGENT_HANDLE and assigns issues", () => {
       tempDir,
       `#!/usr/bin/env bash
 printf '%s\\n' "$*" >> "$FAKE_GH_LOG"
-if [ "$1" = "api" ] && [ "$2" = "repos/self-evolving/repo/issues/42/assignees/sepo-agent" ]; then
+if [ "$1" = "api" ] && [ "$2" = "repos/self-evolving/repo/assignees/sepo-agent" ]; then
   exit 0
 fi
 if [ "$1" = "api" ] && [ "$2" = "-X" ] && [ "$3" = "POST" ]; then
@@ -53,7 +53,7 @@ exit 1
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /Assigned issue #42 to @sepo-agent/);
     const log = readFileSync(logPath, "utf8");
-    assert.match(log, /^api repos\/self-evolving\/repo\/issues\/42\/assignees\/sepo-agent$/m);
+    assert.match(log, /^api repos\/self-evolving\/repo\/assignees\/sepo-agent$/m);
     assert.match(
       log,
       /^api -X POST repos\/self-evolving\/repo\/issues\/42\/assignees -f assignees\[\]=sepo-agent$/m,
@@ -72,7 +72,7 @@ test("assign-agent CLI checks pull request assignability before assigning", () =
       tempDir,
       `#!/usr/bin/env bash
 printf '%s\\n' "$*" >> "$FAKE_GH_LOG"
-if [ "$1" = "api" ] && [ "$2" = "repos/self-evolving/repo/issues/12/assignees/octo-agent" ]; then
+if [ "$1" = "api" ] && [ "$2" = "repos/self-evolving/repo/assignees/octo-agent" ]; then
   exit 0
 fi
 if [ "$1" = "api" ] && [ "$2" = "-X" ] && [ "$3" = "POST" ]; then
@@ -94,7 +94,7 @@ exit 1
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /Assigned pull request #12 to @octo-agent/);
     const log = readFileSync(logPath, "utf8");
-    assert.match(log, /^api repos\/self-evolving\/repo\/issues\/12\/assignees\/octo-agent$/m);
+    assert.match(log, /^api repos\/self-evolving\/repo\/assignees\/octo-agent$/m);
     assert.match(
       log,
       /^api -X POST repos\/self-evolving\/repo\/issues\/12\/assignees -f assignees\[\]=octo-agent$/m,
@@ -142,7 +142,7 @@ test("assign-agent CLI warns without assigning when the login is not assignable"
       tempDir,
       `#!/usr/bin/env bash
 printf '%s\\n' "$*" >> "$FAKE_GH_LOG"
-if [ "$1" = "api" ] && [ "$2" = "repos/self-evolving/repo/issues/42/assignees/sepo-agent" ]; then
+if [ "$1" = "api" ] && [ "$2" = "repos/self-evolving/repo/assignees/sepo-agent" ]; then
   exit 1
 fi
 if [ "$1" = "api" ] && [ "$2" = "-X" ] && [ "$3" = "POST" ]; then
@@ -165,7 +165,7 @@ exit 1
     assert.equal(result.status, 0);
     assert.match(result.stderr, /not assignable/);
     const log = readFileSync(logPath, "utf8");
-    assert.match(log, /^api repos\/self-evolving\/repo\/issues\/42\/assignees\/sepo-agent$/m);
+    assert.match(log, /^api repos\/self-evolving\/repo\/assignees\/sepo-agent$/m);
     assert.doesNotMatch(log, /^api -X POST /m);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });

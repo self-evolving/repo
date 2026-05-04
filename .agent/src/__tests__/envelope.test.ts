@@ -459,7 +459,7 @@ test("accepted issue and PR work is best-effort assigned from AGENT_HANDLE", () 
   assert.match(assignCli, /Non-fatal: exits 0 even if the handle is not assignable/);
   assert.match(assigneeModule, /DEFAULT_AGENT_HANDLE = "@sepo-agent"/);
   assert.match(assigneeModule, /deriveAssigneeLogin/);
-  assert.match(assigneeModule, /isIssueAssigneeAssignable/);
+  assert.match(assigneeModule, /isRepoAssigneeAssignable/);
   assert.doesNotMatch(assigneeModule, /AGENT_ASSIGNEE/);
 
   assert.match(

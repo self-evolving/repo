@@ -54,7 +54,7 @@ if [ "$1" = "issue" ] && [ "$2" = "create" ]; then
   printf 'https://github.com/self-evolving/repo/issues/77\\n'
   exit 0
 fi
-if [ "$1" = "api" ] && [ "$2" = "repos/self-evolving/repo/issues/77/assignees/sepo-agent" ]; then
+if [ "$1" = "api" ] && [ "$2" = "repos/self-evolving/repo/assignees/sepo-agent" ]; then
   exit 0
 fi
 if [ "$1" = "api" ] && [[ "$2" == repos/*/issues/77/comments ]]; then
@@ -114,7 +114,7 @@ if [ "$1" = "issue" ] && [ "$2" = "list" ]; then
   printf '[{"number":5,"title":"Sepo setup check"}]'
   exit 0
 fi
-if [ "$1" = "api" ] && [ "$2" = "repos/self-evolving/repo/issues/5/assignees/sepo-agent" ]; then
+if [ "$1" = "api" ] && [ "$2" = "repos/self-evolving/repo/assignees/sepo-agent" ]; then
   exit 1
 fi
 if [ "$1" = "api" ] && [[ "$2" == repos/*/issues/5/comments ]]; then

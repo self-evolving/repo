@@ -1,4 +1,4 @@
-import { addIssueAssignee, isIssueAssigneeAssignable } from "./github.js";
+import { addIssueAssignee, isRepoAssigneeAssignable } from "./github.js";
 
 export const DEFAULT_AGENT_HANDLE = "@sepo-agent";
 
@@ -64,15 +64,15 @@ export function resolveAgentAssignee(input: {
     };
   }
 
-  const assignable = isIssueAssigneeAssignable(input.targetNumber, login, input.repo);
+  const assignable = isRepoAssigneeAssignable(login, input.repo);
   if (!assignable) {
     return {
       handle,
       login,
       assignable: false,
       warning:
-        `${login} derived from AGENT_HANDLE=${handle} is not assignable to ` +
-        `${targetKindLabel(input.targetKind)} #${input.targetNumber}, or the assignability check failed`,
+        `${login} derived from AGENT_HANDLE=${handle} is not assignable in ${input.repo}, or the ` +
+        "assignability check failed",
     };
   }
 
