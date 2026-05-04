@@ -169,12 +169,25 @@ Explicit routes are:
 - `@sepo-agent /answer`
 - `@sepo-agent /implement`
 - `@sepo-agent /create-action`
+- `@sepo-agent /setup plan`
 - `@sepo-agent /fix-pr`
 - `@sepo-agent /review`
 - `@sepo-agent /orchestrate`
 - `@sepo-agent /skill <name>`
 
 Explicit routes skip dispatch triage and resolve locally, but still go through the same route policy checks afterward.
+
+`/setup plan` is issue-only and plan-only. It reads a structured Sepo setup
+issue and current setup/config context where available, then posts a proposed
+setup diff for allowlisted intent such as `AGENT_HANDLE`, best-effort
+assignment behavior, project-management mode, configured Project ID/URL,
+Project owner/title, and the minimal `Status`/`Priority`/`Effort`/optional
+`Release` planning fields. It runs with read-approved agent permissions and
+does not apply repository variables, create or link GitHub Projects, update
+Project fields, or run Project sync. `/setup apply` is not implemented yet.
+Because setup is privileged, its built-in default access excludes
+`CONTRIBUTOR`; use `AGENT_ACCESS_POLICY.route_overrides.setup` for an explicit
+repository-specific allowlist.
 
 Mention-based skill requests normalize the skill name to lowercase and run `.skills/<name>/SKILL.md` inline through the same `skill` route used by `agent/s/<skill>` labels.
 

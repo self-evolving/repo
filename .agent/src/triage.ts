@@ -16,6 +16,7 @@ export const ROUTES = new Set([
   "review",
   "orchestrate",
   "create-action",
+  "setup",
   "unsupported",
 ]);
 
@@ -62,6 +63,14 @@ export function extractRequestedRouteDecision(body: string, mention: string): Re
     return { route: "", skill: "" };
   }
 
+  const setupPlanRegex = new RegExp(
+    `(?:^|[\\s(])${escapeRegex(trimmedMention)}\\s+/setup\\s+plan(?=$|[\\s.,;:!?)\\]}])`,
+    "im",
+  );
+  if (setupPlanRegex.test(sanitized)) {
+    return { route: "setup", skill: "" };
+  }
+
   const routePattern = EXPLICIT_ROUTE_COMMANDS.map((route) => escapeRegex(route)).join("|");
   const explicitRegex = new RegExp(
     `(?:^|[\\s(])${escapeRegex(trimmedMention)}\\s+/(${routePattern})(?=$|[\\s.,;:!?)\\]}])`,
@@ -95,6 +104,7 @@ export function buildRequestedRouteDecision(route: string, requestText: string):
   const normalizedRoute = String(route || "").trim().toLowerCase();
   if (
     normalizedRoute !== "skill" &&
+    normalizedRoute !== "setup" &&
     !EXPLICIT_ROUTE_COMMANDS.includes(normalizedRoute as (typeof EXPLICIT_ROUTE_COMMANDS)[number])
   ) {
     throw new Error(`Unsupported explicit route: ${normalizedRoute || "missing"}`);
@@ -178,6 +188,17 @@ export function buildRequestedRouteDecision(route: string, requestText: string):
       needsApproval: false,
       confidence: "high",
       summary: "I’ll start orchestration for this target.",
+      issueTitle: "",
+      issueBody: "",
+    };
+  }
+
+  if (normalizedRoute === "setup") {
+    return {
+      route: "setup",
+      needsApproval: false,
+      confidence: "high",
+      summary: "I’ll prepare a setup plan without applying changes.",
       issueTitle: "",
       issueBody: "",
     };
@@ -305,11 +326,14 @@ export function applyDispatchPolicy(
       normalized.route,
       isPublicRepo,
     );
+    const requiredAccess = allowed.length
+      ? `${allowed.join(", ")} access`
+      : "an explicitly allowed association";
     return {
       ...normalized,
       route: "unsupported",
       needsApproval: false,
-      summary: `${normalized.route} requests currently require ${allowed.join(", ")} access.`,
+      summary: `${normalized.route} requests currently require ${requiredAccess}.`,
       issueTitle: "",
       issueBody: "",
     };
@@ -380,6 +404,25 @@ export function applyDispatchPolicy(
         needsApproval: false,
         summary:
           "Orchestration requests are currently supported on issues and pull requests only.",
+        issueTitle: "",
+        issueBody: "",
+      };
+    }
+
+    normalized.needsApproval = false;
+    normalized.issueTitle = "";
+    normalized.issueBody = "";
+    return normalized;
+  }
+
+  if (normalized.route === "setup") {
+    if (targetKind !== "issue") {
+      return {
+        ...normalized,
+        route: "unsupported",
+        needsApproval: false,
+        summary:
+          "Setup plan requests are only supported from issues right now.",
         issueTitle: "",
         issueBody: "",
       };
