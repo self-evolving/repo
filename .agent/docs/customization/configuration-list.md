@@ -4,7 +4,7 @@
 
 | Variable | Purpose |
 |---|---|
-| `AGENT_HANDLE` | Override the mention handle. Defaults to `@sepo-agent`. |
+| `AGENT_HANDLE` | Override the mention handle. Defaults to `@sepo-agent`. Accepted issue and pull request work is also best-effort assigned to the login derived from this handle when GitHub reports it is assignable. |
 | `AGENT_RUNS_ON` | JSON array string for runner selection. If you are using self-hosted runners, see [Self-hosted GitHub Action runner](../deployment/self-hosted-github-action-runner.md). |
 | `AGENT_DEFAULT_PROVIDER` | Default provider for single-agent runs and review synthesis: `auto`, `codex`, or `claude`. Explicit `codex` / `claude` choices are honored even without matching repository secrets, allowing self-hosted runners to use local provider authentication. `auto` chooses the first configured provider secret, preferring Codex when both secrets are present. |
 | `AGENT_SESSION_BUNDLE_MODE` | Default session-bundle behavior: `auto`, `always`, or `never`. For the trade-offs behind this setting, see [Session continuity](../technical-details/session-continuity.md). |

@@ -134,6 +134,33 @@ export function removePrLabel(prNumber: number, label: string, repo?: string): v
   gh(args);
 }
 
+// --- Assignees ---
+
+function repoApiPath(repo: string, suffix: string): string {
+  const trimmed = repo.trim();
+  if (!trimmed) {
+    throw new Error("GITHUB_REPOSITORY is required for GitHub API requests");
+  }
+  return `repos/${trimmed}/${suffix}`;
+}
+
+export function isIssueAssigneeAssignable(issueNumber: number, assignee: string, repo: string): boolean {
+  return ghApiOk([
+    repoApiPath(repo, `issues/${issueNumber}/assignees/${encodeURIComponent(assignee)}`),
+  ]);
+}
+
+export function addIssueAssignee(issueNumber: number, assignee: string, repo: string): void {
+  gh([
+    "api",
+    "-X",
+    "POST",
+    repoApiPath(repo, `issues/${issueNumber}/assignees`),
+    "-f",
+    `assignees[]=${assignee}`,
+  ]);
+}
+
 // --- Pull requests ---
 
 export interface PrMeta {

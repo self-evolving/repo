@@ -443,6 +443,53 @@ test("agent status label is opt-in and fixed to the AGENT_STATUS_LABEL_ENABLED v
   assert.match(createPrCli, /setOutput\("pr_number"/);
 });
 
+test("accepted issue and PR work is best-effort assigned from AGENT_HANDLE", () => {
+  const routerWorkflow = readRepoFile(".github/workflows/agent-router.yml");
+  const implementWorkflow = readRepoFile(".github/workflows/agent-implement.yml");
+  const fixPrWorkflow = readRepoFile(".github/workflows/agent-fix-pr.yml");
+  const reviewWorkflow = readRepoFile(".github/workflows/agent-review.yml");
+  const orchestratorWorkflow = readRepoFile(".github/workflows/agent-orchestrator.yml");
+  const onboardingWorkflow = readRepoFile(".github/workflows/agent-onboarding.yml");
+  const assignCli = readRepoFile(".agent/src/cli/assign-agent.ts");
+  const assigneeModule = readRepoFile(".agent/src/agent-assignee.ts");
+  const configurationList = readRepoFile(".agent/docs/customization/configuration-list.md");
+  const supportedWorkflows = readRepoFile(".agent/docs/architecture/supported-workflows.md");
+
+  assert.match(assignCli, /Non-fatal: exits 0 even if the handle is not assignable/);
+  assert.match(assigneeModule, /DEFAULT_AGENT_HANDLE = "@sepo-agent"/);
+  assert.match(assigneeModule, /deriveAssigneeLogin/);
+  assert.match(assigneeModule, /isIssueAssigneeAssignable/);
+  assert.doesNotMatch(assigneeModule, /AGENT_ASSIGNEE/);
+
+  assert.match(
+    routerWorkflow,
+    /Assign handled issue or PR[\s\S]*steps\.dispatch\.outputs\.route != 'unsupported'[\s\S]*AGENT_HANDLE:\s*\$\{\{ inputs\.agent_handle \|\| '@sepo-agent' \}\}[\s\S]*node \.agent\/dist\/cli\/assign-agent\.js/,
+  );
+  assert.match(
+    implementWorkflow,
+    /Assign source issue[\s\S]*AGENT_HANDLE:\s*\$\{\{ vars\.AGENT_HANDLE \|\| '@sepo-agent' \}\}[\s\S]*TARGET_KIND: issue[\s\S]*node \.agent\/dist\/cli\/assign-agent\.js/,
+  );
+  assert.match(
+    implementWorkflow,
+    /Assign generated pull request[\s\S]*TARGET_KIND: pull_request[\s\S]*TARGET_NUMBER:\s*\$\{\{ steps\.pr\.outputs\.pr_number \}\}/,
+  );
+  assert.match(
+    fixPrWorkflow,
+    /Assign target pull request[\s\S]*steps\.pr\.outputs\.cross_repo != 'true'[\s\S]*TARGET_KIND: pull_request[\s\S]*node \.agent\/dist\/cli\/assign-agent\.js/,
+  );
+  assert.match(
+    reviewWorkflow,
+    /Assign target pull request[\s\S]*matrix\.agent == 'codex'[\s\S]*TARGET_KIND: pull_request[\s\S]*node \.agent\/dist\/cli\/assign-agent\.js/,
+  );
+  assert.match(
+    orchestratorWorkflow,
+    /Assign orchestrator target[\s\S]*TARGET_KIND:\s*\$\{\{ inputs\.target_kind \|\| \(inputs\.source_action == 'implement' && 'issue' \|\| 'pull_request'\) \}\}[\s\S]*node \.agent\/dist\/cli\/assign-agent\.js/,
+  );
+  assert.match(onboardingWorkflow, /AGENT_HANDLE:\s*\$\{\{ vars\.AGENT_HANDLE \|\| '@sepo-agent' \}\}/);
+  assert.match(configurationList, /best-effort assigned to the login derived from this handle/);
+  assert.match(supportedWorkflows, /labels and mentions remain the automation signal layer/);
+});
+
 test("long-running routes use non-trigger activity labels", () => {
   const routerWorkflow = readRepoFile(".github/workflows/agent-router.yml");
   const implementWorkflow = readRepoFile(".github/workflows/agent-implement.yml");

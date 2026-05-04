@@ -54,6 +54,9 @@ if [ "$1" = "issue" ] && [ "$2" = "create" ]; then
   printf 'https://github.com/self-evolving/repo/issues/77\\n'
   exit 0
 fi
+if [ "$1" = "api" ] && [ "$2" = "repos/self-evolving/repo/issues/77/assignees/sepo-agent" ]; then
+  exit 0
+fi
 if [ "$1" = "api" ] && [[ "$2" == repos/*/issues/77/comments ]]; then
   printf '[]'
   exit 0
@@ -84,6 +87,7 @@ exit 1
     assert.match(log, /^label create agent\/orchestrate --color fb8c00 --description Ask Sepo to run/m);
     assert.match(log, /^issue create --title Sepo setup check --body-file .+ --repo self-evolving\/repo$/m);
     assert.match(log, /^issue comment 77 --body <!-- sepo-agent-onboarding-check -->/m);
+    assert.match(log, /Agent handle assignable: `sepo-agent`/);
     assert.match(log, /agent\/fix-pr/);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
@@ -109,6 +113,9 @@ fi
 if [ "$1" = "issue" ] && [ "$2" = "list" ]; then
   printf '[{"number":5,"title":"Sepo setup check"}]'
   exit 0
+fi
+if [ "$1" = "api" ] && [ "$2" = "repos/self-evolving/repo/issues/5/assignees/sepo-agent" ]; then
+  exit 1
 fi
 if [ "$1" = "api" ] && [[ "$2" == repos/*/issues/5/comments ]]; then
   printf '[{"id":123,"body":"<!-- sepo-agent-onboarding-check --> old"}]'

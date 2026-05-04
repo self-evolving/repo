@@ -2,7 +2,7 @@
 // Usage: node .agent/dist/cli/onboarding-check.js
 // Env: GITHUB_REPOSITORY, AUTH_MODE, AGENT_PROVIDER, AGENT_PROVIDER_REASON,
 //      OPENAI_API_KEY_CONFIGURED, CLAUDE_CODE_OAUTH_TOKEN_CONFIGURED,
-//      MEMORY_REF, RUBRICS_REF, RUN_URL
+//      AGENT_HANDLE, MEMORY_REF, RUBRICS_REF, RUN_URL
 
 import { runOnboardingCheck } from "../onboarding.js";
 import { setOutput } from "../output.js";
@@ -27,6 +27,7 @@ const issueNumber = runOnboardingCheck({
   providerReason: process.env.AGENT_PROVIDER_REASON || "",
   openaiConfigured: isTrue("OPENAI_API_KEY_CONFIGURED"),
   claudeConfigured: isTrue("CLAUDE_CODE_OAUTH_TOKEN_CONFIGURED"),
+  agentHandle: process.env.AGENT_HANDLE || "",
   memoryRef: process.env.MEMORY_REF || "agent/memory",
   rubricsRef: process.env.RUBRICS_REF || "agent/rubrics",
   runUrl: process.env.RUN_URL || "",

@@ -256,6 +256,21 @@ jobs:
           TARGET_NUMBER: ${{ steps.context.outputs.target_number }}
         run: node .agent/dist/cli/add-label.js
 
+      - name: Assign handled issue or PR
+        if: >-
+          steps.context.outputs.should_respond == 'true' &&
+          steps.dispatch.outputs.route != '' &&
+          steps.dispatch.outputs.route != 'unsupported' &&
+          (steps.context.outputs.target_kind == 'issue' || steps.context.outputs.target_kind == 'pull_request')
+        continue-on-error: true
+        env:
+          AGENT_HANDLE: ${{ inputs.agent_handle || '@sepo-agent' }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          TARGET_KIND: ${{ steps.context.outputs.target_kind }}
+          TARGET_NUMBER: ${{ steps.context.outputs.target_number }}
+        run: node .agent/dist/cli/assign-agent.js
+
       - name: React with thumbs up (dispatch acknowledgment)
         if: >-
           steps.context.outputs.should_respond == 'true' &&

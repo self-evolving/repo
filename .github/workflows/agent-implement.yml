@@ -205,6 +205,16 @@ jobs:
           TARGET_NUMBER: ${{ env.ISSUE_NUMBER }}
         run: node .agent/dist/cli/add-label.js
 
+      - name: Assign source issue
+        continue-on-error: true
+        env:
+          AGENT_HANDLE: ${{ vars.AGENT_HANDLE || '@sepo-agent' }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          TARGET_KIND: issue
+          TARGET_NUMBER: ${{ env.ISSUE_NUMBER }}
+        run: node .agent/dist/cli/assign-agent.js
+
       - name: Mark implementation activity
         continue-on-error: true
         env:
@@ -309,6 +319,17 @@ jobs:
           TARGET_KIND: pull_request
           TARGET_NUMBER: ${{ steps.pr.outputs.pr_number }}
         run: node .agent/dist/cli/add-label.js
+
+      - name: Assign generated pull request
+        if: steps.pr.outputs.pr_number != ''
+        continue-on-error: true
+        env:
+          AGENT_HANDLE: ${{ vars.AGENT_HANDLE || '@sepo-agent' }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          TARGET_KIND: pull_request
+          TARGET_NUMBER: ${{ steps.pr.outputs.pr_number }}
+        run: node .agent/dist/cli/assign-agent.js
 
       - name: Post status comment
         if: always()
