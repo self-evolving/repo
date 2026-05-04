@@ -472,10 +472,18 @@ test("long-running routes use non-trigger activity labels", () => {
   assert.match(reviewWorkflow, /Mark review activity[\s\S]*ROUTE: review/);
   assert.match(reviewWorkflow, /cleanup-activity-label:/);
   assert.match(reviewWorkflow, /Clear review activity label[\s\S]*ACTIVITY_LABEL_ACTION: remove/);
+  assert.match(
+    reviewWorkflow,
+    /Clear orchestration root activity label after review failure[\s\S]*needs\.synthesize\.result != 'success'/,
+  );
+  assert.match(
+    reviewWorkflow,
+    /Clear orchestration root activity label after review failure[\s\S]*ROUTE: orchestrate[\s\S]*TARGET_KIND:\s*\$\{\{ inputs\.orchestration_root_kind \}\}[\s\S]*TARGET_NUMBER:\s*\$\{\{ inputs\.orchestration_root_number \}\}/,
+  );
   assert.match(orchestratorWorkflow, /Mark orchestrator activity[\s\S]*ROUTE: orchestrate/);
   assert.match(orchestratorWorkflow, /id: handoff/);
   assert.match(orchestratorWorkflow, /Clear orchestrator activity label[\s\S]*steps\.handoff\.outputs\.decision == 'stop'/);
-  assert.match(orchestratorWorkflow, /steps\.handoff\.outputs\.decision == 'blocked'/);
+  assert.doesNotMatch(orchestratorWorkflow, /steps\.handoff\.outputs\.decision == 'blocked'/);
   assert.match(orchestratorWorkflow, /steps\.handoff\.outcome == 'failure'/);
   assert.match(routerWorkflow, /ORCHESTRATION_ROOT_KIND:\s*\$\{\{ needs\.portal\.outputs\.target_kind \}\}/);
   assert.match(implementWorkflow, /ORCHESTRATION_ROOT_KIND:\s*\$\{\{ inputs\.orchestration_root_kind \}\}/);
@@ -1418,6 +1426,12 @@ test("agent-review permissions keep reviewer contents read-only and synthesize w
   assert.match(
     reviewWorkflow,
     /synthesize:\s*\n\s+needs: \[review\]\s*\n\s+if: \$\{\{ !cancelled\(\) \}\}\s*\n\s+permissions:[\s\S]*?contents: write/,
+  );
+
+  // Cleanup removes labels from PRs, including best-effort failure cleanup.
+  assert.match(
+    reviewWorkflow,
+    /cleanup-activity-label:\s*\n\s+needs: \[review, rubrics-review, synthesize\]\s*\n\s+if: \$\{\{ always\(\) \}\}\s*\n\s+permissions:\s*\n\s+contents: read\s*\n\s+issues: write\s*\n\s+pull-requests: write\s*\n\s+id-token: write/,
   );
 });
 

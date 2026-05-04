@@ -384,6 +384,7 @@ jobs:
     permissions:
       contents: read
       issues: write
+      pull-requests: write
       id-token: write
     runs-on: ${{ fromJson(inputs.runs_on || vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
     steps:
@@ -412,4 +413,21 @@ jobs:
           ROUTE: review
           TARGET_KIND: pull_request
           TARGET_NUMBER: ${{ inputs.pr_number }}
+        run: node .agent/dist/cli/activity-label.js
+
+      - name: Clear orchestration root activity label after review failure
+        if: >-
+          inputs.orchestration_enabled == 'true' &&
+          steps.auth.outputs.token &&
+          inputs.orchestration_root_kind != '' &&
+          inputs.orchestration_root_number != '' &&
+          needs.synthesize.result != 'success'
+        continue-on-error: true
+        env:
+          ACTIVITY_LABEL_ACTION: remove
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          ROUTE: orchestrate
+          TARGET_KIND: ${{ inputs.orchestration_root_kind }}
+          TARGET_NUMBER: ${{ inputs.orchestration_root_number }}
         run: node .agent/dist/cli/activity-label.js
