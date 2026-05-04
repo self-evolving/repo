@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// CLI: deterministically apply managed project-manager label changes.
+// CLI: deterministically apply legacy/fallback project-manager label changes.
 // Env: BODY_FILE, GITHUB_REPOSITORY, AGENT_PROJECT_MANAGEMENT_DRY_RUN,
 //      AGENT_PROJECT_MANAGEMENT_APPLY_LABELS
 
@@ -25,7 +25,7 @@ function requiredEnv(name: string): string {
 }
 
 function appendStatus(summary: string, status: string): string {
-  return `${summary.trim()}\n\n### Managed Label Application\n\n${status}\n`;
+  return `${summary.trim()}\n\n### Legacy Managed Label Application\n\n${status}\n`;
 }
 
 function main(): number {
@@ -45,8 +45,8 @@ function main(): number {
 
     if (dryRun || !applyLabels) {
       const status = dryRun
-        ? `- Dry run is enabled; ${operationCount} managed label operation(s) were planned but not applied.`
-        : `- Label application is disabled; ${operationCount} managed label operation(s) were planned but not applied.`;
+        ? `- Dry run is enabled; ${operationCount} legacy managed label operation(s) were planned but not applied.`
+        : `- Label application is disabled; ${operationCount} legacy managed label operation(s) were planned but not applied.`;
       setOutput("labels_applied", "false");
       setOutput("operation_count", String(operationCount));
       setOutput("summary", appendStatus(summary, status));
@@ -61,7 +61,7 @@ function main(): number {
       }
     }
 
-    const status = `- Applied ${operationCount} managed priority/effort label operation(s).`;
+    const status = `- Applied ${operationCount} legacy priority/effort label operation(s).`;
     setOutput("labels_applied", "true");
     setOutput("operation_count", String(operationCount));
     setOutput("summary", appendStatus(summary, status));

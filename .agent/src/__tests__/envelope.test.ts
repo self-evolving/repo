@@ -574,6 +574,36 @@ test("long-running routes use non-trigger activity labels", () => {
   assert.match(supportedWorkflows, /not trigger `agent-label\.yml`/);
 });
 
+test("project management docs preserve the minimal Project planning model", () => {
+  const docsIndex = readRepoFile(".agent/docs/README.md");
+  const planningDoc = readRepoFile(".agent/docs/architecture/project-planning.md");
+  const supportedWorkflows = readRepoFile(".agent/docs/architecture/supported-workflows.md");
+  const configurationList = readRepoFile(".agent/docs/customization/configuration-list.md");
+  const projectManagerPrompt = readRepoFile(".github/prompts/project-manager.md");
+  const projectManagerWorkflow = readRepoFile(".github/workflows/agent-project-manager.yml");
+
+  for (const source of [planningDoc, supportedWorkflows, projectManagerPrompt]) {
+    assert.match(source, /`Status`[\s\S]*`Inbox`[\s\S]*`In Progress`[\s\S]*`To Review`[\s\S]*`Done`/);
+    assert.match(source, /`Priority`[\s\S]*`P0`[\s\S]*`P1`[\s\S]*`P2`[\s\S]*`P3`/);
+    assert.match(source, /`Effort`[\s\S]*`Low`[\s\S]*`Medium`[\s\S]*`High`/);
+    assert.match(source, /[Oo]ptional `Release`|`Release` \| No/);
+  }
+
+  assert.match(docsIndex, /Project planning model/);
+  assert.match(planningDoc, /`agent\/\*`[\s\S]*one-shot trigger labels/);
+  assert.match(planningDoc, /`agent-running\/\*`[\s\S]*temporary activity labels/);
+  assert.match(planningDoc, /`priority\/\*` and `effort\/\*` labels are legacy\/fallback signals/);
+  assert.match(planningDoc, /does not create GitHub\s+Projects, update Project fields/);
+  assert.match(planningDoc, /best-effort assigned to the login derived from\s+`AGENT_HANDLE`/);
+  assert.match(supportedWorkflows, /legacy\/fallback managed-label change plan/);
+  assert.match(configurationList, /Project field sync is not implemented yet/);
+  assert.match(configurationList, /legacy\/fallback `priority\/\*` and `effort\/\*` labels/);
+  assert.match(projectManagerPrompt, /## Legacy\/Fallback Managed Labels/);
+  assert.match(projectManagerPrompt, /Default repository labels stay operational: `agent`, one-shot `agent\/\*` trigger/);
+  assert.match(projectManagerPrompt, /This prompt does not create or update GitHub Projects/);
+  assert.match(projectManagerWorkflow, /Project-backed source of truth: GitHub Project fields Status\/Priority\/Effort\/Release/);
+});
+
 test("agent router posts unsupported route summaries directly instead of running the answer agent", () => {
   const runnerWorkflow = readRepoFile(".github/workflows/agent-router.yml");
 

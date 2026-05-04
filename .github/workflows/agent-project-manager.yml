@@ -10,11 +10,11 @@ on:
         required: false
         default: "false"
       dry_run:
-        description: "Set false to allow label writes."
+        description: "Set false to allow legacy/fallback label writes."
         required: false
         default: "true"
       apply_labels:
-        description: "Set true to apply managed priority/effort label plan."
+        description: "Set true to apply legacy/fallback priority/effort label plan."
         required: false
         default: "false"
       post_summary:
@@ -179,10 +179,11 @@ jobs:
             - repository: ${{ github.repository }}
             - limit per kind: ${{ steps.project_config.outputs.limit }}
             - dry run: ${{ steps.project_config.outputs.dry_run }}
-            - apply labels after agent: ${{ steps.project_config.outputs.apply_labels }}
+            - apply legacy/fallback labels after agent: ${{ steps.project_config.outputs.apply_labels }}
             - post summary after agent: ${{ steps.project_config.outputs.post_summary }}
             - Daily Summary discussion category: ${{ steps.project_config.outputs.discussion_category }}
             - workflow schedule: every 6 hours at minute 17 UTC
+            - Project-backed source of truth: GitHub Project fields Status/Priority/Effort/Release, not repo priority/effort labels
           requested_by: ${{ github.actor }}
           source_kind: workflow_dispatch
           target_kind: repository

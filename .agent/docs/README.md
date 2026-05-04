@@ -10,6 +10,7 @@
 - [Overall design](architecture/overall-design.md)
 - [Repository memory](architecture/memory.md)
 - [User/team rubrics](architecture/rubrics.md)
+- [Project planning model](architecture/project-planning.md)
 - [The life cycle of an agent request](architecture/request-lifecycle.md)
 - [Supported workflows](architecture/supported-workflows.md)
 

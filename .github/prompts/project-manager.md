@@ -1,14 +1,33 @@
 ## Task Description
 
-Run the repository project-manager pass. Assess open issues and pull requests with agent judgment, emit a managed triage-label change plan, and return the final summary for the workflow to publish.
+Run the repository project-manager pass. Assess open issues and pull requests with agent judgment, emit a legacy/fallback managed triage-label change plan, and return the final summary for the workflow to publish.
 
 Runtime request/configuration:
 
 ${REQUEST_TEXT}
 
-## Managed Labels
+## Minimal Project Planning Model
 
-Use exactly these managed label families:
+For Project-backed planning, the GitHub Project is the planning source of truth.
+Use this minimal model:
+
+- `Status`: `Inbox`, `In Progress`, `To Review`, `Done`
+- `Priority`: `P0`, `P1`, `P2`, `P3`
+- `Effort`: `Low`, `Medium`, `High`
+- Optional `Release`
+
+Default repository labels stay operational: `agent`, one-shot `agent/*` trigger
+labels, and temporary `agent-running/*` activity labels. Do not use
+`priority/*` or `effort/*` as the default Project-backed planning surface.
+
+This prompt does not create or update GitHub Projects, Project fields,
+repository variables, issues, pull requests, reviews, or discussion comments.
+The current workflow only supports the legacy/fallback label plan below.
+
+## Legacy/Fallback Managed Labels
+
+Use exactly these opt-in legacy/fallback managed label families for the
+structured `label_changes` plan:
 
 - Priority: `priority/p0`, `priority/p1`, `priority/p2`, `priority/p3`
 - Effort: `effort/low`, `effort/medium`, `effort/high`
@@ -17,13 +36,13 @@ Recommended label colors/descriptions when creating missing labels:
 
 | Label | Color | Description |
 |---|---:|---|
-| `priority/p0` | `b60205` | Project management: highest priority |
-| `priority/p1` | `d93f0b` | Project management: high priority |
-| `priority/p2` | `fbca04` | Project management: medium priority |
-| `priority/p3` | `c2e0c6` | Project management: low priority |
-| `effort/low` | `c2e0c6` | Project management: low effort |
-| `effort/medium` | `fbca04` | Project management: medium effort |
-| `effort/high` | `d73a4a` | Project management: high effort |
+| `priority/p0` | `b60205` | Legacy/fallback project management: P0 priority |
+| `priority/p1` | `d93f0b` | Legacy/fallback project management: P1 priority |
+| `priority/p2` | `fbca04` | Legacy/fallback project management: P2 priority |
+| `priority/p3` | `c2e0c6` | Legacy/fallback project management: P3 priority |
+| `effort/low` | `c2e0c6` | Legacy/fallback project management: low effort |
+| `effort/medium` | `fbca04` | Legacy/fallback project management: medium effort |
+| `effort/high` | `d73a4a` | Legacy/fallback project management: high effort |
 
 Priority guidance:
 
@@ -45,8 +64,8 @@ Effort guidance:
    - `gh issue list --repo ${REPO_SLUG} --state open --limit <limit> --json number,title,body,labels,createdAt,updatedAt,comments,assignees`
    - `gh pr list --repo ${REPO_SLUG} --state open --limit <limit> --json number,title,body,labels,createdAt,updatedAt,comments,assignees,isDraft,reviewDecision`
 3. Use judgment from titles, bodies, labels, recency, discussion volume, assignment, draft/review status, and repository context. Do not reduce the decision to keyword heuristics.
-4. Assign each considered item exactly one managed priority label and exactly one managed effort label.
-5. Compute planned label changes by removing stale managed priority/effort labels that do not match the chosen labels and adding missing chosen labels. Do not remove unrelated labels.
+4. For this legacy/fallback label plan, assign each considered item exactly one managed priority label and exactly one managed effort label.
+5. Compute planned label changes by removing stale managed priority/effort labels that do not match the chosen labels and adding missing chosen labels. Do not remove unrelated labels or operational `agent`, `agent/*`, or `agent-running/*` labels.
 6. Do not mutate labels, even when label application is enabled. The workflow has a deterministic post-agent step that validates and applies only allowed managed-label operations.
 7. Do not create labels, issues, pull requests, commits, branches, reviews, or discussion comments. The workflow has separate deterministic final steps for managed labels and summary publication.
 
@@ -60,7 +79,7 @@ Use this structure:
 
 - Mode: `dry run`, `labels applied`, or `labels not applied`
 - Open items assessed: `<issue count> issues, <pull request count> pull requests`
-- Managed labels: `priority/*`, `effort/*`
+- Managed labels: legacy/fallback `priority/*`, `effort/*`
 
 ### Top Triage Queue
 
