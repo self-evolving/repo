@@ -26,6 +26,20 @@ Also merge these generated-output rules into the target repository's existing `.
 
 The workflows build `.agent/dist/` on GitHub-hosted runners. Keeping generated runtime outputs ignored prevents them from being committed accidentally.
 
+## Sepo version metadata
+
+Keep `.agent/sepo-version.json` with the copied `.agent/` tree. It records the
+installed Sepo version, source repository/ref, optional exact source SHA, install
+source kind, and optional installed-file hash. See [Sepo versioning](../technical-details/versioning.md)
+for the schema and SemVer policy.
+
+For release installs, prefer a release tag in `source_ref` such as `v0.1.0` and
+record the exact source commit in `source_sha`. For moving-branch development
+checkouts, `source_ref` may be `main` or `develop` and `source_sha` may be
+`null` until an installer or updater rewrites it with the exact checkout SHA.
+This lets forks and copied installs report the Sepo line they started from
+without pretending that a moving branch name is an immutable version.
+
 ## Repository configuration
 
 At minimum, configure:

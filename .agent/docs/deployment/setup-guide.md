@@ -2,6 +2,13 @@
 
 There are two main customization points: how GitHub authentication is resolved, and where the workflows run.
 
+Sepo installations also carry `.agent/sepo-version.json`, which records the
+installed Sepo version and source identity. Keep that file with `.agent/` when
+copying or updating an installation. The version policy uses SemVer: `v0.x.y`
+while Sepo is pre-release, `v1.0.0-rc.N` only for true release candidates, and
+`v1.0.0` for the first public stable release. See [Sepo versioning](../technical-details/versioning.md)
+for the metadata schema and fork/install source model.
+
 ## Supported GitHub auth paths
 
 | Path | Best when | What you configure |
