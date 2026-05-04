@@ -1,0 +1,142 @@
+name: Sepo setup
+description: Configure Sepo handler and experimental Project-backed planning intent.
+title: "Sepo setup: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form to describe the Sepo setup you want before any repository
+        variables or GitHub Projects are changed. After opening the issue, ask
+        `@sepo-agent /setup plan` first and review the proposed changes. Do not
+        ask for `@sepo-agent /setup apply` until you are ready to explicitly
+        confirm a later apply step.
+  - type: input
+    id: agent-handle
+    attributes:
+      label: Agent handle
+      description: Mention handle Sepo should listen for and assign work to when assignment is enabled.
+      value: "@sepo-agent"
+      placeholder: "@sepo-agent"
+    validations:
+      required: true
+  - type: dropdown
+    id: assign-to-agent
+    attributes:
+      label: Assign accepted work to the agent
+      description: Sepo will derive the assignee login from the configured agent handle when GitHub reports it is assignable.
+      options:
+        - "Yes, assign to the configured agent handle"
+        - "No, leave assignment unchanged"
+      default: 0
+    validations:
+      required: true
+  - type: dropdown
+    id: project-management-mode
+    attributes:
+      label: Project management mode
+      description: Choose how Sepo should treat project management after setup is planned and explicitly applied.
+      options:
+        - off
+        - dry-run
+        - project-backed
+      default: 1
+    validations:
+      required: true
+  - type: dropdown
+    id: github-project
+    attributes:
+      label: GitHub Project
+      description: For project-backed mode, choose whether setup should create a Project or link an existing one.
+      options:
+        - "Do not configure a Project yet"
+        - "Create a new GitHub Project"
+        - "Link an existing GitHub Project"
+      default: 0
+    validations:
+      required: true
+  - type: input
+    id: project-owner
+    attributes:
+      label: Project owner
+      description: GitHub user or organization that should own the Project.
+      placeholder: "owner-login"
+  - type: input
+    id: project-title
+    attributes:
+      label: Project title
+      description: Title for the Project to create or locate.
+      value: "Sepo Planning & Roadmap"
+      placeholder: "Sepo Planning & Roadmap"
+  - type: textarea
+    id: project-statuses
+    attributes:
+      label: Project Status values
+      description: Keep the default minimal Sepo planning statuses unless this repository needs a different workflow.
+      value: |
+        Inbox
+        In Progress
+        To Review
+        Done
+    validations:
+      required: true
+  - type: dropdown
+    id: priority-field
+    attributes:
+      label: Priority field
+      description: Project-backed planning uses a Project field by default, not repo-wide priority labels.
+      options:
+        - "Create Priority field with P0, P1, P2, P3"
+        - "Use an existing Priority field"
+        - "Do not configure Priority"
+      default: 0
+    validations:
+      required: true
+  - type: dropdown
+    id: effort-field
+    attributes:
+      label: Effort field
+      description: Project-backed planning uses a Project field by default, not repo-wide effort labels.
+      options:
+        - "Create Effort field with Low, Medium, High"
+        - "Use an existing Effort field"
+        - "Do not configure Effort"
+      default: 0
+    validations:
+      required: true
+  - type: dropdown
+    id: release-field
+    attributes:
+      label: Release field
+      description: Release is optional and can be added later.
+      options:
+        - "Skip Release for now"
+        - "Create optional Release field"
+        - "Use an existing Release field"
+      default: 0
+    validations:
+      required: true
+  - type: textarea
+    id: release-values
+    attributes:
+      label: Release values
+      description: Optional release or roadmap targets to use if the Release field is created or updated.
+      placeholder: |
+        public-v0
+        post-v0
+        exploration
+  - type: textarea
+    id: setup-notes
+    attributes:
+      label: Additional setup notes
+      description: Add constraints, existing Project URLs, or repo-specific setup details.
+      placeholder: "Existing Project URL, desired visibility, or migration notes."
+  - type: checkboxes
+    id: setup-confirmation
+    attributes:
+      label: Setup confirmation
+      description: Opening this issue records setup intent; it does not apply changes.
+      options:
+        - label: "I will request `@sepo-agent /setup plan` first and review the proposed changes before applying them."
+          required: true
+        - label: "I understand `@sepo-agent /setup apply` requires a later explicit confirmation before Sepo changes repository variables or GitHub Projects."
+          required: true

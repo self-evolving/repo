@@ -34,6 +34,22 @@ Default repository labels should stay minimal and operational:
 that still use label-first project management. They are opt-in and should not be
 the default planning surface when a GitHub Project is configured.
 
+## Setup issue template
+
+Use `.github/ISSUE_TEMPLATE/sepo-setup.yml` to capture setup intent in a
+structured, human-editable issue before enabling Project-backed planning. The
+template records the agent handle, assign-to-agent preference,
+project-management mode, create-or-link Project choice, Project owner/title,
+the default `Status` values, `Priority` and `Effort` field choices, and the
+optional `Release` field choice.
+
+Opening a setup issue is declarative only: it does not create GitHub Projects,
+mutate repository variables, or enable project-management writes. Users should
+ask for `@sepo-agent /setup plan` first and review the proposed changes.
+`@sepo-agent /setup apply` is a later explicit confirmation step; the current
+automation boundary below still defers the `/setup` route and deterministic
+apply behavior to later work.
+
 ## Current automation boundary
 
 Project-backed project management is experimental. Configure the planning
