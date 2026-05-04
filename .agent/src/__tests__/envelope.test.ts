@@ -19,6 +19,12 @@ function readRepoFile(relativePath: string): string {
   return readFileSync(path.join(repoRoot, relativePath), "utf8");
 }
 
+function readSupplementalPromptVarNames(runSource: string): Set<string> {
+  const match = runSource.match(/const SUPPLEMENTAL_PROMPT_VAR_NAMES = \[([\s\S]*?)\] as const;/);
+  assert.ok(match, "run.ts should define SUPPLEMENTAL_PROMPT_VAR_NAMES");
+  return new Set(Array.from(match[1].matchAll(/"([^"]+)"/g), ([, name]) => name));
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
 }
@@ -856,6 +862,7 @@ test("execution workflows expose automation handoff inputs", () => {
   const fixPrWorkflow = readRepoFile(".github/workflows/agent-fix-pr.yml");
   const reviewWorkflow = readRepoFile(".github/workflows/agent-review.yml");
   const runSource = readRepoFile(".agent/src/run.ts");
+  const handoffSource = readRepoFile(".agent/src/handoff.ts");
   const orchestrateHandoffCli = readRepoFile(".agent/src/cli/orchestrate-handoff.ts");
   const fixPrPrompt = readRepoFile(".github/prompts/agent-fix-pr.md");
   const orchestratorPrompt = readRepoFile(".github/prompts/agent-orchestrator.md");
@@ -905,25 +912,31 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestratorWorkflow, /PLANNER_RESPONSE_FILE:\s*\$\{\{ steps\.planner\.outputs\.response_file \}\}/);
   assert.match(orchestratorWorkflow, /base_branch:/);
   assert.match(orchestratorWorkflow, /base_pr:/);
+  assert.match(orchestratorWorkflow, /source_handoff_context:/);
   assert.match(orchestratorWorkflow, /AGENT_COLLAPSE_OLD_REVIEWS:\s*\$\{\{ vars\.AGENT_COLLAPSE_OLD_REVIEWS \}\}/);
   assert.match(orchestratorWorkflow, /BASE_BRANCH:\s*\$\{\{ inputs\.base_branch \}\}/);
+  assert.match(orchestratorWorkflow, /SOURCE_HANDOFF_CONTEXT:\s*\$\{\{ inputs\.source_handoff_context \}\}/);
+  assert.match(orchestratorWorkflow, /ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT:\s*\$\{\{ inputs\.source_handoff_context \}\}/);
   assert.match(orchestrateHandoffCli, /resolveEffectiveBaseInputs/);
   assert.match(orchestrateHandoffCli, /baseBranch:\s*decision\.baseBranch \|\| baseBranch/);
   assert.match(orchestrateHandoffCli, /basePr:\s*decision\.basePr \|\| basePr/);
   assert.match(orchestrateHandoffCli, /base_branch:\s*effectiveBaseBranch/);
   assert.match(orchestrateHandoffCli, /base_pr:\s*effectiveBasePr/);
   assert.match(orchestrateHandoffCli, /set only one of base_branch or base_pr for implementation/);
+  assert.match(orchestrateHandoffCli, /sourceHandoffContext/);
   assert.match(orchestratorWorkflow, /target_kind:/);
   assert.match(orchestratorWorkflow, /TARGET_KIND:/);
   assert.match(orchestrateHandoffCli, /orchestration_enabled:\s*"true"/);
   assert.match(orchestrateHandoffCli, /automationMode === "disabled" \? "heuristics" : automationMode/);
   assert.match(orchestrateHandoffCli, /orchestrator_context:\s*decision\.handoffContext/);
+  assert.match(handoffSource, /Task for fix-pr/);
   assert.match(orchestrateHandoffCli, /collapsePreviousHandoffComments/);
   assert.match(orchestrateHandoffCli, /manual orchestrate start on issue; dispatching implement/);
   assert.match(fixPrWorkflow, /orchestrator_context:/);
   assert.match(fixPrWorkflow, /ORCHESTRATOR_CONTEXT:\s*\$\{\{ inputs\.orchestrator_context \}\}/);
   assert.match(fixPrPrompt, /\$\{ORCHESTRATOR_CONTEXT\}/);
   assert.match(orchestratorPrompt, /"handoff_context"/);
+  assert.match(orchestratorPrompt, /ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT/);
   assert.match(orchestratorPrompt, /"user_message"/);
   assert.match(orchestratorPrompt, /"clarification_request"/);
   assert.match(orchestratorPrompt, /prior child finished with an open, unmerged PR/);
@@ -932,8 +945,22 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestratorDoc, /continues sequential child implementation work/);
   assert.match(orchestratorDoc, /workflow_dispatch/);
   assert.match(orchestratorDoc, /handoff_context/);
+  assert.match(orchestratorDoc, /source handoff context/);
+  assert.match(orchestratorDoc, /Task for fix-pr/);
   assert.match(orchestratorDoc, /agent\s+handle/);
   assert.match(orchestratorDoc, /minimizes older visible handoff marker comments/);
+});
+
+test("orchestrator source handoff context is renderable in planner prompts", () => {
+  const runSource = readRepoFile(".agent/src/run.ts");
+  const orchestratorPrompt = readRepoFile(".github/prompts/agent-orchestrator.md");
+  const sourceContextName = "ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT";
+
+  assert.match(orchestratorPrompt, /\$\{ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT\}/);
+  assert.ok(
+    readSupplementalPromptVarNames(runSource).has(sourceContextName),
+    `${sourceContextName} must be allowlisted for runtime prompt rendering`,
+  );
 });
 
 test("workflow docs cover hosted auth and self-hosting paths", () => {

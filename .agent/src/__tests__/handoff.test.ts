@@ -2,10 +2,14 @@ import { test } from "node:test";
 import { strict as assert } from "node:assert";
 
 import {
+  buildReviewFixPrHandoffContext,
   buildHandoffDedupeKey,
   buildHandoffMarker,
   decideHandoff,
+  defaultFixPrHandoffContext,
   extractReviewConclusion,
+  extractReviewActionItems,
+  formatHandoffMarkerComment,
   getHandoffMarkerState,
   hasHandoffMarker,
   isPendingHandoffMarkerStale,
@@ -178,7 +182,7 @@ test("agent mode rejects issue-level implement handoffs for non-issue targets", 
   assert.match(decision.reason, /only for issue targets/);
 });
 
-test("agent mode leaves handoff context empty when planner omits it", () => {
+test("agent mode falls back to default fix-pr context when planner omits it", () => {
   const decision = decideHandoff({
     automationMode: "agent",
     sourceAction: "review",
@@ -195,7 +199,7 @@ test("agent mode leaves handoff context empty when planner omits it", () => {
 
   assert.equal(decision.decision, "dispatch");
   assert.equal(decision.nextAction, "fix-pr");
-  assert.equal(decision.handoffContext, undefined);
+  assert.equal(decision.handoffContext, defaultFixPrHandoffContext());
 });
 
 test("agent mode stops invalid or disallowed planner handoffs", () => {
@@ -339,6 +343,7 @@ test("review verdicts dispatch fix-pr or stop", () => {
     assert.equal(needsFix.decision, "dispatch");
     assert.equal(needsFix.nextAction, "fix-pr");
     assert.equal(needsFix.targetNumber, "99");
+    assert.equal(needsFix.handoffContext, defaultFixPrHandoffContext());
   }
 
   const ship = decideHandoff({
@@ -352,6 +357,22 @@ test("review verdicts dispatch fix-pr or stop", () => {
 
   assert.equal(ship.decision, "stop");
   assert.match(ship.reason, /SHIP/);
+});
+
+test("review fix-pr handoffs preserve derived source context", () => {
+  const decision = decideHandoff({
+    automationMode: "heuristics",
+    sourceAction: "review",
+    sourceConclusion: "minor_issues",
+    sourceHandoffContext: "Fix only the failing fallback test.",
+    targetNumber: "99",
+    currentRound: 2,
+    maxRounds: 5,
+  });
+
+  assert.equal(decision.decision, "dispatch");
+  assert.equal(decision.nextAction, "fix-pr");
+  assert.equal(decision.handoffContext, "Fix only the failing fallback test.");
 });
 
 test("fix-pr success dispatches review until the round budget is exhausted", () => {
@@ -440,6 +461,39 @@ test("handoff dedupe markers are deterministic and detectable", () => {
   assert.equal(hasHandoffMarker("comment body", key), false);
 });
 
+test("handoff marker comments use compact tables and fix-pr task context", () => {
+  const key = buildHandoffDedupeKey({
+    repo: "self-evolving/repo",
+    sourceRunId: "12345",
+    sourceAction: "review",
+    sourceTargetNumber: "128",
+    nextAction: "fix-pr",
+    nextTargetNumber: "128",
+    nextRound: 6,
+  });
+
+  const body = formatHandoffMarkerComment({
+    key,
+    state: "dispatched",
+    sourceAction: "review",
+    nextAction: "fix-pr",
+    targetKind: "pull_request",
+    targetNumber: "128",
+    nextRound: 6,
+    maxRounds: 10,
+    reason: "review verdict is minor_issues; dispatching fix-pr",
+    handoffContext: "Document and test the metadata path fallback.",
+    createdAtMs: 1_000,
+  });
+
+  assert.match(body, /Sepo is dispatching follow-up automation\./);
+  assert.match(body, /\| Source \| Next \| Target \| Round \| Status \|/);
+  assert.match(body, /\| review \| fix-pr \| PR #128 \| 6 \/ 10 \| Dispatched \|/);
+  assert.match(body, /Reason: review verdict is minor_issues; dispatching fix-pr/);
+  assert.match(body, /Task for fix-pr:\nDocument and test the metadata path fallback\./);
+  assert.match(body, /<!-- sepo-agent-handoff state:dispatched created:1000 base64:/);
+});
+
 test("pending handoff markers become stale after the ttl", () => {
   assert.equal(
     isPendingHandoffMarkerStale({ state: "pending", createdAtMs: 1_000 }, 3_000, 1_000),
@@ -522,4 +576,31 @@ test("parsePlannerDecision reads planner JSON", () => {
   );
   assert.equal(parsePlannerDecision("not json"), null);
   assert.equal(parsePlannerDecision('{"decision":"handoff","next_action":"deploy"}')?.nextAction, undefined);
+});
+
+test("review fix-pr context extracts unchecked review synthesis action items", () => {
+  const synthesis = [
+    "## Review",
+    "Summary.",
+    "",
+    "## Action Items",
+    "- [ ] Document and test the metadata path fallback.",
+    "- [x] Already fixed source_ref validation.",
+    "- [ ] Ignore optional INFO polish unless needed.",
+  ].join("\n");
+
+  assert.deepEqual(extractReviewActionItems(synthesis), [
+    "Document and test the metadata path fallback.",
+    "Ignore optional INFO polish unless needed.",
+  ]);
+  assert.equal(
+    buildReviewFixPrHandoffContext(synthesis),
+    [
+      "Address only the latest review synthesis action items:",
+      "- Document and test the metadata path fallback.",
+      "- Ignore optional INFO polish unless needed.",
+      "",
+      "Constraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.",
+    ].join("\n"),
+  );
 });

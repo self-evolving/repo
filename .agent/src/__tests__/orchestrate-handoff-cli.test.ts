@@ -181,7 +181,10 @@ exit 1
         AUTOMATION_MODE: "heuristics",
         AUTOMATION_CURRENT_ROUND: "1",
         AUTOMATION_MAX_ROUNDS: "5",
+        ACCESS_POLICY: "",
         AUTHOR_ASSOCIATION: "MEMBER",
+        BASE_BRANCH: "",
+        BASE_PR: "",
         REPOSITORY_PRIVATE: "true",
         FAKE_GH_LOG: ghLogPath,
         FAKE_DISPATCH_PAYLOAD: dispatchPayloadPath,
@@ -850,7 +853,54 @@ test("manual orchestrate dispatches fix-pr for PR targets with CHANGES_REQUESTED
   assert.equal(run.status, 0);
   assert.equal(run.outputs.get("decision"), "dispatch");
   assert.equal(run.outputs.get("next_action"), "fix-pr");
+  assert.match(
+    run.outputs.get("handoff_context") || "",
+    /latest unresolved requested-change review comments/,
+  );
+  assert.doesNotMatch(run.outputs.get("handoff_context") || "", /review synthesis action items/);
   assert.match(run.ghLog, /actions\/workflows\/agent-fix-pr\.yml\/dispatches/);
+  assert.match(run.ghLog, /Task for fix-pr:/);
+  assert.match(run.ghLog, /latest unresolved requested-change review comments/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.orchestrator_context, run.outputs.get("handoff_context"));
+});
+
+test("review handoff dispatches fix-pr with visible task context", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "minor_issues",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "128",
+    AUTOMATION_CURRENT_ROUND: "5",
+    AUTOMATION_MAX_ROUNDS: "10",
+    SOURCE_HANDOFF_CONTEXT: [
+      "Address only the latest review synthesis action items:",
+      "- Document and test the metadata path fallback.",
+      "",
+      "Constraints: Ignore optional INFO notes.",
+    ].join("\n"),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "dispatch");
+  assert.equal(run.outputs.get("next_action"), "fix-pr");
+  assert.equal(
+    run.outputs.get("handoff_context"),
+    [
+      "Address only the latest review synthesis action items:",
+      "- Document and test the metadata path fallback.",
+      "",
+      "Constraints: Ignore optional INFO notes.",
+    ].join("\n"),
+  );
+  assert.match(run.ghLog, /Sepo is dispatching follow-up automation\./);
+  assert.match(run.ghLog, /\| Source \| Next \| Target \| Round \| Status \|/);
+  assert.match(run.ghLog, /\| review \| fix-pr \| PR #128 \| 6 \/ 10 \| Dispatched \|/);
+  assert.match(run.ghLog, /Task for fix-pr:/);
+  assert.match(run.ghLog, /Document and test the metadata path fallback/);
+  assert.match(run.ghLog, /actions\/workflows\/agent-fix-pr\.yml\/dispatches/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.orchestrator_context, run.outputs.get("handoff_context"));
 });
 
 test("manual orchestrate dispatches review for open PR targets without CHANGES_REQUESTED", () => {

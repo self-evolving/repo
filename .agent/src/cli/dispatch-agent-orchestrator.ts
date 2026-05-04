@@ -4,20 +4,30 @@
 //      REQUESTED_BY, REQUEST_TEXT, AUTOMATION_CURRENT_ROUND,
 //      AUTOMATION_MAX_ROUNDS, SESSION_BUNDLE_MODE, SOURCE_RUN_ID, TARGET_KIND,
 //      AUTHOR_ASSOCIATION, ACCESS_POLICY, REPOSITORY_PRIVATE, ORCHESTRATION_ENABLED,
-//      BASE_BRANCH, BASE_PR
+//      SOURCE_HANDOFF_CONTEXT, BASE_BRANCH, BASE_PR
 
 import { readFileSync } from "node:fs";
 import { dispatchWorkflow } from "../github.js";
-import { automationModeAllowsHandoff, extractReviewConclusion } from "../handoff.js";
+import {
+  automationModeAllowsHandoff,
+  buildReviewFixPrHandoffContext,
+  extractReviewConclusion,
+  normalizeConclusion,
+} from "../handoff.js";
 
-function readResponseConclusion(): string {
+function readResponseFile(): string {
   const responseFile = process.env.RESPONSE_FILE || "";
   if (!responseFile) return "";
   try {
-    return extractReviewConclusion(readFileSync(responseFile, "utf8"));
+    return readFileSync(responseFile, "utf8");
   } catch {
     return "";
   }
+}
+
+function sourceReviewNeedsFixPr(sourceAction: string, sourceConclusion: string): boolean {
+  if (sourceAction.trim().toLowerCase() !== "review") return false;
+  return new Set(["minor_issues", "needs_rework", "changes_requested"]).has(normalizeConclusion(sourceConclusion));
 }
 
 const automationMode = process.env.AUTOMATION_MODE || "disabled";
@@ -34,7 +44,10 @@ const effectiveAutomationMode = orchestrationEnabled && !automationModeAllowsHan
 
 const repo = process.env.GITHUB_REPOSITORY || "";
 const ref = process.env.DEFAULT_BRANCH || "";
-const sourceConclusion = process.env.SOURCE_CONCLUSION || readResponseConclusion() || "unknown";
+const rawResponse = readResponseFile();
+const sourceConclusion = process.env.SOURCE_CONCLUSION || extractReviewConclusion(rawResponse) || "unknown";
+const sourceHandoffContext = process.env.SOURCE_HANDOFF_CONTEXT ||
+  (sourceReviewNeedsFixPr(sourceAction, sourceConclusion) ? buildReviewFixPrHandoffContext(rawResponse) : "");
 const targetNumber = process.env.TARGET_NUMBER || "";
 const targetKind = process.env.TARGET_KIND || "";
 
@@ -56,6 +69,7 @@ dispatchWorkflow(repo, "agent-orchestrator.yml", ref, {
   access_policy: process.env.ACCESS_POLICY || "",
   repository_private: process.env.REPOSITORY_PRIVATE || "",
   next_target_number: process.env.NEXT_TARGET_NUMBER || "",
+  source_handoff_context: sourceHandoffContext,
   requested_by: process.env.REQUESTED_BY || "",
   request_text: process.env.REQUEST_TEXT || "",
   session_bundle_mode: process.env.SESSION_BUNDLE_MODE || "",

@@ -15,7 +15,9 @@ import {
   type HandoffMarkerInfo,
   buildHandoffDedupeKey,
   decideHandoff,
+  defaultFixPrHandoffContext,
   formatHandoffMarkerComment,
+  formatTransposedMarkdownTable,
   isPendingHandoffMarkerStale,
   normalizeAutomationMode,
   parsePlannerDecision,
@@ -94,21 +96,6 @@ function parseOptionalChildIssueNumber(value: string | undefined): number {
     throw new Error(`child_issue_number must be a positive issue number: ${text}`);
   }
   return parsed;
-}
-
-function formatMarkdownTableCell(value: string | number): string {
-  return String(value)
-    .replace(/\r?\n/g, " ")
-    .replace(/\|/g, "\\|")
-    .trim() || " ";
-}
-
-function formatTransposedMarkdownTable(headers: string[], values: Array<string | number>): string[] {
-  return [
-    `| ${headers.map(formatMarkdownTableCell).join(" | ")} |`,
-    `| ${headers.map(() => "---").join(" | ")} |`,
-    `| ${values.map(formatMarkdownTableCell).join(" | ")} |`,
-  ];
 }
 
 function formatSubOrchestrationSelectionComment(input: {
@@ -743,6 +730,7 @@ const ref = process.env.DEFAULT_BRANCH || "";
 const sourceAction = process.env.SOURCE_ACTION || "";
 const sourceConclusion = process.env.SOURCE_CONCLUSION || "unknown";
 const sourceRunId = process.env.SOURCE_RUN_ID || process.env.GITHUB_RUN_ID || "";
+const sourceHandoffContext = process.env.SOURCE_HANDOFF_CONTEXT || "";
 const sourceTargetKind = process.env.TARGET_KIND || "";
 const sourceAssociationRaw = process.env.AUTHOR_ASSOCIATION || "";
 const accessPolicyRaw = process.env.ACCESS_POLICY || "";
@@ -759,6 +747,27 @@ const automationMode = normalizeAutomationMode(process.env.AUTOMATION_MODE || "d
 const collapseOldReviews = !["false", "0", "no", "off"].includes(
   (process.env.AGENT_COLLAPSE_OLD_REVIEWS || "").trim().toLowerCase(),
 );
+
+function manualPrChangesRequestedFixPrHandoffContext(): string {
+  return [
+    "Address the latest unresolved requested-change review comments on this pull request.",
+    "Treat those requested-change comments as the selected fix-pr task; do not use review-synthesis-only defaults when no synthesis exists.",
+    "Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by the requested changes.",
+  ].join(" ");
+}
+
+function fallbackFixPrHandoffContext(): string {
+  const explicitContext = sourceHandoffContext.trim();
+  if (explicitContext) return explicitContext;
+  const normalizedSourceAction = normalizeToken(sourceAction);
+  if (normalizedSourceAction === "orchestrate" && normalizeToken(sourceTargetKind) === "pull_request") {
+    return manualPrChangesRequestedFixPrHandoffContext();
+  }
+  if (normalizedSourceAction === "review") {
+    return defaultFixPrHandoffContext();
+  }
+  return "";
+}
 
 function readPlannerDecision(): ReturnType<typeof parsePlannerDecision> {
   const responseFile = process.env.PLANNER_RESPONSE_FILE || "";
@@ -1128,6 +1137,7 @@ const routeDecision = authorizationStop || (normalizeToken(sourceAction) === "or
       nextTargetNumber: process.env.NEXT_TARGET_NUMBER || "",
       currentRound,
       maxRounds,
+      sourceHandoffContext,
       plannerDecision: readPlannerDecision(),
     })
     : decideManualOrchestration()
@@ -1140,9 +1150,14 @@ const routeDecision = authorizationStop || (normalizeToken(sourceAction) === "or
     nextTargetNumber: process.env.NEXT_TARGET_NUMBER || "",
     currentRound,
     maxRounds,
+    sourceHandoffContext,
     plannerDecision: automationMode === "agent" ? readPlannerDecision() : null,
   }));
 const decision = routeDecision;
+
+if (decision.decision === "dispatch" && decision.nextAction === "fix-pr" && !decision.handoffContext) {
+  decision.handoffContext = fallbackFixPrHandoffContext();
+}
 
 setOutput("decision", decision.decision);
 setOutput("next_action", decision.decision === "delegate_issue" ? "delegate_issue" : decision.nextAction || "");
@@ -1263,9 +1278,12 @@ for (const staleMarker of existingMarkers.filter((marker) =>
       state: "failed",
       sourceAction,
       nextAction: dispatchName,
+      targetKind: decision.nextAction === "implement" || decision.decision === "delegate_issue" ? "issue" : "pull_request",
+      targetNumber: dispatchTargetNumber,
       nextRound: decision.nextRound,
       maxRounds,
       reason: decision.reason,
+      handoffContext: decision.handoffContext,
       error: "Pending handoff marker expired before dispatch completed; retrying handoff.",
     }));
   } catch (err: unknown) {
@@ -1278,9 +1296,12 @@ const pendingBody = formatHandoffMarkerComment({
   state: "pending",
   sourceAction,
   nextAction: dispatchName,
+  targetKind: decision.nextAction === "implement" || decision.decision === "delegate_issue" ? "issue" : "pull_request",
+  targetNumber: dispatchTargetNumber,
   nextRound: decision.nextRound,
   maxRounds,
   reason: decision.reason,
+  handoffContext: decision.handoffContext,
   createdAtMs: nowMs,
 });
 const markerCommentId = createIssueComment(repo, markerTargetNumber, pendingBody);
@@ -1347,9 +1368,12 @@ try {
       state: "failed",
       sourceAction,
       nextAction: dispatchName,
+      targetKind: decision.nextAction === "implement" || decision.decision === "delegate_issue" ? "issue" : "pull_request",
+      targetNumber: dispatchTargetNumber,
       nextRound: decision.nextRound,
       maxRounds,
       reason: decision.reason,
+      handoffContext: decision.handoffContext,
       error: message,
     }));
   } catch (updateErr: unknown) {
@@ -1363,9 +1387,12 @@ const dispatchedBody = formatHandoffMarkerComment({
   state: "dispatched",
   sourceAction,
   nextAction: dispatchName,
+  targetKind: decision.nextAction === "implement" || decision.decision === "delegate_issue" ? "issue" : "pull_request",
+  targetNumber: dispatchTargetNumber,
   nextRound: decision.nextRound,
   maxRounds,
   reason: decision.reason,
+  handoffContext: decision.handoffContext,
   createdAtMs: nowMs,
 });
 

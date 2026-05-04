@@ -10,6 +10,7 @@ export interface HandoffInput {
   automationMode: string;
   sourceAction: string;
   sourceConclusion: string;
+  sourceHandoffContext?: string;
   targetKind?: string;
   targetNumber: string;
   nextTargetNumber?: string;
@@ -66,6 +67,10 @@ export interface PlannerDecision {
 
 const REVIEW_TO_FIX_PR = new Set(["minor_issues", "needs_rework", "changes_requested"]);
 const HANDOFF_MARKER_PREFIX = "sepo-agent-handoff";
+const DEFAULT_FIX_PR_HANDOFF_CONTEXT = [
+  "Address only the latest unresolved review synthesis action items.",
+  "Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by the selected fix.",
+].join(" ");
 const ANY_HANDOFF_MARKER_RE = new RegExp(
   `<!--\\s*${HANDOFF_MARKER_PREFIX}(?:\\s+state:(pending|dispatched|failed))?(?:\\s+created:(\\d+))?\\s+base64:[A-Za-z0-9_-]+\\s*-->`,
   "i",
@@ -110,6 +115,84 @@ export function normalizeConclusion(value: string): string {
   if (normalized === "needs_rework") return "needs_rework";
   if (normalized === "changes_requested") return "changes_requested";
   return normalized || "unknown";
+}
+
+export function formatMarkdownTableCell(value: string | number): string {
+  return String(value)
+    .replace(/\r?\n/g, " ")
+    .replace(/\|/g, "\\|")
+    .trim() || " ";
+}
+
+export function formatTransposedMarkdownTable(headers: string[], values: Array<string | number>): string[] {
+  return [
+    `| ${headers.map(formatMarkdownTableCell).join(" | ")} |`,
+    `| ${headers.map(() => "---").join(" | ")} |`,
+    `| ${values.map(formatMarkdownTableCell).join(" | ")} |`,
+  ];
+}
+
+export function defaultFixPrHandoffContext(): string {
+  return DEFAULT_FIX_PR_HANDOFF_CONTEXT;
+}
+
+function extractMarkdownSection(markdown: string, heading: string): string {
+  const lines = String(markdown || "").split(/\r?\n/);
+  const wanted = normalizeToken(heading);
+  const section: string[] = [];
+  let inSection = false;
+  for (const line of lines) {
+    const headingMatch = line.match(/^##\s+(.+?)\s*$/);
+    if (headingMatch) {
+      if (inSection) break;
+      inSection = normalizeToken(headingMatch[1]) === wanted;
+      continue;
+    }
+    if (inSection) section.push(line);
+  }
+  return section.join("\n").trim();
+}
+
+function normalizeReviewActionItem(line: string): string {
+  return line
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function extractReviewActionItems(markdown: string): string[] {
+  const section = extractMarkdownSection(markdown, "Action Items");
+  if (!section) return [];
+  const items: string[] = [];
+  for (const line of section.split(/\r?\n/)) {
+    const checkbox = line.match(/^\s*[-*]\s+\[([ xX])\]\s+(.+?)\s*$/);
+    if (checkbox) {
+      if (checkbox[1].trim()) continue;
+      const item = normalizeReviewActionItem(checkbox[2]);
+      if (item) items.push(item);
+      continue;
+    }
+    const bullet = line.match(/^\s*[-*]\s+(.+?)\s*$/);
+    if (bullet) {
+      const item = normalizeReviewActionItem(bullet[1]);
+      if (item) items.push(item);
+    }
+  }
+  return items;
+}
+
+export function buildReviewFixPrHandoffContext(markdown: string): string {
+  const items = extractReviewActionItems(markdown).slice(0, 5);
+  if (!items.length) return defaultFixPrHandoffContext();
+  return [
+    "Address only the latest review synthesis action items:",
+    ...items.map((item) => `- ${item}`),
+    "",
+    "Constraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.",
+  ].join("\n");
+}
+
+function resolveFixPrHandoffContext(input: HandoffInput): string {
+  return String(input.sourceHandoffContext || "").trim() || defaultFixPrHandoffContext();
 }
 
 function normalizeAgentAction(value: string): AgentAction | null {
@@ -273,9 +356,12 @@ export function formatHandoffMarkerComment(args: {
   state?: HandoffMarkerState;
   sourceAction: string;
   nextAction: string;
+  targetKind?: string;
+  targetNumber?: string | number;
   nextRound: number;
   maxRounds: number;
   reason: string;
+  handoffContext?: string;
   error?: string;
   createdAtMs?: number;
 }): string {
@@ -285,14 +371,36 @@ export function formatHandoffMarkerComment(args: {
     : state === "failed"
       ? "failed"
       : "dispatched";
+  const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
+  const normalizedTargetKind = normalizeToken(args.targetKind || "");
+  const targetLabel = args.targetNumber
+    ? `${normalizedTargetKind === "issue" ? "Issue" : "PR"} #${args.targetNumber}`
+    : "Unknown";
   const lines = [
-    `Sepo automation handoff ${status}: \`${args.sourceAction}\` -> \`${args.nextAction}\` (round ${args.nextRound}/${args.maxRounds}).`,
+    status === "failed"
+      ? "Sepo could not dispatch follow-up automation."
+      : status === "pending"
+        ? "Sepo is preparing follow-up automation."
+        : "Sepo is dispatching follow-up automation.",
     "",
-    args.reason,
+    ...formatTransposedMarkdownTable(
+      ["Source", "Next", "Target", "Round", "Status"],
+      [args.sourceAction, args.nextAction, targetLabel, `${args.nextRound} / ${args.maxRounds}`, statusLabel],
+    ),
+    "",
+    `Reason: ${args.reason}`,
   ];
 
+  if (normalizeToken(args.nextAction) === "fix_pr") {
+    lines.push(
+      "",
+      "Task for fix-pr:",
+      String(args.handoffContext || "").trim() || defaultFixPrHandoffContext(),
+    );
+  }
+
   if (args.error) {
-    lines.push("", `Error: ${args.error}`);
+    lines.push("", `Dispatch error: ${args.error}`);
   }
 
   lines.push("", buildHandoffMarker(args.key, state, args.createdAtMs));
@@ -349,6 +457,7 @@ function decideHeuristicHandoff(input: HandoffInput): HandoffDecision {
         targetNumber: nextTarget,
         reason: `review verdict is ${conclusion}; dispatching fix-pr`,
         nextRound,
+        handoffContext: resolveFixPrHandoffContext(input),
       };
     }
     return { decision: "stop", reason: `review verdict ${conclusion} has no handoff`, nextRound };
@@ -452,7 +561,7 @@ function decideAgentHandoff(input: HandoffInput): HandoffDecision {
   return {
     ...allowed,
     reason: `agent planner selected ${allowed.nextAction}: ${plannerDecision.reason}`,
-    handoffContext: plannerDecision.handoffContext,
+    handoffContext: plannerDecision.handoffContext || allowed.handoffContext,
   };
 }
 

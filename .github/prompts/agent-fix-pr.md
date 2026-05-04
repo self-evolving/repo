@@ -23,7 +23,8 @@ Instructions:
    Use this priority order and do not revive older feedback that appears fixed
    or superseded:
    1. the exact triggering comment or review, when an ID is present;
-   2. non-empty `${ORCHESTRATOR_CONTEXT}` from the automation planner;
+   2. non-empty `${ORCHESTRATOR_CONTEXT}` from the orchestrator; treat it as
+      the selected fix-pr task and constraints, not just background context;
    3. the latest review synthesis and its action items;
    4. recent human maintainer comments;
    5. older reviews/comments only when still applicable to the current diff.
