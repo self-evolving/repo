@@ -1155,6 +1155,31 @@ test("terminal child result reports to parent and preserves terminal reruns", ()
   assert.equal(inputs.automation_mode, "agent");
 });
 
+test("terminal child result trusts app-authored issue body markers", () => {
+  const childBody = "<!-- sepo-sub-orchestrator parent:76 stage:stage-1 state:running parent_round:2 -->";
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "88",
+    AUTOMATION_MODE: "heuristics",
+    AUTOMATION_CURRENT_ROUND: "2",
+    FAKE_PR_BODY: "Closes #77",
+    FAKE_ISSUE_BODY: childBody,
+    FAKE_ISSUE_AUTHOR: "app/sepo-agent-app",
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/76\/comments/);
+  assert.match(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
+  assert.match(run.ghLog, /issue edit 77 --repo self-evolving\/repo --body-file/);
+  assert.doesNotMatch(run.stderr, /Ignoring untrusted terminal sub-orchestrator marker/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.source_conclusion, "done");
+  assert.equal(inputs.target_number, "76");
+});
+
 test("terminal child ignores forged user-authored dispatched report markers", () => {
   const childBody = "<!-- sepo-sub-orchestrator parent:76 stage:stage-1 state:running parent_round:2 -->";
   const run = runOrchestrateHandoff({
@@ -1202,6 +1227,7 @@ test("terminal child ignores user-authored child issue markers", () => {
   assert.equal(run.outputs.get("decision"), "stop");
   assert.doesNotMatch(run.ghLog, /repos\/self-evolving\/repo\/issues\/76\/comments/);
   assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
+  assert.match(run.stderr, /Ignoring untrusted terminal sub-orchestrator marker in issue #77 body from lolipopshock/);
 });
 
 test("terminal child ignores forged app-authored child marker comments", () => {

@@ -127,7 +127,7 @@ test("collapsePreviousReviewSummaries matches GitHub App bot login variants", ()
                 id: "comment-1",
                 body: "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\nold",
                 isMinimized: false,
-                author: { login: "sepo-agent-app" },
+                author: { login: "app/sepo-agent-app" },
               },
             ],
             pageInfo: { hasNextPage: false, endCursor: null },

@@ -182,7 +182,11 @@ function parseRepo(repo: string): { owner: string; name: string } {
 }
 
 function normalizeActorLogin(login: string): string {
-  return String(login || "").trim().replace(/\[bot\]$/i, "");
+  return String(login || "")
+    .trim()
+    .toLowerCase()
+    .replace(/^app\//i, "")
+    .replace(/\[bot\]$/i, "");
 }
 
 function isSameActorLogin(left: string, right: string): boolean {

@@ -186,7 +186,11 @@ function authorLoginFromRecord(record: Record<string, unknown>): string {
 }
 
 function normalizeActorLogin(value: string): string {
-  return String(value || "").trim().toLowerCase().replace(/\[bot\]$/i, "");
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/^app\//i, "")
+    .replace(/\[bot\]$/i, "");
 }
 
 let authenticatedActorLogin: string | null = null;
@@ -403,6 +407,38 @@ function trustedSubOrchestrationIssue(
   const subOrchestrator = trustedSubOrchestratorMarkerFromBody(issue) ||
     trustedSubOrchestratorMarkerFromComments(repoSlug, issue.number);
   return subOrchestrator ? { ...issue, subOrchestrator } : null;
+}
+
+function warnUntrustedTerminalSubOrchestrationIssue(
+  repoSlug: string,
+  issue: IssueRecord,
+): void {
+  const bodyMarker = parseSubOrchestratorMarker(issue.body);
+  if (bodyMarker && !isTrustedIssueRecord(issue)) {
+    console.warn(
+      `Ignoring untrusted terminal sub-orchestrator marker in issue #${issue.number} body from ${issue.authorLogin || "unknown author"}`,
+    );
+    return;
+  }
+
+  const untrustedComment = fetchIssueComments(repoSlug, issue.number).find((comment) => {
+    const body = comment.body || "";
+    return parseSubOrchestratorMarker(body) && isSubOrchestrationAdoptionComment(body);
+  });
+  if (untrustedComment) {
+    console.warn(
+      `Ignoring untrusted terminal sub-orchestrator adoption marker in issue #${issue.number} comment ${untrustedComment.id || "unknown"} from ${untrustedComment.authorLogin || "unknown author"}`,
+    );
+  }
+}
+
+function trustedTerminalSubOrchestrationIssue(
+  repoSlug: string,
+  issue: IssueRecord,
+): SubOrchestrationIssueRecord | null {
+  const trustedIssue = trustedSubOrchestrationIssue(repoSlug, issue);
+  if (!trustedIssue) warnUntrustedTerminalSubOrchestrationIssue(repoSlug, issue);
+  return trustedIssue;
 }
 
 function updateTrustedSubOrchestratorMarker(
@@ -817,12 +853,12 @@ function resolveChildIssueForTerminal(): SubOrchestrationIssueRecord | null {
   const currentNumber = parsePositiveTargetNumber(targetNumber);
   if (!repo || !currentNumber) return null;
   if (normalizedKind === "issue") {
-    return trustedSubOrchestrationIssue(repo, fetchIssueStrict(repo, currentNumber));
+    return trustedTerminalSubOrchestrationIssue(repo, fetchIssueStrict(repo, currentNumber));
   }
   if (normalizedKind === "pull_request") {
     const linkedIssueNumber = extractClosingIssueNumber(readPrBodyStrict(repo, targetNumber), repo);
     if (!linkedIssueNumber) return null;
-    return trustedSubOrchestrationIssue(repo, fetchIssueStrict(repo, linkedIssueNumber));
+    return trustedTerminalSubOrchestrationIssue(repo, fetchIssueStrict(repo, linkedIssueNumber));
   }
   return null;
 }
