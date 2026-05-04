@@ -126,6 +126,43 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/133#issuecomment-4370095297",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBKs7uQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer but why do we need this cli? can't we just make it simple (i.e. reading from the json file whatever? ",
+      "createdAt": "2026-05-04T18:04:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/133#issuecomment-4373298105",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBKt-bw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "You're right that the **source of truth should stay simple**: `.agent/sepo-version.json`.\n\nThe CLI in this PR is not meant to replace that. It is a thin wrapper around the typed reader in [`sepo-version.ts`](https://github.com/self-evolving/repo/blob/19acd881c20fb001dcd80a1a371bf3161bb41067/.agent/src/sepo-version.ts), mainly so workflows and diagnostics can consume the file without duplicating parsing, validation, and GitHub Actions output handling.\n\nWhy keep it:\n\n- Workflows need named outputs like `version`, `source_sha`, `summary`, etc. The CLI writes those using the existing [`setOutput`](https://github.com/self-evolving/repo/blob/19acd881c20fb001dcd80a1a371bf3161bb41067/.agent/src/output.ts) helper.\n- Bug reports and update checks can run one stable command instead of each adding their own `jq` / inline Node parsing.\n- Invalid metadata should fail loudly. Raw JSON reads make it easy for future workflows to accidentally accept malformed version/source data.\n- The repo already uses this pattern heavily: small `node .agent/dist/cli/*.js` wrappers around typed helpers for workflow-safe behavior.\n\nSo the simple model is:\n\n- JSON file: canonical data.\n- [`sepo-version.ts`](https://github.com/self-evolving/repo/blob/19acd881c20fb001dcd80a1a371bf3161bb41067/.agent/src/sepo-version.ts): typed validation/reader for TypeScript code.\n- [`print-sepo-version.ts`](https://github.com/self-evolving/repo/blob/19acd881c20fb001dcd80a1a371bf3161bb41067/.agent/src/cli/print-sepo-version.ts): tiny workflow/diagnostic adapter.\n\nI would keep the CLI, but keep it boring and narrow. Application code should import the reader directly; shell/workflow/bug-report paths use the CLI.",
+      "createdAt": "2026-05-04T18:06:57Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/133#issuecomment-4373315183",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-04T09:37:33Z",
@@ -168,6 +205,18 @@
       "name": "agent",
       "description": "Handled by the agent",
       "color": "0e8a16"
+    },
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChVB4QQ",
+      "name": "priority/p1",
+      "description": "Project management: high priority",
+      "color": "d93f0b"
+    },
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChVB5QA",
+      "name": "effort/medium",
+      "description": "Project management: medium effort",
+      "color": "fbca04"
     }
   ],
   "mergedAt": null,
@@ -192,6 +241,6 @@
   ],
   "state": "OPEN",
   "title": "Add Sepo version metadata reader CLI",
-  "updatedAt": "2026-05-04T09:57:00Z",
+  "updatedAt": "2026-05-04T18:06:57Z",
   "url": "https://github.com/self-evolving/repo/pull/133"
 }

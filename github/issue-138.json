@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "## Problem\n\nA parent sub-orchestration can silently stop after a child PR reaches `SHIP` instead of reporting the child completion back to the parent and continuing to the next planned child task.\n\nThis was observed from #126 after the orchestration request in https://github.com/self-evolving/repo/issues/126#issuecomment-4369999173.\n\n## Observed sequence\n\n1. Parent issue #126 was asked to orchestrate the task split and create/stack individual child issues.\n2. Child #25 (`agent-activity-labels`) completed through PR #134 and correctly reported back to #126.\n3. Parent orchestration then created child #135 (`assign-agent-handle`) stacked on #134.\n4. Child #135 produced PR #136.\n5. PR #136 eventually reviewed as `SHIP`.\n6. The final orchestrator run stopped with the normal PR-level terminal reason:\n\n   ```text\n   SOURCE_ACTION: review\n   SOURCE_CONCLUSION: ship\n   TARGET_KIND: pull_request\n   TARGET_NUMBER: 136\n   Handoff stop: review verdict is SHIP\n   ```\n\n   Run: https://github.com/self-evolving/repo/actions/runs/25318313262\n\n7. However, #126 never received a child-completed report for #135, and parent orchestration did not continue to the next child task.\n8. #135's sub-orchestrator marker remained stuck as `state:running`:\n\n   ```md\n   <!-- sepo-sub-orchestrator parent:126 stage:assign-agent-handle state:running parent_round:3 -->\n   ```\n\n## Expected behavior\n\nWhen a sub-orchestrator child PR reaches a terminal successful state (`review` + `SHIP`):\n\n- mark the child sub-orchestrator marker as `done`;\n- post a completion/progress report to the parent issue;\n- dispatch the parent orchestrator so it can decide whether to create/run the next child task;\n- avoid making the workflow appear stopped when only the child task finished.\n\n## Suspected root cause\n\nThe terminal reporting path appears to fail to recognize the child issue marker as trusted when the child issue was created by the GitHub App.\n\nRelevant flow:\n\n- `reportTerminalToParent()` resolves the linked child issue from the PR body (`Closes #135`).\n- It calls `trustedSubOrchestrationIssue()`.\n- For Sepo-created child #135, the sub-orchestrator marker is in the issue body.\n- `gh issue view 135 --json author` reports the author login as:\n\n  ```json\n  {\"author\":{\"is_bot\":true,\"login\":\"app/sepo-agent-app\"}}\n  ```\n\n- Other trusted comments often appear as `sepo-agent-app[bot]` / `sepo-agent-app`.\n- `normalizeActorLogin()` currently strips `[bot]`, but does not appear to normalize an `app/` prefix.\n- That can make `isTrustedIssueRecord()` reject a Sepo-created issue body marker, so `resolveChildIssueForTerminal()` returns null and `reportTerminalToParent()` silently does nothing.\n\nThis explains why #25 worked: #25 was an existing issue and Sepo added an adoption marker in a trusted comment. #135 was created by Sepo with the marker in the issue body, hitting the `app/...` author normalization edge case.\n\n## Suggested fix\n\n- Normalize GitHub App actor logins consistently in trust checks, e.g. treat `app/sepo-agent-app`, `sepo-agent-app[bot]`, and `sepo-agent-app` as the same trusted actor where appropriate.\n- Alternatively, fetch issue authors through a source/API shape that returns the same bot login format used for comments.\n- Add regression coverage for a Sepo-created child issue whose body contains a `sepo-sub-orchestrator` marker and whose issue author is reported as `app/sepo-agent-app`.\n- Add diagnostics when `reportTerminalToParent()` cannot resolve or trust the child issue, so this failure mode does not silently stop parent orchestration.\n\n## Acceptance criteria\n\n- A Sepo-created child issue with a trusted body marker is accepted by `trustedSubOrchestrationIssue()`.\n- A terminal child PR review verdict `SHIP` posts a parent progress report and dispatches/resumes the parent orchestrator.\n- The child marker is updated from `running` to `done`.\n- Tests cover the `app/<app-login>` author form.\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBK23eQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "Additional clarification/validation from the parent #126 incident:\n\nThe direct PR-level stop for PR #136 was normal: the final orchestrator run saw `SOURCE_ACTION=review` and `SOURCE_CONCLUSION=ship`, so the PR-level heuristic handoff correctly stopped with `review verdict is SHIP`. The bug is that this terminal child result was not reported back to parent #126, unlike the earlier child #25 / PR #134 path.\n\nWhy #134 handed back but #136 did not:\n\n- #25 was an existing human-authored issue. Sepo adopted it as a child by adding a trusted marker comment. In `gh issue view --json comments`, Sepo comments are reported as author login `sepo-agent-app`, which matches the app-token viewer after normalizing `[bot]`.\n- #135 was created by Sepo as a new sub-orchestrator child. Its marker is in the issue body, so the trust check uses the issue author from `gh issue view --json author`.\n- For app-created issues, `gh issue view` consistently reports the author as `app/sepo-agent-app`, while the REST issue API reports the same creator as `sepo-agent-app[bot]`.\n\nValidation examples:\n\n```bash\n$ gh issue view 127 --repo self-evolving/repo --json author --jq '.author.login'\napp/sepo-agent-app\n$ gh api repos/self-evolving/repo/issues/127 --jq '.user.login'\nsepo-agent-app[bot]\n\n$ gh issue view 132 --repo self-evolving/repo --json author --jq '.author.login'\napp/sepo-agent-app\n$ gh api repos/self-evolving/repo/issues/132 --jq '.user.login'\nsepo-agent-app[bot]\n\n$ gh issue view 135 --repo self-evolving/repo --json author --jq '.author.login'\napp/sepo-agent-app\n$ gh api repos/self-evolving/repo/issues/135 --jq '.user.login'\nsepo-agent-app[bot]\n```\n\nThis does not look random; it appears to be a consistent representation difference between `gh issue view`/GraphQL issue authors for GitHub App-created issues and REST/comment author logins.\n\nSo the suspected deeper bug is: `reportTerminalToParent()` can resolve the closing child issue from PR #136 (`Closes #135`), but `trustedSubOrchestrationIssue()` likely rejects #135's body marker because `normalizeActorLogin()` does not normalize `app/sepo-agent-app` to the same identity as `sepo-agent-app[bot]` / `sepo-agent-app`. That makes the parent handback silently no-op.\n",
+      "createdAt": "2026-05-04T18:29:05Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/138#issuecomment-4373460857",
+      "viewerDidAuthor": false
+    }
+  ],
+  "createdAt": "2026-05-04T18:23:59Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDIDhw",
+      "name": "bug",
+      "description": "Something isn't working",
+      "color": "d73a4a"
+    }
+  ],
+  "number": 138,
+  "state": "OPEN",
+  "title": "Fix sub-orchestrator parent resume for Sepo-created child issues",
+  "updatedAt": "2026-05-04T18:29:05Z",
+  "url": "https://github.com/self-evolving/repo/issues/138"
+}
