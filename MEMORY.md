@@ -32,7 +32,7 @@
 - Implementation runs support stacked PRs via explicit base_branch or base_pr; base_pr must be an open same-repo PR.
 - Do not add branch URL links in agent prompt fragments; reserve branch links for user-facing comments.
 - Daily summary discussion gate belongs after GitHub auth in signals, before signal/provider setup.
-- Project management owns managed priority/* and effort/* labels; keep urgency signals in summaries, not labels.
+- Current project-manager is label-first via managed priority/* and effort/*; project-backed fields are not implemented yet.
 - Prefer issue-backed sub-orchestrators over lane-heavy same-issue orchestration; keep parent/child state in issue metadata.
 - .agent workflows use npm ci; dependency updates must refresh .agent/package-lock.json or runtime installs stay pinned.
 - Trust sub-orchestration state only from agent-authored issue bodies or deterministic adoption comments, not generic app comments.
@@ -53,5 +53,3 @@
 - Generic orchestrator handoff comments use compact tables and fix-pr task blocks.
 - Sepo installs carry .agent/sepo-version.json as the installed version/source-identity metadata contract.
 - Sepo version labels use SemVer: v0.x.y pre-release, v1.0.0-rc.N only for true RCs, v1.0.0 for stable.
-- Long-running routes use agent-running/<route> activity labels; orchestrator labels stay on the root target until terminal stop.
-- Accepted issue/PR work best-effort assigns the login derived from AGENT_HANDLE; labels/mentions remain source of truth.
