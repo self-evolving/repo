@@ -70,8 +70,22 @@ interface SubOrchestrationIssueRecord extends IssueRecord {
   subOrchestrator: TrustedSubOrchestratorMarkerRecord;
 }
 
+interface TerminalSubOrchestrationRejection {
+  issue: IssueRecord;
+  marker: SubOrchestratorMarker;
+  sourceLabel: string;
+  reason: string;
+  warning: string;
+}
+
+type TerminalChildResolution =
+  | { kind: "trusted"; issue: SubOrchestrationIssueRecord }
+  | { kind: "rejected"; rejection: TerminalSubOrchestrationRejection }
+  | { kind: "none" };
+
 const SUB_ORCHESTRATION_ADOPTION_COMMENT_MARKER = "<!-- sepo-sub-orchestrator-adoption -->";
 const ORCHESTRATE_STOP_MARKER = "<!-- sepo-agent-orchestrate-stop -->";
+const TERMINAL_SUB_ORCHESTRATION_STOP_MARKER_PREFIX = "sepo-sub-orchestrator-terminal-stop";
 const PENDING_MARKER_TTL_MS = 60 * 60 * 1000;
 const UNSATISFACTORY_ACTION_CONCLUSIONS = new Set(["no_changes", "failed", "verify_failed", "unsupported"]);
 
@@ -164,6 +178,45 @@ function formatSubOrchestrationProgressComment(input: {
   ].join("\n");
 }
 
+function formatActorLoginForMessage(login: string | undefined): string {
+  const text = String(login || "").trim();
+  return text ? `\`${text}\`` : "unknown author";
+}
+
+function formatTerminalSubOrchestrationStopMarker(input: {
+  childIssue: number;
+  parentIssue: number;
+}): string {
+  return `<!-- ${TERMINAL_SUB_ORCHESTRATION_STOP_MARKER_PREFIX} child:${input.childIssue} parent:${input.parentIssue} -->`;
+}
+
+function formatTerminalSubOrchestrationStopComment(input: {
+  rejection: TerminalSubOrchestrationRejection;
+  prNumber?: string;
+  marker: string;
+}): string {
+  const headers = ["Child issue"];
+  const values: Array<string | number> = [`#${input.rejection.issue.number}`];
+  if (input.prNumber) {
+    headers.push("PR");
+    values.push(`#${input.prNumber}`);
+  }
+  headers.push("Parent issue", "Marker source", "Status");
+  values.push(`#${input.rejection.marker.parent}`, input.rejection.sourceLabel, "Stopped");
+
+  return [
+    "Sepo could not report this terminal child result to the parent.",
+    "",
+    ...formatTransposedMarkdownTable(headers, values),
+    "",
+    `Reason: ${input.rejection.reason}`,
+    "",
+    "No parent workflow was dispatched. Review the child marker before continuing manually.",
+    "",
+    input.marker,
+  ].join("\n");
+}
+
 function errorText(err: unknown): string {
   const record = err as { message?: unknown; stderr?: unknown; stdout?: unknown };
   return [record.message, record.stderr, record.stdout]
@@ -186,7 +239,11 @@ function authorLoginFromRecord(record: Record<string, unknown>): string {
 }
 
 function normalizeActorLogin(value: string): string {
-  return String(value || "").trim().toLowerCase().replace(/\[bot\]$/i, "");
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/^app\//i, "")
+    .replace(/\[bot\]$/i, "");
 }
 
 let authenticatedActorLogin: string | null = null;
@@ -403,6 +460,74 @@ function trustedSubOrchestrationIssue(
   const subOrchestrator = trustedSubOrchestratorMarkerFromBody(issue) ||
     trustedSubOrchestratorMarkerFromComments(repoSlug, issue.number);
   return subOrchestrator ? { ...issue, subOrchestrator } : null;
+}
+
+function resolveTerminalSubOrchestrationIssue(
+  repoSlug: string,
+  issue: IssueRecord,
+): TerminalChildResolution {
+  let rejection: TerminalSubOrchestrationRejection | null = null;
+
+  const bodyMarker = parseSubOrchestratorMarker(issue.body);
+  if (bodyMarker) {
+    if (isTrustedIssueRecord(issue)) {
+      return {
+        kind: "trusted",
+        issue: {
+          ...issue,
+          subOrchestrator: { marker: bodyMarker, sourceKind: "body", body: issue.body },
+        },
+      };
+    }
+    rejection = {
+      issue,
+      marker: bodyMarker,
+      sourceLabel: "Issue body",
+      reason: `The child issue body marker was authored by ${formatActorLoginForMessage(issue.authorLogin)}, not the authenticated Sepo actor.`,
+      warning: `Ignoring untrusted terminal sub-orchestrator marker in issue #${issue.number} body from ${issue.authorLogin || "unknown author"}`,
+    };
+  }
+
+  for (const comment of [...fetchIssueComments(repoSlug, issue.number)].reverse()) {
+    const body = comment.body || "";
+    const marker = parseSubOrchestratorMarker(body);
+    if (!marker || !isSubOrchestrationAdoptionComment(body)) {
+      continue;
+    }
+    if (!comment.id) {
+      rejection ??= {
+        issue,
+        marker,
+        sourceLabel: "Adoption comment",
+        reason: "The child adoption marker comment is missing a GitHub comment id, so Sepo cannot safely update it.",
+        warning: `Ignoring unresolvable terminal sub-orchestrator adoption marker in issue #${issue.number} comment unknown from ${comment.authorLogin || "unknown author"}`,
+      };
+      continue;
+    }
+    if (!isTrustedActorLogin(comment.authorLogin || "")) {
+      rejection ??= {
+        issue,
+        marker,
+        sourceLabel: `Adoption comment ${comment.id}`,
+        reason: `The child adoption marker comment was authored by ${formatActorLoginForMessage(comment.authorLogin)}, not the authenticated Sepo actor.`,
+        warning: `Ignoring untrusted terminal sub-orchestrator adoption marker in issue #${issue.number} comment ${comment.id || "unknown"} from ${comment.authorLogin || "unknown author"}`,
+      };
+      continue;
+    }
+    return {
+      kind: "trusted",
+      issue: {
+        ...issue,
+        subOrchestrator: {
+          marker,
+          sourceKind: "comment",
+          body,
+          commentId: String(comment.id),
+        },
+      },
+    };
+  }
+  return rejection ? { kind: "rejected", rejection } : { kind: "none" };
 }
 
 function updateTrustedSubOrchestratorMarker(
@@ -812,24 +937,61 @@ function readPrBodyStrict(repoSlug: string, prNumber: string): string {
   return String(parsed.body || "");
 }
 
-function resolveChildIssueForTerminal(): SubOrchestrationIssueRecord | null {
+function resolveChildIssueForTerminal(): TerminalChildResolution {
   const normalizedKind = normalizeToken(sourceTargetKind);
   const currentNumber = parsePositiveTargetNumber(targetNumber);
-  if (!repo || !currentNumber) return null;
+  if (!repo || !currentNumber) return { kind: "none" };
   if (normalizedKind === "issue") {
-    return trustedSubOrchestrationIssue(repo, fetchIssueStrict(repo, currentNumber));
+    return resolveTerminalSubOrchestrationIssue(repo, fetchIssueStrict(repo, currentNumber));
   }
   if (normalizedKind === "pull_request") {
     const linkedIssueNumber = extractClosingIssueNumber(readPrBodyStrict(repo, targetNumber), repo);
-    if (!linkedIssueNumber) return null;
-    return trustedSubOrchestrationIssue(repo, fetchIssueStrict(repo, linkedIssueNumber));
+    if (!linkedIssueNumber) return { kind: "none" };
+    return resolveTerminalSubOrchestrationIssue(repo, fetchIssueStrict(repo, linkedIssueNumber));
   }
-  return null;
+  return { kind: "none" };
+}
+
+function hasTrustedTerminalSubOrchestrationStopComment(repoSlug: string, issueNumber: number, marker: string): boolean {
+  try {
+    return fetchIssueComments(repoSlug, issueNumber).some((comment) =>
+      String(comment.body || "").includes(marker) && isTrustedActorLogin(comment.authorLogin || "")
+    );
+  } catch (err: unknown) {
+    console.warn(`Failed to inspect existing terminal sub-orchestration stop comments: ${errorText(err)}`);
+    return false;
+  }
+}
+
+function commentOnTerminalSubOrchestrationRejection(rejection: TerminalSubOrchestrationRejection): void {
+  console.warn(rejection.warning);
+  const target = parsePositiveTargetNumber(targetNumber);
+  if (!repo || !target || !["issue", "pull_request"].includes(normalizeToken(sourceTargetKind))) {
+    return;
+  }
+  const marker = formatTerminalSubOrchestrationStopMarker({
+    childIssue: rejection.issue.number,
+    parentIssue: rejection.marker.parent,
+  });
+  if (hasTrustedTerminalSubOrchestrationStopComment(repo, target, marker)) {
+    return;
+  }
+  const prNumber = normalizeToken(sourceTargetKind) === "pull_request" ? targetNumber : "";
+  createIssueComment(repo, target, formatTerminalSubOrchestrationStopComment({
+    rejection,
+    prNumber,
+    marker,
+  }));
 }
 
 function reportTerminalToParent(decision: HandoffDecision): void {
-  const childIssue = resolveChildIssueForTerminal();
-  if (!childIssue) return;
+  const childResolution = resolveChildIssueForTerminal();
+  if (childResolution.kind === "none") return;
+  if (childResolution.kind === "rejected") {
+    commentOnTerminalSubOrchestrationRejection(childResolution.rejection);
+    return;
+  }
+  const childIssue = childResolution.issue;
   const marker = childIssue.subOrchestrator.marker;
   if (!["running", "done", "blocked", "failed"].includes(marker.state)) return;
 

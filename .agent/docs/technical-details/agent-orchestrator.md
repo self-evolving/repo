@@ -105,13 +105,19 @@ The parent issue keeps the meta planner session, while each child issue gets its
 own normal issue target identity. When the child reaches a terminal stop, the
 handoff dispatcher resolves the trusted child marker from the child issue body or
 from agent-authored child issue comments, or through a closing issue reference in
-the terminal PR body. It then writes a parent progress comment, dispatches the
-parent issue orchestrator in agent mode with the child result, and marks the
-same trusted child marker as `done`, `blocked`, or `failed`. The progress
+the terminal PR body. These trust checks normalize GitHub App actor variants such
+as `app/sepo-agent-app`, `sepo-agent-app[bot]`, and `sepo-agent-app` to the same
+actor. It then writes a parent progress comment, dispatches the parent issue
+orchestrator in agent mode with the child result, and marks the same trusted
+child marker as `done`, `blocked`, or `failed`. The progress
 comment includes a compact transposed Markdown table for the visible status and
 a hidden resume marker so reruns can recover a pending report or skip an
 already-dispatched terminal report. Child selection and adoption comments use
 the same compact table style while preserving their hidden durable markers.
+If terminal child metadata is found but rejected by trust checks or cannot be
+safely updated, the dispatcher posts a compact stop comment on the current
+terminal issue or PR with a hidden dedupe marker. Ordinary terminal PR stops
+without sub-orchestrator metadata remain silent.
 If the resumed parent planner decides there is no next child or action, the
 parent run posts a terminal stop comment on the parent issue with the source
 conclusion, target, round, reason, and hidden `sepo-agent-orchestrate-stop`
