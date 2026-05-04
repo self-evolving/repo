@@ -444,6 +444,7 @@ test("agent status label is opt-in and fixed to the AGENT_STATUS_LABEL_ENABLED v
 });
 
 test("accepted issue and PR work is best-effort assigned from AGENT_HANDLE", () => {
+  const labelWorkflow = readRepoFile(".github/workflows/agent-label.yml");
   const routerWorkflow = readRepoFile(".github/workflows/agent-router.yml");
   const implementWorkflow = readRepoFile(".github/workflows/agent-implement.yml");
   const fixPrWorkflow = readRepoFile(".github/workflows/agent-fix-pr.yml");
@@ -464,6 +465,10 @@ test("accepted issue and PR work is best-effort assigned from AGENT_HANDLE", () 
   assert.match(
     routerWorkflow,
     /Assign handled issue or PR[\s\S]*steps\.dispatch\.outputs\.route != 'unsupported'[\s\S]*AGENT_HANDLE:\s*\$\{\{ inputs\.agent_handle \|\| '@sepo-agent' \}\}[\s\S]*node \.agent\/dist\/cli\/assign-agent\.js/,
+  );
+  assert.match(
+    labelWorkflow,
+    /uses:\s*\.\/\.github\/workflows\/agent-router\.yml[\s\S]*agent_handle:\s*\$\{\{ vars\.AGENT_HANDLE \|\| '@sepo-agent' \}\}[\s\S]*trigger_kind:\s*label/,
   );
   assert.match(
     implementWorkflow,
