@@ -17,6 +17,14 @@ on:
         description: "Set true to apply legacy/fallback priority/effort label plan."
         required: false
         default: "false"
+      project_id:
+        description: "GitHub Project node ID for experimental Project-backed planning."
+        required: false
+        default: ""
+      project_url:
+        description: "GitHub Project URL for experimental Project-backed planning."
+        required: false
+        default: ""
       post_summary:
         description: "Set true to comment on today's Daily Summary discussion if it exists."
         required: false
@@ -83,6 +91,8 @@ jobs:
         env:
           RAW_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || vars.AGENT_PROJECT_MANAGEMENT_DRY_RUN || 'true' }}
           RAW_APPLY_LABELS: ${{ github.event_name == 'workflow_dispatch' && inputs.apply_labels || vars.AGENT_PROJECT_MANAGEMENT_APPLY_LABELS || 'false' }}
+          RAW_PROJECT_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.project_id || vars.AGENT_PROJECT_MANAGEMENT_PROJECT_ID || '' }}
+          RAW_PROJECT_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.project_url || vars.AGENT_PROJECT_MANAGEMENT_PROJECT_URL || '' }}
           RAW_POST_SUMMARY: ${{ github.event_name == 'workflow_dispatch' && inputs.post_summary || vars.AGENT_PROJECT_MANAGEMENT_POST_SUMMARY || 'false' }}
           RAW_DISCUSSION_CATEGORY: ${{ github.event_name == 'workflow_dispatch' && inputs.discussion_category || vars.AGENT_PROJECT_MANAGEMENT_DISCUSSION_CATEGORY || 'General' }}
           RAW_LIMIT: ${{ github.event_name == 'workflow_dispatch' && inputs.limit || vars.AGENT_PROJECT_MANAGEMENT_LIMIT || '100' }}
@@ -113,15 +123,54 @@ jobs:
             fi
           }
 
+          trim() {
+            printf '%s' "${1:-}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+          }
+
           dry_run="$(normalize_bool "$RAW_DRY_RUN" true)"
           apply_labels="$(normalize_bool "$RAW_APPLY_LABELS" false)"
+          project_id="$(trim "$RAW_PROJECT_ID")"
+          project_url="$(trim "$RAW_PROJECT_URL")"
           post_summary="$(normalize_bool "$RAW_POST_SUMMARY" false)"
           discussion_category="${RAW_DISCUSSION_CATEGORY:-General}"
           limit="$(positive_int_or_default "$RAW_LIMIT" 100)"
+          project_configured=false
+          project_target="not configured"
+
+          if [ -n "$project_id" ] && printf '%s' "$project_id" | grep -Eq '[[:space:]]'; then
+            echo "AGENT_PROJECT_MANAGEMENT_PROJECT_ID must not contain whitespace." >&2
+            exit 1
+          fi
+
+          if [ -n "$project_url" ]; then
+            if printf '%s' "$project_url" | grep -Eq '[[:space:]]'; then
+              echo "AGENT_PROJECT_MANAGEMENT_PROJECT_URL must not contain whitespace." >&2
+              exit 1
+            fi
+            if ! printf '%s' "$project_url" | grep -Eq '^https://github\.com/(orgs/[^/]+|users/[^/]+)/projects/[0-9]+([/?#].*)?$'; then
+              echo "AGENT_PROJECT_MANAGEMENT_PROJECT_URL must be a GitHub Project URL such as https://github.com/orgs/OWNER/projects/1." >&2
+              exit 1
+            fi
+          fi
+
+          if [ -n "$project_id" ] || [ -n "$project_url" ]; then
+            project_configured=true
+            if [ -n "$project_id" ] && [ -n "$project_url" ]; then
+              project_target="id ${project_id}; url ${project_url}"
+            elif [ -n "$project_id" ]; then
+              project_target="id ${project_id}"
+            else
+              project_target="url ${project_url}"
+            fi
+          fi
 
           {
             echo "dry_run=${dry_run}"
             echo "apply_labels=${apply_labels}"
+            echo "project_configured=${project_configured}"
+            echo "project_id=${project_id}"
+            echo "project_url=${project_url}"
+            echo "project_target=${project_target}"
             echo "post_summary=${post_summary}"
             echo "discussion_category=${discussion_category}"
             echo "limit=${limit}"
@@ -180,10 +229,13 @@ jobs:
             - limit per kind: ${{ steps.project_config.outputs.limit }}
             - dry run: ${{ steps.project_config.outputs.dry_run }}
             - apply legacy/fallback labels after agent: ${{ steps.project_config.outputs.apply_labels }}
+            - GitHub Project configured: ${{ steps.project_config.outputs.project_configured }}
+            - GitHub Project target: ${{ steps.project_config.outputs.project_target }}
+            - GitHub Project field sync: not implemented; treat the configured Project target as experimental planning context only
             - post summary after agent: ${{ steps.project_config.outputs.post_summary }}
             - Daily Summary discussion category: ${{ steps.project_config.outputs.discussion_category }}
             - workflow schedule: every 6 hours at minute 17 UTC
-            - Project-backed source of truth: GitHub Project fields Status/Priority/Effort/Release, not repo priority/effort labels
+            - Project-backed source of truth when configured: GitHub Project fields Status/Priority/Effort/Release, not repo priority/effort labels
           requested_by: ${{ github.actor }}
           source_kind: workflow_dispatch
           target_kind: repository
