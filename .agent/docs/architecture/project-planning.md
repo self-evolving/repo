@@ -36,10 +36,19 @@ the default planning surface when a GitHub Project is configured.
 
 ## Current automation boundary
 
+Project-backed project management is experimental. Configure the planning
+surface with `AGENT_PROJECT_MANAGEMENT_PROJECT_ID` and/or
+`AGENT_PROJECT_MANAGEMENT_PROJECT_URL`; manual workflow runs can override those
+values with the separate `project_id` and `project_url` inputs. The ID should be
+a GitHub Project node ID with no whitespace. The URL should be an org or user
+GitHub Project URL such as `https://github.com/orgs/OWNER/projects/1`.
+
 The existing `agent-project-manager.yml` workflow is still a prompt-driven
-summary plus legacy/fallback label-planning pass. It does not create GitHub
-Projects, update Project fields, dispatch work from Project field changes, or
-mutate repository variables. Until a dedicated Project sync exists, use its
+summary plus legacy/fallback label-planning pass. It passes the configured
+Project target to the agent as context, but it does not create GitHub Projects,
+update Project fields, dispatch work from Project field changes, or mutate
+repository variables. If no Project target is configured, the workflow keeps its
+current summary/dry-run behavior. Until a dedicated Project sync exists, use its
 summary as advisory for Project-backed planning and enable label writes only for
 repositories that explicitly choose the legacy/fallback label mode.
 

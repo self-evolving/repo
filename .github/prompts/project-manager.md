@@ -24,6 +24,13 @@ This prompt does not create or update GitHub Projects, Project fields,
 repository variables, issues, pull requests, reviews, or discussion comments.
 The current workflow only supports the legacy/fallback label plan below.
 
+If the runtime request says no GitHub Project is configured, preserve the
+current summary/dry-run behavior and do not imply that Project-backed planning
+is active. If a GitHub Project ID or URL is configured, treat it as an
+experimental planning target for context only. You may mention the configured
+Project target in the summary, but do not call GitHub Project APIs or claim that
+Project fields were read or updated.
+
 ## Legacy/Fallback Managed Labels
 
 Use exactly these opt-in legacy/fallback managed label families for the
@@ -78,6 +85,7 @@ Use this structure:
 ## Project Management Summary
 
 - Mode: `dry run`, `labels applied`, or `labels not applied`
+- Project target: `not configured` or the configured Project ID/URL from runtime
 - Open items assessed: `<issue count> issues, <pull request count> pull requests`
 - Managed labels: legacy/fallback `priority/*`, `effort/*`
 
