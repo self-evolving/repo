@@ -183,6 +183,17 @@ jobs:
           TARGET_NUMBER: ${{ env.PR_NUMBER }}
         run: node .agent/dist/cli/add-label.js
 
+      - name: Assign target pull request
+        if: steps.pr.outputs.cross_repo != 'true' && steps.pr.outputs.pr_state == 'OPEN'
+        continue-on-error: true
+        env:
+          AGENT_HANDLE: ${{ vars.AGENT_HANDLE || '@sepo-agent' }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          TARGET_KIND: pull_request
+          TARGET_NUMBER: ${{ env.PR_NUMBER }}
+        run: node .agent/dist/cli/assign-agent.js
+
       - name: Mark fix-pr activity
         if: steps.pr.outputs.cross_repo != 'true' && steps.pr.outputs.pr_state == 'OPEN'
         continue-on-error: true

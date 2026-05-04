@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { resolveAgentAssignee } from "./agent-assignee.js";
 import { createIssue, ensureLabel, gh, postIssueComment } from "./github.js";
 import { BUILT_IN_TRIGGER_LABELS } from "./trigger-labels.js";
 
@@ -14,6 +15,7 @@ export interface OnboardingOptions {
   providerReason: string;
   openaiConfigured: boolean;
   claudeConfigured: boolean;
+  agentHandle: string;
   memoryRef: string;
   rubricsRef: string;
   runUrl: string;
@@ -122,7 +124,12 @@ Try PR review on an open pull request:
 `;
 }
 
-function checklistBody(opts: OnboardingOptions, memoryReady: boolean, rubricsReady: boolean): string {
+function checklistBody(
+  opts: OnboardingOptions,
+  memoryReady: boolean,
+  rubricsReady: boolean,
+  assignee: { login: string; assignable: boolean; warning?: string },
+): string {
   const providerConfigured = Boolean(opts.provider);
   const labelLines = BUILT_IN_TRIGGER_LABELS
     .map((label) => `- \`${label.name}\` -> \`${label.route}\``)
@@ -136,6 +143,7 @@ function checklistBody(opts: OnboardingOptions, memoryReady: boolean, rubricsRea
 
 - ${check(Boolean(opts.authMode))} GitHub auth resolved: ${opts.authMode || "not resolved"}
 - ${check(providerConfigured)} Agent provider resolved: ${providerDetails}
+- ${check(assignee.assignable)} Agent handle assignable: \`${assignee.login || "unresolved"}\`${assignee.warning ? ` (${assignee.warning})` : ""}
 - ${check(opts.openaiConfigured)} \`OPENAI_API_KEY\` configured
 - ${check(opts.claudeConfigured)} \`CLAUDE_CODE_OAUTH_TOKEN\` configured
 - ${check(memoryReady)} Memory branch exists: \`${opts.memoryRef}\`
@@ -171,7 +179,11 @@ export function runOnboardingCheck(opts: OnboardingOptions): number {
   const rubricsReady = branchExists(opts.repo, opts.rubricsRef);
   const existingIssue = findExistingOnboardingIssue(opts.repo);
   const issueNumber = existingIssue?.number ?? createOnboardingIssue(opts);
-  const body = checklistBody(opts, memoryReady, rubricsReady);
+  const assignee = resolveAgentAssignee({
+    agentHandle: opts.agentHandle,
+    repo: opts.repo,
+  });
+  const body = checklistBody(opts, memoryReady, rubricsReady, assignee);
   const existingComment = findOnboardingComment(opts.repo, issueNumber);
 
   if (existingComment) {

@@ -158,6 +158,17 @@ jobs:
           TARGET_NUMBER: ${{ inputs.pr_number }}
         run: node .agent/dist/cli/activity-label.js
 
+      - name: Assign target pull request
+        if: matrix.agent == 'codex'
+        continue-on-error: true
+        env:
+          AGENT_HANDLE: ${{ vars.AGENT_HANDLE || '@sepo-agent' }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          TARGET_KIND: pull_request
+          TARGET_NUMBER: ${{ inputs.pr_number }}
+        run: node .agent/dist/cli/assign-agent.js
+
       - name: Resolve task timeout
         id: task_timeout
         env:

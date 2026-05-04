@@ -122,6 +122,16 @@ jobs:
           TARGET_NUMBER: ${{ inputs.orchestration_root_number || inputs.target_number }}
         run: node .agent/dist/cli/activity-label.js
 
+      - name: Assign orchestrator target
+        continue-on-error: true
+        env:
+          AGENT_HANDLE: ${{ vars.AGENT_HANDLE || '@sepo-agent' }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          TARGET_KIND: ${{ inputs.target_kind || (inputs.source_action == 'implement' && 'issue' || 'pull_request') }}
+          TARGET_NUMBER: ${{ inputs.target_number }}
+        run: node .agent/dist/cli/assign-agent.js
+
       - name: Check handoff preflight
         id: preflight
         env:
