@@ -1,0 +1,63 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "The idea is that when people are using this repo locally, the local coding agent (like claude / codex) should be aware of its capabilities. \n\n1. It should create a temporary memory rubrics folder inside the .agent folder (That should be included in the .gitignore file) \n2. The agent should use the proper tool to check out the memory/rubrics and should be able to launch sub agents to check /review the code when they finish implementing\n3. This may also impact the AGENT.md and others? ",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFTZ-w",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer",
+      "createdAt": "2026-05-04T00:59:51Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/121#issuecomment-4367636987",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFT2Mw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I’d handle this as a small docs/tooling PR, not just an `AGENT.md` edit.\n\nCurrent state:\n- [`AGENT.md`](https://github.com/self-evolving/repo/blob/main/AGENT.md#L10-L12) mentions `agent/memory` and `agent/rubrics`, but does not tell local Codex/Claude-style agents how to mount or use them.\n- GitHub Actions already clones memory/rubrics outside the tracked worktree via [`download-agent-memory`](https://github.com/self-evolving/repo/blob/main/.github/actions/download-agent-memory/action.yml#L1-L5) and [`download-agent-rubrics`](https://github.com/self-evolving/repo/blob/main/.github/actions/download-agent-rubrics/action.yml#L1-L5), then exposes `MEMORY_DIR` / `RUBRICS_DIR` in [`run-agent-task`](https://github.com/self-evolving/repo/blob/main/.github/actions/run-agent-task/action.yml#L229-L309).\n- The prompt fragments already explain memory/rubrics behavior for workflow agents: [`_memory.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/_memory.md#L1-L30), [`_rubrics.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/_rubrics.md#L1-L17).\n- `.gitignore` currently ignores generated runtime outputs but not a local memory/rubrics workspace: [`.gitignore`](https://github.com/self-evolving/repo/blob/main/.gitignore#L1-L5).\n\nProposed implementation plan:\n\n1. Add an ignored local workspace path, likely `.agent/local/`, to `.gitignore`.\n2. Add a typed CLI under `.agent/src/cli/`, for example `local/prepare-agent-context.ts`, with an npm script like `npm --prefix .agent run prepare:local-agent`.\n3. Have that CLI shallow-clone or refresh:\n   - `agent/memory` into `.agent/local/memory`\n   - `agent/rubrics` into `.agent/local/rubrics`\n   using the same branch defaults as the workflows: `agent/memory` and `agent/rubrics`.\n4. Make missing branches non-fatal by default, matching the workflow behavior, but print clear next steps for `Agent / Memory / Initialization` and `Agent / Rubrics / Initialization`.\n5. Generate a small `.agent/local/AGENT_CONTEXT.md` or similar local-only file that tells local agents:\n   - where `MEMORY_DIR` and `RUBRICS_DIR` are\n   - to read `PROJECT.md`, `MEMORY.md`, recent daily notes, and selected rubrics before work\n   - to use `memory/search.js` and `memory/update.js` for memory edits\n   - that rubrics are normative and should not be edited except via rubrics workflows\n   - to run relevant checks and, when the local agent supports it, launch a separate review/checking sub-agent after implementation\n6. Update [`AGENT.md`](https://github.com/self-evolving/repo/blob/main/AGENT.md) with a concise “Local coding agents” section pointing to the new command and local context file.\n7. Update docs, probably [`install-existing-repository.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/deployment/install-existing-repository.md) and maybe [`memory.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/memory.md), so template users know this is for local agent context rather than GitHub Actions runtime setup.\n8. Add focused tests for the new CLI, similar to the existing memory bootstrap CLI tests.\n\nI’d avoid putting actual memory/rubrics checkouts directly in tracked docs or workflow paths. The right shape is an ignored local workspace plus a repeatable setup command, with `AGENT.md` teaching local agents how to use it. Please approve and I can implement that.",
+      "createdAt": "2026-05-04T01:03:06Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/121#issuecomment-4367644211",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-03T19:55:25Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 121,
+  "state": "OPEN",
+  "title": "Update the agent.md file to inform the memory / rubrics readme file",
+  "updatedAt": "2026-05-04T01:03:06Z",
+  "url": "https://github.com/self-evolving/repo/issues/121"
+}

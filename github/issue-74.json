@@ -5,11 +5,76 @@
     "login": "lolipopshock",
     "name": "Shannon Shen"
   },
-  "body": "",
+  "body": "OK given all the recent updates, it seems the version management becomes more important \n- it's used for #94 \n- also critical for #117 for bug reporting \n- also we should include it in the agent installation and updating instructions \n\n@sepo-agent /answer \n\n1. what is the right way to label the versions now (since we are like pre-releases) (but we are close to final public release)\n2. next, what is the right way to include sepo information when they fork the repo (there is a paradox: if we fork it, we can actually not precisely track which commit it is but just know roughly which version it is) or install it? Or actually, a simpler solution is that we separate between the develop branch as well as the main branch. \n3. can the sepo repo automatically releases itself?",
   "closedAt": null,
-  "comments": [],
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFeohA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Current repo state supports making #74 a foundation issue now:\n\n- `.agent/package.json` already has `@self-evolving/sepo` at `0.1.0`, but the package is `private`, so this is not yet a real distribution signal: https://github.com/self-evolving/repo/blob/f7edfdc/.agent/package.json#L2-L4\n- install docs currently tell users to copy `.agent/` and `.github/` as a unit, with no installed version metadata: https://github.com/self-evolving/repo/blob/f7edfdc/.agent/docs/deployment/install-existing-repository.md#L13-L18\n- workflows build the local copied `.agent` runtime in place, so the installed repo is currently the source of truth at runtime: https://github.com/self-evolving/repo/blob/f7edfdc/.github/actions/setup-agent-runtime/action.yml#L79-L87\n- I found no tags or GitHub Releases yet.\n\nAnswers:\n\n1. **Version labels**\n   \n   Use SemVer, but keep the current line as `v0.x.y` until the public install/update/bug-report contract is frozen. In SemVer, `0.x` means initial development, which fits Sepo better than pretending we are already stable.\n\n   Suggested policy:\n   - `v0.1.0`, `v0.2.0`, etc. for current pre-public releases.\n   - bump minor for meaningful agent/workflow behavior changes while under `0.x`.\n   - bump patch for bugfix-only releases.\n   - move to `v1.0.0-rc.1`, `v1.0.0-rc.2` only when we are genuinely release-candidate stable.\n   - final public release is `v1.0.0`.\n\n   Do not call `main` itself a version. A version should be a tag/release; a commit SHA should be the exact identity.\n\n2. **Version info in forks/installs**\n   \n   Separate two concepts:\n\n   - **User-facing version:** `v0.2.0`, `v1.0.0-rc.1`, etc.\n   - **Exact source identity:** upstream repo + ref + commit SHA.\n\n   Add a committed metadata file such as `.agent/sepo-version.json`:\n\n   ```json\n   {\n     \"schema_version\": 1,\n     \"version\": \"0.2.0\",\n     \"channel\": \"pre-release\",\n     \"source_repo\": \"self-evolving/repo\",\n     \"source_ref\": \"v0.2.0\",\n     \"source_sha\": \"abc123...\",\n     \"installed_from\": \"release\",\n     \"agent_files_hash\": \"...\"\n   }\n   ```\n\n   This resolves the fork paradox: a fork may later diverge, but we can still say “this installed Sepo started from `v0.2.0` / commit `abc123`,” and `agent_files_hash` can show whether local agent files were modified after installation.\n\n   I agree with separating branches:\n   - `develop`: active development, unstable, opt-in only.\n   - `main`: release integration/stable pre-release line.\n   - tags like `v0.2.0` / `v1.0.0-rc.1`: default install/update targets.\n\n   Then PR #116-style updates should default to the latest release tag, not moving `main`, with `main`/`develop` available as explicit advanced inputs.\n\n3. **Can Sepo release itself?**\n   \n   Yes, but I would make it PR-first, not fully autonomous tag/publish.\n\n   Recommended release automation:\n   - `Agent / Release / Prepare`: manual or scheduled workflow that calculates the next version, updates `.agent/package.json`, `.agent/sepo-version.json`, changelog/release notes, and opens a release PR.\n   - Human review/merge to `main`.\n   - `Agent / Release / Publish`: workflow on merged release PR or manual dispatch that creates annotated tag `vX.Y.Z` and GitHub Release.\n   - Mark `v0.x` and `v1.0.0-rc.N` as GitHub prereleases.\n   - After publish, installed-repo update checks compare local `.agent/sepo-version.json` to latest release metadata.\n\nImplementation plan for #74:\n\n1. Add `.agent/sepo-version.json` plus schema/validation helper.\n2. Add a CLI to print installed Sepo version info for workflows and bug reports.\n3. Update install docs and onboarding setup check to show installed version/source SHA.\n4. Update the update workflow/skill from #116 to write old/new version metadata and title PRs like `Update Sepo from v0.2.0 to v0.3.0`.\n5. Update the failure reporting work from #117 to include version, source SHA, and local agent hash.\n6. Add release prepare/publish workflows.\n7. Document `main`/`develop`/release-tag policy.\n\nPlease confirm these policy choices before coding: `v0.x` now, `v1.0.0-rc.N` only after the release contract is frozen, default updates from latest release tag, and `.agent/sepo-version.json` as the installed metadata file.",
+      "createdAt": "2026-05-04T02:18:24Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/74#issuecomment-4367820932",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFh42A",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "sounds good. @sepo-agent /orchestrate decide what's the best way to implement it, should it be just one PR? or multiple small stacked PRs?",
+      "createdAt": "2026-05-04T02:38:31Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/74#issuecomment-4367874264",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFiL6Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is starting a focused child task for this orchestration.\n\n| Child task | Focus | Parent issue | Status |\n| --- | --- | --- | --- |\n| #127 | version-metadata-foundation | #74 | Running |\n\nI'll report back here when the child task finishes.\n\n<!-- sepo-sub-orchestrator-child parent:74 stage:version-metadata-foundation child:127 -->",
+      "createdAt": "2026-05-04T02:40:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/74#issuecomment-4367879145",
+      "viewerDidAuthor": true
+    }
+  ],
   "createdAt": "2026-05-01T06:43:40Z",
   "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    },
     {
       "id": "LA_kwDOSOhEMM8AAAAChVB4zQ",
       "name": "priority/p3",
@@ -25,7 +90,7 @@
   ],
   "number": 74,
   "state": "OPEN",
-  "title": "label versions",
-  "updatedAt": "2026-05-01T08:26:12Z",
+  "title": "Create version systems",
+  "updatedAt": "2026-05-04T02:40:54Z",
   "url": "https://github.com/self-evolving/repo/issues/74"
 }

@@ -1,0 +1,263 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "1. I am going to create a Github project page, it is going to serve with two purposes: \n    - allowing us to manage tasks and track progress \n    - we should also plan for features for the first public release and public road map \n2. additionally, `@sepo-agent` you should also be able to work and manage the task together. \n\nThere are many templates for github project template. I wonder which one fits the best (also related to #125 ); also what are the views needed?\n@sepo-agent /answer",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFVyLA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I’d start from GitHub’s **Team planning** project template, then add roadmap/release fields. It is the better fit than a pure feature-release template because this repo needs one durable operating board for backlog triage, active PRs, first public release planning, and Sepo-managed work. GitHub Projects supports table, board, and roadmap views over the same items, so one project can serve both task tracking and public-roadmap planning.\n\nRepo context I checked:\n\n- Sepo already treats GitHub as the collaboration surface: mentions, labels, issues, PRs, Actions, memory, and rubrics all stay in-repo ([README.md](https://github.com/self-evolving/repo/blob/main/README.md#L3-L5), [README.md](https://github.com/self-evolving/repo/blob/main/README.md#L67-L74)).\n- There is already an opt-in `agent-project-manager.yml` workflow for open issue/PR triage, summary generation, and optional `priority/*` + `effort/*` label updates ([supported-workflows.md](https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/supported-workflows.md#L110-L123), [agent-project-manager.yml](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-project-manager.yml#L1-L31)).\n- The project-manager prompt already defines the managed label system and requires exactly one priority and one effort label per assessed item ([project-manager.md](https://github.com/self-evolving/repo/blob/main/.github/prompts/project-manager.md#L9-L39)).\n- The deterministic label code only permits the managed `priority/*` and `effort/*` families, so those labels are already part of the repo’s automation contract ([project-management-labels.ts](https://github.com/self-evolving/repo/blob/main/.agent/src/project-management-labels.ts#L29-L39)).\n- Sepo execution itself should remain issue/PR driven through `/implement`, `/review`, `/fix-pr`, and `/orchestrate`, not project-card driven ([agent-actions.md](https://github.com/self-evolving/repo/blob/main/.agent/docs/actions/agent-actions.md#L5-L16)).\n\nFor #125: yes, keep `priority/*` and `effort/*` labels even after adding a Project. They are useful because labels are repo-native, visible outside the Project, easy for workflows to mutate safely, and already supported by Sepo’s project-manager pass. The Project should add higher-level planning fields, not replace these labels.\n\nRecommended project fields:\n\n- `Status`: Inbox, Backlog, Ready, In Progress, In Review, Blocked, Done, Later\n- `Release`: `public-v0`, `post-v0`, `exploration`\n- `Roadmap phase`: Now, Next, Later\n- `Workstream`: Agent runtime, Orchestration, Project management, Distribution, Memory/Rubrics, Docs, Testing\n- `Owner`: human or `sepo-agent`\n- `Agent route`: none, answer, implement, review, fix-pr, orchestrate\n- Keep GitHub labels for `priority/*`, `effort/*`, `agent`, and `agent/*` trigger labels.\n\nRecommended views:\n\n1. **Triage**\n   - Table view.\n   - Filter: open issues/PRs, `Status:Inbox` or missing `priority/*` / `effort/*`.\n   - Purpose: decide priority, effort, release, and whether Sepo can work it.\n\n2. **Active Board**\n   - Board grouped by `Status`.\n   - Filter: `Status` not Done/Later.\n   - Purpose: day-to-day work tracking.\n\n3. **First Public Release**\n   - Table or board.\n   - Filter: `Release:public-v0`.\n   - Sort: priority, then effort.\n   - Purpose: define what must land before the first public release.\n\n4. **Public Roadmap**\n   - Roadmap view grouped by `Roadmap phase` or `Release`.\n   - Filter out internal-only maintenance unless it affects users.\n   - Purpose: share Now/Next/Later publicly without exposing every internal task.\n\n5. **Sepo Queue**\n   - Table view.\n   - Filter: `Owner:sepo-agent` or label `agent` / `agent/*`.\n   - Columns: title, status, priority, effort, agent route, linked PR.\n   - Purpose: see what Sepo can answer, implement, review, or orchestrate.\n\n6. **PRs To Ship**\n   - Table view for open PRs.\n   - Include draft state, review status, priority, effort, linked issue.\n   - Purpose: avoid planning only around issues while PRs sit unfinished.\n\nSuggested operating process:\n\n1. Create the Project from **Team planning**.\n2. Add all open issues and PRs.\n3. Add the custom fields above.\n4. Run `Agent / Project Manager` manually in dry-run first.\n5. After the label output looks right, enable label application with `AGENT_PROJECT_MANAGEMENT_APPLY_LABELS=true` and `AGENT_PROJECT_MANAGEMENT_DRY_RUN=false`.\n6. Use the Project for human planning fields; use labels for automation-safe priority/effort signals.\n7. For Sepo-owned work, set `Owner=sepo-agent` and use the issue body/comment with `@sepo-agent /orchestrate` or the relevant explicit route.\n\nMy recommendation: create a single project named **Sepo Planning & Roadmap**, start with Team planning, and add the views above. After you approve that structure, the next implementation step would be documenting this workflow in the repo and optionally tightening `agent-project-manager` output so it aligns with the Project fields.",
+      "createdAt": "2026-05-04T01:16:41Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/126#issuecomment-4367675948",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFZW4A",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\nActually that leads to a very interesting question: \n1. can the agent run the github command to create a the project given the project specification over github? (the github app should have the access)? \n2. and we should consider do that in conjunction with perhaps a route for enabling the \"project-planning\" route?",
+      "createdAt": "2026-05-04T01:41:53Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/126#issuecomment-4367734496",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFZnew",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, but I would not let the model freely run arbitrary `gh project ...` commands as the main mechanism.\n\nGitHub Projects can be created/managed from automation: `gh project create --owner <owner> --title <title>` exists, and `gh project field-create`, `gh project item-add`, `gh project edit`, and `gh project link` cover most setup operations. The CLI docs say `gh project` needs the `project` token scope for normal user-token auth, and GitHub’s Projects API docs also show `createProjectV2` via GraphQL. For GitHub App installation tokens, GitHub documents that Projects mutations may need additional App permissions; if `createProjectV2` links to a repository via `repositoryId`, the App also needs repository `Contents` permission for that repository.\n\nSo the practical answer is:\n\n- **Can Sepo create the Project?** Yes, if the authenticated token has Projects write access for the project owner.\n- **Can the normal `GITHUB_TOKEN` do it?** I would not rely on it. Projects live at user/org scope, not just repo scope.\n- **Can the Sepo GitHub App do it?** Likely yes for an org-owned Project if the App has org-level **Projects: write** permission and, when linking to this repo, the needed repo permission. If the App manifest does not currently include that permission, the installation owner must approve the permission upgrade.\n- **Should we implement it through raw agent shell access?** No. The safer pattern is agent-proposed spec, deterministic CLI applies it.\n\nThis matches the repo’s current architecture. Existing routes are explicit and validated in `ROUTES` / `EXPLICIT_ROUTE_COMMANDS` ([`.agent/src/triage.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/triage.ts#L10-L26)). The current project manager already uses the right shape: the agent assesses issues/PRs and emits a structured plan, then deterministic code validates and applies only allowed label changes ([`.github/prompts/project-manager.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/project-manager.md#L41-L55), [`.agent/src/project-management-labels.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/project-management-labels.ts#L59-L113)). I’d reuse that pattern for Project creation.\n\nRecommended route design:\n\n- Add a new explicit route: `/project-planning`.\n- Keep it OWNER/admin-only by default, because it can create org/user-level resources.\n- Make it two-mode:\n  - `plan`: inspect repo backlog and produce a Project spec as JSON.\n  - `apply`: create/update the Project from an approved spec.\n- The agent should generate/adjust the spec, but a deterministic CLI should run the actual `gh api graphql` / `gh project` operations.\n- Default to dry-run unless the request explicitly says apply/create.\n\nInitial project spec shape could be:\n\n```json\n{\n  \"owner\": \"self-evolving\",\n  \"title\": \"Sepo Planning & Roadmap\",\n  \"visibility\": \"PUBLIC\",\n  \"link_repository\": \"self-evolving/repo\",\n  \"fields\": [\n    { \"name\": \"Status\", \"type\": \"single_select\", \"options\": [\"Inbox\", \"Backlog\", \"Ready\", \"In Progress\", \"In Review\", \"Blocked\", \"Done\", \"Later\"] },\n    { \"name\": \"Release\", \"type\": \"single_select\", \"options\": [\"public-v0\", \"post-v0\", \"exploration\"] },\n    { \"name\": \"Roadmap phase\", \"type\": \"single_select\", \"options\": [\"Now\", \"Next\", \"Later\"] },\n    { \"name\": \"Workstream\", \"type\": \"single_select\", \"options\": [\"Agent runtime\", \"Orchestration\", \"Project management\", \"Distribution\", \"Memory/Rubrics\", \"Docs\", \"Testing\"] },\n    { \"name\": \"Agent route\", \"type\": \"single_select\", \"options\": [\"none\", \"answer\", \"implement\", \"review\", \"fix-pr\", \"orchestrate\"] }\n  ],\n  \"views\": [\"Triage\", \"Active Board\", \"First Public Release\", \"Public Roadmap\", \"Sepo Queue\", \"PRs To Ship\"]\n}\n```\n\nImplementation plan, if approved:\n\n1. Add `project-planning` to the route parser, label route support, docs, and access policy handling.\n2. Add `.github/prompts/project-planning.md` that emits a strict JSON Project spec plus a human summary.\n3. Add `.agent/src/project-planning.ts` and a CLI such as `.agent/src/cli/apply-project-plan.ts`.\n4. Add `.github/workflows/agent-project-planning.yml` with `dry_run` / `apply` inputs and GitHub App auth.\n5. Add tests for route parsing, spec validation, idempotency, and permission failure messages.\n6. Document required GitHub App permissions and the recommended first Project setup.\n\nFor now, my recommendation is: create this as a dedicated `/project-planning` route, but make the first implementation **dry-run spec generation plus permission check**. Once that proves the App can see/create Projects for `self-evolving`, add the apply path.",
+      "createdAt": "2026-05-04T01:43:45Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/126#issuecomment-4367738747",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFaxLw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\nPerhaps an even higher-level goal here is that, can we make the github project design seamlessly connected with our agent backend? Basically for the templates provided by githubs, they are optimized for existing human team rather than human agent teams. We might want to start with something super simple but adds critical features for us to manage the tasks and priorities. Here are some ideas (but not necessarily good ones): \n\n1. In some kanban, you can drag a project to another column, and the agent will then start implementing it. \n2. Also we can know how many tasks are executed by agents at the same time (also related to #25 ) \n... \n\nI am not sure, what do you think?\n",
+      "createdAt": "2026-05-04T01:52:08Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/126#issuecomment-4367757615",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFbAKA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I think that is the right higher-level direction: we should design the Project as a **human-agent operating surface**, not just a human team board.\n\nBut I would be careful about the first trigger model. Dragging a card to a Kanban column and immediately starting implementation is attractive, but it is risky as v1 because a Project field change is less explicit than `@sepo-agent /orchestrate` or `agent/orchestrate`, and GitHub Projects webhooks are still a separate Projects/App surface. GitHub does have `projects_v2_item` webhooks for item activity, but they require GitHub App Projects permission and are documented as public preview. Sepo today is mostly Actions-driven through mentions, labels, and workflow dispatches, so the simplest reliable v1 should build on those existing triggers.\n\nCurrent repo facts that matter:\n\n- Sepo already supports explicit routes like `/implement`, `/review`, `/fix-pr`, `/orchestrate`, and label equivalents like `agent/orchestrate` ([supported-workflows.md](https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/supported-workflows.md#L153-L177)).\n- Label-triggered runs are already one-shot: after routing, `agent-label.yml` removes the triggering `agent/*` label ([supported-workflows.md](https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/supported-workflows.md#L185-L189)).\n- `/orchestrate` is already the right backend primitive for “let the agent decide the next action” and can dispatch implement/review/fix-pr flows ([supported-workflows.md](https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/supported-workflows.md#L24-L66)).\n- `agent-project-manager.yml` already does periodic backlog assessment and priority/effort labeling, but it does not yet connect Project fields to agent execution ([supported-workflows.md](https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/supported-workflows.md#L110-L123)).\n- #25 points at the missing piece: visible agent activity state, especially route labels that remain while an agent is actually running.\n\nMy recommendation: start with a very small “agent-native Project” design.\n\nFields:\n\n- `Status`: Inbox, Backlog, Ready, Agent Queue, In Progress, In Review, Blocked, Done\n- `Executor`: Human, Sepo, Mixed\n- `Agent route`: none, answer, implement, review, fix-pr, orchestrate\n- `Agent state`: idle, queued, running, blocked, failed, PR open, done\n- `Priority`: can be mirrored from `priority/*` labels or kept as a Project field\n- `Effort`: can be mirrored from `effort/*` labels or kept as a Project field\n- `Release`: public-v0, post-v0, exploration\n\nViews:\n\n- **Planning**: all open items, grouped by Release or Roadmap phase.\n- **Agent Queue**: `Executor: Sepo` and `Agent state: queued/running/blocked/failed`.\n- **Human Board**: normal Kanban by `Status`, filtered to `Executor != Sepo`.\n- **Public Release**: `Release: public-v0`.\n- **Agent Capacity**: open issues/PRs where `Agent state: running` or label `agent-running/*`.\n\nFor v1, I would not make column drag itself execute code. I would make this workflow:\n\n1. Human moves item to `Status: Agent Queue`.\n2. Human sets `Executor: Sepo`.\n3. Human sets `Agent route: orchestrate` or `implement`.\n4. A scheduled/project-sync workflow detects queued items and applies the corresponding trigger label, for example `agent/orchestrate`.\n5. Existing Sepo routing runs.\n6. Sepo updates visible activity state:\n   - add `agent-running/orchestrate`\n   - set Project `Agent state: running`\n   - remove or replace it at terminal state\n7. Project view shows active agent load.\n\nThat gives us the “drag into queue” experience, but keeps execution explicit and auditable. It also makes #25 more important: trigger labels and activity labels should be separate. `agent/orchestrate` should mean “start this once”; `agent-running/orchestrate` should mean “Sepo is currently working.”\n\nFor concurrent task visibility, I would not compute it from Project columns alone. The source of truth should be:\n\n- GitHub Actions runs for actual execution.\n- Route activity labels for issue/PR-level visibility.\n- Project `Agent state` field for planning UX.\n\nThen the Project can show “how many tasks Sepo is running” by filtering `Agent state: running`, while a backend check can use Actions concurrency/runs to avoid over-dispatching. The existing workflows already have per-target concurrency groups, for example implementation is grouped by issue number ([agent-implement.yml](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-implement.yml#L123-L125)) and orchestrator by target/action/round ([agent-orchestrator.yml](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-orchestrator.yml#L77-L79)). A later step could add a global `AGENT_MAX_PARALLEL_TASKS` gate.\n\nSo the sequence I’d use is:\n\n1. **MVP Project**: simple fields/views, no automation from Project movement yet.\n2. **Activity labels from #25**: show what Sepo is running and when it finishes.\n3. **Project sync one-way**: Sepo writes Project fields from issue/PR/Actions state.\n4. **Queued Project items dispatch Sepo**: scheduled sync detects `Agent Queue` and applies trigger labels.\n5. **Realtime Project webhook**: later, if the GitHub App permission and webhook path are worth the complexity.\n\nThat keeps the first version simple while still moving toward the real goal: GitHub Project as the dashboard/control plane, Sepo backend as the execution engine.",
+      "createdAt": "2026-05-04T01:54:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/126#issuecomment-4367761448",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFb7tg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\nI like it. \n\n> Executor: Human, Sepo, Mixed\n\nWell maybe one idea is simply we should consider \"assign\" an issue or PR to the agent when we tag it? \n\n> Agent route: none, answer, implement, review, fix-pr, orchestrate\n> Agent state: idle, queued, running, blocked, failed, PR open, done\n\nNot needed -- this is kinda too granular and complex now. Maybe after #25 is displayed, we can show the labels? \n\n> Priority: can be mirrored from priority/* labels or kept as a Project field\n> Effort: can be mirrored from effort/* labels or kept as a Project field\n\nFrankly this should be the ideal way of project management? I think ideally project management should only be enabled when there's a corresponding project like that, and we can manage the labels in that way. And we should make it clear that it is an experimental feature (in the docs). \n",
+      "createdAt": "2026-05-04T01:59:56Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/126#issuecomment-4367776694",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFcIMQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Agreed. I’d simplify the model.\n\nFor now, the GitHub Project should be a **planning surface**, and labels should be the **agent/backend signal layer**. We do not need `Executor`, `Agent route`, or `Agent state` as Project fields yet. Once #25 is implemented, the active agent state can be visible through labels instead.\n\nI’d revise the design to this:\n\nProject fields:\n\n- `Status`: Inbox, Backlog, Ready, In Progress, In Review, Blocked, Done, Later\n- `Priority`: P0, P1, P2, P3\n- `Effort`: Low, Medium, High\n- `Release`: public-v0, post-v0, exploration\n- Optional later: `Workstream`\n\nRepo labels:\n\n- `priority/p0`, `priority/p1`, `priority/p2`, `priority/p3`\n- `effort/low`, `effort/medium`, `effort/high`\n- one-shot trigger labels: `agent/implement`, `agent/review`, `agent/fix-pr`, `agent/orchestrate`\n- activity labels from #25, for example `agent-running/orchestrate` or similar\n\nOn “assigning” to Sepo: yes, but I would make it best-effort. GitHub assignees are user-oriented; GitHub’s docs describe assignees as users, and the REST API can check whether a login is assignable before adding it. If `sepo-agent-app` or its bot identity is assignable in this repo, we can assign issues/PRs to it when Sepo starts work. If not, the fallback should be labels plus Project views. Assignment should be a UX convenience, not the source of truth.\n\nThe cleanest model is:\n\n- Human wants Sepo to work: apply `agent/orchestrate` or mention `@sepo-agent /orchestrate`.\n- Sepo accepts the task:\n  - best-effort assign issue/PR to Sepo’s bot identity\n  - add fixed `agent` status label if enabled\n  - add route activity label from #25\n- Sepo finishes:\n  - remove route activity label\n  - optionally unassign itself or leave assignment if the issue remains agent-owned\n  - update status/summary through existing comments\n\nFor project management, I agree with your direction: it should probably be **enabled only when a corresponding Project is configured**. The current `agent-project-manager.yml` is already experimental-ish in shape: it is disabled by default and only applies labels when explicitly configured ([supported-workflows.md](https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/supported-workflows.md#L110-L123)). I’d make that more explicit:\n\n- Add docs saying Project-backed project management is experimental.\n- Add config like `AGENT_PROJECT_MANAGEMENT_PROJECT_URL` or `AGENT_PROJECT_MANAGEMENT_PROJECT_ID`.\n- If unset, the project-manager can still do dry-run summaries, but should not pretend it is managing the roadmap.\n- If set, the Project becomes the planning source of truth, and labels are synchronized/mirrored for repo search and agent automation.\n\nThe implementation order I’d recommend:\n\n1. Finish #25 first: separate trigger labels from running/activity labels.\n2. Add best-effort “assign to Sepo” on accepted agent work.\n3. Create the simple Project with only `Status`, `Priority`, `Effort`, `Release`.\n4. Update project-manager docs/config to say Project-backed planning is experimental and requires an explicit Project ID/URL.\n5. Later add sync:\n   - Project `Priority`/`Effort` -> repo labels\n   - repo labels -> Project fields only as a fallback/bootstrap path\n\nThat keeps the first version understandable: humans plan in the Project, Sepo works from labels/mentions, and #25 makes active agent work visible without adding too many Project fields.",
+      "createdAt": "2026-05-04T02:01:19Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/126#issuecomment-4367779889",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFcr7w",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\n> priority/p0, priority/p1, priority/p2, priority/p3\n> effort/low, effort/medium, effort/high\n\nCan we avoid duplicating this priority in the repo labels because it's so distracting when we view the issues page? (in that when a new user opens this page, it will be very daunting for them to view it)?\n\n> Status: Inbox, Backlog, Ready, In Progress, In Review, Blocked, Done, Later\nCan we simplify the label category? Inbox, In Progress, To Review, Done? \n\n> best-effort assign issue/PR to Sepo’s bot identity\nNo by default can we assign to @sepo-agent ? ",
+      "createdAt": "2026-05-04T02:05:10Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/126#issuecomment-4367789039",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFc5sA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, I agree with all three simplifications.\n\nFor priority/effort: we should avoid duplicating them as repo labels by default. The current implementation is label-first: the project manager prompt requires `priority/*` and `effort/*`, and the deterministic CLI only applies those managed labels ([project-manager.md](https://github.com/self-evolving/repo/blob/main/.github/prompts/project-manager.md#L9-L51), [project-management-labels.ts](https://github.com/self-evolving/repo/blob/main/.agent/src/project-management-labels.ts#L29-L113)). That made sense before a GitHub Project existed, but with a Project, labels should not be the primary planning UI.\n\nBetter model:\n\n- Project fields are the source of truth for planning:\n  - `Priority`: P0, P1, P2, P3\n  - `Effort`: Low, Medium, High\n- Repo labels stay minimal and operational:\n  - `agent`\n  - `agent/implement`, `agent/review`, etc. as one-shot trigger labels\n  - temporary running labels from #25, if we implement them\n- `priority/*` and `effort/*` labels become optional legacy/fallback mode, not the default.\n\nThat also fits your concern: the Issues page should feel approachable to new users. A repo full of priority/effort labels looks busy and internal.\n\nFor `Status`: yes, I’d simplify to exactly:\n\n- `Inbox`\n- `In Progress`\n- `To Review`\n- `Done`\n\nThat is enough for now. `Backlog`, `Ready`, `Blocked`, `Later` can come later if the workflow needs them. For a small public repo, fewer columns are better.\n\nFor assignment: yes, default to assigning accepted work to `@sepo-agent` if GitHub says that login is assignable. GitHub’s assignee API supports checking whether a user can be assigned and returns `204` when assignable, `404` otherwise. It also manages PR assignees through the shared Issues endpoints. Source: [GitHub REST assignees docs](https://docs.github.com/en/rest/issues/assignees).\n\nSo the implementation should be:\n\n1. Add config: `AGENT_ASSIGNEE=sepo-agent`.\n2. When Sepo accepts an issue/PR task, check whether `sepo-agent` is assignable.\n3. If yes, assign it.\n4. If no, continue without failing and mention in logs/setup check.\n5. Do not use `sepo-agent-app` unless explicitly configured.\n\nI’d revise the project-management implementation plan to:\n\n1. Mark Project-backed project management as experimental in docs.\n2. Add `AGENT_PROJECT_MANAGEMENT_PROJECT_ID` or `AGENT_PROJECT_MANAGEMENT_PROJECT_URL`.\n3. When no Project is configured, keep project management dry-run only by default.\n4. When a Project is configured, update Project fields instead of applying `priority/*` / `effort/*` labels.\n5. Keep label application behind an explicit legacy option.\n\nThe current docs already say project management is disabled by default and label writes require explicit config ([supported-workflows.md](https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/supported-workflows.md#L110-L123), [configuration-list.md](https://github.com/self-evolving/repo/blob/main/.agent/docs/customization/configuration-list.md#L15-L20)). We can build on that without breaking existing behavior.",
+      "createdAt": "2026-05-04T02:06:45Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/126#issuecomment-4367792560",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFhCuw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\n> For assignment: yes, default to assigning accepted work to @sepo-agent if GitHub says that login is assignable. \n\nThis should be based on one our repo variable for the handler?  \n\n> Add AGENT_PROJECT_MANAGEMENT_PROJECT_ID or AGENT_PROJECT_MANAGEMENT_PROJECT_URL.\n\nThis leads me to think that we should allow our github action to be able to modify the repo variable such that we can keep track of it? \n\nAnd this may lead to a more general route, which is something like `@sepo-agent /setup`: \n1. it can modify the repo variable \n2. and specific when it decides to /setup project management, we should consider creating a github specific project for it in this way and the enable project management (with user confirmation) and then conduct it? \n\n> And this may lead to a more general route, which is something like `@sepo-agent /setup`: \n\nEven more systematically, we should consider create an ISSUE template for repo setup such that the users can modify the settings easily?",
+      "createdAt": "2026-05-04T02:32:05Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/126#issuecomment-4367860411",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFhSsw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes on both points.\n\nFor assignment, it should derive from the existing handler variable first. The repo already has `AGENT_HANDLE`, defaulting to `@sepo-agent` ([configuration-list.md](https://github.com/self-evolving/repo/blob/main/.agent/docs/customization/configuration-list.md#L7)). So the default assignee should be:\n\n- `AGENT_HANDLE=@sepo-agent`\n- normalized assignee login: `sepo-agent`\n\nI’d avoid adding a separate `AGENT_ASSIGNEE` unless we discover that the mention handle and assignable login differ. A fallback override could be useful later, but the default should be “assign to the configured handler.”\n\nOn letting Actions modify repo variables: yes, GitHub has REST endpoints to create/update repository Actions variables, and GitHub App installation tokens can use them with `Variables` repository permission set to write. Source: [GitHub REST Actions Variables docs](https://docs.github.com/en/rest/actions/variables). So a setup workflow can technically set things like:\n\n- `AGENT_HANDLE`\n- `AGENT_STATUS_LABEL_ENABLED`\n- `AGENT_PROJECT_MANAGEMENT_ENABLED`\n- `AGENT_PROJECT_MANAGEMENT_PROJECT_ID`\n- `AGENT_PROJECT_MANAGEMENT_PROJECT_URL`\n- maybe `AGENT_PROJECT_MANAGEMENT_MODE=project-fields`\n\nBut this should be treated as a privileged setup operation, not normal agent work. I would not let the model directly call `gh variable set`. The agent can propose a setup plan; deterministic code should apply only an allowlisted variable diff.\n\nI like the `/setup` route, but I’d make it intentionally conservative:\n\n- `@sepo-agent /setup plan`\n  - reads the issue/template\n  - inspects current variables/project state\n  - posts a proposed diff\n  - no mutation\n- `@sepo-agent /setup apply`\n  - requires OWNER/admin-level route access\n  - applies only allowlisted variables\n  - can create or link a GitHub Project\n  - can enable project management\n  - posts exactly what changed\n\nThat would be separate from the current onboarding check. Today onboarding creates trigger labels and a setup issue/checklist ([README.md](https://github.com/self-evolving/repo/blob/main/README.md#L20-L21)); `/setup` would be the higher-level “configure this repo” route. The route does not exist yet; current explicit routes are limited to answer/implement/create-action/fix-pr/review/orchestrate/skill ([supported-workflows.md](https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/supported-workflows.md#L153-L163), [triage.ts](https://github.com/self-evolving/repo/blob/main/.agent/src/triage.ts#L12-L31)).\n\nI also agree on an issue template. That is probably the right user-facing entry point.\n\nAdd something like `.github/ISSUE_TEMPLATE/sepo-setup.yml`:\n\n- Agent handle: default `@sepo-agent`\n- Assign work to handler: yes/no\n- Enable status label: yes/no\n- Enable project management: no / dry-run / project-backed\n- Create GitHub Project: yes/no\n- Project owner/title\n- Project statuses: default `Inbox, In Progress, To Review, Done`\n- Project priority field: yes/no\n- Project effort field: yes/no\n- Confirm: “Post `/setup plan` first; do not apply until I explicitly request `/setup apply`.”\n\nThen `/setup` can consume that structured issue instead of guessing from free-form text.\n\nFor project management specifically, `/setup apply` could do this sequence:\n\n1. Create or locate the GitHub Project.\n2. Create the simple fields/views.\n3. Store the Project ID/URL in repo variables.\n4. Set `AGENT_PROJECT_MANAGEMENT_ENABLED=true`.\n5. Keep writes in dry-run/project-field mode first.\n6. Post next steps and the command to run the first project-manager pass.\n\nThis feels like the right architecture: issue template for human-editable setup intent, `/setup plan` for review, `/setup apply` for privileged deterministic mutation.",
+      "createdAt": "2026-05-04T02:33:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/126#issuecomment-4367864499",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFiJFQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\nWe talked a lot here; it seems there are some concrete sub tasks and issues that we should create first before proceeding? \n\nCan you first print a list of bulleted points for suggested task separation and ordering and I can review it? ",
+      "createdAt": "2026-05-04T02:40:35Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/126#issuecomment-4367878421",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFiStQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Suggested task split and ordering:\n\n- **1. Implement agent activity labels (#25 foundation)**\n  - Separate one-shot trigger labels from temporary running/activity labels.\n  - Example: `agent/orchestrate` triggers once; `agent-running/orchestrate` shows active work.\n  - This should land before Project integration because the Project can then simply display labels instead of duplicating agent state fields.\n\n- **2. Assign accepted tasks to the configured agent handle**\n  - Derive assignee from `AGENT_HANDLE` by default, e.g. `@sepo-agent` -> `sepo-agent`.\n  - Best-effort check whether that login is assignable.\n  - Assign issues/PRs when Sepo accepts work; do not fail the run if assignment is unavailable.\n\n- **3. Simplify Project planning model**\n  - Define the minimal Project fields:\n    - `Status`: `Inbox`, `In Progress`, `To Review`, `Done`\n    - `Priority`: `P0`, `P1`, `P2`, `P3`\n    - `Effort`: `Low`, `Medium`, `High`\n    - optional `Release`\n  - Explicitly avoid repo-wide `priority/*` and `effort/*` labels by default.\n\n- **4. Make project management Project-backed and experimental**\n  - Add docs/config clarifying that Project-backed project management is experimental.\n  - Add config such as `AGENT_PROJECT_MANAGEMENT_PROJECT_ID` or `AGENT_PROJECT_MANAGEMENT_PROJECT_URL`.\n  - If no Project is configured, project management should stay dry-run or summary-only.\n  - If configured, Project fields become the planning source of truth.\n\n- **5. Add a Sepo setup issue template**\n  - Create `.github/ISSUE_TEMPLATE/sepo-setup.yml`.\n  - Let users configure setup intent in a structured way:\n    - agent handle\n    - assign-to-agent behavior\n    - project management enabled/dry-run/project-backed\n    - create/link GitHub Project\n    - Project title/statuses/fields\n  - The template should tell users to run `/setup plan` first.\n\n- **6. Add a privileged `/setup` route**\n  - Add explicit route parsing for `@sepo-agent /setup`.\n  - Start with `@sepo-agent /setup plan`.\n  - It should inspect the setup issue and produce a proposed config/project diff without mutating anything.\n\n- **7. Add deterministic `/setup apply`**\n  - Require explicit confirmation and strong route authorization.\n  - Apply only allowlisted repo variables.\n  - Do not let the model directly run arbitrary `gh variable set`.\n  - Post an audit summary of all changed variables/resources.\n\n- **8. Add GitHub Project creation/linking from setup**\n  - From `/setup apply`, optionally create or locate the configured GitHub Project.\n  - Add the minimal fields/views.\n  - Store the Project ID/URL in repo variables.\n  - Enable project management only after the Project is ready.\n\n- **9. Update project-manager behavior**\n  - Change current label-first project management into Project-field-first behavior.\n  - Keep priority/effort labels as legacy opt-in only.\n  - Update prompt, deterministic apply step, tests, and docs.\n\n- **10. Later: Project-to-agent queue automation**\n  - After the above pieces are stable, consider scheduled sync from Project `Status=In Progress` / `To Review` into agent triggers.\n  - Keep this later because Project field movement as execution trigger needs careful auth, idempotency, and audit behavior.",
+      "createdAt": "2026-05-04T02:41:41Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/126#issuecomment-4367880885",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-04T01:14:19Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 126,
+  "state": "OPEN",
+  "title": "What's the best way to manage the tasks and project planning for this repo now?",
+  "updatedAt": "2026-05-04T02:41:41Z",
+  "url": "https://github.com/self-evolving/repo/issues/126"
+}

@@ -3,7 +3,7 @@
     "is_bot": true,
     "login": "app/sepo-agent-app"
   },
-  "baseRefName": "agent/implement-issue-23/codex-25151531035",
+  "baseRefName": "main",
   "body": "## Summary\n- Add an `installation-bootstrap` CLI/module for GitHub App installation webhooks.\n- Dispatch `agent-onboarding.yml` when the workflow exists, with a marked fallback setup issue when dispatch cannot start.\n- Document hosted and self-managed App bootstrap behavior and keep onboarding CLI tests isolated from inherited `GITHUB_OUTPUT` paths.\n\nStacked on #62.\n\n## Verification\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/installation-bootstrap.test.js .agent/dist/__tests__/onboarding-check-cli.test.js`\n- `ruby -e 'require \"yaml\"; Dir[\".github/workflows/*.yml\"].sort.each { |file| YAML.load_file(file) }'`\n\nCloses #119\n",
   "closedAt": null,
   "comments": [
@@ -46,8 +46,8 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #120 adds a repo-side `installation-bootstrap` CLI/module for GitHub App installation webhooks. It dispatches `agent-onboarding.yml` on the default branch when possible, and falls back to creating or updating one marked `Sepo setup check` issue when onboarding cannot start. This is stacked on PR #62’s first-run onboarding workflow and closes issue #119’s request for a concrete App-install bootstrap path. The docs now describe hosted and self-managed installation behavior plus the provider-secret limitation.\n\n## Review\nThe PR is close, and there are no BLOCKING findings. Claude raised several concerns, while Codex and the rubrics review found the PR ship-ready; this synthesis accepts two fallback-path runtime risks as WARNINGs and treats helper duplication as optional INFO.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Contents lookup failures are reported as missing workflow | WARNING | [`workflowFileExists`](https://github.com/self-evolving/repo/blob/d1e44a40ee198a307c8d0e9f270014c67446cc06/.agent/src/installation-bootstrap.ts#L50) catches every contents API failure and the caller records it as `agent-onboarding.yml` missing, which can mislead users when permissions, refs, or GitHub availability are the real problem. |\n| Bootstrap marker comment lookup is not paginated | WARNING | [`findBootstrapComment`](https://github.com/self-evolving/repo/blob/d1e44a40ee198a307c8d0e9f270014c67446cc06/.agent/src/installation-bootstrap.ts#L94) only reads the first issue-comments page, so busy setup issues can miss the marker and receive duplicate bootstrap comments. |\n| Small GitHub helper duplication remains optional cleanup | INFO | Claude flagged duplicated `commandErrorText`, `apiPath`, and `updateIssueComment` helpers; Codex and rubrics did not treat this as required because the PR already reuses the main GitHub helpers. |\n\n## Progress\n- Rubrics review for PR #120 already passed with no rubric-specific findings.\n- Codex reviewer reported build, focused tests, YAML parsing, and the full `.agent` test suite passing.\n- Existing inline comments were empty before this synthesis.\n- Inline comments were posted for the two WARNINGs: [contents lookup](https://github.com/self-evolving/repo/pull/120#discussion_r3178615313) and [comment pagination](https://github.com/self-evolving/repo/pull/120#discussion_r3178615426).\n- Claude’s `Contents: read` docs note is mostly covered by the global app permissions section; the remaining required concern is runtime error reporting.\n\n## Issue Details\n\n<details>\n<summary>Contents lookup failures are reported as missing workflow</summary>\n\n**Cause:** `workflowFileExists` returns `false` for all `gh api contents/...` failures, and `runInstallationBootstrap` turns that into a missing-workflow reason.\n\n**Candidate solutions:** Preserve `commandErrorText(err)` for non-404 failures, or return a structured lookup result so only true missing-file cases use the missing-workflow reason. Add a focused test for a contents API permission or transient failure.\n\n**Comments:** This matters for self-managed Apps because missing `Contents: read` can produce the wrong setup guidance.\n\n</details>\n\n<details>\n<summary>Bootstrap marker comment lookup is not paginated</summary>\n\n**Cause:** `gh api repos/.../issues/{n}/comments` uses the REST endpoint default page size, so older marker comments can fall outside the first page.\n\n**Candidate solutions:** Use pagination with parsing that handles multiple pages, or explicitly request and handle enough comments. Add a regression test where the marker is beyond the first page.\n\n**Comments:** The fallback is intended to be idempotent; this gap can create duplicate status comments after enough activity.\n\n</details>\n\n<details>\n<summary>Small GitHub helper duplication remains optional cleanup</summary>\n\n**Cause:** The new bootstrap module has local versions of small helpers that also exist in `github.ts` or the stacked onboarding code.\n\n**Candidate solutions:** Export shared helpers from `github.ts` if the maintainers want a single source, or leave the local helpers if avoiding a broader stacked refactor is preferred.\n\n**Comments:** This is maintainability-only and should not drive automation by itself.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the two WARNINGs are concrete fallback-path fixes with focused test coverage and are safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Preserve or propagate the real contents lookup error for non-missing workflow failures, with focused coverage.\n- [ ] Paginate or otherwise reliably search setup issue comments for the bootstrap marker, with coverage for markers beyond the first page.",
       "createdAt": "2026-05-03T19:08:20Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/120#issuecomment-4366938317",
       "viewerDidAuthor": true
@@ -91,8 +91,8 @@
       "body": "Sepo automation handoff dispatched: `fix-pr` -> `review` (round 4/10).\n\nagent planner selected review: fix-pr completed successfully after the prior review requested two concrete fallback-path fixes, so one follow-up review is warranted within the round budget.\n\n<!-- sepo-agent-handoff state:dispatched created:1777835719428 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyODgxMTM4Nzk6Zml4X3ByOjEyMDpyZXZpZXc6MTIwOjQ -->",
       "createdAt": "2026-05-03T19:15:19Z",
       "includesCreatedEdit": true,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/120#issuecomment-4366951455",
       "viewerDidAuthor": true
@@ -106,10 +106,175 @@
       "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #120 follows issue #119 and the PR #62 discussion requesting a hosted App installation webhook path with dispatch-first and issue-fallback behavior. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | `.agent/src/installation-bootstrap.ts` reuses `dispatchWorkflow`, `createIssue`, `postIssueComment`, and `gh` from `.agent/src/github.ts`; workflow logic stays in the typed module/CLI. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | README, quick start, install-existing-repository, using-your-own-github-app, and supported-workflows docs describe hosted and self-managed bootstrap behavior plus provider-secret limits. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The CLI consumes explicit env fields: `GITHUB_REPOSITORY`, `DEFAULT_BRANCH`, `INSTALLATION_ID`, `RUN_URL`, and `RUNNER_TEMP`, with required validation for `GITHUB_REPOSITORY`. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Workflow lookup and dispatch failures create/update a marked `Sepo setup check` fallback issue instead of reporting clean success; tests cover 403 lookup and dispatch failure paths. |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | When onboarding cannot start, the fallback issue/comment gives a visible stop reason and next steps instead of leaving installation as a silent no-op. |\n| communication / generic | Keep status comments compact | pass | 6/6 | `fallbackComment()` formats concise user-facing fields for repo, ref, installation, run, reason, and next steps rather than raw logs. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | Docs explain installation bootstrap behavior structurally and do not add per-file inventory tables. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is scoped to the bootstrap CLI/module, focused tests, one onboarding test isolation fix for `GITHUB_OUTPUT`, and directly related docs. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation is direct: check workflow file, dispatch if available, otherwise find/create one setup issue and post/patch one marker comment. |\n\n## Notes\n\n- The current PR head includes the follow-up fixes for the earlier review warnings: non-404 workflow lookup failures are surfaced as lookup failures, and marker comment lookup uses paginated `gh api --paginate --slurp`.\n- Not scored: delegated route authorization, preview contracts, merge strategy, rubric-authoring, and orchestrator one-shot defaults. This PR does not change those route/policy behaviors.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings. The current PR satisfies the applicable selected rubrics.\n\n## Final Rubric Verdict\n\nPASS",
       "createdAt": "2026-05-03T19:16:54Z",
       "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/120#issuecomment-4366954296",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBEqZlQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #120 adds a repo-side `installation-bootstrap` CLI/module for GitHub App installation webhook flows. It is stacked on PR #62 and closes issue #119 by providing dispatch-first behavior for `agent-onboarding.yml` plus a marked `Sepo setup check` issue fallback when onboarding cannot start. The hosted webhook service itself remains outside this repo; this PR adds the reusable bootstrap contract, tests, and docs for hosted and self-managed App paths. The current head also includes follow-up fixes for the prior review’s workflow lookup and pagination warnings.\n\n## Review\nThe prior two WARNINGs are resolved, but one new fallback-flow issue remains. Claude and the rubrics review considered the current head ship-ready; Codex raised one WARNING, and I agree it should be fixed because it affects the first setup issue users see.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Bootstrap-created setup issue can miss onboarding test prompts | WARNING | [`installation-bootstrap.ts`](https://github.com/self-evolving/repo/blob/3472f21a43b3200daec99cb471e0f0f69f8a75ca/.agent/src/installation-bootstrap.ts#L151) creates the same `Sepo setup check` issue that onboarding later reuses, but its body omits the copyable test prompts from [`onboarding.ts`](https://github.com/self-evolving/repo/blob/3472f21a43b3200daec99cb471e0f0f69f8a75ca/.agent/src/onboarding.ts#L102). If bootstrap fallback creates the issue first, manual onboarding only updates the status comment and leaves those prompts missing. |\n\n## Progress\n- The earlier contents-lookup and marker-comment pagination warnings are fixed in the current head.\n- Rubrics review passed with no rubric-specific findings.\n- Existing inline comments covered only the prior warnings; I posted one new inline comment for the setup issue body concern: https://github.com/self-evolving/repo/pull/120#discussion_r3178633807\n- Optional INFO notes about helper duplication and edge-case messaging remain non-blocking.\n\n## Issue Details\n\n<details>\n<summary>Bootstrap-created setup issue can miss onboarding test prompts</summary>\n\n**Cause:** The bootstrap fallback creates `Sepo setup check` with a short bootstrap-only issue body. Later, `runOnboardingCheck()` finds the existing same-title issue and only posts or updates its checklist comment, so the issue body never gains onboarding’s copyable `/answer`, `/implement`, and `/review` test prompts.\n\n**Candidate solutions:** Reuse the onboarding issue body for bootstrap-created setup issues, share a common setup issue body helper, or make onboarding refresh the issue body when it finds a bootstrap-created setup issue. Add focused coverage for “bootstrap fallback creates issue, then onboarding reuses it” so the prompts stay present.\n\n**Comments:** This is the main reviewer disagreement: Claude and rubrics marked the PR ship-ready, while Codex raised this as a WARNING. The issue is user-facing and tied to the first-run setup contract, so it should be fixed before merge.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the remaining issue is a concrete branch change in the fallback/onboarding setup issue body path and is safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Ensure bootstrap-created `Sepo setup check` issues include the onboarding copyable test prompts, or make onboarding refresh that issue body, with focused regression coverage.",
+      "createdAt": "2026-05-03T19:22:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/120#issuecomment-4366965141",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBEqfaw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `review` -> `fix-pr` (round 5/10).\n\nagent planner selected fix-pr: Latest review synthesis recommends FIX_PR for one concrete WARNING on PR #120; round budget remains available and the fix is safe for automation.\n\n<!-- sepo-agent-handoff state:dispatched created:1777836223872 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyODgyNTEzMjE6cmV2aWV3OjEyMDpmaXhfcHI6MTIwOjU -->",
+      "createdAt": "2026-05-03T19:23:44Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/120#issuecomment-4366966635",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBEq25A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-119/codex-25286562888`. Requested by @sepo-agent.\n\n- Shared the onboarding setup issue body with `installation-bootstrap`, so bootstrap-created `Sepo setup check` issues include the `/answer`, `/implement`, and `/review` test prompts.\n- Added regression coverage for bootstrap fallback creating the setup issue first, then onboarding reusing it while the prompts remain present.\n- Verified with `npm --prefix .agent run build`, focused bootstrap/onboarding CLI tests, YAML workflow parsing, and `git diff --check`.",
+      "createdAt": "2026-05-03T19:26:58Z",
+      "includesCreatedEdit": false,
       "isMinimized": false,
       "minimizedReason": "",
       "reactionGroups": [],
-      "url": "https://github.com/self-evolving/repo/pull/120#issuecomment-4366954296",
+      "url": "https://github.com/self-evolving/repo/pull/120#issuecomment-4366972644",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBEq82w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `fix-pr` -> `review` (round 6/10).\n\nagent planner selected review: fix-pr completed successfully after the latest review requested one concrete fallback/onboarding setup issue body fix; one follow-up review is warranted within the round budget.\n\n<!-- sepo-agent-handoff state:dispatched created:1777836465205 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyODg0NTA0Nzc6Zml4X3ByOjEyMDpyZXZpZXc6MTIwOjY -->",
+      "createdAt": "2026-05-03T19:27:45Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/120#issuecomment-4366974171",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBErIAQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #120 follows issue #119 and is explicitly stacked on #62’s onboarding work. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | [`installation-bootstrap.ts`](https://github.com/self-evolving/repo/blob/7087f9207a306352c34d31ce70fa4f53205e57b6/.agent/src/installation-bootstrap.ts) reuses `dispatchWorkflow`, `createIssue`, `postIssueComment`, `gh`, and the shared onboarding setup issue body. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | README plus deployment/architecture docs describe hosted and self-managed installation bootstrap behavior and provider-secret limits. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The CLI uses explicit env inputs: `GITHUB_REPOSITORY`, `DEFAULT_BRANCH`, `INSTALLATION_ID`, `RUN_URL`, and `RUNNER_TEMP`; `GITHUB_REPOSITORY` is required. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Workflow lookup and dispatch failures create/update a marked `Sepo setup check` fallback issue; tests cover 403 lookup, dispatch failure, and pagination fallback paths. |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | When onboarding cannot start, the bootstrap posts or updates a visible issue comment with the reason and next steps. |\n| communication / generic | Keep status comments compact | pass | 6/6 | `fallbackComment()` uses concise user-facing fields for repo, ref, installation, run, reason, and next steps. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | Documentation explains the bootstrap behavior structurally without adding per-file inventory tables. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is scoped to the bootstrap CLI/module, focused tests, one onboarding test isolation fix, shared setup issue body export, and directly related docs. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation is direct: lookup workflow, dispatch when present, otherwise find/create one setup issue and post/patch one marker comment. |\n\n## Notes\n\n- The current PR head includes fixes for the earlier review concerns: workflow lookup failures are surfaced accurately, marker comment lookup is paginated, and bootstrap-created setup issues reuse onboarding’s copyable test prompts.\n- Not scored: delegated route authorization, preview contracts, merge strategy, rubric-authoring, and orchestrator one-shot defaults. This PR does not materially change those behaviors.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings. The current PR satisfies the applicable selected rubrics.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-03T19:29:15Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/120#issuecomment-4366977025",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBErxjQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #120 adds a repo-side `installation-bootstrap` CLI/module for GitHub App installation webhook flows. It is stacked on PR #62’s onboarding workflow and closes issue #119 by providing dispatch-first behavior for `agent-onboarding.yml` plus a marked `Sepo setup check` issue fallback when automatic onboarding cannot start. The hosted webhook receiver remains outside this repo; this PR adds the reusable bootstrap contract, tests, and docs for hosted and self-managed App paths. The current head includes fixes from prior review rounds for lookup error reporting, paginated bootstrap comment lookup, and bootstrap-created setup issue prompts.\n\n## Review\nThe PR is close, with one remaining user-facing fallback guidance gap. Claude considered this permission-copy issue INFO and otherwise SHIP; Codex treated it as WARNING, and this synthesis agrees it should be fixed because it affects the remediation path for a real `Contents` API failure.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Fallback permission guidance omits `Contents: read` | WARNING | [`fallbackComment()`](https://github.com/self-evolving/repo/blob/7087f9207a306352c34d31ce70fa4f53205e57b6/.agent/src/installation-bootstrap.ts#L174) tells users to check `Actions: write` and `Issues: write`, but the bootstrap first calls the repository contents API, which also needs `Contents: read`. A self-managed App missing that permission can surface a lookup failure while the next steps point at an incomplete fix. |\n| Non-blocking cleanup notes remain optional | INFO | Reviewers noted small helper duplication, an existing first-page-only onboarding comment lookup, and a CLI env comment missing `RUNNER_TEMP`. These are maintenance or documentation nits and should not drive automation by themselves. |\n\n## Progress\n- Prior WARNINGs are fixed in the current head: workflow lookup failures are preserved, bootstrap marker lookup is paginated, and bootstrap-created setup issues reuse onboarding’s copyable test prompts.\n- Rubrics review passed with no rubric-specific findings.\n- Existing inline comments covered only prior fixed issues; one new inline comment was posted for the remaining fallback permission guidance: https://github.com/self-evolving/repo/pull/120#discussion_r3178648000\n- Reviewer verification reported build, focused tests, YAML parsing, `git diff --check`, and the full `.agent` test suite passing.\n\n## Issue Details\n<details>\n<summary>Fallback permission guidance omits `Contents: read`</summary>\n\n**Cause:** The bootstrap checks `.github/workflows/agent-onboarding.yml` through GitHub’s repository contents API before dispatching the workflow, but the fallback comment’s next steps only mention `Actions: write` and `Issues: write`.\n\n**Candidate solutions:** Add `Contents: read` to the fallback permission step, or link that step directly to the minimum App permissions docs. Update any existing string assertions if the tests check the rendered fallback comment.\n\n**Comments:** This is the main reviewer disagreement: Claude called it low-impact INFO because docs already list `Contents`, while Codex called it WARNING because the inline fallback guidance is what users see during the failure.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the remaining issue is a concrete one-line user-facing fallback guidance fix and is safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Update the bootstrap fallback next steps to include `Contents: read` or link directly to the minimum App permissions docs.",
+      "createdAt": "2026-05-03T19:34:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/120#issuecomment-4366987661",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBEr4Kg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `review` -> `fix-pr` (round 7/10).\n\nagent planner selected fix-pr: Latest review synthesis recommends FIX_PR for one concrete WARNING on PR #120; round budget remains available and the fix is safe for automation.\n\n<!-- sepo-agent-handoff state:dispatched created:1777836918685 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyODg1NDU4Nzg6cmV2aWV3OjEyMDpmaXhfcHI6MTIwOjc -->",
+      "createdAt": "2026-05-03T19:35:19Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/120#issuecomment-4366989354",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBEsI-Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-119/codex-25286562888`. Requested by @sepo-agent.\n\n- Updated the bootstrap fallback next steps to include `Contents: read` alongside `Actions: write` and `Issues: write`.\n- Added a focused fallback-comment assertion so the rendered guidance keeps listing the contents permission.\n- Verified with `npm --prefix .agent run build`, focused bootstrap/onboarding CLI tests, YAML workflow parsing, and `git diff --check`.",
+      "createdAt": "2026-05-03T19:37:09Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/120#issuecomment-4366993657",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBEsQGw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `fix-pr` -> `review` (round 8/10).\n\nagent planner selected review: fix-pr completed successfully after the latest review requested a concrete fallback permission guidance fix, so one follow-up review is warranted within the remaining round budget.\n\n<!-- sepo-agent-handoff state:dispatched created:1777837084757 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyODg3NDMxMjM6Zml4X3ByOjEyMDpyZXZpZXc6MTIwOjg -->",
+      "createdAt": "2026-05-03T19:38:05Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/120#issuecomment-4366995483",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBEsY8g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #120 follows issue #119 and the stacked PR #62 onboarding discussion, especially the requested dispatch-first, issue-fallback GitHub App installation path. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | [`installation-bootstrap.ts`](https://github.com/self-evolving/repo/blob/58180397b0ad979c017033da7cb98ab7a2395ea1/.agent/src/installation-bootstrap.ts) reuses `dispatchWorkflow`, `createIssue`, `postIssueComment`, `gh`, and the shared onboarding setup issue body. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | README, quick start, install-existing-repository, using-your-own-github-app, and supported-workflows docs all describe hosted/self-managed bootstrap behavior and provider-secret limits. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The CLI uses explicit env inputs: `GITHUB_REPOSITORY`, `DEFAULT_BRANCH`, `INSTALLATION_ID`, `RUN_URL`, and `RUNNER_TEMP`; `GITHUB_REPOSITORY` is required. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Workflow lookup and dispatch failures create/update a marked `Sepo setup check` fallback issue with the real failure reason; tests cover 403 lookup, dispatch failure, and pagination fallback paths. |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | When onboarding cannot start, `fallbackComment()` posts or updates a visible setup issue comment with repo/ref/install/run/reason and next steps. |\n| communication / generic | Keep status comments compact | pass | 6/6 | The fallback status is concise and user-facing, with short structured fields and next steps instead of raw command output. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | The docs explain the bootstrap behavior structurally and do not add per-file inventory tables. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is scoped to the bootstrap CLI/module, focused tests, one onboarding test isolation fix, shared setup issue body export, and directly related docs. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation is direct: lookup workflow, dispatch when present, otherwise find/create one setup issue and post/patch one marker comment. |\n\n## Notes\n\n- The current head includes fixes from prior review rounds: non-404 workflow lookup failures are surfaced accurately, bootstrap marker lookup is paginated, bootstrap-created setup issues reuse onboarding’s test prompts, and fallback guidance includes `Contents: read`.\n- Not scored: delegated route authorization, preview contracts, merge strategy, rubric-authoring, and orchestrator one-shot defaults. This PR does not materially change those behaviors.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings. The current PR satisfies the applicable selected rubrics.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-03T19:39:20Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/120#issuecomment-4366997746",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBEtATA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #120 adds a repo-side `installation-bootstrap` CLI/module for GitHub App installation webhook flows. It is stacked on PR #62’s onboarding workflow and closes issue #119 by providing dispatch-first behavior for `agent-onboarding.yml` plus a marked `Sepo setup check` fallback when automatic onboarding cannot start. The hosted webhook receiver remains outside this repo; this PR adds the reusable bootstrap contract, regression tests, and docs for hosted and self-managed App paths. Current head `58180397b0ad979c017033da7cb98ab7a2395ea1` includes the fixes from all prior review rounds.\n\n## Review\nThe current PR is ready. Codex and the rubrics review found no remaining findings at the latest head; Claude’s remaining notes are INFO-level optional cleanup from an older reviewed commit and do not require branch changes.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | The previously raised fallback-path issues are fixed, including lookup error reporting, paginated bootstrap marker lookup, shared onboarding prompts, and `Contents: read` fallback guidance. Remaining notes are optional maintainability or edge-case cleanup. |\n\n## Progress\n- Prior review WARNINGs have been fixed and acknowledged in follow-up comments.\n- The latest rubrics review passed with no rubric-specific findings.\n- Current head now renders fallback permissions as `Contents: read`, `Actions: write`, and `Issues: write`, with a focused test assertion covering `Contents: read`.\n- Existing inline comments refer to earlier fixed revisions; no new inline comment was needed for the current head.\n- PR #120 remains stacked on PR #62, so merge sequencing depends on that parent PR.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved actionable branch-change work remains; humans can proceed with normal review/merge sequencing for the stack.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change action items.",
+      "createdAt": "2026-05-03T19:44:48Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/120#issuecomment-4367007820",
       "viewerDidAuthor": true
     }
   ],
@@ -141,13 +306,13 @@
     },
     {
       "path": ".agent/src/__tests__/installation-bootstrap.test.ts",
-      "additions": 264,
+      "additions": 265,
       "deletions": 0,
       "changeType": "ADDED"
     },
     {
       "path": ".agent/src/__tests__/onboarding-check-cli.test.ts",
-      "additions": 1,
+      "additions": 101,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
@@ -159,9 +324,15 @@
     },
     {
       "path": ".agent/src/installation-bootstrap.ts",
-      "additions": 232,
+      "additions": 224,
       "deletions": 0,
       "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/onboarding.ts",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
     },
     {
       "path": "README.md",
@@ -177,6 +348,18 @@
       "name": "agent",
       "description": "Handled by the agent",
       "color": "0e8a16"
+    },
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChVB4QQ",
+      "name": "priority/p1",
+      "description": "Project management: high priority",
+      "color": "d93f0b"
+    },
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChVB5Zw",
+      "name": "effort/high",
+      "description": "Project management: high effort",
+      "color": "d73a4a"
     }
   ],
   "mergedAt": null,
@@ -212,10 +395,40 @@
       "commit": {
         "oid": "d1e44a40ee198a307c8d0e9f270014c67446cc06"
       }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM77Vhua",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-03T19:22:15Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "3472f21a43b3200daec99cb471e0f0f69f8a75ca"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM77VkY3",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-03T19:33:40Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "7087f9207a306352c34d31ce70fa4f53205e57b6"
+      }
     }
   ],
   "state": "OPEN",
   "title": "Add GitHub App installation bootstrap",
-  "updatedAt": "2026-05-03T19:16:54Z",
+  "updatedAt": "2026-05-03T23:02:28Z",
   "url": "https://github.com/self-evolving/repo/pull/120"
 }

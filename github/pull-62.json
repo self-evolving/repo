@@ -5,7 +5,7 @@
   },
   "baseRefName": "main",
   "body": "## Summary\n- Add `Agent / Onboarding / Check Setup` for first-run setup checks.\n- Create built-in `agent/*` trigger labels and maintain one `Sepo setup check` issue/comment.\n- Document the onboarding flow in the README and setup docs.\n\n## Verification\n- `npm --prefix .agent test`\n- `ruby -e 'require \"yaml\"; Dir[\".github/workflows/*.yml\"].sort.each { |file| YAML.load_file(file) }'`\n\nCloses #23\n",
-  "closedAt": null,
+  "closedAt": "2026-05-03T22:47:47Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABA0w4Iw",
@@ -274,6 +274,58 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/62#issuecomment-4365221643",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFCJUA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer\r\n\r\nLet's say if there's an existing onboarding issue and we run it again -> what will happen there?",
+      "createdAt": "2026-05-03T22:41:30Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/62#issuecomment-4367354192",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFCQQg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I’ll answer against the PR’s intended onboarding logic: the key behavior is whether the existing issue is open and whether it already has the hidden onboarding marker comment.If there is an **open** existing `Sepo setup check` issue and the onboarding workflow runs again:\n\n1. It re-ensures the built-in `agent/*` labels.\n   - Existing labels are left alone.\n   - Missing labels are created.\n\n2. It re-checks setup status.\n   - GitHub auth mode\n   - provider readiness\n   - `OPENAI_API_KEY`\n   - `CLAUDE_CODE_OAUTH_TOKEN`\n   - memory branch\n   - rubrics branch\n\n3. It reuses the existing `Sepo setup check` issue.\n   - It does **not** create a second setup issue in the normal case.\n\n4. It looks for the hidden marker comment:\n   - `<!-- sepo-agent-onboarding-check -->`\n\n5. If that marker comment exists, it **updates that comment** with the latest checklist.\n\n6. If the issue exists but the marker comment is missing, it **adds a new checklist comment** to that existing issue.\n\nOne edge case: if the old `Sepo setup check` issue was **closed**, the current implementation searches open issues only, so a rerun would create a new open setup issue.",
+      "createdAt": "2026-05-03T22:42:30Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/62#issuecomment-4367355970",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFDDOA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nUpdated [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #62.\n\nAdded one active rubric:\n\n`rubrics/workflow/idempotent-user-facing-automation.yaml`\n\nIt captures the durable preference from PR #62 / issue #23: rerunnable user-facing automation should reuse or update existing setup/status artifacts via stable lookup/markers instead of creating duplicates, and should document important edge cases.\n\nValidation: YAML parse check passed. No git commit was made.\n",
+      "createdAt": "2026-05-03T22:49:26Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/62#issuecomment-4367369016",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-04-30T06:52:19Z",
@@ -354,7 +406,7 @@
       "color": "d73a4a"
     }
   ],
-  "mergedAt": null,
+  "mergedAt": "2026-05-03T22:47:47Z",
   "number": 62,
   "reviewDecision": "",
   "reviews": [
@@ -374,8 +426,8 @@
       }
     }
   ],
-  "state": "OPEN",
+  "state": "MERGED",
   "title": "Add first-run onboarding setup workflow",
-  "updatedAt": "2026-05-03T02:30:57Z",
+  "updatedAt": "2026-05-03T23:02:30Z",
   "url": "https://github.com/self-evolving/repo/pull/62"
 }

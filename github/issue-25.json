@@ -22,6 +22,117 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/25#issuecomment-4340316345",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFbOZQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\n> For orchestrator, should label removal happen when agent-orchestrator.yml ends, or only after the full multi-step automation chain reaches stop?\n\nOK actually we've added a lot of features for the agent orchestrator -- can you review the new features for orchestrator? And to answer you question, yeah we should remove after multi-step automation stops.\n\n> Should “corresponding label” reuse trigger names (agent/review, agent/orchestrate) or use separate non-trigger activity labels (recommended)?\n\nYeah that is a great question. If we use a different tag, what type should that be?\nAnd if we reuse the trigger names, how messy the code is going to be? \n\n\n\n",
+      "createdAt": "2026-05-04T01:55:33Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/25#issuecomment-4367765093",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFbz3Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I reviewed the current orchestrator feature set on `main` and ran the focused test subset.\n\nFindings:\n\n1. High: reusing `agent/orchestrate` as a running label conflicts with current cleanup.\n[agent-label.yml](/Users/shannon/projects/2604_sepo/repo/.agent/tools/local-runner/runner-1/_work/repo/repo/.github/workflows/agent-label.yml:48) removes every accepted `agent/*` label immediately after `agent-router.yml` succeeds. For `/orchestrate`, router success only means “orchestrator workflow dispatched” ([agent-router.yml](/Users/shannon/projects/2604_sepo/repo/.agent/tools/local-runner/runner-1/_work/repo/repo/.github/workflows/agent-router.yml:682)); the multi-step chain has not finished. So `agent/orchestrate` cannot currently represent “orchestration is running”.\n\n2. Medium: terminal orchestrator UX is uneven.\n[orchestrate-handoff.ts](/Users/shannon/projects/2604_sepo/repo/.agent/tools/local-runner/runner-1/_work/repo/repo/.agent/src/cli/orchestrate-handoff.ts:1157) handles terminal decisions, but visible stop comments are only emitted for selected cases. A normal chain ending after a review `SHIP` can stop without a final “orchestration complete” comment. That is relevant if we also remove a running label at terminal stop, because the label may disappear without a clear final orchestration marker.\n\n3. No blocker found in core route/policy logic.\nThe explicit `/orchestrate` route, planner validation, sub-issue delegation, base branch/PR propagation, and `orchestration_enabled` handoff gating are well covered. I ran:\n`npm --prefix .agent run build`\n`node --test .agent/dist/__tests__/triage.test.js .agent/dist/__tests__/handoff.test.js .agent/dist/__tests__/orchestrate-handoff-cli.test.js .agent/dist/__tests__/orchestrator-preflight-cli.test.js .agent/dist/__tests__/implementation-base.test.js .agent/dist/__tests__/sub-orchestration.test.js .agent/dist/__tests__/envelope.test.js`\n\nResult: `170` tests passing.\n\nFor the label design: I recommend separate non-trigger activity labels.\n\nUse labels like:\n- `sepo/running-review`\n- `sepo/running-fix-pr`\n- `sepo/running-implement`\n- `sepo/running-orchestrate`\n\nReason: anything under `agent/` is currently a trigger label because [agent-label.yml](/Users/shannon/projects/2604_sepo/repo/.agent/tools/local-runner/runner-1/_work/repo/repo/.github/workflows/agent-label.yml:32) starts workflows for `startsWith(label, 'agent/')`. If we reuse trigger names, the same label has two meanings: “please run this” and “this is running”. That makes cleanup, reruns, and retriggers much more fragile.\n\nHow messy reuse would be:\n- For `agent/review`, `agent/fix-pr`, `agent/implement`, we would need to skip `agent-label.yml` cleanup and move cleanup into every terminal workflow.\n- For `agent/orchestrate`, cleanup must move into terminal orchestrator logic after the whole chain stops, not after router dispatch.\n- Re-adding labels from workflows can accidentally trigger `agent-label.yml` unless every path is carefully guarded.\n- Users cannot rerun by applying the same label while it remains present.\n\nSo the cleaner model is:\n- `agent/*` means trigger.\n- `agent` means handled status.\n- `sepo/running-*` means current activity/status.\n\nFor your answer: orchestrator running label should be removed only when the multi-step automation stops, not when `agent-orchestrator.yml` merely dispatches the next child workflow.",
+      "createdAt": "2026-05-04T01:59:12Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/25#issuecomment-4367774685",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFdX2g",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> [agent-label.yml](https://github.com/Users/shannon/projects/2604_sepo/repo/.agent/tools/local-runner/runner-1/_work/repo/repo/.github/workflows/agent-label.yml:48) removes every accepted agent/* label immediately after agent-router.yml succeeds.\n\nYeah I agree. But how about we can composite this: \n- Add a separate label called agent-running  \n- If agent-running is included, then we should keep the labels \n- And then after agent-running is removed, then we remove the agent/* labels? \n\n@sepo-agent /answer \n\nBut that might not lead to a clean implementation?",
+      "createdAt": "2026-05-04T02:10:03Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/25#issuecomment-4367800282",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFdgBQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I’ll answer this as a design review of the label lifecycle, using the current workflow shape: `agent/*` labels are trigger labels, and any running-state label should avoid becoming another trigger path.I would not implement it as “`agent-running` controls whether we keep `agent/*` labels.”\n\nIt can work, but it couples two separate concepts:\n\n- `agent/*`: queue/trigger labels\n- `agent-running`: execution state\n\nThat coupling creates edge cases:\n- If `agent-running` removal fails, stale `agent/*` labels remain and users cannot re-apply the same trigger label cleanly.\n- If someone manually removes `agent-running`, we need a second cleanup workflow to remove `agent/*`, which itself must avoid racing active jobs.\n- Multiple route labels become ambiguous: `agent/review` plus `agent/fix-pr` plus `agent-running` does not say which action is actually running.\n- For orchestrator, keeping `agent/orchestrate` around until the chain stops means the trigger label doubles as a status label, which makes retries and manual reruns less obvious.\n\nCleaner implementation:\n\n- Keep `agent/*` as one-shot trigger labels.\n- Add separate activity labels that never trigger workflows:\n  - `agent-running` for generic “Sepo is active”\n  - optionally `agent-running/review`, `agent-running/fix-pr`, `agent-running/implement`, `agent-running/orchestrate` if we want route visibility\n- Remove `agent/*` trigger labels immediately after the router accepts the request, as today.\n- Add running labels when the real route starts.\n- Remove route running labels when that route finishes.\n- Remove `agent-running/orchestrate` only when the whole orchestration chain stops.\n\nIf you want the simplest useful version, I’d do just two labels first:\n\n- `agent-running`\n- `agent-running/orchestrate`\n\nThen later add per-route labels if the generic one is not enough. Note: because `agent-label.yml` triggers on `startsWith(label, 'agent/')`, I would avoid names like `agent/running/*`. Use `agent-running` or `sepo/running-*` so adding the status label does not create extra workflow runs.",
+      "createdAt": "2026-05-04T02:11:03Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/25#issuecomment-4367802373",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFessA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Add separate activity labels that never trigger workflows:\n> agent-running for generic “Sepo is active”\n> optionally agent-running/review, agent-running/fix-pr, agent-running/implement, agent-running/orchestrate if we want route visibility\n\nSure kinda makes sense; route visibility should be ideal? \n\n> Remove agent/* trigger labels immediately after the router accepts the request, as today.\n> Add running labels when the real route starts.\n\nis this completely true? for example, when we run agent/review, it will only remove the labels when it finishes?\n\n@sepo-agent /answer\n",
+      "createdAt": "2026-05-04T02:18:40Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/25#issuecomment-4367822000",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFe9Qg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Not completely true if “labels” means `agent/review`.\n\nThe cleaner lifecycle is:\n\n1. User applies `agent/review`.\n2. `agent-label.yml` triggers.\n3. Router accepts the request.\n4. Remove `agent/review` immediately, because it is a trigger/queue label.\n5. Add `agent-running/review` when the actual review workflow starts.\n6. Remove `agent-running/review` when review finishes.\n\nSo the visible in-progress label would be `agent-running/review`, not `agent/review`.\n\nFor orchestrator:\n\n1. User applies `agent/orchestrate`.\n2. Remove `agent/orchestrate` after router accepts it.\n3. Add `agent-running/orchestrate`.\n4. Keep `agent-running/orchestrate` across implement/review/fix-pr handoffs.\n5. Remove `agent-running/orchestrate` only when the orchestration chain reaches a terminal stop.\n\nRoute visibility is ideal, but it should be represented by non-trigger activity labels. Reusing `agent/review` as both “please run review” and “review is running” is where the implementation gets messy.",
+      "createdAt": "2026-05-04T02:19:42Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/25#issuecomment-4367826242",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-04-29T01:52:52Z",
@@ -48,6 +159,6 @@
   "number": 25,
   "state": "OPEN",
   "title": "Display the corresponding label when running the action",
-  "updatedAt": "2026-04-30T04:06:30Z",
+  "updatedAt": "2026-05-04T02:19:42Z",
   "url": "https://github.com/self-evolving/repo/issues/25"
 }

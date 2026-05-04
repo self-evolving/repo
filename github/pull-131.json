@@ -1,0 +1,248 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Render generic handoff marker comments as compact status tables while preserving hidden markers.\n- Derive review-to-fix-pr task context from synthesis action items and pass it through orchestrator/fix-pr workflows.\n- Tighten orchestrator/fix-pr prompts and docs around fix-pr handoff context.\n\n## Tests\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/handoff.test.js .agent/dist/__tests__/orchestrate-handoff-cli.test.js .agent/dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nCloses #129\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFs4NA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `implement` -> `review` (round 3/10).\n\nagent planner selected review: Implementation succeeded and produced open PR #131 for issue #129; an automated review is the appropriate next step before merge.\n\n<!-- sepo-agent-handoff state:dispatched created:1777866348325 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyOTk3MTE5ODk6aW1wbGVtZW50OjEyOTpyZXZpZXc6MTMxOjM -->",
+      "createdAt": "2026-05-04T03:45:48Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/131#issuecomment-4368054324",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFtTEQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 98 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| communication / generic | Keep status comments compact | pass | 12/12 | Generic handoff comments now render a compact status table plus a focused `Task for fix-pr` block while preserving hidden markers in [`handoff.ts`](https://github.com/self-evolving/repo/blob/2201c7c6dc49df3d5b7862cd61831e7f9e2d9f4d/.agent/src/handoff.ts#L354). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 12/12 | Adds a separate `source_handoff_context` workflow input and env plumbing instead of overloading source conclusion or request text in [`agent-orchestrator.yml`](https://github.com/self-evolving/repo/blob/2201c7c6dc49df3d5b7862cd61831e7f9e2d9f4d/.github/workflows/agent-orchestrator.yml#L39). |\n| coding_workflow / generic | Reuse existing code | pass | 11/12 | Moves the transposed table helper into shared handoff code and reuses it for generic handoff comments and existing sub-orchestration comments in [`handoff.ts`](https://github.com/self-evolving/repo/blob/2201c7c6dc49df3d5b7862cd61831e7f9e2d9f4d/.agent/src/handoff.ts#L120). |\n| coding_workflow / generic | Keep docs in sync | pass | 12/12 | Orchestrator docs now document source handoff context, fix-pr task context, compact handoff tables, and hidden marker behavior in [`agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/2201c7c6dc49df3d5b7862cd61831e7f9e2d9f4d/.agent/docs/technical-details/agent-orchestrator.md#L57). |\n| coding_workflow / generic | Validate delegated route authorization | pass | 12/12 | The PR preserves requester/access-policy inputs through orchestrator dispatch and leaves preflight capability validation in place before downstream dispatch in [`agent-orchestrator.yml`](https://github.com/self-evolving/repo/blob/2201c7c6dc49df3d5b7862cd61831e7f9e2d9f4d/.github/workflows/agent-orchestrator.yml#L106) and [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/2201c7c6dc49df3d5b7862cd61831e7f9e2d9f4d/.agent/src/cli/orchestrate-handoff.ts#L1095). |\n| coding_workflow / specific | Default follow-up orchestration to one-shot | pass | 10/10 | Follow-up chaining remains gated to explicit orchestration context; direct runs still skip orchestrator dispatch when automation is disabled in [`dispatch-agent-orchestrator.ts`](https://github.com/self-evolving/repo/blob/2201c7c6dc49df3d5b7862cd61831e7f9e2d9f4d/.agent/src/cli/dispatch-agent-orchestrator.ts#L33). |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 12/12 | Existing marker dedupe is preserved while pending/dispatched/failed comments are updated through the same hidden marker flow in [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/2201c7c6dc49df3d5b7862cd61831e7f9e2d9f4d/.agent/src/cli/orchestrate-handoff.ts#L1221). |\n| coding_workflow / generic | Make surgical changes | pass | 17/18 | Changes are narrowly scoped to handoff formatting, context plumbing, prompts, docs, and focused tests; no unrelated workflow or route refactor is present. |\n\n## Notes\n\n- The strongest rubric fit is communication: the PR directly implements the requested compact table style and explicit fix-pr task context, with tests covering both formatter output and dispatch payload propagation.\n- The structured input and authorization rubrics are satisfied because context is passed as its own workflow input while existing requester, association, access policy, and preflight checks remain intact.\n- Smallest useful follow-up: none for the selected rubrics.\n\n## Findings\n\n- **INFO:** No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-04T03:47:51Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/131#issuecomment-4368061201",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFvztA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #131 closes #129, which asked for generic orchestrator handoff comments to use the compact tabular style used elsewhere.\n- It also tries to make review-to-fix-pr handoffs more explicit by deriving task context from review synthesis action items and passing that context through orchestrator/fix-pr workflows.\n- The implementation updates handoff formatting, workflow inputs, prompts, docs, and focused tests.\n- Reviewers generally agree the visible comment format, docs, and rubric alignment are strong, but two context-propagation gaps remain.\n\n## Review\nThe PR is close, but it has two unresolved behavior issues that can send fix-pr the wrong or missing task context. These are concrete branch changes and should be fixed before merge.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Agent planner cannot read source handoff context | BLOCKING | The workflow exports `ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT`, but `run.ts` does not allowlist it for prompt rendering, so agent-mode planners see the prompt variable as blank. |\n| Manual PR orchestrate can send the wrong fix-pr task | BLOCKING | The post-decision fallback applies review-synthesis-only instructions to manual PR `/orchestrate` starts with `CHANGES_REQUESTED`, where there may be no synthesis and fix-pr should inspect requested-change comments. |\n\n## Progress\n- The compact handoff table format and `Task for fix-pr` block are implemented and covered by tests.\n- Docs and prompts were updated, and the rubric review passed with no rubric-specific findings.\n- Existing inline review comments were empty before synthesis; inline comments were posted for both unresolved line-specific issues.\n- Optional polish noted by reviewers, such as consolidating duplicated verdict sets or documenting level-2 heading assumptions, is not required for this pass.\n\n## Issue Details\n\n<details>\n<summary>Agent planner cannot read source handoff context</summary>\n\n**Cause:** `.github/workflows/agent-orchestrator.yml` sets `ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT`, and `.github/prompts/agent-orchestrator.md` references it, but `.agent/src/run.ts` omits it from `SUPPLEMENTAL_PROMPT_VAR_NAMES`.\n\n**Candidate solutions:** Add `ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT` to the runtime prompt variable allowlist and add a focused contract test that fails if the variable is not renderable in planner prompts.\n\n**Comments:** Posted inline on `.github/prompts/agent-orchestrator.md` line 15.\n\n</details>\n\n<details>\n<summary>Manual PR orchestrate can send the wrong fix-pr task</summary>\n\n**Cause:** The fallback at `.agent/src/cli/orchestrate-handoff.ts` fills any missing fix-pr handoff context with `defaultFixPrHandoffContext()`, including manual PR `/orchestrate` starts with `CHANGES_REQUESTED`.\n\n**Candidate solutions:** Scope the default review-synthesis context to review-originated handoffs, or use a manual-PR-specific context that tells fix-pr to address the latest unresolved requested-change review comments.\n\n**Comments:** Claude considered the post-decision mutation acceptable as a short-term safety net, but Codex flagged the concrete manual PR behavior gap. This synthesis treats it as blocking because fix-pr prioritizes non-empty orchestrator context over review comments. Posted inline on `.agent/src/cli/orchestrate-handoff.ts` line 1137.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: the remaining issues are concrete, localized branch changes suitable for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Add `ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT` to the runtime prompt variable allowlist and cover it with a prompt-rendering contract test.\n- [ ] Fix the manual PR `CHANGES_REQUESTED` path so fix-pr receives requested-change review context instead of review-synthesis-only default instructions.",
+      "createdAt": "2026-05-04T03:54:22Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/131#issuecomment-4368102324",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFwN-w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `review` -> `fix-pr` (round 4/10).\n\nagent planner selected fix-pr: Latest review synthesis verdict is NEEDS_REWORK with Recommended Next Step FIX_PR; two concrete localized branch fixes remain and round budget is available.\n\n<!-- sepo-agent-handoff state:dispatched created:1777866915771 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyOTk5OTAzMjk6cmV2aWV3OjEzMTpmaXhfcHI6MTMxOjQ -->",
+      "createdAt": "2026-05-04T03:55:16Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/131#issuecomment-4368109051",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFxzSA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-129/codex-25299711989`. Requested by @sepo-agent.\n\n- Added `ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT` to the runtime prompt allowlist with a focused planner prompt contract test.\n- Fixed manual PR `/orchestrate` + `CHANGES_REQUESTED` handoffs so `fix-pr` gets requested-change review-comment context instead of review-synthesis fallback text.\n- Updated orchestrator docs and verified with `npm --prefix .agent run build`, targeted `node --test`, and `git diff --check`.",
+      "createdAt": "2026-05-04T04:00:08Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/131#issuecomment-4368134984",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFx95A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `fix-pr` -> `review` (round 5/10).\n\nagent planner selected review: fix-pr succeeded after addressing the two blocking review synthesis findings; one validation review is warranted before stopping the chain.\n\n<!-- sepo-agent-handoff state:dispatched created:1777867265813 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzMDAyMTQxNzY6Zml4X3ByOjEzMTpyZXZpZXc6MTMxOjU -->",
+      "createdAt": "2026-05-04T04:01:06Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/131#issuecomment-4368137700",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFyMzw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| communication / generic | Keep status comments compact | pass | 12/12 | Generic handoff comments now render a compact transposed status table and a focused `Task for fix-pr` block in `.agent/src/handoff.ts`, matching issue #129’s requested style. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 12/12 | The PR adds separate `source_handoff_context` workflow input/env plumbing in `.github/workflows/agent-orchestrator.yml` instead of overloading conclusion text or request text. |\n| coding_workflow / generic | Reuse existing code | pass | 12/12 | The transposed Markdown table helper is moved/reused through shared handoff code rather than duplicating the formatting approach only in workflow glue. |\n| coding_workflow / generic | Keep docs in sync | pass | 12/12 | `.agent/docs/technical-details/agent-orchestrator.md` documents source handoff context, review-originated fix-pr context, manual PR requested-change context, compact comments, and hidden marker behavior. |\n| coding_workflow / generic | Validate delegated route authorization | pass | 12/12 | The orchestrator workflow continues to carry `author_association`, `access_policy`, and `repository_private`; preflight authorization remains before planner/dispatch, while downstream route context is preserved. |\n| coding_workflow / specific | Default follow-up orchestration to one-shot | pass | 10/10 | Direct non-orchestrated runs still skip handoff unless `orchestration_enabled` or automation mode allows chaining; the PR only improves explicitly orchestrated handoff context. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 12/12 | Existing hidden `sepo-agent-handoff` marker, pending/dispatched/failed states, stale pending retry behavior, and older-comment minimization are preserved while the visible comment format changes. |\n| coding_workflow / generic | Make surgical changes | pass | 18/18 | Changes are scoped to orchestrator handoff formatting, context derivation/plumbing, prompts, docs, and focused tests; no unrelated route or workflow refactor is introduced. |\n\n## Notes\n\n- The current PR head includes fixes for the earlier review blockers: `ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT` is allowlisted in `.agent/src/run.ts`, and manual PR `/orchestrate` with `CHANGES_REQUESTED` now receives requested-change review-comment context instead of review-synthesis fallback text.\n- The strongest rubric drivers are compact user-facing status, explicit structured input, and docs/tests staying aligned with the new orchestration behavior.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-04T04:02:37Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/131#issuecomment-4368141519",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFysvQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #131 closes #129 by making generic orchestrator handoff comments more scannable with compact status tables.\n- It also makes review-to-fix-pr follow-up task context explicit, deriving it from review synthesis action items where available.\n- The PR updates shared handoff formatting, orchestrator/fix-pr workflow plumbing, prompts, docs, and focused tests.\n- A prior review round found two blocking context-propagation gaps; the current PR head includes fixes for both.\n\n## Review\nThe current synthesized judgment is that no unresolved actionable issues remain. Claude’s earlier warning was based on the pre-fix head and called out a bounded design cleanup, while Codex and the rubrics review evaluated the current head and found no required changes.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable issues | INFO | Current-head reviews report that the previous blockers are fixed, docs/tests are aligned, and the implementation satisfies the selected rubrics. |\n\n## Progress\n- Earlier inline blockers were addressed: `ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT` is now allowlisted for planner prompt rendering.\n- Manual PR `/orchestrate` with `CHANGES_REQUESTED` now gets requested-change review-comment context instead of review-synthesis fallback text.\n- Rubrics review passed at 100 with no rubric-specific findings.\n- Codex verification reported build, targeted tests, and diff check passing on current head `96f2ca43025cbff7705a4d622d6978d9b2493798`.\n- No new inline comments were posted because remaining notes are either already addressed or optional cleanup.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: no unresolved required branch-change work remains for an automated fix-pr pass.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change action items remain.",
+      "createdAt": "2026-05-04T04:05:39Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/131#issuecomment-4368149693",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-04T03:45:00Z",
+  "files": [
+    {
+      "path": ".agent/docs/technical-details/agent-orchestrator.md",
+      "additions": 5,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 27,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/handoff.test.ts",
+      "additions": 83,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrate-handoff-cli.test.ts",
+      "additions": 50,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/dispatch-agent-orchestrator.ts",
+      "additions": 19,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrate-handoff.ts",
+      "additions": 42,
+      "deletions": 15,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/handoff.ts",
+      "additions": 113,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/run.ts",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-fix-pr.md",
+      "additions": 2,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-orchestrator.md",
+      "additions": 4,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-orchestrator.yml",
+      "additions": 6,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-129/codex-25299711989",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 131,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM77X6dP",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-04T03:53:37Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "2201c7c6dc49df3d5b7862cd61831e7f9e2d9f4d"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM77X6iP",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-04T03:53:43Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "2201c7c6dc49df3d5b7862cd61831e7f9e2d9f4d"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Improve orchestrator handoff comments",
+  "updatedAt": "2026-05-04T04:05:39Z",
+  "url": "https://github.com/self-evolving/repo/pull/131"
+}

@@ -1,0 +1,275 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Add `.agent/sepo-version.json` for installed Sepo version/source identity.\n- Add typed metadata validation/loading helpers and a `print-sepo-version` CLI for workflows and diagnostics.\n- Document the SemVer policy, metadata schema, and fork/install source-identity model in setup/install docs.\n\n## Tests\n- `npm --prefix .agent run build`\n- `cd .agent && node --test dist/__tests__/sepo-version.test.js`\n- `node .agent/dist/cli/print-sepo-version.js --json`\n- `git diff --check`\n- `env -u BASE_BRANCH -u BASE_PR npm --prefix .agent test`\n\nCloses #127\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFjcTg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `implement` -> `review` (round 3/10).\n\nimplementation succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777863008787 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyOTgzOTg1Mjc6aW1wbGVtZW50OjEyNzpyZXZpZXc6MTI4OjM -->",
+      "createdAt": "2026-05-04T02:50:09Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/128#issuecomment-4367899726",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFjpSQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Adds explicit metadata fields in `.agent/sepo-version.json` and validates each field/type separately in `.agent/src/sepo-version.ts`; CLI uses separate `--path` and `--json` flags rather than overloaded input strings. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | New CLI reuses the existing shared `setOutput` helper from `.agent/src/output.ts` instead of reimplementing GitHub Actions output writing. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates install/setup docs and adds `.agent/docs/technical-details/versioning.md` covering SemVer policy, metadata schema, source identity, and CLI usage. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR scope matches linked issue #127 and parent #74: foundation only, with updater rewriting, bug-report integration, and release workflows deferred. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | New docs describe policy/schema concepts and include a schema field table, but do not add a stale per-file inventory table. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is limited to version metadata, validation/CLI/test files, and directly related docs. No unrelated workflow or runtime refactors. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Implementation is a small typed module plus focused CLI/tests; it avoids new dependencies or premature release/update automation. |\n\n## Notes\n\n- Strongest score drivers: the PR stays aligned with the child-task boundary from #127, keeps runtime logic in typed `.agent/src` code, and updates docs in the same change.\n- I did not score unrelated orchestration, authorization, preview, idempotent automation, or merge-flow rubrics because this PR does not change those behaviors.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-04T02:51:52Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/128#issuecomment-4367903049",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFkXBA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #128 is the first scoped child PR for issue #74 via #127.\n- It adds the installed Sepo version metadata foundation: `.agent/sepo-version.json`, typed validation/loading helpers, and a `print-sepo-version` CLI for workflows and diagnostics.\n- It documents the SemVer policy, metadata schema, and fork/install source-identity model.\n- The PR intentionally leaves update workflow rewriting, bug-report integration, and release prepare/publish automation for later child work.\n\n## Review\nThe PR is well-scoped and aligned with the parent plan. The remaining concern is a small validation hardening issue in the new metadata contract; no blocking defects were identified.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Validate `source_ref` syntax | WARNING | `.agent/src/sepo-version.ts` accepts any non-empty `source_ref`, including internal whitespace or control characters. This should be tightened before later workflows and bug reports depend on the value. |\n| Optional polish and future-proofing notes | INFO | Reviewers also noted optional cleanup around fallback comments, SHA casing, whitespace-only error text, CLI output breadth, and future RC generalization. None appears required for this foundation PR. |\n\n## Progress\n- Rubrics review passed with no rubric-specific findings.\n- Reviewer-reported verification passed: build, focused version tests, full `.agent` test suite, and `git diff --check`.\n- One inline comment was posted for the actionable `source_ref` validation issue.\n- A proposed `channel` / `installed_from` cross-field restriction is not carried forward because #74 explicitly supports v0.x pre-release release-tag installs.\n- The `1.0.0-rc.N` validator shape matches the current issue scope; broader future major-version RC support can be deferred.\n\n## Issue Details\n\n<details>\n<summary>Validate `source_ref` syntax</summary>\n\n**Cause:**  \n[`source_ref`](https://github.com/self-evolving/repo/blob/86cb1e4afade85885044b1f8c40dd704d1141441/.agent/src/sepo-version.ts#L173) is validated only through `requireStringField`, so values with internal whitespace/control characters can still pass.\n\n**Candidate solutions:**  \nAdd a `SOURCE_REF_RE` or equivalent validation helper that rejects whitespace, control characters, and clearly invalid git-ref syntax. Add focused tests for invalid refs such as embedded spaces, newlines, and unsafe ref punctuation.\n\n**Comments:**  \nThis is low-risk to fix now and avoids propagating malformed installed identity data into future workflow outputs, summaries, and bug-report metadata.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: one unresolved validation hardening issue requires a concrete branch change and is safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Add `source_ref` validation and focused tests rejecting whitespace/control characters or invalid git-ref syntax.",
+      "createdAt": "2026-05-04T02:57:43Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/128#issuecomment-4367914756",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFkYwA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `review` -> `fix-pr` (round 4/10).\n\nreview verdict is minor_issues; dispatching fix-pr\n\n<!-- sepo-agent-handoff state:dispatched created:1777863476582 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyOTg2MTIwMDk6cmV2aWV3OjEyODpmaXhfcHI6MTI4OjQ -->",
+      "createdAt": "2026-05-04T02:57:56Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/128#issuecomment-4367915200",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFk6QA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-127/codex-25298398527`. Requested by @sepo-agent.\n\n- Addressed the latest review synthesis action item by adding git-ref-like `source_ref` validation in `.agent/src/sepo-version.ts`.\n- Added focused tests for valid branch/tag/ref values and invalid whitespace, control-character, and punctuation cases.\n- Updated versioning docs so the `source_ref` schema describes the stricter contract.\n- Checks: `npm --prefix .agent run build`; `node --test .agent/dist/__tests__/sepo-version.test.js`; `git diff --check`.",
+      "createdAt": "2026-05-04T03:01:43Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/128#issuecomment-4367923776",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFk8EQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `fix-pr` -> `review` (round 5/10).\n\nPR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777863716202 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyOTg3OTgzNTY6Zml4X3ByOjEyODpyZXZpZXc6MTI4OjU -->",
+      "createdAt": "2026-05-04T03:01:56Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/128#issuecomment-4367924241",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFlH5g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Adds discrete metadata fields in [`.agent/sepo-version.json`](https://github.com/self-evolving/repo/blob/6eb244410d18d8f5b8c08cd969ec4c7ad27849cb/.agent/sepo-version.json) and validates each field in [`.agent/src/sepo-version.ts`](https://github.com/self-evolving/repo/blob/6eb244410d18d8f5b8c08cd969ec4c7ad27849cb/.agent/src/sepo-version.ts); CLI uses explicit `--path` and `--json` flags. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | New CLI reuses the shared `setOutput` helper from [`.agent/src/output.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/output.ts) instead of writing Actions outputs ad hoc. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates setup/install docs and adds [versioning docs](https://github.com/self-evolving/repo/blob/6eb244410d18d8f5b8c08cd969ec4c7ad27849cb/.agent/docs/technical-details/versioning.md) covering SemVer policy, schema, source identity, and CLI behavior. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR scope matches linked issue #127 and parent #74: version metadata foundation only, with update rewriting, bug-report integration, and release workflows deferred. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | New docs describe the versioning policy and schema fields; they do not add a stale per-file inventory table. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is limited to version metadata, typed helper/CLI/tests, and directly related docs. No unrelated workflow/runtime refactors. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Implementation is a small typed module, a focused CLI, and targeted tests; no new dependency or premature release/update automation was added. |\n\n## Notes\n\n- The current PR head includes the follow-up `source_ref` validation fix, plus focused tests and docs for the stricter contract.\n- I did not score unrelated orchestration, authorization, preview, idempotency, status-comment, or merge-flow rubrics because this PR does not change those behaviors.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-04T03:03:18Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/128#issuecomment-4367927270",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFl-8Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #128 is the version metadata foundation child PR for #74, tracked through #127.\n- It adds committed Sepo install metadata, typed validation/loading helpers, and a workflow-facing `print-sepo-version` CLI.\n- It updates setup/install/versioning docs so future update, release, and bug-report work can rely on a shared installed identity contract.\n- The PR correctly keeps update rewriting, bug-report payload integration, and release automation out of this first slice.\n\n## Review\nThe current head has addressed the earlier `source_ref` validation finding and remains well-scoped. One small contract clarity issue remains around path resolution behavior; it is not blocking, but it should be cleaned up before merge.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Document and test metadata path fallback | WARNING | `resolveSepoVersionMetadataPath` silently falls back to `sepo-version.json` in the current working directory when `.agent/sepo-version.json` is missing. If that fallback is intentional for runs from `.agent/`, it should be documented and covered by a focused test. |\n| Optional consistency and docs polish | INFO | One reviewer flagged uppercase `source_sha` acceptance, `schema_version` output docs, `rc.N >= 1` docs, and null-output semantics. These are low-risk polish items and not required branch-change work for this scoped foundation PR. |\n\n## Progress\n- The previous `source_ref` validation action item was fixed on current head `6eb244410d18d8f5b8c08cd969ec4c7ad27849cb`.\n- The current rubrics review passes and confirms the fix includes stricter validation, tests, and docs.\n- Codex found no current BLOCKING/WARNING/INFO findings; Claude flagged two warnings plus INFO polish.\n- Synthesis carries forward only the path fallback as required work; the SHA casing concern is treated as optional consistency cleanup.\n- A new inline comment was posted for the path fallback issue; the existing inline `source_ref` comment is already addressed by the current head.\n\n## Issue Details\n\n<details>\n<summary>Document and test metadata path fallback</summary>\n\n**Cause:**  \n[`resolveSepoVersionMetadataPath`](https://github.com/self-evolving/repo/blob/6eb244410d18d8f5b8c08cd969ec4c7ad27849cb/.agent/src/sepo-version.ts#L240) falls back from `.agent/sepo-version.json` to `sepo-version.json` in the current working directory without a test or documentation explaining that behavior.\n\n**Candidate solutions:**  \nKeep the fallback, add a test showing it supports commands run from `.agent/`, and document that lookup behavior in CLI/versioning docs. Alternatively, remove the fallback so missing `.agent/sepo-version.json` fails on the expected path.\n\n**Comments:**  \nThe fallback may be intentional, but because this CLI becomes part of the installed metadata contract, silent alternate-path loading should be explicit and covered.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the remaining issue is a small, concrete branch change that an automated fix-pr pass can safely handle by documenting and testing the fallback behavior.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Document and test the `sepo-version.json` current-working-directory fallback, or remove the fallback so missing metadata fails clearly.",
+      "createdAt": "2026-05-04T03:08:55Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/128#issuecomment-4367941361",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFmAjQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `review` -> `fix-pr` (round 6/10).\n\nreview verdict is minor_issues; dispatching fix-pr\n\n<!-- sepo-agent-handoff state:dispatched created:1777864147879 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyOTg4OTg0ODk6cmV2aWV3OjEyODpmaXhfcHI6MTI4OjY -->",
+      "createdAt": "2026-05-04T03:09:08Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/128#issuecomment-4367941773",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFmQew",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo did not produce code changes for this PR.**\n\nPlease add more context or restate the requested fixes, then try again.\n\nUse multiple small PRs, not one large PR.\n\nCurrent best split:\n\n1. **Foundation PR**: version policy docs, `.agent/sepo-version.json`, typed validation/loading helpers, CLI, focused tests. This is already represented by #127 / PR #128.\n2. **Install/update PR**: update install and updater behavior to preserve/rewrite version metadata and use release tags as the default update target.\n3. **Bug-report PR**: include Sepo version, source repo/ref/SHA, and agent file hash in failure reports.\n4. **Release automation PR**: add prepare/publish workflows, with prepare opening a human-reviewed release PR and publish creating tags/releases.\n5. **Branch/tag policy docs PR**, if not fully covered by the above: document `main`, optional `develop`, release tags, and RC policy.\n\nI would not make this a deep stack unless needed for speed. Land the foundation first, then have later PRs target `main` after it merges. If parallel work is useful, later PRs can temporarily stack on #128, but they should be small and easy to retarget.",
+      "createdAt": "2026-05-04T03:10:49Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/128#issuecomment-4367945851",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFmSbw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo orchestration stopped after `fix-pr` concluded `no_changes`.\n\n- Source action: `fix-pr`\n- Source conclusion: `no_changes`\n- Target: `pull_request #128`\n- Round: `6/10`\n- Reason: fix-pr concluded no_changes; no automatic handoff was dispatched because fix-pr must succeed before re-review\n- Source run ID: `25299075157`\n\nNo follow-up workflow was dispatched. Inspect the source action status comment and workflow logs before retrying or continuing manually.\n\n<!-- sepo-agent-orchestrate-stop -->",
+      "createdAt": "2026-05-04T03:11:01Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/128#issuecomment-4367946351",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-04T02:49:53Z",
+  "files": [
+    {
+      "path": ".agent/docs/README.md",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/deployment/install-existing-repository.md",
+      "additions": 14,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/deployment/setup-guide.md",
+      "additions": 7,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/versioning.md",
+      "additions": 55,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/sepo-version.json",
+      "additions": 10,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/sepo-version.test.ts",
+      "additions": 200,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/print-sepo-version.ts",
+      "additions": 86,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/sepo-version.ts",
+      "additions": 265,
+      "deletions": 0,
+      "changeType": "ADDED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-127/codex-25298398527",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 128,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM77XgYq",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-04T02:57:08Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "86cb1e4afade85885044b1f8c40dd704d1141441"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM77XkW7",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-04T03:08:17Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "6eb244410d18d8f5b8c08cd969ec4c7ad27849cb"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Add Sepo version metadata foundation",
+  "updatedAt": "2026-05-04T03:11:01Z",
+  "url": "https://github.com/self-evolving/repo/pull/128"
+}

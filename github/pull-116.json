@@ -3,7 +3,7 @@
     "is_bot": true,
     "login": "app/sepo-agent-app"
   },
-  "baseRefName": "agent/implement-issue-23/codex-25151531035",
+  "baseRefName": "main",
   "body": "## Summary\n- Add `agent-update.yml` for near-biweekly Sepo infrastructure update checks using the existing `update-agent` skill.\n- Add a pre-runtime pending update PR guard to avoid duplicate `agent/update-agent-infra-*` PRs, with a manual `force` override.\n- Update docs, skill guidance, and focused workflow/script coverage.\n\n## Tests\n- `npm --prefix .agent run build`\n- `node --test dist/__tests__/pending-update-pr-gate-shell.test.js dist/__tests__/envelope.test.js` from `.agent`\n- `bash -n .agent/scripts/resolve-pending-update-pr.sh`\n- YAML parse for `agent-update.yml` and `test-scripts.yml`\n- `git diff --check`\n\nCloses #27\n",
   "closedAt": null,
   "comments": [
@@ -106,8 +106,8 @@
       "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | `agent-update.yml` is a scheduled/manual workflow entrypoint, runs through resolved GitHub auth, invokes `run-agent-task` with `route: skill`, and preserves audit context with `requested_by: ${{ github.actor }}`. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Manual inputs are separate typed fields: `source_repo`, `source_ref`, `update_skills`, `update_agent_md`, and `force`; no overloaded command string is introduced. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff stays scoped to the update workflow, pending-update gate, timeout wiring needed by workflow conventions, focused tests, and matching docs/skill guidance. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The workflow composes existing shared actions including `scheduled-activity-gate`, `resolve-github-auth`, `resolve-agent-provider`, `setup-agent-runtime`, and `run-agent-task`; it also now uses the shared timeout resolver pattern expected by envelope tests. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The implementation matches issue #27’s requested default scheduled action, near-14-day cadence, update skill reuse, PR-on-change behavior, and non-spammy no-duplicate guard; #107 context explains why #27 was selected instead of #94. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates `.agent/docs/actions/agent-actions.md`, `.agent/docs/architecture/supported-workflows.md`, `.agent/docs/customization/configuration-list.md`, `.skills/update-agent/SKILL.md`, and `README.md`. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | `resolve-pending-update-pr.sh` fails clearly for missing repo or empty branch prefix, emits structured skip/reason outputs, and has focused shell regression coverage. Malformed timeout policy also returns a clear CLI error with tests. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The pending-PR guard is a small shell script around `gh pr list` and `jq`; the workflow remains mostly composition of existing actions rather than new runtime architecture. |\n\n## Notes\n\n- The previous rubric warning about missing task-timeout wiring appears resolved in the current PR diff: `agent-update.yml` now has `Resolve task timeout` and `timeout-minutes` on `Run update agent`.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No selected-rubric failures found in the current PR diff.\n\n## Final Rubric Verdict\n\nPASS",
       "createdAt": "2026-05-03T08:02:18Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4365708017",
       "viewerDidAuthor": true
@@ -121,8 +121,8 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #116 adds a default near-biweekly Sepo update workflow for issue #27, which was selected as the focused child task under parent issue #107.\n- The workflow uses the existing `update-agent` skill, checks for existing update PRs before runtime setup, and only opens a PR when updates produce changes.\n- The latest fix-pr pass also added task-timeout policy wiring, delimiter-safe workflow outputs, and the missing scheduled-gate test guard.\n- Docs, skill guidance, shell/script tests, and workflow contract tests are updated alongside the runtime changes.\n\n## Review\nOverall judgment: the current PR head appears ready to ship. The prior required review items are fixed, and the latest review artifacts report either PASS/SHIP or only optional INFO notes.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | Current reviews agree the required fixes are resolved. Remaining notes are optional cleanup, such as unused gate job outputs or low-risk defensive test expansion. |\n\n## Progress\n- Previous review items were addressed by fix-pr: timeout wiring, delimiter-safe gate outputs, and the missing `updateWorkflow` negative assertion.\n- Current rubrics review is PASS with no rubric-specific follow-up.\n- Claude’s latest review verdict is SHIP; Codex reports no BLOCKING, WARNING, or INFO findings.\n- Existing inline comments are from the prior commit and are now covered by the current head; no new inline comments were needed.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: No unresolved actionable branch-change work remains; optional INFO cleanup can be left to maintainer preference.\n\n## Final Verdict\n`SHIP`\n\n## Action Items\n- [ ] No required branch-change work remains.",
       "createdAt": "2026-05-03T08:08:46Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4365718652",
       "viewerDidAuthor": true
@@ -206,6 +206,254 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4366764047",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFGXdg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \r\n\r\nwait, why \".agent/src/task-timeout-policy.ts\" etc is included in this pr diff? should we merge main into this to refresh the state? ",
+      "createdAt": "2026-05-03T23:17:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4367423350",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFGkeQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, I think we should refresh this PR against current `main`.\n\nWhy those files show up: the PR needed the standard `AGENT_TASK_TIMEOUT_POLICY` / `resolve-task-timeout` wiring for the new `agent-update.yml` workflow, but those helper files are already on current `main` from the earlier timeout work. So in this PR they are mostly base-drift noise, not core to the scheduled update feature.\n\nI checked the local `main`: it already has:\n\n- `.agent/src/task-timeout-policy.ts`\n- `.agent/src/cli/resolve-task-timeout.ts`\n- `.agent/src/__tests__/resolve-task-timeout-cli.test.ts`\n- `.agent/src/__tests__/task-timeout-policy.test.ts`\n\nSo yes: merging or rebasing current `main` into this PR branch should make the diff cleaner. After refresh, the PR should mainly keep:\n\n- `.github/workflows/agent-update.yml`\n- pending update PR guard script/tests\n- `AGENT_AUTO_UPDATE` docs/tests\n- the `agent-update.yml` timeout resolver usage, but not the shared timeout helper implementation itself\n\nOne thing to watch: the current PR branch appears to be missing `.agent/src/__tests__/task-timeout-policy.test.ts` compared with `main`, so refresh should preserve that file rather than accidentally dropping it.",
+      "createdAt": "2026-05-03T23:19:35Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4367426681",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFHJqw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> So yes: merging or rebasing current main into this PR branch should make the diff cleaner. After refresh, the PR should mainly keep:\r\n\r\n.github/workflows/agent-update.yml\r\npending update PR guard script/tests\r\nAGENT_AUTO_UPDATE docs/tests\r\nthe agent-update.yml timeout resolver usage, but not the shared timeout helper implementation itself\r\nOne thing to watch: the current PR branch appears to be missing .agent/src/__tests__/task-timeout-policy.test.ts compared with main, so refresh should preserve that file rather than accidentally dropping it.\r\n\r\n@sepo-agent /fix-pr either merge or rebase onto main -- choosing the best decision?",
+      "createdAt": "2026-05-03T23:24:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4367436203",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFHfTA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-27/codex-25272756852`. Requested by @lolipopshock.\n\nRebased PR #116 onto current `main` rather than merging. That was the cleaner choice here because the PR already targets `main`, and rebasing removes the shared timeout helper files from the PR diff instead of adding a merge commit.\n\nResult:\n- Branch head is now `92549c9`.\n- Worktree is clean.\n- PR diff no longer includes `.agent/src/task-timeout-policy.ts`, `.agent/src/cli/resolve-task-timeout.ts`, or `.agent/src/__tests__/resolve-task-timeout-cli.test.ts`.\n- `.agent/src/__tests__/task-timeout-policy.test.ts` is present from `main` and not dropped.\n- Remaining diff is scoped to `agent-update.yml`, the pending update guard/tests, `AGENT_AUTO_UPDATE` docs/tests, and update workflow timeout usage.\n\nChecks passed:\n- `npm --prefix .agent run build`\n- Focused Node tests from `.agent`\n- `bash -n .agent/scripts/resolve-pending-update-pr.sh`\n- YAML parse\n- `git diff --check FETCH_HEAD...HEAD`",
+      "createdAt": "2026-05-03T23:27:52Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4367441740",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFUuXA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 94 | PARTIAL | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | `agent-update.yml` composes existing shared actions: `scheduled-activity-gate`, `resolve-github-auth`, `resolve-agent-provider`, `setup-agent-runtime`, `resolve-task-timeout`, and `run-agent-task`; it invokes the existing `update-agent` skill. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | `.agent/scripts/resolve-pending-update-pr.sh` exits clearly for missing repo or empty branch prefix and emits structured `skip`, `reason`, and PR metadata outputs. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | The pending update PR guard skips when an open same-repo `agent/update-agent-infra-*` PR already exists, with a manual `force` override. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | The docs describe workflow behavior and configuration without adding a per-file inventory table. |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | The workflow resolves GitHub auth before `run-agent-task`, uses `route: skill`, and preserves requester/audit context with `requested_by: ${{ github.actor }}`. |\n| coding_workflow / generic | Keep docs in sync | partial | 5/7 | Docs were updated for `agent-update.yml` and `AGENT_AUTO_UPDATE`, but the PR diff also adds a duplicate `AGENT_TASK_TIMEOUT_POLICY` row in `.agent/docs/customization/configuration-list.md`. |\n| coding_workflow / generic | Make surgical changes | partial | 6/8 | The main diff is well scoped after the rebase, but the duplicate `AGENT_TASK_TIMEOUT_POLICY` docs addition appears unrelated to the scheduled-update request and current PR scope. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Manual inputs are separate fields: `source_repo`, `source_ref`, `update_skills`, `update_agent_md`, and `force`. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The implementation matches issue #27 and parent #107 context: near-biweekly default scheduled update checks, reuse update skills, no PR when no update, and non-spammy duplicate avoidance. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The guard is a small shell script around `gh pr list`/`jq`, and the workflow mostly wires existing actions rather than adding new runtime architecture. |\n\n## Notes\n\n- The PR satisfies the central requested behavior and most applicable rubrics.\n- The only rubric-specific follow-up is to remove the duplicate `AGENT_TASK_TIMEOUT_POLICY` configuration-list row from the PR diff.\n\n## Findings\n\n- **WARNING:** The live PR diff adds `AGENT_TASK_TIMEOUT_POLICY` to `.agent/docs/customization/configuration-list.md` even though that variable is already present later in the same repository-variable table. That is a small docs-sync/surgicality regression from base-drift cleanup, not part of the scheduled Sepo update feature.\n\n## Final Rubric Verdict\n\nPARTIAL",
+      "createdAt": "2026-05-04T01:09:25Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4367658588",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFVeWA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #116 implements issue #27, a focused child of parent issue #107, by adding a default near-biweekly Sepo update workflow.\n- The workflow uses the existing `update-agent` skill, avoids duplicate update PRs, supports manual dispatch, and now honors `AGENT_AUTO_UPDATE=false` for scheduled runs.\n- Earlier review fixes added the standard timeout wiring, delimiter-safe gate outputs, and the missing scheduled-gate test assertion.\n- The current post-rebase diff is mostly scoped correctly, but one docs rebase artifact remains.\n\n## Review\nOverall judgment: this is close to mergeable, with one required cleanup. Reviewers agree the workflow design and tests are sound; the remaining issue is a duplicate configuration row.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Duplicate `AGENT_TASK_TIMEOUT_POLICY` row | WARNING | `.agent/docs/customization/configuration-list.md` adds `AGENT_TASK_TIMEOUT_POLICY` at line 9 even though the same row already exists at line 24. Remove the newly inserted duplicate and keep the new `AGENT_AUTO_UPDATE` row. |\n| Optional hardening notes | INFO | Reviewers noted low-risk follow-ups around the pending-PR scan cap, unused gate outputs, and tighter shell-test stub validation. These are optional and should not block the requested feature. |\n\n## Progress\n- Previous review items are fixed: timeout resolver wiring, delimiter-safe output writes, and the negative `updateWorkflow` gate assertion.\n- The branch was rebased onto current `main`, removing shared timeout-helper drift from the PR diff.\n- Maintainer-requested `AGENT_AUTO_UPDATE` behavior is implemented and documented.\n- The duplicate timeout-policy docs row is already called out in the latest PR discussion, so no new inline comment was posted to avoid duplicating feedback.\n\n## Issue Details\n\n<details>\n<summary>Duplicate `AGENT_TASK_TIMEOUT_POLICY` row</summary>\n\n**Cause:** The rebase left a newly inserted `AGENT_TASK_TIMEOUT_POLICY` row at [`configuration-list.md#L9`](https://github.com/self-evolving/repo/blob/92549c960f8b93afcd53a386a4d3653b282660b6/.agent/docs/customization/configuration-list.md#L9), while the same variable already exists later at [`configuration-list.md#L24`](https://github.com/self-evolving/repo/blob/92549c960f8b93afcd53a386a4d3653b282660b6/.agent/docs/customization/configuration-list.md#L24).\n\n**Candidate solutions:** Remove the newly inserted line 9 row. Keep the existing line 24 row and the new `AGENT_AUTO_UPDATE` row.\n\n**Comments:** Codex, Claude, and the rubrics review all identify this as the only required cleanup. No substantive reviewer disagreement.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: The unresolved work is a deterministic one-line docs cleanup that is safe for an automated fix-pr pass.\n\n## Final Verdict\n`MINOR_ISSUES`\n\n## Action Items\n- [ ] Remove the duplicate `AGENT_TASK_TIMEOUT_POLICY` row newly added near the top of `.agent/docs/customization/configuration-list.md`.",
+      "createdAt": "2026-05-04T01:14:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4367670872",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFVrOQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /fix-pr\r\n\r\n> Issue Details\r\nDuplicate `AGENT_TASK_TIMEOUT_POLICY` row\r\nCause: The rebase left a newly inserted AGENT_TASK_TIMEOUT_POLICY row at [configuration-list.md#L9](https://github.com/self-evolving/repo/blob/92549c960f8b93afcd53a386a4d3653b282660b6/.agent/docs/customization/configuration-list.md#L9), while the same variable already exists later at [configuration-list.md#L24](https://github.com/self-evolving/repo/blob/92549c960f8b93afcd53a386a4d3653b282660b6/.agent/docs/customization/configuration-list.md#L24).\r\n\r\nCandidate solutions: Remove the newly inserted line 9 row. Keep the existing line 24 row and the new AGENT_AUTO_UPDATE row.\r\n\r\nComments: Codex, Claude, and the rubrics review all identify this as the only required cleanup. No substantive reviewer disagreement.",
+      "createdAt": "2026-05-04T01:16:03Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4367674169",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFV83g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-27/codex-25272756852`. Requested by @lolipopshock.\n\nRemoved the duplicate `AGENT_TASK_TIMEOUT_POLICY` row from `.agent/docs/customization/configuration-list.md`. The existing later row remains, and `AGENT_AUTO_UPDATE` is still documented.\n\nChecks passed:\n- `npm --prefix .agent run build`\n- `node --test dist/__tests__/envelope.test.js`\n- `git diff --check`",
+      "createdAt": "2026-05-04T01:17:43Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4367678686",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFWaVA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review",
+      "createdAt": "2026-05-04T01:20:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4367686228",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFWrmw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "The current live diff no longer shows the duplicate timeout-policy docs row; it adds only `AGENT_AUTO_UPDATE` in the config list. The local checkout is not on the PR head, so I’m treating the `gh pr diff` output as authoritative as requested rather than running PR-head tests locally.## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | `agent-update.yml` resolves GitHub auth before `run-agent-task`, runs `route: skill`, and preserves requester context with `requested_by: ${{ github.actor }}`. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The workflow composes existing shared actions: `scheduled-activity-gate`, `resolve-github-auth`, `resolve-agent-provider`, `setup-agent-runtime`, `resolve-task-timeout`, and `run-agent-task`; it invokes the existing `update-agent` skill. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The diff updates `README.md`, `.agent/docs/actions/agent-actions.md`, `.agent/docs/architecture/supported-workflows.md`, `.agent/docs/customization/configuration-list.md`, and `.skills/update-agent/SKILL.md` for the new workflow and `AGENT_AUTO_UPDATE`. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Manual dispatch inputs are separate typed fields: `source_repo`, `source_ref`, `update_skills`, `update_agent_md`, and `force`. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The implementation matches issue #27 and parent #107 context: near-biweekly update checks, reuse update tooling, no PR when current, and duplicate-PR avoidance. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | After the cleanup, the live diff is scoped to `agent-update.yml`, the pending-update guard and tests, `AGENT_AUTO_UPDATE` docs/tests, and update-skill guidance. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | `.agent/scripts/resolve-pending-update-pr.sh` skips when an open same-repo `agent/update-agent-infra-*` PR exists, with explicit `force` override support. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | The pending-update guard fails clearly for missing repo or empty branch prefix and emits structured `skip`, `reason`, and PR metadata outputs; shell regression tests cover skip/ignore/force behavior. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | The docs describe workflow behavior and configuration without adding a per-file inventory table. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The guard is a small shell script around `gh pr list` and `jq`; the workflow primarily wires existing actions rather than adding new runtime architecture. |\n\n## Notes\n\n- The prior duplicate `AGENT_TASK_TIMEOUT_POLICY` docs issue appears resolved in the current live diff; `.agent/docs/customization/configuration-list.md` now only adds `AGENT_AUTO_UPDATE`.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No selected-rubric failures found in the current PR diff.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-04T01:22:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4367690651",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFXeDA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #116 implements issue #27, a focused child of parent issue #107, by adding a default near-biweekly Sepo update workflow.\n- The workflow uses the existing `update-agent` skill, skips duplicate update PRs, supports manual dispatch, and honors `AGENT_AUTO_UPDATE=false` for scheduled runs.\n- The PR also adds the pending-update PR guard, focused tests, and docs for the workflow/configuration behavior.\n- Earlier review issues around timeout wiring, gate output safety, test coverage, and duplicate docs rows have been addressed.\n\n## Review\nThe current PR head looks ready to ship. Codex and rubrics reviews report no unresolved findings; Claude only notes optional INFO-level cleanup/hardening items that do not require branch changes.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | Current review outputs do not identify any required branch-change work. Remaining notes are optional cleanup or low-risk hardening. |\n\n## Progress\n- The prior duplicate `AGENT_TASK_TIMEOUT_POLICY` docs row is fixed.\n- The update workflow now includes task-timeout wiring and delimiter-safe gate output writes.\n- The scheduled-gate negative assertion is covered in `envelope.test.ts`.\n- Existing inline comments are from earlier review rounds and are already resolved by the current head; no new inline comments were posted.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: No unresolved actionable branch-change work remains; optional INFO notes can be left to maintainer preference.\n\n## Final Verdict\n`SHIP`\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-04T01:28:40Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4367703564",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFc78g",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \r\n\r\nHow does current check work? Just comparing against the main? Perhaps this goes back to something even more fundamental: \r\n- we should add version labeling asap now #74 \r\n- and when we fork and update, we should make it clear that which version it is ",
+      "createdAt": "2026-05-04T02:07:00Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4367793138",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFdMgg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Current check is **not a clean version comparison**.\n\nWhat PR #116 does today:\n\n- The workflow defaults the update source to `self-evolving/repo@main`: [`agent-update.yml#L10-L17`](https://github.com/self-evolving/repo/blob/3f810d4f1d398bea4e98fd80e658913efd3fd4ca/.github/workflows/agent-update.yml#L10-L17).\n- It checks out the target repo’s default branch, then runs the `update-agent` skill with that configured source ref: [`agent-update.yml#L136-L208`](https://github.com/self-evolving/repo/blob/3f810d4f1d398bea4e98fd80e658913efd3fd4ca/.github/workflows/agent-update.yml#L136-L208).\n- The skill compares/syncs installed agent-owned files like `.agent/` and agent `.github/` assets against the source repo/ref, then opens a PR only if that produces file changes: [`SKILL.md#L89-L121`](https://github.com/self-evolving/repo/blob/3f810d4f1d398bea4e98fd80e658913efd3fd4ca/.skills/update-agent/SKILL.md#L89-L121).\n- The pre-runtime guard only prevents duplicate open update PRs; it does not determine whether the installed agent is behind a known version: [`resolve-pending-update-pr.sh#L93-L113`](https://github.com/self-evolving/repo/blob/3f810d4f1d398bea4e98fd80e658913efd3fd4ca/.agent/scripts/resolve-pending-update-pr.sh#L93-L113).\n\nSo yes: functionally it is “compare installed agent files against configured source ref,” defaulting to `main`. It is **not** currently “installed version X is older than source version Y.”\n\nI agree this exposes the more fundamental issue. We should prioritize #74. The cleaner model is:\n\n1. Define a canonical Sepo agent version, probably tag/release based, with commit SHA as the exact identity.\n2. Store installed metadata in target repos, e.g. `.agent/sepo-version.json`:\n   - `source_repo`\n   - `source_ref`\n   - `source_sha`\n   - `version` / `tag`\n   - `installed_at` or `updated_at`\n3. Make update PRs say clearly: `Update Sepo agent from <old version/sha> to <new version/sha>`.\n4. Let the scheduled check use version metadata as the fast “am I behind?” check, with file diff as validation/fallback.\n5. When forks/templates are created or updated, write the same metadata so users can see what they are running.\n\nI would not rely on “compare to main” as the long-term update story. It is acceptable as a first fallback, but #74 should probably be the next small foundational PR before we lean too hard on automated updates.",
+      "createdAt": "2026-05-04T02:08:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4367797378",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-03T07:19:42Z",
@@ -224,7 +472,7 @@
     },
     {
       "path": ".agent/docs/customization/configuration-list.md",
-      "additions": 2,
+      "additions": 1,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
@@ -247,28 +495,10 @@
       "changeType": "ADDED"
     },
     {
-      "path": ".agent/src/__tests__/resolve-task-timeout-cli.test.ts",
-      "additions": 70,
-      "deletions": 0,
-      "changeType": "ADDED"
-    },
-    {
       "path": ".agent/src/__tests__/scheduled-activity.test.ts",
       "additions": 21,
       "deletions": 0,
       "changeType": "MODIFIED"
-    },
-    {
-      "path": ".agent/src/cli/resolve-task-timeout.ts",
-      "additions": 38,
-      "deletions": 0,
-      "changeType": "ADDED"
-    },
-    {
-      "path": ".agent/src/task-timeout-policy.ts",
-      "additions": 87,
-      "deletions": 0,
-      "changeType": "ADDED"
     },
     {
       "path": ".github/workflows/agent-update.yml",
@@ -353,6 +583,6 @@
   ],
   "state": "OPEN",
   "title": "Add scheduled Sepo update checks",
-  "updatedAt": "2026-05-03T17:37:44Z",
+  "updatedAt": "2026-05-04T02:08:47Z",
   "url": "https://github.com/self-evolving/repo/pull/116"
 }

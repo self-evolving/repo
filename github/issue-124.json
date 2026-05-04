@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "1. For example, inside an issue / PR (with agent tag), the user might sometimes want to talk to the agent but forget to tag the agent. \n2. We should infer the user intention: if that sounds like a followup question, then we should consider have sepo respond the user automatically. \n\nConditions:\n- this should be only activated when it has an agent tag \n- also this behavior can also be disabled by an customization variable (say AGENT_INTENTION_INFER = false) (or a better name?\n\n@sepo-agent /answer ",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFUzBA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, this fits the existing router, but the key change is earlier than triage: today the entrypoint only runs when the event JSON contains the handle, so an unmentioned follow-up comment never reaches `.agent/src/cli/extract-context.ts`.\n\nI’d implement it as an opt-out implicit follow-up path:\n\n- Treat “agent tag” as the fixed `agent` issue/PR label.\n- Add repo variable `AGENT_IMPLICIT_FOLLOWUPS_ENABLED`; default enabled, set to `false` to disable.\n- Only consider unmentioned follow-ups on issue/PR comments and PR reviews/comments, not arbitrary issue/PR body edits.\n- For implicit candidates, only allow automatic `answer` or `ignore`; never auto-dispatch `implement`, `review`, `fix-pr`, or `orchestrate`.\n\nRelevant current wiring:\n\n- [`agent-entrypoint.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-entrypoint.yml#L48-L57) has the broad `contains(...AGENT_HANDLE...)` pre-filter that currently blocks unmentioned follow-ups.\n- [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L161-L241) extracts context, runs dispatch triage when no explicit route is present, and resolves the route.\n- [`extract-context.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/extract-context.ts#L146-L220) applies bot, association, live-mention, approval-command, and requested-route gates.\n- [`context.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/context.ts#L266-L285) currently requires a live mention.\n- [`triage.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/triage.ts#L58-L88) parses explicit slash commands after the mention.\n\nExecution plan:\n\n1. Loosen the entrypoint pre-filter so it also starts the router when `AGENT_IMPLICIT_FOLLOWUPS_ENABLED != 'false'` and the issue/PR payload has the `agent` label.\n2. Pass `implicit_followups_enabled` into `agent-router.yml` and then into `extract-context`.\n3. Extend context extraction to return `implicit_followup=true` when there is no live mention but the target is agent-labeled, authorized, non-bot, and on a supported follow-up event.\n4. Add an internal `ignore` triage outcome for implicit follow-ups, or a small dedicated classifier, so casual comments like “thanks” do not post a response.\n5. Force implicit follow-ups to `answer` only when the classifier says it is likely addressed to the agent, such as a follow-up question or request for clarification.\n6. Add tests for explicit mentions unchanged, labeled follow-up question responds, unlabeled follow-up skips, variable-disabled skips, and non-question comments ignore.\n7. Update the configuration list and architecture docs for the new variable and behavior.\n\nIf approved, I’d make this change with the `AGENT_IMPLICIT_FOLLOWUPS_ENABLED` name and the `agent` label as the activation tag.",
+      "createdAt": "2026-05-04T01:09:58Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/124#issuecomment-4367659780",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-04T01:06:55Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 124,
+  "state": "OPEN",
+  "title": "Add smarter user intention detection",
+  "updatedAt": "2026-05-04T01:09:58Z",
+  "url": "https://github.com/self-evolving/repo/issues/124"
+}

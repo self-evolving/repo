@@ -1,0 +1,190 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Retarget open PRs based on a merged agent branch before deleting that branch.\n- Add pull-request write permission for the retarget operation.\n- Document the stacked PR cleanup behavior and add contract coverage.\n\n## Tests\n- `npm run build && node --test dist/__tests__/envelope.test.js`\n\nCloses #122\n",
+  "closedAt": "2026-05-04T00:56:42Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFFQ0w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `implement` -> `review` (round 3/10).\n\nagent planner selected review: Implementation succeeded and opened PR #123 for issue #122; an automated review is warranted before stopping the chain.\n\n<!-- sepo-agent-handoff state:dispatched created:1777849662446 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyOTMzNTQ2ODc6aW1wbGVtZW50OjEyMjpyZXZpZXc6MTIzOjM -->",
+      "createdAt": "2026-05-03T23:07:42Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/123#issuecomment-4367405267",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFFaTA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 94 | PASS | 5 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Keeps the change in the existing `.github/workflows/agent-branch-cleanup.yml` cleanup path and extends the current `actions/github-script` logic instead of introducing a separate mechanism. |\n| workflow / generic | Keep docs in sync | pass | 7/7 | Updates both `.agent/docs/architecture/supported-workflows.md` and `.agent/docs/technical-details/agent-orchestrator.md` to document retarget-before-delete behavior for stacked PRs. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Touches only the cleanup workflow, two relevant docs, and one focused workflow contract test. No broad refactor or unrelated cleanup appears in the PR diff. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Uses a direct `pulls.list` query for open PRs with `base: branch`, then `pulls.update` to retarget before `git.deleteRef`; the implementation matches the narrow issue. |\n| coding_workflow / generic | Surface stateful failures | partial | 6/7 | Missing branch/base refs call `core.setFailed`, and retarget errors occur before deletion so the branch is preserved. Minor gap: the new test verifies ordering but not explicit fail-closed behavior on `pulls.update` failure. |\n\n## Notes\n\n- The strongest rubric fit is docs plus focused workflow behavior: PR #123 implements the exact issue #122 plan, including `pull-requests: write`, retargeting open dependent PRs, and deleting only after retarget calls.\n- Route/delegation, preview-contract, structured-input, merge-flow, and status-comment rubrics were not scored because this PR does not change those surfaces.\n- Smallest useful follow-up: add one focused test or assertion documenting that a retarget failure prevents branch deletion.\n\n## Findings\n\n- **INFO:** The implementation satisfies the relevant rubrics overall. The only rubric-specific gap is test depth around the fail-closed retarget failure case under `surface-stateful-failures`; current coverage checks presence and order, not the failure path.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-03T23:09:03Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/123#issuecomment-4367407692",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFGBMw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #123 fixes #122, where stacked child PRs were closed after their merged parent agent branch was deleted. The PR updates `agent-branch-cleanup.yml` to find open PRs based on the merged branch, retarget them to the merged PR’s base branch, and only then delete the branch. It also adds `pull-requests: write`, updates docs for stacked cleanup behavior, and adds contract coverage for the new workflow shape.\n\n## Review\nThe implementation addresses the root cause cleanly and keeps the change narrow. Reviewers agree the runtime behavior is directionally correct; the only unresolved concern is that the fail-closed retarget failure path is not directly tested.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Fail-closed retarget behavior lacks direct regression coverage | WARNING | The new test checks workflow text and ordering, but does not exercise the key contract that a failed `pulls.update` prevents `deleteRef` from running. |\n\n## Progress\n- The approved #122 plan has been implemented: stacked PRs are retargeted before merged agent branches are deleted.\n- Docs were updated in both supported workflows and orchestrator technical details.\n- The existing Rubrics Review already acknowledged the same fail-closed coverage gap.\n- Claude rated the PR as shippable with optional follow-ups; Codex rated it `MINOR_ISSUES`; Rubrics Review passed overall with a partial score on stateful failure coverage.\n\n## Issue Details\n<details>\n<summary>Fail-closed retarget behavior lacks direct regression coverage</summary>\n\n**Cause:** The added test at [`envelope.test.ts#L1323`](https://github.com/self-evolving/repo/blob/62f9da1aeb28a2d325b10b2511828719ee8c72b5/.agent/src/__tests__/envelope.test.ts#L1323) verifies strings in the workflow and that `pulls.update` appears before `deleteRef`, but it cannot catch behavioral regressions in the failure path.\n\n**Candidate solutions:** Extract the cleanup script into a small testable helper, or add a mocked script-level test, and assert that when one dependent PR retarget fails, branch deletion is not attempted.\n\n**Comments:** This is not a functional disagreement about the implementation. The disagreement is severity: one reviewer considered it a non-blocking follow-up, while another considered it the main remaining issue.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: Add focused failure-path coverage; this is concrete branch work and safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Add focused regression coverage proving a dependent PR retarget failure prevents branch deletion.",
+      "createdAt": "2026-05-03T23:14:44Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/123#issuecomment-4367417651",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFGH3Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `review` -> `fix-pr` (round 4/10).\n\nagent planner selected fix-pr: Review synthesis recommends FIX_PR for one concrete MINOR_ISSUES finding: fail-closed retarget behavior lacks direct regression coverage.\n\n<!-- sepo-agent-handoff state:dispatched created:1777850139494 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyOTM0NzI5NTE6cmV2aWV3OjEyMzpmaXhfcHI6MTIzOjQ -->",
+      "createdAt": "2026-05-03T23:15:39Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/123#issuecomment-4367419357",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFGdkw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-122/codex-25293354687`. Requested by @sepo-agent.\n\n- Added focused regression coverage in [`.agent/src/__tests__/envelope.test.ts`](https://github.com/self-evolving/repo/pull/123/files) for the fail-closed branch cleanup path.\n- The test executes the cleanup `github-script` with mocked GitHub APIs and proves a dependent PR retarget failure rejects before `git.deleteRef` is attempted.\n- Verified with `npm run build && node --test dist/__tests__/envelope.test.js`.",
+      "createdAt": "2026-05-03T23:18:39Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/123#issuecomment-4367424915",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFGnIQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `fix-pr` -> `review` (round 5/10).\n\nagent planner selected review: fix-pr completed successfully after the prior review synthesis recommended FIX_PR for one concrete coverage gap; a follow-up review should verify the added failure-path test resolves that finding.\n\n<!-- sepo-agent-handoff state:dispatched created:1777850397874 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyOTM2NDQ2ODE6Zml4X3ByOjEyMzpyZXZpZXc6MTIzOjU -->",
+      "createdAt": "2026-05-03T23:19:58Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/123#issuecomment-4367427361",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFGxXQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 5 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR extends the existing branch cleanup workflow in [`.github/workflows/agent-branch-cleanup.yml`](https://github.com/self-evolving/repo/blob/8a85c803202b61056502755a8c88628d17dd2985/.github/workflows/agent-branch-cleanup.yml) using the existing `actions/github-script` path instead of adding a parallel cleanup mechanism. |\n| workflow / generic | Keep docs in sync | pass | 7/7 | The behavior is documented in both [supported workflows](https://github.com/self-evolving/repo/blob/8a85c803202b61056502755a8c88628d17dd2985/.agent/docs/architecture/supported-workflows.md) and [orchestrator technical details](https://github.com/self-evolving/repo/blob/8a85c803202b61056502755a8c88628d17dd2985/.agent/docs/technical-details/agent-orchestrator.md). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is limited to the cleanup workflow, two directly relevant docs, and focused contract coverage in [`.agent/src/__tests__/envelope.test.ts`](https://github.com/self-evolving/repo/blob/8a85c803202b61056502755a8c88628d17dd2985/.agent/src/__tests__/envelope.test.ts). |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The workflow directly lists open PRs with `base: branch`, retargets them with `pulls.update`, then deletes the ref after retargeting succeeds. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | The latest PR diff adds a regression test proving a dependent PR retarget failure rejects before `git.deleteRef` is attempted, resolving the earlier coverage gap noted in the review thread. |\n\n## Notes\n\n- PR #123 matches the approved issue #122 plan: retarget stacked child PRs from the merged agent branch to the parent PR’s base before deleting the merged branch.\n- Route authorization, preview contracts, structured inputs, merge strategy, status comments, and one-shot orchestration were not scored because this PR does not change those surfaces.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings. The prior `surface-stateful-failures` concern is addressed by the added fail-closed regression coverage.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-03T23:21:23Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/123#issuecomment-4367429981",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFHREA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #123 fixes #122, where deleting a merged agent parent branch caused stacked child PRs based on that branch to close. The PR updates branch cleanup so open PRs based on the merged branch are retargeted to the merged PR’s base branch before deletion. It also adds the required `pull-requests: write` permission, updates the relevant docs, and adds workflow contract coverage. A prior review found missing fail-closed coverage, and the follow-up fix-pr pass added a regression test for that path.\n\n## Review\nThe latest reviewer outputs converge on SHIP. The earlier actionable coverage gap is now resolved, and the remaining notes are optional log/test polish rather than required branch changes.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | Current review outputs agree the PR implements the requested stack-aware cleanup behavior and now covers the retarget-failure path. |\n\n## Progress\n- Issue #122’s approved plan is implemented: dependent open PRs are retargeted before the merged agent branch is deleted.\n- The previous `MINOR_ISSUES` finding about fail-closed regression coverage was addressed by the fix-pr pass.\n- Rubrics review now passes at 100%, including `surface-stateful-failures`.\n- Codex reported `npm run build && node --test dist/__tests__/envelope.test.js` and `npm test` passing on PR head `8a85c803202b61056502755a8c88628d17dd2985`.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: no unresolved required branch-change work remains.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-03T23:25:48Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/123#issuecomment-4367438096",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFTJfg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #123.\n\nno rubric changes\n\nI found no trusted maintainer-authored PR feedback that warranted a new or updated rubric. The reusable lesson in the thread, fail-closed behavior plus focused regression coverage for stateful workflow failures, is already covered by `surface-stateful-failures`. The rubrics checkout remains unchanged.\n",
+      "createdAt": "2026-05-04T00:57:52Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/123#issuecomment-4367632766",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-03T23:06:45Z",
+  "files": [
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 4,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/agent-orchestrator.md",
+      "additions": 3,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 111,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-branch-cleanup.yml",
+      "additions": 25,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-122/codex-25293354687",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": "2026-05-04T00:56:42Z",
+  "number": 123,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "MERGED",
+  "title": "Retarget stacked PRs before branch cleanup",
+  "updatedAt": "2026-05-04T00:57:53Z",
+  "url": "https://github.com/self-evolving/repo/pull/123"
+}

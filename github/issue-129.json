@@ -1,0 +1,99 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "https://github.com/self-evolving/repo/pull/128#issuecomment-4367941773\n\n1. can we adopt a similar tabular style like https://github.com/self-evolving/repo/issues/90 ? \n2. can we also be more explicit about the followup message and task for the fix-pr agent? (I think we also tried to fix it previously)?\n\n@sepo-agent /answer",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFplvA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes. I’d handle this as a small orchestration communication change, not a behavior rewrite.\n\n**What I found**\n\n- #90 already moved sub-orchestrator comments to compact transposed tables in [`.agent/src/cli/orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts).\n- The linked PR #128 comment is produced through the generic handoff marker formatter in [`.agent/src/handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts), so it still reads like a log: `review -> fix-pr`, round, reason.\n- The fix-pr path already has plumbing for explicit context: [`.github/prompts/agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-orchestrator.md) asks for `handoff_context`, [`.github/workflows/agent-orchestrator.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-orchestrator.yml) passes it through, and [`.github/prompts/agent-fix-pr.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-fix-pr.md) prioritizes it. The gap is that the visible handoff comment does not show it, and heuristic review-to-fix-pr handoffs may not have a concrete task string beyond “latest review synthesis”.\n\n**Proposed visible format**\n\n```md\nSepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #128 | 6 / 10 | Dispatched |\n\nTask for fix-pr:\nDocument and test the `sepo-version.json` current-working-directory fallback, or remove the fallback so missing metadata fails clearly.\n\nConstraints:\nUse the latest review synthesis action item only. Avoid optional INFO polish unless it is needed for the selected fix.\n\n<!-- sepo-agent-handoff ... -->\n```\n\nI’d keep the hidden `sepo-agent-handoff` marker unchanged so dedupe/minimization keeps working.\n\n**Implementation plan**\n\n1. Reuse or move the existing Markdown table helper from [`.agent/src/cli/orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts) so generic handoff comments can use the same transposed table style as #90.\n2. Extend the handoff comment formatter in [`.agent/src/handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts) to accept optional `handoffContext` and render it as `Task for fix-pr` when `nextAction === \"fix-pr\"`.\n3. Make review-to-fix-pr context more explicit:\n   - In planner mode, tighten [`.github/prompts/agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-orchestrator.md) so `fix-pr` handoffs must include the exact finding/action item, constraints, and what to ignore.\n   - For heuristic review handoffs, either pass a concise extracted action item from the review synthesis response file, or use a deterministic fallback like “Address only the latest review synthesis action items.”\n4. Keep [`.github/prompts/agent-fix-pr.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-fix-pr.md) aligned by stating that non-empty orchestrator context is the fix-pr task, not just background.\n5. Update tests in [`.agent/src/__tests__/handoff.test.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/handoff.test.ts), [`.agent/src/__tests__/orchestrate-handoff-cli.test.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/orchestrate-handoff-cli.test.ts), and [`.agent/src/__tests__/envelope.test.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/envelope.test.ts).\n6. Update the orchestrator docs in [`.agent/docs/technical-details/agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/technical-details/agent-orchestrator.md) to document that visible handoff comments are compact status tables plus an explicit next-task block.\n\nNo blocker questions from me. If approved, I’d implement this directly against issue #129.",
+      "createdAt": "2026-05-04T03:30:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/129#issuecomment-4368000444",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFp-Vw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate ",
+      "createdAt": "2026-05-04T03:33:15Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/129#issuecomment-4368006743",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFqPdw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `orchestrate` -> `implement` (round 2/10).\n\nagent planner selected implement: Issue #129 is a small, self-contained orchestration communication change and the requester approved implementation after the prior plan.\n\n<!-- sepo-agent-handoff state:dispatched created:1777865681569 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyOTk2NzU1NzA6b3JjaGVzdHJhdGU6MTI5OmltcGxlbWVudDoxMjk6Mg -->",
+      "createdAt": "2026-05-04T03:34:41Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/129#issuecomment-4368011127",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFsu8g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-129/codex-25299711989`\n- Pull request: https://github.com/self-evolving/repo/pull/131\n\nUpdated generic orchestration handoff comments to use compact transposed tables, derive and pass explicit fix-pr task context from review synthesis action items, and align prompts/docs. Verified with build, targeted node tests, and git diff --check.",
+      "createdAt": "2026-05-04T03:45:03Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/129#issuecomment-4368051954",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-04T03:26:49Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 129,
+  "state": "OPEN",
+  "title": "Improve the orchestrator communication prompt",
+  "updatedAt": "2026-05-04T03:45:03Z",
+  "url": "https://github.com/self-evolving/repo/issues/129"
+}

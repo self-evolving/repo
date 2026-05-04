@@ -1,0 +1,99 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "for #116 and #120 -> they got closed b/c the upstream branch got deleted, thus the PR got closed, thus their own branch got deleted. \n\n@sepo-agent /answer can you understand the issue, and can you propose how to fix it?",
+  "closedAt": "2026-05-04T00:56:42Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFDgnQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I understand the issue. #116 and #120 were both stacked on PR #62’s head branch, `agent/implement-issue-23/codex-25151531035`. When #62 was merged, `agent-branch-cleanup.yml` deleted that merged agent branch. GitHub then emitted `base_ref_deleted` and closed #116/#120 immediately afterward.\n\nImportant detail: the head branches for #116 and #120 still exist right now; the deleted branch was their base branch.\n\nRelevant code:\n- Cleanup currently deletes any merged same-repo `agent/*` PR branch, except memory/rubrics branches: https://github.com/self-evolving/repo/blob/cb5a6e677be24d660eea54c6522ed352539f2128/.github/workflows/agent-branch-cleanup.yml#L12-L18\n- It deletes the ref directly without checking whether open PRs use it as their base: https://github.com/self-evolving/repo/blob/cb5a6e677be24d660eea54c6522ed352539f2128/.github/workflows/agent-branch-cleanup.yml#L35-L52\n- Stacked PRs are explicitly supported through `base_pr`, which resolves to the prior PR’s head branch: https://github.com/self-evolving/repo/blob/cb5a6e677be24d660eea54c6522ed352539f2128/.agent/src/implementation-base.ts#L73-L84\n- The orchestrator docs say sequential child work should stack on the prior open PR: https://github.com/self-evolving/repo/blob/cb5a6e677be24d660eea54c6522ed352539f2128/.agent/docs/technical-details/agent-orchestrator.md#L95-L130\n\nProposed fix: make branch cleanup stack-aware.\n\nBefore deleting a merged agent branch, `agent-branch-cleanup.yml` should query open PRs whose `base` is the branch being deleted. If any exist, it should retarget those PRs to the merged PR’s own base branch, then delete the merged branch only after retargeting succeeds.\n\nFor #62, that means:\n- #62 merged `agent/implement-issue-23/...` into `main`.\n- Cleanup should have found #116 and #120 with base `agent/implement-issue-23/...`.\n- Cleanup should have updated both PR bases to `main`.\n- Then deleting #62’s head branch would not have cascaded into closing #116/#120.\n\nExecution plan, if approved:\n\n1. Update `.github/workflows/agent-branch-cleanup.yml` so the cleanup script:\n   - reads `branch = pull_request.head.ref`\n   - reads `retargetBase = pull_request.base.ref`\n   - paginates open PRs with `base: branch`\n   - updates each dependent PR to `base: retargetBase`\n   - only calls `deleteRef` after all retargets succeed\n2. Fail closed if retargeting fails: do not delete the branch, because preserving a stale branch is better than closing child PRs.\n3. Keep existing guards for merged-only, same-repo, `agent/*`, and memory/rubrics exclusions.\n4. Add tests/contract coverage proving cleanup now checks/retargets dependent PRs before deletion.\n5. Update supported workflow docs to mention that branch cleanup retargets stacked child PRs before deleting merged parent branches.\n\nImmediate manual recovery for these two PRs should be possible because their head refs still exist: retarget #116 and #120 to `main`, then reopen them, after checking their diffs still look correct against `main`.\n\nPlease approve before I start coding this.",
+      "createdAt": "2026-05-03T22:52:56Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/122#issuecomment-4367376541",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFEYGA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "sounds good. \n@sepo-agent /orchestrate ",
+      "createdAt": "2026-05-03T23:00:34Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/122#issuecomment-4367390744",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFEjPQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo automation handoff dispatched: `orchestrate` -> `implement` (round 2/10).\n\nagent planner selected implement: Issue #122 has explicit maintainer approval to implement the proposed stack-aware branch cleanup fix, and the work is small enough to implement directly on the current issue.\n\n<!-- sepo-agent-handoff state:dispatched created:1777849323825 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyOTMzMjIxODY6b3JjaGVzdHJhdGU6MTIyOmltcGxlbWVudDoxMjI6Mg -->",
+      "createdAt": "2026-05-03T23:02:04Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/122#issuecomment-4367393597",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBFFJaw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-122/codex-25293354687`\n- Pull request: https://github.com/self-evolving/repo/pull/123\n\nUpdated the agent branch cleanup workflow to retarget open stacked PRs from a merged agent branch to the merged PR's base branch before deleting the branch, added the needed pull-request write permission, refreshed docs, and added workflow contract coverage. Verified with `npm run build && node --test dist/__tests__/envelope.test.js`.",
+      "createdAt": "2026-05-03T23:06:48Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/122#issuecomment-4367403371",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-03T22:49:46Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 122,
+  "state": "CLOSED",
+  "title": "cascading deleting",
+  "updatedAt": "2026-05-04T00:56:42Z",
+  "url": "https://github.com/self-evolving/repo/issues/122"
+}
