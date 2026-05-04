@@ -853,7 +853,16 @@ test("manual orchestrate dispatches fix-pr for PR targets with CHANGES_REQUESTED
   assert.equal(run.status, 0);
   assert.equal(run.outputs.get("decision"), "dispatch");
   assert.equal(run.outputs.get("next_action"), "fix-pr");
+  assert.match(
+    run.outputs.get("handoff_context") || "",
+    /latest unresolved requested-change review comments/,
+  );
+  assert.doesNotMatch(run.outputs.get("handoff_context") || "", /review synthesis action items/);
   assert.match(run.ghLog, /actions\/workflows\/agent-fix-pr\.yml\/dispatches/);
+  assert.match(run.ghLog, /Task for fix-pr:/);
+  assert.match(run.ghLog, /latest unresolved requested-change review comments/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.orchestrator_context, run.outputs.get("handoff_context"));
 });
 
 test("review handoff dispatches fix-pr with visible task context", () => {

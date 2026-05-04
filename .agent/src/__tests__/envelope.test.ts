@@ -19,6 +19,12 @@ function readRepoFile(relativePath: string): string {
   return readFileSync(path.join(repoRoot, relativePath), "utf8");
 }
 
+function readSupplementalPromptVarNames(runSource: string): Set<string> {
+  const match = runSource.match(/const SUPPLEMENTAL_PROMPT_VAR_NAMES = \[([\s\S]*?)\] as const;/);
+  assert.ok(match, "run.ts should define SUPPLEMENTAL_PROMPT_VAR_NAMES");
+  return new Set(Array.from(match[1].matchAll(/"([^"]+)"/g), ([, name]) => name));
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
 }
@@ -943,6 +949,18 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestratorDoc, /Task for fix-pr/);
   assert.match(orchestratorDoc, /agent\s+handle/);
   assert.match(orchestratorDoc, /minimizes older visible handoff marker comments/);
+});
+
+test("orchestrator source handoff context is renderable in planner prompts", () => {
+  const runSource = readRepoFile(".agent/src/run.ts");
+  const orchestratorPrompt = readRepoFile(".github/prompts/agent-orchestrator.md");
+  const sourceContextName = "ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT";
+
+  assert.match(orchestratorPrompt, /\$\{ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT\}/);
+  assert.ok(
+    readSupplementalPromptVarNames(runSource).has(sourceContextName),
+    `${sourceContextName} must be allowlisted for runtime prompt rendering`,
+  );
 });
 
 test("workflow docs cover hosted auth and self-hosting paths", () => {

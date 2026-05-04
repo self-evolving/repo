@@ -748,6 +748,27 @@ const collapseOldReviews = !["false", "0", "no", "off"].includes(
   (process.env.AGENT_COLLAPSE_OLD_REVIEWS || "").trim().toLowerCase(),
 );
 
+function manualPrChangesRequestedFixPrHandoffContext(): string {
+  return [
+    "Address the latest unresolved requested-change review comments on this pull request.",
+    "Treat those requested-change comments as the selected fix-pr task; do not use review-synthesis-only defaults when no synthesis exists.",
+    "Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by the requested changes.",
+  ].join(" ");
+}
+
+function fallbackFixPrHandoffContext(): string {
+  const explicitContext = sourceHandoffContext.trim();
+  if (explicitContext) return explicitContext;
+  const normalizedSourceAction = normalizeToken(sourceAction);
+  if (normalizedSourceAction === "orchestrate" && normalizeToken(sourceTargetKind) === "pull_request") {
+    return manualPrChangesRequestedFixPrHandoffContext();
+  }
+  if (normalizedSourceAction === "review") {
+    return defaultFixPrHandoffContext();
+  }
+  return "";
+}
+
 function readPlannerDecision(): ReturnType<typeof parsePlannerDecision> {
   const responseFile = process.env.PLANNER_RESPONSE_FILE || "";
   if (!responseFile) return null;
@@ -1135,7 +1156,7 @@ const routeDecision = authorizationStop || (normalizeToken(sourceAction) === "or
 const decision = routeDecision;
 
 if (decision.decision === "dispatch" && decision.nextAction === "fix-pr" && !decision.handoffContext) {
-  decision.handoffContext = sourceHandoffContext.trim() || defaultFixPrHandoffContext();
+  decision.handoffContext = fallbackFixPrHandoffContext();
 }
 
 setOutput("decision", decision.decision);
