@@ -168,10 +168,23 @@ test("validateSepoVersionMetadata rejects partial or malformed source identity",
     () => validateSepoVersionMetadata(validMetadata({ installed_from: "release" })),
     /release installs must record source_sha/,
   );
-  assert.throws(
-    () => validateSepoVersionMetadata(validMetadata({ source_repo: "self-evolving" })),
-    /source_repo must be a GitHub owner\/repo slug/,
-  );
+  for (const sourceRepo of [
+    "self-evolving",
+    "./repo",
+    "../repo",
+    "owner/.",
+    "owner/..",
+    "self_evolving/repo",
+    "self.evolving/repo",
+    "-owner/repo",
+    "owner-/repo",
+  ]) {
+    assert.throws(
+      () => validateSepoVersionMetadata(validMetadata({ source_repo: sourceRepo })),
+      /source_repo must be a GitHub owner\/repo slug/,
+      sourceRepo,
+    );
+  }
   assert.throws(
     () => validateSepoVersionMetadata(validMetadata({ source_sha: "abc123" })),
     /source_sha must be null or a full lowercase Git commit SHA/,

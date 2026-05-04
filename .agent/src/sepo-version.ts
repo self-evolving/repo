@@ -50,7 +50,8 @@ const EXPECTED_FIELDS = [
 
 const SEMVER_RE =
   /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9A-Za-z-][0-9A-Za-z-]*))*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
-const SOURCE_REPO_RE = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+const GITHUB_OWNER_RE = /^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$/;
+const GITHUB_REPO_RE = /^[A-Za-z0-9._-]+$/;
 const FULL_GIT_SHA_RE = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
 const AGENT_FILES_HASH_RE = /^sha256:[0-9a-f]{64}$/;
 const INVALID_SOURCE_REF_CHARS_RE = /[\x00-\x20\x7f~^:?*[\\]/;
@@ -162,6 +163,23 @@ function validateSourceRef(sourceRef: string): void {
   }
 }
 
+function validateSourceRepo(sourceRepo: string): void {
+  const segments = sourceRepo.split("/");
+  if (segments.length !== 2) {
+    throw new Error("source_repo must be a GitHub owner/repo slug");
+  }
+
+  const [owner, repo] = segments;
+  if (
+    !GITHUB_OWNER_RE.test(owner) ||
+    !GITHUB_REPO_RE.test(repo) ||
+    repo === "." ||
+    repo === ".."
+  ) {
+    throw new Error("source_repo must be a GitHub owner/repo slug");
+  }
+}
+
 export function validateSepoVersionMetadata(value: unknown): SepoVersionMetadata {
   if (!isRecord(value)) {
     throw new Error("Sepo version metadata must be a JSON object");
@@ -192,9 +210,7 @@ export function validateSepoVersionMetadata(value: unknown): SepoVersionMetadata
   validateVersionChannel(version, channel);
 
   const sourceRepo = requireStringField(value, "source_repo");
-  if (!SOURCE_REPO_RE.test(sourceRepo)) {
-    throw new Error("source_repo must be a GitHub owner/repo slug");
-  }
+  validateSourceRepo(sourceRepo);
 
   const sourceRef = requireStringField(value, "source_ref");
   validateSourceRef(sourceRef);
