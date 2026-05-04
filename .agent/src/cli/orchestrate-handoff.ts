@@ -891,8 +891,8 @@ function reportTerminalToParent(decision: HandoffDecision): void {
       session_bundle_mode: sessionBundleMode,
       base_branch: baseBranch,
       base_pr: basePr,
-      orchestration_root_kind: "issue",
-      orchestration_root_number: String(marker.parent),
+      orchestration_root_kind: orchestrationRootKind,
+      orchestration_root_number: orchestrationRootNumber,
     });
 
     writeProgress(dispatchedProgressMarker);
