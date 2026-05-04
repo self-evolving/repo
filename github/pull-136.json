@@ -1,0 +1,464 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "agent/implement-issue-25/codex-25312327614",
+  "body": "## Summary\n- Add a non-fatal `assign-agent` CLI that derives the assignee login from `AGENT_HANDLE`, checks assignability, and assigns through the Issues API.\n- Wire assignment into accepted issue/PR route workflows while keeping labels and mentions as the automation signal layer.\n- Add onboarding setup visibility, docs, and focused tests.\n\n## Verification\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/assign-agent-cli.test.js .agent/dist/__tests__/onboarding-check-cli.test.js .agent/dist/__tests__/envelope.test.js .agent/dist/__tests__/github.test.js`\n- `git diff --check`\n\nCloses #135\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBIMERQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #136 | 3 / 40 | Dispatched |\n\nReason: implementation succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777894190565 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzMTYwNDcwODI6aW1wbGVtZW50OjEzNTpyZXZpZXc6MTM2OjM -->",
+      "createdAt": "2026-05-04T11:29:50Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/136#issuecomment-4370662469",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBIMizA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR closes #135, which is explicitly stage 2 under parent #126 after #25/#134; implementation matches the parent plan to default assignment from `AGENT_HANDLE` while keeping labels as the signal layer. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | New assignment behavior is isolated in [`.agent/src/agent-assignee.ts`](https://github.com/self-evolving/repo/blob/6bd10511f48993f6219b61733fca60301ab6b8d5/.agent/src/agent-assignee.ts) and reuses existing [`.agent/src/github.ts`](https://github.com/self-evolving/repo/blob/6bd10511f48993f6219b61733fca60301ab6b8d5/.agent/src/github.ts) CLI/API helper patterns rather than embedding GitHub logic directly in workflows. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The CLI uses separate env inputs `AGENT_HANDLE`, `TARGET_KIND`, `TARGET_NUMBER`, and `GITHUB_REPOSITORY`, with explicit validation for supported target kinds and valid positive numbers in [`.agent/src/cli/assign-agent.ts`](https://github.com/self-evolving/repo/blob/6bd10511f48993f6219b61733fca60301ab6b8d5/.agent/src/cli/assign-agent.ts). |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Assignment is best-effort and uses GitHub’s assignee endpoint after assignability checks; onboarding keeps the existing setup issue/comment marker flow and only adds assignability status to that reused artifact. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Invalid handles, unassignable logins, missing repository context, and assignment API failures are surfaced as warnings while preserving non-fatal workflow behavior; tests cover invalid namespaced handles and unassignable users in [`.agent/src/__tests__/assign-agent-cli.test.ts`](https://github.com/self-evolving/repo/blob/6bd10511f48993f6219b61733fca60301ab6b8d5/.agent/src/__tests__/assign-agent-cli.test.ts). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Docs were updated in [supported workflows](https://github.com/self-evolving/repo/blob/6bd10511f48993f6219b61733fca60301ab6b8d5/.agent/docs/architecture/supported-workflows.md) and [configuration list](https://github.com/self-evolving/repo/blob/6bd10511f48993f6219b61733fca60301ab6b8d5/.agent/docs/customization/configuration-list.md) to explain `AGENT_HANDLE`-derived best-effort assignment and that labels/mentions remain the automation signal layer. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is narrowly scoped to assignment support, workflow wiring, onboarding visibility, docs, and focused tests; no unrelated refactors or broad formatting churn are present. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | Documentation adds behavioral guidance inline and does not introduce per-file inventory tables. |\n\n## Notes\n\n- The strongest rubric alignment is that the PR follows the parent issue’s exact design: derive the assignee from `AGENT_HANDLE`, check assignability, continue on failure, and keep labels/mentions as the source of truth.\n- Regression coverage is focused on the new assignment contract and workflow wiring.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific violations found.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-04T11:31:17Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/136#issuecomment-4370670284",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBIPInA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #136 implements issue #135, the second child task under parent issue #126’s staged plan for Project/agent workflow improvements.\n- The PR adds best-effort assignment of accepted Sepo work to the login derived from `AGENT_HANDLE`, defaulting `@sepo-agent` to `sepo-agent`.\n- It keeps labels and mentions as the automation source of truth, adds assignability checks, wires assignment into accepted issue/PR routes, updates onboarding visibility, docs, and focused tests.\n- The broader goal is better visibility that Sepo is handling accepted work without making GitHub assignees a hard dependency.\n\n## Review\nThe core assignment module, CLI behavior, GitHub API helpers, docs, and tests are broadly solid, and the rubrics review passed. One reviewer found a concrete blocker in the label-triggered router path: custom `AGENT_HANDLE` values are not propagated from `agent-label.yml`, so some accepted label-triggered work can be assigned to the wrong default handler.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Label-triggered router assignment ignores custom `AGENT_HANDLE` | BLOCKING | `.github/workflows/agent-router.yml` assigns from `inputs.agent_handle`, but `.github/workflows/agent-label.yml` does not pass that input. Repos with a custom handler can assign label-triggered `answer`/`skill` work to default `@sepo-agent`. |\n| Review workflow assignment anchor is best-effort fragile | INFO | One reviewer noted `agent-review.yml` assigns only in the `codex` matrix lane. This is acceptable for best-effort assignment, though the single-threaded synthesis job would be a more robust future anchor. |\n| Core implementation, docs, and rubrics are aligned | INFO | Reviewers agreed the assignment CLI/API design, non-fatal behavior, onboarding update, docs, and focused tests match issue #135’s intent. |\n\n## Progress\n- Parent issue #126 and child issue #135 were reviewed; this PR matches the staged plan after activity-label work in PR #134.\n- Rubrics review is already posted on the PR and reports `PASS`.\n- Existing inline review comments were checked before posting; none existed.\n- Posted one inline comment on `.github/workflows/agent-router.yml` line 267 for the custom-handle label-trigger assignment gap.\n- No reviewer raised a blocking issue in the core assignment logic itself.\n\n## Issue Details\n<details>\n<summary>Label-triggered router assignment ignores custom <code>AGENT_HANDLE</code></summary>\n\n**Cause:** The new router assignment step uses `AGENT_HANDLE: ${{ inputs.agent_handle || '@sepo-agent' }}`, but label-triggered runs enter through `agent-label.yml`, which calls `agent-router.yml` without passing `agent_handle`.\n\n**Candidate solutions:** Pass `agent_handle` from `agent-label.yml` using `vars.AGENT_HANDLE || '@sepo-agent'`, or make the router step fall back to `vars.AGENT_HANDLE` when the workflow-call input is empty. Add focused coverage for a label-triggered run with a custom handle.\n\n**Comments:** Codex review treats this as blocking. Claude and rubrics review found the rest of the implementation shippable/pass, so the disagreement is scoped to this router caller gap rather than the assignment design overall.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: The unresolved blocker is a small, concrete workflow wiring and test coverage change that is safe for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Preserve custom `AGENT_HANDLE` for label-triggered router assignment by passing it from `agent-label.yml` or falling back to `vars.AGENT_HANDLE` in `agent-router.yml`, with focused regression coverage.",
+      "createdAt": "2026-05-04T11:38:39Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/136#issuecomment-4370712732",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBIPN6A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #136 | 4 / 40 | Dispatched |\n\nReason: review verdict is needs_rework; dispatching fix-pr\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Preserve custom `AGENT_HANDLE` for label-triggered router assignment by passing it from `agent-label.yml` or falling back to `vars.AGENT_HANDLE` in `agent-router.yml`, with focused regression coverage.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1777894733724 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzMTY0NjY3NTE6cmV2aWV3OjEzNjpmaXhfcHI6MTM2OjQ -->",
+      "createdAt": "2026-05-04T11:38:54Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/136#issuecomment-4370714088",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBIQEBQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-135/codex-25316047082`. Requested by @sepo-agent.\n\n- Passed `vars.AGENT_HANDLE` from `agent-label.yml` into the reusable router so label-triggered assignment preserves custom handlers.\n- Added focused workflow coverage for the label-triggered custom-handle path.\n\n<details><summary>Verification</summary>\n\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/envelope.test.js`\n- `git diff --check`\n\n</details>",
+      "createdAt": "2026-05-04T11:41:21Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/136#issuecomment-4370727941",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBIQJFA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #136 | 5 / 40 | Dispatched |\n\nReason: PR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777894895340 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzMTY4Mzc0Mjk6Zml4X3ByOjEzNjpyZXZpZXc6MTM2OjU -->",
+      "createdAt": "2026-05-04T11:41:35Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/136#issuecomment-4370729236",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBIQmPQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #136 closes #135, which is the `assign-agent-handle` child under parent #126; the implementation matches the requested plan to derive assignment from `AGENT_HANDLE`, keep it best-effort, and preserve labels/mentions as the automation signal layer. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | GitHub assignment logic is in `.agent/src/agent-assignee.ts` and reuses `.agent/src/github.ts` helpers; workflows only call the typed CLI instead of embedding API behavior inline. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | `.agent/src/cli/assign-agent.ts` uses distinct env inputs: `AGENT_HANDLE`, `TARGET_KIND`, `TARGET_NUMBER`, and `GITHUB_REPOSITORY`, with explicit target-kind and target-number validation. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Onboarding continues to reuse the existing setup issue/comment marker flow and adds assignability status there; assignment is best-effort and based on GitHub assignability checks rather than creating repeated artifacts. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Invalid handles, missing repo context, unassignable users, and assignment API failures produce warnings while keeping the workflow non-fatal; `assign-agent-cli.test.ts` covers invalid namespaced handles and unassignable users. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | `.agent/docs/architecture/supported-workflows.md` and `.agent/docs/customization/configuration-list.md` document `AGENT_HANDLE`-derived best-effort assignment and clarify labels/mentions remain the signal layer. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is scoped to assignment support, workflow wiring, onboarding visibility, docs, and focused tests; the follow-up fix only adds `agent_handle` propagation in `agent-label.yml` plus regression coverage. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | Documentation changes are concise behavioral notes and do not add per-file inventory tables. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The design derives the assignee from existing `AGENT_HANDLE` instead of introducing `AGENT_ASSIGNEE`, and uses one small CLI plus workflow calls for the accepted routes. |\n\n## Notes\n\n- The earlier custom-handle label-trigger gap appears addressed in the current PR diff: `agent-label.yml` now passes `agent_handle: ${{ vars.AGENT_HANDLE || '@sepo-agent' }}` into `agent-router.yml`, and `envelope.test.ts` asserts that path.\n- The implementation stays aligned with #135’s core constraints: assignment is not authoritative, failures are warnings, and existing label/mention behavior remains intact.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific violations found.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-04T11:42:53Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/136#issuecomment-4370736701",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBITzPw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #136 implements issue #135, a child task under parent issue #126’s staged plan for agent/project workflow improvements.\n- It adds best-effort assignment of accepted Sepo issue/PR work to the login derived from `AGENT_HANDLE`, defaulting `@sepo-agent` to `sepo-agent`.\n- The design keeps labels and mentions as the automation source of truth, while using GitHub assignees only as a visibility convenience.\n- It also updates onboarding visibility, workflow wiring, docs, and focused tests.\n\n## Review\nThe overall implementation is well scoped and aligned with the parent plan, and the previous custom-handle router gap is fixed. One unresolved assignment-gating issue remains: the current assignability probe can skip assignment even when the configured handler is repo-assignable.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Assignability check can falsely skip assignment | BLOCKING | The issue-specific assignability check returns 404 for the current default handler on live issue/PR targets, while the repo-level check returns 204. Because `ghApiOk` treats that 404 as unassignable, accepted work remains unassigned. |\n| Custom-handle label-trigger gap is fixed | INFO | The prior blocker is addressed by passing `agent_handle` from `agent-label.yml` into the reusable router, with envelope coverage. |\n\n## Progress\n- Broader context from #126 and #135 confirms the requested behavior: derive assignment from `AGENT_HANDLE`, keep assignment best-effort, and preserve labels/mentions as the signal layer.\n- Rubrics review passed, and the PR check is passing.\n- `git diff --check` passes.\n- Existing inline comments were checked before posting; one new inline comment was posted on `.agent/src/github.ts` line 149 for the assignability false-negative.\n- Reviewer disagreement noted: GitHub docs do document the issue-specific endpoint, so the problem is the observed false-negative for this repo’s intended assignment flow, not that the route is nonexistent. Reference: [GitHub REST issue assignees docs](https://docs.github.com/en/rest/issues/assignees).\n\n## Issue Details\n<details>\n<summary>Assignability check can falsely skip assignment</summary>\n\n**Cause:** `isIssueAssigneeAssignable` gates assignment on `repos/{repo}/issues/{number}/assignees/{assignee}`. In live checks, `repos/self-evolving/repo/assignees/sepo-agent` returns 204, but the issue-specific checks for issue #135 and PR #136 return 404, so `resolveAgentAssignee` skips before the idempotent add-assignee call.\n\n**Candidate solutions:** Use the repo-level `repos/{owner}/{repo}/assignees/{assignee}` endpoint for this best-effort gate, or fall back to it when the issue-specific check returns 404. Update the `github.ts` helper signature, the `agent-assignee.ts` call site, and the CLI/onboarding test stubs that currently expect the issue-specific check.\n\n**Comments:** Claude flagged this as blocking; Codex and rubrics review considered current head shippable. The synthesis validates a narrower blocker: not an undocumented endpoint, but a false-negative gate that prevents the feature from assigning accepted work in the target repo.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: The unresolved blocker is a small, concrete helper/call-site/test update that is safe for automated fix-pr work.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Replace or harden the assignability gate so default `AGENT_HANDLE` assignment is not skipped by issue-specific 404s, and update focused test coverage for the chosen endpoint behavior.",
+      "createdAt": "2026-05-04T11:51:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/136#issuecomment-4370789183",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBIT4sg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #136 | 6 / 40 | Dispatched |\n\nReason: review verdict is needs_rework; dispatching fix-pr\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Replace or harden the assignability gate so default `AGENT_HANDLE` assignment is not skipped by issue-specific 404s, and update focused test coverage for the chosen endpoint behavior.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1777895524194 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzMTY5NTIxMjY6cmV2aWV3OjEzNjpmaXhfcHI6MTM2OjY -->",
+      "createdAt": "2026-05-04T11:52:04Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/136#issuecomment-4370790578",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBIVHeA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-135/codex-25316047082`. Requested by @sepo-agent.\n\n- Replaced the assignment preflight with the repo-level assignee endpoint so repo-assignable `AGENT_HANDLE` logins are not skipped by issue-specific 404s.\n- Updated focused CLI/onboarding/envelope coverage and the workflow docs to match the repo-level gate.\n\n<details><summary>Verification</summary>\n\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/assign-agent-cli.test.js .agent/dist/__tests__/onboarding-check-cli.test.js .agent/dist/__tests__/envelope.test.js`\n- `git diff --check`\n\n</details>",
+      "createdAt": "2026-05-04T11:55:27Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/136#issuecomment-4370810744",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBIVNRQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #136 | 7 / 40 | Dispatched |\n\nReason: PR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777895741469 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzMTczOTEwMTg6Zml4X3ByOjEzNjpyZXZpZXc6MTM2Ojc -->",
+      "createdAt": "2026-05-04T11:55:41Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/136#issuecomment-4370812229",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBIVzBQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #136 closes #135, a child of parent #126 after #25/#134; the diff follows the staged plan to derive assignment from `AGENT_HANDLE`, keep labels/mentions authoritative, and preserve activity-label behavior. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | GitHub assignment behavior is centralized in `.agent/src/agent-assignee.ts` and `.agent/src/github.ts`; workflows invoke the typed CLI instead of embedding API logic inline. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | `.agent/src/cli/assign-agent.ts` uses distinct env inputs: `AGENT_HANDLE`, `TARGET_KIND`, `TARGET_NUMBER`, and `GITHUB_REPOSITORY`, with explicit validation for target kind and positive target number. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Assignment uses GitHub’s assignee API and repo-level assignability checks; onboarding updates the existing setup issue/comment marker rather than creating repeated artifacts. |\n| communication / generic | Keep status comments compact | pass | 6/6 | Onboarding adds a single checklist line for agent-handle assignability, keeping the visible setup status compact and user-facing. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Invalid handles, missing repo context, unassignable users, and assignment API failures surface warnings while the non-fatal CLI exits successfully; focused tests cover skip/warning paths. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | `.agent/docs/architecture/supported-workflows.md` and `.agent/docs/customization/configuration-list.md` document best-effort assignment from `AGENT_HANDLE` and clarify labels/mentions remain the signal layer. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is limited to assignment support, workflow wiring, onboarding visibility, docs, and focused tests; no broad refactor or unrelated cleanup is present. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | Documentation changes add behavior notes inline and do not introduce per-file inventory tables. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation derives from existing `AGENT_HANDLE` and avoids a new `AGENT_ASSIGNEE`; behavior is handled by one small CLI plus narrow workflow calls. |\n\n## Notes\n\n- The current diff addresses the earlier review blockers: `agent-label.yml` now passes `agent_handle` into `agent-router.yml`, and assignability now uses the repo-level assignee endpoint to avoid issue-specific false negatives.\n- The implementation matches #135’s requested contract: assignment is best-effort visibility only, failures are warnings, and labels/mentions remain the automation source of truth.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific violations found.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-04T11:57:20Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/136#issuecomment-4370821893",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBIYlSA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #136 implements issue #135, the assign-to-agent stage under parent issue #126’s GitHub Project and agent workflow plan.\n- It adds best-effort assignment of accepted Sepo issue/PR work to the login derived from `AGENT_HANDLE`, defaulting `@sepo-agent` to `sepo-agent`.\n- The PR keeps labels and mentions as the automation source of truth, uses repo-level assignability checks, and surfaces assignment failures as non-fatal warnings.\n- It also updates workflow wiring, onboarding visibility, docs, and focused tests, stacked after the activity-label work from PR #134.\n\n## Review\nThe latest reviews agree the previous blocking issues are resolved, and the rubrics review passes. Two remaining warnings are concrete and branch-changeable: one behavioral guard in the router assignment step, and one misleading interface left after the repo-level assignability refactor.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Pending-approval routes can assign before acceptance | WARNING | [`agent-router.yml`](https://github.com/self-evolving/repo/blob/1f0e6589501a47519b98188409aba1844d984503/.github/workflows/agent-router.yml#L259-L264) assigns whenever a routed issue/PR is non-unsupported, even when triaged `implement` / `create-action` only posts an approval request. This can make Sepo look like it accepted ownership before human approval. |\n| `resolveAgentAssignee` keeps unused target fields | WARNING | [`resolveAgentAssignee`](https://github.com/self-evolving/repo/blob/1f0e6589501a47519b98188409aba1844d984503/.agent/src/agent-assignee.ts#L46-L51) still requires `targetNumber` and `targetKind`, but the repo-level assignability check no longer uses them. The signature now misleads callers and forces onboarding to pass dummy target data. |\n| Previous blockers are fixed and rubrics pass | INFO | The custom `AGENT_HANDLE` label-trigger gap and issue-specific assignability false-negative were fixed. Rubrics review reports `PASS` with no rubric-specific violations. |\n\n## Progress\n- Parent issue #126 and child issue #135 were reviewed; the PR matches the staged assign-agent-handle plan.\n- Earlier blockers were addressed: `agent-label.yml` now passes `agent_handle`, and assignability now uses the repo-level endpoint.\n- Reviewers reported passing checks: build, focused tests, `git diff --check`, and GitHub checks.\n- Existing inline comments were checked; two new inline comments were posted for the remaining warnings.\n\n## Issue Details\n<details>\n<summary>Pending-approval routes can assign before acceptance</summary>\n\n**Cause:** The router assignment condition checks `should_respond`, route presence, and target kind, but not `steps.dispatch.outputs.needs_approval`. Triaged `implement` / `create-action` decisions can therefore assign the target even though the router only posts an approval request.\n\n**Candidate solutions:** Add `steps.dispatch.outputs.needs_approval != 'true'` to the assignment step condition and update `envelope.test.ts` to cover an approval-gated route.\n\n**Comments:** Codex raised this as a warning. It is not contradicted by the other reviews; rubrics still pass overall.\n\n</details>\n\n<details>\n<summary><code>resolveAgentAssignee</code> keeps unused target fields</summary>\n\n**Cause:** After switching from issue-specific to repo-level assignability, `resolveAgentAssignee` only needs `agentHandle` and `repo`, but its input type still includes `targetNumber` and `targetKind`.\n\n**Candidate solutions:** Narrow `resolveAgentAssignee` to `{ agentHandle?: string; repo: string }`, keep target fields only on `assignAgentHandleToTarget`, and update the onboarding call site/tests accordingly.\n\n**Comments:** Claude raised this as a code-quality warning. It is small, but cleaning it up prevents future misunderstanding of the assignment contract.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: The remaining issues are concrete, low-risk workflow/module updates with focused test coverage paths.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Add a pending-approval guard to the router assignment step and cover that approval-gated path in tests.\n- [ ] Narrow `resolveAgentAssignee` to the fields it actually uses and update onboarding/tests.",
+      "createdAt": "2026-05-04T12:04:55Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/136#issuecomment-4370867528",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBIYq2g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #136 | 8 / 40 | Dispatched |\n\nReason: review verdict is minor_issues; dispatching fix-pr\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Add a pending-approval guard to the router assignment step and cover that approval-gated path in tests.\n- Narrow `resolveAgentAssignee` to the fields it actually uses and update onboarding/tests.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1777896309457 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzMTc1NDgzMjY6cmV2aWV3OjEzNjpmaXhfcHI6MTM2Ojg -->",
+      "createdAt": "2026-05-04T12:05:09Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/136#issuecomment-4370868954",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBIZ1HA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-135/codex-25316047082`. Requested by @sepo-agent.\n\n- Added a `needs_approval != 'true'` guard to router assignment so pending-approval routes do not assign before acceptance.\n- Narrowed `resolveAgentAssignee` to repo-level inputs and updated onboarding plus focused envelope coverage.\n\n<details><summary>Verification</summary>\n\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/assign-agent-cli.test.js .agent/dist/__tests__/onboarding-check-cli.test.js .agent/dist/__tests__/envelope.test.js`\n- `git diff --check`\n\n</details>",
+      "createdAt": "2026-05-04T12:08:07Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/136#issuecomment-4370887964",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBIZ65w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #136 | 9 / 40 | Dispatched |\n\nReason: PR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777896501697 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzMTc5NTkzOTI6Zml4X3ByOjEzNjpyZXZpZXc6MTM2Ojk -->",
+      "createdAt": "2026-05-04T12:08:22Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/136#issuecomment-4370889447",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBIaZpg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #136 closes #135, which is explicitly `assign-agent-handle` under parent #126 after #25/#134; the diff follows the staged plan to derive assignment from `AGENT_HANDLE`, keep labels/mentions authoritative, and preserve activity-label behavior. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Assignment behavior is centralized in `.agent/src/agent-assignee.ts` and `.agent/src/github.ts`; workflows invoke `.agent/dist/cli/assign-agent.js` instead of embedding GitHub API logic inline. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | `.agent/src/cli/assign-agent.ts` uses separate env inputs `AGENT_HANDLE`, `TARGET_KIND`, `TARGET_NUMBER`, and `GITHUB_REPOSITORY`, with explicit validation for target kind and positive target number. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Assignment uses GitHub assignee APIs and repo-level assignability checks; onboarding updates the existing setup issue/comment marker flow rather than creating repeated status artifacts. |\n| communication / generic | Keep status comments compact | pass | 6/6 | Onboarding adds one concise checklist line for agent-handle assignability instead of verbose log output. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Invalid handles, missing repo context, unassignable users, and assignment API failures surface warnings while the CLI remains non-fatal; focused tests cover skip and warning paths. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | `.agent/docs/architecture/supported-workflows.md` and `.agent/docs/customization/configuration-list.md` document best-effort assignment from `AGENT_HANDLE` and clarify labels/mentions remain the signal layer. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is scoped to assignment support, workflow wiring, onboarding visibility, docs, and focused tests; no unrelated refactor or broad cleanup is present. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | Documentation changes are concise behavioral notes and do not add per-file inventory tables. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation derives from existing `AGENT_HANDLE` and avoids adding `AGENT_ASSIGNEE`; behavior is handled by one small CLI plus narrow workflow calls. |\n\n## Notes\n\n- The current head addresses the prior review issues: label-triggered routing now passes `agent_handle`, assignability uses the repo-level endpoint, pending-approval routes are guarded, and `resolveAgentAssignee` no longer requires unused target fields.\n- The implementation matches #135’s contract: assignment is best-effort visibility only, failures are warnings, and labels/mentions remain the automation source of truth.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific violations found.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-04T12:09:39Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/136#issuecomment-4370897318",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBIb72w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #136 implements issue #135, the assign-to-agent stage under parent issue #126’s staged project/workflow plan.\n- It adds best-effort assignment of accepted Sepo issue/PR work to the GitHub login derived from `AGENT_HANDLE`, defaulting `@sepo-agent` to `sepo-agent`.\n- Labels and mentions remain the automation signal layer; assignment is only a visibility convenience and failures are non-fatal warnings.\n- The PR also updates workflow wiring, onboarding setup visibility, docs, and focused tests.\n\n## Review\nCurrent head `a9edb38dc57bdfaf595ddb7f2f24aa60acd6bf81` has no unresolved actionable review findings. Earlier blockers and warnings raised during this PR’s review loop appear fixed, and current Codex/rubrics reviewer outputs conclude SHIP/PASS.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues found | INFO | Current head addresses the prior assignment wiring, assignability, approval-gating, and interface cleanup findings. No new inline comments were needed. |\n\n## Progress\n- Parent context was reviewed: #135 is the `assign-agent-handle` child of #126, stacked after the activity-label work in #134.\n- Earlier inline findings were already posted and fixed: custom `AGENT_HANDLE` propagation, repo-level assignability, pending-approval assignment guard, and unused `resolveAgentAssignee` target fields.\n- Claude’s earlier review artifact was on the initial head and only had optional/non-blocking notes; current Codex and rubrics artifacts report no actionable issues.\n- The current PR check `Test Scripts / check` is passing; the PR remains draft, which is a maintainer workflow decision rather than branch-change work.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: No unresolved branch-change work remains for automation; humans can decide when to mark the draft ready and merge.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-04T12:13:17Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/136#issuecomment-4370922459",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-04T11:29:33Z",
+  "files": [
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/assign-agent-cli.test.ts",
+      "additions": 173,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 56,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/onboarding-check-cli.test.ts",
+      "additions": 7,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/agent-assignee.ts",
+      "additions": 96,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/assign-agent.ts",
+      "additions": 49,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/onboarding-check.ts",
+      "additions": 2,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/github.ts",
+      "additions": 25,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/onboarding.ts",
+      "additions": 14,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-fix-pr.yml",
+      "additions": 11,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-implement.yml",
+      "additions": 21,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-label.yml",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-onboarding.yml",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-orchestrator.yml",
+      "additions": 10,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-review.yml",
+      "additions": 11,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-router.yml",
+      "additions": 16,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-135/codex-25316047082",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 136,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM77gvyR",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-04T11:37:45Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "6bd10511f48993f6219b61733fca60301ab6b8d5"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM77hFDD",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-04T11:51:09Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "a9ccd45e8eca35e82466b40ca75786e0404bd732"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM77hb2B",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-04T12:04:18Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "1f0e6589501a47519b98188409aba1844d984503"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM77hb2C",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-04T12:04:18Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "1f0e6589501a47519b98188409aba1844d984503"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Assign accepted Sepo work to AGENT_HANDLE",
+  "updatedAt": "2026-05-04T12:13:17Z",
+  "url": "https://github.com/self-evolving/repo/pull/136"
+}

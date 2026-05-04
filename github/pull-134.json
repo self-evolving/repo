@@ -1,0 +1,671 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Add `agent-running/<route>` activity labels for implement, create-action, review, fix-pr, and orchestrate routes.\n- Wire workflow start/cleanup steps, including root-target tracking for orchestration chains.\n- Document trigger vs activity label behavior and add CLI/workflow coverage.\n\n## Verification\n- `npm --prefix .agent test`\n- `npm --prefix .agent run build && node --test .agent/dist/__tests__/envelope.test.js`\n\nCloses #25\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBHqxXQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #134 | 3 / 40 | Dispatched |\n\nReason: implementation succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777888787482 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzMTIzMjc2MTQ6aW1wbGVtZW50OjI1OnJldmlldzoxMzQ6Mw -->",
+      "createdAt": "2026-05-04T09:59:47Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/134#issuecomment-4370116957",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBHrTmQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 86 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Read docs and linked context first | pass | 6/6 | PR closes #25 and implements the issue discussion’s chosen model: separate non-trigger `agent-running/<route>` labels and orchestrator cleanup only at terminal stop. |\n| coding_workflow/generic | Keep docs in sync | partial | 5/7 | Docs were updated in `.agent/docs/architecture/supported-workflows.md` and quick-start now lists `/orchestrate`; however the PR summary and `ACTIVITY_LABELS` include `create-action`, while docs/examples and workflow wiring do not show create-action lifecycle coverage. |\n| coding_workflow/generic | Make user-facing automation idempotent | pass | 7/7 | `ensureLabel()` checks existing label names before creation, handles already-exists races, and route cleanup uses remove-label steps with `continue-on-error` so reruns do not create duplicate setup artifacts. |\n| coding_workflow/generic | Prefer explicit structured inputs | pass | 7/7 | Orchestration root tracking is added as separate `orchestration_root_kind` and `orchestration_root_number` workflow inputs, not encoded into a free-form string. |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | New activity-label logic reuses existing `.agent/src/github.ts` helpers: `ensureLabel`, `addIssueLabel`, `addPrLabel`, `removeIssueLabel`, and `removePrLabel`. |\n| coding_workflow/generic | Surface stateful failures | pass | 7/7 | Label mutation failures are surfaced with `console.warn(...)` in `.agent/src/cli/activity-label.ts`, while workflow steps remain explicitly best-effort via `continue-on-error`. |\n| coding_workflow/generic | Make surgical changes | pass | 8/8 | The diff is scoped to activity-label helpers, CLI/tests, route workflow wiring, orchestration root propagation, and small docs updates; no broad refactor or unrelated cleanup is visible. |\n\n## Notes\n\n- The strongest rubric alignment is the clean separation between trigger labels (`agent/*`) and activity labels (`agent-running/*`), which matches the #25 design discussion and avoids accidental `agent-label.yml` retriggers.\n- The main follow-up is to resolve the `create-action` gap: either wire `agent-running/create-action` into the create-action workflow with cleanup coverage, or remove it from this PR’s claimed behavior until supported.\n\n## Findings\n\n- **WARNING:** `create-action` is defined as an activity label and claimed in the PR summary, but the diff does not show corresponding create-action workflow start/cleanup wiring. This weakens docs/behavior consistency for the route-visibility promise.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-04T10:01:01Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/134#issuecomment-4370125721",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBHvfGg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #134 adds temporary `agent-running/<route>` labels so users can see which Sepo route is actively running.\n- It keeps trigger labels under `agent/*` separate from non-trigger activity labels, matching the design discussion in issue #25.\n- It also threads orchestration root metadata through implement/review/fix-pr/orchestrator handoffs so `agent-running/orchestrate` stays on the original target until the chain reaches a terminal stop.\n- The design direction is sound, but the review path has failure and permission gaps that can leave labels stuck.\n\n## Review\nThe PR needs a fix-pr pass before merge. The main unresolved risk is stale activity labels in common failure modes, which undermines the core user-facing behavior this PR introduces.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Orchestrated review failures can leave root running label stuck | BLOCKING | The review workflow only hands back to the orchestrator after the synthesized PR comment posts successfully. If synthesis/artifact handling/posting fails first, `agent-running/orchestrate` can remain on the root target indefinitely. |\n| Review activity cleanup lacks PR write permission | BLOCKING | The new cleanup job removes a label from a PR but its job-level permissions omit `pull-requests: write`. With fallback `github.token`, cleanup can fail and leave `agent-running/review` stuck. |\n| Dead `blocked` decision branch is tested as live behavior | WARNING | `blocked` planner decisions are normalized to `decision: \"stop\"`, so `steps.handoff.outputs.decision == 'blocked'` is impossible. The workflow and envelope test currently codify dead behavior. |\n\n## Progress\n- Separate non-trigger `agent-running/<route>` labels match the accepted #25 direction and avoid retriggering `agent-label.yml`.\n- Reviewers disagreed on `create-action`: one flagged missing lifecycle coverage, while another noted it is covered through `agent-implement.yml` using `IMPLEMENTATION_ROUTE`; the PR code supports the latter, so this is not retained as required work.\n- Current PR checks show `check` passing.\n- Inline comments were posted for the three line-specific findings above.\n\n## Issue Details\n<details>\n<summary>Orchestrated review failures can leave root running label stuck</summary>\n\n**Cause:** [`agent-review.yml`](https://github.com/self-evolving/repo/blob/379361945d45443b9773624375ae31aaf1be8c32/.github/workflows/agent-review.yml#L355) gates orchestration handoff on `steps.post_comment.outcome == 'success'`, while the new cleanup job only clears the review label, not the root orchestrator label.\n\n**Candidate solutions:** Dispatch a failed/unknown terminal orchestration handoff when review synthesis/posting fails, or clear the root activity label from `orchestration_root_kind` / `orchestration_root_number` in the cleanup path. Add focused workflow/envelope coverage for this lifecycle.\n\n**Comments:** This is the strongest blocker because it breaks the orchestrator label guarantee requested in #25.\n\n</details>\n\n<details>\n<summary>Review activity cleanup lacks PR write permission</summary>\n\n**Cause:** [`cleanup-activity-label`](https://github.com/self-evolving/repo/blob/379361945d45443b9773624375ae31aaf1be8c32/.github/workflows/agent-review.yml#L381) defines job-level permissions without `pull-requests: write`, overriding the workflow-level permission block.\n\n**Candidate solutions:** Add `pull-requests: write` to that job and extend the workflow envelope test to assert cleanup jobs have the permissions needed for PR label mutation.\n\n</details>\n\n<details>\n<summary>Dead `blocked` decision branch is tested as live behavior</summary>\n\n**Cause:** [`decideAgentHandoff`](https://github.com/self-evolving/repo/blob/379361945d45443b9773624375ae31aaf1be8c32/.agent/src/handoff.ts#L475) maps planner `blocked` to `decision: \"stop\"`, but [`agent-orchestrator.yml`](https://github.com/self-evolving/repo/blob/379361945d45443b9773624375ae31aaf1be8c32/.github/workflows/agent-orchestrator.yml#L241) checks for a `blocked` output and [`envelope.test.ts`](https://github.com/self-evolving/repo/blob/379361945d45443b9773624375ae31aaf1be8c32/.agent/src/__tests__/envelope.test.ts#L478) requires it.\n\n**Candidate solutions:** Remove the impossible workflow condition and replace the test assertion with coverage that `stop` clears the label, including planner-blocked stops if desired.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: The unresolved findings are concrete workflow/test changes and are safe for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Add a review failure path that clears `agent-running/orchestrate` on the orchestration root or dispatches a terminal failed/unknown orchestrator handoff, with regression coverage.\n- [ ] Add `pull-requests: write` to the review cleanup job permissions and test that cleanup has PR-label permissions.\n- [ ] Remove the impossible `blocked` workflow condition and update the envelope test accordingly.",
+      "createdAt": "2026-05-04T10:11:12Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/134#issuecomment-4370194202",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBHvlTw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #134 | 4 / 40 | Dispatched |\n\nReason: review verdict is needs_rework; dispatching fix-pr\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Add a review failure path that clears `agent-running/orchestrate` on the orchestration root or dispatches a terminal failed/unknown orchestrator handoff, with regression coverage.\n- Add `pull-requests: write` to the review cleanup job permissions and test that cleanup has PR-label permissions.\n- Remove the impossible `blocked` workflow condition and update the envelope test accordingly.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1777889487391 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzMTI4MDM5NjE6cmV2aWV3OjEzNDpmaXhfcHI6MTM0OjQ -->",
+      "createdAt": "2026-05-04T10:11:27Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/134#issuecomment-4370195791",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBHw8UA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-25/codex-25312327614`. Requested by @sepo-agent.\n\n- Added a review failure cleanup path that removes `agent-running/orchestrate` from the orchestration root when review synthesis/posting/dispatch fails.\n- Added `pull-requests: write` to review cleanup permissions and envelope coverage for PR-label cleanup permissions.\n- Removed the unreachable orchestrator `blocked` cleanup condition and updated envelope coverage to assert it stays absent.\n- Verified with `npm --prefix .agent run build`, `node --test .agent/dist/__tests__/envelope.test.js`, workflow YAML parse, and `git diff --check`.",
+      "createdAt": "2026-05-04T10:15:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/134#issuecomment-4370218064",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBHxChQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #134 | 5 / 40 | Dispatched |\n\nReason: PR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777889718877 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzMTMyOTU3NTQ6Zml4X3ByOjEzNDpyZXZpZXc6MTM0OjU -->",
+      "createdAt": "2026-05-04T10:15:19Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/134#issuecomment-4370219653",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBHxuHQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Read docs and linked context first | pass | 6/6 | PR closes #25 and matches the linked issue direction: keep `agent/*` as trigger labels, use non-trigger `agent-running/<route>` labels, and keep `agent-running/orchestrate` until terminal orchestration stop. |\n| coding_workflow/generic | Keep docs in sync | pass | 7/7 | `.agent/docs/architecture/supported-workflows.md` documents temporary `agent-running/<route>` labels and orchestrator terminal cleanup; `.agent/docs/overview/quick-start.md` adds `/orchestrate` and `agent/orchestrate`. |\n| coding_workflow/generic | Make user-facing automation idempotent | pass | 7/7 | `ensureLabel()` checks existing labels and tolerates already-exists races; workflow add/remove steps are best-effort and rerunnable without creating duplicate labels. |\n| coding_workflow/generic | Prefer explicit structured inputs | pass | 7/7 | Orchestration root tracking uses separate `orchestration_root_kind` and `orchestration_root_number` workflow inputs instead of encoding root state into a combined string. |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | Activity label handling reuses existing GitHub helper patterns in `.agent/src/github.ts` for ensure/add/remove label operations rather than adding inline workflow logic. |\n| coding_workflow/generic | Surface stateful failures | pass | 7/7 | Label mutation errors are surfaced with `console.warn(...)` in `.agent/src/cli/activity-label.ts`; review failure cleanup explicitly removes the root orchestrator label when synthesis fails. |\n| coding_workflow/generic | Validate delegated route authorization | pass | 8/8 | Orchestrator dispatch paths preserve existing requester/auth context while adding root label metadata; `AUTHOR_ASSOCIATION`, `ACCESS_POLICY`, and `REPOSITORY_PRIVATE` continue to flow through orchestrator preflight. |\n| coding_workflow/generic | Make surgical changes | pass | 8/8 | The diff is scoped to activity-label helpers, workflow lifecycle wiring, orchestration root propagation, tests, and matching docs. |\n\n## Notes\n\n- The PR aligns well with #25’s accepted lifecycle: trigger labels remain one-shot, while `agent-running/<route>` labels represent active execution.\n- The prior review blockers appear addressed in the current diff: review cleanup has `pull-requests: write`, review failure clears the orchestration root label, and the unreachable `blocked` cleanup assertion was removed.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific violations found.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-04T10:17:06Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/134#issuecomment-4370230813",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBH1VOg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #134 implements issue #25 by adding temporary `agent-running/<route>` labels for Sepo routes.\n- The design separates trigger labels under `agent/*` from non-trigger activity labels, avoiding accidental label-trigger reruns.\n- It also propagates orchestration root metadata so `agent-running/orchestrate` can remain on the original target until the automation chain stops.\n- The core direction matches the issue discussion and docs/tests were updated, but current-head workflow lifecycle gaps can still leave orchestrator state wrong.\n\n## Review\nThe prior review blockers were mostly addressed, but the latest review pass found new lifecycle issues in the orchestrator label cleanup. These are concrete workflow fixes and should be handled before merge.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Review cleanup can clear orchestrator label after a successful handoff | BLOCKING | The cleanup job uses `needs.synthesize.result != 'success'`, but the handoff step can still dispatch successfully after an earlier synthesize-job failure such as artifact upload. That can remove `agent-running/orchestrate` while the chain is continuing. |\n| Orchestrator label can stick on pre-handoff workflow failures | BLOCKING | `agent-running/orchestrate` is added before preflight/provider setup, but cleanup only runs for handoff outputs or handoff failure. If an earlier step fails and handoff is skipped, the root label can remain indefinitely. |\n| Orchestrator PR activity labels may lack write permission | WARNING | The orchestrator workflow can now mutate labels on PR roots via `gh pr edit`, but still grants only `pull-requests: read`. Fallback-token runs may fail to add or remove PR activity labels. |\n\n## Progress\n- The PR now follows the accepted #25 model: route-visible `agent-running/<route>` labels that do not trigger `agent-label.yml`.\n- The earlier blockers for review cleanup permissions, initial review-failure cleanup, and the unreachable `blocked` branch were addressed.\n- Rubrics review passes 100/100, and Claude considered the remaining non-blocking maintenance notes shippable.\n- Codex disagreed on readiness and identified the unresolved lifecycle issues above; inline comments were posted for all three current-head findings.\n- The earlier `create-action` concern is not retained: it is covered through `agent-implement.yml` via `IMPLEMENTATION_ROUTE`.\n\n## Issue Details\n<details>\n<summary>Review cleanup can clear orchestrator label after a successful handoff</summary>\n\n**Cause:** In `.github/workflows/agent-review.yml`, the new cleanup step clears the orchestration root when `needs.synthesize.result != 'success'`. Because the orchestration handoff step uses `always()`, it can still dispatch successfully after an earlier failure in the synthesize job, leaving the cleanup job to remove the root label incorrectly.\n\n**Candidate solutions:** Gate root cleanup on the handoff step not succeeding, expose a precise handoff/terminal output from `synthesize`, or make non-terminal steps like artifact upload non-fatal before treating the job result as a terminal signal. Add focused envelope/workflow coverage for this case.\n\n**Comments:** This is a refinement of the prior review-failure fix; the fix exists, but its signal is too broad.\n\n</details>\n\n<details>\n<summary>Orchestrator label can stick on pre-handoff workflow failures</summary>\n\n**Cause:** In `.github/workflows/agent-orchestrator.yml`, `Mark orchestrator activity` runs before preflight/provider setup, while cleanup only checks `steps.handoff.outputs.decision` or `steps.handoff.outcome == 'failure'`. If a step before handoff fails, handoff is skipped and the cleanup condition is false.\n\n**Candidate solutions:** Add a cleanup path for job failures where no next workflow was dispatched, or restructure the cleanup condition around an explicit “handoff succeeded” signal. Cover pre-handoff failure in the envelope tests.\n\n</details>\n\n<details>\n<summary>Orchestrator PR activity labels may lack write permission</summary>\n\n**Cause:** The orchestrator can target `pull_request` roots, and `activity-label.js` uses `gh pr edit --add-label/--remove-label`, but `.github/workflows/agent-orchestrator.yml` grants only `pull-requests: read`.\n\n**Candidate solutions:** Grant `pull-requests: write` to the orchestrator workflow, or change the helper to use an API path covered by the existing permissions. Add envelope coverage matching the review/fix-pr permission checks.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: The unresolved findings are concrete workflow and test changes that are safe for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Make review root-label cleanup depend on a precise failed-or-missing handoff signal instead of the whole `synthesize` job result, with regression coverage.\n- [ ] Add an orchestrator cleanup path for failures before `orchestrate-handoff` dispatches the next workflow, with regression coverage.\n- [ ] Grant orchestrator PR-label mutation permission or change the helper path, and cover the permission contract in envelope tests.",
+      "createdAt": "2026-05-04T10:27:11Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/134#issuecomment-4370289978",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBH1aqw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #134 | 6 / 40 | Dispatched |\n\nReason: review verdict is needs_rework; dispatching fix-pr\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Make review root-label cleanup depend on a precise failed-or-missing handoff signal instead of the whole `synthesize` job result, with regression coverage.\n- Add an orchestrator cleanup path for failures before `orchestrate-handoff` dispatches the next workflow, with regression coverage.\n- Grant orchestrator PR-label mutation permission or change the helper path, and cover the permission contract in envelope tests.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1777890445853 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzMTM0NTA5MTI6cmV2aWV3OjEzNDpmaXhfcHI6MTM0OjY -->",
+      "createdAt": "2026-05-04T10:27:26Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/134#issuecomment-4370291371",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBH2meQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-25/codex-25312327614`. Requested by @sepo-agent.\n\n- Made review root-label cleanup depend on `orchestration_handoff_outcome` instead of the whole `synthesize` job result.\n- Added orchestrator cleanup for failed pre-handoff runs where no successful next-workflow dispatch occurred.\n- Granted orchestrator `pull-requests: write` for PR root activity label mutation and added envelope coverage.\n- Verified with `npm --prefix .agent run build`, `node --test .agent/dist/__tests__/envelope.test.js`, workflow YAML parse, and `git diff --check`.",
+      "createdAt": "2026-05-04T10:30:56Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/134#issuecomment-4370310777",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBH2r5g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #134 | 7 / 40 | Dispatched |\n\nReason: PR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777890671370 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzMTM5MjgwMjI6Zml4X3ByOjEzNDpyZXZpZXc6MTM0Ojc -->",
+      "createdAt": "2026-05-04T10:31:11Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/134#issuecomment-4370312166",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBH3Uwg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Read docs and linked context first | pass | 6/6 | PR closes #25 and implements the issue discussion’s accepted lifecycle: non-trigger `agent-running/<route>` labels and delayed orchestrator cleanup. |\n| coding_workflow/generic | Keep docs in sync | pass | 7/7 | Docs update activity-label behavior in `.agent/docs/architecture/supported-workflows.md` and add `/orchestrate` label/route docs in `.agent/docs/overview/quick-start.md`. |\n| coding_workflow/generic | Make user-facing automation idempotent | pass | 7/7 | `ensureLabel()` checks existing labels and tolerates already-exists races; add/remove workflow steps are best-effort and rerunnable. |\n| coding_workflow/generic | Prefer explicit structured inputs | pass | 7/7 | Orchestration root state is passed as separate `orchestration_root_kind` and `orchestration_root_number` inputs. |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | Activity labels reuse existing GitHub helpers in `.agent/src/github.ts` for label creation and issue/PR label mutation. |\n| coding_workflow/generic | Surface stateful failures | pass | 7/7 | Label mutation errors are surfaced via `console.warn(...)`; cleanup paths cover review failure and orchestrator pre-handoff failure cases. |\n| coding_workflow/generic | Validate delegated route authorization | pass | 8/8 | New root-label metadata is threaded without replacing existing requester/auth context; orchestrator still receives `AUTHOR_ASSOCIATION`, `ACCESS_POLICY`, and `REPOSITORY_PRIVATE`. |\n| coding_workflow/generic | Make surgical changes | pass | 8/8 | Diff is scoped to activity-label helpers, route workflow lifecycle wiring, orchestration root propagation, docs, and targeted tests. |\n| coding_style/generic | Prefer simple implementations | pass | 7/7 | The implementation uses one small label map plus one CLI, with workflow steps invoking that shared path instead of duplicating route-specific logic. |\n\n## Notes\n\n- The strongest score driver is alignment with #25: `agent/*` remains a trigger namespace, while `agent-running/*` is a non-trigger activity namespace.\n- Current-head fixes address the prior lifecycle concerns: review cleanup depends on handoff outcome, orchestrator cleanup handles pre-handoff failures, and orchestrator has PR-label write permission.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific violations found.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-04T10:33:07Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/134#issuecomment-4370322626",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBH6KEg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #134 implements #25, a child task of the broader #126 project-planning effort.\n- It adds non-trigger `agent-running/<route>` labels so active Sepo routes are visible without retriggering `agent-label.yml`.\n- It keeps `agent-running/orchestrate` tied to the original orchestration root until the multi-step chain reaches a terminal stop.\n- The PR also adds shared label helpers/CLI coverage, workflow wiring, and docs for the new lifecycle.\n\n## Review\nThe PR is close, and the latest fixes addressed the earlier blockers. Reviewers mostly agree the current design matches #25, but one remaining lifecycle gap should be fixed before merge.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Implement/fix-pr dispatch failures can leave orchestrator label stuck | WARNING | Implement and fix-pr clear only their own route labels; if their post-route dispatch back to the orchestrator fails, no downstream workflow clears `agent-running/orchestrate` from the root. Add dispatch-step IDs, root-label cleanup, and focused coverage. |\n\n## Progress\n- Earlier blockers for review cleanup permissions, review root-label cleanup, orchestrator pre-handoff cleanup, PR-label write permissions, and the dead `blocked` branch are fixed.\n- Rubrics review passes 100/100 with no remaining rubric-specific violations.\n- Codex reported no findings and `gh pr checks` shows `check` passing.\n- Inline comments were posted for the remaining implement/fix-pr dispatch-failure issue.\n- Reviewer disagreement: Codex and rubrics reviewers consider the PR shippable; Claude flagged the remaining lifecycle issue as a warning. The synthesis retains it because it is concrete and branch-actionable.\n\n## Issue Details\n<details>\n<summary>Implement/fix-pr dispatch failures can leave orchestrator label stuck</summary>\n\n**Cause:** In `agent-implement.yml` and `agent-fix-pr.yml`, the route handoff step forwards `ORCHESTRATION_ROOT_KIND` / `ORCHESTRATION_ROOT_NUMBER`, but the workflows only clear `agent-running/implement` or `agent-running/fix-pr` afterward. If `dispatch-agent-orchestrator.js` fails after route work finishes, no next orchestrator run occurs to clear `agent-running/orchestrate`.\n\n**Candidate solutions:** Give the handoff step an explicit `id`, then add a best-effort cleanup step that removes `agent-running/orchestrate` from the root when the dispatch outcome is not `success`. Add envelope/workflow coverage for both implement and fix-pr dispatch-failure cleanup.\n\n**Comments:** This is the same failure class as the already-fixed review cleanup path, but scoped to implement/fix-pr. It is a bounded fix and safe for automation.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: The remaining issue is a concrete workflow/test change that an automated fix-pr pass can safely make.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Add dispatch-failure root-label cleanup to `agent-implement.yml` and `agent-fix-pr.yml`.\n- [ ] Add focused workflow/envelope coverage for implement/fix-pr root cleanup when orchestrator dispatch does not succeed.",
+      "createdAt": "2026-05-04T10:41:11Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/134#issuecomment-4370369042",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBH6PSg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #134 | 8 / 40 | Dispatched |\n\nReason: review verdict is minor_issues; dispatching fix-pr\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Add dispatch-failure root-label cleanup to `agent-implement.yml` and `agent-fix-pr.yml`.\n- Add focused workflow/envelope coverage for implement/fix-pr root cleanup when orchestrator dispatch does not succeed.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1777891284454 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzMTQwNzg4ODk6cmV2aWV3OjEzNDpmaXhfcHI6MTM0Ojg -->",
+      "createdAt": "2026-05-04T10:41:24Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/134#issuecomment-4370370378",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBH7jhw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-25/codex-25312327614`. Requested by @sepo-agent.\n\n- Added dispatch outcome IDs to `agent-implement.yml` and `agent-fix-pr.yml` orchestrator handoff steps.\n- Added best-effort cleanup of the root `agent-running/orchestrate` label when implement/fix-pr orchestrator dispatch does not succeed.\n- Added focused envelope coverage for implement/fix-pr dispatch-failure root cleanup.\n- Verified with `npm --prefix .agent run build`, `node --test .agent/dist/__tests__/envelope.test.js`, workflow YAML parsing, and `git diff --check`.",
+      "createdAt": "2026-05-04T10:44:52Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/134#issuecomment-4370391943",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBH7peg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #134 | 9 / 40 | Dispatched |\n\nReason: PR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777891505705 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzMTQ1MDA4NTk6Zml4X3ByOjEzNDpyZXZpZXc6MTM0Ojk -->",
+      "createdAt": "2026-05-04T10:45:06Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/134#issuecomment-4370393466",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBH8KFA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Read docs and linked context first | pass | 6/6 | PR closes #25 and follows the accepted #25/#126 plan: separate non-trigger `agent-running/<route>` labels from `agent/*` trigger labels, with orchestrator cleanup deferred until terminal stop. |\n| coding_workflow/generic | Keep docs in sync | pass | 7/7 | `.agent/docs/architecture/supported-workflows.md` documents temporary activity labels and orchestrator lifecycle; `.agent/docs/overview/quick-start.md` adds `/orchestrate` and `agent/orchestrate`. |\n| coding_workflow/generic | Make user-facing automation idempotent | pass | 7/7 | `applyActivityLabel()` reuses `ensureLabel()` before add operations; workflow add/remove steps are `continue-on-error` and rerunnable without creating duplicate visible artifacts. |\n| coding_workflow/generic | Prefer explicit structured inputs | pass | 7/7 | Orchestration root tracking is passed as separate `orchestration_root_kind` and `orchestration_root_number` inputs across router, orchestrator, implement, review, and fix-pr flows. |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | `.agent/src/activity-labels.ts` uses existing GitHub helpers: `ensureLabel`, `addIssueLabel`, `addPrLabel`, `removeIssueLabel`, and `removePrLabel`. |\n| coding_workflow/generic | Surface stateful failures | pass | 7/7 | `.agent/src/cli/activity-label.ts` logs invalid inputs and warns on label mutation failures; workflow cleanup now covers review failures, orchestrator pre-handoff failures, and implement/fix-pr dispatch failures. |\n| coding_workflow/generic | Validate delegated route authorization | pass | 8/8 | New orchestration root metadata is threaded without replacing requester/auth context; `AUTHOR_ASSOCIATION`, `ACCESS_POLICY`, and `REPOSITORY_PRIVATE` continue flowing into orchestrator handoffs. |\n| coding_workflow/generic | Make surgical changes | pass | 8/8 | Diff is scoped to activity label helpers, workflow lifecycle wiring, orchestration root propagation, targeted tests, and matching docs. |\n| coding_style/generic | Prefer simple implementations | pass | 7/7 | The implementation uses a small route-to-label map plus one CLI, with workflows invoking the shared path instead of duplicating route-specific label logic. |\n\n## Notes\n\n- The current head addresses the prior lifecycle concerns: review cleanup uses handoff outcome, orchestrator cleanup covers pre-handoff failures, orchestrator has PR label write permission, and implement/fix-pr clean the root orchestrator label if dispatch back to orchestrator fails.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific violations found.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-04T10:46:24Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/134#issuecomment-4370401812",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBIAKkg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #134 implements #25, part of the broader #126 project-planning/orchestration effort.\n- It adds non-trigger `agent-running/<route>` labels so Sepo route activity is visible without reusing `agent/*` trigger labels.\n- It propagates orchestration root metadata so `agent-running/orchestrate` can stay on the original target until the automation chain reaches a terminal stop.\n- The current head has addressed the previous cleanup and permission blockers, but one deeper delegation lifecycle bug remains.\n\n## Review\nThe implementation is largely sound and close to merge. One concrete workflow-state issue remains for nested sub-orchestration, so this should get a small fix-pr pass before shipping.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Terminal child reporting resets the orchestration root | WARNING | `reportTerminalToParent` dispatches the parent orchestrator with the immediate parent issue as the root. In 3+ level delegation chains, that can move `agent-running/orchestrate` tracking off the original root and leave the root label stuck. |\n\n## Progress\n- Prior blockers around review cleanup permissions, review failure cleanup, orchestrator pre-handoff cleanup, PR-label write permissions, implement/fix-pr dispatch-failure cleanup, and the dead `blocked` branch are fixed.\n- Rubrics review passes 100/100, and Codex found no current blocking or warning issues.\n- Claude identified the remaining nested-orchestration root propagation warning; an inline comment was posted on `.agent/src/cli/orchestrate-handoff.ts`.\n- Claude’s `skip` dead-code note is not retained as required work because `handoff.ts` can emit `decision: \"skip\"` when automation mode is disabled.\n\n## Issue Details\n<details>\n<summary>Terminal child reporting resets the orchestration root</summary>\n\n**Cause:** In [`reportTerminalToParent`](https://github.com/self-evolving/repo/blob/f5a3c5dcfe9f7e2cb2ef7bd8f386fd14505fd216/.agent/src/cli/orchestrate-handoff.ts#L894), the parent dispatch hardcodes `orchestration_root_kind: \"issue\"` and uses `String(marker.parent)` for the root number. That is only correct when the immediate parent is also the original root.\n\n**Candidate solutions:** Use the existing `orchestrationRootKind` and `orchestrationRootNumber` variables in this dispatch path, matching the later `commonInputs` handoff behavior. Add regression coverage that a terminal child in a nested delegation chain preserves the original root.\n\n**Comments:** Reviewers disagreed on overall readiness: Codex and rubrics review consider the PR shippable, while Claude flagged this as a remaining warning. The synthesis keeps it because it is concrete, line-specific, and safe to fix.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: The remaining issue is a small, concrete code/test change that automation can safely apply.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Update `reportTerminalToParent` to pass `orchestrationRootKind` / `orchestrationRootNumber` instead of the immediate parent as the root.\n- [ ] Add regression coverage for terminal nested sub-orchestration preserving the original root label target.",
+      "createdAt": "2026-05-04T10:57:12Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/134#issuecomment-4370467474",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBIAPRQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #134 | 10 / 40 | Dispatched |\n\nReason: review verdict is minor_issues; dispatching fix-pr\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Update `reportTerminalToParent` to pass `orchestrationRootKind` / `orchestrationRootNumber` instead of the immediate parent as the root.\n- Add regression coverage for terminal nested sub-orchestration preserving the original root label target.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1777892245051 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzMTQ2NTAwNTM6cmV2aWV3OjEzNDpmaXhfcHI6MTM0OjEw -->",
+      "createdAt": "2026-05-04T10:57:25Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/134#issuecomment-4370468677",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBIA_vQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-25/codex-25312327614`. Requested by @sepo-agent.\n\n- Updated `reportTerminalToParent` to forward the preserved `orchestrationRootKind` / `orchestrationRootNumber` when resuming the parent orchestrator.\n- Added regression coverage for a nested terminal child that reports to parent issue `#76` while keeping original root issue `#25`.\n- Verified with `npm --prefix .agent run build`, `node --test .agent/dist/__tests__/orchestrate-handoff-cli.test.js`, and `git diff --check`.",
+      "createdAt": "2026-05-04T10:59:40Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/134#issuecomment-4370481085",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBIBE0Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #134 | 11 / 40 | Dispatched |\n\nReason: PR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777892394223 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzMTUxNTA3MTI6Zml4X3ByOjEzNDpyZXZpZXc6MTM0OjEx -->",
+      "createdAt": "2026-05-04T10:59:54Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/134#issuecomment-4370482385",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBIBj9A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Read docs and linked context first | pass | 6/6 | PR closes #25 and follows the accepted #25/#126 direction: non-trigger `agent-running/<route>` labels show active agent work while `agent/*` remains one-shot trigger state. |\n| coding_workflow/generic | Keep docs in sync | pass | 7/7 | Updated [supported-workflows.md](https://github.com/self-evolving/repo/blob/1e171bd8a4f8a6c218054d05eb75cae398f4de09/.agent/docs/architecture/supported-workflows.md) and [quick-start.md](https://github.com/self-evolving/repo/blob/1e171bd8a4f8a6c218054d05eb75cae398f4de09/.agent/docs/overview/quick-start.md) for activity labels and `/orchestrate`. |\n| coding_workflow/generic | Make user-facing automation idempotent | pass | 7/7 | [activity-labels.ts](https://github.com/self-evolving/repo/blob/1e171bd8a4f8a6c218054d05eb75cae398f4de09/.agent/src/activity-labels.ts) uses `ensureLabel()` before add operations; workflow label steps are best-effort and rerunnable. |\n| coding_workflow/generic | Prefer explicit structured inputs | pass | 7/7 | Workflows pass `orchestration_root_kind` and `orchestration_root_number` as separate explicit inputs instead of encoding root state into one string. |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | Activity labels reuse existing GitHub helpers: `ensureLabel`, `addIssueLabel`, `addPrLabel`, `removeIssueLabel`, and `removePrLabel`. |\n| coding_workflow/generic | Surface stateful failures | pass | 7/7 | [activity-label.ts](https://github.com/self-evolving/repo/blob/1e171bd8a4f8a6c218054d05eb75cae398f4de09/.agent/src/cli/activity-label.ts) warns on mutation failures; workflows now include cleanup paths for route completion, review failure, orchestrator pre-handoff failure, and implement/fix-pr dispatch failure. |\n| coding_workflow/generic | Validate delegated route authorization | pass | 8/8 | Root metadata is threaded through orchestrator handoffs without replacing existing requester/auth context; `AUTHOR_ASSOCIATION`, `ACCESS_POLICY`, and `REPOSITORY_PRIVATE` continue flowing into downstream orchestration. |\n| coding_workflow/generic | Make surgical changes | pass | 8/8 | Diff is scoped to activity-label helpers, workflow lifecycle wiring, orchestration root propagation, targeted tests, and matching docs. |\n| coding_style/generic | Prefer simple implementations | pass | 7/7 | Implementation uses one small route-to-label map plus one CLI, with workflows invoking the shared path instead of duplicating label logic inline. |\n\n## Notes\n\n- The strongest score driver is that the PR matches #25’s settled lifecycle: `agent/*` remains a trigger namespace, while `agent-running/*` is a non-trigger activity namespace.\n- Current head also addresses the prior lifecycle gaps around review cleanup, orchestrator pre-handoff cleanup, PR label permissions, implement/fix-pr dispatch failure cleanup, and nested child root propagation.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific violations found.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-04T11:01:10Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/134#issuecomment-4370490356",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBIEFbQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #134 implements #25, the agent activity-label foundation task under the broader #126 project-planning orchestration work.\n- It adds non-trigger `agent-running/<route>` labels so Sepo route activity is visible without reusing `agent/*` trigger labels.\n- It propagates orchestration root metadata across route handoffs so `agent-running/orchestrate` can stay on the original root until terminal stop.\n- The current head fixes many earlier cleanup and permission gaps, but delegated child orchestration still drops the original root target.\n\n## Review\nThe implementation is close, and rubrics review passes on the latest head. One remaining root-propagation bug affects the exact nested child orchestration flow planned in #126, so this needs another small fix-pr pass.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Delegated child orchestrators drop the original root label target | BLOCKING | The `delegate_issue` dispatch builds a fresh `agent-orchestrator.yml` payload and omits `orchestration_root_kind` / `orchestration_root_number`. Child orchestrators can then manage `agent-running/orchestrate` on the child instead of the original root, leaving the root label stuck. |\n\n## Progress\n- Prior blockers around review cleanup, orchestrator pre-handoff cleanup, PR-label permissions, implement/fix-pr dispatch cleanup, and dead `blocked` logic are fixed.\n- Claude’s previous `reportTerminalToParent` root-reset warning is fixed on current head by forwarding `orchestrationRootKind` / `orchestrationRootNumber`.\n- Rubrics review passes 100/100 with no remaining rubric-specific violations.\n- Codex found the remaining delegated-child dispatch gap; an inline comment was posted on `.agent/src/cli/orchestrate-handoff.ts`.\n\n## Issue Details\n<details>\n<summary>Delegated child orchestrators drop the original root label target</summary>\n\n**Cause:** `commonInputs` includes the preserved root metadata, but the `delegate_issue` branch does not spread `commonInputs`; it builds a separate dispatch payload without `orchestration_root_kind` / `orchestration_root_number`. That causes the child orchestrator to default its root to the child target.\n\n**Candidate solutions:** Pass `orchestrationRootKind` and `orchestrationRootNumber` into the `delegate_issue` dispatch payload, or refactor the branch to reuse the shared root-bearing input shape. Add regression coverage in `orchestrate-handoff-cli.test.ts` for delegated child orchestration preserving the original root.\n\n**Comments:** This matters for #126’s stacked child-issue orchestration model, where root labels must stay attached to the original planning issue.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: The remaining issue is a concrete code/test change that automation can safely apply.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Pass `orchestration_root_kind` / `orchestration_root_number` into the `delegate_issue` child orchestrator dispatch.\n- [ ] Add regression coverage for delegated child orchestration preserving the original root label target.",
+      "createdAt": "2026-05-04T11:07:46Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/134#issuecomment-4370531693",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBIELKA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #134 | 12 / 40 | Dispatched |\n\nReason: review verdict is needs_rework; dispatching fix-pr\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Pass `orchestration_root_kind` / `orchestration_root_number` into the `delegate_issue` child orchestrator dispatch.\n- Add regression coverage for delegated child orchestration preserving the original root label target.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1777892879889 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzMTUyNTA5NDA6cmV2aWV3OjEzNDpmaXhfcHI6MTM0OjEy -->",
+      "createdAt": "2026-05-04T11:08:00Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/134#issuecomment-4370533160",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBIE5pQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-25/codex-25312327614`. Requested by @sepo-agent.\n\n- Passed `orchestration_root_kind` / `orchestration_root_number` through the `delegate_issue` child orchestrator dispatch.\n- Extended delegate_issue regression coverage to assert child orchestrators preserve the original root label target.\n- Verified with `npm --prefix .agent run build`, `node --test .agent/dist/__tests__/orchestrate-handoff-cli.test.js`, and `git diff --check`.",
+      "createdAt": "2026-05-04T11:09:48Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/134#issuecomment-4370545061",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBIFAHA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #134 | 13 / 40 | Dispatched |\n\nReason: PR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777893001930 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzMTU1ODY5MjE6Zml4X3ByOjEzNDpyZXZpZXc6MTM0OjEz -->",
+      "createdAt": "2026-05-04T11:10:02Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/134#issuecomment-4370546716",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBIH1-Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #134 implements #25, the agent activity-label foundation task under the broader #126 project-planning/orchestration effort.\n- It adds temporary non-trigger `agent-running/<route>` labels so users can see active Sepo route execution without reusing `agent/*` trigger labels.\n- It threads orchestration root metadata through handoffs so `agent-running/orchestrate` remains on the original root target until terminal stop.\n- The goal is to make running agent work visible while preserving clean one-shot trigger label semantics.\n\n## Review\nBoth current reviewer outputs conclude the PR is shippable. Claude noted only INFO-level polish items, while Codex found no blocking or warning issues on current head `9f72005a30b2e759a617583cd17c2e893945761f`.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues | INFO | Current reviewers found no unresolved branch-change requirements. Remaining notes are cosmetic or test-hardening suggestions, not merge blockers. |\n\n## Progress\n- Prior blockers around review cleanup, orchestrator cleanup, PR-label permissions, nested root propagation, and delegated child root propagation were addressed by follow-up fix-pr passes.\n- Existing inline comments already cover the older line-specific findings, and the thread contains fix confirmations for them.\n- Rubrics review passes 100/100 on the current head.\n- `gh pr checks 134 --repo self-evolving/repo` shows `check` passing.\n- No new inline comments were posted because there are no new actionable line-specific findings.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: No unresolved actionable branch work remains; the remaining reviewer notes are optional INFO-level polish.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch changes remain.",
+      "createdAt": "2026-05-04T11:17:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/134#issuecomment-4370593273",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-04T09:59:31Z",
+  "files": [
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/overview/quick-start.md",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/activity-label-cli.test.ts",
+      "additions": 134,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 94,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrate-handoff-cli.test.ts",
+      "additions": 29,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/activity-labels.ts",
+      "additions": 97,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/activity-label.ts",
+      "additions": 47,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/dispatch-agent-orchestrator.ts",
+      "additions": 8,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrate-handoff.ts",
+      "additions": 8,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-fix-pr.yml",
+      "additions": 66,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-implement.yml",
+      "additions": 60,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-orchestrator.yml",
+      "additions": 43,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-review.yml",
+      "additions": 90,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-router.yml",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-25/codex-25312327614",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 134,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM77ek_2",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-04T10:10:16Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "379361945d45443b9773624375ae31aaf1be8c32"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM77ek_5",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-04T10:10:16Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "379361945d45443b9773624375ae31aaf1be8c32"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM77elPL",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-04T10:10:26Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "379361945d45443b9773624375ae31aaf1be8c32"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM77e86z",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-04T10:25:52Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "567f0b977076ac7d40cf18d2d019a0e5454eb0c4"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM77e9H9",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-04T10:26:00Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "567f0b977076ac7d40cf18d2d019a0e5454eb0c4"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM77e9iG",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-04T10:26:17Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "567f0b977076ac7d40cf18d2d019a0e5454eb0c4"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM77fRGR",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-04T10:40:13Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "6e2a04d320120964e803818f84a8fb3c03db5d9c"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM77fRPU",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-04T10:40:19Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "6e2a04d320120964e803818f84a8fb3c03db5d9c"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM77frqk",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-04T10:56:44Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "f5a3c5dcfe9f7e2cb2ef7bd8f386fd14505fd216"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM77f8hg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-04T11:07:21Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "1e171bd8a4f8a6c218054d05eb75cae398f4de09"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Show route activity labels while agents run",
+  "updatedAt": "2026-05-04T11:17:38Z",
+  "url": "https://github.com/self-evolving/repo/pull/134"
+}
