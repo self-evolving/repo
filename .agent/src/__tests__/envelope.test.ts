@@ -443,6 +443,48 @@ test("agent status label is opt-in and fixed to the AGENT_STATUS_LABEL_ENABLED v
   assert.match(createPrCli, /setOutput\("pr_number"/);
 });
 
+test("long-running routes use non-trigger activity labels", () => {
+  const routerWorkflow = readRepoFile(".github/workflows/agent-router.yml");
+  const implementWorkflow = readRepoFile(".github/workflows/agent-implement.yml");
+  const fixPrWorkflow = readRepoFile(".github/workflows/agent-fix-pr.yml");
+  const reviewWorkflow = readRepoFile(".github/workflows/agent-review.yml");
+  const orchestratorWorkflow = readRepoFile(".github/workflows/agent-orchestrator.yml");
+  const activityLabels = readRepoFile(".agent/src/activity-labels.ts");
+  const activityLabelCli = readRepoFile(".agent/src/cli/activity-label.ts");
+  const supportedWorkflows = readRepoFile(".agent/docs/architecture/supported-workflows.md");
+
+  for (const label of [
+    "agent-running/implement",
+    "agent-running/create-action",
+    "agent-running/review",
+    "agent-running/fix-pr",
+    "agent-running/orchestrate",
+  ]) {
+    assert.match(activityLabels, new RegExp(label.replace("/", "\\/")));
+  }
+  assert.match(activityLabelCli, /ACTIVITY_LABEL_ACTION/);
+  assert.doesNotMatch(activityLabels, /name:\s*"agent\/running/);
+
+  assert.match(implementWorkflow, /Mark implementation activity[\s\S]*ROUTE:\s*\$\{\{ env\.IMPLEMENTATION_ROUTE \}\}/);
+  assert.match(implementWorkflow, /Clear implementation activity label[\s\S]*ACTIVITY_LABEL_ACTION: remove/);
+  assert.match(fixPrWorkflow, /Mark fix-pr activity[\s\S]*ROUTE: fix-pr/);
+  assert.match(fixPrWorkflow, /Clear fix-pr activity label[\s\S]*ACTIVITY_LABEL_ACTION: remove/);
+  assert.match(reviewWorkflow, /Mark review activity[\s\S]*ROUTE: review/);
+  assert.match(reviewWorkflow, /cleanup-activity-label:/);
+  assert.match(reviewWorkflow, /Clear review activity label[\s\S]*ACTIVITY_LABEL_ACTION: remove/);
+  assert.match(orchestratorWorkflow, /Mark orchestrator activity[\s\S]*ROUTE: orchestrate/);
+  assert.match(orchestratorWorkflow, /id: handoff/);
+  assert.match(orchestratorWorkflow, /Clear orchestrator activity label[\s\S]*steps\.handoff\.outputs\.decision == 'stop'/);
+  assert.match(orchestratorWorkflow, /steps\.handoff\.outputs\.decision == 'blocked'/);
+  assert.match(orchestratorWorkflow, /steps\.handoff\.outcome == 'failure'/);
+  assert.match(routerWorkflow, /ORCHESTRATION_ROOT_KIND:\s*\$\{\{ needs\.portal\.outputs\.target_kind \}\}/);
+  assert.match(implementWorkflow, /ORCHESTRATION_ROOT_KIND:\s*\$\{\{ inputs\.orchestration_root_kind \}\}/);
+  assert.match(fixPrWorkflow, /ORCHESTRATION_ROOT_KIND:\s*\$\{\{ inputs\.orchestration_root_kind \}\}/);
+  assert.match(reviewWorkflow, /ORCHESTRATION_ROOT_KIND:\s*\$\{\{ inputs\.orchestration_root_kind \}\}/);
+  assert.match(supportedWorkflows, /`agent-running\/<route>`/);
+  assert.match(supportedWorkflows, /not trigger `agent-label\.yml`/);
+});
+
 test("agent router posts unsupported route summaries directly instead of running the answer agent", () => {
   const runnerWorkflow = readRepoFile(".github/workflows/agent-router.yml");
 
@@ -1359,17 +1401,17 @@ test("main execution workflows rely on the default memory policy (no explicit ov
   assert.match(reviewWorkflow, /memory_policy:\s*\$\{\{\s*vars\.AGENT_MEMORY_POLICY \|\| ''\s*\}\}/);
 });
 
-test("agent-review permissions are scoped per-job: reviewers read-only, synthesize writes", () => {
+test("agent-review permissions keep reviewer contents read-only and synthesize writable", () => {
   const reviewWorkflow = readRepoFile(".github/workflows/agent-review.yml");
 
   // Top-level workflow permissions keep contents read-only; actions write
   // allows the synthesize job to dispatch automation handoffs.
   assert.match(reviewWorkflow, /^permissions:\s*\n\s+actions: write\s*\n\s+contents: read/m);
 
-  // Reviewer job keeps contents:read.
+  // Reviewer job keeps contents:read while allowing issue writes for labels.
   assert.match(
     reviewWorkflow,
-    /review:\s*\n\s+# Reviewer lanes are best-effort[\s\S]*?permissions:\s*\n\s+# Reviewer jobs stay read-only[\s\S]*?contents: read/,
+    /review:\s*\n\s+# Reviewer lanes are best-effort[\s\S]*?permissions:\s*\n\s+# Reviewer jobs keep contents read-only[\s\S]*?contents: read[\s\S]*?issues: write/,
   );
 
   // Synthesize job upgrades to contents:write for the memory commit.

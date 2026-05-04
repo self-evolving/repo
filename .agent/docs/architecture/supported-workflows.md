@@ -188,6 +188,8 @@ Built-in labels map directly to the existing routes. `agent/s/<skill>` runs `.sk
 
 If `AGENT_STATUS_LABEL_ENABLED=true`, accepted non-unsupported issue and pull request requests also get the fixed `agent` status label. This status label is separate from the `agent/*` trigger labels and does not select a route.
 
+Long-running execution routes use temporary `agent-running/<route>` activity labels such as `agent-running/implement`, `agent-running/review`, `agent-running/fix-pr`, and `agent-running/orchestrate`. These labels are not under the `agent/` trigger prefix, so adding them does not trigger `agent-label.yml`. Route activity labels are added when the route workflow starts and removed when that route finishes. `agent-running/orchestrate` is tied to the original orchestration target and is removed only when the orchestration chain reaches a terminal stop.
+
 Label triggers authorize the label applier rather than the issue or pull request author. Personal-repository owners map to `OWNER`; visible organization members map to `MEMBER`; repository collaborators with label permission map to `COLLABORATOR`.
 
 Skill names are normalized to lowercase, so `agent/s/Release-Notes` resolves to `.skills/release-notes/SKILL.md`. Skill directories should use lowercase names to match consistently across case-sensitive filesystems.

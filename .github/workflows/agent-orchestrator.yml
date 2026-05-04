@@ -70,6 +70,14 @@ on:
         description: "Maximum automation handoff rounds"
         required: false
         default: "5"
+      orchestration_root_kind:
+        description: "Original issue or pull request kind for the active orchestration chain"
+        required: false
+        default: ""
+      orchestration_root_number:
+        description: "Original issue or pull request number for the active orchestration chain"
+        required: false
+        default: ""
 
 permissions:
   actions: write
@@ -102,6 +110,17 @@ jobs:
 
       - name: Setup agent runtime
         uses: ./.github/actions/setup-agent-runtime
+
+      - name: Mark orchestrator activity
+        continue-on-error: true
+        env:
+          ACTIVITY_LABEL_ACTION: add
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          ROUTE: orchestrate
+          TARGET_KIND: ${{ inputs.orchestration_root_kind || inputs.target_kind || (inputs.source_action == 'implement' && 'issue' || 'pull_request') }}
+          TARGET_NUMBER: ${{ inputs.orchestration_root_number || inputs.target_number }}
+        run: node .agent/dist/cli/activity-label.js
 
       - name: Check handoff preflight
         id: preflight
@@ -184,6 +203,7 @@ jobs:
           workflow: agent-orchestrator.yml
 
       - name: Decide and dispatch next action
+        id: handoff
         env:
           AUTOMATION_CURRENT_ROUND: ${{ inputs.automation_current_round }}
           AUTOMATION_MAX_ROUNDS: ${{ inputs.automation_max_rounds }}
@@ -207,5 +227,27 @@ jobs:
           REPOSITORY_PRIVATE: ${{ inputs.repository_private || (github.event.repository.private && 'true' || 'false') }}
           TARGET_KIND: ${{ inputs.target_kind || (inputs.source_action == 'implement' && 'issue' || 'pull_request') }}
           TARGET_NUMBER: ${{ inputs.target_number }}
+          ORCHESTRATION_ROOT_KIND: ${{ inputs.orchestration_root_kind || inputs.target_kind || (inputs.source_action == 'implement' && 'issue' || 'pull_request') }}
+          ORCHESTRATION_ROOT_NUMBER: ${{ inputs.orchestration_root_number || inputs.target_number }}
           PLANNER_RESPONSE_FILE: ${{ steps.planner.outputs.response_file }}
         run: node .agent/dist/cli/orchestrate-handoff.js
+
+      - name: Clear orchestrator activity label
+        if: >-
+          always() &&
+          steps.auth.outputs.token &&
+          (
+            steps.handoff.outputs.decision == 'stop' ||
+            steps.handoff.outputs.decision == 'blocked' ||
+            steps.handoff.outputs.decision == 'skip' ||
+            steps.handoff.outcome == 'failure'
+          )
+        continue-on-error: true
+        env:
+          ACTIVITY_LABEL_ACTION: remove
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          ROUTE: orchestrate
+          TARGET_KIND: ${{ inputs.orchestration_root_kind || inputs.target_kind || (inputs.source_action == 'implement' && 'issue' || 'pull_request') }}
+          TARGET_NUMBER: ${{ inputs.orchestration_root_number || inputs.target_number }}
+        run: node .agent/dist/cli/activity-label.js

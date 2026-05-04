@@ -48,6 +48,14 @@ on:
         description: "Whether this run belongs to an explicit orchestrator chain"
         required: false
         default: "false"
+      orchestration_root_kind:
+        description: "Original issue or pull request kind for the active orchestration chain"
+        required: false
+        default: ""
+      orchestration_root_number:
+        description: "Original issue or pull request number for the active orchestration chain"
+        required: false
+        default: ""
   workflow_call:
     inputs:
       pr_number:
@@ -97,10 +105,19 @@ on:
         type: string
         required: false
         default: "false"
+      orchestration_root_kind:
+        type: string
+        required: false
+        default: ""
+      orchestration_root_number:
+        type: string
+        required: false
+        default: ""
 
 permissions:
   actions: write
   contents: write
+  issues: write
   pull-requests: write
   id-token: write # required for GitHub Actions OIDC broker exchange
 
@@ -165,6 +182,18 @@ jobs:
           TARGET_KIND: pull_request
           TARGET_NUMBER: ${{ env.PR_NUMBER }}
         run: node .agent/dist/cli/add-label.js
+
+      - name: Mark fix-pr activity
+        if: steps.pr.outputs.cross_repo != 'true' && steps.pr.outputs.pr_state == 'OPEN'
+        continue-on-error: true
+        env:
+          ACTIVITY_LABEL_ACTION: add
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          ROUTE: fix-pr
+          TARGET_KIND: pull_request
+          TARGET_NUMBER: ${{ env.PR_NUMBER }}
+        run: node .agent/dist/cli/activity-label.js
 
       - name: Resolve task timeout
         if: steps.pr.outputs.cross_repo != 'true' && steps.pr.outputs.pr_state == 'OPEN'
@@ -297,6 +326,8 @@ jobs:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           ORCHESTRATION_ENABLED: ${{ inputs.orchestration_enabled }}
+          ORCHESTRATION_ROOT_KIND: ${{ inputs.orchestration_root_kind }}
+          ORCHESTRATION_ROOT_NUMBER: ${{ inputs.orchestration_root_number }}
           REQUESTED_BY: ${{ inputs.requested_by || github.actor }}
           REQUEST_TEXT: ${{ inputs.request_text }}
           SESSION_BUNDLE_MODE: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
@@ -304,3 +335,19 @@ jobs:
           SOURCE_CONCLUSION: ${{ steps.response.outputs.status || 'failed' }}
           TARGET_NUMBER: ${{ env.PR_NUMBER }}
         run: node .agent/dist/cli/dispatch-agent-orchestrator.js
+
+      - name: Clear fix-pr activity label
+        if: >-
+          always() &&
+          steps.auth.outputs.token &&
+          steps.pr.outputs.cross_repo != 'true' &&
+          steps.pr.outputs.pr_state == 'OPEN'
+        continue-on-error: true
+        env:
+          ACTIVITY_LABEL_ACTION: remove
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          ROUTE: fix-pr
+          TARGET_KIND: pull_request
+          TARGET_NUMBER: ${{ env.PR_NUMBER }}
+        run: node .agent/dist/cli/activity-label.js

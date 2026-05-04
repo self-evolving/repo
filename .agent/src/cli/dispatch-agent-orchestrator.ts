@@ -4,7 +4,8 @@
 //      REQUESTED_BY, REQUEST_TEXT, AUTOMATION_CURRENT_ROUND,
 //      AUTOMATION_MAX_ROUNDS, SESSION_BUNDLE_MODE, SOURCE_RUN_ID, TARGET_KIND,
 //      AUTHOR_ASSOCIATION, ACCESS_POLICY, REPOSITORY_PRIVATE, ORCHESTRATION_ENABLED,
-//      SOURCE_HANDOFF_CONTEXT, BASE_BRANCH, BASE_PR
+//      SOURCE_HANDOFF_CONTEXT, BASE_BRANCH, BASE_PR, ORCHESTRATION_ROOT_KIND,
+//      ORCHESTRATION_ROOT_NUMBER
 
 import { readFileSync } from "node:fs";
 import { dispatchWorkflow } from "../github.js";
@@ -50,6 +51,10 @@ const sourceHandoffContext = process.env.SOURCE_HANDOFF_CONTEXT ||
   (sourceReviewNeedsFixPr(sourceAction, sourceConclusion) ? buildReviewFixPrHandoffContext(rawResponse) : "");
 const targetNumber = process.env.TARGET_NUMBER || "";
 const targetKind = process.env.TARGET_KIND || "";
+const orchestrationRootKind = process.env.ORCHESTRATION_ROOT_KIND ||
+  (isManualOrchestrateStart ? targetKind : "");
+const orchestrationRootNumber = process.env.ORCHESTRATION_ROOT_NUMBER ||
+  (isManualOrchestrateStart ? targetNumber : "");
 
 if (!repo || !ref || !sourceAction || !targetNumber) {
   console.error("Missing required env: GITHUB_REPOSITORY, DEFAULT_BRANCH, SOURCE_ACTION, TARGET_NUMBER");
@@ -75,6 +80,8 @@ dispatchWorkflow(repo, "agent-orchestrator.yml", ref, {
   session_bundle_mode: process.env.SESSION_BUNDLE_MODE || "",
   base_branch: process.env.BASE_BRANCH || "",
   base_pr: process.env.BASE_PR || "",
+  orchestration_root_kind: orchestrationRootKind,
+  orchestration_root_number: orchestrationRootNumber,
 });
 
 console.log(`Dispatched agent-orchestrator.yml after ${sourceAction} for #${targetNumber}`);
