@@ -169,7 +169,7 @@ exit 1
     });
 
     assert.equal(result.status, 0, result.stderr);
-    assert.match(result.stdout, /Applied 8 managed priority\/effort label operation/);
+    assert.match(result.stdout, /Applied 8 legacy priority\/effort label operation/);
 
     const log = readFileSync(logPath, "utf8");
     for (const label of [
@@ -257,7 +257,7 @@ test("apply project management labels allows an explicit empty plan", () => {
     });
 
     assert.equal(result.status, 0, result.stderr);
-    assert.match(result.stdout, /Applied 0 managed priority\/effort label operation/);
+    assert.match(result.stdout, /Applied 0 legacy priority\/effort label operation/);
     assert.throws(() => readFileSync(logPath, "utf8"));
   } finally {
     rmSync(tempDir, { recursive: true, force: true });

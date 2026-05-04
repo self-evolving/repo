@@ -27,13 +27,13 @@ interface LabelDefinition {
 }
 
 const LABEL_DEFINITIONS: LabelDefinition[] = [
-  { name: "priority/p0", color: "b60205", description: "Project management: highest priority" },
-  { name: "priority/p1", color: "d93f0b", description: "Project management: high priority" },
-  { name: "priority/p2", color: "fbca04", description: "Project management: medium priority" },
-  { name: "priority/p3", color: "c2e0c6", description: "Project management: low priority" },
-  { name: "effort/low", color: "c2e0c6", description: "Project management: low effort" },
-  { name: "effort/medium", color: "fbca04", description: "Project management: medium effort" },
-  { name: "effort/high", color: "d73a4a", description: "Project management: high effort" },
+  { name: "priority/p0", color: "b60205", description: "Legacy/fallback project management: P0 priority" },
+  { name: "priority/p1", color: "d93f0b", description: "Legacy/fallback project management: P1 priority" },
+  { name: "priority/p2", color: "fbca04", description: "Legacy/fallback project management: P2 priority" },
+  { name: "priority/p3", color: "c2e0c6", description: "Legacy/fallback project management: P3 priority" },
+  { name: "effort/low", color: "c2e0c6", description: "Legacy/fallback project management: low effort" },
+  { name: "effort/medium", color: "fbca04", description: "Legacy/fallback project management: medium effort" },
+  { name: "effort/high", color: "d73a4a", description: "Legacy/fallback project management: high effort" },
 ];
 
 const MANAGED_LABELS = new Set(LABEL_DEFINITIONS.map((label) => label.name));

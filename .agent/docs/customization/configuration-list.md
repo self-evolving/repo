@@ -12,9 +12,9 @@
 | `AGENT_AUTOMATION_MAX_ROUNDS` | Maximum number of explicit orchestration handoff rounds. Defaults to `5`. |
 | `AGENT_COLLAPSE_OLD_REVIEWS` | Generated comment cleanup toggle. Defaults to enabled; set to `false` to leave older AI review synthesis, rubrics review, and orchestrator handoff comments visible instead of minimizing them as outdated. |
 | `AGENT_STATUS_LABEL_ENABLED` | Set to `true` to apply the fixed `agent` status label to handled issues and pull requests. |
-| `AGENT_PROJECT_MANAGEMENT_ENABLED` | Set to `true` to enable scheduled prompt-driven project-management runs. Manual runs can also use the workflow's `enabled` input. Defaults off. |
-| `AGENT_PROJECT_MANAGEMENT_DRY_RUN` | Defaults project-management runs to dry-run mode. Defaults to `true`; set to `false` with label application enabled to apply validated managed-label plans. |
-| `AGENT_PROJECT_MANAGEMENT_APPLY_LABELS` | Set to `true` to allow the deterministic post-agent step to update managed `priority/*` and `effort/*` labels when dry-run mode is disabled. |
+| `AGENT_PROJECT_MANAGEMENT_ENABLED` | Set to `true` to enable scheduled prompt-driven project-management runs. Manual runs can also use the workflow's `enabled` input. Defaults off. Current runs summarize and optionally maintain legacy/fallback labels; Project field sync is not implemented yet. |
+| `AGENT_PROJECT_MANAGEMENT_DRY_RUN` | Defaults project-management runs to dry-run mode. Defaults to `true`; set to `false` with legacy label application enabled to apply validated managed-label plans. |
+| `AGENT_PROJECT_MANAGEMENT_APPLY_LABELS` | Set to `true` to allow the deterministic post-agent step to update legacy/fallback `priority/*` and `effort/*` labels when dry-run mode is disabled. |
 | `AGENT_PROJECT_MANAGEMENT_POST_SUMMARY` | Set to `true` to have the final workflow step comment with the project-management summary on today's existing Daily Summary discussion. If the discussion is missing, only the Actions step summary is written. |
 | `AGENT_PROJECT_MANAGEMENT_DISCUSSION_CATEGORY` | Discussion category shared by Daily Summary discussion creation and project-management summary comments. Defaults to `General`. |
 | `AGENT_PROJECT_MANAGEMENT_LIMIT` | Maximum open issues and pull requests for the agent to inspect per kind. Defaults to `100`. |

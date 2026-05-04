@@ -109,18 +109,27 @@ merged PR's base branch; if a retarget fails, the branch is left in place.
 
 `agent-project-manager.yml` is disabled by default. Enable scheduled runs with
 `AGENT_PROJECT_MANAGEMENT_ENABLED=true`, or run it manually with the `enabled`
-input. It launches a prompt-driven, read-approved agent to inspect open issues
-and pull requests, assess priority/effort with judgment rather than fixed
-heuristics, and return a GitHub-flavored summary plus a structured managed-label
-change plan. A deterministic post-agent CLI validates that plan and applies only
-managed `priority/*` and `effort/*` add/remove operations when label application
-is enabled and dry-run mode is disabled; otherwise it reports planned changes
-without mutating labels. The schedule runs every 6 hours at minute 17 UTC. A
-final workflow step writes the resulting summary to the Actions step summary.
-Optional summary comments require `post_summary=true`; when enabled, that final
-step finds today's `Daily Summary — YYYY-MM-DD` discussion in the configured
-discussion category and comments there. If that discussion does not exist yet,
-it leaves only the Actions step summary.
+input. The intended Project-backed planning model uses GitHub Project fields as
+the source of truth: `Status` values `Inbox`, `In Progress`, `To Review`, and
+`Done`; `Priority` values `P0`, `P1`, `P2`, and `P3`; `Effort` values `Low`,
+`Medium`, and `High`; and an optional `Release` field. See
+[Project planning model](project-planning.md) for the default model and label
+boundary.
+
+The current workflow has not implemented Project creation or Project field sync
+yet. It launches a prompt-driven, read-approved agent to inspect open issues and
+pull requests, assess priority/effort with judgment rather than fixed
+heuristics, and return a GitHub-flavored summary plus a structured
+legacy/fallback managed-label change plan. A deterministic post-agent CLI
+validates that plan and applies only opt-in `priority/*` and `effort/*`
+add/remove operations when label application is enabled and dry-run mode is
+disabled; otherwise it reports planned changes without mutating labels. The
+schedule runs every 6 hours at minute 17 UTC. A final workflow step writes the
+resulting summary to the Actions step summary. Optional summary comments require
+`post_summary=true`; when enabled, that final step finds today's `Daily Summary
+— YYYY-MM-DD` discussion in the configured discussion category and comments
+there. If that discussion does not exist yet, it leaves only the Actions step
+summary.
 
 `agent-daily-summary.yml` checks repository discussion settings before gathering
 activity signals or resolving an agent provider. If discussions are disabled, or
