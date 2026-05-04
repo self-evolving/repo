@@ -342,6 +342,8 @@ test("agent orchestrate delegates to a child issue without extending AgentAction
     TARGET_NUMBER: "76",
     BASE_BRANCH: "",
     BASE_PR: "",
+    ORCHESTRATION_ROOT_KIND: "issue",
+    ORCHESTRATION_ROOT_NUMBER: "25",
     FAKE_CREATED_ISSUE_NUMBER: "77",
     FAKE_PLANNER_RESPONSE: JSON.stringify({
       decision: "delegate_issue",
@@ -372,6 +374,8 @@ test("agent orchestrate delegates to a child issue without extending AgentAction
   assert.equal(inputs.target_number, "77");
   assert.equal(inputs.automation_mode, "heuristics");
   assert.equal(inputs.base_pr, "66");
+  assert.equal(inputs.orchestration_root_kind, "issue");
+  assert.equal(inputs.orchestration_root_number, "25");
 });
 
 test("agent orchestrate skips GitHub sub-issue POST when relation already exists", () => {

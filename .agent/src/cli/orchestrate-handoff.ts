@@ -1361,6 +1361,8 @@ try {
       automation_current_round: "1",
       base_branch: effectiveBaseBranch,
       base_pr: effectiveBasePr,
+      orchestration_root_kind: orchestrationRootKind,
+      orchestration_root_number: orchestrationRootNumber,
     });
   } else {
     console.error(`Unsupported next action: ${decision.nextAction}`);
