@@ -736,6 +736,8 @@ const sourceAssociationRaw = process.env.AUTHOR_ASSOCIATION || "";
 const accessPolicyRaw = process.env.ACCESS_POLICY || "";
 const isPublicRepo = String(process.env.REPOSITORY_PRIVATE || "").trim().toLowerCase() === "false";
 const targetNumber = process.env.TARGET_NUMBER || "";
+const orchestrationRootKind = process.env.ORCHESTRATION_ROOT_KIND || sourceTargetKind;
+const orchestrationRootNumber = process.env.ORCHESTRATION_ROOT_NUMBER || targetNumber;
 const requestedBy = process.env.REQUESTED_BY || "";
 const requestText = process.env.REQUEST_TEXT || "";
 const sessionBundleMode = process.env.SESSION_BUNDLE_MODE || "";
@@ -889,6 +891,8 @@ function reportTerminalToParent(decision: HandoffDecision): void {
       session_bundle_mode: sessionBundleMode,
       base_branch: baseBranch,
       base_pr: basePr,
+      orchestration_root_kind: orchestrationRootKind,
+      orchestration_root_number: orchestrationRootNumber,
     });
 
     writeProgress(dispatchedProgressMarker);
@@ -1315,6 +1319,8 @@ const commonInputs = {
   automation_current_round: String(decision.nextRound),
   automation_max_rounds: String(maxRounds),
   session_bundle_mode: sessionBundleMode,
+  orchestration_root_kind: orchestrationRootKind,
+  orchestration_root_number: orchestrationRootNumber,
 };
 
 try {
@@ -1355,6 +1361,8 @@ try {
       automation_current_round: "1",
       base_branch: effectiveBaseBranch,
       base_pr: effectiveBasePr,
+      orchestration_root_kind: orchestrationRootKind,
+      orchestration_root_number: orchestrationRootNumber,
     });
   } else {
     console.error(`Unsupported next action: ${decision.nextAction}`);

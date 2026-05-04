@@ -55,6 +55,14 @@ on:
         description: "Whether this run belongs to an explicit orchestrator chain"
         required: false
         default: "false"
+      orchestration_root_kind:
+        description: "Original issue or pull request kind for the active orchestration chain"
+        required: false
+        default: ""
+      orchestration_root_number:
+        description: "Original issue or pull request number for the active orchestration chain"
+        required: false
+        default: ""
   workflow_call:
     inputs:
       issue_number:
@@ -109,6 +117,14 @@ on:
         type: string
         required: false
         default: "false"
+      orchestration_root_kind:
+        type: string
+        required: false
+        default: ""
+      orchestration_root_number:
+        type: string
+        required: false
+        default: ""
       runs_on:
         type: string
         default: ""
@@ -188,6 +204,17 @@ jobs:
           TARGET_KIND: issue
           TARGET_NUMBER: ${{ env.ISSUE_NUMBER }}
         run: node .agent/dist/cli/add-label.js
+
+      - name: Mark implementation activity
+        continue-on-error: true
+        env:
+          ACTIVITY_LABEL_ACTION: add
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          ROUTE: ${{ env.IMPLEMENTATION_ROUTE }}
+          TARGET_KIND: issue
+          TARGET_NUMBER: ${{ env.ISSUE_NUMBER }}
+        run: node .agent/dist/cli/activity-label.js
 
       - name: Create implementation branch
         env:
@@ -300,6 +327,7 @@ jobs:
         run: node .agent/dist/cli/post-comment.js
 
       - name: Orchestrate automation handoff
+        id: orchestrator_dispatch
         if: >-
           always() &&
           steps.auth.outputs.token &&
@@ -313,6 +341,8 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           NEXT_TARGET_NUMBER: ${{ steps.pr.outputs.pr_number }}
           ORCHESTRATION_ENABLED: ${{ inputs.orchestration_enabled }}
+          ORCHESTRATION_ROOT_KIND: ${{ inputs.orchestration_root_kind }}
+          ORCHESTRATION_ROOT_NUMBER: ${{ inputs.orchestration_root_number }}
           REQUESTED_BY: ${{ inputs.requested_by || github.actor }}
           REQUEST_TEXT: ${{ inputs.request_text }}
           SESSION_BUNDLE_MODE: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
@@ -320,3 +350,33 @@ jobs:
           SOURCE_CONCLUSION: ${{ steps.response.outputs.status || 'failed' }}
           TARGET_NUMBER: ${{ env.ISSUE_NUMBER }}
         run: node .agent/dist/cli/dispatch-agent-orchestrator.js
+
+      - name: Clear orchestration root activity label after dispatch failure
+        if: >-
+          always() &&
+          steps.auth.outputs.token &&
+          inputs.orchestration_enabled == 'true' &&
+          inputs.orchestration_root_kind != '' &&
+          inputs.orchestration_root_number != '' &&
+          steps.orchestrator_dispatch.outcome != 'success'
+        continue-on-error: true
+        env:
+          ACTIVITY_LABEL_ACTION: remove
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          ROUTE: orchestrate
+          TARGET_KIND: ${{ inputs.orchestration_root_kind }}
+          TARGET_NUMBER: ${{ inputs.orchestration_root_number }}
+        run: node .agent/dist/cli/activity-label.js
+
+      - name: Clear implementation activity label
+        if: always() && steps.auth.outputs.token
+        continue-on-error: true
+        env:
+          ACTIVITY_LABEL_ACTION: remove
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          ROUTE: ${{ env.IMPLEMENTATION_ROUTE }}
+          TARGET_KIND: issue
+          TARGET_NUMBER: ${{ env.ISSUE_NUMBER }}
+        run: node .agent/dist/cli/activity-label.js

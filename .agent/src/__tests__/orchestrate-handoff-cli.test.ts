@@ -342,6 +342,8 @@ test("agent orchestrate delegates to a child issue without extending AgentAction
     TARGET_NUMBER: "76",
     BASE_BRANCH: "",
     BASE_PR: "",
+    ORCHESTRATION_ROOT_KIND: "issue",
+    ORCHESTRATION_ROOT_NUMBER: "25",
     FAKE_CREATED_ISSUE_NUMBER: "77",
     FAKE_PLANNER_RESPONSE: JSON.stringify({
       decision: "delegate_issue",
@@ -372,6 +374,8 @@ test("agent orchestrate delegates to a child issue without extending AgentAction
   assert.equal(inputs.target_number, "77");
   assert.equal(inputs.automation_mode, "heuristics");
   assert.equal(inputs.base_pr, "66");
+  assert.equal(inputs.orchestration_root_kind, "issue");
+  assert.equal(inputs.orchestration_root_number, "25");
 });
 
 test("agent orchestrate skips GitHub sub-issue POST when relation already exists", () => {
@@ -1153,6 +1157,31 @@ test("terminal child result reports to parent and preserves terminal reruns", ()
   assert.equal(inputs.source_conclusion, "done");
   assert.equal(inputs.target_number, "76");
   assert.equal(inputs.automation_mode, "agent");
+});
+
+test("terminal nested child preserves original orchestration root", () => {
+  const childBody = "<!-- sepo-sub-orchestrator parent:76 stage:stage-2 state:running parent_round:3 -->";
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "implement",
+    SOURCE_CONCLUSION: "success",
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "77",
+    AUTOMATION_MODE: "heuristics",
+    AUTOMATION_CURRENT_ROUND: "3",
+    ORCHESTRATION_ROOT_KIND: "issue",
+    ORCHESTRATION_ROOT_NUMBER: "25",
+    FAKE_ISSUE_BODY: childBody,
+  });
+
+  assert.equal(run.status, 0);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/76\/comments/);
+  assert.match(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.target_kind, "issue");
+  assert.equal(inputs.target_number, "76");
+  assert.equal(inputs.orchestration_root_kind, "issue");
+  assert.equal(inputs.orchestration_root_number, "25");
 });
 
 test("terminal child ignores forged user-authored dispatched report markers", () => {
