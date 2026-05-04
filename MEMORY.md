@@ -50,3 +50,4 @@
 - Failure-report intake should default to GitHub Discussions by fingerprint; promote actionable reports to Issues manually.
 - First-run onboarding is idempotent: create agent/* labels and update one open Sepo setup check issue/comment.
 - Branch cleanup retargets stacked child PRs before deleting merged parent agent branches.
+- Generic orchestrator handoff comments use compact tables and fix-pr task blocks.
