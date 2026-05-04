@@ -313,6 +313,7 @@ jobs:
             'PR fix runs currently support open same-repository pull requests only.')"
 
       - name: Orchestrate automation handoff
+        id: orchestrator_dispatch
         if: >-
           always() &&
           steps.pr.outputs.cross_repo != 'true' &&
@@ -335,6 +336,24 @@ jobs:
           SOURCE_CONCLUSION: ${{ steps.response.outputs.status || 'failed' }}
           TARGET_NUMBER: ${{ env.PR_NUMBER }}
         run: node .agent/dist/cli/dispatch-agent-orchestrator.js
+
+      - name: Clear orchestration root activity label after dispatch failure
+        if: >-
+          always() &&
+          steps.auth.outputs.token &&
+          inputs.orchestration_enabled == 'true' &&
+          inputs.orchestration_root_kind != '' &&
+          inputs.orchestration_root_number != '' &&
+          steps.orchestrator_dispatch.outcome != 'success'
+        continue-on-error: true
+        env:
+          ACTIVITY_LABEL_ACTION: remove
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          ROUTE: orchestrate
+          TARGET_KIND: ${{ inputs.orchestration_root_kind }}
+          TARGET_NUMBER: ${{ inputs.orchestration_root_number }}
+        run: node .agent/dist/cli/activity-label.js
 
       - name: Clear fix-pr activity label
         if: >-

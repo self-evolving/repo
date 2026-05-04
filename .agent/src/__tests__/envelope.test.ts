@@ -467,8 +467,26 @@ test("long-running routes use non-trigger activity labels", () => {
 
   assert.match(implementWorkflow, /Mark implementation activity[\s\S]*ROUTE:\s*\$\{\{ env\.IMPLEMENTATION_ROUTE \}\}/);
   assert.match(implementWorkflow, /Clear implementation activity label[\s\S]*ACTIVITY_LABEL_ACTION: remove/);
+  assert.match(implementWorkflow, /Orchestrate automation handoff\s*\n\s+id: orchestrator_dispatch/);
+  assert.match(
+    implementWorkflow,
+    /Clear orchestration root activity label after dispatch failure[\s\S]*steps\.orchestrator_dispatch\.outcome != 'success'/,
+  );
+  assert.match(
+    implementWorkflow,
+    /Clear orchestration root activity label after dispatch failure[\s\S]*ROUTE: orchestrate[\s\S]*TARGET_KIND:\s*\$\{\{ inputs\.orchestration_root_kind \}\}[\s\S]*TARGET_NUMBER:\s*\$\{\{ inputs\.orchestration_root_number \}\}/,
+  );
   assert.match(fixPrWorkflow, /Mark fix-pr activity[\s\S]*ROUTE: fix-pr/);
   assert.match(fixPrWorkflow, /Clear fix-pr activity label[\s\S]*ACTIVITY_LABEL_ACTION: remove/);
+  assert.match(fixPrWorkflow, /Orchestrate automation handoff\s*\n\s+id: orchestrator_dispatch/);
+  assert.match(
+    fixPrWorkflow,
+    /Clear orchestration root activity label after dispatch failure[\s\S]*steps\.orchestrator_dispatch\.outcome != 'success'/,
+  );
+  assert.match(
+    fixPrWorkflow,
+    /Clear orchestration root activity label after dispatch failure[\s\S]*ROUTE: orchestrate[\s\S]*TARGET_KIND:\s*\$\{\{ inputs\.orchestration_root_kind \}\}[\s\S]*TARGET_NUMBER:\s*\$\{\{ inputs\.orchestration_root_number \}\}/,
+  );
   assert.match(reviewWorkflow, /Mark review activity[\s\S]*ROUTE: review/);
   assert.match(reviewWorkflow, /cleanup-activity-label:/);
   assert.match(reviewWorkflow, /Clear review activity label[\s\S]*ACTIVITY_LABEL_ACTION: remove/);
