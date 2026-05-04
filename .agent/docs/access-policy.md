@@ -82,6 +82,22 @@ Label triggers authorize the label applier rather than the issue or pull request
 
 Organization membership detection depends on what the agent's GitHub token can see. With a repo-scoped installation token, only **public** org memberships are visible, so private org members who apply a label resolve as `COLLABORATOR` rather than `MEMBER`. Policies that restrict a route to `MEMBER` only (e.g. `route_overrides.implement: ["OWNER", "MEMBER"]`) may therefore reject private org members unless `COLLABORATOR` is also included.
 
-## Issue-body association refresh
+## Issue and issue-comment association refresh
 
-For issue-body mentions from `issues` events, the runtime refreshes `author_association` from the GitHub API before access decisions when the webhook payload reports a weaker value (for example `NONE` or `CONTRIBUTOR`). If the refreshed issue association is still weak, the runtime also checks the issue author with `GET /repos/{owner}/{repo}/collaborators/{username}` and treats a `204` response as `COLLABORATOR`. This covers some cases where repo-scoped tokens cannot see private org membership through `author_association`, but GitHub author association remains token- and visibility-dependent. The public default allowlist therefore still includes `CONTRIBUTOR` unless a repository configures a stricter `AGENT_ACCESS_POLICY`.
+For issue-body mentions from `issues` events, the runtime refreshes
+`author_association` from the GitHub API before access decisions when the
+webhook payload reports a weaker value (for example `NONE` or `CONTRIBUTOR`).
+If the refreshed issue association is still weak, the runtime also checks the
+issue author with `GET /repos/{owner}/{repo}/collaborators/{username}` and
+treats a `204` response as `COLLABORATOR`.
+
+For issue-comment mentions with weak webhook associations, the runtime checks
+the comment author against the same collaborator endpoint before route policy is
+applied. This lets verified repository collaborators and admins use privileged
+routes even when a public issue-comment payload reports them as `CONTRIBUTOR`.
+
+These checks cover some cases where repo-scoped tokens cannot see private org
+membership through `author_association`, but GitHub author association remains
+token- and visibility-dependent. The public default allowlist therefore still
+includes `CONTRIBUTOR` unless a repository configures a stricter
+`AGENT_ACCESS_POLICY`.

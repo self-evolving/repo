@@ -107,16 +107,29 @@ function refreshIssueAssociation(
   association: string,
   issueNumber: string,
   issueAuthorLogin: string,
+  commentAuthorLogin = "",
 ): string {
   const normalized = String(association || "").trim().toUpperCase();
+  const actorLogin = eventName === "issue_comment"
+    ? commentAuthorLogin
+    : issueAuthorLogin;
 
   if (
     authorAssociationOverride ||
-    eventName !== "issues" ||
     ISSUE_ASSOCIATIONS_TRUSTED_WITHOUT_REFRESH.has(normalized) ||
-    !repository ||
-    !issueNumber
+    !repository
   ) {
+    return normalized || association;
+  }
+
+  if (eventName === "issue_comment") {
+    if (hasRepositoryCollaborator(actorLogin)) {
+      return "COLLABORATOR";
+    }
+    return normalized || association;
+  }
+
+  if (eventName !== "issues" || !issueNumber) {
     return normalized || association;
   }
 
@@ -155,6 +168,7 @@ if (!eventPath || !eventName) {
         authorAssociationOverride || getAuthorAssociation(eventName, payload),
         String(payload.issue?.number || ""),
         String(payload.issue?.user?.login || ""),
+        String(payload.comment?.user?.login || ""),
       );
     if (!isKnownAuthorAssociation(association)) {
       setOutput("should_respond", "false");
