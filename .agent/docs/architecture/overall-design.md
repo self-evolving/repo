@@ -36,7 +36,8 @@ flowchart LR
     explicit -- yes --> route
     explicit -- no --> triage --> route
 ```
-Once the route is resolved, the backend either answers inline, asks for approval, or dispatches a route-specific workflow.
+Once the route is resolved, the backend either answers inline, posts a setup
+plan, asks for approval, or dispatches a route-specific workflow.
 
 ```mermaid
 flowchart LR
@@ -44,6 +45,8 @@ flowchart LR
 
     answer_run["Answer agent\n(approve-all, high effort)"]
     post_answer["Post reply on\noriginal surface"]
+    setup_run["Setup plan agent\n(approve-reads, high effort)"]
+    post_setup["Post setup plan\non issue"]
 
     is_issue{Source is\nan issue?}
     post_approval_issue["Post approval request\non issue"]
@@ -56,6 +59,7 @@ flowchart LR
     react_thumbs["React with 👍"]
 
     route -- "answer / unsupported" --> answer_run --> post_answer
+    route -- "setup (issue only)" --> setup_run --> post_setup
     route -- "implement" --> is_issue
     is_issue -- yes --> post_approval_issue --> approve --> dispatch_impl
     is_issue -- no --> post_proposal --> approve --> create_issue --> dispatch_impl

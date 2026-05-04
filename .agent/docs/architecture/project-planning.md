@@ -46,9 +46,11 @@ optional `Release` field choice.
 Opening a setup issue is declarative only: it does not create GitHub Projects,
 mutate repository variables, or enable project-management writes. Users should
 ask for `@sepo-agent /setup plan` first and review the proposed changes.
-`@sepo-agent /setup apply` is a later explicit confirmation step; the current
-automation boundary below still defers the `/setup` route and deterministic
-apply behavior to later work.
+The `/setup plan` route reads the issue and current setup/config context where
+available, then posts a proposed allowlisted diff for `AGENT_HANDLE`,
+assign-to-agent behavior, project-management mode, Project ID/URL/owner/title,
+and the minimal Project planning fields. `@sepo-agent /setup apply` is a later
+explicit confirmation step; deterministic apply behavior is still deferred.
 
 ## Current automation boundary
 

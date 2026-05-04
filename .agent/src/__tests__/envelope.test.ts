@@ -135,6 +135,61 @@ test("answer prompt returns content for workflow posting instead of commenting d
   assert.match(answerPrompt, /workflow will post it on the original surface/i);
 });
 
+test("setup route is issue-only and plan-only", () => {
+  const setupPrompt = readRepoFile(".github/prompts/agent-setup.md");
+  const routerWorkflow = readRepoFile(".github/workflows/agent-router.yml");
+  const dispatchPrompt = readRepoFile(".github/prompts/agent-dispatch.md");
+  const action = readRepoFile(".github/actions/run-agent-task/action.yml");
+  const supportedWorkflows = readRepoFile(".agent/docs/architecture/supported-workflows.md");
+  const agentActions = readRepoFile(".agent/docs/actions/agent-actions.md");
+  const accessPolicy = readRepoFile(".agent/docs/access-policy.md");
+  const setupJobMatch = routerWorkflow.match(
+    /\n  setup:\n[\s\S]*?(?=\n  [a-z][a-z0-9-]*:\n)/,
+  );
+  assert.ok(setupJobMatch, "setup job should exist in agent-router.yml");
+  const setupJob = setupJobMatch[0];
+
+  assert.match(setupPrompt, /This route is plan-only/);
+  assert.match(setupPrompt, /gh issue view \$\{TARGET_NUMBER\} --repo \$\{REPO_SLUG\}/);
+  assert.match(setupPrompt, /gh variable list --repo \$\{REPO_SLUG\}/);
+  assert.match(setupPrompt, /AGENT_HANDLE/);
+  assert.match(setupPrompt, /Project `Status` values/);
+  assert.match(setupPrompt, /Do not run write commands/);
+  assert.match(setupPrompt, /gh variable set/);
+  assert.match(setupPrompt, /gh project create/);
+  assert.match(setupPrompt, /gh api --method POST/);
+  assert.match(setupPrompt, /\/setup apply` is not implemented/);
+  assert.match(setupPrompt, /workflow will post it/);
+
+  assert.match(dispatchPrompt, /`setup`: produce a plan-only Sepo setup diff/);
+  assert.match(dispatchPrompt, /`setup` is only valid for `issue` targets/);
+  assert.match(action, /create-action, setup, dispatch/);
+
+  assert.match(
+    setupJob,
+    /setup:\n\s+needs: portal[\s\S]*needs\.portal\.outputs\.route == 'setup'[\s\S]*needs\.portal\.outputs\.target_kind == 'issue'/,
+  );
+  assert.match(setupJob, /Resolve setup provider[\s\S]*route:\s*setup/);
+  assert.match(setupJob, /Run setup plan agent[\s\S]*permission_mode:\s*approve-reads/);
+  assert.match(setupJob, /Run setup plan agent[\s\S]*prompt:\s*setup[\s\S]*route:\s*setup/);
+  assert.match(setupJob, /Post setup plan[\s\S]*node \.agent\/dist\/cli\/post-response\.js/);
+  assert.match(
+    routerWorkflow,
+    /Label handled issue or PR[\s\S]*steps\.dispatch\.outputs\.route != 'setup'/,
+  );
+  assert.match(
+    routerWorkflow,
+    /Assign handled issue or PR[\s\S]*steps\.dispatch\.outputs\.route != 'setup'/,
+  );
+  assert.doesNotMatch(setupJob, /dispatch-agent-implement/);
+
+  assert.match(supportedWorkflows, /@sepo-agent \/setup plan/);
+  assert.match(supportedWorkflows, /does not apply repository variables/);
+  assert.match(supportedWorkflows, /route_overrides\.setup/);
+  assert.match(agentActions, /Setup plan[\s\S]*`setup`[\s\S]*agent-setup\.md/);
+  assert.match(accessPolicy, /`setup` route[\s\S]*`OWNER`, `MEMBER`, and `COLLABORATOR`/);
+});
+
 test("fix-pr prompt uses self-serve context, not local snapshots", () => {
   const fixPrompt = readRepoFile(".github/prompts/agent-fix-pr.md");
 
@@ -1236,6 +1291,7 @@ test("validateEnvelope accepts dispatch, action, and rubrics as first-class rout
   for (const route of [
     "dispatch",
     "create-action",
+    "setup",
     "rubrics-review",
     "rubrics-initialization",
     "rubrics-update",
