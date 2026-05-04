@@ -53,3 +53,4 @@
 - Generic orchestrator handoff comments use compact tables and fix-pr task blocks.
 - Sepo installs carry .agent/sepo-version.json as the installed version/source-identity metadata contract.
 - Sepo version labels use SemVer: v0.x.y pre-release, v1.0.0-rc.N only for true RCs, v1.0.0 for stable.
+- Long-running routes use agent-running/<route> activity labels; orchestrator labels stay on the root target until terminal stop.
