@@ -18,6 +18,7 @@
 - [Key concepts](technical-details/key-concepts.md)
 - [Session continuity](technical-details/session-continuity.md)
 - [Agent orchestrator](technical-details/agent-orchestrator.md)
+- [Sepo versioning](technical-details/versioning.md)
 - [Developer notes](technical-details/developer-notes.md)
 
 ## Actions
