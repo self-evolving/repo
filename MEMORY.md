@@ -32,7 +32,7 @@
 - Implementation runs support stacked PRs via explicit base_branch or base_pr; base_pr must be an open same-repo PR.
 - Do not add branch URL links in agent prompt fragments; reserve branch links for user-facing comments.
 - Daily summary discussion gate belongs after GitHub auth in signals, before signal/provider setup.
-- Current project-manager is label-first via managed priority/* and effort/*; project-backed fields are not implemented yet.
+- Current project-manager is legacy/fallback label-first via priority/* and effort/*; Project field sync is not implemented yet.
 - Prefer issue-backed sub-orchestrators over lane-heavy same-issue orchestration; keep parent/child state in issue metadata.
 - .agent workflows use npm ci; dependency updates must refresh .agent/package-lock.json or runtime installs stay pinned.
 - Trust sub-orchestration state only from agent-authored issue bodies or deterministic adoption comments, not generic app comments.
@@ -55,3 +55,4 @@
 - Sepo version labels use SemVer: v0.x.y pre-release, v1.0.0-rc.N only for true RCs, v1.0.0 for stable.
 - GitHub App issue authors may appear as app/<login>; trusted actor checks normalize app/ and [bot] forms.
 - Rejected terminal sub-orchestrator metadata gets a deduped visible stop; ordinary terminal PR stops remain silent.
+- Minimal Project planning model: Status Inbox/In Progress/To Review/Done; Priority P0-P3; Effort Low/Medium/High; optional Release.
