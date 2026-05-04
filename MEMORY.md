@@ -49,3 +49,4 @@
 - Failed-agent reports use source tokens only for same-repo intakes; cross-repo intake needs AGENT_FAILURE_REPORT_TOKEN or hosted OIDC.
 - Failure-report intake should default to GitHub Discussions by fingerprint; promote actionable reports to Issues manually.
 - First-run onboarding is idempotent: create agent/* labels and update one open Sepo setup check issue/comment.
+- Branch cleanup retargets stacked child PRs before deleting merged parent agent branches.
