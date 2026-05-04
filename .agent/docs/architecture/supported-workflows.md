@@ -14,7 +14,7 @@
 | `agent-implement.yml` | `workflow_dispatch` | Implementation flow: branch, commit, draft PR; supports `base_branch` or `base_pr` for stacked PRs | Auto |
 | `agent-fix-pr.yml` | `workflow_dispatch`, `workflow_call` | PR fix flow: update existing PR branch, verify, push | Auto |
 | `agent-review.yml` | `workflow_dispatch`, `workflow_call` | Parallel Claude and Codex review with resolved-provider synthesis, plus a separate rubric review comment | Claude + Codex reviewers; configurable synthesis |
-| `agent-branch-cleanup.yml` | `pull_request_target.closed` | Event-driven cleanup of agent-created branches after PR close. Excludes the shared `agent/memory` and `agent/rubrics` branches. | None |
+| `agent-branch-cleanup.yml` | `pull_request_target.closed` | Event-driven cleanup of merged agent-created branches after retargeting open stacked PRs. Excludes the shared `agent/memory` and `agent/rubrics` branches. | None |
 | `agent-close-stale-issues.yml` | `schedule` (daily), `workflow_dispatch` | Closes open `agent` issues that have had no activity for 30 days by default | None |
 | `agent-daily-summary.yml` | `schedule` (daily), `workflow_dispatch` | Generates a concise repository activity summary and posts it as a Discussion | Auto |
 | `agent-project-manager.yml` | `schedule` (every 6h), `workflow_dispatch` | Opt-in agent-driven triage for open issues and PRs, with dry-run summaries and optional priority/effort label updates | Auto |
@@ -103,7 +103,9 @@ Rubrics are documented in [User/team rubrics](./rubrics.md). They are separate f
 
 `agent-branch-cleanup.yml` and `agent-close-stale-issues.yml` are standalone
 workflows. They listen directly to repository events or schedules and apply
-their guardrails in place.
+their guardrails in place. Before deleting a merged agent branch,
+`agent-branch-cleanup.yml` retargets open PRs based on that branch to the
+merged PR's base branch; if a retarget fails, the branch is left in place.
 
 `agent-project-manager.yml` is disabled by default. Enable scheduled runs with
 `AGENT_PROJECT_MANAGEMENT_ENABLED=true`, or run it manually with the `enabled`

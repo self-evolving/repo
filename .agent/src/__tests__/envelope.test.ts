@@ -23,6 +23,44 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
 }
 
+function readBranchCleanupScript(): string {
+  const workflow = parseYaml(readRepoFile(".github/workflows/agent-branch-cleanup.yml")) as unknown;
+  assert.ok(isRecord(workflow), "branch cleanup workflow should parse as a YAML object");
+  assert.ok(isRecord(workflow.jobs), "branch cleanup workflow should define jobs");
+  const cleanupJob = workflow.jobs.cleanup;
+  assert.ok(isRecord(cleanupJob), "branch cleanup workflow should define cleanup job");
+  assert.ok(Array.isArray(cleanupJob.steps), "branch cleanup job should define steps");
+
+  const githubScriptStep = cleanupJob.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.uses === "actions/github-script@v7",
+  );
+  assert.ok(githubScriptStep, "branch cleanup workflow should use actions/github-script");
+  assert.ok(isRecord(githubScriptStep.with), "github-script step should define inputs");
+  const script = githubScriptStep.with.script;
+  if (typeof script !== "string") {
+    assert.fail("github-script step should define a script input");
+  }
+
+  return script;
+}
+
+async function runBranchCleanupScript(args: {
+  github: unknown;
+  context: unknown;
+  core: unknown;
+}): Promise<void> {
+  const script = readBranchCleanupScript();
+  const run = new Function(
+    "github",
+    "context",
+    "core",
+    `"use strict"; return (async () => {\n${script}\n})();`,
+  ) as (github: unknown, context: unknown, core: unknown) => Promise<void>;
+
+  await run(args.github, args.context, args.core);
+}
+
 const VALID_PARAMS = {
   repo_slug: "self-evolving/repo",
   route: "review",
@@ -1318,6 +1356,79 @@ test("branch cleanup preserves shared agent branches", () => {
   const cleanup = readRepoFile(".github/workflows/agent-branch-cleanup.yml");
   assert.match(cleanup, /head\.ref != \(vars\.AGENT_MEMORY_REF \|\| 'agent\/memory'\)/);
   assert.match(cleanup, /head\.ref != \(vars\.AGENT_RUBRICS_REF \|\| 'agent\/rubrics'\)/);
+});
+
+test("branch cleanup retargets stacked PRs before deleting merged branches", () => {
+  const cleanup = readRepoFile(".github/workflows/agent-branch-cleanup.yml");
+  assert.match(cleanup, /^permissions:\s*\n\s+contents: write\s*\n\s+pull-requests: write/m);
+  assert.match(cleanup, /const retargetBase = context\.payload\.pull_request\?\.base\?\.ref/);
+  assert.match(cleanup, /github\.paginate\(github\.rest\.pulls\.list[\s\S]*base: branch/);
+  assert.match(cleanup, /github\.rest\.pulls\.update[\s\S]*base: retargetBase/);
+
+  const retargetIndex = cleanup.indexOf("github.rest.pulls.update");
+  const deleteIndex = cleanup.indexOf("github.rest.git.deleteRef");
+  assert.notEqual(retargetIndex, -1);
+  assert.notEqual(deleteIndex, -1);
+  assert.ok(retargetIndex < deleteIndex);
+});
+
+test("branch cleanup preserves merged branch when dependent PR retarget fails", async () => {
+  const calls: string[] = [];
+  const retargetError = new Error("retarget failed");
+
+  const pullsList = async (): Promise<never[]> => [];
+  const github = {
+    paginate: async (endpoint: unknown, options: Record<string, unknown>) => {
+      calls.push("pulls.list");
+      assert.equal(endpoint, pullsList);
+      assert.deepEqual(options, {
+        owner: "self-evolving",
+        repo: "repo",
+        state: "open",
+        base: "agent/implement-issue-122/codex-25293354687",
+        per_page: 100,
+      });
+      return [{ number: 116 }];
+    },
+    rest: {
+      pulls: {
+        list: pullsList,
+        update: async (options: Record<string, unknown>) => {
+          calls.push(`pulls.update:${String(options.pull_number)}`);
+          assert.deepEqual(options, {
+            owner: "self-evolving",
+            repo: "repo",
+            pull_number: 116,
+            base: "main",
+          });
+          throw retargetError;
+        },
+      },
+      git: {
+        deleteRef: async () => {
+          calls.push("git.deleteRef");
+        },
+      },
+    },
+  };
+  const context = {
+    repo: { owner: "self-evolving", repo: "repo" },
+    payload: {
+      pull_request: {
+        head: { ref: "agent/implement-issue-122/codex-25293354687" },
+        base: { ref: "main" },
+      },
+    },
+  };
+  const core = {
+    info: () => {},
+    setFailed: (message: string) => {
+      calls.push(`core.setFailed:${message}`);
+    },
+  };
+
+  await assert.rejects(runBranchCleanupScript({ github, context, core }), retargetError);
+  assert.deepEqual(calls, ["pulls.list", "pulls.update:116"]);
 });
 
 test("memory and rubric guidance live in dedicated conditional prompt fragments", () => {

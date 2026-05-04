@@ -95,6 +95,9 @@ separate from concrete follow-up actions such as `implement`, `review`, and
 When the meta-orchestrator continues sequential child implementation work after
 a prior child produced an open, unmerged PR, the planner should set `base_pr` to
 that prior child PR unless the next child is intentionally independent.
+When a stacked parent PR is merged, branch cleanup retargets open child PRs from
+the merged parent branch to the parent's base branch before deleting the parent
+branch.
 
 Child issue metadata is intentionally GitHub-visible state, not session state.
 The parent issue keeps the meta planner session, while each child issue gets its
