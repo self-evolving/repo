@@ -56,3 +56,4 @@
 - GitHub App issue authors may appear as app/<login>; trusted actor checks normalize app/ and [bot] forms.
 - Rejected terminal sub-orchestrator metadata gets a deduped visible stop; ordinary terminal PR stops remain silent.
 - Minimal Project planning model: Status Inbox/In Progress/To Review/Done; Priority P0-P3; Effort Low/Medium/High; optional Release.
+- Failure-report v1 should diagnose locally and require approval before central Discussion posting by default.
