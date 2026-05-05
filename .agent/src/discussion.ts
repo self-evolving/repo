@@ -152,7 +152,11 @@ export function updateDiscussionComment(
   }>(query, { commentId, body });
 }
 
-export function addDiscussionComment(discussionId: string, body: string): string {
+export function addDiscussionComment(
+  discussionId: string,
+  body: string,
+  client: GraphQLClient = createGhGraphqlClient(),
+): string {
   const query = `
     mutation($discussionId: ID!, $body: String!) {
       addDiscussionComment(input: { discussionId: $discussionId, body: $body }) {
@@ -160,7 +164,7 @@ export function addDiscussionComment(discussionId: string, body: string): string
       }
     }
   `;
-  const data = ghGraphqlData<{
+  const data = client.graphql<{
     addDiscussionComment?: { comment?: { url?: string } | null } | null;
   }>(query, { discussionId, body });
   const url = data.addDiscussionComment?.comment?.url || "";

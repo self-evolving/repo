@@ -132,6 +132,20 @@ fail while posting.
 
 Single-agent routes, autonomous agent workflows, and the review synthesis step resolve their provider before installing provider CLIs. Explicit provider choices from `AGENT_DEFAULT_PROVIDER` or a route-specific override are authoritative: the workflows select that provider even when the matching repository secret is absent, so self-hosted runners can rely on local Codex or Claude authentication. When the provider is `auto`, detection uses configured provider secrets and prefers Codex when both `OPENAI_API_KEY` and `CLAUDE_CODE_OAUTH_TOKEN` are present. Route-specific overrides are available by editing the relevant workflow's `resolve-agent-provider` step inline. Portal and skill jobs use non-fatal early resolution before non-agent response paths, then require a provider only immediately before invoking an agent.
 
+Failed agent runs go through local diagnosis before the shared action rethrows
+the original exit code. The diagnosis step reads the captured stdout/stderr
+paths from `run.ts`, redacts common secret shapes, assigns one of
+`setup_or_auth`, `provider_or_runtime`, `repo_policy_or_access`,
+`user_task_or_prompt`, `agent_product_bug_candidate`, or `unknown`, writes a
+GitHub Actions step summary, and uploads a JSON diagnosis artifact. The default
+mode is conservative: public repositories prepare a pending Bug Report
+Discussion draft for human review, while private repositories write only the
+local diagnosis unless configured otherwise. Set `AGENT_FAILURE_REPORT_MODE` to
+`false`, `diagnose`, `approval`, or `true` to override that behavior. Only
+explicit `true` mode attempts central Discussion publication, and even then only
+for high-confidence `agent_product_bug_candidate` fingerprints; other buckets
+remain local or pending approval.
+
 ## Trigger details
 
 ### `agent-entrypoint.yml`

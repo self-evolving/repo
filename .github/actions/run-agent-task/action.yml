@@ -113,6 +113,26 @@ inputs:
     description: "Maximum selected rubrics to inject into the prompt"
     required: false
     default: "10"
+  failure_report_mode:
+    description: "Failed-run diagnosis/report mode: false, diagnose, approval, or true. Empty uses public=approval and private=diagnose."
+    required: false
+    default: ""
+  failure_report_repository:
+    description: "Repository for proposed or auto-published failure report Discussions"
+    required: false
+    default: self-evolving/repo
+  failure_report_discussion_category:
+    description: "Discussion category for proposed or auto-published failure reports"
+    required: false
+    default: "Bug Report"
+  failure_report_token:
+    description: "Optional token used only for explicit failure_report_mode=true publication"
+    required: false
+    default: ""
+  failure_report_artifact_retention_days:
+    description: "Retention for uploaded failure diagnosis artifacts"
+    required: false
+    default: "14"
 
 outputs:
   response_file:
@@ -127,6 +147,30 @@ outputs:
   raw_stderr_file:
     description: "Path to raw acpx stderr captured on failure"
     value: ${{ steps.run.outputs.raw_stderr_file }}
+  failure_report_status:
+    description: "Failure diagnosis/reporting outcome"
+    value: ${{ steps.failure_diagnosis.outputs.failure_report_status }}
+  failure_report_mode:
+    description: "Resolved failure diagnosis/report mode"
+    value: ${{ steps.failure_diagnosis.outputs.failure_report_mode }}
+  failure_report_category:
+    description: "Classified failure category"
+    value: ${{ steps.failure_diagnosis.outputs.failure_report_category }}
+  failure_report_fingerprint:
+    description: "Stable failure fingerprint"
+    value: ${{ steps.failure_diagnosis.outputs.failure_report_fingerprint }}
+  failure_report_diagnosis_file:
+    description: "Path to machine-readable failure diagnosis JSON"
+    value: ${{ steps.failure_diagnosis.outputs.failure_report_diagnosis_file }}
+  failure_report_pending_body_file:
+    description: "Path to pending central-report Markdown body"
+    value: ${{ steps.failure_diagnosis.outputs.failure_report_pending_body_file }}
+  failure_report_artifact_name:
+    description: "Uploaded failure diagnosis artifact name"
+    value: ${{ steps.failure_diagnosis.outputs.failure_report_artifact_name }}
+  failure_report_discussion_url:
+    description: "Created or commented Discussion URL when explicit auto-publication succeeds"
+    value: ${{ steps.failure_diagnosis.outputs.failure_report_discussion_url }}
   session_name:
     description: "acpx session name (if persistent)"
     value: ${{ steps.run.outputs.session_name }}
@@ -335,6 +379,40 @@ runs:
         exit_code=$?
         echo "exit_code=${exit_code}" >> "$GITHUB_OUTPUT"
         exit 0
+
+    - name: Diagnose failed agent run
+      id: failure_diagnosis
+      if: always() && steps.run.outputs.exit_code != '' && steps.run.outputs.exit_code != '0'
+      continue-on-error: true
+      shell: bash
+      env:
+        AGENT_EXIT_CODE: ${{ steps.run.outputs.exit_code }}
+        AGENT_FAILURE_REPORT_MODE: ${{ inputs.failure_report_mode }}
+        FAILURE_REPORT_DISCUSSION_CATEGORY: ${{ inputs.failure_report_discussion_category }}
+        FAILURE_REPORT_REPOSITORY: ${{ inputs.failure_report_repository }}
+        GH_TOKEN: ${{ inputs.failure_report_token != '' && inputs.failure_report_token || inputs.github_token }}
+        GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        GITHUB_TOKEN: ${{ inputs.failure_report_token != '' && inputs.failure_report_token || inputs.github_token }}
+        RAW_STDERR_FILE: ${{ steps.run.outputs.raw_stderr_file }}
+        RAW_STDOUT_FILE: ${{ steps.run.outputs.raw_stdout_file }}
+        REPOSITORY_PRIVATE: ${{ github.event.repository.private && 'true' || 'false' }}
+        REQUESTED_BY: ${{ inputs.requested_by }}
+        ROUTE: ${{ inputs.route }}
+        SOURCE_KIND: ${{ inputs.source_kind }}
+        TARGET_KIND: ${{ inputs.target_kind }}
+        TARGET_NUMBER: ${{ inputs.target_number }}
+        TARGET_URL: ${{ inputs.target_url }}
+        WORKFLOW: ${{ inputs.workflow }}
+      run: node .agent/dist/cli/diagnose-agent-failure.js
+
+    - name: Upload failure diagnosis artifact
+      if: always() && steps.failure_diagnosis.outputs.failure_report_artifact_dir != ''
+      continue-on-error: true
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.failure_diagnosis.outputs.failure_report_artifact_name }}
+        path: ${{ steps.failure_diagnosis.outputs.failure_report_artifact_dir }}
+        retention-days: ${{ inputs.failure_report_artifact_retention_days }}
 
     - name: Commit memory edits
       if: >-

@@ -27,7 +27,8 @@ Agent actions share the same runtime shape:
 2. The route chooses a prompt name or skill name.
 3. `.github/actions/run-agent-task` builds a runtime envelope with route, target, source, request, lane, and session-policy metadata.
 4. The runtime prepends `.github/prompts/_base.md` to the selected prompt, substitutes prompt variables, and runs the selected `acpx` agent.
-5. Post-processing steps parse the response, post comments, create branches, create PRs, or update the existing PR branch depending on the route.
+5. If the agent exits nonzero, the shared action writes a local failure diagnosis summary and artifact before rethrowing the exit code.
+6. Post-processing steps parse the response, post comments, create branches, create PRs, or update the existing PR branch depending on the route.
 
 The shared base prompt defines the common metadata and context-gathering contract. Route prompts should focus on route-specific behavior and should not duplicate the base metadata header.
 
