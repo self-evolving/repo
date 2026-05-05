@@ -302,7 +302,7 @@ test("publishFailureReport does not duplicate existing repeat occurrence comment
       node: {
         comments: {
           nodes: [{
-            body: `<!-- sepo-agent-failure-report-occurrence fingerprint:${report.diagnosis.fingerprint} run:${report.diagnosis.source.runId} -->`,
+            body: `<!-- sepo-agent-failure-report-occurrence fingerprint:${report.diagnosis.fingerprint} run:${report.diagnosis.source.runId} attempt:${report.diagnosis.source.runAttempt} -->`,
             url: "https://github.com/self-evolving/repo/discussions/1#comment-1",
           }],
           pageInfo: { hasNextPage: false, endCursor: null },
@@ -318,4 +318,53 @@ test("publishFailureReport does not duplicate existing repeat occurrence comment
   assert.equal(publication.reason, "repeat occurrence already recorded");
   assert.equal(calls.length, 2);
   assert.ok(calls.every((call) => !/addDiscussionComment/.test(call.query)));
+});
+
+test("publishFailureReport records separate repeat occurrences for run attempts", () => {
+  const report = buildFailureReport({
+    mode: "true",
+    exitCode: "1",
+    rawStdout: "",
+    rawStderr: "TypeError: exploded\n    at run (.agent/dist/run.js:1:1)",
+    reportRepository: "self-evolving/repo",
+    discussionCategory: "Bug Report",
+    source: { ...source(), runAttempt: "2" },
+    now: new Date("2026-05-05T00:00:00.000Z"),
+  });
+  const { client, calls } = queuedClient([
+    {
+      repository: {
+        discussions: {
+          nodes: [{
+            id: "discussion-1",
+            number: 1,
+            title: report.diagnosis.proposedDiscussion.title,
+            url: "https://github.com/self-evolving/repo/discussions/1",
+            body: report.diagnosis.proposedDiscussion.body,
+            category: { name: "Bug Report" },
+          }],
+        },
+      },
+    },
+    {
+      node: {
+        comments: {
+          nodes: [{
+            body: `<!-- sepo-agent-failure-report-occurrence fingerprint:${report.diagnosis.fingerprint} run:${report.diagnosis.source.runId} attempt:1 -->`,
+            url: "https://github.com/self-evolving/repo/discussions/1#comment-1",
+          }],
+          pageInfo: { hasNextPage: false, endCursor: null },
+        },
+      },
+    },
+    { addDiscussionComment: { comment: { url: "https://github.com/self-evolving/repo/discussions/1#comment-2" } } },
+  ]);
+
+  const publication = publishFailureReport(report.diagnosis, client);
+
+  assert.equal(publication.status, "commented");
+  assert.equal(publication.url, "https://github.com/self-evolving/repo/discussions/1#comment-2");
+  assert.equal(calls.length, 3);
+  assert.match(String(calls[2]?.variables.body || ""), /attempt:2/);
+  assert.match(calls[2]?.query || "", /addDiscussionComment/);
 });

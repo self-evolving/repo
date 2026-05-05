@@ -174,6 +174,9 @@ test("run-agent-task diagnoses failed runs and workflows forward report mode", (
   assert.match(action, /failure_report_mode:/);
   assert.match(action, /Diagnose failed agent run[\s\S]*diagnose-agent-failure\.js/);
   assert.match(action, /Upload failure diagnosis artifact[\s\S]*actions\/upload-artifact@v4/);
+  assert.match(action, /Report failure diagnosis persistence status/);
+  assert.match(action, /Failure Diagnosis Persistence Warning/);
+  assert.match(action, /failure_report_persistence_status/);
   assert.match(action, /Diagnose failed agent run[\s\S]*Propagate agent exit code/);
 
   const workflowPaths = readdirSync(path.join(repoRoot, ".github/workflows"))

@@ -145,7 +145,9 @@ local diagnosis unless configured otherwise. Set `AGENT_FAILURE_REPORT_MODE` to
 `false`, `diagnose`, `approval`, or `true` to override that behavior. Only
 explicit `true` mode attempts central Discussion publication, and even then only
 for high-confidence `agent_product_bug_candidate` fingerprints; other buckets
-remain local or pending approval.
+remain local or pending approval. If diagnosis generation or diagnosis artifact
+upload fails, the shared action emits a focused warning/status but still
+propagates the original agent exit code.
 
 To publish a pending approval artifact, run `Agent / Publish Failure Report`
 with the failed Actions `run_id` and optional `run_attempt`, `artifact_name`, or
@@ -157,7 +159,8 @@ creating or commenting on the configured central Discussion. Routed approvals
 reply on the trigger thread with the publication status, the central Discussion
 URL when available, or the failure reason. Central Discussions are reused by
 the stable failure fingerprint marker, and repeat occurrence comments are
-deduped by their hidden occurrence marker. Pending artifacts with malformed
+deduped by their hidden occurrence marker, including `run_attempt` so reruns of
+the same Actions run remain distinct. Pending artifacts with malformed
 `owner/repo` destinations or empty categories are marked as unpublishable
 previews in the diagnosis output rather than looking ready to publish.
 

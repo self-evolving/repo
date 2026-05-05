@@ -171,6 +171,9 @@ outputs:
   failure_report_discussion_url:
     description: "Created or commented Discussion URL when explicit auto-publication succeeds"
     value: ${{ steps.failure_diagnosis.outputs.failure_report_discussion_url }}
+  failure_report_persistence_status:
+    description: "Whether failed-run diagnosis and artifact persistence completed"
+    value: ${{ steps.failure_report_persistence.outputs.status }}
   session_name:
     description: "acpx session name (if persistent)"
     value: ${{ steps.run.outputs.session_name }}
@@ -406,6 +409,7 @@ runs:
       run: node .agent/dist/cli/diagnose-agent-failure.js
 
     - name: Upload failure diagnosis artifact
+      id: upload_failure_diagnosis
       if: always() && steps.failure_diagnosis.outputs.failure_report_artifact_dir != ''
       continue-on-error: true
       uses: actions/upload-artifact@v4
@@ -413,6 +417,37 @@ runs:
         name: ${{ steps.failure_diagnosis.outputs.failure_report_artifact_name }}
         path: ${{ steps.failure_diagnosis.outputs.failure_report_artifact_dir }}
         retention-days: ${{ inputs.failure_report_artifact_retention_days }}
+
+    - name: Report failure diagnosis persistence status
+      id: failure_report_persistence
+      if: always() && steps.run.outputs.exit_code != '' && steps.run.outputs.exit_code != '0'
+      shell: bash
+      env:
+        ARTIFACT_DIR: ${{ steps.failure_diagnosis.outputs.failure_report_artifact_dir }}
+        DIAGNOSIS_OUTCOME: ${{ steps.failure_diagnosis.outcome }}
+        UPLOAD_OUTCOME: ${{ steps.upload_failure_diagnosis.outcome }}
+      run: |
+        status="ok"
+        warning=""
+        if [ "$DIAGNOSIS_OUTCOME" = "failure" ]; then
+          status="diagnosis_failed"
+          warning="Failure diagnosis failed, so no durable diagnosis.json was prepared for approved publication."
+        elif [ -n "$ARTIFACT_DIR" ] && [ "$UPLOAD_OUTCOME" = "failure" ]; then
+          status="artifact_upload_failed"
+          warning="Failure diagnosis artifact upload failed, so approved publication may not be able to download diagnosis.json."
+        fi
+
+        echo "status=${status}" >> "$GITHUB_OUTPUT"
+        if [ -n "$warning" ]; then
+          echo "::warning title=Failure diagnosis persistence ${status}::${warning}"
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+            {
+              echo "## Failure Diagnosis Persistence Warning"
+              echo ""
+              echo "$warning"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+        fi
 
     - name: Commit memory edits
       if: >-

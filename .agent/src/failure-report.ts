@@ -397,6 +397,7 @@ function publishFailureReportToDiscussion(
     const occurrenceMarker = failureReportOccurrenceMarker(
       diagnosis.fingerprint,
       diagnosis.source.runId,
+      diagnosis.source.runAttempt,
     );
     const existingOccurrence = findDiscussionCommentByBodyMarker(
       existing.id,
@@ -434,8 +435,12 @@ function failureReportMarker(fingerprint: string): string {
   return `sepo-agent-failure-report fingerprint:${fingerprint}`;
 }
 
-function failureReportOccurrenceMarker(fingerprint: string, runId: string): string {
-  return `sepo-agent-failure-report-occurrence fingerprint:${fingerprint} run:${runId}`;
+function failureReportOccurrenceMarker(
+  fingerprint: string,
+  runId: string,
+  runAttempt: string,
+): string {
+  return `sepo-agent-failure-report-occurrence fingerprint:${fingerprint} run:${runId} attempt:${runAttempt || "1"}`;
 }
 
 export interface FailureReportDestinationValidation {
@@ -572,7 +577,11 @@ function buildStepSummary(diagnosis: FailureDiagnosis): string {
 
 function buildRepeatOccurrenceBody(diagnosis: FailureDiagnosis): string {
   return [
-    `<!-- ${failureReportOccurrenceMarker(diagnosis.fingerprint, diagnosis.source.runId)} -->`,
+    `<!-- ${failureReportOccurrenceMarker(
+      diagnosis.fingerprint,
+      diagnosis.source.runId,
+      diagnosis.source.runAttempt,
+    )} -->`,
     "",
     "## Repeat Occurrence",
     "",
