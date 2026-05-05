@@ -4,7 +4,7 @@
   "url": "https://github.com/self-evolving/repo/discussions/154",
   "body": "For example, when we install the vercel action, it will automate run out of the box (without installing any github action files etc). Why can't we do that?\r\n\r\nThis should replace https://github.com/self-evolving/repo/pull/120 ?",
   "createdAt": "2026-05-05T03:13:58Z",
-  "updatedAt": "2026-05-05T03:13:58Z",
+  "updatedAt": "2026-05-05T04:49:49Z",
   "author": {
     "login": "lolipopshock"
   },
@@ -12,7 +12,61 @@
     "name": "Ideas"
   },
   "comments": {
-    "nodes": [],
+    "nodes": [
+      {
+        "id": "DC_kwDOSOhEMM4BAIe3",
+        "body": "@sepo-agent /answer what do you think?",
+        "createdAt": "2026-05-05T04:29:47Z",
+        "url": "https://github.com/self-evolving/repo/discussions/154#discussioncomment-16811959",
+        "author": {
+          "login": "lolipopshock"
+        },
+        "replies": {
+          "nodes": [
+            {
+              "id": "DC_kwDOSOhEMM4BAIe7",
+              "body": "My take: yes, we should move toward “install the GitHub App and Sepo starts onboarding,” but that **does not replace PR #120**. PR #120 is the repo-side bootstrap contract we need for that path.\n\nThe difference from Vercel is architectural:\n\n- Vercel runs most automation in Vercel’s hosted backend after the GitHub App receives repo events.\n- Sepo currently runs the agent runtime inside the target repo’s GitHub Actions workflows.\n- GitHub Actions still requires workflow files like `.github/workflows/agent-onboarding.yml` to exist in the repo/default branch before they can run. GitHub documents this default-branch workflow requirement for events, and Apps receive install/repository access changes through `installation` / `installation_repositories` webhooks.\n\nSo the realistic model is:\n\n1. User installs Sepo GitHub App.\n2. Hosted Sepo App backend receives the installation webhook.\n3. Backend mints an installation token.\n4. Backend checks whether the repo already has Sepo files, especially `agent-onboarding.yml`.\n5. If present, backend dispatches `Agent / Onboarding / Check Setup`.\n6. If missing or dispatch fails, backend creates/updates a `Sepo setup check` issue explaining what to do.\n\nThat is exactly why PR #120 is useful: it adds the reusable `installation-bootstrap` logic for “dispatch onboarding if possible, otherwise create/update setup issue.” See PR #120’s added files, especially:\n\n- [`installation-bootstrap.ts`](https://github.com/self-evolving/repo/blob/58180397b0ad979c017033da7cb98ab7a2395ea1/.agent/src/installation-bootstrap.ts)\n- [`installation-bootstrap` CLI](https://github.com/self-evolving/repo/blob/58180397b0ad979c017033da7cb98ab7a2395ea1/.agent/src/cli/installation-bootstrap.ts)\n- docs update in [`install-existing-repository.md`](https://github.com/self-evolving/repo/blob/58180397b0ad979c017033da7cb98ab7a2395ea1/.agent/docs/deployment/install-existing-repository.md)\n\nWhat PR #120 does **not** include is the hosted webhook receiver itself. That likely belongs wherever the public Sepo GitHub App / hosted OIDC broker service lives, not in this repo unless we decide to add hosted-service code here.\n\nRecommendation:\n\n- **Keep PR #120.** It should not be replaced; it is the right repo-local piece.\n- Add a follow-up for the hosted App webhook service.\n- Do not promise full Vercel-style “nothing else to configure” yet, because users still need GitHub Actions enabled and provider credentials like `OPENAI_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`, unless we later add a Sepo-hosted model/billing path.\n- For repos without Sepo files, the App can create a setup issue or open an install PR, but it cannot run repo-local Sepo workflows until those workflow files exist.",
+              "createdAt": "2026-05-05T04:31:41Z",
+              "url": "https://github.com/self-evolving/repo/discussions/154#discussioncomment-16811963",
+              "author": {
+                "login": "sepo-agent-app"
+              },
+              "replyTo": {
+                "id": "DC_kwDOSOhEMM4BAIe3"
+              }
+            },
+            {
+              "id": "DC_kwDOSOhEMM4BAIhS",
+              "body": "@sepo-agent /answer\n\nAh I see. So basically if we want to run everything ourselves it's possible; albeit that it's less flexible for users to set up runner themselves?",
+              "createdAt": "2026-05-05T04:48:51Z",
+              "url": "https://github.com/self-evolving/repo/discussions/154#discussioncomment-16812114",
+              "author": {
+                "login": "lolipopshock"
+              },
+              "replyTo": {
+                "id": "DC_kwDOSOhEMM4BAIe3"
+              }
+            },
+            {
+              "id": "DC_kwDOSOhEMM4BAIhW",
+              "body": "Yes, that’s the tradeoff.\n\nIf Sepo runs everything ourselves in hosted infrastructure, we can make setup much smoother:\n\n- install the Sepo GitHub App\n- backend receives installation/webhook events\n- backend runs the agent runtime\n- backend posts comments, opens PRs, reviews PRs, etc.\n- users do not need to copy workflows or configure runners first\n\nBut that shifts flexibility and control away from the user:\n\n- users cannot easily choose GitHub-hosted vs self-hosted runners\n- repo-local secrets and network access are harder unless we build a hosted secrets/config surface\n- enterprises may prefer code execution inside their own GitHub Actions boundary\n- users lose some transparency from “this exact workflow ran in my repo”\n- Sepo would need hosted compute, model billing/keys, isolation, logs, retries, abuse controls, and stronger operational security\n\nThe best product shape is probably hybrid:\n\n1. **Hosted quick-start path**\n   - Vercel-like install experience.\n   - Sepo App/backend handles bootstrap and maybe lightweight hosted agent runs.\n   - Good for users who want “just make it work.”\n\n2. **Repo-local Actions path**\n   - Current Sepo model.\n   - Workflows, memory, rubrics, branches, secrets, and runners stay in the user repo.\n   - Better for customization, self-hosted runners, enterprise policy, and auditability.\n\n3. **Bridge path**\n   - Hosted App install webhook dispatches repo-local onboarding when Sepo files exist.\n   - If files are missing, it opens a setup issue or install PR.\n   - This is what PR #120 is setting up.\n\nSo yes: running everything ourselves is possible, and it gives the cleanest onboarding. But I would not make it the only path. Sepo’s differentiator is repo-owned, self-evolving automation, so hosted should be the smooth default while repo-local/self-managed remains a first-class mode.",
+              "createdAt": "2026-05-05T04:49:49Z",
+              "url": "https://github.com/self-evolving/repo/discussions/154#discussioncomment-16812118",
+              "author": {
+                "login": "sepo-agent-app"
+              },
+              "replyTo": {
+                "id": "DC_kwDOSOhEMM4BAIe3"
+              }
+            }
+          ],
+          "pageInfo": {
+            "hasNextPage": false,
+            "endCursor": null
+          }
+        }
+      }
+    ],
     "pageInfo": {
       "hasNextPage": false,
       "endCursor": null

@@ -106,8 +106,8 @@
       "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 98 | PASS | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | `run-agent-task` adds separate typed inputs for failure reporting token, enabled mode, repository, and category instead of overloading one string. Invalid enable values fail clearly in `resolveFailureReportEnabled`. Evidence: https://github.com/self-evolving/repo/blob/958f3ffcbe7b39868206a0a35cb0e007c38860ef/.github/actions/run-agent-task/action.yml#L62 and https://github.com/self-evolving/repo/blob/958f3ffcbe7b39868206a0a35cb0e007c38860ef/.agent/src/failure-report.ts#L80 |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #117 is scoped to issue #26 under parent #107, and the implementation matches the linked discussion direction: central Bug Report Discussions intake, public auto-enable/private opt-in, fingerprint grouping, repeat comments, and manual issue promotion. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The PR-specific diff is limited to shared `run-agent-task` wiring, Discussion helpers, failure-report CLI/helper, workflow callers, docs, and focused tests. The PR is correctly based on the shipped #27 branch, so #27 work is not part of this PR’s GitHub file list. |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Cross-repo central reporting no longer reuses the source repo token blindly: it uses direct intake token, same-repo source token, or hosted OIDC with `OIDC_TARGET_REPOSITORY`. Evidence: https://github.com/self-evolving/repo/blob/958f3ffcbe7b39868206a0a35cb0e007c38860ef/.github/actions/run-agent-task/action.yml#L364 |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The reporter reuses and extends existing typed Discussion helpers rather than embedding GraphQL directly in workflow YAML. Evidence: https://github.com/self-evolving/repo/blob/958f3ffcbe7b39868206a0a35cb0e007c38860ef/.agent/src/discussion.ts#L180 |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Docs cover defaults, opt-out, custom repository/category, intake token/OIDC behavior, and skip behavior when no intake-capable token exists. Evidence: https://github.com/self-evolving/repo/blob/958f3ffcbe7b39868206a0a35cb0e007c38860ef/.agent/docs/architecture/supported-workflows.md#L101 |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | The reporter surfaces `created/commented/duplicate/skipped` outputs, skips missing exit codes before fingerprinting, skips missing intake tokens explicitly, and dedupes run attempts by hidden markers. Evidence: https://github.com/self-evolving/repo/blob/958f3ffcbe7b39868206a0a35cb0e007c38860ef/.agent/src/failure-report.ts#L390 |\n| communication / generic | Keep status comments compact | partial | 5/6 | Failure reports use a compact field table plus a bounded error-summary block. It is scannable, though the table is fairly dense with 12 rows. Evidence: https://github.com/self-evolving/repo/blob/958f3ffcbe7b39868206a0a35cb0e007c38860ef/.agent/src/failure-report.ts#L295 |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation centralizes the behavior in one helper and one small CLI, with shell limited to token selection and action glue. This fits existing repo patterns without introducing a new framework. |\n\n## Notes\n\n- The previous blocking auth concern appears addressed: default central intake can request an intake-scoped hosted token, while custom intakes can use `AGENT_FAILURE_REPORT_TOKEN`.\n- Verification run on PR head `958f3ffc`: `npm --prefix .agent ci`, `npm --prefix .agent run build`, focused Node tests for `failure-report`, `discussion`, and `envelope` all passed; workflow/action YAML parsing passed.\n- Smallest useful follow-up: consider shortening the generated report field table later if maintainers find Discussion comments visually heavy.\n\n## Findings\n\n- **INFO:** No blocking or warning-level rubric findings. Minor compactness deduction only.\n\n## Final Rubric Verdict\n\nPASS",
       "createdAt": "2026-05-03T08:51:48Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/117#issuecomment-4365794271",
       "viewerDidAuthor": true
@@ -121,8 +121,8 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #117 implements issue #26 by adding automatic failed-agent-run reporting to GitHub Discussions.\n- The work supports the broader #107 distribution/customization plan by giving installed repos a central Bug Report intake in `self-evolving/repo`.\n- Failed runs are grouped by fingerprint, repeat occurrences comment on the existing Discussion, public repos report by default, and private repos skip unless opted in.\n- The earlier blocking auth and empty-exit-code findings were addressed by the fix-pr pass on head `958f3ffc`.\n\n## Review\nThe current implementation is close to ready. Reviewers agree the major design and prior blockers are resolved; one reviewer raised a small best-effort hardening issue in the new auth step.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Failure report auth can add a secondary failure marker | WARNING | `failure_report_auth` lacks `continue-on-error: true`, so an unexpected auth-step shell failure can pollute the already-failing job result instead of staying best-effort. |\n| Optional edge-case hardening remains | INFO | One reviewer noted low-risk follow-ups around scheduled private-repo visibility detection and redacting `ghe_` GitHub Enterprise token prefixes. |\n\n## Progress\n- Prior blocker “central reporting uses the source repository token” is fixed with same-repo, direct intake token, and hosted OIDC broker token paths.\n- Prior blocker/warning around empty `exit_code` is fixed in both the action condition and TypeScript reporter skip path.\n- Codex review and rubrics review report no blocking or warning-level findings on current head `958f3ffc`.\n- A new inline comment was posted on `.github/actions/run-agent-task/action.yml` line 366 for the remaining warning.\n\n## Issue Details\n\n<details>\n<summary>Failure report auth can add a secondary failure marker</summary>\n\n**Cause:** The `Resolve failure report token` step is part of best-effort failure reporting but does not set `continue-on-error: true`, while the downstream `Report agent failure to discussion` step does.\n\n**Candidate solutions:** Add `continue-on-error: true` to the `failure_report_auth` step so auth resolution failures do not obscure the original agent failure.\n\n**Comments:** Reviewers differ on priority: Claude called this a WARNING, while Codex and rubrics review considered the PR shippable overall.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: the only unresolved actionable issue is a small, safe branch change in the composite action.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Add `continue-on-error: true` to the `failure_report_auth` step in `.github/actions/run-agent-task/action.yml`.",
       "createdAt": "2026-05-03T08:59:41Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/117#issuecomment-4365806875",
       "viewerDidAuthor": true
@@ -136,8 +136,8 @@
       "body": "Sepo automation handoff dispatched: `review` -> `fix-pr` (round 6/10).\n\nreview verdict is minor_issues; dispatching fix-pr\n\n<!-- sepo-agent-handoff state:dispatched created:1777798794697 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNzQ2NzQzNzA6cmV2aWV3OjExNzpmaXhfcHI6MTE3OjY -->",
       "createdAt": "2026-05-03T08:59:55Z",
       "includesCreatedEdit": true,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/117#issuecomment-4365807212",
       "viewerDidAuthor": true
@@ -244,6 +244,161 @@
       "minimizedReason": "",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/117#issuecomment-4376302252",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBNzhBw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer perhaps a even better shape is that when there's a failed run, the agent can then self diagnosis and then conclude the issues. The user can then decide whether to post it ?",
+      "createdAt": "2026-05-05T04:34:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/117#issuecomment-4376551687",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBNzxMw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, that is the strongest v1 design.\n\nThe flow should be:\n\n1. Agent run fails.\n2. Sepo does **not** immediately post externally.\n3. A lightweight follow-up diagnosis step runs locally in the same workflow.\n4. The diagnosis produces a structured summary:\n   - likely failure category\n   - whether this looks like a Sepo product bug\n   - confidence level\n   - sanitized evidence\n   - suggested next action\n   - proposed Discussion title/body, if worth reporting\n5. The user/maintainer decides whether to publish it to the central Bug Report Discussion.\n\nThat gives us a safer pipeline:\n\n`failure -> self-diagnosis -> pending report -> human approval -> central Discussion`\n\nI’d model the modes like this:\n\n- `false`: no reporting\n- `diagnose`: run self-diagnosis only, write local summary\n- `approval`: diagnose and prepare a pending central-report draft\n- `true`: diagnose and auto-post only when confidence/policy allows it\n\nThe default should probably be `diagnose` or `approval`, not `true`.\n\nThis avoids noisy blind reporting while still capturing value from failed runs. It also makes the central Discussion much cleaner because reports would arrive with context like “likely provider auth issue” vs. “possible Sepo bug in checkout-pr,” instead of every nonzero exit being treated as equally reportable.",
+      "createdAt": "2026-05-05T04:35:26Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/117#issuecomment-4376555827",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBOUgyA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Yes, that is the strongest v1 design.\r\n> \r\n> The flow should be:\r\n> \r\n> 1. Agent run fails.\r\n> 2. Sepo does **not** immediately post externally.\r\n> 3. A lightweight follow-up diagnosis step runs locally in the same workflow.\r\n> 4. The diagnosis produces a structured summary:\r\n>    \r\n>    * likely failure category\r\n>    * whether this looks like a Sepo product bug\r\n>    * confidence level\r\n>    * sanitized evidence\r\n>    * suggested next action\r\n>    * proposed Discussion title/body, if worth reporting\r\n> 5. The user/maintainer decides whether to publish it to the central Bug Report Discussion.\r\n> \r\n> That gives us a safer pipeline:\r\n> \r\n> `failure -> self-diagnosis -> pending report -> human approval -> central Discussion`\r\n> \r\n> I’d model the modes like this:\r\n> \r\n> * `false`: no reporting\r\n> * `diagnose`: run self-diagnosis only, write local summary\r\n> * `approval`: diagnose and prepare a pending central-report draft\r\n> * `true`: diagnose and auto-post only when confidence/policy allows it\r\n> \r\n> The default should probably be `diagnose` or `approval`, not `true`.\r\n> \r\n> This avoids noisy blind reporting while still capturing value from failed runs. It also makes the central Discussion much cleaner because reports would arrive with context like “likely provider auth issue” vs. “possible Sepo bug in checkout-pr,” instead of every nonzero exit being treated as equally reportable.\r\n\r\n@sepo-agent /orchestrate ",
+      "createdAt": "2026-05-05T06:49:07Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/117#issuecomment-4377092296",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBOUyFA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | review | PR #117 | 2 / 40 | Dispatched |\n\nReason: manual orchestrate start on PR; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777963792312 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzNjIwNTgxNTU6b3JjaGVzdHJhdGU6MTE3OnJldmlldzoxMTc6Mg -->",
+      "createdAt": "2026-05-05T06:49:52Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/117#issuecomment-4377096724",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBOVWWg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 59 | PARTIAL | 11 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | partial | 3/6 | Earlier issue #26 supported auto Discussion reporting, but the latest PR discussion changed the requested v1 to `failure -> self-diagnosis -> pending report -> human approval -> central Discussion`. The PR still implements automatic reporting. |\n| coding_workflow / generic | Prefer explicit structured inputs | partial | 3/7 | The PR adds separate failure-report inputs, but `AGENT_FAILURE_REPORT_ENABLED` only documents `auto`, `true`, and `false`, not the requested `diagnose` and `approval` modes. |\n| coding_workflow / generic | Validate preview contracts | fail | 0/7 | The requested local diagnosis/pending report contract is absent: no structured diagnosis summary, no proposed report draft output contract, and no approval-gated publish path appear in the diff. |\n| coding_workflow / generic | Keep docs in sync | partial | 3/7 | Docs were updated for the implemented auto-reporting behavior, but they now conflict with the latest accepted direction by saying public repositories report to central Discussions by default. |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | The PR adds separate intake-token handling, same-repo token use, and hosted OIDC target repository support instead of blindly reusing the source repo token for cross-repo reporting. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | The failure reporter groups by fingerprint, creates one Discussion per fingerprint, adds repeat comments, and skips duplicate run attempts. |\n| coding_workflow / generic | Surface stateful failures | partial | 4/7 | The reporter surfaces `created/commented/duplicate/skipped` outcomes and guards empty exit codes, but it skips the requested local self-diagnosis state that would preserve actionable failure context before publication. |\n| communication / generic | Keep status comments compact | partial | 4/6 | Failure report bodies use structured fields and bounded evidence, but the generated Discussion report remains fairly dense and is aimed at central publication rather than a concise local pending summary. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The implementation extends existing typed Discussion helpers and adds a CLI/helper rather than embedding GraphQL logic directly in workflow YAML. |\n| coding_workflow / generic | Make surgical changes | partial | 3/8 | The live PR diff includes substantial unrelated update-agent/task-timeout files such as `.github/workflows/agent-update.yml`, `.agent/scripts/resolve-pending-update-pr.sh`, and task-timeout tests alongside failure reporting. |\n| coding_style / generic | Prefer simple implementations | partial | 3/7 | The failure-report helper is centralized, but the current design adds central posting, OIDC intake auth, broad workflow permissions, and many workflow callers before the requested lighter diagnosis/approval v1 exists. |\n\n## Notes\n\n- The main rubric gap is product direction drift: the latest maintainer request explicitly asks not to post externally by default, and instead to run local self-diagnosis, prepare a pending report, and let a human approve central publication.\n- The PR still preserves useful building blocks: sanitizer, fingerprinting, Discussion grouping, duplicate detection, and intake auth. Those can be reused after adding `diagnose` / `approval` modes.\n- Smallest useful follow-up: change the default and mode model first, then add a structured local diagnosis artifact/step summary and only call the existing Discussion posting path from approval or policy-qualified `true`.\n\n## Findings\n\n- **BLOCKING:** Current default behavior conflicts with the latest requested v1 design. The diff wires `failure_report_enabled: ${{ vars.AGENT_FAILURE_REPORT_ENABLED || 'auto' }}` through `run-agent-task` callers, and docs state public repos report to `self-evolving/repo` Bug Report Discussions by default. The current request says Sepo should not immediately post externally; default should be `diagnose` or `approval`, not auto-posting.\n\n- **BLOCKING:** The requested self-diagnosis and pending-report contract is not implemented. There is no visible mode for `diagnose` or `approval`, no structured local summary with likely category/product-bug/confidence/sanitized evidence/suggested action, and no approval-gated publish flow.\n\n- **WARNING:** The PR diff is not surgical for this requested failure-reporting change. It includes unrelated update-agent and task-timeout workflow additions, which makes rubric-specific review harder and increases merge risk.\n\n## Final Rubric Verdict\n\nPARTIAL",
+      "createdAt": "2026-05-05T06:51:35Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/117#issuecomment-4377106010",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBOX_8g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #117 originally implements issue #26 by reporting failed agent runs to GitHub Discussions, grouped by fingerprint with dedupe, redaction, and central intake support.\n- The work sits under the broader #107 user-facing distribution/customization plan.\n- The PR was initially aligned with the older “public repos auto-report by default” direction, but the May 5 PR discussion changed the desired v1 flow.\n- The accepted direction is now `failure -> self-diagnosis -> pending report -> human approval -> central Discussion`, with automatic posting only as an explicit policy-gated mode.\n\n## Review\nThe implementation has useful building blocks, but it now targets the wrong product behavior. Current reviewers broadly agree the branch needs rework; earlier passing reviews are outdated by the newer maintainer direction.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Auto-post default conflicts with the latest v1 direction | BLOCKING | `run-agent-task` still goes directly from failed exit to central Discussion reporting, and `auto` enables public-repo posting by default. That contradicts the newer diagnosis/approval flow. |\n| Self-diagnosis and approval contract is missing | BLOCKING | The PR has no `diagnose` or `approval` modes, no structured local diagnosis summary, no pending report draft, and no publish approval path. |\n| Docs and config document the superseded auto model | BLOCKING | The docs/config still say public repos report centrally by default and list only `auto`, `true`, and `false`. They need to describe the staged modes instead. |\n| PR is draft and not cleanly mergeable | WARNING | GitHub reports the PR as draft with `mergeable_state: dirty`, so it cannot ship as-is even after design changes. |\n| Diff still carries unrelated scheduled-update work | WARNING | Reviewers flagged update-agent/task-timeout files in the current PR diff, which increases review and merge risk for the failure-reporting change. |\n| Secondary hardening notes remain if the reporter path survives | INFO | Claude noted shell/TypeScript mode duplication, missing shell auth tests, fragile code-fence escaping, and an O(n) Discussion lookup. These are lower priority than the design rework. |\n\n## Progress\n- Prior blockers around cross-repo intake auth and empty `exit_code` reporting were fixed on head `958f3ffc`.\n- The May 5 PR thread explicitly acknowledges that blind central reporting should be held back in favor of diagnosis and approval.\n- No new inline comments were posted because the current PR discussion and rubrics review already clearly cover the direct-post/default and missing diagnosis/approval blockers.\n- An older inline comment remains on the failure-report auth step about `continue-on-error`; it is secondary and may be subsumed by the required redesign.\n\n## Issue Details\n\n<details>\n<summary>Auto-post default conflicts with the latest v1 direction</summary>\n\n**Cause:** [`run-agent-task`](https://github.com/self-evolving/repo/blob/958f3ffcbe7b39868206a0a35cb0e007c38860ef/.github/actions/run-agent-task/action.yml#L420) still invokes the Discussion reporter after a nonzero exit, and the mode logic treats `auto` as enabled for public repos.\n\n**Candidate solutions:** Replace direct posting with local diagnosis/pending-report generation by default. Only call the central Discussion publishing path after explicit approval or an explicit `true` mode that passes policy/confidence checks.\n\n**Comments:** This supersedes the original #26 direction; the newer maintainer comments are the current source of truth.\n\n</details>\n\n<details>\n<summary>Self-diagnosis and approval contract is missing</summary>\n\n**Cause:** [`resolveFailureReportEnabled`](https://github.com/self-evolving/repo/blob/958f3ffcbe7b39868206a0a35cb0e007c38860ef/.agent/src/failure-report.ts#L80) only supports `auto`, `true`, and `false`; there is no local diagnosis artifact, pending draft, or approval-gated publish path.\n\n**Candidate solutions:** Add `false`, `diagnose`, `approval`, and policy-gated `true` modes. Produce a structured local summary with category, product-bug likelihood, confidence, sanitized evidence, suggested next action, and proposed Discussion draft.\n\n**Comments:** The existing sanitizer, fingerprinting, dedupe, and Discussion helpers can still be reused.\n\n</details>\n\n<details>\n<summary>Docs and config document the superseded auto model</summary>\n\n**Cause:** [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/958f3ffcbe7b39868206a0a35cb0e007c38860ef/.agent/docs/architecture/supported-workflows.md#L101) and [`configuration-list.md`](https://github.com/self-evolving/repo/blob/958f3ffcbe7b39868206a0a35cb0e007c38860ef/.agent/docs/customization/configuration-list.md#L10) still describe automatic central reporting.\n\n**Candidate solutions:** Update docs, README/config references, workflow inputs, and tests to describe the staged diagnosis/approval modes and the non-auto default.\n\n</details>\n\n<details>\n<summary>PR is draft and not cleanly mergeable</summary>\n\n**Cause:** `gh pr view` reports `isDraft: true` and `mergeStateStatus: DIRTY` for head `958f3ffc`.\n\n**Candidate solutions:** Rebase or merge the current base, resolve conflicts, and mark ready only after the design blockers are fixed.\n\n</details>\n\n<details>\n<summary>Diff still carries unrelated scheduled-update work</summary>\n\n**Cause:** The current PR file list includes scheduled update and task-timeout changes alongside the failure-reporting implementation.\n\n**Candidate solutions:** Retarget, split, or remove unrelated files unless maintainers intentionally want this as a stacked PR.\n\n**Comments:** Reviewers differed on this earlier because the branch is stacked, but the latest rubrics review flags it as a surgical-change risk.\n\n</details>\n\n<details>\n<summary>Secondary hardening notes remain if the reporter path survives</summary>\n\n**Cause:** Some reporter/auth details are still brittle or under-tested, including duplicated mode handling in shell and TypeScript.\n\n**Candidate solutions:** If this path remains after redesign, centralize mode semantics, add shell auth coverage, make Markdown fences robust, and keep auth/reporting steps best-effort.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: the remaining blockers require concrete branch changes to implement the now-accepted diagnosis/approval flow and update the docs/tests around it.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Replace direct failed-run central posting with local diagnosis and pending-report generation.\n- [ ] Add `false`, `diagnose`, `approval`, and policy-gated `true` modes with focused tests.\n- [ ] Gate central Discussion publishing behind explicit approval or explicit policy-qualified auto-posting.\n- [ ] Update workflow wiring, docs, config references, and README text to remove the public `auto` default.\n- [ ] Resolve the current dirty/draft PR state before final review.",
+      "createdAt": "2026-05-05T07:00:20Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/117#issuecomment-4377149426",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBOYP7Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #117 | 3 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis recommends FIX_PR and verdict is NEEDS_REWORK; concrete branch changes are required to align PR #117 with the accepted diagnosis/approval v1 design.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Replace direct failed-run central posting with local diagnosis and pending-report generation.\n- Add `false`, `diagnose`, `approval`, and policy-gated `true` modes with focused tests.\n- Gate central Discussion publishing behind explicit approval or explicit policy-qualified auto-posting.\n- Update workflow wiring, docs, config references, and README text to remove the public `auto` default.\n- Resolve the current dirty/draft PR state before final review.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1777964472149 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzNjIwODI0NDY6cmV2aWV3OjExNzpmaXhfcHI6MTE3OjM -->",
+      "createdAt": "2026-05-05T07:01:12Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/117#issuecomment-4377153517",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBOaOOQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo could not complete the PR fix run.**\n\nInspect the workflow logs and retry if appropriate.\n\n",
+      "createdAt": "2026-05-05T07:08:01Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/117#issuecomment-4377185849",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBOadaw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo orchestration stopped after `fix-pr` concluded `failed`.\n\n- Source action: `fix-pr`\n- Source conclusion: `failed`\n- Target: `pull_request #117`\n- Round: `3/40`\n- Reason: agent planner stop: fix-pr concluded failed; policy requires a visible stop/block path because fixes did not succeed and another automatic review is not useful.\n- Source run ID: `25362490308`\n\nNo follow-up workflow was dispatched. Inspect the source action status comment and workflow logs before retrying or continuing manually.\n\n<!-- sepo-agent-orchestrate-stop -->",
+      "createdAt": "2026-05-05T07:08:52Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/117#issuecomment-4377189739",
       "viewerDidAuthor": true
     }
   ],
@@ -487,10 +642,10 @@
       "color": "0e8a16"
     },
     {
-      "id": "LA_kwDOSOhEMM8AAAAChVB4QQ",
-      "name": "priority/p1",
-      "description": "Project management: high priority",
-      "color": "d93f0b"
+      "id": "LA_kwDOSOhEMM8AAAAChVB4ig",
+      "name": "priority/p2",
+      "description": "Project management: medium priority",
+      "color": "fbca04"
     },
     {
       "id": "LA_kwDOSOhEMM8AAAAChVB5Zw",
@@ -551,6 +706,6 @@
   ],
   "state": "OPEN",
   "title": "Report failed agent runs to Discussions",
-  "updatedAt": "2026-05-05T03:16:12Z",
+  "updatedAt": "2026-05-05T07:08:52Z",
   "url": "https://github.com/self-evolving/repo/pull/117"
 }

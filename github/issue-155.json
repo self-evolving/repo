@@ -1,0 +1,99 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "- AGENT_PROJECT_MANAGEMENT_APPLY_LABELS -> should be true by default \n- AGENT_AUTOMATION_MODE -> should be `agent` by default (people can set it to heuristics to save cost) \n\n@sepo-agent /answer \n\n\n",
+  "closedAt": "2026-05-05T07:22:57Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBOWZtQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Confirmed: current `main` does **not** yet match those requested defaults.\n\n- `AGENT_AUTOMATION_MODE` currently falls back to `disabled` in [`agent-entrypoint.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-entrypoint.yml#L56), [`agent-label.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-label.yml#L37), and [`agent-approve.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-approve.yml#L84).\n- `AGENT_PROJECT_MANAGEMENT_APPLY_LABELS` currently defaults to `false` in the project-manager workflow input/config path and CLI fallback: [`agent-project-manager.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-project-manager.yml#L16-L19), [`agent-project-manager.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-project-manager.yml#L84-L86), [`apply-project-management-labels.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/apply-project-management-labels.ts#L35-L36).\n\nRecommended implementation:\n- Change automation fallbacks from `disabled` to `agent`.\n- Change project-management apply-label defaults from `false` to `true`.\n- Update docs in [`configuration-list.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/customization/configuration-list.md#L11-L17) to state:\n  - `AGENT_AUTOMATION_MODE` defaults to `agent`; set `heuristics` to save cost.\n  - `AGENT_PROJECT_MANAGEMENT_APPLY_LABELS` defaults to `true`.\n- Keep noting that label writes still require dry-run mode to be disabled, since `AGENT_PROJECT_MANAGEMENT_DRY_RUN` currently defaults to `true`.\n- Update matching tests, especially [`envelope.test.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/envelope.test.ts#L871-L874).",
+      "createdAt": "2026-05-05T06:54:43Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/155#issuecomment-4377123253",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBOYeeg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate ",
+      "createdAt": "2026-05-05T07:01:59Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/155#issuecomment-4377157242",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBOY3-g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | implement | Issue #155 | 2 / 40 | Dispatched |\n\nReason: agent planner selected implement: Issue #155 is a small, self-contained default/configuration change with no parent plan and no existing open PR found.\n\n<!-- sepo-agent-handoff state:dispatched created:1777964604944 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzNjI1MjAzMzc6b3JjaGVzdHJhdGU6MTU1OmltcGxlbWVudDoxNTU6Mg -->",
+      "createdAt": "2026-05-05T07:03:25Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/155#issuecomment-4377163770",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBOav2Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-155/codex-25362572249`\n- Pull request: https://github.com/self-evolving/repo/pull/157\n\nChanged the packaged automation defaults so missing AGENT_AUTOMATION_MODE now resolves to agent for entry, label, approval, and router paths, and changed AGENT_PROJECT_MANAGEMENT_APPLY_LABELS to default true while keeping dry-run protection. Updated the configuration/orchestrator/project-management docs and focused tests; verified with npm --prefix .agent run build, node --test .agent/dist/__tests__/envelope.test.js, and node --test .agent/dist/__tests__/apply-project-management-labels-cli.test.js.",
+      "createdAt": "2026-05-05T07:09:52Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/155#issuecomment-4377194457",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-05T06:52:44Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 155,
+  "state": "CLOSED",
+  "title": "Nit: change and confirm default values for variables",
+  "updatedAt": "2026-05-05T07:22:57Z",
+  "url": "https://github.com/self-evolving/repo/issues/155"
+}

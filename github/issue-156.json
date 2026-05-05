@@ -1,0 +1,99 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "We had an initial implementation of #117 however we subsequently came up with a better UX for dealing with it: https://github.com/self-evolving/repo/pull/117#issuecomment-4377092296 \n\n@sepo-agent /answer can you double check the PR and then write down a concrete plan? ",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBOcABQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I double checked PR #117. My recommendation is: **do not ship it as-is; rework it into the approval-gated diagnosis flow from the latest PR comment.**\n\nWhat I found:\n\n- Current architecture already has the right hook point: [`run-agent-task`](https://github.com/self-evolving/repo/blob/main/.github/actions/run-agent-task/action.yml#L294-L337) captures the agent exit code, does post-processing, then rethrows the failure at the end.\n- Failure evidence is already available: [`run.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/run.ts#L232-L250) persists raw stdout/stderr paths on failed runs.\n- Discussion primitives already exist: [`discussion.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/discussion.ts#L173-L229) can find Discussions, and [`createRepositoryDiscussion`](https://github.com/self-evolving/repo/blob/main/.agent/src/discussion.ts#L342-L352) can create them.\n- PR #117 added useful pieces: sanitizer, fingerprinting, duplicate detection, Discussion grouping, and intake auth in [`failure-report.ts`](https://github.com/self-evolving/repo/blob/958f3ffcbe7b39868206a0a35cb0e007c38860ef/.agent/src/failure-report.ts#L135-L245).\n- But the PR still implements the old UX: `auto`, `true`, `false` only, with public repos auto-reporting by default ([mode resolver](https://github.com/self-evolving/repo/blob/958f3ffcbe7b39868206a0a35cb0e007c38860ef/.agent/src/failure-report.ts#L80-L105), [workflow step](https://github.com/self-evolving/repo/blob/958f3ffcbe7b39868206a0a35cb0e007c38860ef/.github/actions/run-agent-task/action.yml#L364-L443), [docs](https://github.com/self-evolving/repo/blob/958f3ffcbe7b39868206a0a35cb0e007c38860ef/.agent/docs/architecture/supported-workflows.md#L101-L113)).\n- The latest accepted direction is instead: `failure -> self-diagnosis -> pending report -> human approval -> central Discussion` ([comment](https://github.com/self-evolving/repo/pull/117#issuecomment-4377092296)).\n- PR #117 is also currently draft and dirty, so it needs cleanup/rebase before it is mergeable.\n\nConcrete plan:\n\n1. **Split/rebase PR #117 first.** Keep only failure-reporting work in this PR. Remove or split unrelated update-agent/task-timeout changes from the failure-report diff so review stays focused.\n\n2. **Replace the current mode model.** Change `AGENT_FAILURE_REPORT_ENABLED` semantics, or introduce `AGENT_FAILURE_REPORT_MODE`, with:\n   - `false`: no diagnosis or reporting\n   - `diagnose`: local diagnosis only\n   - `approval`: local diagnosis plus pending central-report draft\n   - `true`: auto-publish only when classifier/policy permits\n\n   I would make `approval` the public-repo default and keep private repos at `diagnose` unless explicitly configured.\n\n3. **Add a local diagnosis layer before publishing.** Refactor PR #117’s `failure-report.ts` into two layers:\n   - diagnosis/draft generation\n   - Discussion publishing\n\n   The diagnosis output should include: category, product-bug likelihood, confidence, sanitized evidence, fingerprint, suggested next action, and proposed Discussion title/body.\n\n4. **Use deterministic v1 classification.** Start with rules based on exit code, route, stderr/stdout patterns, auth errors, provider/rate-limit messages, permission/policy stops, timeout markers, and missing setup. Buckets:\n   - `setup_or_auth`\n   - `provider_or_runtime`\n   - `repo_policy_or_access`\n   - `user_task_or_prompt`\n   - `agent_product_bug_candidate`\n   - `unknown`\n\n5. **Write local pending output.** On failure, `run-agent-task` should write:\n   - a GitHub Actions step summary\n   - a machine-readable JSON artifact/output\n   - a compact local pending-report body when mode is `approval`\n\n   This keeps failure context visible without posting to the central Bug Report Discussion.\n\n6. **Add an approval publish path.** Add a small route/CLI, e.g. `@sepo-agent /report-failure <fingerprint>`, that reads the pending sanitized draft, re-checks requester authorization, then uses the existing Discussion helper path to create/comment in `self-evolving/repo` Bug Report Discussions.\n\n7. **Keep auto-post as explicit advanced mode only.** In `true` mode, publish centrally only if:\n   - repo config explicitly enables it\n   - the source is allowed by visibility policy\n   - the classifier says `agent_product_bug_candidate`\n   - confidence passes threshold\n   - sanitizer succeeds\n   - an intake-capable token is available\n\n8. **Update workflow wiring and docs.** Replace every `vars.AGENT_FAILURE_REPORT_ENABLED || 'auto'` caller with the new default/mode. Update config docs, setup docs, action template docs, and PR body so they no longer claim public repos auto-post centrally by default.\n\n9. **Tests to add/update.**\n   - Mode resolver tests for `false`, `diagnose`, `approval`, `true`\n   - Diagnosis classifier tests for common failure buckets\n   - Summary/draft generation snapshot-style tests\n   - “approval does not call GitHub Discussions” test\n   - “approved publish creates/comments/dedupes Discussion” tests\n   - Workflow/action YAML tests proving direct central posting is not default\n\nI’d proceed with this as a rework of PR #117, preserving the reusable sanitizer/fingerprint/Discussion pieces but changing the default UX to approval-gated diagnosis. Please confirm the default should be `approval` for public repos and `diagnose` for private repos before coding.",
+      "createdAt": "2026-05-05T07:14:06Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/156#issuecomment-4377214981",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBOfTSA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate let's implement the function from scratch and create a new pr targeting at main ",
+      "createdAt": "2026-05-05T07:24:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/156#issuecomment-4377269064",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBOgKyw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | implement | Issue #156 | 2 / 40 | Dispatched |\n\nReason: agent planner selected implement: Maintainer requested implementation for issue #156 from scratch in a new PR targeting main; the accepted design is the diagnosis/approval flow, not PR #117's direct auto-reporting behavior.\n\n<!-- sepo-agent-handoff state:dispatched created:1777965953096 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzNjMzNDM2MTE6b3JjaGVzdHJhdGU6MTU2OmltcGxlbWVudDoxNTY6Mg -->",
+      "createdAt": "2026-05-05T07:25:53Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/156#issuecomment-4377283275",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBOmW6A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-156/codex-25363409055`\n- Pull request: https://github.com/self-evolving/repo/pull/158\n\nAdded a new failure diagnosis/reporting path for failed agent runs: sanitized classification, local step summaries, JSON/pending-report artifacts, approval/default modes, and explicit policy-gated Discussion publishing for `true` mode. Wired the mode through shared workflows and docs, and verified with `npm --prefix .agent test`, YAML parsing, CLI smoke checks, and `git diff --check`.",
+      "createdAt": "2026-05-05T07:41:41Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/156#issuecomment-4377384680",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-05T07:09:13Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 156,
+  "state": "OPEN",
+  "title": "Rethink bug resolution, automatic diagnosis, and automatic reporting",
+  "updatedAt": "2026-05-05T07:41:41Z",
+  "url": "https://github.com/self-evolving/repo/issues/156"
+}

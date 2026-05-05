@@ -1,0 +1,157 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Default packaged automation-mode wiring to `agent` when `AGENT_AUTOMATION_MODE` is unset.\n- Default project-management label application to enabled while preserving `AGENT_PROJECT_MANAGEMENT_DRY_RUN=true` as the write guard.\n- Update docs and focused regression tests for the new defaults.\n\n## Tests\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/envelope.test.js`\n- `node --test .agent/dist/__tests__/apply-project-management-labels-cli.test.js`\n\nCloses #155\n",
+  "closedAt": "2026-05-05T07:22:55Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBOa9mw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #157 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: Implementation succeeded and produced open PR #157 for issue #155, so the next useful automated step is review.\n\n<!-- sepo-agent-handoff state:dispatched created:1777965037004 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzNjI1NzIyNDk6aW1wbGVtZW50OjE1NTpyZXZpZXc6MTU3OjM -->",
+      "createdAt": "2026-05-05T07:10:37Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/157#issuecomment-4377197979",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBObfLw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The default changes are reflected in `.agent/docs/customization/configuration-list.md`, `.agent/docs/technical-details/agent-orchestrator.md`, and `.agent/docs/architecture/supported-workflows.md`, including the important note that project-label writes remain blocked by dry-run by default. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The implementation reuses existing workflow inputs/env plumbing and the existing `boolEnv(\"AGENT_PROJECT_MANAGEMENT_APPLY_LABELS\", ...)` CLI path rather than adding a parallel config mechanism. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is narrowly scoped to requested defaults, aligned docs, and focused tests. It changes workflow fallback/default values, one CLI fallback, and assertions covering those contracts. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The behavior is implemented as direct fallback/default flips from `disabled`/`false` to `agent`/`true`, matching issue #155 without extra branching or new abstractions. |\n| coding_workflow / generic | Validate preview contracts | pass | 7/7 | Project label application now defaults enabled, but dry-run remains the default write guard in docs and workflow config; the CLI still parses and validates the managed-label plan before reporting a dry-run/no-apply status. |\n| coding_workflow / specific | Default follow-up orchestration to one-shot | pass | 8/8 | The PR changes packaged automation mode defaults to `agent`, but direct implement/review/fix-pr leaf workflows still only run handoff steps when `orchestration_enabled == 'true'`; the explicit `/orchestrate` chain from issue #155 is the case intended to continue. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR body closes #155, whose body requested exactly these two default flips, and the issue discussion explicitly called out docs/tests plus preserving dry-run protection. |\n\n## Notes\n\n- The strongest rubric drivers are that the PR implements the exact linked request, keeps dry-run as the safety boundary, and updates docs/tests with the default changes.\n- Route authorization, merge strategy, status-comment formatting, rubric-authoring, and idempotent artifact rubrics were not scored because this PR does not materially change those behaviors.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric violations found among the applicable rubrics.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-05T07:12:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/157#issuecomment-4377206575",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBOdkWw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #157 implements issue #155’s requested default changes for Sepo automation configuration.\n- `AGENT_AUTOMATION_MODE` now defaults to `agent` instead of the previous disabled/heuristics path.\n- `AGENT_PROJECT_MANAGEMENT_APPLY_LABELS` now defaults to `true`, while `AGENT_PROJECT_MANAGEMENT_DRY_RUN` remains enabled by default as the write guard.\n- The PR also updates docs and focused regression tests to keep the user-facing configuration contract aligned.\n\n## Review\nThe independent reviews agree the implementation is correct, surgical, documented, and covered by tests. No blocking or warning-level issues were identified, and no inline comments were posted because there were no actionable findings tied to changed lines.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues | INFO | Reviewers found the requested default flips complete and consistent. One reviewer noted optional wording polish for the unchanged router workflow description, but it does not require branch work. |\n\n## Progress\n- Issue #155’s two requested default changes are implemented.\n- Dry-run protection for project-management label writes remains intact.\n- Rubrics review already passed with no required follow-up.\n- Existing PR discussion has no inline review comments, and no duplicate feedback needed to be posted.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: No unresolved required branch-change work remains, so automation should stop and leave merge timing to maintainers.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work.",
+      "createdAt": "2026-05-05T07:18:31Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/157#issuecomment-4377240667",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBOfVag",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #157.\n\nno rubric changes\n\nI read PR #157, its comments/reviews/review comments, the linked issue #155, maintainer signals, and the existing rubric files. The PR conversation was bot-authored, and the human input in #155 was a concrete product default-value request, not a durable reusable rubric. Existing rubrics already cover the relevant implementation expectations like docs sync, surgical changes, simple implementation, and preview/dry-run safety.\n",
+      "createdAt": "2026-05-05T07:24:11Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/157#issuecomment-4377269610",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-05T07:09:49Z",
+  "files": [
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 4,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 3,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/agent-orchestrator.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/apply-project-management-labels-cli.test.ts",
+      "additions": 1,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 21,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/apply-project-management-labels.ts",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-approve.yml",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-entrypoint.yml",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-label.yml",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-project-manager.yml",
+      "additions": 4,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-router.yml",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-155/codex-25362572249",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": "2026-05-05T07:22:55Z",
+  "number": 157,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "MERGED",
+  "title": "Default automation mode and project labels on",
+  "updatedAt": "2026-05-05T07:24:11Z",
+  "url": "https://github.com/self-evolving/repo/pull/157"
+}
