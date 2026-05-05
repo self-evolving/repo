@@ -37,11 +37,19 @@ Fields:
 | `version` | Sepo SemVer string without a leading `v`. |
 | `channel` | `pre-release`, `release-candidate`, or `stable`. |
 | `source_repo` | GitHub `owner/repo` slug used as the Sepo source. |
-| `source_ref` | Branch, tag, or ref used by the install. Release installs should use a tag such as `v0.1.0`. |
-| `source_sha` | Exact source commit SHA when known; use `null` for moving-branch installs until tooling records an exact SHA. |
+| `source_ref` | Branch, tag, or ref used by the install. Release installs should use a tag such as `v0.1.0`; values must be git-ref-like and cannot include whitespace, control characters, or invalid ref punctuation. |
+| `source_sha` | Exact lowercase source commit SHA when known; use `null` for moving-branch installs until tooling records an exact SHA. |
 | `installed_from` | `source`, `release`, `template`, `manual-copy`, or `update`. |
 | `agent_files_hash` | Optional `sha256:<hex>` digest for installed agent-owned files; `null` means no digest has been recorded yet. |
 
 This separates the user-facing Sepo version from the exact source identity. A fork or copied install can keep saying which Sepo line it started from while later tooling can add the exact commit and file hash when available.
 
-Future update, bug-report, or release workflows can add a small reader/CLI when they need to consume this metadata directly.
+## CLI
+
+After `.agent/dist` is built, workflows and diagnostics can read the installed identity with:
+
+```bash
+node .agent/dist/cli/print-sepo-version.js --json
+```
+
+The CLI validates `.agent/sepo-version.json`, prints either JSON or a compact summary, and writes GitHub Actions outputs for `schema_version`, `version`, `channel`, `source_repo`, `source_ref`, `source_sha`, `installed_from`, `agent_files_hash`, and `summary`. Use `--path <metadata-json>` to validate a metadata file outside the installed `.agent/` tree.
