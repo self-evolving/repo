@@ -113,10 +113,6 @@ export function getAllowedAssociationsForRoute(
     return [...configuredRoute];
   }
 
-  if (normalizedRoute === "setup-apply" && policy.routeOverrides.setup) {
-    return [...policy.routeOverrides.setup];
-  }
-
   const fallback = policy.defaultAllowedAssociations
     ? [...policy.defaultAllowedAssociations]
     : (

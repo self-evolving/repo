@@ -5,6 +5,7 @@
 
 import {
   applySetupVariablePlan,
+  blockedSetupVariableResults,
   buildSetupVariablePlan,
   fetchRepoVariables,
   fetchSetupIssueBody,
@@ -44,7 +45,7 @@ async function main(): Promise<void> {
   const currentVariables = fetchRepoVariables(repo);
   const plan = buildSetupVariablePlan(intent, currentVariables);
   let audit = formatSetupApplyAudit({
-    changes: plan.changes,
+    results: blockedSetupVariableResults(plan.changes),
     dryRun,
     errors: plan.errors,
     warnings: plan.warnings,
@@ -57,18 +58,16 @@ async function main(): Promise<void> {
     return;
   }
 
-  try {
-    applySetupVariablePlan(repo, plan.changes, dryRun);
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    audit = formatSetupApplyAudit({
-      changes: plan.changes,
-      dryRun,
-      errors: [`Applying setup variables failed: ${message}`],
-      warnings: plan.warnings,
-    });
+  const applyReport = applySetupVariablePlan(repo, plan.changes, dryRun);
+  audit = formatSetupApplyAudit({
+    results: applyReport.results,
+    dryRun,
+    errors: applyReport.errors,
+    warnings: plan.warnings,
+  });
+  if (applyReport.errors.length > 0) {
     if (postComment) upsertSetupApplyComment(repo, targetNumber, audit);
-    console.error(message);
+    console.error(applyReport.errors.join("\n"));
     process.exitCode = 1;
     return;
   }

@@ -206,8 +206,9 @@ change project-manager field-apply behavior.
 
 Because setup is privileged, the built-in default for both setup routes excludes
 `CONTRIBUTOR`; use `AGENT_ACCESS_POLICY.route_overrides.setup` for an explicit
-repository-specific allowlist. `route_overrides.setup-apply` can be used when a
-repository needs a different allowlist for apply.
+setup-plan allowlist. The mutating apply route does not inherit the plan-route
+override; set `route_overrides.setup-apply` explicitly when a repository needs a
+different allowlist for apply.
 
 Mention-based skill requests normalize the skill name to lowercase and run `.skills/<name>/SKILL.md` inline through the same `skill` route used by `agent/s/<skill>` labels.
 

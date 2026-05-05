@@ -15,6 +15,10 @@ function writeFakeGh(tempDir: string): string {
 printf '%s\\n' "$*" >> "$FAKE_GH_LOG"
 
 if [ "$1" = "issue" ] && [ "$2" = "view" ]; then
+  if [ -n "\${FAKE_GH_ISSUE_BODY_PATH:-}" ]; then
+    cat "$FAKE_GH_ISSUE_BODY_PATH"
+    exit 0
+  fi
   cat <<'BODY'
 ### Agent handle
 
@@ -81,15 +85,29 @@ if [ "$1" = "variable" ] && [ "$2" = "list" ]; then
 fi
 
 if [ "$1" = "variable" ] && [ "$2" = "set" ]; then
+  if [ "$3" = "\${FAKE_GH_FAIL_VARIABLE:-}" ]; then
+    printf 'write denied for %s\\n' "$3" >&2
+    exit 2
+  fi
   exit 0
 fi
 
-if [ "$1" = "api" ] && [ "$2" = "repos/self-evolving/repo/issues/42/comments" ]; then
-  printf '%s\\n' '[{"id":100,"body":"<!-- sepo-agent-setup-apply --> old"}]'
+if [ "$1" = "api" ] && [ "$2" = "--paginate" ] && [ "$3" = "--slurp" ] && [ "$4" = "repos/self-evolving/repo/issues/42/comments" ]; then
+  if [ -n "\${FAKE_GH_COMMENTS:-}" ]; then
+    printf '%s\\n' "$FAKE_GH_COMMENTS"
+  else
+    cat <<'JSON'
+[[],[{"id":100,"body":"<!-- sepo-agent-setup-apply --> old"}]]
+JSON
+  fi
   exit 0
 fi
 
 if [ "$1" = "api" ] && [ "$2" = "-X" ] && [ "$3" = "PATCH" ] && [ "$4" = "repos/self-evolving/repo/issues/comments/100" ]; then
+  exit 0
+fi
+
+if [ "$1" = "issue" ] && [ "$2" = "comment" ] && [ "$3" = "42" ]; then
   exit 0
 fi
 
@@ -130,6 +148,7 @@ test("setup-apply CLI applies allowlisted variables and updates marker comment",
     assert.match(log, /^variable set AGENT_HANDLE --body @octo-agent --repo self-evolving\/repo$/m);
     assert.match(log, /^variable set AGENT_ASSIGNMENT_ENABLED --body true --repo self-evolving\/repo$/m);
     assert.match(log, /^variable set AGENT_PROJECT_MANAGEMENT_ENABLED --body true --repo self-evolving\/repo$/m);
+    assert.match(log, /^api --paginate --slurp repos\/self-evolving\/repo\/issues\/42\/comments$/m);
     assert.match(log, /^api -X PATCH repos\/self-evolving\/repo\/issues\/comments\/100 -f body=/m);
     assert.doesNotMatch(log, /gh project|project create|field-create/);
   } finally {
@@ -153,6 +172,57 @@ test("setup-apply CLI dry run skips variable writes", () => {
     const log = readFileSync(logPath, "utf8");
     assert.doesNotMatch(log, /^variable set /m);
     assert.match(log, /^api -X PATCH repos\/self-evolving\/repo\/issues\/comments\/100 -f body=/m);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("setup-apply CLI creates the audit comment when no paginated marker exists", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-setup-apply-"));
+
+  try {
+    const logPath = writeFakeGh(tempDir);
+    const result = runSetupApply(tempDir, {
+      FAKE_GH_COMMENTS: "[[],[]]",
+      FAKE_GH_LOG: logPath,
+      GITHUB_REPOSITORY: "self-evolving/repo",
+      SETUP_APPLY_DRY_RUN: "true",
+      TARGET_NUMBER: "42",
+    });
+
+    assert.equal(result.status, 0, result.stderr);
+    const log = readFileSync(logPath, "utf8");
+    assert.match(log, /^api --paginate --slurp repos\/self-evolving\/repo\/issues\/42\/comments$/m);
+    assert.match(log, /^issue comment 42 --body /m);
+    assert.doesNotMatch(log, /^api -X PATCH repos\/self-evolving\/repo\/issues\/comments\/100/m);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("setup-apply CLI reports actual outcomes when variable apply fails mid-run", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-setup-apply-"));
+
+  try {
+    const logPath = writeFakeGh(tempDir);
+    const result = runSetupApply(tempDir, {
+      FAKE_GH_FAIL_VARIABLE: "AGENT_PROJECT_MANAGEMENT_ENABLED",
+      FAKE_GH_LOG: logPath,
+      GITHUB_REPOSITORY: "self-evolving/repo",
+      TARGET_NUMBER: "42",
+    });
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Applying AGENT_PROJECT_MANAGEMENT_ENABLED failed: write denied/);
+    const log = readFileSync(logPath, "utf8");
+    assert.match(log, /^variable set AGENT_HANDLE --body @octo-agent --repo self-evolving\/repo$/m);
+    assert.match(log, /^variable set AGENT_ASSIGNMENT_ENABLED --body true --repo self-evolving\/repo$/m);
+    assert.match(log, /^variable set AGENT_PROJECT_MANAGEMENT_ENABLED --body true --repo self-evolving\/repo$/m);
+    assert.doesNotMatch(log, /^variable set AGENT_PROJECT_MANAGEMENT_DRY_RUN /m);
+    assert.match(log, /Status: \*\*Failed\*\*/);
+    assert.match(log, /\| `AGENT_HANDLE` \| `@sepo-agent` \| `@octo-agent` \| updated \|/);
+    assert.match(log, /\| `AGENT_PROJECT_MANAGEMENT_ENABLED` \| _unset_ \| `true` \| failed \|/);
+    assert.match(log, /\| `AGENT_PROJECT_MANAGEMENT_DRY_RUN` \| _unset_ \| `true` \| not attempted \|/);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }

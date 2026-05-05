@@ -2,6 +2,7 @@ import { test } from "node:test";
 import { strict as assert } from "node:assert";
 
 import {
+  blockedSetupVariableResults,
   buildSetupVariablePlan,
   formatSetupApplyAudit,
   parseRepoVariableList,
@@ -116,4 +117,31 @@ test("setup apply blocks missing confirmation before variable writes", () => {
   assert.match(audit, new RegExp(SETUP_APPLY_COMMENT_MARKER));
   assert.match(audit, /Status: \*\*Blocked\*\*/);
   assert.match(audit, /No repository variables were changed/);
+  assert.match(audit, /\| `AGENT_HANDLE` \| _unset_ \| `@octo-agent` \| blocked \|/);
+  assert.doesNotMatch(audit, /\| created \||\| updated \|/);
+});
+
+test("setup apply blocks missing or unknown required setup choices", () => {
+  const malformedBody = setupIssueBody
+    .replace(/### Assign accepted work to the agent[\s\S]*?### Project management mode/, "### Project management mode")
+    .replace("project-backed", "surprise me")
+    .replace("Create a new GitHub Project", "Maybe later")
+    .replace("Create Priority field with P0, P1, P2, P3", "Priority-ish");
+  const intent = parseSetupIssueIntent(malformedBody);
+  const plan = buildSetupVariablePlan(intent, new Map());
+
+  assert.match(plan.errors.join("\n"), /Assign accepted work to the agent is required/);
+  assert.match(plan.errors.join("\n"), /Project management mode has an unsupported value: surprise me/);
+  assert.match(plan.errors.join("\n"), /GitHub Project has an unsupported value: Maybe later/);
+  assert.match(plan.errors.join("\n"), /Priority field has an unsupported value: Priority-ish/);
+
+  const audit = formatSetupApplyAudit({
+    results: blockedSetupVariableResults(plan.changes),
+    dryRun: false,
+    errors: plan.errors,
+    warnings: plan.warnings,
+  });
+  assert.match(audit, /Status: \*\*Blocked\*\*/);
+  assert.match(audit, /\| blocked \|/);
+  assert.doesNotMatch(audit, /\| created \||\| updated \|/);
 });

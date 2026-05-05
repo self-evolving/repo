@@ -96,6 +96,20 @@ test("setup route default is constrained by global access and replaceable by rou
     }),
   );
   assert.equal(isAssociationAllowedForRoute(explicitlyWidened, "setup", "CONTRIBUTOR", true), true);
+  assert.equal(isAssociationAllowedForRoute(explicitlyWidened, "setup-apply", "CONTRIBUTOR", true), false);
+});
+
+test("setup apply requires its own route override to widen mutation access", () => {
+  const explicitlyWidened = parseAccessPolicy(
+    JSON.stringify({
+      route_overrides: {
+        setup: ["OWNER", "CONTRIBUTOR"],
+        "setup-apply": ["OWNER", "CONTRIBUTOR"],
+      },
+    }),
+  );
+
+  assert.equal(isAssociationAllowedForRoute(explicitlyWidened, "setup", "CONTRIBUTOR", true), true);
   assert.equal(isAssociationAllowedForRoute(explicitlyWidened, "setup-apply", "CONTRIBUTOR", true), true);
 });
 

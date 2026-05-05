@@ -143,6 +143,8 @@ test("setup routes are issue-only with plan/apply boundaries", () => {
   const supportedWorkflows = readRepoFile(".agent/docs/architecture/supported-workflows.md");
   const agentActions = readRepoFile(".agent/docs/actions/agent-actions.md");
   const accessPolicy = readRepoFile(".agent/docs/access-policy.md");
+  const setupGuide = readRepoFile(".agent/docs/deployment/setup-guide.md");
+  const ownAppGuide = readRepoFile(".agent/docs/deployment/using-your-own-github-app.md");
   const setupApplyCli = readRepoFile(".agent/src/cli/setup-apply.ts");
   const setupApplyModule = readRepoFile(".agent/src/setup-apply.ts");
   const setupJobMatch = routerWorkflow.match(
@@ -213,6 +215,9 @@ test("setup routes are issue-only with plan/apply boundaries", () => {
   assert.match(agentActions, /Setup plan[\s\S]*`setup`[\s\S]*agent-setup\.md/);
   assert.match(agentActions, /Setup apply[\s\S]*`setup-apply`[\s\S]*setup-apply\.ts/);
   assert.match(accessPolicy, /`setup` and[\s\S]*`setup-apply` routes default to `OWNER`, `MEMBER`, and `COLLABORATOR`/);
+  assert.match(accessPolicy, /does not[\s\S]*inherit the plan-route override/);
+  assert.match(setupGuide, /\*\*Variables:\*\* write, for `\/setup apply` repository variable updates/);
+  assert.match(ownAppGuide, /\*\*Variables\*\*: write if you use `\/setup apply` repository variable updates/);
 });
 
 test("fix-pr prompt uses self-serve context, not local snapshots", () => {
