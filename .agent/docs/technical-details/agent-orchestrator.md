@@ -2,7 +2,7 @@
 
 The orchestrator is an explicit high-level route (`/orchestrate` or `agent/orchestrate`) that evaluates current target state and dispatches the most appropriate built-in next action.
 
-Configure `AGENT_AUTOMATION_MODE` to choose how orchestrator handoffs are decided:
+Configure `AGENT_AUTOMATION_MODE` to choose how orchestrator handoffs are decided. The packaged entry workflows default to `agent`; set `heuristics` for deterministic routing with lower model cost:
 
 | Mode | Meaning |
 |---|---|
