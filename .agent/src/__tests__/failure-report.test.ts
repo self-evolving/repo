@@ -127,10 +127,18 @@ test("buildFailureReport surfaces unpublishable pending destination warnings", (
 
 test("sanitizeFailureEvidence redacts common token shapes", () => {
   const sanitized = sanitizeFailureEvidence(
-    "Authorization: Bearer ghp_abcdefghijklmnopqrstuvwxyz123456 token=sk-abcdefghijklmnopqrstuvwxyz123456",
+    [
+      "Authorization: Bearer ghp_abcdefghijklmnopqrstuvwxyz123456 token=sk-abcdefghijklmnopqrstuvwxyz123456",
+      "AWS_ACCESS_KEY_ID=AKIA1234567890ABCDEF",
+      "jwt eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+    ].join("\n"),
   );
   assert.doesNotMatch(sanitized, /ghp_/);
   assert.doesNotMatch(sanitized, /sk-/);
+  assert.doesNotMatch(sanitized, /AKIA/);
+  assert.doesNotMatch(sanitized, /eyJ/);
+  assert.match(sanitized, /\[REDACTED_AWS_ACCESS_KEY\]/);
+  assert.match(sanitized, /\[REDACTED_JWT\]/);
   assert.match(sanitized, /\[REDACTED\]/);
 });
 
@@ -225,7 +233,46 @@ test("publishApprovedFailureReport publishes a pending approval report", () => {
   assert.match(calls[2]?.query || "", /createDiscussion/);
 });
 
-test("publishFailureReport comments on an existing matching discussion", () => {
+test("publishFailureReport matches existing discussions by fingerprint marker", () => {
+  const report = buildFailureReport({
+    mode: "true",
+    exitCode: "1",
+    rawStdout: "",
+    rawStderr: "TypeError: exploded\n    at run (.agent/dist/run.js:1:1)",
+    reportRepository: "self-evolving/repo",
+    discussionCategory: "Bug Report",
+    source: source(),
+    now: new Date("2026-05-05T00:00:00.000Z"),
+  });
+  const { client, calls } = queuedClient([
+    {
+      repository: {
+        discussions: {
+          nodes: [{
+            id: "discussion-1",
+            number: 1,
+            title: "older generated title with a different headline",
+            url: "https://github.com/self-evolving/repo/discussions/1",
+            body: `<!-- sepo-agent-failure-report fingerprint:${report.diagnosis.fingerprint} run:999 -->`,
+            category: { name: "Bug Report" },
+          }],
+        },
+      },
+    },
+    { node: { comments: { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } } } },
+    { addDiscussionComment: { comment: { url: "https://github.com/self-evolving/repo/discussions/1#comment-1" } } },
+  ]);
+
+  const publication = publishFailureReport(report.diagnosis, client);
+
+  assert.equal(publication.status, "commented");
+  assert.match(publication.url, /#comment-1$/);
+  assert.equal(calls.length, 3);
+  assert.match(calls[0]?.query || "", /body/);
+  assert.match(calls[2]?.query || "", /addDiscussionComment/);
+});
+
+test("publishFailureReport does not duplicate existing repeat occurrence comments", () => {
   const report = buildFailureReport({
     mode: "true",
     exitCode: "1",
@@ -245,18 +292,30 @@ test("publishFailureReport comments on an existing matching discussion", () => {
             number: 1,
             title: report.diagnosis.proposedDiscussion.title,
             url: "https://github.com/self-evolving/repo/discussions/1",
+            body: report.diagnosis.proposedDiscussion.body,
             category: { name: "Bug Report" },
           }],
         },
       },
     },
-    { addDiscussionComment: { comment: { url: "https://github.com/self-evolving/repo/discussions/1#comment-1" } } },
+    {
+      node: {
+        comments: {
+          nodes: [{
+            body: `<!-- sepo-agent-failure-report-occurrence fingerprint:${report.diagnosis.fingerprint} run:${report.diagnosis.source.runId} -->`,
+            url: "https://github.com/self-evolving/repo/discussions/1#comment-1",
+          }],
+          pageInfo: { hasNextPage: false, endCursor: null },
+        },
+      },
+    },
   ]);
 
   const publication = publishFailureReport(report.diagnosis, client);
 
   assert.equal(publication.status, "commented");
-  assert.match(publication.url, /#comment-1$/);
+  assert.equal(publication.url, "https://github.com/self-evolving/repo/discussions/1#comment-1");
+  assert.equal(publication.reason, "repeat occurrence already recorded");
   assert.equal(calls.length, 2);
-  assert.match(calls[1]?.query || "", /addDiscussionComment/);
+  assert.ok(calls.every((call) => !/addDiscussionComment/.test(call.query)));
 });

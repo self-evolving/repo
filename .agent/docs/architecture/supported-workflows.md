@@ -155,7 +155,9 @@ the comment author against the `publish-failure-report` route policy, and the
 publish CLI rechecks the same policy before reading `diagnosis.json` and
 creating or commenting on the configured central Discussion. Routed approvals
 reply on the trigger thread with the publication status, the central Discussion
-URL when available, or the failure reason. Pending artifacts with malformed
+URL when available, or the failure reason. Central Discussions are reused by
+the stable failure fingerprint marker, and repeat occurrence comments are
+deduped by their hidden occurrence marker. Pending artifacts with malformed
 `owner/repo` destinations or empty categories are marked as unpublishable
 previews in the diagnosis output rather than looking ready to publish.
 

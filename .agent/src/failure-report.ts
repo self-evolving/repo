@@ -3,7 +3,8 @@ import { createHash } from "node:crypto";
 import {
   addDiscussionComment,
   createRepositoryDiscussion,
-  findRepositoryDiscussionByTitle,
+  findDiscussionCommentByBodyMarker,
+  findRepositoryDiscussionByBodyMarker,
 } from "./discussion.js";
 import type { GraphQLClient } from "./github-graphql.js";
 
@@ -139,6 +140,14 @@ export function sanitizeFailureEvidence(text: string): string {
   result = result.replace(/\bgithub_pat_[A-Za-z0-9_]{20,}\b/g, "[REDACTED_GITHUB_TOKEN]");
   result = result.replace(/\bgh[opsru]_[A-Za-z0-9_]{20,}\b/g, "[REDACTED_GITHUB_TOKEN]");
   result = result.replace(/\bsk-[A-Za-z0-9_-]{20,}\b/g, "[REDACTED_PROVIDER_KEY]");
+  result = result.replace(
+    /\b(?:AKIA|ASIA|AGPA|AIDA|AROA|AIPA|ANPA)[A-Z0-9]{16}\b/g,
+    "[REDACTED_AWS_ACCESS_KEY]",
+  );
+  result = result.replace(
+    /\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/g,
+    "[REDACTED_JWT]",
+  );
   result = result.replace(
     /\b((?:authorization|x-github-token)\s*:\s*(?:bearer|token)\s+)[^\s"'`]+/gi,
     "$1[REDACTED]",
@@ -376,14 +385,32 @@ function publishFailureReportToDiscussion(
   client?: GraphQLClient,
 ): FailurePublication {
   const { owner, repo } = parseRepoSlug(diagnosis.proposedDiscussion.repository);
-  const existing = findRepositoryDiscussionByTitle(
+  const fingerprintMarker = failureReportMarker(diagnosis.fingerprint);
+  const existing = findRepositoryDiscussionByBodyMarker(
     owner,
     repo,
-    diagnosis.proposedDiscussion.title,
+    fingerprintMarker,
     diagnosis.proposedDiscussion.category,
     client,
   );
   if (existing) {
+    const occurrenceMarker = failureReportOccurrenceMarker(
+      diagnosis.fingerprint,
+      diagnosis.source.runId,
+    );
+    const existingOccurrence = findDiscussionCommentByBodyMarker(
+      existing.id,
+      occurrenceMarker,
+      client,
+    );
+    if (existingOccurrence) {
+      return {
+        status: "commented",
+        url: existingOccurrence.url || existing.url,
+        reason: "repeat occurrence already recorded",
+      };
+    }
+
     const url = addDiscussionComment(
       existing.id,
       buildRepeatOccurrenceBody(diagnosis),
@@ -401,6 +428,14 @@ function publishFailureReportToDiscussion(
     client,
   );
   return { status: "created", url: created.url, reason: "created failure report discussion" };
+}
+
+function failureReportMarker(fingerprint: string): string {
+  return `sepo-agent-failure-report fingerprint:${fingerprint}`;
+}
+
+function failureReportOccurrenceMarker(fingerprint: string, runId: string): string {
+  return `sepo-agent-failure-report-occurrence fingerprint:${fingerprint} run:${runId}`;
 }
 
 export interface FailureReportDestinationValidation {
@@ -457,7 +492,7 @@ function buildProposedDiscussion(args: {
   );
   const title = `[agent-failure] ${args.source.route} failed: ${shortText(args.headline, 72)} (${args.fingerprint.slice(0, 12)})`;
   const body = [
-    `<!-- sepo-agent-failure-report fingerprint:${args.fingerprint} run:${args.source.runId} -->`,
+    `<!-- ${failureReportMarker(args.fingerprint)} run:${args.source.runId} -->`,
     "",
     "## Summary",
     "",
@@ -537,7 +572,7 @@ function buildStepSummary(diagnosis: FailureDiagnosis): string {
 
 function buildRepeatOccurrenceBody(diagnosis: FailureDiagnosis): string {
   return [
-    `<!-- sepo-agent-failure-report-occurrence fingerprint:${diagnosis.fingerprint} run:${diagnosis.source.runId} -->`,
+    `<!-- ${failureReportOccurrenceMarker(diagnosis.fingerprint, diagnosis.source.runId)} -->`,
     "",
     "## Repeat Occurrence",
     "",
