@@ -66,6 +66,7 @@ If you use a fine-grained PAT, start with these repository permissions:
 - **Issues:** read and write
 - **Discussions:** read and write, only if you use discussion triggers
 - **Actions:** read and write, for approval dispatch and review artifact flows
+- **Variables:** write, for `/setup apply` repository variable updates
 
 ## Workflow token fallback
 

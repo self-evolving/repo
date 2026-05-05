@@ -32,6 +32,7 @@ A route is the high-level backend behavior being run. Current first-class routes
 - `review`
 - `create-action`
 - `setup`
+- `setup-apply`
 - `dispatch`
 - `skill`
 - `rubrics-review`
@@ -39,6 +40,7 @@ A route is the high-level backend behavior being run. Current first-class routes
 - `rubrics-update`
 
 Routes shape prompt selection, route policy, and which workflow path the backend follows. Dedicated rubric routes operate on user/team rubrics rather than general repository memory.
+`setup-apply` is a deterministic router path and does not run an agent prompt.
 
 ### Lane
 

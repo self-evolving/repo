@@ -111,8 +111,10 @@ merged PR's base branch; if a retarget fails, the branch is left in place.
 `AGENT_PROJECT_MANAGEMENT_ENABLED=true`, or run it manually with the `enabled`
 input. Project-backed project management is experimental; set
 `AGENT_PROJECT_MANAGEMENT_PROJECT_ID` and/or
-`AGENT_PROJECT_MANAGEMENT_PROJECT_URL`, or the manual `project_id` /
-`project_url` inputs, to identify the GitHub Project planning surface. The
+`AGENT_PROJECT_MANAGEMENT_PROJECT_URL`, and optionally
+`AGENT_PROJECT_MANAGEMENT_PROJECT_OWNER` /
+`AGENT_PROJECT_MANAGEMENT_PROJECT_TITLE`, or the matching manual inputs, to
+identify the GitHub Project planning surface. The
 intended Project-backed planning model uses GitHub Project fields as the source
 of truth: `Status` values `Inbox`, `In Progress`, `To Review`, and `Done`;
 `Priority` values `P0`, `P1`, `P2`, and `P3`; `Effort` values `Low`, `Medium`,
@@ -120,8 +122,8 @@ and `High`; and an optional `Release` field. See [Project planning model](projec
 for the default model and label boundary.
 
 The current workflow has not implemented Project creation or Project field sync
-yet. It passes any configured Project ID/URL to the prompt as planning context
-only. When no Project is configured, the workflow keeps the existing
+yet. It passes any configured Project ID/URL/owner/title to the prompt as
+planning context only. When no Project is configured, the workflow keeps the existing
 summary/dry-run behavior. It launches a prompt-driven, read-approved agent to
 inspect open issues and pull requests, assess priority/effort with judgment
 rather than fixed heuristics, and return a GitHub-flavored summary plus a
@@ -170,6 +172,7 @@ Explicit routes are:
 - `@sepo-agent /implement`
 - `@sepo-agent /create-action`
 - `@sepo-agent /setup plan`
+- `@sepo-agent /setup apply`
 - `@sepo-agent /fix-pr`
 - `@sepo-agent /review`
 - `@sepo-agent /orchestrate`
@@ -180,14 +183,32 @@ Explicit routes skip dispatch triage and resolve locally, but still go through t
 `/setup plan` is issue-only and plan-only. It reads a structured Sepo setup
 issue and current setup/config context where available, then posts a proposed
 setup diff for allowlisted intent such as `AGENT_HANDLE`, best-effort
-assignment behavior, project-management mode, configured Project ID/URL,
-Project owner/title, and the minimal `Status`/`Priority`/`Effort`/optional
-`Release` planning fields. It runs with read-approved agent permissions and
-does not apply repository variables, create or link GitHub Projects, update
-Project fields, or run Project sync. `/setup apply` is not implemented yet.
-Because setup is privileged, its built-in default access excludes
+assignment behavior, project-management mode, configured Project ID/URL/owner/title,
+and the minimal `Status`/`Priority`/`Effort`/optional `Release` planning
+fields. It runs with read-approved agent permissions and does not apply
+repository variables, create or link GitHub Projects, update Project fields, or
+run Project sync.
+
+`/setup apply` is also issue-only and privileged. It does not run a model.
+Instead, a deterministic CLI reads the setup issue, requires the setup
+confirmation checkboxes, validates an allowlist, and creates or updates only
+allowlisted repository variables such as `AGENT_HANDLE`,
+`AGENT_ASSIGNMENT_ENABLED`,
+`AGENT_PROJECT_MANAGEMENT_ENABLED`, `AGENT_PROJECT_MANAGEMENT_DRY_RUN`,
+`AGENT_PROJECT_MANAGEMENT_APPLY_LABELS`,
+`AGENT_PROJECT_MANAGEMENT_PROJECT_ID`,
+`AGENT_PROJECT_MANAGEMENT_PROJECT_URL`,
+`AGENT_PROJECT_MANAGEMENT_PROJECT_OWNER`, and
+`AGENT_PROJECT_MANAGEMENT_PROJECT_TITLE`. It posts or updates one marked audit
+comment on the setup issue. It still does not create/link GitHub Projects,
+create Project fields/views, update Project items, sync Project fields, or
+change project-manager field-apply behavior.
+
+Because setup is privileged, the built-in default for both setup routes excludes
 `CONTRIBUTOR`; use `AGENT_ACCESS_POLICY.route_overrides.setup` for an explicit
-repository-specific allowlist.
+setup-plan allowlist. The mutating apply route does not inherit the plan-route
+override; set `route_overrides.setup-apply` explicitly when a repository needs a
+different allowlist for apply.
 
 Mention-based skill requests normalize the skill name to lowercase and run `.skills/<name>/SKILL.md` inline through the same `skill` route used by `agent/s/<skill>` labels.
 

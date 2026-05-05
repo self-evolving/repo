@@ -27,6 +27,7 @@ const DEFAULT_PUBLIC_ALLOWED_ASSOCIATIONS = [
 
 const DEFAULT_ROUTE_ALLOWED_ASSOCIATIONS: Record<string, readonly string[]> = {
   setup: ["OWNER", "MEMBER", "COLLABORATOR"],
+  "setup-apply": ["OWNER", "MEMBER", "COLLABORATOR"],
 };
 
 export interface AccessPolicy {

@@ -63,10 +63,13 @@ If `AGENT_ACCESS_POLICY` is unset:
 - private repositories allow `OWNER`, `MEMBER`, `COLLABORATOR`, and `CONTRIBUTOR`
 - public repositories also allow `OWNER`, `MEMBER`, `COLLABORATOR`, and `CONTRIBUTOR`
 
-Privileged routes may define a narrower built-in default. The `setup` route
-defaults to `OWNER`, `MEMBER`, and `COLLABORATOR`, intersected with any global
-`allowed_associations` value. Set `route_overrides.setup` when the repository
-needs an explicit setup allowlist.
+Privileged routes may define a narrower built-in default. The `setup` and
+`setup-apply` routes default to `OWNER`, `MEMBER`, and `COLLABORATOR`,
+intersected with any global `allowed_associations` value. Set
+`route_overrides.setup` when the repository needs an explicit setup-plan
+allowlist. Because `setup-apply` can update repository variables, it does not
+inherit the plan-route override; set `route_overrides.setup-apply` explicitly
+when the apply route needs a repository-specific allowlist.
 
 Known limitation: GitHub can report private organization members as `CONTRIBUTOR` in public repository issue payloads when the token or payload cannot see private membership. Sepo therefore includes `CONTRIBUTOR` in the public default allowlist as a pragmatic compatibility choice. Repositories that need stricter public access should set `AGENT_ACCESS_POLICY`, for example `{"allowed_associations":["OWNER","MEMBER","COLLABORATOR"]}`.
 

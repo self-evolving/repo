@@ -11,6 +11,7 @@ Agent actions are route-level behaviors exposed by the `.agent` backend. They ar
 | Orchestrate | `orchestrate` | `.github/prompts/agent-orchestrator.md` | explicit `/orchestrate` or `agent/orchestrate` dispatches `agent-orchestrator.yml`, which selects the next action based on current target state |
 | Create action | `create-action` | `.github/prompts/agent-create-action.md` | implementation PR that adds or updates a standalone scheduled workflow under `.github/workflows/` |
 | Setup plan | `setup` | `.github/prompts/agent-setup.md` | issue-only `/setup plan` route that posts a setup diff without applying repository variables or GitHub Project changes |
+| Setup apply | `setup-apply` | `.agent/src/cli/setup-apply.ts` | issue-only `/setup apply` route that deterministically creates or updates allowlisted repository variables and posts an audit summary |
 | Skill | `skill` | `.skills/<name>/SKILL.md` | inline skill route through `agent-router.yml` |
 | Dispatch | `dispatch` | `.github/prompts/agent-dispatch.md` | route triage inside `agent-router.yml` |
 

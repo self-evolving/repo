@@ -1,6 +1,7 @@
 // CLI: best-effort assign a handled issue or PR to the configured agent handle.
 // Usage: node .agent/dist/cli/assign-agent.js
-// Env: AGENT_HANDLE, TARGET_KIND, TARGET_NUMBER, GITHUB_REPOSITORY
+// Env: AGENT_HANDLE, AGENT_ASSIGNMENT_ENABLED, TARGET_KIND, TARGET_NUMBER,
+//      GITHUB_REPOSITORY
 // Non-fatal: exits 0 even if the handle is not assignable or assignment fails.
 
 import {
@@ -16,8 +17,13 @@ const targetKind = process.env.TARGET_KIND || "";
 const targetNumberRaw = process.env.TARGET_NUMBER || "";
 const repo = process.env.GITHUB_REPOSITORY || "";
 const targetNumber = Number.parseInt(targetNumberRaw, 10);
+const assignmentEnabled = !["false", "0", "no", "off"].includes(
+  String(process.env.AGENT_ASSIGNMENT_ENABLED || "true").trim().toLowerCase(),
+);
 
-if (!isAgentAssigneeTargetKind(targetKind)) {
+if (!assignmentEnabled) {
+  console.log("Agent assignment is disabled by AGENT_ASSIGNMENT_ENABLED; skipping assignment.");
+} else if (!isAgentAssigneeTargetKind(targetKind)) {
   console.log(`Target kind ${targetKind || "(empty)"} is not assignable; skipping assignment.`);
 } else if (!Number.isInteger(targetNumber) || targetNumber <= 0) {
   console.log(`Target number ${targetNumberRaw || "(empty)"} is not valid; skipping assignment.`);

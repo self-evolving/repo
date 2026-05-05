@@ -47,8 +47,10 @@ Do not run write commands, including:
 - `gh api --method POST`, `PATCH`, `PUT`, or `DELETE`
 - direct comment posting, issue edits, label edits, assignee edits, commits, or pushes
 
-`/setup apply` is not implemented in this route. If the request asks to apply,
-explain that only `/setup plan` is available right now.
+`/setup apply` is handled by a separate deterministic workflow path. If this
+plan route sees an apply request, explain that the user must make a separate
+explicit `@sepo-agent /setup apply` request on the setup issue after reviewing
+the plan.
 
 ## Output
 
@@ -61,5 +63,5 @@ Keep the response compact and structured:
 2. Proposed variable diff, with current value, proposed value, and reason.
 3. Proposed GitHub Project plan, with create/link intent and fields.
 4. Warnings or missing information.
-5. Next step: review the plan; `/setup apply` is deferred until a later
-   deterministic apply route exists.
+5. Next step: review the plan; if it is correct, request
+   `@sepo-agent /setup apply` on this issue.

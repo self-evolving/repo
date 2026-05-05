@@ -17,6 +17,7 @@ export const ROUTES = new Set([
   "orchestrate",
   "create-action",
   "setup",
+  "setup-apply",
   "unsupported",
 ]);
 
@@ -63,12 +64,13 @@ export function extractRequestedRouteDecision(body: string, mention: string): Re
     return { route: "", skill: "" };
   }
 
-  const setupPlanRegex = new RegExp(
-    `(?:^|[\\s(])${escapeRegex(trimmedMention)}\\s+/setup\\s+plan(?=$|[\\s.,;:!?)\\]}])`,
+  const setupRegex = new RegExp(
+    `(?:^|[\\s(])${escapeRegex(trimmedMention)}\\s+/setup\\s+(plan|apply)(?=$|[\\s.,;:!?)\\]}])`,
     "im",
   );
-  if (setupPlanRegex.test(sanitized)) {
-    return { route: "setup", skill: "" };
+  const setupMatch = sanitized.match(setupRegex);
+  if (setupMatch) {
+    return { route: setupMatch[1].toLowerCase() === "apply" ? "setup-apply" : "setup", skill: "" };
   }
 
   const routePattern = EXPLICIT_ROUTE_COMMANDS.map((route) => escapeRegex(route)).join("|");
@@ -105,6 +107,7 @@ export function buildRequestedRouteDecision(route: string, requestText: string):
   if (
     normalizedRoute !== "skill" &&
     normalizedRoute !== "setup" &&
+    normalizedRoute !== "setup-apply" &&
     !EXPLICIT_ROUTE_COMMANDS.includes(normalizedRoute as (typeof EXPLICIT_ROUTE_COMMANDS)[number])
   ) {
     throw new Error(`Unsupported explicit route: ${normalizedRoute || "missing"}`);
@@ -199,6 +202,17 @@ export function buildRequestedRouteDecision(route: string, requestText: string):
       needsApproval: false,
       confidence: "high",
       summary: "I’ll prepare a setup plan without applying changes.",
+      issueTitle: "",
+      issueBody: "",
+    };
+  }
+
+  if (normalizedRoute === "setup-apply") {
+    return {
+      route: "setup-apply",
+      needsApproval: false,
+      confidence: "high",
+      summary: "I’ll apply the approved setup plan with allowlisted variable changes.",
       issueTitle: "",
       issueBody: "",
     };
@@ -415,14 +429,25 @@ export function applyDispatchPolicy(
     return normalized;
   }
 
-  if (normalized.route === "setup") {
+  if (normalized.route === "setup-apply" && !isExplicit) {
+    return {
+      ...normalized,
+      route: "unsupported",
+      needsApproval: false,
+      summary: "Setup apply requires an explicit /setup apply request on a setup issue.",
+      issueTitle: "",
+      issueBody: "",
+    };
+  }
+
+  if (normalized.route === "setup" || normalized.route === "setup-apply") {
     if (targetKind !== "issue") {
       return {
         ...normalized,
         route: "unsupported",
         needsApproval: false,
         summary:
-          "Setup plan requests are only supported from issues right now.",
+          "Setup requests are only supported from issues right now.",
         issueTitle: "",
         issueBody: "",
       };

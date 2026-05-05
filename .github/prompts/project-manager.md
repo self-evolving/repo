@@ -26,10 +26,10 @@ The current workflow only supports the legacy/fallback label plan below.
 
 If the runtime request says no GitHub Project is configured, preserve the
 current summary/dry-run behavior and do not imply that Project-backed planning
-is active. If a GitHub Project ID or URL is configured, treat it as an
-experimental planning target for context only. You may mention the configured
-Project target in the summary, but do not call GitHub Project APIs or claim that
-Project fields were read or updated.
+is active. If a GitHub Project ID, URL, owner, or title is configured, treat it
+as an experimental planning target for context only. You may mention the
+configured Project target in the summary, but do not call GitHub Project APIs or
+claim that Project fields were read or updated.
 
 ## Legacy/Fallback Managed Labels
 
@@ -85,7 +85,7 @@ Use this structure:
 ## Project Management Summary
 
 - Mode: `dry run`, `labels applied`, or `labels not applied`
-- Project target: `not configured` or the configured Project ID/URL from runtime
+- Project target: `not configured` or the configured Project ID/URL/owner/title from runtime
 - Open items assessed: `<issue count> issues, <pull request count> pull requests`
 - Managed labels: legacy/fallback `priority/*`, `effort/*`
 

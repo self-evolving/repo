@@ -135,7 +135,7 @@ test("answer prompt returns content for workflow posting instead of commenting d
   assert.match(answerPrompt, /workflow will post it on the original surface/i);
 });
 
-test("setup route is issue-only and plan-only", () => {
+test("setup routes are issue-only with plan/apply boundaries", () => {
   const setupPrompt = readRepoFile(".github/prompts/agent-setup.md");
   const routerWorkflow = readRepoFile(".github/workflows/agent-router.yml");
   const dispatchPrompt = readRepoFile(".github/prompts/agent-dispatch.md");
@@ -143,11 +143,20 @@ test("setup route is issue-only and plan-only", () => {
   const supportedWorkflows = readRepoFile(".agent/docs/architecture/supported-workflows.md");
   const agentActions = readRepoFile(".agent/docs/actions/agent-actions.md");
   const accessPolicy = readRepoFile(".agent/docs/access-policy.md");
+  const setupGuide = readRepoFile(".agent/docs/deployment/setup-guide.md");
+  const ownAppGuide = readRepoFile(".agent/docs/deployment/using-your-own-github-app.md");
+  const setupApplyCli = readRepoFile(".agent/src/cli/setup-apply.ts");
+  const setupApplyModule = readRepoFile(".agent/src/setup-apply.ts");
   const setupJobMatch = routerWorkflow.match(
     /\n  setup:\n[\s\S]*?(?=\n  [a-z][a-z0-9-]*:\n)/,
   );
   assert.ok(setupJobMatch, "setup job should exist in agent-router.yml");
   const setupJob = setupJobMatch[0];
+  const setupApplyJobMatch = routerWorkflow.match(
+    /\n  setup-apply:\n[\s\S]*?(?=\n  [a-z][a-z0-9-]*:\n)/,
+  );
+  assert.ok(setupApplyJobMatch, "setup-apply job should exist in agent-router.yml");
+  const setupApplyJob = setupApplyJobMatch[0];
 
   assert.match(setupPrompt, /This route is plan-only/);
   assert.match(setupPrompt, /gh issue view \$\{TARGET_NUMBER\} --repo \$\{REPO_SLUG\}/);
@@ -158,11 +167,12 @@ test("setup route is issue-only and plan-only", () => {
   assert.match(setupPrompt, /gh variable set/);
   assert.match(setupPrompt, /gh project create/);
   assert.match(setupPrompt, /gh api --method POST/);
-  assert.match(setupPrompt, /\/setup apply` is not implemented/);
+  assert.match(setupPrompt, /\/setup apply` is handled by a separate deterministic workflow path/);
   assert.match(setupPrompt, /workflow will post it/);
 
   assert.match(dispatchPrompt, /`setup`: produce a plan-only Sepo setup diff/);
   assert.match(dispatchPrompt, /`setup` is only valid for `issue` targets/);
+  assert.match(dispatchPrompt, /only the exact explicit `\/setup apply` command may apply allowlisted repository variables/);
   assert.match(action, /create-action, setup, dispatch/);
 
   assert.match(
@@ -174,20 +184,40 @@ test("setup route is issue-only and plan-only", () => {
   assert.match(setupJob, /Run setup plan agent[\s\S]*prompt:\s*setup[\s\S]*route:\s*setup/);
   assert.match(setupJob, /Post setup plan[\s\S]*node \.agent\/dist\/cli\/post-response\.js/);
   assert.match(
+    setupApplyJob,
+    /setup-apply:\n\s+needs: portal[\s\S]*needs\.portal\.outputs\.route == 'setup-apply'[\s\S]*needs\.portal\.outputs\.target_kind == 'issue'/,
+  );
+  assert.match(setupApplyJob, /Setup agent runtime/);
+  assert.match(setupApplyJob, /Apply setup variables[\s\S]*node \.agent\/dist\/cli\/setup-apply\.js/);
+  assert.match(setupApplyJob, /Fail failed setup apply[\s\S]*steps\.setup_apply\.outcome == 'failure'/);
+  assert.doesNotMatch(setupApplyJob, /run-agent-task/);
+  assert.match(setupApplyCli, /SETUP_APPLY_DRY_RUN/);
+  assert.match(setupApplyModule, /SETUP_VARIABLE_ALLOWLIST/);
+  assert.match(setupApplyModule, /AGENT_PROJECT_MANAGEMENT_PROJECT_OWNER/);
+  assert.match(setupApplyModule, /AGENT_PROJECT_MANAGEMENT_PROJECT_TITLE/);
+  assert.match(setupApplyModule, /sepo-agent-setup-apply/);
+  assert.match(setupApplyModule, /variable[\s\S]*set/);
+  assert.doesNotMatch(setupApplyModule, /project create|field-create|item-add/);
+  assert.match(
     routerWorkflow,
-    /Label handled issue or PR[\s\S]*steps\.dispatch\.outputs\.route != 'setup'/,
+    /Label handled issue or PR[\s\S]*steps\.dispatch\.outputs\.route != 'setup'[\s\S]*steps\.dispatch\.outputs\.route != 'setup-apply'/,
   );
   assert.match(
     routerWorkflow,
-    /Assign handled issue or PR[\s\S]*steps\.dispatch\.outputs\.route != 'setup'/,
+    /Assign handled issue or PR[\s\S]*steps\.dispatch\.outputs\.route != 'setup'[\s\S]*steps\.dispatch\.outputs\.route != 'setup-apply'/,
   );
   assert.doesNotMatch(setupJob, /dispatch-agent-implement/);
 
   assert.match(supportedWorkflows, /@sepo-agent \/setup plan/);
-  assert.match(supportedWorkflows, /does not apply repository variables/);
+  assert.match(supportedWorkflows, /@sepo-agent \/setup apply/);
+  assert.match(supportedWorkflows, /allowlisted repository variables/);
   assert.match(supportedWorkflows, /route_overrides\.setup/);
   assert.match(agentActions, /Setup plan[\s\S]*`setup`[\s\S]*agent-setup\.md/);
-  assert.match(accessPolicy, /`setup` route[\s\S]*`OWNER`, `MEMBER`, and `COLLABORATOR`/);
+  assert.match(agentActions, /Setup apply[\s\S]*`setup-apply`[\s\S]*setup-apply\.ts/);
+  assert.match(accessPolicy, /`setup` and[\s\S]*`setup-apply` routes default to `OWNER`, `MEMBER`, and `COLLABORATOR`/);
+  assert.match(accessPolicy, /does not[\s\S]*inherit the plan-route override/);
+  assert.match(setupGuide, /\*\*Variables:\*\* write, for `\/setup apply` repository variable updates/);
+  assert.match(ownAppGuide, /\*\*Variables\*\*: write if you use `\/setup apply` repository variable updates/);
 });
 
 test("fix-pr prompt uses self-serve context, not local snapshots", () => {
@@ -512,6 +542,7 @@ test("accepted issue and PR work is best-effort assigned from AGENT_HANDLE", () 
   const supportedWorkflows = readRepoFile(".agent/docs/architecture/supported-workflows.md");
 
   assert.match(assignCli, /Non-fatal: exits 0 even if the handle is not assignable/);
+  assert.match(assignCli, /AGENT_ASSIGNMENT_ENABLED/);
   assert.match(assigneeModule, /DEFAULT_AGENT_HANDLE = "@sepo-agent"/);
   assert.match(assigneeModule, /deriveAssigneeLogin/);
   assert.match(assigneeModule, /isRepoAssigneeAssignable/);
@@ -523,7 +554,7 @@ test("accepted issue and PR work is best-effort assigned from AGENT_HANDLE", () 
 
   assert.match(
     routerWorkflow,
-    /Assign handled issue or PR[\s\S]*steps\.dispatch\.outputs\.needs_approval != 'true'[\s\S]*steps\.dispatch\.outputs\.route != 'unsupported'[\s\S]*AGENT_HANDLE:\s*\$\{\{ inputs\.agent_handle \|\| '@sepo-agent' \}\}[\s\S]*node \.agent\/dist\/cli\/assign-agent\.js/,
+    /Assign handled issue or PR[\s\S]*steps\.dispatch\.outputs\.needs_approval != 'true'[\s\S]*steps\.dispatch\.outputs\.route != 'unsupported'[\s\S]*AGENT_HANDLE:\s*\$\{\{ inputs\.agent_handle \|\| '@sepo-agent' \}\}[\s\S]*AGENT_ASSIGNMENT_ENABLED:\s*\$\{\{ vars\.AGENT_ASSIGNMENT_ENABLED \|\| 'true' \}\}[\s\S]*node \.agent\/dist\/cli\/assign-agent\.js/,
   );
   assert.match(
     labelWorkflow,
@@ -531,7 +562,7 @@ test("accepted issue and PR work is best-effort assigned from AGENT_HANDLE", () 
   );
   assert.match(
     implementWorkflow,
-    /Assign source issue[\s\S]*AGENT_HANDLE:\s*\$\{\{ vars\.AGENT_HANDLE \|\| '@sepo-agent' \}\}[\s\S]*TARGET_KIND: issue[\s\S]*node \.agent\/dist\/cli\/assign-agent\.js/,
+    /Assign source issue[\s\S]*AGENT_HANDLE:\s*\$\{\{ vars\.AGENT_HANDLE \|\| '@sepo-agent' \}\}[\s\S]*AGENT_ASSIGNMENT_ENABLED:\s*\$\{\{ vars\.AGENT_ASSIGNMENT_ENABLED \|\| 'true' \}\}[\s\S]*TARGET_KIND: issue[\s\S]*node \.agent\/dist\/cli\/assign-agent\.js/,
   );
   assert.match(
     implementWorkflow,
@@ -539,17 +570,18 @@ test("accepted issue and PR work is best-effort assigned from AGENT_HANDLE", () 
   );
   assert.match(
     fixPrWorkflow,
-    /Assign target pull request[\s\S]*steps\.pr\.outputs\.cross_repo != 'true'[\s\S]*TARGET_KIND: pull_request[\s\S]*node \.agent\/dist\/cli\/assign-agent\.js/,
+    /Assign target pull request[\s\S]*steps\.pr\.outputs\.cross_repo != 'true'[\s\S]*AGENT_ASSIGNMENT_ENABLED:\s*\$\{\{ vars\.AGENT_ASSIGNMENT_ENABLED \|\| 'true' \}\}[\s\S]*TARGET_KIND: pull_request[\s\S]*node \.agent\/dist\/cli\/assign-agent\.js/,
   );
   assert.match(
     reviewWorkflow,
-    /Assign target pull request[\s\S]*matrix\.agent == 'codex'[\s\S]*TARGET_KIND: pull_request[\s\S]*node \.agent\/dist\/cli\/assign-agent\.js/,
+    /Assign target pull request[\s\S]*matrix\.agent == 'codex'[\s\S]*AGENT_ASSIGNMENT_ENABLED:\s*\$\{\{ vars\.AGENT_ASSIGNMENT_ENABLED \|\| 'true' \}\}[\s\S]*TARGET_KIND: pull_request[\s\S]*node \.agent\/dist\/cli\/assign-agent\.js/,
   );
   assert.match(
     orchestratorWorkflow,
-    /Assign orchestrator target[\s\S]*TARGET_KIND:\s*\$\{\{ inputs\.target_kind \|\| \(inputs\.source_action == 'implement' && 'issue' \|\| 'pull_request'\) \}\}[\s\S]*node \.agent\/dist\/cli\/assign-agent\.js/,
+    /Assign orchestrator target[\s\S]*AGENT_ASSIGNMENT_ENABLED:\s*\$\{\{ vars\.AGENT_ASSIGNMENT_ENABLED \|\| 'true' \}\}[\s\S]*TARGET_KIND:\s*\$\{\{ inputs\.target_kind \|\| \(inputs\.source_action == 'implement' && 'issue' \|\| 'pull_request'\) \}\}[\s\S]*node \.agent\/dist\/cli\/assign-agent\.js/,
   );
   assert.match(onboardingWorkflow, /AGENT_HANDLE:\s*\$\{\{ vars\.AGENT_HANDLE \|\| '@sepo-agent' \}\}/);
+  assert.match(configurationList, /`AGENT_ASSIGNMENT_ENABLED`/);
   assert.match(configurationList, /best-effort assigned to the login derived from this handle/);
   assert.match(supportedWorkflows, /labels and mentions remain the automation signal layer/);
 });
@@ -646,6 +678,8 @@ test("project management docs preserve the minimal Project planning model", () =
   assert.ok(isRecord(workflowInputs), "project manager workflow should define inputs");
   assert.ok(workflowInputs.project_id);
   assert.ok(workflowInputs.project_url);
+  assert.ok(workflowInputs.project_owner);
+  assert.ok(workflowInputs.project_title);
 
   for (const source of [planningDoc, supportedWorkflows, projectManagerPrompt]) {
     assert.match(source, /`Status`[\s\S]*`Inbox`[\s\S]*`In Progress`[\s\S]*`To Review`[\s\S]*`Done`/);
@@ -661,25 +695,35 @@ test("project management docs preserve the minimal Project planning model", () =
   assert.match(planningDoc, /does not create GitHub\s+Projects,[\s\S]*update Project fields/);
   assert.match(planningDoc, /AGENT_PROJECT_MANAGEMENT_PROJECT_ID/);
   assert.match(planningDoc, /AGENT_PROJECT_MANAGEMENT_PROJECT_URL/);
+  assert.match(planningDoc, /AGENT_PROJECT_MANAGEMENT_PROJECT_OWNER/);
+  assert.match(planningDoc, /AGENT_PROJECT_MANAGEMENT_PROJECT_TITLE/);
   assert.match(planningDoc, /summary\/dry-run behavior/);
   assert.match(planningDoc, /best-effort assigned to the login derived from\s+`AGENT_HANDLE`/);
   assert.match(supportedWorkflows, /legacy\/fallback managed-label change plan/);
   assert.match(supportedWorkflows, /Project-backed project management is experimental/);
   assert.match(supportedWorkflows, /AGENT_PROJECT_MANAGEMENT_PROJECT_ID/);
   assert.match(supportedWorkflows, /AGENT_PROJECT_MANAGEMENT_PROJECT_URL/);
+  assert.match(supportedWorkflows, /AGENT_PROJECT_MANAGEMENT_PROJECT_OWNER/);
+  assert.match(supportedWorkflows, /AGENT_PROJECT_MANAGEMENT_PROJECT_TITLE/);
   assert.match(supportedWorkflows, /planning context\s+only/);
   assert.match(configurationList, /Project field sync is not implemented yet/);
   assert.match(configurationList, /`AGENT_PROJECT_MANAGEMENT_PROJECT_ID`/);
   assert.match(configurationList, /`AGENT_PROJECT_MANAGEMENT_PROJECT_URL`/);
+  assert.match(configurationList, /`AGENT_PROJECT_MANAGEMENT_PROJECT_OWNER`/);
+  assert.match(configurationList, /`AGENT_PROJECT_MANAGEMENT_PROJECT_TITLE`/);
   assert.match(configurationList, /legacy\/fallback `priority\/\*` and `effort\/\*` labels/);
   assert.match(projectManagerPrompt, /## Legacy\/Fallback Managed Labels/);
   assert.match(projectManagerPrompt, /Default repository labels stay operational: `agent`, one-shot `agent\/\*` trigger/);
   assert.match(projectManagerPrompt, /This prompt does not create or update GitHub Projects/);
-  assert.match(projectManagerPrompt, /Project target: `not configured` or the configured Project ID\/URL/);
+  assert.match(projectManagerPrompt, /Project target: `not configured` or the configured Project ID\/URL\/owner\/title/);
   assert.match(projectManagerWorkflow, /RAW_PROJECT_ID:\s*\$\{\{ github\.event_name == 'workflow_dispatch' && inputs\.project_id \|\| vars\.AGENT_PROJECT_MANAGEMENT_PROJECT_ID \|\| '' \}\}/);
   assert.match(projectManagerWorkflow, /RAW_PROJECT_URL:\s*\$\{\{ github\.event_name == 'workflow_dispatch' && inputs\.project_url \|\| vars\.AGENT_PROJECT_MANAGEMENT_PROJECT_URL \|\| '' \}\}/);
+  assert.match(projectManagerWorkflow, /RAW_PROJECT_OWNER:\s*\$\{\{ github\.event_name == 'workflow_dispatch' && inputs\.project_owner \|\| vars\.AGENT_PROJECT_MANAGEMENT_PROJECT_OWNER \|\| '' \}\}/);
+  assert.match(projectManagerWorkflow, /RAW_PROJECT_TITLE:\s*\$\{\{ github\.event_name == 'workflow_dispatch' && inputs\.project_title \|\| vars\.AGENT_PROJECT_MANAGEMENT_PROJECT_TITLE \|\| '' \}\}/);
   assert.match(projectManagerWorkflow, /project_configured=false/);
   assert.match(projectManagerWorkflow, /AGENT_PROJECT_MANAGEMENT_PROJECT_URL must be a GitHub Project URL/);
+  assert.match(projectManagerWorkflow, /AGENT_PROJECT_MANAGEMENT_PROJECT_OWNER must be a GitHub user or organization login/);
+  assert.match(projectManagerWorkflow, /AGENT_PROJECT_MANAGEMENT_PROJECT_TITLE must be 100 characters or fewer/);
   assert.match(projectManagerWorkflow, /GitHub Project target:\s*\$\{\{ steps\.project_config\.outputs\.project_target \}\}/);
   assert.match(projectManagerWorkflow, /GitHub Project field sync: not implemented/);
   assert.match(projectManagerWorkflow, /Project-backed source of truth when configured: GitHub Project fields Status\/Priority\/Effort\/Release/);

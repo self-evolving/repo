@@ -49,17 +49,28 @@ ask for `@sepo-agent /setup plan` first and review the proposed changes.
 The `/setup plan` route reads the issue and current setup/config context where
 available, then posts a proposed allowlisted diff for `AGENT_HANDLE`,
 assign-to-agent behavior, project-management mode, Project ID/URL/owner/title,
-and the minimal Project planning fields. `@sepo-agent /setup apply` is a later
-explicit confirmation step; deterministic apply behavior is still deferred.
+and the minimal Project planning fields.
+
+After reviewing the plan, `@sepo-agent /setup apply` runs a deterministic
+allowlisted variable apply. It can create or update repository variables for the
+agent handle, assignment toggle, project-management enabled/dry-run/legacy label
+settings, and configured Project ID/URL/owner/title. It posts or updates a
+marked audit comment on the setup issue. It does not create/link GitHub
+Projects, create Project fields/views, update Project items, sync Project
+fields, or change project-manager field-apply behavior.
 
 ## Current automation boundary
 
 Project-backed project management is experimental. Configure the planning
 surface with `AGENT_PROJECT_MANAGEMENT_PROJECT_ID` and/or
-`AGENT_PROJECT_MANAGEMENT_PROJECT_URL`; manual workflow runs can override those
-values with the separate `project_id` and `project_url` inputs. The ID should be
-a GitHub Project node ID with no whitespace. The URL should be an org or user
-GitHub Project URL such as `https://github.com/orgs/OWNER/projects/1`.
+`AGENT_PROJECT_MANAGEMENT_PROJECT_URL`; optional
+`AGENT_PROJECT_MANAGEMENT_PROJECT_OWNER` and
+`AGENT_PROJECT_MANAGEMENT_PROJECT_TITLE` provide create/link intent context
+without mutating Projects. Manual workflow runs can override those values with
+the separate `project_id`, `project_url`, `project_owner`, and `project_title`
+inputs. The ID should be a GitHub Project node ID with no whitespace. The URL
+should be an org or user GitHub Project URL such as
+`https://github.com/orgs/OWNER/projects/1`.
 
 The existing `agent-project-manager.yml` workflow is still a prompt-driven
 summary plus legacy/fallback label-planning pass. It passes the configured
@@ -71,4 +82,5 @@ summary as advisory for Project-backed planning and enable label writes only for
 repositories that explicitly choose the legacy/fallback label mode.
 
 Accepted Sepo work is still best-effort assigned to the login derived from
-`AGENT_HANDLE`, and labels or mentions remain the automation signal layer.
+`AGENT_HANDLE` unless `AGENT_ASSIGNMENT_ENABLED=false`, and labels or mentions
+remain the automation signal layer.

@@ -96,6 +96,21 @@ test("setup route default is constrained by global access and replaceable by rou
     }),
   );
   assert.equal(isAssociationAllowedForRoute(explicitlyWidened, "setup", "CONTRIBUTOR", true), true);
+  assert.equal(isAssociationAllowedForRoute(explicitlyWidened, "setup-apply", "CONTRIBUTOR", true), false);
+});
+
+test("setup apply requires its own route override to widen mutation access", () => {
+  const explicitlyWidened = parseAccessPolicy(
+    JSON.stringify({
+      route_overrides: {
+        setup: ["OWNER", "CONTRIBUTOR"],
+        "setup-apply": ["OWNER", "CONTRIBUTOR"],
+      },
+    }),
+  );
+
+  assert.equal(isAssociationAllowedForRoute(explicitlyWidened, "setup", "CONTRIBUTOR", true), true);
+  assert.equal(isAssociationAllowedForRoute(explicitlyWidened, "setup-apply", "CONTRIBUTOR", true), true);
 });
 
 test("parseAccessPolicy rejects malformed policy values", () => {
@@ -145,6 +160,10 @@ test("extractRequestedRoute detects explicit slash routes after the agent mentio
     "setup",
   );
   assert.equal(
+    extractRequestedRoute("@sepo-agent /setup apply", "@sepo-agent"),
+    "setup-apply",
+  );
+  assert.equal(
     extractRequestedRoute("@sepo-agent /setup\nplan this setup issue", "@sepo-agent"),
     "setup",
   );
@@ -171,10 +190,6 @@ test("extractRequestedRoute ignores non-route slash commands and commands withou
   );
   assert.deepEqual(
     extractRequestedRouteDecision("@sepo-agent /skill ../../oops", "@sepo-agent"),
-    { route: "", skill: "" },
-  );
-  assert.deepEqual(
-    extractRequestedRouteDecision("@sepo-agent /setup apply", "@sepo-agent"),
     { route: "", skill: "" },
   );
   assert.deepEqual(
@@ -217,6 +232,15 @@ test("buildRequestedRouteDecision builds deterministic setup metadata", () => {
   assert.equal(d.route, "setup");
   assert.equal(d.needsApproval, false);
   assert.match(d.summary, /setup plan/i);
+  assert.equal(d.issueTitle, "");
+  assert.equal(d.issueBody, "");
+});
+
+test("buildRequestedRouteDecision builds deterministic setup apply metadata", () => {
+  const d = buildRequestedRouteDecision("setup-apply", "@sepo-agent /setup apply");
+  assert.equal(d.route, "setup-apply");
+  assert.equal(d.needsApproval, false);
+  assert.match(d.summary, /apply/i);
   assert.equal(d.issueTitle, "");
   assert.equal(d.issueBody, "");
 });
@@ -393,6 +417,34 @@ test("applyDispatchPolicy dispatches setup plan on issues without approval", () 
   assert.equal(d.issueBody, "");
 });
 
+test("applyDispatchPolicy dispatches setup apply on issues without approval", () => {
+  const d = applyDispatchPolicy(
+    buildRequestedRouteDecision("setup-apply", "@sepo-agent /setup apply"),
+    "issue",
+    "MEMBER",
+    undefined,
+    false,
+    true,
+  );
+  assert.equal(d.route, "setup-apply");
+  assert.equal(d.needsApproval, false);
+  assert.equal(d.issueTitle, "");
+  assert.equal(d.issueBody, "");
+});
+
+test("applyDispatchPolicy rejects implicit setup apply decisions", () => {
+  const d = applyDispatchPolicy(
+    normalizeDispatch('{"route":"setup-apply","summary":"apply setup"}'),
+    "issue",
+    "MEMBER",
+    undefined,
+    false,
+    false,
+  );
+  assert.equal(d.route, "unsupported");
+  assert.match(d.summary, /requires an explicit \/setup apply/i);
+});
+
 test("applyDispatchPolicy rejects setup plan outside issues", () => {
   const d = applyDispatchPolicy(
     buildRequestedRouteDecision("setup", "@sepo-agent /setup plan"),
@@ -403,9 +455,35 @@ test("applyDispatchPolicy rejects setup plan outside issues", () => {
   assert.match(d.summary, /only supported from issues/i);
 });
 
+test("applyDispatchPolicy rejects setup apply outside issues", () => {
+  const d = applyDispatchPolicy(
+    buildRequestedRouteDecision("setup-apply", "@sepo-agent /setup apply"),
+    "pull_request",
+    "MEMBER",
+    undefined,
+    false,
+    true,
+  );
+  assert.equal(d.route, "unsupported");
+  assert.match(d.summary, /only supported from issues/i);
+});
+
 test("applyDispatchPolicy denies setup plan to contributors by default", () => {
   const d = applyDispatchPolicy(
     buildRequestedRouteDecision("setup", "@sepo-agent /setup plan"),
+    "issue",
+    "CONTRIBUTOR",
+    parseAccessPolicy(""),
+    true,
+    true,
+  );
+  assert.equal(d.route, "unsupported");
+  assert.match(d.summary, /OWNER, MEMBER, COLLABORATOR/);
+});
+
+test("applyDispatchPolicy denies setup apply to contributors by default", () => {
+  const d = applyDispatchPolicy(
+    buildRequestedRouteDecision("setup-apply", "@sepo-agent /setup apply"),
     "issue",
     "CONTRIBUTOR",
     parseAccessPolicy(""),

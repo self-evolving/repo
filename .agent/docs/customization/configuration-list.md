@@ -5,6 +5,7 @@
 | Variable | Purpose |
 |---|---|
 | `AGENT_HANDLE` | Override the mention handle. Defaults to `@sepo-agent`. Accepted issue and pull request work is also best-effort assigned to the login derived from this handle when GitHub reports it is assignable. |
+| `AGENT_ASSIGNMENT_ENABLED` | Set to `false` to skip best-effort assignment of accepted issue and pull request work to the login derived from `AGENT_HANDLE`. Defaults to `true`. |
 | `AGENT_RUNS_ON` | JSON array string for runner selection. If you are using self-hosted runners, see [Self-hosted GitHub Action runner](../deployment/self-hosted-github-action-runner.md). |
 | `AGENT_DEFAULT_PROVIDER` | Default provider for single-agent runs and review synthesis: `auto`, `codex`, or `claude`. Explicit `codex` / `claude` choices are honored even without matching repository secrets, allowing self-hosted runners to use local provider authentication. `auto` chooses the first configured provider secret, preferring Codex when both secrets are present. |
 | `AGENT_SESSION_BUNDLE_MODE` | Default session-bundle behavior: `auto`, `always`, or `never`. For the trade-offs behind this setting, see [Session continuity](../technical-details/session-continuity.md). |
@@ -15,6 +16,8 @@
 | `AGENT_PROJECT_MANAGEMENT_ENABLED` | Set to `true` to enable scheduled prompt-driven project-management runs. Manual runs can also use the workflow's `enabled` input. Defaults off. Project-backed project management is experimental; current runs summarize and optionally maintain legacy/fallback labels, but Project field sync is not implemented yet. |
 | `AGENT_PROJECT_MANAGEMENT_PROJECT_ID` | Optional GitHub Project node ID for experimental Project-backed planning. The project-manager workflow passes it to the agent as context only; it does not create Projects or update Project fields. Manual runs can override it with the `project_id` input. |
 | `AGENT_PROJECT_MANAGEMENT_PROJECT_URL` | Optional GitHub Project URL for experimental Project-backed planning, for example `https://github.com/orgs/OWNER/projects/1`. The project-manager workflow passes it to the agent as context only; it does not mutate repository variables or Project fields. Manual runs can override it with the `project_url` input. |
+| `AGENT_PROJECT_MANAGEMENT_PROJECT_OWNER` | Optional GitHub user or organization login for the experimental Project-backed planning target. It is context only; setup apply does not create or link the Project. |
+| `AGENT_PROJECT_MANAGEMENT_PROJECT_TITLE` | Optional GitHub Project title for the experimental Project-backed planning target. It is context only; setup apply does not create or link the Project. |
 | `AGENT_PROJECT_MANAGEMENT_DRY_RUN` | Defaults project-management runs to dry-run mode. Defaults to `true`; set to `false` with legacy label application enabled to apply validated managed-label plans. |
 | `AGENT_PROJECT_MANAGEMENT_APPLY_LABELS` | Set to `true` to allow the deterministic post-agent step to update legacy/fallback `priority/*` and `effort/*` labels when dry-run mode is disabled. |
 | `AGENT_PROJECT_MANAGEMENT_POST_SUMMARY` | Set to `true` to have the final workflow step comment with the project-management summary on today's existing Daily Summary discussion. If the discussion is missing, only the Actions step summary is written. |
