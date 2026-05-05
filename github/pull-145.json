@@ -1,0 +1,94 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "agent/implement-issue-142/codex-25347319980",
+  "body": "## Summary\n- Add a structured Sepo setup Issue Form for agent handle, assignment, project-management mode, Project creation/linking, Project owner/title, planning fields, and plan/apply confirmation.\n- Document that setup issues are declarative and do not mutate variables or GitHub Projects.\n- Add focused coverage for the setup template contract.\n\n## Verification\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/issue-template.test.js`\n- `ruby -e 'require \"yaml\"; YAML.load_file(\".github/ISSUE_TEMPLATE/sepo-setup.yml\")'`\n- `git diff --check`\n\nCloses #144\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBMbHyg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #145 | 3 / 40 | Dispatched |\n\nReason: implementation succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777935319851 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzNDc4NDEwMDM6aW1wbGVtZW50OjE0NDpyZXZpZXc6MTQ1OjM -->",
+      "createdAt": "2026-05-04T22:55:20Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/145#issuecomment-4375103434",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBMbjlQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 5 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | `.github/ISSUE_TEMPLATE/sepo-setup.yml` uses separate Issue Form fields for `agent-handle`, `assign-to-agent`, `project-management-mode`, `github-project`, Project owner/title, statuses, Priority/Effort/Release choices, and confirmation instead of free-form setup text. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | `.agent/docs/architecture/project-planning.md` adds a “Setup issue template” section documenting the new template, its declarative boundary, and the future `/setup plan` / `/setup apply` split. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is tightly scoped to the setup issue template, one focused test file, and the relevant project-planning docs. It does not implement the deferred `/setup` route, repo variable mutation, Project creation/linking, or field sync from issue #144. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Tests use the repo’s existing `node:test` style and the existing `yaml` dependency already used by the agent test suite, with small local helpers only for parsing/asserting the new template contract. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The PR matches the linked parent plan from #126 and child issue #144: minimal Project statuses, Project-backed planning as experimental, no default priority/effort repo-label expansion, and setup as a plan-first declarative issue template. |\n\n## Notes\n\n- The strongest score drivers are the structured Issue Form contract and the explicit non-mutating boundary. Those directly satisfy the staged task: capture setup intent now while leaving privileged `/setup apply` behavior for later.\n- The docs and tests cover the important user-facing contract without expanding scope.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific issues found. The selected applicable rubrics are satisfied by the PR diff and linked issue context.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-04T22:56:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/145#issuecomment-4375110549",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBMdesA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #145 adds the structured Sepo setup Issue Form requested by child issue #144 under parent planning issue #126. The form captures setup intent for agent handle, assignment, project-management mode, Project creation/linking, Project owner/title, planning fields, and plan/apply confirmation. It intentionally keeps setup declarative only: no `/setup` route, repo variable mutation, GitHub Project mutation, or Project field sync is implemented in this child. The PR also documents that boundary and adds focused YAML/template contract tests.\n\n## Review\nAll reviewer outputs converge on SHIP. The only notes raised were INFO-level polish suggestions, and none affect correctness, safety, the staged scope, or the automation boundary.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No required actionable findings | INFO | Codex and rubrics review found no actionable issues; Claude noted optional UX/test polish only. No branch change is required before merge. |\n\n## Progress\n- PR discussion already includes a passing rubrics review with 100/100.\n- Existing inline review comments were checked; none were present.\n- Optional notes include clarifying the Project title field, using raw YAML text in one assertion, and asserting checkbox option count, but reviewers did not consider these merge-blocking.\n- Deferred `/setup plan`, `/setup apply`, repo variables, Project creation/linking, and Project sync are correctly left out of scope for this child.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved required branch-change work remains, and further changes would be optional maintainer polish.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-04T23:01:30Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/145#issuecomment-4375142064",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-04T22:55:03Z",
+  "files": [
+    {
+      "path": ".agent/docs/architecture/project-planning.md",
+      "additions": 16,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/issue-template.test.ts",
+      "additions": 112,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/sepo-setup.yml",
+      "additions": 142,
+      "deletions": 0,
+      "changeType": "ADDED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-144/codex-25347841003",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 145,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "OPEN",
+  "title": "Add Sepo setup issue template",
+  "updatedAt": "2026-05-04T23:01:31Z",
+  "url": "https://github.com/self-evolving/repo/pull/145"
+}

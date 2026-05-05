@@ -1,0 +1,311 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "agent/implement-issue-144/codex-25347841003",
+  "body": "## Summary\n- Add explicit `@sepo-agent /setup plan` routing for issue-backed setup planning.\n- Run the setup route with read-approved permissions and skip status-label/assignee mutations for setup plans.\n- Document setup route access, plan-only boundaries, and update route/rubric metadata.\n- Add focused tests for parsing, access policy, workflow boundaries, and docs consistency.\n\n## Verification\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/triage.test.js .agent/dist/__tests__/envelope.test.js .agent/dist/__tests__/issue-template.test.js .agent/dist/__tests__/rubrics.test.js`\n- `git diff --check`\n\nCloses #146\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBMhwDw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #147 | 3 / 40 | Dispatched |\n\nReason: implementation succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777936495673 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzNDgyOTk3NTc6aW1wbGVtZW50OjE0NjpyZXZpZXc6MTQ3OjM -->",
+      "createdAt": "2026-05-04T23:14:56Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/147#issuecomment-4375212047",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBMiTXw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 88 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Make user-facing automation idempotent | partial | 4/7 | The setup route posts via `post-response.js` as a normal issue response, with no stable setup-plan marker or update/reuse lookup shown in the PR diff. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The PR adds a distinct `/setup plan` route, `setup` envelope/route values, and `route_overrides.setup` access-policy documentation instead of overloading another route. |\n| coding_workflow / generic | Validate preview contracts | partial | 5/7 | The prompt, workflow, and tests enforce plan-only boundaries and issue-only routing, but the setup plan output remains agent-written markdown without deterministic validation of the proposed diff structure. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | Issue #146 is explicitly staged under parent #126 and base PR #145; the PR preserves the staged boundary by adding only plan behavior and deferring apply/mutation work. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are scoped to route registration, access policy, router workflow, setup prompt, docs, and focused tests for the new setup-plan route. |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | `access-policy.ts` adds a conservative setup default excluding `CONTRIBUTOR`, tests cover default denial, and `agent-router.yml` runs setup only when the resolved route is `setup` and target kind is `issue`. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The workflow reuses existing shared actions (`resolve-github-auth`, `resolve-agent-provider`, `setup-agent-runtime`, `run-agent-task`) and existing `post-response.js` posting flow. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The PR updates access policy, supported workflows, action docs, quick start, key concepts, project planning, and rubric route docs for the new setup route. |\n\n## Notes\n\n- Strongest rubric alignment is around route authorization, staged scope control, docs coverage, and reuse of existing router/runtime patterns.\n- The main rubric-specific gap is idempotency for rerun setup plans: a repeated `/setup plan` appears likely to create another visible issue comment rather than update a prior setup-plan artifact.\n- No rubric-specific follow-up is required before shipping, but the smallest useful improvement would be a stable hidden marker or lookup/update path for setup-plan comments.\n\n## Findings\n\n- **WARNING:** The new setup-plan route creates user-facing setup guidance but does not appear idempotent. The PR adds `Post setup plan` using `node .agent/dist/cli/post-response.js`; the existing response flow posts ordinary issue comments, and the PR does not add a setup-specific marker, collapse, or update path. This partially misses `idempotent-user-facing-automation`.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-04T23:16:48Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/147#issuecomment-4375221087",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBMlXqQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #147 implements the staged `@sepo-agent /setup plan` route from issue #146 under parent issue #126. It adds route parsing, access-policy defaults, envelope/rubric route metadata, a setup planning prompt, router workflow wiring, docs, and focused tests. The route is intentionally issue-only and plan-only: it reads setup intent from the setup issue template added in PR #145 and must not mutate repository variables, GitHub Projects, labels, assignees, or files. `/setup apply`, Project creation/linking, variable writes, and Project field sync remain intentionally out of scope.\n\n## Review\nThe PR is directionally aligned with the staged plan, but one authorization regression blocks the primary issue-comment workflow for this public repo. Reviewers disagreed on ship readiness: Claude judged the PR shippable, rubrics passed with warnings, while Codex flagged a concrete blocking access issue that live repo data reproduces.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Setup route denies verified maintainers on issue comments | BLOCKING | The setup default excludes `CONTRIBUTOR`, but this public repo reports `lolipopshock` issue comments as `CONTRIBUTOR` even though collaborator permission is `admin`. Because weak-association refresh only runs for `issues` events, an authorized maintainer’s `/setup plan` issue comment can resolve to `unsupported`. |\n| Setup plan posting lacks deterministic preview safeguards | WARNING | The setup job posts agent-written markdown directly through `post-response.js`, so malformed or overbroad setup plans are still presented as successful previews. Repeated `/setup plan` runs also appear likely to create fresh comments rather than update a stable setup-plan artifact. |\n\n## Progress\n- The PR correctly preserves the child scope: plan-only setup route now, deterministic apply/mutation later.\n- Docs and tests were updated across route parsing, workflow boundaries, access policy, prompt scope, and supported workflows.\n- The rubrics review already posted a PASS with partial notes on idempotency and preview-contract validation.\n- No inline comments existed before synthesis; one inline comment was posted for the blocking access issue on `.agent/src/access-policy.ts`.\n- Optional reviewer notes about parser comments, empty-intersection coverage, and regex fragility are not treated as required branch changes.\n\n## Issue Details\n\n<details>\n<summary>Setup route denies verified maintainers on issue comments</summary>\n\n**Cause:** [`DEFAULT_ROUTE_ALLOWED_ASSOCIATIONS`](https://github.com/self-evolving/repo/blob/07415768563b8cc94bf82ed1e816f987259611c1/.agent/src/access-policy.ts#L28-L30) excludes `CONTRIBUTOR`, which is the intended conservative setup default. However, [`extract-context.ts`](https://github.com/self-evolving/repo/blob/07415768563b8cc94bf82ed1e816f987259611c1/.agent/src/cli/extract-context.ts#L113-L120) only refreshes weak associations for `issues` events, so `issue_comment` triggers keep GitHub’s reported `CONTRIBUTOR` association even for verified collaborators/admins.\n\n**Candidate solutions:** Refresh `issue_comment` author permission before route policy is applied, or map verified repository collaborators/admins to `COLLABORATOR` for the dispatch policy path. Add regression coverage for a public-repo `issue_comment` from a verified collaborator reported as `CONTRIBUTOR`, while preserving denial for unverified contributors.\n\n**Comments:** Codex marked this blocking; Claude did not raise it. The synthesis treats it as blocking because live repo checks show `lolipopshock` has `admin` collaborator permission while issue/comment payloads report `CONTRIBUTOR`.\n\n</details>\n\n<details>\n<summary>Setup plan posting lacks deterministic preview safeguards</summary>\n\n**Cause:** [`agent-router.yml`](https://github.com/self-evolving/repo/blob/07415768563b8cc94bf82ed1e816f987259611c1/.github/workflows/agent-router.yml#L469-L477) posts the setup agent response directly. The prompt defines allowed setup intent and mutation boundaries, but there is no deterministic validation step or stable marker/update path before the comment becomes the user-visible setup preview.\n\n**Candidate solutions:** Add a small validator before posting that checks required sections, allowlisted fields, and forbidden write/apply content, surfacing a failure or explicit warning when the output violates the preview contract. Add a hidden marker or lookup/update path so repeated `/setup plan` runs update or reuse the prior setup-plan comment.\n\n**Comments:** Codex raised this as a warning, and rubrics flagged both preview-contract and idempotency gaps. Claude considered the current plan-only route acceptable because `approve-reads` enforces the mutation boundary, so this remains non-blocking.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: automation can safely patch the blocking authorization regression and add focused coverage, while maintainers can separately decide whether preview validation/idempotent posting must land in this PR.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Fix setup-route authorization so verified collaborators/admins whose public issue comments report `CONTRIBUTOR` can still run `/setup plan`, with regression coverage.",
+      "createdAt": "2026-05-04T23:25:16Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/147#issuecomment-4375271337",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBMlbmQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #147 | 4 / 40 | Dispatched |\n\nReason: review verdict is needs_rework; dispatching fix-pr\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Fix setup-route authorization so verified collaborators/admins whose public issue comments report `CONTRIBUTOR` can still run `/setup plan`, with regression coverage.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1777937129936 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzNDg3MDE1NTY6cmV2aWV3OjE0NzpmaXhfcHI6MTQ3OjQ -->",
+      "createdAt": "2026-05-04T23:25:30Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/147#issuecomment-4375272345",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBMnqww",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-146/codex-25348299757`. Requested by @sepo-agent.\n\n- Fixed setup authorization by promoting weak `issue_comment` associations to `COLLABORATOR` after a repository collaborator check, so verified collaborators/admins can run `/setup plan` when public comments report `CONTRIBUTOR`.\n- Added regression coverage for a public issue-comment `/setup plan` request from a verified collaborator and documented the issue-comment refresh behavior.\n- Verification: `npm --prefix .agent run build`; `node --test .agent/dist/__tests__/extract-context-cli.test.js .agent/dist/__tests__/triage.test.js .agent/dist/__tests__/resolve-dispatch-cli.test.js`; `node --test .agent/dist/__tests__/envelope.test.js`; `git diff --check`.",
+      "createdAt": "2026-05-04T23:31:06Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/147#issuecomment-4375308995",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBMnwdA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #147 | 5 / 40 | Dispatched |\n\nReason: PR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777937480044 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzNDkwNzA1MjQ6Zml4X3ByOjE0NzpyZXZpZXc6MTQ3OjU -->",
+      "createdAt": "2026-05-04T23:31:20Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/147#issuecomment-4375310452",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBMoSeA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 91 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Make user-facing automation idempotent | partial | 4/7 | The setup job posts through `post-response.js`; existing collapse/update behavior is limited to rubrics reviews, with no setup-plan marker or reuse path added. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Adds a distinct `setup` route and only recognizes explicit `/setup plan`, while `/setup` and `/setup apply` remain unsupported. |\n| coding_workflow / generic | Validate preview contracts | partial | 5/7 | The route runs with `approve-reads` and the prompt forbids writes, but posted plan markdown is not deterministically validated before becoming the preview. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR scope matches issue #146 under parent #126: plan-only setup route now, apply/Project mutations deferred. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are scoped to route parsing, access policy, context extraction, router workflow, setup prompt, docs, and focused tests. |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | `setup` has a narrower default allowlist, issue-comment collaborator promotion was added, and tests cover verified collaborator setup access. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Reuses existing router, provider/runtime actions, task runner, envelope validation, and `post-response.js` flow. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates access policy, supported workflows, action docs, quick start, key concepts, project planning, and rubric route docs. |\n\n## Notes\n\n- The follow-up fix resolves the prior authorization blocker: weak public `issue_comment` associations from verified collaborators are promoted before setup route policy is applied.\n- Remaining rubric gaps are non-blocking and both relate to the plan-preview surface: repeated `/setup plan` runs are not idempotent, and the agent-written plan has no deterministic output validator.\n- Smallest useful follow-up: add a stable setup-plan marker/update path and a focused validator for required sections plus forbidden apply/write content.\n\n## Findings\n\n- **WARNING:** Setup-plan comments are not idempotent. Re-running `/setup plan` appears to create another visible issue comment because the PR uses the generic `post-response.js` path without a setup-specific marker, lookup, or update behavior.\n- **WARNING:** The preview contract is prompt-enforced rather than validator-enforced. `approve-reads` limits tool permissions, but malformed or overbroad setup-plan markdown can still be posted as the successful preview.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-04T23:32:51Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/147#issuecomment-4375319160",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBMrcSg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #147 adds the staged, issue-only `@sepo-agent /setup plan` route requested by issue #146 under parent issue #126. It wires parsing, access policy, setup prompt behavior, router execution, docs, and focused tests for a plan-only setup flow. The route is intentionally read-only: `/setup apply`, repo variable writes, GitHub Project creation/linking, and Project field sync remain deferred.\n\n## Review\nThe follow-up fix resolves the prior authorization blocker, and the reviewers now agree there is no required branch-change work before shipping. Reviewer severity differed on setup-plan preview/idempotency hardening: rubrics and Claude call it warning-level future work, while Codex treats it as acceptable INFO for this staged plan-only child.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable issues | INFO | The previous setup-route authorization regression is fixed. Remaining notes are non-blocking future hardening for idempotent setup-plan comments, deterministic plan validation, and an optional negative test case. |\n\n## Progress\n- Prior blocker fixed: weak public `issue_comment` associations are now promoted after collaborator verification before setup route policy runs.\n- PR scope remains aligned with #146/#126: `/setup plan` only, with setup apply and mutation paths intentionally out of scope.\n- Docs and tests cover route parsing, access policy, workflow boundaries, prompt scope, and issue-comment auth refresh.\n- Existing inline feedback already covered the earlier auth issue; no new non-duplicative inline comment was warranted.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved required branch-change work remains, so automation should stop and maintainers can proceed with normal merge judgment.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-04T23:40:56Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/147#issuecomment-4375370826",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-04T23:14:39Z",
+  "files": [
+    {
+      "path": ".agent/docs/access-policy.md",
+      "additions": 24,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/actions/agent-actions.md",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/overall-design.md",
+      "additions": 5,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/project-planning.md",
+      "additions": 5,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/rubrics.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 13,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/overview/quick-start.md",
+      "additions": 2,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/developer-notes.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/key-concepts.md",
+      "additions": 2,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 56,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/extract-context-cli.test.ts",
+      "additions": 69,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/triage.test.ts",
+      "additions": 91,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/access-policy.ts",
+      "additions": 18,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/extract-context.ts",
+      "additions": 17,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/envelope.ts",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/rubrics.ts",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/run.ts",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/triage.ts",
+      "additions": 44,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/run-agent-task/action.yml",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-dispatch.md",
+      "additions": 4,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-setup.md",
+      "additions": 65,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/prompts/rubrics-initialization.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/rubrics-update.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-router.yml",
+      "additions": 83,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-146/codex-25348299757",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 147,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM77yLYn",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-04T23:23:52Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "07415768563b8cc94bf82ed1e816f987259611c1"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Add plan-only setup route",
+  "updatedAt": "2026-05-04T23:40:56Z",
+  "url": "https://github.com/self-evolving/repo/pull/147"
+}

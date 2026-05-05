@@ -6,7 +6,7 @@
     "name": "Shannon Shen"
   },
   "body": "## Problem\n\nA parent sub-orchestration can silently stop after a child PR reaches `SHIP` instead of reporting the child completion back to the parent and continuing to the next planned child task.\n\nThis was observed from #126 after the orchestration request in https://github.com/self-evolving/repo/issues/126#issuecomment-4369999173.\n\n## Observed sequence\n\n1. Parent issue #126 was asked to orchestrate the task split and create/stack individual child issues.\n2. Child #25 (`agent-activity-labels`) completed through PR #134 and correctly reported back to #126.\n3. Parent orchestration then created child #135 (`assign-agent-handle`) stacked on #134.\n4. Child #135 produced PR #136.\n5. PR #136 eventually reviewed as `SHIP`.\n6. The final orchestrator run stopped with the normal PR-level terminal reason:\n\n   ```text\n   SOURCE_ACTION: review\n   SOURCE_CONCLUSION: ship\n   TARGET_KIND: pull_request\n   TARGET_NUMBER: 136\n   Handoff stop: review verdict is SHIP\n   ```\n\n   Run: https://github.com/self-evolving/repo/actions/runs/25318313262\n\n7. However, #126 never received a child-completed report for #135, and parent orchestration did not continue to the next child task.\n8. #135's sub-orchestrator marker remained stuck as `state:running`:\n\n   ```md\n   <!-- sepo-sub-orchestrator parent:126 stage:assign-agent-handle state:running parent_round:3 -->\n   ```\n\n## Expected behavior\n\nWhen a sub-orchestrator child PR reaches a terminal successful state (`review` + `SHIP`):\n\n- mark the child sub-orchestrator marker as `done`;\n- post a completion/progress report to the parent issue;\n- dispatch the parent orchestrator so it can decide whether to create/run the next child task;\n- avoid making the workflow appear stopped when only the child task finished.\n\n## Suspected root cause\n\nThe terminal reporting path appears to fail to recognize the child issue marker as trusted when the child issue was created by the GitHub App.\n\nRelevant flow:\n\n- `reportTerminalToParent()` resolves the linked child issue from the PR body (`Closes #135`).\n- It calls `trustedSubOrchestrationIssue()`.\n- For Sepo-created child #135, the sub-orchestrator marker is in the issue body.\n- `gh issue view 135 --json author` reports the author login as:\n\n  ```json\n  {\"author\":{\"is_bot\":true,\"login\":\"app/sepo-agent-app\"}}\n  ```\n\n- Other trusted comments often appear as `sepo-agent-app[bot]` / `sepo-agent-app`.\n- `normalizeActorLogin()` currently strips `[bot]`, but does not appear to normalize an `app/` prefix.\n- That can make `isTrustedIssueRecord()` reject a Sepo-created issue body marker, so `resolveChildIssueForTerminal()` returns null and `reportTerminalToParent()` silently does nothing.\n\nThis explains why #25 worked: #25 was an existing issue and Sepo added an adoption marker in a trusted comment. #135 was created by Sepo with the marker in the issue body, hitting the `app/...` author normalization edge case.\n\n## Suggested fix\n\n- Normalize GitHub App actor logins consistently in trust checks, e.g. treat `app/sepo-agent-app`, `sepo-agent-app[bot]`, and `sepo-agent-app` as the same trusted actor where appropriate.\n- Alternatively, fetch issue authors through a source/API shape that returns the same bot login format used for comments.\n- Add regression coverage for a Sepo-created child issue whose body contains a `sepo-sub-orchestrator` marker and whose issue author is reported as `app/sepo-agent-app`.\n- Add diagnostics when `reportTerminalToParent()` cannot resolve or trust the child issue, so this failure mode does not silently stop parent orchestration.\n\n## Acceptance criteria\n\n- A Sepo-created child issue with a trusted body marker is accepted by `trustedSubOrchestrationIssue()`.\n- A terminal child PR review verdict `SHIP` posts a parent progress report and dispatches/resumes the parent orchestrator.\n- The child marker is updated from `running` to `done`.\n- Tests cover the `app/<app-login>` author form.\n",
-  "closedAt": null,
+  "closedAt": "2026-05-04T22:15:24Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABBK23eQ",
@@ -22,6 +22,64 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/138#issuecomment-4373460857",
       "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBLk8aw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate can you investigate this issue and fix? ",
+      "createdAt": "2026-05-04T20:22:57Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/138#issuecomment-4374215787",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBLllfg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | implement | Issue #138 | 2 / 40 | Dispatched |\n\nReason: agent planner selected implement: Issue #138 is a focused, self-contained bug in sub-orchestrator terminal parent reporting; no separate child issue is needed.\n\n<!-- sepo-agent-handoff state:dispatched created:1777926286113 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzNDE1NTQ0ODE6b3JjaGVzdHJhdGU6MTM4OmltcGxlbWVudDoxMzg6Mg -->",
+      "createdAt": "2026-05-04T20:24:46Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/138#issuecomment-4374226302",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBLn3LA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-138/codex-25341635102`\n- Pull request: https://github.com/self-evolving/repo/pull/139\n\nNormalized GitHub App actor login variants in orchestrator trust checks so Sepo-created child issue body markers are trusted for terminal PR handback, added targeted diagnostics for untrusted terminal markers, documented the contract, and added focused regression coverage. Verified with `npm --prefix .agent run build`, focused `node --test` coverage, and `git diff --check`.",
+      "createdAt": "2026-05-04T20:30:52Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/138#issuecomment-4374263596",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-04T18:23:59Z",
@@ -31,11 +89,29 @@
       "name": "bug",
       "description": "Something isn't working",
       "color": "d73a4a"
+    },
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    },
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChVB4QQ",
+      "name": "priority/p1",
+      "description": "Project management: high priority",
+      "color": "d93f0b"
+    },
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChVB5QA",
+      "name": "effort/medium",
+      "description": "Project management: medium effort",
+      "color": "fbca04"
     }
   ],
   "number": 138,
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Fix sub-orchestrator parent resume for Sepo-created child issues",
-  "updatedAt": "2026-05-04T18:29:05Z",
+  "updatedAt": "2026-05-04T22:15:24Z",
   "url": "https://github.com/self-evolving/repo/issues/138"
 }

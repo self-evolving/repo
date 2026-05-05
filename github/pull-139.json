@@ -1,0 +1,322 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Normalize GitHub App actor login variants in sub-orchestrator trust checks.\n- Allow terminal child PR completion to report back to the parent when the child issue body marker was authored as `app/sepo-agent-app`.\n- Add diagnostics for untrusted terminal markers plus focused tests and docs.\n\n## Verification\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/orchestrate-handoff-cli.test.js .agent/dist/__tests__/review-summary-minimize.test.js`\n- `git diff --check`\n\nCloses #138\n",
+  "closedAt": "2026-05-04T22:15:23Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBLoMmA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #139 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: Implementation succeeded and produced PR #139 for issue #138; an automated review is the appropriate next step.\n\n<!-- sepo-agent-handoff state:dispatched created:1777926705570 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzNDE2MzUxMDI6aW1wbGVtZW50OjEzODpyZXZpZXc6MTM5OjM -->",
+      "createdAt": "2026-05-04T20:31:45Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/139#issuecomment-4374269080",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBLo1pQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 95 | PARTIAL | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | `.agent/src/cli/orchestrate-handoff.ts` keeps terminal child markers trusted only when the issue/comment author matches the authenticated agent actor; the change normalizes `app/` and `[bot]` variants rather than broadening trust. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR closes #138 and directly implements its acceptance criteria: app-authored issue body marker trust, parent progress dispatch, marker update, and regression coverage. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is limited to actor normalization, terminal trust diagnostics, focused tests, and one matching docs update across five files. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The implementation reuses existing `normalizeActorLogin`, `isTrustedActorLogin`, `trustedSubOrchestrationIssue`, `fetchIssueComments`, and marker parsing helpers instead of adding a parallel trust path. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | `.agent/docs/technical-details/agent-orchestrator.md` now documents normalized GitHub App actor variants for terminal handoff trust checks. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The core fix is a minimal normalization extension: trim, lowercase, strip `app/`, strip `[bot]`. The terminal wrapper only adds targeted warnings around the existing resolver. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | The previous silent terminal no-op now emits focused warnings for untrusted child body/adoption markers, and tests assert the user-authored marker warning path. |\n| coding_workflow / generic | Comment on accepted workflow stops | partial | 3/6 | The PR surfaces untrusted terminal-marker stops in workflow logs, but does not add a concise thread-visible stop/progress comment when terminal parent reporting is skipped due to trust policy. |\n\n## Notes\n\n- The strongest rubric alignment is around authorization preservation: the PR fixes the GitHub App identity mismatch without accepting arbitrary app-authored content.\n- The only rubric gap is visibility. For trust-policy terminal stops, logs are better than silence, but the selected workflow-stop rubric prefers a thread-visible status when an accepted orchestration cannot continue.\n- Smallest useful follow-up: consider posting or updating a compact stop comment when `resolveChildIssueForTerminal()` finds a linked issue marker but rejects it as untrusted.\n\n## Findings\n\n- **WARNING:** For untrusted terminal sub-orchestrator markers, PR #139 adds `console.warn(...)` diagnostics but still returns `null` from terminal resolution, so the user-facing thread can remain at the ordinary PR-level stop with no parent progress/stop comment. This only partially satisfies the selected “Comment on accepted workflow stops” rubric.\n\n## Final Rubric Verdict\n\nPARTIAL",
+      "createdAt": "2026-05-04T20:33:22Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/139#issuecomment-4374279589",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBLrPsw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #139 fixes #138, where terminal child PRs could reach `SHIP` without reporting completion back to the parent orchestrator. The suspected root cause was GitHub App identity shape drift: `gh issue view` can report App-created issues as `app/sepo-agent-app`, while comments and REST APIs commonly use `sepo-agent-app[bot]` or `sepo-agent-app`. The PR normalizes these actor variants in trust checks, adds diagnostics for rejected terminal markers, updates focused tests, and documents the trust contract. Reviewers agree the core bug is addressed without broadening trust to arbitrary actors.\n\n## Review\nThe implementation is narrow and sound, with no blocking correctness or authorization findings. The remaining concerns are non-blocking: one visibility gap already noted in the PR discussion, and one diagnostic-path polish issue now also posted inline.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Rejected terminal markers are only logged | WARNING | When a terminal child marker is found but rejected as untrusted, the PR emits workflow-log warnings but still leaves no thread-visible stop/progress comment. This partially satisfies the selected workflow-stop visibility rubric but may be acceptable as a maintainer policy choice. |\n| Diagnostic comment lookup refetches comments | INFO | The new diagnostic helper can call the paginated comments API again after the trust lookup already checked comments, and its warning text can say “untrusted” for some non-trust skip reasons. This is diagnostic-path polish, not a core behavior bug. |\n\n## Progress\n- Core acceptance criteria from #138 are covered: `app/<login>` issue authors are trusted when they match the authenticated agent actor, terminal parent reporting is tested, and marker updates are asserted.\n- Docs were updated in `.agent/docs/technical-details/agent-orchestrator.md`.\n- Codex and Claude reviews both reached `SHIP`; the rubrics review was `PARTIAL` only for the visibility rubric.\n- Existing PR conversation already covers the thread-visible stop concern, so no duplicate inline comment was posted for it.\n- Posted one inline comment for the diagnostic helper at `.agent/src/cli/orchestrate-handoff.ts:424`.\n\n## Issue Details\n\n<details>\n<summary>Rejected terminal markers are only logged</summary>\n\n**Cause:** `trustedTerminalSubOrchestrationIssue()` warns when terminal marker trust fails, then terminal resolution still returns `null`, so the visible thread can remain at the ordinary PR-level stop.\n\n**Candidate solutions:** Post or update a compact stop comment when a linked child marker exists but is rejected as untrusted, using existing dedupe/marker patterns. Alternatively, explicitly accept logs-only diagnostics for this trust-policy failure mode.\n\n**Comments:** This was already raised in the rubrics review. Other reviewers did not consider it merge-blocking because the reported `app/sepo-agent-app` trust bug is fixed and covered.\n\n</details>\n\n<details>\n<summary>Diagnostic comment lookup refetches comments</summary>\n\n**Cause:** `trustedSubOrchestrationIssue()` already checks issue comments, but `warnUntrustedTerminalSubOrchestrationIssue()` fetches them again after failure. The same branch also labels any adoption marker as untrusted, even if the earlier skip was due to something like a missing `comment.id`.\n\n**Candidate solutions:** Return rejection context from the first trust lookup, pass fetched comments into the diagnostic helper, or make the warning text use a broader term like “unresolvable” when the exact rejection reason is not known.\n\n**Comments:** Inline feedback posted: https://github.com/self-evolving/repo/pull/139#discussion_r3184377530\n\n</details>\n\n## Recommended Next Step\n`HUMAN_DECISION`: remaining concerns are non-blocking visibility and diagnostic-polish choices, so maintainers should decide whether to require a follow-up before merge.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Decide whether PR #139 should add a thread-visible stop comment for rejected terminal child markers before merge.",
+      "createdAt": "2026-05-04T20:39:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/139#issuecomment-4374319027",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBL9ASQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\n1. For the purpose of getting it right, we should perhaps add it? \n2. Also I wonder if we should simply use the regex to remove the app/bot (is this a shortcut fix or a generalizable fix when users change the agent handle etc)?",
+      "createdAt": "2026-05-04T21:27:44Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/139#issuecomment-4374609993",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBL9utQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes on both, with slightly different scopes.\n\n1. I would add the thread-visible stop/progress comment, but only for the narrow “terminal child marker was found and rejected/unresolvable” path. The current PR fixes the core bug in [`normalizeActorLogin()`](https://github.com/self-evolving/repo/blob/02f775dfe6a9bef0c0358d9502a2d77a769d86a7/.agent/src/cli/orchestrate-handoff.ts#L188-L220) and adds workflow warnings, but [`reportTerminalToParent()` still returns silently when no trusted child issue resolves](https://github.com/self-evolving/repo/blob/02f775dfe6a9bef0c0358d9502a2d77a769d86a7/.agent/src/cli/orchestrate-handoff.ts#L851-L868). For “getting it right,” a compact visible stop comment is useful when Sepo can tell there was intended sub-orchestration but trust prevented continuation. I would dedupe it with a hidden marker and avoid posting for ordinary non-sub-orchestrated PR terminal stops.\n\n2. The regex normalization is not just a shortcut as written. It is generalizable because it strips GitHub identity presentation wrappers (`app/`, `[bot]`) from GitHub-provided actor logins, then compares against the currently authenticated actor, not a hardcoded `sepo-agent-app` string. That means changing the app login still works as long as both sides normalize to the same authenticated viewer login. The important constraint is to keep this centralized in `normalizeActorLogin()` and use it only for actor metadata trust checks, not for parsing arbitrary user-authored text.\n\nSo my recommendation: keep the regex-based actor normalization, and add the visible diagnostic stop as a small follow-up in the terminal rejection path.",
+      "createdAt": "2026-05-04T21:30:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/139#issuecomment-4374621877",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBL-xyA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Yes on both, with slightly different scopes.\n> \n> 1. I would add the thread-visible stop/progress comment, but only for the narrow “terminal child marker was found and rejected/unresolvable” path. The current PR fixes the core bug in [`normalizeActorLogin()`](https://github.com/self-evolving/repo/blob/02f775dfe6a9bef0c0358d9502a2d77a769d86a7/.agent/src/cli/orchestrate-handoff.ts#L188-L220) and adds workflow warnings, but [`reportTerminalToParent()` still returns silently when no trusted child issue resolves](https://github.com/self-evolving/repo/blob/02f775dfe6a9bef0c0358d9502a2d77a769d86a7/.agent/src/cli/orchestrate-handoff.ts#L851-L868). For “getting it right,” a compact visible stop comment is useful when Sepo can tell there was intended sub-orchestration but trust prevented continuation. I would dedupe it with a hidden marker and avoid posting for ordinary non-sub-orchestrated PR terminal stops.\n> \n> 2. The regex normalization is not just a shortcut as written. It is generalizable because it strips GitHub identity presentation wrappers (`app/`, `[bot]`) from GitHub-provided actor logins, then compares against the currently authenticated actor, not a hardcoded `sepo-agent-app` string. That means changing the app login still works as long as both sides normalize to the same authenticated viewer login. The important constraint is to keep this centralized in `normalizeActorLogin()` and use it only for actor metadata trust checks, not for parsing arbitrary user-authored text.\n> \n> So my recommendation: keep the regex-based actor normalization, and add the visible diagnostic stop as a small follow-up in the terminal rejection path.\n\n@sepo-agent /orchestrate add this fix?  ",
+      "createdAt": "2026-05-04T21:33:23Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/139#issuecomment-4374639048",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBL_S_g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | review | PR #139 | 2 / 40 | Dispatched |\n\nReason: manual orchestrate start on PR; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777930500952 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzNDQ3MzAyOTY6b3JjaGVzdHJhdGU6MTM5OnJldmlldzoxMzk6Mg -->",
+      "createdAt": "2026-05-04T21:35:01Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/139#issuecomment-4374647550",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBL_oSQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 89 | PARTIAL | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | `.agent/src/cli/orchestrate-handoff.ts` keeps terminal child markers trusted only when the marker author normalizes to the authenticated actor; it strips GitHub identity wrappers without broadening trust to user-authored markers. |\n| coding_workflow / generic | Comment on accepted workflow stops | fail | 0/6 | The current diff only adds `console.warn(...)` for rejected terminal markers. `reportTerminalToParent()` still returns without a thread-visible stop/progress comment when no trusted child issue resolves. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | The PR adds focused warnings for untrusted terminal issue-body/adoption markers and a regression assertion for the user-authored marker warning path. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are limited to actor normalization, terminal trust diagnostics, focused tests, and matching docs updates. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The implementation reuses existing trust helpers and marker parsing instead of adding a parallel authorization path. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | `.agent/docs/technical-details/agent-orchestrator.md` documents normalized GitHub App actor variants in terminal handoff trust checks. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The core normalization change is small and centralized: trim, lowercase, strip `app/`, strip trailing `[bot]`. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The PR and discussion connect directly to #138 and the follow-up discussion about keeping regex normalization while adding visible diagnostics for rejected terminal markers. |\n\n## Notes\n\n- The authorization and normalization parts satisfy the applicable rubrics well: trust still depends on the authenticated actor after normalization, not on a hardcoded app login.\n- The rubric gap is the newly requested visible stop/progress comment. The PR currently surfaces the rejection only in workflow logs, while the selected workflow-stop rubric expects a concise thread-visible status for accepted automation that stops due to a guardrail.\n- Smallest useful follow-up: add an idempotent, hidden-marker-deduped visible comment only when terminal child metadata was found but rejected or unresolvable.\n\n## Findings\n\n- **WARNING:** The requested visible terminal rejection stop is not implemented in the current PR diff. In `.agent/src/cli/orchestrate-handoff.ts`, `trustedTerminalSubOrchestrationIssue()` warns on untrusted markers, but `reportTerminalToParent()` still exits when `resolveChildIssueForTerminal()` returns `null`, leaving the PR/issue thread without the compact stop/progress comment requested by the discussion and the workflow-stop rubric.\n\n## Final Rubric Verdict\n\nPARTIAL",
+      "createdAt": "2026-05-04T21:36:06Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/139#issuecomment-4374653001",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBMCIgQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #139 addresses #138, a sub-orchestrator terminal handback bug first observed during the parent orchestration in #126.\n- The core issue was GitHub App actor identity shape drift: Sepo-created issue bodies may be authored as `app/sepo-agent-app`, while comments/API paths may show `sepo-agent-app[bot]` or `sepo-agent-app`.\n- The PR normalizes those actor variants, adds diagnostics for rejected terminal markers, updates tests, and documents the trust contract.\n- After the first review, the maintainer explicitly asked to also add a thread-visible stop/progress comment for the rejected or unresolvable terminal marker path.\n\n## Review\nReviewers agree the actor-normalization fix is correct, generalizable, and does not broaden trust beyond the authenticated agent actor. The remaining blocker is that the latest requested visible stop behavior is still absent, so this PR needs another branch change before merge.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Thread-visible rejected-marker stop is missing | BLOCKING | `reportTerminalToParent()` still returns silently when terminal child resolution fails, even after a marker is found and rejected or deemed unresolvable. This is the explicit follow-up requested in the PR discussion. |\n| Diagnostic warning path refetches comments | INFO | The diagnostic helper refetches issue comments after the trust lookup already did so, and its warning can say “untrusted” for some non-trust skip reasons. This is already covered by an inline comment and is secondary to the blocker. |\n\n## Progress\n- The core #138 bug appears fixed: `app/<login>` issue authors now normalize to the same actor identity as `[bot]` and plain forms.\n- Focused tests cover the trusted `app/sepo-agent-app` issue-body marker path, parent progress dispatch, and child marker update.\n- Docs were updated for normalized GitHub App actor variants.\n- The PR discussion already clearly covers the missing visible stop, so no duplicate inline comment was posted for that issue.\n- Existing inline feedback covers the diagnostic helper polish at https://github.com/self-evolving/repo/pull/139#discussion_r3184377530.\n\n## Issue Details\n\n<details>\n<summary>Thread-visible rejected-marker stop is missing</summary>\n\n**Cause:** [`resolveChildIssueForTerminal()`](https://github.com/self-evolving/repo/blob/02f775dfe6a9bef0c0358d9502a2d77a769d86a7/.agent/src/cli/orchestrate-handoff.ts#L851-L864) collapses rejected marker cases into `null`, and [`reportTerminalToParent()`](https://github.com/self-evolving/repo/blob/02f775dfe6a9bef0c0358d9502a2d77a769d86a7/.agent/src/cli/orchestrate-handoff.ts#L866-L868) returns immediately. That leaves only workflow logs when a terminal child marker was found but rejected or unresolvable.\n\n**Candidate solutions:** Return structured terminal resolution state, such as trusted child, no marker, or rejected/unresolvable marker. For the rejected/unresolvable case, post or update a compact hidden-marker-deduped stop comment on the current target, while still skipping ordinary terminal PRs that have no sub-orchestrator marker.\n\n**Comments:** Claude and Codex treat this as merge-blocking because the maintainer explicitly requested it after the first review. The rubrics review labeled the same gap as a workflow-stop failure and recommended the same narrow, idempotent visible comment.\n\n</details>\n\n<details>\n<summary>Diagnostic warning path refetches comments</summary>\n\n**Cause:** [`warnUntrustedTerminalSubOrchestrationIssue()`](https://github.com/self-evolving/repo/blob/02f775dfe6a9bef0c0358d9502a2d77a769d86a7/.agent/src/cli/orchestrate-handoff.ts#L412-L433) calls `fetchIssueComments()` after the main trust lookup already searched comments. It also labels any adoption marker it finds as untrusted even when the actual skip reason might be missing metadata like `comment.id`.\n\n**Candidate solutions:** Return rejection context from the first trust lookup, pass already-fetched comments into the diagnostic helper, or use broader wording such as “unresolvable” when the exact rejection reason is not known.\n\n**Comments:** Existing inline comment: https://github.com/self-evolving/repo/pull/139#discussion_r3184377530\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: unresolved work requires a concrete branch change, and the scope is safe for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Add a deduped thread-visible stop/progress comment for terminal child markers that are found but rejected or unresolvable.\n- [ ] Keep that comment scoped away from ordinary non-sub-orchestrated terminal PR stops.\n- [ ] Add focused tests for the visible stop path, rerun idempotency, and the ordinary no-marker skip path.\n- [ ] Update orchestrator docs if the new visible diagnostic behavior changes user-facing workflow semantics.",
+      "createdAt": "2026-05-04T21:43:44Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/139#issuecomment-4374694017",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBMCZxA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #139 | 3 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis recommends FIX_PR after maintainer requested the visible rejected-marker stop; unresolved work is concrete and safe for an automated branch change.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items for PR #139: add a deduped thread-visible stop/progress comment for terminal child markers that are found but rejected or unresolvable; keep that comment scoped away from ordinary non-sub-orchestrated terminal PR stops; add focused tests for the visible stop path, rerun idempotency, and the ordinary no-marker skip path; update orchestrator docs if the new visible diagnostic behavior changes user-facing workflow semantics. Preserve the existing centralized regex-based normalizeActorLogin() approach for actor metadata trust checks, and do not broaden it to arbitrary user-authored text parsing. Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by these action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1777931075104 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzNDQ3OTg5NjQ6cmV2aWV3OjEzOTpmaXhfcHI6MTM5OjM -->",
+      "createdAt": "2026-05-04T21:44:35Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/139#issuecomment-4374698436",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBMEbTg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-138/codex-25341635102`. Requested by @sepo-agent.\n\n- Added a hidden-marker-deduped visible stop comment for terminal child metadata that is found but rejected or unresolvable.\n- Kept ordinary terminal PR stops without sub-orchestrator metadata silent.\n- Added focused tests for visible stop posting, rerun idempotency, and the no-marker skip path.\n- Updated the orchestrator docs for the new user-visible diagnostic behavior.\n\n<details><summary>Verification</summary>\n\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/orchestrate-handoff-cli.test.js`\n- `node --test .agent/dist/__tests__/review-summary-minimize.test.js`\n- `git diff --check`\n\n</details>",
+      "createdAt": "2026-05-04T21:50:59Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/139#issuecomment-4374731598",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBMEuLA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #139 | 4 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded after implementing the maintainer-requested visible rejected-marker stop, so one automated review should verify the follow-up branch changes before stopping.\n\n<!-- sepo-agent-handoff state:dispatched created:1777931511633 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzNDUyMDMwNTk6Zml4X3ByOjEzOTpyZXZpZXc6MTM5OjQ -->",
+      "createdAt": "2026-05-04T21:51:52Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/139#issuecomment-4374736428",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBMFLBw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | `.agent/src/cli/orchestrate-handoff.ts` keeps trust tied to the authenticated actor and normalizes GitHub App actor wrappers rather than trusting arbitrary marker authors. |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | The latest diff adds `commentOnTerminalSubOrchestrationRejection(...)`, so terminal child metadata that is found but rejected/unresolvable now gets a thread-visible stop comment instead of a silent return. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | The new terminal stop comment includes `<!-- sepo-sub-orchestrator-terminal-stop child:<n> parent:<n> -->` and checks existing trusted comments before posting; tests cover rerun dedupe. |\n| communication / generic | Keep status comments compact | pass | 6/6 | The visible stop text is concise, uses a compact transposed table, and keeps the reason readable rather than dumping logs. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Rejected terminal markers now emit workflow warnings and post a visible stop comment explaining why no parent workflow was dispatched. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | `.agent/docs/technical-details/agent-orchestrator.md` documents actor normalization and the new rejected/unresolvable terminal metadata stop behavior. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The PR stays scoped to orchestrator terminal trust/reporting behavior, focused tests, one minimize actor-normalization variant, and matching docs. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The implementation reuses existing marker parsing, actor trust checks, comment creation, issue comment fetching, and table formatting helpers. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The follow-up models terminal resolution as `trusted`, `rejected`, or `none`, then posts only for the rejected case; no broad refactor or new subsystem was introduced. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The latest PR discussion explicitly requested the narrow visible stop fix while preserving centralized regex actor normalization, and the current diff implements that scoped request. |\n\n## Notes\n\n- The earlier rubric gap is resolved: ordinary non-sub-orchestrated terminal PR stops still remain silent, while rejected or unresolvable sub-orchestrator terminal metadata now gets a deduped visible stop.\n- Focused tests cover app-authored issue body markers, user-authored rejected-marker stop posting, rerun idempotency, and the no-marker skip path.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-04T21:53:10Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/139#issuecomment-4374743815",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBMJMFA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #139 fixes #138, where terminal child PRs could reach `SHIP` without reporting completion back to the parent orchestrator.\n- The root cause was GitHub App actor identity drift between forms like `app/sepo-agent-app`, `sepo-agent-app[bot]`, and `sepo-agent-app`.\n- The PR now normalizes those actor variants, models terminal child resolution as trusted/rejected/none, adds a deduped visible stop comment for rejected terminal metadata, and updates tests and docs.\n- This also addresses the maintainer follow-up request to preserve regex-based actor normalization while adding thread-visible diagnostics for rejected or unresolvable markers.\n\n## Review\nAll reviewer inputs now point to a shippable PR. Claude noted a pre-existing maintenance risk around duplicated actor-normalization logic, but Codex and the rubrics review found no unresolved actionable issues, and Claude also marked the PR `SHIP`.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable issues | INFO | The earlier visible-stop gap has been fixed, and the current reviewer set reports no required branch-change work. Remaining notes are advisory or pre-existing maintenance concerns. |\n\n## Progress\n- The original #138 acceptance criteria are covered: trusted App-authored child markers are accepted, terminal child completion reports to the parent, and marker updates are tested.\n- The prior review blocker was addressed by adding a compact, hidden-marker-deduped visible stop comment for rejected or unresolvable terminal child metadata.\n- Ordinary terminal PR stops without sub-orchestrator metadata remain silent, matching the requested scope.\n- Docs were updated in [`.agent/docs/technical-details/agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/11d908f5edc0466b9bb8f663d48176af11bb08af/.agent/docs/technical-details/agent-orchestrator.md).\n- Existing older inline feedback on the first diagnostic helper is outdated by the follow-up structured rejection implementation, so no new inline comments were posted.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: no unresolved actionable branch work remains, and another automated fix-pr pass would only risk unnecessary churn.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-04T22:03:11Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/139#issuecomment-4374809620",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBMO3vA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #139.\n\nno rubric changes\n\nPR #139’s durable signals were already covered by existing active rubrics, especially `comment-on-accepted-workflow-stops`, `surface-stateful-failures`, `idempotent-user-facing-automation`, `compact-user-facing-status-comments`, `keep-docs-in-sync`, and `validate-delegated-route-authorization`.\n\nI did not add a duplicate rubric for the narrow GitHub App actor-normalization detail because it is project-specific implementation context, not a new reusable user/team preference.\n",
+      "createdAt": "2026-05-04T22:17:05Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/139#issuecomment-4374902716",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-04T20:30:47Z",
+  "files": [
+    {
+      "path": ".agent/docs/technical-details/agent-orchestrator.md",
+      "additions": 9,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrate-handoff-cli.test.ts",
+      "additions": 86,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/review-summary-minimize.test.ts",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrate-handoff.ts",
+      "additions": 171,
+      "deletions": 9,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/review-summary-minimize.ts",
+      "additions": 5,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-138/codex-25341635102",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": "2026-05-04T22:15:23Z",
+  "number": 139,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM77uyVa",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-04T20:39:13Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "02f775dfe6a9bef0c0358d9502a2d77a769d86a7"
+      }
+    }
+  ],
+  "state": "MERGED",
+  "title": "Trust app-authored sub-orchestrator child markers",
+  "updatedAt": "2026-05-04T22:17:05Z",
+  "url": "https://github.com/self-evolving/repo/pull/139"
+}

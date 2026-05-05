@@ -1,0 +1,112 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "agent/implement-issue-140/codex-25346725640",
+  "body": "## Summary\n- Add `project_id` / `project_url` dispatch inputs and `AGENT_PROJECT_MANAGEMENT_PROJECT_ID` / `AGENT_PROJECT_MANAGEMENT_PROJECT_URL` variable support.\n- Pass the resolved Project target into the project-manager prompt as experimental context only.\n- Update docs and envelope coverage for no-Project summary/dry-run behavior and legacy label opt-in boundaries.\n\n## Verification\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/envelope.test.js .agent/dist/__tests__/apply-project-management-labels-cli.test.js`\n- YAML parse check for `.github/workflows/agent-project-manager.yml`\n- `git diff --check`\n\nCloses #142\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBMXOrw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #143 | 3 / 40 | Dispatched |\n\nReason: implementation succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777934544440 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzNDczMTk5ODA6aW1wbGVtZW50OjE0MjpyZXZpZXc6MTQzOjM -->",
+      "createdAt": "2026-05-04T22:42:24Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/143#issuecomment-4375039663",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBMXwcA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Adds separate `project_id` and `project_url` workflow inputs plus separate `AGENT_PROJECT_MANAGEMENT_PROJECT_ID` / `AGENT_PROJECT_MANAGEMENT_PROJECT_URL` config paths in [`agent-project-manager.yml`](https://github.com/self-evolving/repo/blob/8c3fc34a3d704d245385c71942c1732db9fee0b1/.github/workflows/agent-project-manager.yml). |\n| coding_workflow / generic | Validate preview contracts | pass | 7/7 | The config step validates Project ID whitespace and Project URL shape before the agent runs, while docs and prompt preserve no-Project summary/dry-run behavior. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates architecture and configuration docs alongside workflow/prompt changes: [`project-planning.md`](https://github.com/self-evolving/repo/blob/8c3fc34a3d704d245385c71942c1732db9fee0b1/.agent/docs/architecture/project-planning.md), [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/8c3fc34a3d704d245385c71942c1732db9fee0b1/.agent/docs/architecture/supported-workflows.md), and [`configuration-list.md`](https://github.com/self-evolving/repo/blob/8c3fc34a3d704d245385c71942c1732db9fee0b1/.agent/docs/customization/configuration-list.md). |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR scope matches linked issue [#142](https://github.com/self-evolving/repo/issues/142) and parent plan [#126](https://github.com/self-evolving/repo/issues/126): config/docs boundary only, no Project creation, no variable mutation, no Project field sync. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is limited to the project-manager workflow, prompt, focused docs, and an envelope test; it does not alter unrelated routes or broader automation. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Threads the Project target through the existing `agent-project-manager.yml` and `project-manager.md` surfaces instead of adding a new route or rebuilding project-management machinery. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | Documentation describes behavior and boundaries conceptually; it does not add stale per-file inventory tables. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Implements the staged request with lightweight input resolution, prompt context, docs, and envelope assertions, while deferring setup route, Project creation, and field sync as requested. |\n\n## Notes\n\n- The strongest score drivers are that the PR stays inside the child issue’s intended boundary and keeps Project-backed management explicitly experimental/context-only.\n- The implementation also preserves the prior legacy/fallback label behavior from child issue `#140` while adding a Project target contract.\n- I did not rerun the PR’s tests; this review is scored from the live PR metadata, diff, linked issues, and stated verification.\n\n## Findings\n\n- **INFO:** No rubric-specific follow-up needed.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-04T22:44:14Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/143#issuecomment-4375048304",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBMZJkg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #143 implements child issue #142 under parent plan #126. It adds experimental GitHub Project target configuration for the project-manager workflow via Project ID/URL inputs and repo variables. The PR threads the resolved target into the project-manager prompt as context only, while preserving no-Project summary/dry-run behavior. It also updates docs and envelope coverage to keep Project-backed planning clearly separated from legacy/fallback priority and effort label writes.\n\n## Review\nBoth independent reviewers found the PR scoped correctly and did not identify blocking or required branch-change issues. One reviewer noted a few non-blocking implementation details, but they were informational and consistent with existing workflow patterns.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues found | INFO | The PR matches #142 and the staged #126 plan: Project target config is context-only, docs/tests are updated, and existing dry-run/legacy label behavior is preserved. |\n\n## Progress\n- Existing PR discussion includes an implementation summary and a rubrics review marked PASS.\n- Independent reviews agree there are no blocking issues.\n- No inline comments were posted because there were no unresolved, concrete, line-specific issues requiring direct reviewer feedback.\n- Non-blocking notes about empty manual inputs inheriting repo vars, loose Project ID shape validation, and currently unused raw outputs are informational.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved actionable branch changes remain for an automated fix-pr pass.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change action items.",
+      "createdAt": "2026-05-04T22:48:40Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/143#issuecomment-4375071122",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-04T22:42:09Z",
+  "files": [
+    {
+      "path": ".agent/docs/architecture/project-planning.md",
+      "additions": 12,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 24,
+      "deletions": 19,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 28,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/project-manager.md",
+      "additions": 8,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-project-manager.yml",
+      "additions": 53,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-142/codex-25347319980",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 143,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "OPEN",
+  "title": "Add Project target config for project management",
+  "updatedAt": "2026-05-04T22:48:40Z",
+  "url": "https://github.com/self-evolving/repo/pull/143"
+}

@@ -163,6 +163,43 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/133#issuecomment-4373315183",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBNj8pw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer so how would this benefit, say \"https://github.com/self-evolving/repo/pull/116\"? ",
+      "createdAt": "2026-05-05T03:14:34Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/133#issuecomment-4376296615",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBNkWHw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "For PR #116 specifically, this helps turn the update workflow from “diff files against some source ref” into “understand what Sepo version is installed, then update intentionally.”\n\nRight now #116 adds [`agent-update.yml`](https://github.com/self-evolving/repo/blob/3b839c629301d1b30c519857a66ee2640235e391/.github/workflows/agent-update.yml), which runs the [`update-agent`](https://github.com/self-evolving/repo/blob/3b839c629301d1b30c519857a66ee2640235e391/.skills/update-agent/SKILL.md) skill and opens a PR if syncing agent files creates changes. That is useful, but it does not know whether the target repo has Sepo `0.1.0`, `0.2.0`, a release tag, `main`, or a forked/custom install.\n\nThe version reader/CLI from #133 gives #116 a stable way to do this:\n\n- Before updating, read installed metadata from `.agent/sepo-version.json`.\n- After resolving the source repo/ref, read the candidate source metadata.\n- Put clear information in the update PR: `Update Sepo from 0.1.0 @ main to 0.2.0 @ v0.2.0`.\n- Skip or downgrade noisy scheduled checks when the installed version/source already matches.\n- Include old/new `source_repo`, `source_ref`, `source_sha`, and `agent_files_hash` in the PR body for auditability.\n- Avoid writing ad hoc JSON parsing in `agent-update.yml` or the update skill.\n\nSo for #116, the benefit is not that users manually run the CLI. The benefit is that the scheduled update workflow can consume one validated contract instead of guessing from file diffs.\n\nA practical follow-up after #133 would be:\n\n1. In `agent-update.yml`, run [`print-sepo-version`](https://github.com/self-evolving/repo/blob/19acd881c20fb001dcd80a1a371bf3161bb41067/.agent/src/cli/print-sepo-version.ts) before the update.\n2. Teach `update-agent` to preserve/update `.agent/sepo-version.json`.\n3. Make update PR titles/bodies show old -> new Sepo identity.\n4. Eventually make the scheduled check compare release metadata first, with file diff as validation/fallback.\n\nSo: #116 is the updater; #133 gives it the version/source identity it needs to be understandable and less “just compare against main.”",
+      "createdAt": "2026-05-05T03:16:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/133#issuecomment-4376303135",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-04T09:37:33Z",
@@ -241,6 +278,6 @@
   ],
   "state": "OPEN",
   "title": "Add Sepo version metadata reader CLI",
-  "updatedAt": "2026-05-04T18:06:57Z",
+  "updatedAt": "2026-05-05T03:16:28Z",
   "url": "https://github.com/self-evolving/repo/pull/133"
 }

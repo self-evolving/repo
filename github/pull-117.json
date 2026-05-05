@@ -171,6 +171,80 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/117#issuecomment-4365809124",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBNjeWw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer I think we should hold off this. I guess there are could be many cases for a failed execution and blindly report this at this moment can cause chaos. -> Can you create an idea about it in the discussion?",
+      "createdAt": "2026-05-05T03:12:20Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/117#issuecomment-4376288859",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBNkCUA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I agree we should hold PR #117 for now. This is broader than “post every nonzero exit”: PR #117 currently wires failure reporting directly into `run-agent-task` after failed exits, with public repos reporting by default to `self-evolving/repo` / `Bug Report` and fingerprinted Discussions ([action](https://github.com/self-evolving/repo/blob/958f3ffcbe7b39868206a0a35cb0e007c38860ef/.github/actions/run-agent-task/action.yml#L62), [trigger](https://github.com/self-evolving/repo/blob/958f3ffcbe7b39868206a0a35cb0e007c38860ef/.github/actions/run-agent-task/action.yml#L364), [docs](https://github.com/self-evolving/repo/blob/958f3ffcbe7b39868206a0a35cb0e007c38860ef/.agent/docs/architecture/supported-workflows.md#L101)). Even with dedupe/skips in the helper ([failure reporter](https://github.com/self-evolving/repo/blob/958f3ffcbe7b39868206a0a35cb0e007c38860ef/.agent/src/failure-report.ts#L380)), the product risk is real: auth setup issues, user prompt mistakes, expected timeouts, flaky provider/runtime errors, repo-specific config problems, and sensitive logs can all look like “agent failure” but should not automatically become central bug-report noise.\n\nI can’t directly create the GitHub Discussion from this `/answer` route, but here is a discussion-ready idea draft for the `Ideas` category:\n\n**Title:** Safer staged design for failed agent run reporting\n\n**Body:**\n\nWe should pause automatic failed-run reporting until we have a safer intake model.\n\nThe current direction from #26 / PR #117 is useful: failed Sepo runs from installed repositories should eventually help us discover bugs, group repeated failures by fingerprint, and manually promote actionable reports into Issues. However, blindly posting every failed execution can create noise and confusion because many failures are not product bugs.\n\nExamples:\n- Missing or invalid repository setup/secrets\n- GitHub token or permission problems\n- Provider outage, rate limit, or local runner issue\n- User prompt/task ambiguity\n- Expected workflow stop states such as `no_changes`, blocked clarification, or policy denial\n- Private or sensitive log content that should not leave the source repo\n- Transient network/runtime failures\n- Failures in the failure-reporting path itself\n\nProposed staged approach:\n\n1. **Hold automatic central reporting as default.**\n   Keep `AGENT_FAILURE_REPORT_ENABLED=false` or remove the PR’s default-on behavior until the reporting policy is more mature.\n\n2. **Start with local-only failure summaries.**\n   On failed runs, write a structured GitHub Actions step summary in the source repo: route, target, exit code, phase, sanitized tail, and suggested next action. No central Discussion post yet.\n\n3. **Add a failure classifier before reporting.**\n   Classify failures into buckets such as:\n   - `setup_or_auth`\n   - `provider_or_runtime`\n   - `repo_policy_or_access`\n   - `user_task_or_prompt`\n   - `agent_product_bug_candidate`\n   - `unknown`\n\n4. **Only report high-confidence product-bug candidates.**\n   Central reporting should require either:\n   - explicit maintainer opt-in, or\n   - classifier confidence above a threshold, plus redaction and dedupe.\n\n5. **Keep manual promotion to Issues.**\n   Discussions remain the intake/triage layer. Maintainers promote only confirmed actionable product bugs into Issues.\n\n6. **Use a conservative rollout.**\n   Phase 1: self-evolving/repo only.  \n   Phase 2: opt-in public repos.  \n   Phase 3: broader defaults only after we have metrics showing low noise and safe redaction.\n\nSuggested next step: close or park PR #117, capture this as an Ideas Discussion, and open a narrower follow-up issue for “local failure summary + classifier groundwork” before enabling central reporting.",
+      "createdAt": "2026-05-05T03:14:59Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/117#issuecomment-4376298064",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBNkFTg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer\r\n\r\nOr maybe the idea is that we should not automatically post by default, but this should be gated with user approval? ",
+      "createdAt": "2026-05-05T03:15:12Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/117#issuecomment-4376298830",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBNkSrA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, I think that is the better v1 shape.\n\nInstead of “failed run -> automatically post to central Bug Report Discussions,” make it:\n\n1. Failed run creates a **local pending report** only.\n   - GitHub Actions step summary\n   - maybe an artifact or hidden structured block\n   - sanitized failure summary, fingerprint, route, target, run URL\n\n2. Maintainer decides whether to publish it.\n   - Example command: `@sepo-agent /report-failure`\n   - Or a workflow dispatch input: `publish_failure_report=true`\n   - The approved report is then posted to `self-evolving/repo` Discussions.\n\n3. Repo-level config controls the mode:\n   - `AGENT_FAILURE_REPORT_ENABLED=false` by default\n   - `AGENT_FAILURE_REPORT_ENABLED=approval` for pending local reports\n   - `AGENT_FAILURE_REPORT_ENABLED=true` only for repos that explicitly want automatic central reporting\n\n4. Private repos should always require explicit opt-in and preferably per-report approval.\n\nThat keeps the useful part of PR #117: sanitization, fingerprinting, Discussion grouping, duplicate detection, and manual promote-to-Issue. But it removes the risky default behavior that could flood Discussions with setup mistakes, transient provider failures, auth issues, and ambiguous user-task failures.\n\nSo I’d update the discussion idea to say: **central failure reporting should be approval-gated by default, with automatic posting only as an explicit opt-in after we trust the classifier/dedupe path.**",
+      "createdAt": "2026-05-05T03:16:12Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/117#issuecomment-4376302252",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-03T08:26:43Z",
@@ -477,6 +551,6 @@
   ],
   "state": "OPEN",
   "title": "Report failed agent runs to Discussions",
-  "updatedAt": "2026-05-03T23:27:52Z",
+  "updatedAt": "2026-05-05T03:16:12Z",
   "url": "https://github.com/self-evolving/repo/pull/117"
 }

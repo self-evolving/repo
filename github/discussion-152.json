@@ -1,0 +1,38 @@
+{
+  "number": 152,
+  "title": "Add a tracking side for libraries installing / using sepo",
+  "url": "https://github.com/self-evolving/repo/discussions/152",
+  "body": "@sepo-agent /answer how could that be implemented?  -> for example, is there an easy way to list installed repos based on a github app ",
+  "createdAt": "2026-05-05T03:09:39Z",
+  "updatedAt": "2026-05-05T03:11:49Z",
+  "author": {
+    "login": "lolipopshock"
+  },
+  "category": {
+    "name": "Ideas"
+  },
+  "comments": {
+    "nodes": [
+      {
+        "id": "DC_kwDOSOhEMM4BAIa3",
+        "body": "Yes, but with an important distinction: **a GitHub App owner can list installations; an individual installed repo cannot discover all other installed repos.**\n\nCurrent Sepo has useful hooks for this already:\n\n- Installs copy `.agent/` and `.github/` into each target repo: https://github.com/self-evolving/repo/blob/main/.agent/docs/deployment/install-existing-repository.md#L11-L18\n- Each install carries `.agent/sepo-version.json`: https://github.com/self-evolving/repo/blob/main/.agent/docs/technical-details/versioning.md#L15-L45\n- Auth already supports official hosted app, self-managed GitHub App, PAT, and fallback token: https://github.com/self-evolving/repo/blob/main/.agent/docs/deployment/setup-guide.md#L10-L27\n- The shared auth action currently returns only a repo-scoped resolved token/auth mode: https://github.com/self-evolving/repo/blob/main/.github/actions/resolve-github-auth/action.yml#L25-L31\n\nImplementation approach:\n\n1. Add a maintainer-side “installation registry” job, not a normal per-repo Sepo workflow.\n2. Authenticate as the Sepo GitHub App itself using an app JWT.\n3. Call GitHub’s `GET /app/installations` endpoint to list app installations. GitHub requires a JWT for this endpoint; installation tokens/PATs do not work for the global app list. Docs: https://docs.github.com/en/rest/apps/apps#list-installations-for-the-authenticated-app\n4. For each installation, mint an installation token with `POST /app/installations/{installation_id}/access_tokens`.\n5. Use that installation token to call `GET /installation/repositories` and list repos accessible to that installation. Docs: https://docs.github.com/en/rest/apps/installations#list-repositories-accessible-to-the-app-installation\n6. For each repo, check whether `.agent/sepo-version.json` exists. That separates “GitHub App installed here” from “Sepo files are actually installed here.”\n7. Store a small registry artifact, for example:\n\n```json\n{\n  \"full_name\": \"owner/repo\",\n  \"installation_id\": 123,\n  \"visibility\": \"private\",\n  \"repository_selection\": \"selected\",\n  \"sepo_installed\": true,\n  \"version\": \"0.1.0\",\n  \"source_ref\": \"main\",\n  \"source_sha\": null,\n  \"last_seen_at\": \"2026-05-04T00:00:00Z\"\n}\n```\n\nWhere to put it:\n\n- For public/high-level tracking: generate a sanitized `data/sepo-installations.json` or markdown report in this repo.\n- For private/internal tracking: keep the full registry in a private backing store, artifact, or private branch because repo names from private installations may be sensitive.\n- For a dashboard: render the sanitized registry with GitHub Pages or a simple docs page.\n\nWhat I would add in this repo:\n\n1. `.agent/src/install-registry.ts` with Octokit helpers:\n   - list app installations\n   - mint installation tokens\n   - list repositories per installation\n   - read `.agent/sepo-version.json`\n2. `.agent/src/cli/sync-install-registry.ts` for a scheduled/manual command.\n3. A workflow like `.github/workflows/agent-install-registry.yml`, probably maintainer-only/scheduled.\n4. Docs under `.agent/docs/deployment/` explaining:\n   - “App installed” vs “Sepo installed”\n   - privacy policy for private repo names\n   - required app permissions\n   - hosted Sepo app vs bring-your-own-app behavior\n\nFor the official hosted Sepo app, this global registry should live on the Sepo side or in this repository’s maintainer automation, because normal customer repos only receive short-lived installation tokens through the OIDC broker. They should not be able to enumerate every other installation.\n\nMain clarification before coding: should the first version expose only aggregate/public-safe stats, or should maintainers have a private full repo-level registry?",
+        "createdAt": "2026-05-05T03:11:49Z",
+        "url": "https://github.com/self-evolving/repo/discussions/152#discussioncomment-16811703",
+        "author": {
+          "login": "sepo-agent-app"
+        },
+        "replies": {
+          "nodes": [],
+          "pageInfo": {
+            "hasNextPage": false,
+            "endCursor": null
+          }
+        }
+      }
+    ],
+    "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": null
+    }
+  }
+}
