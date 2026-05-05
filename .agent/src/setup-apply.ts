@@ -81,8 +81,11 @@ export interface SetupVariableApplyReport {
 interface ExistingComment {
   id: number;
   body: string;
+  authorLogin: string;
+  appSlug: string;
 }
 
+const DEFAULT_TRUSTED_SETUP_APPLY_COMMENT_AUTHORS = ["sepo-agent-app"];
 const GITHUB_LOGIN_PATTERN = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/;
 const PROJECT_URL_PATTERN = /^https:\/\/github\.com\/(orgs\/[^/]+|users\/[^/]+)\/projects\/[0-9]+([/?#].*)?$/;
 
@@ -729,13 +732,51 @@ export function formatSetupApplyAudit(input: {
 }
 
 function findSetupApplyComment(repo: string, issueNumber: number): ExistingComment | null {
+  const trustedLogins = trustedSetupApplyCommentLogins();
   const comments = parseIssueComments(gh([
     "api",
     "--paginate",
     "--slurp",
     `repos/${repo}/issues/${issueNumber}/comments`,
   ]));
-  return comments.find((comment) => String(comment.body || "").includes(SETUP_APPLY_COMMENT_MARKER)) || null;
+  return comments.find((comment) => (
+    String(comment.body || "").includes(SETUP_APPLY_COMMENT_MARKER) &&
+    isTrustedSetupApplyComment(comment, trustedLogins)
+  )) || null;
+}
+
+function trustedSetupApplyCommentLogins(): Set<string> {
+  const logins = new Set(DEFAULT_TRUSTED_SETUP_APPLY_COMMENT_AUTHORS.map(normalizeCommentLogin));
+  try {
+    const viewerLogin = gh([
+      "api",
+      "graphql",
+      "-f",
+      "query=query { viewer { login } }",
+      "--jq",
+      ".data.viewer.login",
+    ]).trim();
+    const normalized = normalizeCommentLogin(viewerLogin);
+    if (normalized) logins.add(normalized);
+  } catch {
+    // The default public app identity still lets hosted Sepo reruns reuse audit comments.
+  }
+  return logins;
+}
+
+function isTrustedSetupApplyComment(comment: ExistingComment, trustedLogins: Set<string>): boolean {
+  const authorLogin = normalizeCommentLogin(comment.authorLogin);
+  const appSlug = normalizeCommentLogin(comment.appSlug);
+  return (authorLogin !== "" && trustedLogins.has(authorLogin)) ||
+    (appSlug !== "" && trustedLogins.has(appSlug));
+}
+
+function normalizeCommentLogin(login: string): string {
+  return String(login || "")
+    .trim()
+    .toLowerCase()
+    .replace(/^app\//, "")
+    .replace(/\[bot\]$/, "");
 }
 
 function parseIssueComments(raw: string): ExistingComment[] {
@@ -754,7 +795,18 @@ function parseIssueComments(raw: string): ExistingComment[] {
     .map((entry) => ({
       id: entry.id,
       body: String(entry.body || ""),
+      authorLogin: issueCommentStringField(entry, "user", "login") ||
+        issueCommentStringField(entry, "author", "login"),
+      appSlug: issueCommentStringField(entry, "performed_via_github_app", "slug"),
     }));
+}
+
+function issueCommentStringField(entry: ExistingComment, objectKey: string, fieldKey: string): string {
+  const record = entry as unknown as Record<string, unknown>;
+  const container = record[objectKey];
+  if (!container || typeof container !== "object") return "";
+  const value = (container as Record<string, unknown>)[fieldKey];
+  return typeof value === "string" ? value : "";
 }
 
 function updateIssueComment(repo: string, commentId: number, body: string): void {

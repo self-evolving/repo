@@ -92,12 +92,17 @@ if [ "$1" = "variable" ] && [ "$2" = "set" ]; then
   exit 0
 fi
 
+if [ "$1" = "api" ] && [ "$2" = "graphql" ]; then
+  printf '%s\\n' "\${FAKE_GH_VIEWER_LOGIN:-sepo-agent-app[bot]}"
+  exit 0
+fi
+
 if [ "$1" = "api" ] && [ "$2" = "--paginate" ] && [ "$3" = "--slurp" ] && [ "$4" = "repos/self-evolving/repo/issues/42/comments" ]; then
   if [ -n "\${FAKE_GH_COMMENTS:-}" ]; then
     printf '%s\\n' "$FAKE_GH_COMMENTS"
   else
     cat <<'JSON'
-[[],[{"id":100,"body":"<!-- sepo-agent-setup-apply --> old"}]]
+[[],[{"id":100,"body":"<!-- sepo-agent-setup-apply --> old","user":{"login":"sepo-agent-app[bot]"},"performed_via_github_app":{"slug":"sepo-agent-app"}}]]
 JSON
   fi
   exit 0
@@ -184,6 +189,29 @@ test("setup-apply CLI creates the audit comment when no paginated marker exists"
     const logPath = writeFakeGh(tempDir);
     const result = runSetupApply(tempDir, {
       FAKE_GH_COMMENTS: "[[],[]]",
+      FAKE_GH_LOG: logPath,
+      GITHUB_REPOSITORY: "self-evolving/repo",
+      SETUP_APPLY_DRY_RUN: "true",
+      TARGET_NUMBER: "42",
+    });
+
+    assert.equal(result.status, 0, result.stderr);
+    const log = readFileSync(logPath, "utf8");
+    assert.match(log, /^api --paginate --slurp repos\/self-evolving\/repo\/issues\/42\/comments$/m);
+    assert.match(log, /^issue comment 42 --body /m);
+    assert.doesNotMatch(log, /^api -X PATCH repos\/self-evolving\/repo\/issues\/comments\/100/m);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("setup-apply CLI ignores untrusted marker comments", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-setup-apply-"));
+
+  try {
+    const logPath = writeFakeGh(tempDir);
+    const result = runSetupApply(tempDir, {
+      FAKE_GH_COMMENTS: '[[{"id":100,"body":"<!-- sepo-agent-setup-apply --> hostile","user":{"login":"external-user"}}]]',
       FAKE_GH_LOG: logPath,
       GITHUB_REPOSITORY: "self-evolving/repo",
       SETUP_APPLY_DRY_RUN: "true",
