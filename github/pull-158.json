@@ -106,8 +106,8 @@
       "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 93 | PARTIAL | 12 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | The new `publish-failure-report` route is routed through `agent-router.yml`, passes requester association to `agent-publish-failure-report.yml`, and the CLI rechecks `isAssociationAllowedForRoute(policy, ROUTE, association, isPublicRepo)` before publishing. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Docs now cover failure diagnosis modes, `/publish-failure-report`, token behavior, and unpublishable pending previews in `.agent/docs/actions/agent-actions.md`, `.agent/docs/architecture/supported-workflows.md`, configuration docs, and setup docs. |\n| coding_workflow / generic | Validate preview contracts | pass | 7/7 | `validateFailureReportDestination` validates `owner/repo` and category for pending output, and pending bodies surface `unpublishable preview`; tests cover this behavior in `failure-report.test.ts`. |\n| coding_workflow / generic | Make user-facing automation idempotent | partial | 5/7 | Publishing reuses an existing Discussion by exact title/fingerprint, but repeated publication of the same run/fingerprint still appends a new repeat-occurrence comment without checking the hidden occurrence marker. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The implementation reuses the shared `run-agent-task` failure hook, existing raw stdout/stderr outputs, shared access-policy helpers, and existing Discussion helpers instead of embedding new GitHub API logic in workflows. |\n| communication / generic | Keep status comments compact | pass | 6/6 | The generated diagnosis and publication summaries use short field tables and compact status text rather than raw log dumps. |\n| coding_workflow / generic | Make surgical changes | pass | 7/8 | The PR touches many workflows because the shared action inputs must be forwarded everywhere, but changes stay scoped to failure diagnosis/reporting, docs, and focused tests. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Adds separate mode, repository, category, token, run ID, attempt, artifact, and fingerprint inputs with explicit parsing/validation instead of overloading one command string. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #158 closes #156 and follows the accepted plan from the issue discussion: diagnosis, pending approval artifact, approved publish path, and explicit advanced auto-publish. |\n| coding_workflow / generic | Surface stateful failures | partial | 5/7 | Publication failures are surfaced through CLI outputs, step summary, and nonzero exit, but diagnosis and artifact upload steps in `run-agent-task` are `continue-on-error`, so artifact persistence failure can leave no publishable approval artifact without a dedicated warning/status. |\n| coding_style / generic | Prefer simple implementations | pass | 6/7 | Classification, destination validation, mode resolution, and publishing are deterministic and direct; complexity is mostly proportional to the new approval route surface. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | Documentation describes workflow behavior and configuration, not a per-file inventory table. |\n\n## Notes\n\n- The PR now satisfies the central #156 rubric-sensitive requirement: failed runs are diagnosed locally, public defaults are approval-gated, and approved publishing rechecks route authorization before creating/commenting on the central Discussion.\n- Remaining rubric gaps are not blocking, but they are worth tightening because this automation is explicitly rerunnable and stateful.\n\n## Findings\n\n- **WARNING:** `idempotent-user-facing-automation` - `publishFailureReportToDiscussion` finds the existing Discussion by title/fingerprint, but then always calls `addDiscussionComment` with `buildRepeatOccurrenceBody`. A rerun of the same approved artifact can duplicate the same occurrence comment instead of reusing the hidden `sepo-agent-failure-report-occurrence` marker.\n- **INFO:** `surface-stateful-failures` - `run-agent-task` marks both diagnosis and artifact upload as `continue-on-error`. That keeps the original agent failure intact, but if artifact upload fails the approval route has nothing durable to publish and the PR does not add a focused warning/status for that persistence failure.\n\n## Final Rubric Verdict\n\nPARTIAL",
       "createdAt": "2026-05-05T08:09:54Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/158#issuecomment-4377537570",
       "viewerDidAuthor": true
@@ -121,8 +121,8 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #158 adds approval-gated failed-agent-run diagnosis for issue #156, following the accepted `failure -> self-diagnosis -> pending report -> human approval -> central Discussion` flow.\n- It adds failure classification, redaction, fingerprinting, local JSON/pending-report artifacts, workflow wiring, docs, and explicit `/publish-failure-report` publishing.\n- A fix-pr pass already addressed the previous blocking gaps around the approval publish path, destination validation, product-bug classification, and approval-mode no-publish coverage.\n\n## Review\nThe previous NEEDS_REWORK items are resolved and no new blocking issue was found. Two concrete workflow/CLI bugs remain, both small enough for an automated fix-pr pass.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Routed publish run_attempt is overwritten | WARNING | Router-triggered `/publish-failure-report run_attempt=2` requests are overwritten to attempt `1`, so approval publishing can download the wrong artifact. |\n| Approved publish has no thread-visible completion status | WARNING | The publish workflow writes status only to the Actions summary, leaving the requester without a GitHub-visible Discussion URL or error reason. |\n| Optional hardening remains | INFO | Reviewers also noted repeat-occurrence comment idempotency and silent diagnosis-artifact persistence failures as useful follow-ups, but not blockers. |\n\n## Progress\n- Fixed: approval publishing now has a route/CLI/workflow and re-checks route authorization before Discussion publication.\n- Fixed: pending report destinations are validated and approval mode has zero-GraphQL regression coverage.\n- Fixed: generic JavaScript errors now require `.agent` stack evidence for high-confidence product-bug classification.\n- Posted inline comments for the `run_attempt` precedence bug and missing completion feedback; skipped duplicating the artifact-persistence note inline because the rubrics review already covers it.\n\n## Issue Details\n\n<details>\n<summary>Routed publish run_attempt is overwritten</summary>\n\n**Cause:** [`agent-router.yml`](https://github.com/self-evolving/repo/blob/16324200c758428723a0f1e658cd1c2cfeb99094/.github/workflows/agent-router.yml#L528-L534) only passes `request_text`, while [`agent-publish-failure-report.yml`](https://github.com/self-evolving/repo/blob/16324200c758428723a0f1e658cd1c2cfeb99094/.github/workflows/agent-publish-failure-report.yml#L57-L62) defaults `workflow_call.inputs.run_attempt` to `1`. The CLI then overwrites parsed request args at [`publish-approved-failure-report.ts`](https://github.com/self-evolving/repo/blob/16324200c758428723a0f1e658cd1c2cfeb99094/.agent/src/cli/publish-approved-failure-report.ts#L216).\n\n**Candidate solutions:** Use an empty `workflow_call` default and apply the `1` fallback only after parsing, or only override parsed args when a workflow input was explicitly supplied. Add a regression test for routed `run_attempt=2`.\n\n**Comments:** Codex found this; I posted an inline comment at the affected CLI line.\n\n</details>\n\n<details>\n<summary>Approved publish has no thread-visible completion status</summary>\n\n**Cause:** [`agent-publish-failure-report.yml`](https://github.com/self-evolving/repo/blob/16324200c758428723a0f1e658cd1c2cfeb99094/.github/workflows/agent-publish-failure-report.yml#L131) runs the publish CLI, but no later step posts the resulting status, Discussion URL, or error reason back to the trigger thread.\n\n**Candidate solutions:** Add a compact response comment after publishing, or expose workflow outputs and have the router post the status with the existing response/comment helper.\n\n**Comments:** Claude found this; I posted an inline comment on the publish step.\n\n</details>\n\n<details>\n<summary>Optional hardening remains</summary>\n\n**Cause:** `publishFailureReportToDiscussion` always appends a repeat comment for an existing Discussion without checking the hidden occurrence marker, and `run-agent-task` keeps diagnosis/upload best-effort with limited failure surfacing.\n\n**Candidate solutions:** Dedupe repeat comments by `sepo-agent-failure-report-occurrence`, and add a minimal warning/status when diagnosis or artifact upload fails.\n\n**Comments:** Reviewers differed on severity: Claude treated the artifact persistence signal as a warning, while the rubrics review marked it INFO/partial.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: the remaining required issues are concrete branch changes and are safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Preserve routed `run_attempt` values for `/publish-failure-report` comments and add regression coverage.\n- [ ] Add thread-visible completion feedback for approved failure-report publishing, including status and Discussion URL or error reason.",
       "createdAt": "2026-05-05T08:17:10Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/158#issuecomment-4377579320",
       "viewerDidAuthor": true
@@ -166,8 +166,8 @@
       "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #158 | 7 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr completed successfully for open PR #158 after addressing the MINOR_ISSUES review items, so one automated re-review is warranted to verify the latest fixes before stopping.\n\n<!-- sepo-agent-handoff state:dispatched created:1777969402190 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzNjU0Nzg4MzY6Zml4X3ByOjE1ODpyZXZpZXc6MTU4Ojc -->",
       "createdAt": "2026-05-05T08:23:22Z",
       "includesCreatedEdit": true,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/158#issuecomment-4377619728",
       "viewerDidAuthor": true
@@ -186,6 +186,246 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/158#issuecomment-4377637109",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBO4QnA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #158 implements issue #156’s approval-gated failed-agent diagnosis flow.\n- It adds local failure classification, redaction, fingerprinting, pending-report artifacts, explicit `/publish-failure-report` publishing, workflow wiring, docs, and tests.\n- Earlier review cycles found blocking gaps in the approval publish path, destination validation, classifier safety, and routed publish feedback; the PR has since addressed those.\n- The remaining concern is limited to classifier ordering for explicit auto-publish mode.\n\n## Review\nThe PR now matches the core accepted design and the previous blocking findings are resolved. One actionable safety issue remains: provider/runtime failures with `.agent` stack frames can still be promoted to high-confidence product bugs before provider markers are considered.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Provider failures can be auto-classified as product bugs | WARNING | `classifyFailure` checks generic `.agent` stack evidence before provider/runtime markers, so an adapter-side OpenAI 429 or rate-limit failure can become auto-publish eligible in explicit `true` mode. |\n| Optional hardening remains | INFO | Reviewers noted repeat-occurrence comment dedupe and visible diagnosis/artifact persistence warnings as useful follow-ups, but these are not required to satisfy the core #156 flow. |\n\n## Progress\n- Fixed: approval publishing now has a route/CLI/workflow and re-checks requester authorization.\n- Fixed: pending destinations are validated, and approval mode has zero-GraphQL coverage.\n- Fixed: routed `run_attempt` values are preserved and routed publish requests post completion status.\n- Already covered in PR discussion: repeat publication idempotency and best-effort artifact persistence notes.\n- Posted one new inline comment for the remaining classifier-ordering issue.\n\n## Issue Details\n\n<details>\n<summary>Provider failures can be auto-classified as product bugs</summary>\n\n**Cause:** [`classifyFailure`](https://github.com/self-evolving/repo/blob/dfcf7bb2ead12d5a7ef0102daddef6c7e15271c3/.agent/src/failure-report.ts#L205) returns `agent_product_bug_candidate` for any `.agent` stack evidence before it checks provider/runtime patterns such as `rate limit`, `429`, `openai`, or `provider`.\n\n**Candidate solutions:** Check provider/runtime markers before the generic agent-stack branch, or require a narrower agent-internal exception shape before assigning high-confidence product-bug status. Add a regression test for a provider error with an `.agent` adapter stack.\n\n**Comments:** Codex flagged this as the remaining warning; I posted an inline comment on line 205.\n\n</details>\n\n<details>\n<summary>Optional hardening remains</summary>\n\n**Cause:** Existing Discussions are reused by fingerprint, but repeat approved publication can still append duplicate occurrence comments. Separately, failure diagnosis and artifact upload remain best-effort with limited visible warning if persistence itself fails.\n\n**Candidate solutions:** Dedupe repeat comments by the hidden `sepo-agent-failure-report-occurrence` marker, and add a focused warning/status when diagnosis or artifact upload fails.\n\n**Comments:** Reviewers differed on severity here: rubrics marked these as partial rubric gaps, while code review treated them as non-blocking follow-ups.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: the remaining warning is a concrete, low-risk branch change with clear regression coverage.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Reorder or tighten failure classification so provider/runtime errors with `.agent` stack frames do not become high-confidence product-bug candidates, and add regression coverage.",
+      "createdAt": "2026-05-05T08:31:06Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/158#issuecomment-4377677980",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBO4k5w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #158 | 8 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis for open PR #158 has verdict MINOR_ISSUES and recommends FIX_PR; the remaining classifier-ordering issue is concrete, low-risk, and requires a branch change with regression coverage.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Reorder or tighten failure classification so provider/runtime errors with `.agent` stack frames do not become high-confidence product-bug candidates, and add regression coverage.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1777969916001 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzNjU2OTEwODY6cmV2aWV3OjE1ODpmaXhfcHI6MTU4Ojg -->",
+      "createdAt": "2026-05-05T08:31:56Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/158#issuecomment-4377683175",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBO5Mug",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-156/codex-25363409055`. Requested by @sepo-agent.\n\n- Reordered failure classification so provider/runtime markers win before generic `.agent` stack-frame product-bug classification.\n- Added regression coverage for an OpenAI 429/rate-limit adapter stack staying `provider_or_runtime` with low product-bug likelihood.\n- Checks passed: `npm --prefix .agent run build`, `node --test .agent/dist/__tests__/failure-report.test.js`, `git diff --check`.",
+      "createdAt": "2026-05-05T08:33:45Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/158#issuecomment-4377693370",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBO5iKQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #158 | 9 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr completed successfully for open PR #158 after addressing the latest MINOR_ISSUES classifier-ordering finding, so an automated re-review is warranted to verify the fix before stopping.\n\n<!-- sepo-agent-handoff state:dispatched created:1777970082948 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzNjYwNDYzNzM6Zml4X3ByOjE1ODpyZXZpZXc6MTU4Ojk -->",
+      "createdAt": "2026-05-05T08:34:43Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/158#issuecomment-4377698857",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBO6OAg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 93 | PARTIAL | 13 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | `/publish-failure-report` is routed through `agent-router.yml`, preserves requester association, and the publish CLI rechecks `isAssociationAllowedForRoute` before publishing. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Docs cover failure modes, `/publish-failure-report`, token behavior, pending previews, and routed completion status. |\n| coding_workflow / generic | Validate preview contracts | pass | 7/7 | `validateFailureReportDestination` validates pending report repository/category, and tests cover unpublishable previews. |\n| coding_workflow / generic | Make user-facing automation idempotent | partial | 5/7 | Existing Discussions are reused by title/fingerprint, but repeat publication still appends a new occurrence comment every time. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Reuses `run-agent-task`, access-policy helpers, captured raw stdout/stderr outputs, and shared Discussion helpers. |\n| communication / generic | Keep status comments compact | pass | 6/6 | Publication responses and diagnosis summaries use compact field tables instead of raw logs. |\n| coding_workflow / generic | Make surgical changes | pass | 7/8 | Many workflows are touched to forward shared action inputs, but the changes stay scoped to failure diagnosis/reporting, docs, and tests. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Adds separate typed inputs for mode, repository, category, token, run ID, attempt, artifact, and fingerprint. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #158 follows issue #156’s accepted approval-gated diagnosis plan rather than PR #117’s older direct-posting UX. |\n| coding_workflow / generic | Surface stateful failures | partial | 5/7 | Publish failures are surfaced, but diagnosis and artifact upload remain best-effort without a dedicated visible persistence-failure status. |\n| coding_style / generic | Prefer simple implementations | pass | 6/7 | Mode resolution, classification, validation, and publishing are deterministic; complexity is proportional to the new route. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | Documentation describes behavior and configuration, not a per-file inventory table. |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Routed publish requests post compact completion/failure status with Discussion URL or reason. |\n\n## Notes\n\n- The PR satisfies the core rubric-sensitive requirement from #156: local diagnosis, approval-gated public default, explicit approved publish route, and authorization recheck.\n- The remaining gaps are narrow and non-blocking for this rubric review.\n\n## Findings\n\n- **WARNING:** `idempotent-user-facing-automation` - [`publishFailureReportToDiscussion`](https://github.com/self-evolving/repo/blob/7506feec862688bdb10a8a1b58357b7490d75c07/.agent/src/failure-report.ts#L374-L392) finds an existing Discussion, then always calls `addDiscussionComment`. Re-running the same approved artifact can duplicate the same repeat occurrence comment.\n- **INFO:** `surface-stateful-failures` - [`run-agent-task`](https://github.com/self-evolving/repo/blob/7506feec862688bdb10a8a1b58357b7490d75c07/.github/actions/run-agent-task/action.yml#L383-L415) keeps diagnosis and artifact upload best-effort. That preserves the original failure, but artifact persistence failure can leave no publishable approval artifact without a focused visible warning.\n\n## Final Rubric Verdict\n\nPARTIAL",
+      "createdAt": "2026-05-05T08:36:39Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/158#issuecomment-4377710082",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBO9laA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #158 implements issue #156’s safer failed-agent-run flow: local diagnosis, redaction, fingerprinting, pending approval artifacts, and approved central Discussion publishing.\n- The PR is a rework of the older PR #117 direction, moving away from blind default auto-reporting toward `failure -> self-diagnosis -> pending report -> human approval -> central Discussion`.\n- Earlier review cycles found and fixed the approval publish path, destination validation, routed `run_attempt`, completion feedback, and classifier-ordering issues.\n- Current reviewers agree the core design is now in place, with remaining concerns focused on idempotency and redaction hardening.\n\n## Review\nThe PR is close, but two idempotency gaps can still produce duplicate central Discussion artifacts, and the sanitizer should cover more common CI secret shapes before these reports are uploaded or published.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Discussion reuse is not fingerprint-based | WARNING | Existing report lookup matches the generated title, not the hidden fingerprint marker, so one fingerprint can still create duplicate Discussions when headlines differ. |\n| Repeat occurrence comments are not deduped | WARNING | Re-running the same approved artifact always appends another occurrence comment instead of checking the hidden occurrence marker first. |\n| Failure redaction misses common CI secrets | WARNING | The sanitizer does not cover common credential shapes like AWS access key IDs or JWTs, leaving uploaded diagnosis artifacts at risk. |\n| Optional hardening remains | INFO | Reviewers noted route-default access, artifact persistence warnings, and template-default UX as follow-ups, but these need maintainer judgment or are already clearly discussed. |\n\n## Progress\n- Fixed: approval publishing route/CLI/workflow exists and re-checks requester authorization.\n- Fixed: pending destination validation, approval zero-GraphQL coverage, routed `run_attempt`, routed completion feedback, and provider/runtime classifier priority.\n- Existing PR discussion already covers repeat occurrence idempotency and artifact persistence concerns.\n- I posted inline comments for the fingerprint/title lookup issue and sanitizer credential gaps.\n\n## Issue Details\n\n<details>\n<summary>Discussion reuse is not fingerprint-based</summary>\n\n**Cause:** [`publishFailureReportToDiscussion`](https://github.com/self-evolving/repo/blob/7506feec862688bdb10a8a1b58357b7490d75c07/.agent/src/failure-report.ts#L379) calls `findRepositoryDiscussionByTitle` with the generated title. The fingerprint normalizes dynamic values, but the title uses the raw headline, so equivalent failures can miss the existing Discussion.\n\n**Candidate solutions:** Search by the hidden fingerprint marker, or add a Discussion helper that paginates/searches by fingerprint rather than exact title. Add regression coverage for same fingerprint with changed headline.\n\n**Comments:** Codex flagged this; I posted an inline comment on line 379.\n\n</details>\n\n<details>\n<summary>Repeat occurrence comments are not deduped</summary>\n\n**Cause:** [`addDiscussionComment`](https://github.com/self-evolving/repo/blob/7506feec862688bdb10a8a1b58357b7490d75c07/.agent/src/failure-report.ts#L387) is called unconditionally once an existing Discussion is found, even though repeat bodies include a hidden occurrence marker.\n\n**Candidate solutions:** Check existing Discussion comments for the occurrence marker before appending, and return an idempotent skipped/duplicate result or existing URL. Add a repeated approved-publish regression test.\n\n**Comments:** Claude, Codex, and the rubrics review all agree this is a real gap; I did not duplicate it inline because it is already covered in the PR discussion.\n\n</details>\n\n<details>\n<summary>Failure redaction misses common CI secrets</summary>\n\n**Cause:** [`sanitizeFailureEvidence`](https://github.com/self-evolving/repo/blob/7506feec862688bdb10a8a1b58357b7490d75c07/.agent/src/failure-report.ts#L141) covers GitHub/OpenAI-style tokens, PEM keys, auth headers, and generic key-value fields, but not standalone AWS access key IDs or JWT-shaped tokens.\n\n**Candidate solutions:** Add redaction for at least `AKIA[A-Z0-9]{16}` and JWT token shapes, with focused tests in `failure-report.test.ts`.\n\n**Comments:** Approval mode reduces publication risk, but the diagnosis artifact is still uploaded and retained before human review.\n\n</details>\n\n<details>\n<summary>Optional hardening remains</summary>\n\n**Cause:** Reviewers also noted the broad default access policy for `/publish-failure-report`, best-effort diagnosis/artifact upload without a dedicated visible persistence warning, and the template’s `self-evolving/repo` default.\n\n**Candidate solutions:** Consider documenting or tightening the route override recommendation, surfacing upload failures more explicitly, and clarifying template defaults for adopters.\n\n**Comments:** These are useful follow-ups but are not required branch-change work for this review synthesis.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: the remaining warnings are concrete, scoped branch changes with straightforward regression coverage.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Make central Discussion reuse match on the stable failure fingerprint marker rather than generated title, with regression coverage.\n- [ ] Dedupe repeat occurrence comments using the hidden occurrence marker, with regression coverage.\n- [ ] Extend failure evidence redaction for common CI credential shapes such as AWS access key IDs and JWTs, with tests.",
+      "createdAt": "2026-05-05T08:46:00Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/158#issuecomment-4377765224",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBO94eA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #158 | 10 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis for open PR #158 has verdict MINOR_ISSUES and recommends FIX_PR; the remaining idempotency and redaction gaps are concrete, scoped branch changes with regression coverage.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Make central Discussion reuse match on the stable failure fingerprint marker rather than generated title, with regression coverage.\n- Dedupe repeat occurrence comments using the hidden occurrence marker, with regression coverage.\n- Extend failure evidence redaction for common CI credential shapes such as AWS access key IDs and JWTs, with tests.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1777970809844 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzNjYxNjI2MDY6cmV2aWV3OjE1ODpmaXhfcHI6MTU4OjEw -->",
+      "createdAt": "2026-05-05T08:46:50Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/158#issuecomment-4377770104",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBO_KAQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-156/codex-25363409055`. Requested by @sepo-agent.\n\n- Reused central failure-report Discussions by the hidden fingerprint marker instead of generated titles.\n- Deduped repeat occurrence comments by their hidden occurrence marker and returned the existing comment URL when rerun.\n- Expanded failure-evidence redaction for AWS access key IDs and JWT-shaped tokens.\n- Added regression coverage for fingerprint reuse, occurrence dedupe, and new redactions; updated docs for the idempotency behavior.\n- Checks passed: `npm --prefix .agent run build`, `node --test .agent/dist/__tests__/failure-report.test.js`, `git diff --check`.",
+      "createdAt": "2026-05-05T08:50:13Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/158#issuecomment-4377790977",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBO_dyA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #158 | 11 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr completed successfully for open PR #158 after addressing the latest MINOR_ISSUES idempotency and redaction findings, so an automated re-review is warranted to verify the fixes before stopping.\n\n<!-- sepo-agent-handoff state:dispatched created:1777971060852 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzNjY2NzEyODI6Zml4X3ByOjE1ODpyZXZpZXc6MTU4OjEx -->",
+      "createdAt": "2026-05-05T08:51:01Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/158#issuecomment-4377796040",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBPAXPQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 96 | PARTIAL | 13 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | `/publish-failure-report` routes through `agent-router.yml`; the publish CLI rechecks `isAssociationAllowedForRoute` before reading/publishing artifacts ([publish-approved-failure-report.ts](https://github.com/self-evolving/repo/blob/0cd659ed5a871fb580130f852203f98bb28e2a29/.agent/src/cli/publish-approved-failure-report.ts#L105)). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Docs describe failure diagnosis modes, approval publishing, route authorization, idempotent Discussion reuse, and unpublishable previews ([supported-workflows.md](https://github.com/self-evolving/repo/blob/0cd659ed5a871fb580130f852203f98bb28e2a29/.agent/docs/architecture/supported-workflows.md#L136)). |\n| coding_workflow / generic | Validate preview contracts | pass | 7/7 | Pending report destinations are validated and warnings are surfaced; tests cover unpublishable pending previews ([failure-report.test.ts](https://github.com/self-evolving/repo/blob/0cd659ed5a871fb580130f852203f98bb28e2a29/.agent/src/__tests__/failure-report.test.ts#L109)). |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Central Discussions are reused by fingerprint marker and repeat occurrence comments are deduped ([failure-report.ts](https://github.com/self-evolving/repo/blob/0cd659ed5a871fb580130f852203f98bb28e2a29/.agent/src/failure-report.ts#L383)); regression tests cover both paths ([failure-report.test.ts](https://github.com/self-evolving/repo/blob/0cd659ed5a871fb580130f852203f98bb28e2a29/.agent/src/__tests__/failure-report.test.ts#L236)). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Reuses `run-agent-task`, shared access-policy helpers, captured raw stdout/stderr, and Discussion GraphQL helpers rather than embedding substantial API logic in workflow YAML. |\n| communication / generic | Keep status comments compact | pass | 6/6 | Routed publish responses and summaries use compact field tables, not raw logs ([publish-approved-failure-report.ts](https://github.com/self-evolving/repo/blob/0cd659ed5a871fb580130f852203f98bb28e2a29/.agent/src/cli/publish-approved-failure-report.ts#L193)). |\n| coding_workflow / generic | Make surgical changes | pass | 7/8 | The diff is broad because shared workflows forward new inputs, but changes stay scoped to failure diagnosis/reporting, docs, and targeted tests. |\n| coding_style / generic | Prefer simple implementations | pass | 6/7 | Mode resolution, classification, validation, and publishing are deterministic and direct; complexity is proportional to the new approval route. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Adds separate mode, repository, category, run ID, run attempt, artifact, fingerprint, and token inputs rather than overloading one field ([agent-publish-failure-report.yml](https://github.com/self-evolving/repo/blob/0cd659ed5a871fb580130f852203f98bb28e2a29/.github/workflows/agent-publish-failure-report.yml#L5)). |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR closes #156 and follows the accepted plan there: local diagnosis, pending approval artifact, approved publish path, and explicit advanced auto-publish. |\n| coding_workflow / generic | Surface stateful failures | partial | 5/7 | Publish failures are surfaced, but diagnosis and artifact upload are still `continue-on-error`, so artifact persistence failure lacks a dedicated warning/status path ([run-agent-task/action.yml](https://github.com/self-evolving/repo/blob/0cd659ed5a871fb580130f852203f98bb28e2a29/.github/actions/run-agent-task/action.yml#L383)). |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | Documentation describes behavior/configuration, not a per-file inventory table. |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Routed publish requests post completion/failure status back to the trigger surface when available ([agent-publish-failure-report.yml](https://github.com/self-evolving/repo/blob/0cd659ed5a871fb580130f852203f98bb28e2a29/.github/workflows/agent-publish-failure-report.yml#L159)). |\n\n## Notes\n\n- The current PR head satisfies the core rubric-sensitive design from #156: public defaults are approval-gated, private defaults diagnose locally, approved publishing rechecks authorization, and central reporting is idempotent by fingerprint/occurrence marker.\n- Smallest useful follow-up: add an explicit warning/status when failure diagnosis artifact upload fails, so approved publication cannot silently lose the durable artifact needed for retry.\n\n## Findings\n\n- **WARNING:** `surface-stateful-failures` - `.github/actions/run-agent-task/action.yml` keeps both the diagnosis step and artifact upload best-effort with `continue-on-error`. The original agent failure is still propagated, but if artifact upload fails there is no focused warning/status telling maintainers that the approval route will have no durable `diagnosis.json` to publish.\n\n## Final Rubric Verdict\n\nPARTIAL",
+      "createdAt": "2026-05-05T08:53:27Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/158#issuecomment-4377810749",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBPBkuA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #158 implements issue #156’s approval-gated failed-agent diagnosis flow.\n- It adds local failure classification, redaction, fingerprinting, JSON and pending-report artifacts, explicit approved publishing to central Discussions, workflow wiring, docs, and tests.\n- The current head has already fixed prior review items around approval publishing, destination validation, classifier ordering, routed `run_attempt`, completion feedback, fingerprint-based Discussion reuse, occurrence dedupe, and broader redaction.\n- The remaining concerns are narrow idempotency and observability gaps in rerun handling and artifact persistence.\n\n## Review\nThe PR now satisfies the core #156 design and is close to mergeable. Two concrete warnings remain: one can incorrectly collapse distinct rerun attempts, and one can leave maintainers without a clear signal when failure diagnosis persistence fails.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Repeat occurrence dedupe collapses distinct rerun attempts | WARNING | The occurrence marker keys on fingerprint plus `runId`, but GitHub reruns share `run_id` while using distinct `run_attempt` values and artifacts. |\n| Failure diagnosis persistence failures are not surfaced | WARNING | The diagnosis and artifact upload steps are best-effort with `continue-on-error`, so a failed artifact upload can leave no publishable `diagnosis.json` without a focused warning/status. |\n| Fingerprint lookup is bounded to the latest 50 Discussions | INFO | Fingerprint-based Discussion reuse now works, but the lookup can miss older matching reports once the intake has more than 50 newer Discussions. |\n\n## Progress\n- Fixed: approval publishing route/CLI/workflow exists and re-checks requester authorization.\n- Fixed: pending destination validation, approval no-GraphQL coverage, routed `run_attempt`, routed completion feedback, and provider/runtime classifier priority.\n- Fixed: central Discussion reuse now uses fingerprint markers, repeat comments are deduped, and AWS/JWT redaction coverage was added.\n- Claude’s review file is from an older head, and its blocking/warning findings are resolved by later fix-pr passes.\n- Posted one new inline comment for the rerun-attempt occurrence marker issue.\n\n## Issue Details\n\n<details>\n<summary>Repeat occurrence dedupe collapses distinct rerun attempts</summary>\n\n**Cause:** [`publishFailureReportToDiscussion`](https://github.com/self-evolving/repo/blob/0cd659ed5a871fb580130f852203f98bb28e2a29/.agent/src/failure-report.ts#L397) builds the occurrence marker from fingerprint and `diagnosis.source.runId`, but not `diagnosis.source.runAttempt`.\n\n**Candidate solutions:** Include `diagnosis.source.runAttempt || \"1\"` in the occurrence marker and update marker tests to cover two attempts for the same run ID.\n\n**Comments:** Codex found this on the current head; I posted an inline comment at line 397.\n\n</details>\n\n<details>\n<summary>Failure diagnosis persistence failures are not surfaced</summary>\n\n**Cause:** [`run-agent-task`](https://github.com/self-evolving/repo/blob/0cd659ed5a871fb580130f852203f98bb28e2a29/.github/actions/run-agent-task/action.yml#L383) keeps both diagnosis generation and artifact upload as best-effort steps. The original agent failure is propagated, but upload failure can silently remove the durable artifact needed by `/publish-failure-report`.\n\n**Candidate solutions:** Add focused warning/status steps for diagnosis or artifact upload failure, ideally writing to the Actions summary and logs without masking the original agent exit code. Add a regression or workflow-structure assertion for the warning path.\n\n**Comments:** Rubrics review flags this under `surface-stateful-failures`.\n\n</details>\n\n<details>\n<summary>Fingerprint lookup is bounded to the latest 50 Discussions</summary>\n\n**Cause:** [`findRepositoryDiscussionByBodyMarker`](https://github.com/self-evolving/repo/blob/0cd659ed5a871fb580130f852203f98bb28e2a29/.agent/src/discussion.ts#L250) only scans the first page of recent Discussions.\n\n**Candidate solutions:** Consider pagination or a search path keyed by the hidden fingerprint marker.\n\n**Comments:** This is a scale/idempotency edge case, not required for the current branch-change pass.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: the remaining warnings are concrete, scoped branch changes with straightforward regression coverage.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Include `run_attempt` in failure-report occurrence markers and add regression coverage for two attempts of the same run.\n- [ ] Surface diagnosis or artifact upload persistence failures with a focused warning/status while preserving the original agent failure.",
+      "createdAt": "2026-05-05T08:56:37Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/158#issuecomment-4377830584",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBPB5HQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #158 | 12 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis for open PR #158 has verdict MINOR_ISSUES and recommends FIX_PR; the remaining rerun marker and persistence-warning gaps are concrete, scoped branch changes with regression coverage.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Include `run_attempt` in failure-report occurrence markers and add regression coverage for two attempts of the same run.\n- Surface diagnosis or artifact upload persistence failures with a focused warning/status while preserving the original agent failure.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1777971450480 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzNjY4NDc1NzU6cmV2aWV3OjE1ODpmaXhfcHI6MTU4OjEy -->",
+      "createdAt": "2026-05-05T08:57:30Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/158#issuecomment-4377835805",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBPDnaQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-156/codex-25363409055`. Requested by @sepo-agent.\n\n- Included `run_attempt` in failure-report occurrence markers and added regression coverage for two attempts of the same run.\n- Added a non-failing persistence status/warning path for diagnosis or artifact upload failures while preserving the original agent exit code.\n- Updated failure-report and internal action docs for attempt-aware dedupe and persistence warnings.\n- Checks passed: `npm --prefix .agent run build`, `node --test .agent/dist/__tests__/failure-report.test.js`, `node --test .agent/dist/__tests__/envelope.test.js`, `git diff --check`.",
+      "createdAt": "2026-05-05T09:02:13Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/158#issuecomment-4377864041",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBPD7yA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #158 | 13 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr completed successfully for open PR #158 after addressing the latest idempotency and redaction findings, so one automated re-review is warranted before stopping.\n\n<!-- sepo-agent-handoff state:dispatched created:1777971783104 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUzNjcxMzAyMTQ6Zml4X3ByOjE1ODpyZXZpZXc6MTU4OjEz -->",
+      "createdAt": "2026-05-05T09:03:03Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/158#issuecomment-4377869256",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBPE0bw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 97 | PARTIAL | 13 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | `/publish-failure-report` is routed through `agent-router.yml`, and the publish CLI rechecks `isAssociationAllowedForRoute(policy, ROUTE, association, isPublicRepo)` before publishing: https://github.com/self-evolving/repo/blob/b8ba0d5cc50c095f1f228b5b65bb5f2c795a1294/.agent/src/cli/publish-approved-failure-report.ts#L105 |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Docs were updated for diagnosis modes, approval publishing, persistence warnings, idempotent reuse, and token behavior: https://github.com/self-evolving/repo/blob/b8ba0d5cc50c095f1f228b5b65bb5f2c795a1294/.agent/docs/architecture/supported-workflows.md#L136 |\n| coding_workflow / generic | Validate preview contracts | pass | 7/7 | Pending destinations are validated and unpublishable previews are surfaced in output; tests cover malformed repository warnings: https://github.com/self-evolving/repo/blob/b8ba0d5cc50c095f1f228b5b65bb5f2c795a1294/.agent/src/__tests__/failure-report.test.ts#L109 |\n| coding_workflow / generic | Make user-facing automation idempotent | partial | 6/7 | Discussions are reused by hidden fingerprint marker and repeat comments are deduped by run attempt, but Discussion lookup scans only the latest 50 Discussions: https://github.com/self-evolving/repo/blob/b8ba0d5cc50c095f1f228b5b65bb5f2c795a1294/.agent/src/discussion.ts#L240 |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Reuses shared `run-agent-task`, access-policy helpers, captured stdout/stderr, and Discussion GraphQL helpers rather than embedding API logic in workflow glue. |\n| communication / generic | Keep status comments compact | pass | 6/6 | The publish route writes compact completion/status output and uses `post-response.js` for thread-visible replies: https://github.com/self-evolving/repo/blob/b8ba0d5cc50c095f1f228b5b65bb5f2c795a1294/.github/workflows/agent-publish-failure-report.yml#L159 |\n| coding_workflow / generic | Make surgical changes | pass | 7/8 | The diff is broad because shared workflows forward new failure-report inputs, but the changes stay scoped to failure diagnosis/reporting, docs, and targeted tests. |\n| coding_style / generic | Prefer simple implementations | pass | 6/7 | Mode resolution, classification, destination validation, and publication paths are deterministic and direct; added complexity is proportional to the approval route. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Adds separate mode, repository, category, token, run ID, run attempt, artifact, and fingerprint inputs instead of overloading a single string: https://github.com/self-evolving/repo/blob/b8ba0d5cc50c095f1f228b5b65bb5f2c795a1294/.github/workflows/agent-publish-failure-report.yml#L5 |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #158 closes #156 and implements the accepted plan from that issue: local diagnosis, pending approval artifact, approval publish path, and explicit auto-publish. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Diagnosis/artifact persistence failures now emit a dedicated warning/status while preserving the original agent exit code: https://github.com/self-evolving/repo/blob/b8ba0d5cc50c095f1f228b5b65bb5f2c795a1294/.github/actions/run-agent-task/action.yml#L430 |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | Documentation describes behavior and configuration; it does not add a per-file inventory table. |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Routed publish requests post success/failure status back to the trigger surface when response context is available: https://github.com/self-evolving/repo/blob/b8ba0d5cc50c095f1f228b5b65bb5f2c795a1294/.github/workflows/agent-publish-failure-report.yml#L159 |\n\n## Notes\n\n- The current PR head satisfies the core rubric-sensitive design from #156: public repos default to approval-gated diagnosis, private repos default to local diagnosis, approved publishing rechecks access policy, and reporting is deduped by fingerprint plus run attempt.\n- Smallest useful follow-up: consider paginating `findRepositoryDiscussionByBodyMarker` so older matching failure-report Discussions are still reused after more than 50 newer Discussions.\n\n## Findings\n\n- **INFO:** `idempotent-user-facing-automation` - fingerprint-based reuse is implemented, but `findRepositoryDiscussionByBodyMarker` only scans `discussions(first: 50)`. High-volume intake repositories can still create a duplicate central Discussion if the matching fingerprint is older than that first page.\n\n## Final Rubric Verdict\n\nPARTIAL",
+      "createdAt": "2026-05-05T09:05:17Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/158#issuecomment-4377883759",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBPQnww",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #158 replaces the older blind failure-reporting approach with local failed-agent-run diagnosis.\n- It adds typed failure classification, redaction, fingerprinting, JSON and pending-report artifacts, workflow wiring, docs, and four modes: `false`, `diagnose`, `approval`, and explicit policy-gated `true`.\n- The PR closes #156, whose accepted context points to the flow `failure -> self-diagnosis -> pending report -> human approval -> central Discussion`.\n- The implementation covers the diagnosis and pending-draft pieces, but reviewers disagree on whether the human-approved publish path is required in this PR.\n\n## Review\nThe PR is directionally aligned with the safer diagnosis-first model, but it does not yet complete the accepted approval-gated workflow. The main disagreement is that the rubrics review considered pending artifacts sufficient for the core UX, while the code review and linked #156/#117 context treat the missing approved publish path as blocking.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Approval publish path is missing | BLOCKING | `approval` mode writes a pending artifact, but no route, CLI, or workflow consumes it after human approval and publishes/comments to the central Discussion. |\n| Pending report destination is not validated in preview | WARNING | `approval` mode can emit a clean pending artifact with an invalid report repository/category, while publish validation only happens later in explicit `true` mode. |\n| Product-bug classifier over-promotes generic JavaScript errors | WARNING | Generic `TypeError`, `ReferenceError`, and `SyntaxError` logs become high-confidence product-bug candidates even without `.agent` stack evidence. |\n| Approval publish guard lacks regression coverage | WARNING | Tests cover explicit `true` publishing, but not that `approval` mode makes zero GraphQL calls. |\n| Optional hardening remains | INFO | Reviewers noted provider-name overmatching, repeat-comment idempotency, cross-tenant default concerns, and partial classifier coverage as secondary follow-ups. |\n\n## Progress\n- PR #158 already implements local diagnosis, redaction, fingerprinting, pending draft artifacts, workflow forwarding, and docs.\n- The existing rubrics review already posted the pending-preview validation concern and repeat-comment idempotency note.\n- Inline comments were posted for the missing approval publish path, the generic JavaScript error classifier, and the missing approval-mode no-GraphQL test.\n- No duplicate inline comment was posted for preview validation because it is already clearly covered in the PR discussion.\n\n## Issue Details\n\n<details>\n<summary>Approval publish path is missing</summary>\n\n**Cause:** [`diagnose-agent-failure.ts`](https://github.com/self-evolving/repo/blob/8526f446dbe42585c9cc3bab83861955246fdd40/.agent/src/cli/diagnose-agent-failure.ts#L131) writes `pending-report.md` for `approval` mode, but the PR adds no approved publish route/CLI/workflow that reads the pending report, re-checks requester authorization, and posts it to Discussions.\n\n**Candidate solutions:** Add an approval publish path, for example a route or workflow dispatch that accepts a fingerprint/artifact reference, validates authorization, and calls the existing Discussion helper. If maintainers intentionally want manual copy-paste only, re-scope the docs and PR closure so it no longer claims the full approval-gated central-report flow.\n\n**Comments:** This is the main reviewer disagreement. Based on #156 and the linked PR #117 plan, the synthesis treats the approved publish step as required.\n\n</details>\n\n<details>\n<summary>Pending report destination is not validated in preview</summary>\n\n**Cause:** [`buildFailureReport`](https://github.com/self-evolving/repo/blob/8526f446dbe42585c9cc3bab83861955246fdd40/.agent/src/failure-report.ts#L281) builds the proposed Discussion from raw repository/category strings, while `parseRepoSlug` is only reached in [`publishFailureReport`](https://github.com/self-evolving/repo/blob/8526f446dbe42585c9cc3bab83861955246fdd40/.agent/src/failure-report.ts#L339).\n\n**Candidate solutions:** Validate the `owner/repo` shape and non-empty category while building the proposed report, or surface an explicit warning/status in the diagnosis artifact when the pending report cannot be published.\n\n</details>\n\n<details>\n<summary>Product-bug classifier over-promotes generic JavaScript errors</summary>\n\n**Cause:** [`classifyFailure`](https://github.com/self-evolving/repo/blob/8526f446dbe42585c9cc3bab83861955246fdd40/.agent/src/failure-report.ts#L197) uses one flat OR block for generic JavaScript error names and `.agent/` stack evidence.\n\n**Candidate solutions:** Require `.agent` stack-frame evidence for high-confidence `agent_product_bug_candidate`, or classify generic JavaScript errors without agent frames at lower confidence so explicit `true` mode does not auto-publish user-code failures.\n\n</details>\n\n<details>\n<summary>Approval publish guard lacks regression coverage</summary>\n\n**Cause:** [`failure-report.test.ts`](https://github.com/self-evolving/repo/blob/8526f446dbe42585c9cc3bab83861955246fdd40/.agent/src/__tests__/failure-report.test.ts#L169) covers `true` publish/create/comment paths, but not the issue-planned guard that `approval` mode performs no GraphQL calls.\n\n**Candidate solutions:** Add a unit test that builds an `approval` report, calls `publishFailureReport` with a queued GraphQL client, and asserts status `skipped` plus zero calls.\n\n</details>\n\n<details>\n<summary>Optional hardening remains</summary>\n\n**Cause:** Lower-priority reviewer notes include broad `/openai/` and `/anthropic/` provider matches, repeat occurrences always adding comments, the default central report repository, and limited classifier category tests.\n\n**Candidate solutions:** Tighten provider patterns to require error context, dedupe repeat comments by hidden occurrence marker, revisit defaults for external deployments, and add classifier coverage for remaining categories.\n\n**Comments:** These are useful follow-ups but are secondary to completing the approval flow and preview/test guards.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: the unresolved findings require concrete branch changes and are safe for an automated fix-pr pass guided by the accepted #156 flow.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Add an approval publish route/CLI/workflow that consumes pending failure reports, re-checks requester authorization, and creates/comments the central Discussion.\n- [ ] Validate report repository/category for pending approval output, or surface an explicit unpublishable-preview warning.\n- [ ] Tighten product-bug classification so generic JavaScript errors require `.agent` stack evidence for high-confidence reportability.\n- [ ] Add a regression test proving `approval` mode makes zero GraphQL calls.",
+      "createdAt": "2026-05-05T09:34:41Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/158#issuecomment-4378077123",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-05T07:41:37Z",
@@ -198,7 +438,7 @@
     },
     {
       "path": ".agent/docs/actions/agent-actions.md",
-      "additions": 11,
+      "additions": 13,
       "deletions": 2,
       "changeType": "MODIFIED"
     },
@@ -210,7 +450,7 @@
     },
     {
       "path": ".agent/docs/architecture/supported-workflows.md",
-      "additions": 28,
+      "additions": 33,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
@@ -228,13 +468,13 @@
     },
     {
       "path": ".agent/src/__tests__/envelope.test.ts",
-      "additions": 63,
+      "additions": 66,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/__tests__/failure-report.test.ts",
-      "additions": 252,
+      "additions": 370,
       "deletions": 0,
       "changeType": "ADDED"
     },
@@ -258,7 +498,7 @@
     },
     {
       "path": ".agent/src/discussion.ts",
-      "additions": 6,
+      "additions": 119,
       "deletions": 2,
       "changeType": "MODIFIED"
     },
@@ -270,7 +510,7 @@
     },
     {
       "path": ".agent/src/failure-report.ts",
-      "additions": 628,
+      "additions": 672,
       "deletions": 0,
       "changeType": "ADDED"
     },
@@ -282,7 +522,7 @@
     },
     {
       "path": ".github/actions/run-agent-task/action.yml",
-      "additions": 78,
+      "additions": 113,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
@@ -390,6 +630,18 @@
       "name": "agent",
       "description": "Handled by the agent",
       "color": "0e8a16"
+    },
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChVB4QQ",
+      "name": "priority/p1",
+      "description": "Project management: high priority",
+      "color": "d93f0b"
+    },
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChVB5Zw",
+      "name": "effort/high",
+      "description": "Project management: high effort",
+      "color": "d73a4a"
     }
   ],
   "mergedAt": null,
@@ -470,10 +722,70 @@
       "commit": {
         "oid": "16324200c758428723a0f1e658cd1c2cfeb99094"
       }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM776dS7",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-05T08:30:25Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "dfcf7bb2ead12d5a7ef0102daddef6c7e15271c3"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM776zK9",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-05T08:45:06Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "7506feec862688bdb10a8a1b58357b7490d75c07"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM776zLA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-05T08:45:06Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "7506feec862688bdb10a8a1b58357b7490d75c07"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM777ENZ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-05T08:56:03Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "0cd659ed5a871fb580130f852203f98bb28e2a29"
+      }
     }
   ],
   "state": "OPEN",
   "title": "Add approval-gated agent failure diagnosis",
-  "updatedAt": "2026-05-05T08:25:13Z",
+  "updatedAt": "2026-05-05T09:34:41Z",
   "url": "https://github.com/self-evolving/repo/pull/158"
 }
