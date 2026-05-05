@@ -61,6 +61,7 @@ export const VALID_ROUTES = new Set([
   "dispatch",
   "orchestrator",
   "skill",
+  "publish-failure-report",
   "rubrics-review",
   "rubrics-initialization",
   "rubrics-update",

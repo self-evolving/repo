@@ -109,6 +109,10 @@ test("extractRequestedRoute detects explicit slash routes after the agent mentio
     extractRequestedRoute("@sepo-agent /create-action monitor flaky tests", "@sepo-agent"),
     "create-action",
   );
+  assert.equal(
+    extractRequestedRoute("@sepo-agent /publish-failure-report run_id=123", "@sepo-agent"),
+    "publish-failure-report",
+  );
 });
 
 test("extractRequestedRouteDecision detects mention-based skill requests", () => {
@@ -180,6 +184,16 @@ test("buildRequestedRouteDecision supports skill routes", () => {
   const d = buildRequestedRouteDecision("skill", "agent/s/release-notes");
   assert.equal(d.route, "skill");
   assert.equal(d.needsApproval, false);
+});
+
+test("buildRequestedRouteDecision supports approved failure report publishing", () => {
+  const d = buildRequestedRouteDecision(
+    "publish-failure-report",
+    "@sepo-agent /publish-failure-report run_id=123",
+  );
+  assert.equal(d.route, "publish-failure-report");
+  assert.equal(d.needsApproval, false);
+  assert.equal(d.issueTitle, "");
 });
 
 test("resolveRequestedLabel maps built-in and skill labels", () => {
@@ -356,6 +370,44 @@ test("applyDispatchPolicy keeps skill requests as immediate inline runs", () => 
   );
   assert.equal(d.route, "skill");
   assert.equal(d.needsApproval, false);
+});
+
+test("applyDispatchPolicy keeps approved failure report publishing policy-gated", () => {
+  const d = applyDispatchPolicy(
+    buildRequestedRouteDecision("publish-failure-report", "@sepo-agent /publish-failure-report run_id=123"),
+    "issue",
+    "COLLABORATOR",
+    parseAccessPolicy(
+      JSON.stringify({
+        route_overrides: {
+          "publish-failure-report": ["OWNER", "MEMBER", "COLLABORATOR"],
+        },
+      }),
+    ),
+    true,
+    true,
+  );
+  assert.equal(d.route, "publish-failure-report");
+  assert.equal(d.needsApproval, false);
+});
+
+test("applyDispatchPolicy denies approved failure publishing when route override excludes requester", () => {
+  const d = applyDispatchPolicy(
+    buildRequestedRouteDecision("publish-failure-report", "@sepo-agent /publish-failure-report run_id=123"),
+    "issue",
+    "CONTRIBUTOR",
+    parseAccessPolicy(
+      JSON.stringify({
+        route_overrides: {
+          "publish-failure-report": ["OWNER", "MEMBER", "COLLABORATOR"],
+        },
+      }),
+    ),
+    true,
+    true,
+  );
+  assert.equal(d.route, "unsupported");
+  assert.match(d.summary, /OWNER, MEMBER, COLLABORATOR/);
 });
 
 test("applyDispatchPolicy rejects routes disallowed by configured access policy", () => {

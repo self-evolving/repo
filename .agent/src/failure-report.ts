@@ -54,6 +54,8 @@ export interface ProposedDiscussion {
   title: string;
   body: string;
   shouldPublish: boolean;
+  publishable: boolean;
+  warning: string;
 }
 
 export interface FailureDiagnosis {
@@ -154,6 +156,11 @@ export function classifyFailure(rawStdout: string, rawStderr: string): {
   productBugLikelihood: ProductBugLikelihood;
 } {
   const evidence = sanitizeFailureEvidence(`${rawStderr}\n${rawStdout}`).toLowerCase();
+  const hasAgentStackEvidence = matchesAny(evidence, [
+    /\.agent\/dist\//,
+    /\.agent\/src\//,
+    /\bat .+\(.+\.agent\//,
+  ]);
 
   if (matchesAny(evidence, [
     /agent_access_policy/,
@@ -194,17 +201,14 @@ export function classifyFailure(rawStdout: string, rawStderr: string): {
     };
   }
 
-  if (matchesAny(evidence, [
-    /typeerror/,
-    /referenceerror/,
-    /syntaxerror/,
-    /unhandledpromiserejection/,
-    /cannot find module/,
-    /err_module_not_found/,
-    /\.agent\/dist\//,
-    /\.agent\/src\//,
-    /\bat .+\(.+\.agent\//,
-  ])) {
+  if (
+    hasAgentStackEvidence ||
+    matchesAny(evidence, [
+      /unhandledpromiserejection/,
+      /cannot find module/,
+      /err_module_not_found/,
+    ])
+  ) {
     return {
       category: "agent_product_bug_candidate",
       confidence: "high",
@@ -328,6 +332,13 @@ export function publishFailureReport(
   if (diagnosis.mode !== "true") {
     return { status: "skipped", url: "", reason: `mode ${diagnosis.mode} does not publish` };
   }
+  if (diagnosis.proposedDiscussion.publishable === false) {
+    return {
+      status: "skipped",
+      url: "",
+      reason: diagnosis.proposedDiscussion.warning || "pending Discussion destination is not publishable",
+    };
+  }
   if (!diagnosis.proposedDiscussion.shouldPublish) {
     return {
       status: "skipped",
@@ -336,6 +347,34 @@ export function publishFailureReport(
     };
   }
 
+  return publishFailureReportToDiscussion(diagnosis, client);
+}
+
+export function publishApprovedFailureReport(
+  diagnosis: FailureDiagnosis,
+  client?: GraphQLClient,
+): FailurePublication {
+  if (diagnosis.mode !== "approval") {
+    return {
+      status: "skipped",
+      url: "",
+      reason: `mode ${diagnosis.mode} is not pending approval`,
+    };
+  }
+  if (diagnosis.proposedDiscussion.publishable === false) {
+    return {
+      status: "skipped",
+      url: "",
+      reason: diagnosis.proposedDiscussion.warning || "pending Discussion destination is not publishable",
+    };
+  }
+  return publishFailureReportToDiscussion(diagnosis, client);
+}
+
+function publishFailureReportToDiscussion(
+  diagnosis: FailureDiagnosis,
+  client?: GraphQLClient,
+): FailurePublication {
   const { owner, repo } = parseRepoSlug(diagnosis.proposedDiscussion.repository);
   const existing = findRepositoryDiscussionByTitle(
     owner,
@@ -364,6 +403,39 @@ export function publishFailureReport(
   return { status: "created", url: created.url, reason: "created failure report discussion" };
 }
 
+export interface FailureReportDestinationValidation {
+  repository: string;
+  category: string;
+  publishable: boolean;
+  warning: string;
+}
+
+export function validateFailureReportDestination(
+  reportRepository: string,
+  discussionCategory: string,
+): FailureReportDestinationValidation {
+  const repository = String(reportRepository || "").trim() || DEFAULT_REPORT_REPOSITORY;
+  const category = String(discussionCategory || "").trim() || DEFAULT_DISCUSSION_CATEGORY;
+  let warning = "";
+
+  try {
+    parseRepoSlug(repository);
+  } catch (err: unknown) {
+    warning = err instanceof Error ? err.message : String(err);
+  }
+
+  if (!warning && !category.trim()) {
+    warning = "failure report discussion category must be non-empty";
+  }
+
+  return {
+    repository,
+    category,
+    publishable: !warning,
+    warning,
+  };
+}
+
 function buildProposedDiscussion(args: {
   reportRepository: string;
   discussionCategory: string;
@@ -379,6 +451,10 @@ function buildProposedDiscussion(args: {
   stdoutTail: string;
   stderrTail: string;
 }): ProposedDiscussion {
+  const destination = validateFailureReportDestination(
+    args.reportRepository,
+    args.discussionCategory,
+  );
   const title = `[agent-failure] ${args.source.route} failed: ${shortText(args.headline, 72)} (${args.fingerprint.slice(0, 12)})`;
   const body = [
     `<!-- sepo-agent-failure-report fingerprint:${args.fingerprint} run:${args.source.runId} -->`,
@@ -391,6 +467,7 @@ function buildProposedDiscussion(args: {
     "| --- | --- |",
     `| Product bug likelihood | ${args.productBugLikelihood} |`,
     `| Auto-report policy | ${args.reportable ? "eligible" : "not eligible"} |`,
+    `| Publication status | ${destination.publishable ? "publishable" : `unpublishable preview: ${escapeTableCell(destination.warning)}`} |`,
     `| Suggested next action | ${escapeTableCell(args.suggestedNextAction)} |`,
     `| Fingerprint | \`${args.fingerprint}\` |`,
     "",
@@ -419,11 +496,13 @@ function buildProposedDiscussion(args: {
   ].join("\n");
 
   return {
-    repository: args.reportRepository,
-    category: args.discussionCategory,
+    repository: destination.repository,
+    category: destination.category,
     title,
     body,
-    shouldPublish: args.reportable,
+    shouldPublish: args.reportable && destination.publishable,
+    publishable: destination.publishable,
+    warning: destination.warning,
   };
 }
 
@@ -436,6 +515,9 @@ function buildStepSummary(diagnosis: FailureDiagnosis): string {
           ? "Auto-publish is enabled and this fingerprint is policy-qualified."
           : "Auto-publish is enabled, but this fingerprint is not policy-qualified."
         : "Local diagnosis only.";
+  const warningNote = diagnosis.proposedDiscussion.publishable === false
+    ? `\n\nWarning: pending report is not publishable: ${diagnosis.proposedDiscussion.warning}`
+    : "";
 
   return [
     "## Agent Failure Diagnosis",
@@ -449,7 +531,7 @@ function buildStepSummary(diagnosis: FailureDiagnosis): string {
     `| Fingerprint | \`${diagnosis.fingerprint}\` |`,
     `| Suggested next action | ${escapeTableCell(diagnosis.suggestedNextAction)} |`,
     "",
-    pendingNote,
+    `${pendingNote}${warningNote}`,
   ].join("\n");
 }
 
@@ -537,8 +619,9 @@ function matchesAny(value: string, patterns: RegExp[]): boolean {
 }
 
 function parseRepoSlug(slug: string): { owner: string; repo: string } {
-  const [owner, repo, extra] = slug.split("/");
-  if (!owner || !repo || extra) {
+  const [owner, repo, extra] = String(slug || "").trim().split("/");
+  const validPart = /^[A-Za-z0-9_.-]+$/;
+  if (!owner || !repo || extra || !validPart.test(owner) || !validPart.test(repo)) {
     throw new Error(`failure report repository must be owner/repo (got: ${slug || "missing"})`);
   }
   return { owner, repo };

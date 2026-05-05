@@ -266,7 +266,7 @@ jobs:
       - name: React with thumbs up (dispatch acknowledgment)
         if: >-
           steps.context.outputs.should_respond == 'true' &&
-          (steps.dispatch.outputs.route == 'review' || steps.dispatch.outputs.route == 'fix-pr' || steps.dispatch.outputs.route == 'orchestrate') &&
+          (steps.dispatch.outputs.route == 'review' || steps.dispatch.outputs.route == 'fix-pr' || steps.dispatch.outputs.route == 'orchestrate' || steps.dispatch.outputs.route == 'publish-failure-report') &&
           github.event.action != 'edited'
         env:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
@@ -518,6 +518,20 @@ jobs:
           REVIEW_COMMENT_ID: ${{ needs.portal.outputs.review_comment_id }}
           TARGET_NUMBER: ${{ needs.portal.outputs.target_number }}
         run: node .agent/dist/cli/post-response.js
+
+  # --- Route: publish approved failure report ---
+  publish-failure-report:
+    needs: portal
+    if: >-
+      needs.portal.outputs.should_respond == 'true' &&
+      needs.portal.outputs.route == 'publish-failure-report'
+    uses: ./.github/workflows/agent-publish-failure-report.yml
+    with:
+      runs_on: ${{ inputs.runs_on }}
+      requested_by: ${{ needs.portal.outputs.requested_by }}
+      requester_association: ${{ needs.portal.outputs.association }}
+      request_text: ${{ needs.portal.outputs.body }}
+    secrets: inherit
 
   # --- Route: implementation-like routes (approval request) ---
   approval:

@@ -4,6 +4,7 @@ import { strict as assert } from "node:assert";
 import {
   buildFailureReport,
   classifyFailure,
+  publishApprovedFailureReport,
   publishFailureReport,
   resolveFailureReportMode,
   sanitizeFailureEvidence,
@@ -65,6 +66,13 @@ test("classifyFailure separates auth failures from product bug candidates", () =
   );
   assert.equal(productBug.category, "agent_product_bug_candidate");
   assert.equal(productBug.productBugLikelihood, "high");
+
+  const genericUserError = classifyFailure(
+    "",
+    "TypeError: Cannot read properties of undefined\n    at main (scripts/build.js:10:2)",
+  );
+  assert.notEqual(genericUserError.category, "agent_product_bug_candidate");
+  assert.notEqual(genericUserError.productBugLikelihood, "high");
 });
 
 test("buildFailureReport redacts evidence and creates a pending report draft", () => {
@@ -86,6 +94,25 @@ test("buildFailureReport redacts evidence and creates a pending report draft", (
   assert.match(report.pendingReportBody, /\[REDACTED_GITHUB_TOKEN\]/);
   assert.equal(report.diagnosis.proposedDiscussion.category, "Bug Report");
   assert.match(report.stepSummary, /Agent Failure Diagnosis/);
+});
+
+test("buildFailureReport surfaces unpublishable pending destination warnings", () => {
+  const report = buildFailureReport({
+    mode: "approval",
+    exitCode: "1",
+    rawStdout: "",
+    rawStderr: "TypeError: exploded\n    at run (.agent/src/run.ts:1:1)",
+    reportRepository: "not-a-repo-slug",
+    discussionCategory: "Bug Report",
+    source: source(),
+    now: new Date("2026-05-05T00:00:00.000Z"),
+  });
+
+  assert.equal(report.diagnosis.proposedDiscussion.publishable, false);
+  assert.equal(report.diagnosis.proposedDiscussion.shouldPublish, false);
+  assert.match(report.diagnosis.proposedDiscussion.warning, /owner\/repo/);
+  assert.match(report.stepSummary, /not publishable/);
+  assert.match(report.pendingReportBody, /unpublishable preview/);
 });
 
 test("sanitizeFailureEvidence redacts common token shapes", () => {
@@ -129,6 +156,62 @@ test("publishFailureReport creates discussions only in explicit true mode for re
   assert.equal(publication.url, "https://github.com/self-evolving/repo/discussions/1");
   assert.equal(calls.length, 3);
   assert.match(calls[0]?.query || "", /discussions/);
+  assert.match(calls[2]?.query || "", /createDiscussion/);
+});
+
+test("publishFailureReport makes zero GraphQL calls in approval mode", () => {
+  const report = buildFailureReport({
+    mode: "approval",
+    exitCode: "1",
+    rawStdout: "",
+    rawStderr: "TypeError: exploded\n    at run (.agent/dist/run.js:1:1)",
+    reportRepository: "self-evolving/repo",
+    discussionCategory: "Bug Report",
+    source: source(),
+    now: new Date("2026-05-05T00:00:00.000Z"),
+  });
+  const { client, calls } = queuedClient([
+    { repository: { discussions: { nodes: [] } } },
+  ]);
+
+  const publication = publishFailureReport(report.diagnosis, client);
+
+  assert.equal(publication.status, "skipped");
+  assert.match(publication.reason, /mode approval/);
+  assert.equal(calls.length, 0);
+});
+
+test("publishApprovedFailureReport publishes a pending approval report", () => {
+  const report = buildFailureReport({
+    mode: "approval",
+    exitCode: "1",
+    rawStdout: "",
+    rawStderr: "TypeError: exploded\n    at run (.agent/dist/run.js:1:1)",
+    reportRepository: "self-evolving/repo",
+    discussionCategory: "Bug Report",
+    source: source(),
+    now: new Date("2026-05-05T00:00:00.000Z"),
+  });
+  const { client, calls } = queuedClient([
+    { repository: { discussions: { nodes: [] } } },
+    {
+      repository: {
+        id: "repo-1",
+        hasDiscussionsEnabled: true,
+        discussionCategories: {
+          nodes: [{ id: "cat-1", name: "Bug Report" }],
+          pageInfo: { hasNextPage: false, endCursor: null },
+        },
+      },
+    },
+    { createDiscussion: { discussion: { url: "https://github.com/self-evolving/repo/discussions/2" } } },
+  ]);
+
+  const publication = publishApprovedFailureReport(report.diagnosis, client);
+
+  assert.equal(publication.status, "created");
+  assert.equal(publication.url, "https://github.com/self-evolving/repo/discussions/2");
+  assert.equal(calls.length, 3);
   assert.match(calls[2]?.query || "", /createDiscussion/);
 });
 

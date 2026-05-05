@@ -10,6 +10,7 @@
 | `agent-entrypoint.yml` | `@sepo-agent` in issues, PRs, discussions, comments, reviews | Thin entry point that wires triggers, runner labels, and secrets into `agent-router.yml` | None |
 | `agent-router.yml` | `workflow_call` | Full portal for context extraction, auth gating, mention detection, dispatch triage, routing, approval requests, and response posting | Configurable |
 | `agent-approve.yml` | approval comments | Resolves pending approvals, creates issues when needed, dispatches implementation | None |
+| `agent-publish-failure-report.yml` | `workflow_dispatch`, `/publish-failure-report` | Publishes a human-approved pending agent failure report to the configured Discussion intake after rechecking route authorization | None |
 | `agent-orchestrator.yml` | `workflow_dispatch` | Explicit orchestration route that decides whether to dispatch the next action | None in `heuristics` mode; resolved-provider planner in `agent` mode |
 | `agent-implement.yml` | `workflow_dispatch` | Implementation flow: branch, commit, draft PR; supports `base_branch` or `base_pr` for stacked PRs | Auto |
 | `agent-fix-pr.yml` | `workflow_dispatch`, `workflow_call` | PR fix flow: update existing PR branch, verify, push | Auto |
@@ -146,6 +147,17 @@ explicit `true` mode attempts central Discussion publication, and even then only
 for high-confidence `agent_product_bug_candidate` fingerprints; other buckets
 remain local or pending approval.
 
+To publish a pending approval artifact, run `Agent / Publish Failure Report`
+with the failed Actions `run_id` and optional `run_attempt`, `artifact_name`, or
+`fingerprint`, or comment with
+`@sepo-agent /publish-failure-report run_id=<actions_run_id>`. The router checks
+the comment author against the `publish-failure-report` route policy, and the
+publish CLI rechecks the same policy before reading `diagnosis.json` and
+creating or commenting on the configured central Discussion. Pending artifacts
+with malformed `owner/repo` destinations or empty categories are marked as
+unpublishable previews in the diagnosis output rather than looking ready to
+publish.
+
 ## Trigger details
 
 ### `agent-entrypoint.yml`
@@ -174,6 +186,7 @@ Explicit routes are:
 - `@sepo-agent /fix-pr`
 - `@sepo-agent /review`
 - `@sepo-agent /orchestrate`
+- `@sepo-agent /publish-failure-report run_id=<actions_run_id>`
 - `@sepo-agent /skill <name>`
 
 Explicit routes skip dispatch triage and resolve locally, but still go through the same route policy checks afterward.

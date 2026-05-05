@@ -1,0 +1,131 @@
+name: Agent / Publish Failure Report
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "Actions run ID that uploaded the pending failure diagnosis artifact"
+        required: true
+        type: string
+      run_attempt:
+        description: "Actions run attempt for the pending failure diagnosis artifact"
+        required: false
+        default: "1"
+        type: string
+      artifact_name:
+        description: "Optional artifact name; defaults to agent-failure-diagnosis-<run_id>-<run_attempt>"
+        required: false
+        default: ""
+        type: string
+      fingerprint:
+        description: "Optional failure fingerprint to verify before publishing"
+        required: false
+        default: ""
+        type: string
+      runs_on:
+        description: "Runner labels as JSON array"
+        required: false
+        default: ""
+        type: string
+  workflow_call:
+    inputs:
+      runs_on:
+        description: "Runner labels as JSON array"
+        type: string
+        required: false
+        default: ""
+      requested_by:
+        description: "Requester login whose approval is being honored"
+        type: string
+        required: false
+        default: ""
+      requester_association:
+        description: "Requester author association resolved by the router"
+        type: string
+        required: false
+        default: ""
+      request_text:
+        description: "Original approval request text; may contain run_id, artifact_name, or fingerprint"
+        type: string
+        required: false
+        default: ""
+      run_id:
+        description: "Actions run ID that uploaded the pending failure diagnosis artifact"
+        type: string
+        required: false
+        default: ""
+      run_attempt:
+        description: "Actions run attempt for the pending failure diagnosis artifact"
+        type: string
+        required: false
+        default: "1"
+      artifact_name:
+        description: "Optional artifact name"
+        type: string
+        required: false
+        default: ""
+      fingerprint:
+        description: "Optional failure fingerprint to verify before publishing"
+        type: string
+        required: false
+        default: ""
+    secrets:
+      AGENT_APP_ID:
+        description: "GitHub App ID for elevated token"
+        required: false
+      AGENT_APP_PRIVATE_KEY:
+        description: "GitHub App private key"
+        required: false
+      AGENT_PAT:
+        description: "Fine-grained PAT or machine-user token"
+        required: false
+      AGENT_FAILURE_REPORT_TOKEN:
+        description: "Optional token for publishing to the failure report Discussion repository"
+        required: false
+
+permissions:
+  actions: read
+  contents: read
+  discussions: write
+  issues: read
+  pull-requests: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ${{ fromJson(inputs.runs_on || vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          token: ${{ github.token }}
+
+      - name: Resolve GitHub auth
+        id: auth
+        uses: ./.github/actions/resolve-github-auth
+        with:
+          app_id: ${{ secrets.AGENT_APP_ID }}
+          app_private_key: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
+          pat: ${{ secrets.AGENT_PAT }}
+          fallback_token: ${{ github.token }}
+
+      - name: Setup agent runtime
+        id: runtime
+        uses: ./.github/actions/setup-agent-runtime
+
+      - name: Publish approved failure report
+        id: publish
+        env:
+          ACCESS_POLICY: ${{ vars.AGENT_ACCESS_POLICY || '' }}
+          FAILURE_REPORT_ARTIFACT_NAME: ${{ inputs.artifact_name || '' }}
+          FAILURE_REPORT_FINGERPRINT: ${{ inputs.fingerprint || '' }}
+          FAILURE_REPORT_RUN_ATTEMPT: ${{ inputs.run_attempt || '1' }}
+          FAILURE_REPORT_RUN_ID: ${{ inputs.run_id || '' }}
+          FAILURE_REPORT_PUBLISH_TOKEN: ${{ secrets.AGENT_FAILURE_REPORT_TOKEN || '' }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_TOKEN: ${{ steps.auth.outputs.token }}
+          REPOSITORY_PRIVATE: ${{ github.event.repository.private && 'true' || 'false' }}
+          REQUESTED_BY: ${{ inputs.requested_by || github.actor }}
+          REQUESTER_ASSOCIATION: ${{ inputs.requester_association || '' }}
+          REQUEST_TEXT: ${{ inputs.request_text || '' }}
+        run: node .agent/dist/cli/publish-approved-failure-report.js
