@@ -58,3 +58,4 @@
 - Minimal Project planning model: Status Inbox/In Progress/To Review/Done; Priority P0-P3; Effort Low/Medium/High; optional Release.
 - Failure-report v1 should diagnose locally and require approval before central Discussion posting by default.
 - Packaged workflows default AGENT_AUTOMATION_MODE to agent; project labels default apply on but dry-run guards writes.
+- Installation registries belong to Sepo/App-owner automation; installed repos must not enumerate other installs.
