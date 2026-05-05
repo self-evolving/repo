@@ -35,6 +35,8 @@ Deterministic utility routes can bypass `acpx` when no model work is needed.
 `publish-failure-report` is one of those routes: it reads a pending diagnosis
 artifact, validates the requester against `AGENT_ACCESS_POLICY` again, and then
 uses the shared Discussion helper to create or comment on the central report.
+When launched from a routed comment, it posts a compact completion reply with
+the publication status and the Discussion URL or failure reason.
 
 The shared base prompt defines the common metadata and context-gathering contract. Route prompts should focus on route-specific behavior and should not duplicate the base metadata header.
 

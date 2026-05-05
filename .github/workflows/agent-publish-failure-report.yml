@@ -58,7 +58,7 @@ on:
         description: "Actions run attempt for the pending failure diagnosis artifact"
         type: string
         required: false
-        default: "1"
+        default: ""
       artifact_name:
         description: "Optional artifact name"
         type: string
@@ -66,6 +66,31 @@ on:
         default: ""
       fingerprint:
         description: "Optional failure fingerprint to verify before publishing"
+        type: string
+        required: false
+        default: ""
+      response_kind:
+        description: "Original response surface kind for routed approval comments"
+        type: string
+        required: false
+        default: ""
+      target_number:
+        description: "Original issue, PR, or Discussion number for routed approval comments"
+        type: string
+        required: false
+        default: ""
+      discussion_node_id:
+        description: "Original Discussion node ID when responding on a Discussion thread"
+        type: string
+        required: false
+        default: ""
+      reply_to_id:
+        description: "Original Discussion comment node ID to reply to"
+        type: string
+        required: false
+        default: ""
+      review_comment_id:
+        description: "Original pull request review comment ID to reply to"
         type: string
         required: false
         default: ""
@@ -119,7 +144,8 @@ jobs:
           ACCESS_POLICY: ${{ vars.AGENT_ACCESS_POLICY || '' }}
           FAILURE_REPORT_ARTIFACT_NAME: ${{ inputs.artifact_name || '' }}
           FAILURE_REPORT_FINGERPRINT: ${{ inputs.fingerprint || '' }}
-          FAILURE_REPORT_RUN_ATTEMPT: ${{ inputs.run_attempt || '1' }}
+          FAILURE_REPORT_RESPONSE_FILE: ${{ runner.temp }}/failure-report-publication.md
+          FAILURE_REPORT_RUN_ATTEMPT: ${{ inputs.run_attempt || '' }}
           FAILURE_REPORT_RUN_ID: ${{ inputs.run_id || '' }}
           FAILURE_REPORT_PUBLISH_TOKEN: ${{ secrets.AGENT_FAILURE_REPORT_TOKEN || '' }}
           GH_TOKEN: ${{ steps.auth.outputs.token }}
@@ -129,3 +155,16 @@ jobs:
           REQUESTER_ASSOCIATION: ${{ inputs.requester_association || '' }}
           REQUEST_TEXT: ${{ inputs.request_text || '' }}
         run: node .agent/dist/cli/publish-approved-failure-report.js
+
+      - name: Post failure report publication status
+        if: always() && steps.publish.outputs.failure_report_response_file != '' && inputs.response_kind != ''
+        env:
+          BODY_FILE: ${{ steps.publish.outputs.failure_report_response_file }}
+          DISCUSSION_ID: ${{ inputs.discussion_node_id || '' }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          REPLY_TO_ID: ${{ inputs.reply_to_id || '' }}
+          RESPONSE_KIND: ${{ inputs.response_kind || 'issue_comment' }}
+          REVIEW_COMMENT_ID: ${{ inputs.review_comment_id || '' }}
+          TARGET_NUMBER: ${{ inputs.target_number || '0' }}
+        run: node .agent/dist/cli/post-response.js

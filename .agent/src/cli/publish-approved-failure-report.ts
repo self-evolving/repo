@@ -7,6 +7,7 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
+  writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
 
@@ -41,6 +42,10 @@ function appendStepSummary(summary: string): void {
   const summaryPath = env("GITHUB_STEP_SUMMARY");
   if (!summaryPath) return;
   appendFileSync(summaryPath, `${summary.trim()}\n`, "utf8");
+}
+
+function tableValue(value: string): string {
+  return (value || "").replace(/\|/g, "\\|").replace(/\r?\n/g, "<br>");
 }
 
 function parseRequestArgs(text: string): RequestArgs {
@@ -190,6 +195,7 @@ function emitPublication(publication: FailurePublication, diagnosis: FailureDiag
   setOutput("failure_report_discussion_url", publication.url);
   setOutput("failure_report_publish_reason", publication.reason);
   setOutput("failure_report_fingerprint", diagnosis.fingerprint);
+  writePublicationResponse(publication, diagnosis.fingerprint);
   appendStepSummary([
     "## Approved Failure Report Publication",
     "",
@@ -200,6 +206,27 @@ function emitPublication(publication: FailurePublication, diagnosis: FailureDiag
     `| Reason | ${publication.reason} |`,
     `| Discussion | ${publication.url || "not published"} |`,
   ].join("\n"));
+}
+
+function writePublicationResponse(publication: FailurePublication, fingerprint: string): void {
+  const responseFile = env(
+    "FAILURE_REPORT_RESPONSE_FILE",
+    join(env("RUNNER_TEMP", "/tmp"), "failure-report-publication.md"),
+  );
+  const body = [
+    `<!-- sepo-agent-failure-report-publish status:${publication.status} fingerprint:${fingerprint || "unknown"} -->`,
+    "",
+    `Failure report publication \`${publication.status}\`.`,
+    "",
+    "| Field | Value |",
+    "| --- | --- |",
+    `| Fingerprint | \`${tableValue(fingerprint || "unknown")}\` |`,
+    `| Discussion | ${tableValue(publication.url || "not published")} |`,
+    `| Reason | ${tableValue(publication.reason)} |`,
+  ].join("\n");
+
+  writeFileSync(responseFile, `${body}\n`, "utf8");
+  setOutput("failure_report_response_file", responseFile);
 }
 
 function usePublishTokenIfConfigured(): void {
@@ -237,6 +264,10 @@ function main(): number {
     const reason = err instanceof Error ? err.message : String(err);
     setOutput("failure_report_publish_status", "failed");
     setOutput("failure_report_publish_reason", reason);
+    writePublicationResponse(
+      { status: "failed", url: "", reason },
+      env("FAILURE_REPORT_FINGERPRINT") || "unknown",
+    );
     appendStepSummary([
       "## Approved Failure Report Publication",
       "",

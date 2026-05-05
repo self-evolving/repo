@@ -215,13 +215,21 @@ test("approved failure report publishing has a routed authorization recheck", ()
   assert.match(triageSource, /publish-failure-report/);
   assert.match(routerWorkflow, /publish-failure-report:\n[\s\S]*agent-publish-failure-report\.yml/);
   assert.match(routerWorkflow, /requester_association:\s*\$\{\{\s*needs\.portal\.outputs\.association\s*\}\}/);
+  assert.match(routerWorkflow, /response_kind:\s*\$\{\{\s*needs\.portal\.outputs\.response_kind\s*\}\}/);
+  assert.match(routerWorkflow, /review_comment_id:\s*\$\{\{\s*needs\.portal\.outputs\.review_comment_id\s*\}\}/);
   assert.match(publishWorkflow, /workflow_dispatch:/);
   assert.match(publishWorkflow, /workflow_call:/);
+  assert.match(publishWorkflow, /workflow_call:[\s\S]*run_attempt:[\s\S]*default: ""/);
   assert.match(publishWorkflow, /ACCESS_POLICY:\s*\$\{\{\s*vars\.AGENT_ACCESS_POLICY \|\| ''\s*\}\}/);
   assert.match(publishWorkflow, /REQUESTER_ASSOCIATION:\s*\$\{\{\s*inputs\.requester_association \|\| ''\s*\}\}/);
+  assert.match(publishWorkflow, /FAILURE_REPORT_RUN_ATTEMPT:\s*\$\{\{\s*inputs\.run_attempt \|\| ''\s*\}\}/);
+  assert.match(publishWorkflow, /Post failure report publication status/);
+  assert.match(publishWorkflow, /post-response\.js/);
   assert.match(publishWorkflow, /publish-approved-failure-report\.js/);
   assert.match(publishCli, /isAssociationAllowedForRoute\(policy, ROUTE, association, isPublicRepo\)/);
+  assert.match(publishCli, /agent-failure-diagnosis-\$\{args\.runId\}-\$\{args\.runAttempt \|\| "1"\}/);
   assert.match(publishCli, /publishApprovedFailureReport/);
+  assert.match(publishCli, /failure_report_response_file/);
 });
 
 test("run-agent-task workflow steps are guarded by resolved task timeouts", () => {

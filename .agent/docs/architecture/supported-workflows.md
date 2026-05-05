@@ -153,10 +153,11 @@ with the failed Actions `run_id` and optional `run_attempt`, `artifact_name`, or
 `@sepo-agent /publish-failure-report run_id=<actions_run_id>`. The router checks
 the comment author against the `publish-failure-report` route policy, and the
 publish CLI rechecks the same policy before reading `diagnosis.json` and
-creating or commenting on the configured central Discussion. Pending artifacts
-with malformed `owner/repo` destinations or empty categories are marked as
-unpublishable previews in the diagnosis output rather than looking ready to
-publish.
+creating or commenting on the configured central Discussion. Routed approvals
+reply on the trigger thread with the publication status, the central Discussion
+URL when available, or the failure reason. Pending artifacts with malformed
+`owner/repo` destinations or empty categories are marked as unpublishable
+previews in the diagnosis output rather than looking ready to publish.
 
 ## Trigger details
 
