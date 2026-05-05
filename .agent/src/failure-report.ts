@@ -201,21 +201,6 @@ export function classifyFailure(rawStdout: string, rawStderr: string): {
     };
   }
 
-  if (
-    hasAgentStackEvidence ||
-    matchesAny(evidence, [
-      /unhandledpromiserejection/,
-      /cannot find module/,
-      /err_module_not_found/,
-    ])
-  ) {
-    return {
-      category: "agent_product_bug_candidate",
-      confidence: "high",
-      productBugLikelihood: "high",
-    };
-  }
-
   if (matchesAny(evidence, [
     /rate limit/,
     /\b429\b/,
@@ -237,6 +222,21 @@ export function classifyFailure(rawStdout: string, rawStderr: string): {
       category: "provider_or_runtime",
       confidence: "medium",
       productBugLikelihood: "low",
+    };
+  }
+
+  if (
+    hasAgentStackEvidence ||
+    matchesAny(evidence, [
+      /unhandledpromiserejection/,
+      /cannot find module/,
+      /err_module_not_found/,
+    ])
+  ) {
+    return {
+      category: "agent_product_bug_candidate",
+      confidence: "high",
+      productBugLikelihood: "high",
     };
   }
 

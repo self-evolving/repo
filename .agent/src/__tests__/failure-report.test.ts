@@ -73,6 +73,16 @@ test("classifyFailure separates auth failures from product bug candidates", () =
   );
   assert.notEqual(genericUserError.category, "agent_product_bug_candidate");
   assert.notEqual(genericUserError.productBugLikelihood, "high");
+
+  const providerAdapterError = classifyFailure(
+    "",
+    [
+      "OpenAI API error 429: rate limit exceeded",
+      "    at requestOpenAI (.agent/dist/acpx-adapter.js:10:2)",
+    ].join("\n"),
+  );
+  assert.equal(providerAdapterError.category, "provider_or_runtime");
+  assert.equal(providerAdapterError.productBugLikelihood, "low");
 });
 
 test("buildFailureReport redacts evidence and creates a pending report draft", () => {
