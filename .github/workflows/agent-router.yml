@@ -247,6 +247,7 @@ jobs:
           steps.dispatch.outputs.route != '' &&
           steps.dispatch.outputs.route != 'unsupported' &&
           steps.dispatch.outputs.route != 'setup' &&
+          steps.dispatch.outputs.route != 'setup-apply' &&
           (steps.context.outputs.target_kind == 'issue' || steps.context.outputs.target_kind == 'pull_request')
         continue-on-error: true
         env:
@@ -264,10 +265,12 @@ jobs:
           steps.dispatch.outputs.route != '' &&
           steps.dispatch.outputs.route != 'unsupported' &&
           steps.dispatch.outputs.route != 'setup' &&
+          steps.dispatch.outputs.route != 'setup-apply' &&
           (steps.context.outputs.target_kind == 'issue' || steps.context.outputs.target_kind == 'pull_request')
         continue-on-error: true
         env:
           AGENT_HANDLE: ${{ inputs.agent_handle || '@sepo-agent' }}
+          AGENT_ASSIGNMENT_ENABLED: ${{ vars.AGENT_ASSIGNMENT_ENABLED || 'true' }}
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           TARGET_KIND: ${{ steps.context.outputs.target_kind }}
@@ -395,7 +398,7 @@ jobs:
           TARGET_NUMBER: ${{ needs.portal.outputs.target_number }}
         run: node .agent/dist/cli/post-response.js
 
-  # --- Route: setup (plan-only response) ---
+  # --- Route: setup plan (plan-only response) ---
   setup:
     needs: portal
     if: >-
@@ -475,6 +478,47 @@ jobs:
           RESUME_STATUS: ${{ steps.setup.outputs.resume_status }}
           TARGET_NUMBER: ${{ needs.portal.outputs.target_number }}
         run: node .agent/dist/cli/post-response.js
+
+  # --- Route: setup apply (deterministic variable apply) ---
+  setup-apply:
+    needs: portal
+    if: >-
+      needs.portal.outputs.should_respond == 'true' &&
+      needs.portal.outputs.route == 'setup-apply' &&
+      needs.portal.outputs.target_kind == 'issue'
+    runs-on: ${{ fromJson(inputs.runs_on || vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          token: ${{ github.token }}
+
+      - name: Resolve GitHub auth
+        id: auth
+        uses: ./.github/actions/resolve-github-auth
+        with:
+          app_id: ${{ secrets.AGENT_APP_ID }}
+          app_private_key: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
+          pat: ${{ secrets.AGENT_PAT }}
+          fallback_token: ${{ github.token }}
+
+      - name: Setup agent runtime
+        uses: ./.github/actions/setup-agent-runtime
+
+      - name: Apply setup variables
+        id: setup_apply
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          SETUP_APPLY_DRY_RUN: "false"
+          SETUP_APPLY_POST_COMMENT: "true"
+          TARGET_NUMBER: ${{ needs.portal.outputs.target_number }}
+        run: node .agent/dist/cli/setup-apply.js
+
+      - name: Fail failed setup apply
+        if: steps.setup_apply.outcome == 'failure'
+        run: exit 1
 
   # --- Route: skill (inline response via .skills/<name>/SKILL.md) ---
   skill:

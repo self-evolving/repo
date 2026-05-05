@@ -133,6 +133,35 @@ exit 1
   }
 });
 
+test("assign-agent CLI skips when assignment is disabled", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-assign-agent-"));
+
+  try {
+    const logPath = join(tempDir, "gh.log");
+    writeFakeGh(
+      tempDir,
+      `#!/usr/bin/env bash
+printf '%s\\n' "$*" >> "$FAKE_GH_LOG"
+exit 1
+`,
+    );
+
+    const result = runAssignAgent(tempDir, {
+      AGENT_ASSIGNMENT_ENABLED: "false",
+      FAKE_GH_LOG: logPath,
+      GITHUB_REPOSITORY: "self-evolving/repo",
+      TARGET_KIND: "issue",
+      TARGET_NUMBER: "42",
+    });
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /assignment is disabled/);
+    assert.equal(existsSync(logPath), false);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("assign-agent CLI warns without assigning when the login is not assignable", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-assign-agent-"));
 

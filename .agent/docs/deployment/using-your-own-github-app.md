@@ -15,7 +15,7 @@ For the current workflow set, the app should have at least:
 - **Pull requests**: read and write
 - **Issues**: read and write
 - **Discussions**: read and write if you use discussion triggers
-- **Actions**: read and write if you use approval dispatch, review artifacts, or related workflow-driven follow-up flows
+- **Actions**: read and write if you use approval dispatch, review artifacts, `/setup apply` repository variable updates, or related workflow-driven follow-up flows
 
 Using your own app is the supported way to avoid depending on the official Sepo-hosted auth broker while keeping the same workflow behavior.
 

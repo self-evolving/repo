@@ -25,6 +25,14 @@ on:
         description: "GitHub Project URL for experimental Project-backed planning."
         required: false
         default: ""
+      project_owner:
+        description: "GitHub Project owner login for experimental Project-backed planning."
+        required: false
+        default: ""
+      project_title:
+        description: "GitHub Project title for experimental Project-backed planning."
+        required: false
+        default: ""
       post_summary:
         description: "Set true to comment on today's Daily Summary discussion if it exists."
         required: false
@@ -93,6 +101,8 @@ jobs:
           RAW_APPLY_LABELS: ${{ github.event_name == 'workflow_dispatch' && inputs.apply_labels || vars.AGENT_PROJECT_MANAGEMENT_APPLY_LABELS || 'false' }}
           RAW_PROJECT_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.project_id || vars.AGENT_PROJECT_MANAGEMENT_PROJECT_ID || '' }}
           RAW_PROJECT_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.project_url || vars.AGENT_PROJECT_MANAGEMENT_PROJECT_URL || '' }}
+          RAW_PROJECT_OWNER: ${{ github.event_name == 'workflow_dispatch' && inputs.project_owner || vars.AGENT_PROJECT_MANAGEMENT_PROJECT_OWNER || '' }}
+          RAW_PROJECT_TITLE: ${{ github.event_name == 'workflow_dispatch' && inputs.project_title || vars.AGENT_PROJECT_MANAGEMENT_PROJECT_TITLE || '' }}
           RAW_POST_SUMMARY: ${{ github.event_name == 'workflow_dispatch' && inputs.post_summary || vars.AGENT_PROJECT_MANAGEMENT_POST_SUMMARY || 'false' }}
           RAW_DISCUSSION_CATEGORY: ${{ github.event_name == 'workflow_dispatch' && inputs.discussion_category || vars.AGENT_PROJECT_MANAGEMENT_DISCUSSION_CATEGORY || 'General' }}
           RAW_LIMIT: ${{ github.event_name == 'workflow_dispatch' && inputs.limit || vars.AGENT_PROJECT_MANAGEMENT_LIMIT || '100' }}
@@ -131,6 +141,8 @@ jobs:
           apply_labels="$(normalize_bool "$RAW_APPLY_LABELS" false)"
           project_id="$(trim "$RAW_PROJECT_ID")"
           project_url="$(trim "$RAW_PROJECT_URL")"
+          project_owner="$(trim "$RAW_PROJECT_OWNER")"
+          project_title="$(trim "$RAW_PROJECT_TITLE")"
           post_summary="$(normalize_bool "$RAW_POST_SUMMARY" false)"
           discussion_category="${RAW_DISCUSSION_CATEGORY:-General}"
           limit="$(positive_int_or_default "$RAW_LIMIT" 100)"
@@ -153,15 +165,37 @@ jobs:
             fi
           fi
 
-          if [ -n "$project_id" ] || [ -n "$project_url" ]; then
-            project_configured=true
-            if [ -n "$project_id" ] && [ -n "$project_url" ]; then
-              project_target="id ${project_id}; url ${project_url}"
-            elif [ -n "$project_id" ]; then
-              project_target="id ${project_id}"
-            else
-              project_target="url ${project_url}"
+          if [ -n "$project_owner" ] && ! printf '%s' "$project_owner" | grep -Eq '^[A-Za-z0-9]([A-Za-z0-9-]{0,37}[A-Za-z0-9])?$'; then
+            echo "AGENT_PROJECT_MANAGEMENT_PROJECT_OWNER must be a GitHub user or organization login." >&2
+            exit 1
+          fi
+
+          if [ -n "$project_title" ]; then
+            if printf '%s' "$project_title" | grep -Eq '[[:cntrl:]]'; then
+              echo "AGENT_PROJECT_MANAGEMENT_PROJECT_TITLE must be a single line." >&2
+              exit 1
             fi
+            if [ "${#project_title}" -gt 100 ]; then
+              echo "AGENT_PROJECT_MANAGEMENT_PROJECT_TITLE must be 100 characters or fewer." >&2
+              exit 1
+            fi
+          fi
+
+          if [ -n "$project_id" ] || [ -n "$project_url" ] || [ -n "$project_owner" ] || [ -n "$project_title" ]; then
+            project_configured=true
+            parts=()
+            [ -n "$project_id" ] && parts+=("id ${project_id}")
+            [ -n "$project_url" ] && parts+=("url ${project_url}")
+            [ -n "$project_owner" ] && parts+=("owner ${project_owner}")
+            [ -n "$project_title" ] && parts+=("title ${project_title}")
+            project_target=""
+            for part in "${parts[@]}"; do
+              if [ -z "$project_target" ]; then
+                project_target="$part"
+              else
+                project_target="${project_target}; ${part}"
+              fi
+            done
           fi
 
           {
@@ -170,6 +204,8 @@ jobs:
             echo "project_configured=${project_configured}"
             echo "project_id=${project_id}"
             echo "project_url=${project_url}"
+            echo "project_owner=${project_owner}"
+            echo "project_title=${project_title}"
             echo "project_target=${project_target}"
             echo "post_summary=${post_summary}"
             echo "discussion_category=${discussion_category}"
