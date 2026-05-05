@@ -114,8 +114,10 @@ and pull requests, assess priority/effort with judgment rather than fixed
 heuristics, and return a GitHub-flavored summary plus a structured managed-label
 change plan. A deterministic post-agent CLI validates that plan and applies only
 managed `priority/*` and `effort/*` add/remove operations when label application
-is enabled and dry-run mode is disabled; otherwise it reports planned changes
-without mutating labels. The schedule runs every 6 hours at minute 17 UTC. A
+is enabled and dry-run mode is disabled. Label application defaults enabled, but
+dry-run mode defaults enabled too, so scheduled runs still report planned
+changes without mutating labels until dry-run is disabled. The schedule runs
+every 6 hours at minute 17 UTC. A
 final workflow step writes the resulting summary to the Actions step summary.
 Optional summary comments require `post_summary=true`; when enabled, that final
 step finds today's `Daily Summary — YYYY-MM-DD` discussion in the configured

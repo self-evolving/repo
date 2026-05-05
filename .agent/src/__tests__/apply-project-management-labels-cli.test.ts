@@ -131,7 +131,7 @@ exit 1
   }
 });
 
-test("apply project management labels creates labels and applies only managed changes", () => {
+test("apply project management labels defaults to applying managed changes", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "apply-project-labels-"));
 
   try {
@@ -161,7 +161,6 @@ exit 1
 
     const result = runCli(tempDir, {
       AGENT_PROJECT_MANAGEMENT_DRY_RUN: "false",
-      AGENT_PROJECT_MANAGEMENT_APPLY_LABELS: "true",
       BODY_FILE: join(tempDir, "summary.md"),
       FAKE_GH_LOG: logPath,
       GITHUB_OUTPUT: outputPath,

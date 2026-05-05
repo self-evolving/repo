@@ -33,7 +33,7 @@ function main(): number {
     const bodyFile = requiredEnv("BODY_FILE");
     const repo = requiredEnv("GITHUB_REPOSITORY");
     const dryRun = boolEnv("AGENT_PROJECT_MANAGEMENT_DRY_RUN", true);
-    const applyLabels = boolEnv("AGENT_PROJECT_MANAGEMENT_APPLY_LABELS", false);
+    const applyLabels = boolEnv("AGENT_PROJECT_MANAGEMENT_APPLY_LABELS", true);
     const summary = readFileSync(bodyFile, "utf8");
     const plan = parseManagedLabelPlan(summary);
 

@@ -330,6 +330,23 @@ test("scheduled workflows evaluate skip gates before provider-dependent jobs", (
   assert.doesNotMatch(dailySummaryWorkflow, /if: steps\.pre_gate\.outputs\.skip != 'true' && steps\.gate\.outputs\.skip != 'true'/);
 });
 
+test("project manager defaults label application on behind dry-run", () => {
+  const projectManagerWorkflow = readRepoFile(".github/workflows/agent-project-manager.yml");
+  const applyLabelsCli = readRepoFile(".agent/src/cli/apply-project-management-labels.ts");
+  const configurationList = readRepoFile(".agent/docs/customization/configuration-list.md");
+  const supportedWorkflows = readRepoFile(".agent/docs/architecture/supported-workflows.md");
+
+  assert.match(projectManagerWorkflow, /apply_labels:[\s\S]*default:\s*"true"/);
+  assert.match(
+    projectManagerWorkflow,
+    /RAW_APPLY_LABELS:\s*\$\{\{ github\.event_name == 'workflow_dispatch' && inputs\.apply_labels \|\| vars\.AGENT_PROJECT_MANAGEMENT_APPLY_LABELS \|\| 'true' \}\}/,
+  );
+  assert.match(projectManagerWorkflow, /apply_labels="\$\(normalize_bool "\$RAW_APPLY_LABELS" true\)"/);
+  assert.match(applyLabelsCli, /boolEnv\("AGENT_PROJECT_MANAGEMENT_APPLY_LABELS", true\)/);
+  assert.match(configurationList, /AGENT_PROJECT_MANAGEMENT_APPLY_LABELS[\s\S]*Defaults to `true`/);
+  assert.match(supportedWorkflows, /Label application defaults enabled[\s\S]*dry-run mode defaults enabled/);
+});
+
 test("review workflow forwards requested_by to review, rubrics, and synthesis runs", () => {
   const reviewWorkflow = readRepoFile(".github/workflows/agent-review.yml");
   const forwardedValue = /requested_by:\s*\$\{\{\s*inputs\.requested_by \|\| github\.actor\s*\}\}/g;
@@ -868,10 +885,10 @@ test("execution workflows expose automation handoff inputs", () => {
   const orchestratorPrompt = readRepoFile(".github/prompts/agent-orchestrator.md");
   const orchestratorDoc = readRepoFile(".agent/docs/technical-details/agent-orchestrator.md");
 
-  assert.match(entrypointWorkflow, /automation_mode:\s*\$\{\{ vars\.AGENT_AUTOMATION_MODE \|\| 'disabled' \}\}/);
-  assert.match(labelWorkflow, /automation_mode:\s*\$\{\{ vars\.AGENT_AUTOMATION_MODE \|\| 'disabled' \}\}/);
-  assert.match(runnerWorkflow, /automation_mode:/);
-  assert.match(approveWorkflow, /AUTOMATION_MODE:\s*\$\{\{ vars\.AGENT_AUTOMATION_MODE \|\| 'disabled' \}\}/);
+  assert.match(entrypointWorkflow, /automation_mode:\s*\$\{\{ vars\.AGENT_AUTOMATION_MODE \|\| 'agent' \}\}/);
+  assert.match(labelWorkflow, /automation_mode:\s*\$\{\{ vars\.AGENT_AUTOMATION_MODE \|\| 'agent' \}\}/);
+  assert.match(runnerWorkflow, /automation_mode:[\s\S]*default:\s*"agent"/);
+  assert.match(approveWorkflow, /AUTOMATION_MODE:\s*\$\{\{ vars\.AGENT_AUTOMATION_MODE \|\| 'agent' \}\}/);
   assert.match(orchestratorWorkflow, /name: Agent \/ Orchestrator/);
   assert.match(orchestratorWorkflow, /source_run_id:/);
   assert.match(orchestratorWorkflow, /issues: write/);
