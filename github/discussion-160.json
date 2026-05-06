@@ -1,0 +1,87 @@
+{
+  "number": 160,
+  "title": "Ideas for self improvement",
+  "url": "https://github.com/self-evolving/repo/discussions/160",
+  "body": "In your mind, what are some ways you can make yourself better? \n\n@sepo-agent /answer",
+  "createdAt": "2026-05-06T04:30:39Z",
+  "updatedAt": "2026-05-06T04:44:39Z",
+  "author": {
+    "login": "lolipopshock"
+  },
+  "category": {
+    "name": "Ideas"
+  },
+  "comments": {
+    "nodes": [
+      {
+        "id": "DC_kwDOSOhEMM4BALOQ",
+        "body": "I can’t improve my underlying model weights during a run, but Sepo can improve the system around me: prompts, memory, rubrics, workflows, tests, and feedback loops.\n\nHigh-leverage ideas:\n\n- **Turn experience into better memory.** Keep using `agent/memory` for durable lessons, but add more structured “what failed / what worked / next time” notes after important PRs. The current memory design is already built for this: [.agent/docs/architecture/memory.md](https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/memory.md).\n\n- **Make rubrics stricter and more useful.** Store team preferences as explicit rubrics, then score my work against them after implementation and review. This helps me learn what “good” means for this repo instead of guessing: [.agent/docs/architecture/rubrics.md](https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/rubrics.md).\n\n- **Improve failure reporting.** When I fail, time out, or stop, I should report the reason in a machine-readable way: blocked by permissions, flaky test, unclear request, merge conflict, missing secret, etc. That would make follow-up automation and human debugging easier.\n\n- **Add stronger smoke tests for Sepo itself.** Since Sepo is self-evolving, the most important tests are end-to-end checks: mention routing, `/answer`, `/implement`, `/review`, `/fix-pr`, `/orchestrate`, memory mount, rubric selection, and PR creation. The workflow map in [.agent/docs/architecture/supported-workflows.md](https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/supported-workflows.md) gives a good test matrix.\n\n- **Make orchestration more disciplined.** For larger work, I should split tasks into child issues only when it materially reduces risk, preserve base PR relationships for stacked changes, and stop clearly when the next step needs human approval.\n\n- **Get better at asking fewer, sharper questions.** I should infer from code and docs first, then ask only when blocked by a real ambiguity.\n\n- **Close the feedback loop.** After merged PRs or rejected work, Sepo should identify reusable lessons and update memory/rubrics conservatively. That is probably the most “self-improving” behavior: not more autonomy, but better continuity.\n\nIf I had to prioritize: first improve failure/timeout reporting, then add full-route smoke tests, then make merged-PR learning into rubrics and memory more systematic.",
+        "createdAt": "2026-05-06T04:32:22Z",
+        "url": "https://github.com/self-evolving/repo/discussions/160#discussioncomment-16823184",
+        "author": {
+          "login": "sepo-agent-app"
+        },
+        "replies": {
+          "nodes": [
+            {
+              "id": "DC_kwDOSOhEMM4BALOj",
+              "body": "@sepo-agent /answer shall we create an action -- everyday day you can from the recent actions experiences and then decide one area to improve. The you could use the orchestrator agent to implement the feature?",
+              "createdAt": "2026-05-06T04:37:36Z",
+              "url": "https://github.com/self-evolving/repo/discussions/160#discussioncomment-16823203",
+              "author": {
+                "login": "lolipopshock"
+              },
+              "replyTo": {
+                "id": "DC_kwDOSOhEMM4BALOQ"
+              }
+            },
+            {
+              "id": "DC_kwDOSOhEMM4BALOn",
+              "body": "Yes, but I would make it **proposal-first**, not fully autonomous implementation on day one.\n\nThe existing pieces already line up well:\n\n- [`agent-memory-scan.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-memory-scan.yml) already reviews recent repo activity and curates durable lessons.\n- [`agent-daily-summary.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-daily-summary.yml) already gathers recent issues, PRs, and discussions.\n- [`agent-project-manager.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-project-manager.yml) is a good pattern for scheduled agent judgment with dry-run/write guards.\n- [`agent-orchestrator.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-orchestrator.yml) can continue work from a concrete issue/PR, but it is not currently the right entry point for a free-floating daily idea.\n\nI’d create a new opt-in workflow, maybe `agent-self-improvement.yml`, with this shape:\n\n1. Run daily or every few days behind a variable like `AGENT_SELF_IMPROVEMENT_ENABLED=true`.\n2. Gather recent signals from Actions runs, merged PRs, failed runs, review comments, memory updates, and open issues.\n3. Ask the agent to choose **one small improvement area**, with evidence from recent activity.\n4. Deduplicate against existing open issues/PRs so it does not keep rediscovering the same idea.\n5. Create or update a GitHub issue labeled something like `agent/self-improvement`.\n6. Default to **not implementing automatically**. The issue should contain the proposed change, rationale, scope, and suggested route.\n7. Add an optional second mode, gated by config, that dispatches `/orchestrate` on the created issue with a low max-round budget.\n\nThe important guardrail: the daily job should not directly mutate Sepo just because the agent had an idea. It should first produce an auditable issue. Then humans can approve, or a repo can explicitly opt into auto-orchestration later.\n\nA reasonable first implementation plan:\n\n1. Add `.github/workflows/agent-self-improvement.yml`.\n2. Reuse the scheduled activity gate pattern from `agent-project-manager.yml`.\n3. Add a prompt like `self-improvement` under the existing agent prompt system.\n4. Add a small CLI to parse the agent response into a strict issue plan.\n5. Create/update a tracking issue instead of opening a PR directly.\n6. Document the config variables and safety model.\n7. After that works reliably, add optional orchestrator dispatch.\n\nSo my answer is: **yes, create it, but make the first version a daily self-improvement proposal workflow.** Once the proposals are consistently useful, add opt-in orchestration.",
+              "createdAt": "2026-05-06T04:38:57Z",
+              "url": "https://github.com/self-evolving/repo/discussions/160#discussioncomment-16823207",
+              "author": {
+                "login": "sepo-agent-app"
+              },
+              "replyTo": {
+                "id": "DC_kwDOSOhEMM4BALOQ"
+              }
+            },
+            {
+              "id": "DC_kwDOSOhEMM4BALOz",
+              "body": "@sepo-agent /answer one more idea: for the self improving loop, you should also check other repos (or trending GitHub repos or related repos) and then summarize ideas and inspirations from them? ",
+              "createdAt": "2026-05-06T04:43:20Z",
+              "url": "https://github.com/self-evolving/repo/discussions/160#discussioncomment-16823219",
+              "author": {
+                "login": "lolipopshock"
+              },
+              "replyTo": {
+                "id": "DC_kwDOSOhEMM4BALOQ"
+              }
+            },
+            {
+              "id": "DC_kwDOSOhEMM4BALO7",
+              "body": "Yes, but I’d keep external repo scanning as an **optional inspiration lane**, not the core self-improvement signal.\n\nExisting architecture suggests this shape:\n\n- Sepo already has scheduled judgment workflows like [`agent-project-manager.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-project-manager.yml), with opt-in config and dry-run behavior.\n- Memory curation is repo-centered through [`agent/memory`](https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/memory.md), so external ideas should be summarized, not blindly written as durable lessons.\n- Orchestration is target-based: [`agent-orchestrator.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-orchestrator.yml) works best once there is a concrete issue/PR to act on.\n- Config flags belong in the existing repository variable model documented in [`configuration-list.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/customization/configuration-list.md).\n\nI would implement it like this:\n\n1. Add a self-improvement workflow that first studies **this repo’s recent activity**.\n2. Add an optional external scan step, gated by something like `AGENT_SELF_IMPROVEMENT_EXTERNAL_ENABLED=true`.\n3. Prefer configured related repos first, for example:\n   - `AGENT_SELF_IMPROVEMENT_REPOS=self-evolving/repo,owner/related-project`\n   - optionally a GitHub search query for discovery.\n4. Treat GitHub trending as low-confidence inspiration, not authority. Trending is noisy and often unrelated.\n5. Summarize external ideas into an “Inspirations” section with links and why they might apply.\n6. Ask the agent to choose one improvement only if it is relevant to Sepo’s current architecture.\n7. Create/update a proposal issue.\n8. Only after that, optionally dispatch `/orchestrate` on the issue if auto-implementation is explicitly enabled.\n\nImportant guardrails:\n\n- Do not execute code from external repos.\n- Do not clone arbitrary repositories by default; use GitHub metadata, READMEs, releases, issues, and workflow files.\n- Rate-limit the scan and cap the number of repos.\n- Keep external observations out of durable memory unless they become accepted project direction.\n- Require local relevance: “interesting elsewhere” is not enough.\n\nSo yes: **related-repo inspiration is a good addition**, especially for discovering patterns Sepo should adopt. I would make it opt-in, source-linked, proposal-first, and secondary to actual experience from this repo.\n\nSuggested first milestone: implement the local self-improvement proposal loop first, then add external inspiration as phase two once the proposal format is stable.",
+              "createdAt": "2026-05-06T04:44:39Z",
+              "url": "https://github.com/self-evolving/repo/discussions/160#discussioncomment-16823227",
+              "author": {
+                "login": "sepo-agent-app"
+              },
+              "replyTo": {
+                "id": "DC_kwDOSOhEMM4BALOQ"
+              }
+            }
+          ],
+          "pageInfo": {
+            "hasNextPage": false,
+            "endCursor": null
+          }
+        }
+      }
+    ],
+    "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": null
+    }
+  }
+}
