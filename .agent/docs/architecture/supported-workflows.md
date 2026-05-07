@@ -76,9 +76,10 @@ the same authenticated agent account as outdated. Generated review summaries
 carry a hidden HTML marker for robust matching, with a heading fallback for
 older summaries, and review synthesis also minimizes older same-agent inline
 review comments created before the current synthesis started. Rubrics reviews
-match the `## Rubrics Review` heading, and orchestrator handoffs match their
-hidden handoff marker. This keeps the latest generated status prominent while
-leaving older generated comments expandable.
+match the `## Rubrics Review` heading, `fix-pr` status cleanup matches the
+generated fix-pr status heading, and orchestrator handoffs match their hidden
+handoff marker. This keeps the latest generated status prominent while leaving
+older generated comments expandable.
 Set `AGENT_COLLAPSE_OLD_REVIEWS=false` to skip this cleanup and leave prior
 generated comments visible.
 
