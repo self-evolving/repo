@@ -1,6 +1,9 @@
 import { extractJsonObject } from "./response.js";
 import { extractReviewConclusion } from "./handoff.js";
-import { isReviewSynthesisBody } from "./review-synthesis.js";
+import {
+  extractReviewSynthesisHeadSha,
+  isReviewSynthesisBody,
+} from "./review-synthesis.js";
 
 export type SelfApprovalVerdict = "approve" | "request_changes" | "blocked";
 
@@ -72,19 +75,6 @@ function normalizeVerdict(value: string): SelfApprovalVerdict | null {
   return null;
 }
 
-function isRubricsReviewBody(body: string): boolean {
-  return /(?:^|\r?\n)## Rubrics Review(?:\s|$)/.test(body);
-}
-
-function extractRubricsVerdict(markdown: string): string {
-  const text = markdown || "";
-  const finalMatch = text.match(/##\s*Final Rubric Verdict\s+`?([A-Z_ -]+)`?/i);
-  if (finalMatch) return normalizeToken(finalMatch[1]);
-
-  const tableMatch = text.match(/\|\s*\d+\s*\|\s*([A-Z_ -]+)\s*\|\s*\d+\s*\|/i);
-  return tableMatch ? normalizeToken(tableMatch[1]) : "unknown";
-}
-
 function createdAtMs(value: string | number | null | undefined): number {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   const parsed = Date.parse(String(value || ""));
@@ -94,12 +84,20 @@ function createdAtMs(value: string | number | null | undefined): number {
 export function evaluateSelfApprovalProvenance(input: {
   comments: SelfApprovalSignalComment[];
   trustedActorLogin: string;
+  expectedHeadSha: string;
 }): SelfApprovalProvenanceResult {
   const trustedActor = normalizeActorLogin(input.trustedActorLogin);
+  const expectedHeadSha = String(input.expectedHeadSha || "").trim();
   if (!trustedActor) {
     return {
       trusted: false,
       reason: "could not resolve trusted agent actor for self-approval provenance",
+    };
+  }
+  if (!expectedHeadSha) {
+    return {
+      trusted: false,
+      reason: "could not resolve expected head SHA for self-approval provenance",
     };
   }
 
@@ -113,16 +111,8 @@ export function evaluateSelfApprovalProvenance(input: {
         return {
           index,
           createdAtMs: createdAtMs(comment.createdAt),
-          kind: "review synthesis",
           conclusion: extractReviewConclusion(body),
-        };
-      }
-      if (isRubricsReviewBody(body)) {
-        return {
-          index,
-          createdAtMs: createdAtMs(comment.createdAt),
-          kind: "rubrics review",
-          conclusion: extractRubricsVerdict(body),
+          reviewedHeadSha: extractReviewSynthesisHeadSha(body),
         };
       }
       return null;
@@ -130,8 +120,8 @@ export function evaluateSelfApprovalProvenance(input: {
     .filter((signal): signal is {
       index: number;
       createdAtMs: number;
-      kind: "review synthesis" | "rubrics review";
       conclusion: string;
+      reviewedHeadSha: string;
     } => Boolean(signal))
     .sort((left, right) => left.createdAtMs - right.createdAtMs || left.index - right.index);
 
@@ -139,21 +129,30 @@ export function evaluateSelfApprovalProvenance(input: {
   if (!latest) {
     return {
       trusted: false,
-      reason: "missing trusted review/rubrics signal for self-approval",
+      reason: "missing trusted review synthesis for self-approval",
     };
   }
 
-  if (latest.kind === "review synthesis" && latest.conclusion === "ship") {
-    return { trusted: true, reason: "latest trusted review synthesis verdict is SHIP" };
+  if (!latest.reviewedHeadSha) {
+    return {
+      trusted: false,
+      reason: "latest trusted review synthesis is missing reviewed head SHA",
+    };
   }
-  if (latest.kind === "rubrics review" && latest.conclusion === "pass") {
-    return { trusted: true, reason: "latest trusted rubrics review verdict is PASS" };
+  if (latest.reviewedHeadSha !== expectedHeadSha) {
+    return {
+      trusted: false,
+      reason: "latest trusted review synthesis reviewed a different head SHA",
+    };
   }
 
-  const expected = latest.kind === "review synthesis" ? "SHIP" : "PASS";
+  if (latest.conclusion === "ship") {
+    return { trusted: true, reason: "latest trusted review synthesis verdict is SHIP for current head" };
+  }
+
   return {
     trusted: false,
-    reason: `latest trusted ${latest.kind} verdict is ${latest.conclusion || "unknown"}, not ${expected}`,
+    reason: `latest trusted review synthesis verdict is ${latest.conclusion || "unknown"}, not SHIP`,
   };
 }
 
@@ -266,7 +265,7 @@ export function resolveSelfApproval(input: SelfApprovalResolveInput): SelfApprov
       conclusion: "blocked",
       shouldApprove: false,
       shouldOrchestrate: false,
-      reason: input.approvalProvenanceReason || "missing trusted review/rubrics signal for self-approval",
+      reason: input.approvalProvenanceReason || "missing trusted review synthesis for self-approval",
       handoffContext: input.decision.handoffContext,
     };
   }

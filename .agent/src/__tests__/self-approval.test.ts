@@ -166,11 +166,12 @@ test("resolveSelfApproval requests orchestration for change requests", () => {
 test("evaluateSelfApprovalProvenance requires the latest trusted ship signal", () => {
   const trusted = evaluateSelfApprovalProvenance({
     trustedActorLogin: "sepo-agent-app[bot]",
+    expectedHeadSha: "abc123",
     comments: [
       {
         authorLogin: "app/sepo-agent-app",
         createdAt: "2026-05-07T10:00:00Z",
-        body: "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n## Final Verdict\n\nSHIP",
+        body: "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: abc123 -->\n\n## Final Verdict\n\nSHIP",
       },
     ],
   });
@@ -179,32 +180,78 @@ test("evaluateSelfApprovalProvenance requires the latest trusted ship signal", (
 
   const superseded = evaluateSelfApprovalProvenance({
     trustedActorLogin: "sepo-agent-app[bot]",
+    expectedHeadSha: "abc123",
     comments: [
       {
         authorLogin: "sepo-agent-app",
         createdAt: "2026-05-07T10:00:00Z",
-        body: "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n## Final Verdict\n\nSHIP",
+        body: "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: abc123 -->\n\n## Final Verdict\n\nSHIP",
       },
       {
         authorLogin: "sepo-agent-app",
         createdAt: "2026-05-07T10:05:00Z",
-        body: "## Rubrics Review\n\n## Final Rubric Verdict\n\nPARTIAL",
+        body: "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: abc123 -->\n\n## Final Verdict\n\nNEEDS_REWORK",
       },
     ],
   });
   assert.equal(superseded.trusted, false);
-  assert.match(superseded.reason, /PARTIAL|partial/);
+  assert.match(superseded.reason, /needs_rework/);
 
   const untrusted = evaluateSelfApprovalProvenance({
     trustedActorLogin: "sepo-agent-app[bot]",
+    expectedHeadSha: "abc123",
     comments: [
       {
         authorLogin: "someone-else",
         createdAt: "2026-05-07T10:00:00Z",
-        body: "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n## Final Verdict\n\nSHIP",
+        body: "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: abc123 -->\n\n## Final Verdict\n\nSHIP",
       },
     ],
   });
   assert.equal(untrusted.trusted, false);
   assert.match(untrusted.reason, /missing trusted/);
+});
+
+test("evaluateSelfApprovalProvenance requires review synthesis for the current head", () => {
+  const stale = evaluateSelfApprovalProvenance({
+    trustedActorLogin: "sepo-agent-app[bot]",
+    expectedHeadSha: "def456",
+    comments: [
+      {
+        authorLogin: "sepo-agent-app",
+        createdAt: "2026-05-07T10:00:00Z",
+        body: "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: abc123 -->\n\n## Final Verdict\n\nSHIP",
+      },
+    ],
+  });
+  assert.equal(stale.trusted, false);
+  assert.match(stale.reason, /different head SHA/);
+
+  const missingHead = evaluateSelfApprovalProvenance({
+    trustedActorLogin: "sepo-agent-app[bot]",
+    expectedHeadSha: "abc123",
+    comments: [
+      {
+        authorLogin: "sepo-agent-app",
+        createdAt: "2026-05-07T10:00:00Z",
+        body: "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n## Final Verdict\n\nSHIP",
+      },
+    ],
+  });
+  assert.equal(missingHead.trusted, false);
+  assert.match(missingHead.reason, /missing reviewed head SHA/);
+
+  const rubricsOnly = evaluateSelfApprovalProvenance({
+    trustedActorLogin: "sepo-agent-app[bot]",
+    expectedHeadSha: "abc123",
+    comments: [
+      {
+        authorLogin: "sepo-agent-app",
+        createdAt: "2026-05-07T10:00:00Z",
+        body: "## Rubrics Review\n\n## Final Rubric Verdict\n\nPASS",
+      },
+    ],
+  });
+  assert.equal(rubricsOnly.trusted, false);
+  assert.match(rubricsOnly.reason, /missing trusted review synthesis/);
 });

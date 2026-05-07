@@ -154,12 +154,12 @@ Review-originated `fix-pr` handoffs carry explicit task context when available. 
 
 When `AGENT_ALLOW_SELF_APPROVE=true`, review-originated `SHIP` handoffs dispatch
 `agent-self-approve.yml` instead of stopping. The self-approval workflow captures
-the PR head SHA before the agent runs, checks for a latest trusted review/rubrics
-signal, and asks for a high-level structured verdict using read-approved tools
+the PR head SHA before the agent runs, checks for a latest trusted review
+synthesis with a matching reviewed head SHA, and asks for a high-level structured verdict using read-approved tools
 and a read-only GitHub token. Only deterministic resolver code receives approval
 authority. It submits an approving PR review only when the verdict is `APPROVE`,
-the PR is still open, the trusted signal still allows approval, and both the
-inspected and current head SHAs match the captured head. A `REQUEST_CHANGES`
+the PR is still open, that trusted synthesis is `SHIP`, and both the inspected
+and current head SHAs match the captured head. A `REQUEST_CHANGES`
 verdict hands back to the orchestrator as `agent-self-approve -> fix-pr` with
 the agent's handoff context. `BLOCKED`, failed parsing, missing inspected head
 SHAs, stale heads, closed PRs, untrusted review state, and disabled configuration

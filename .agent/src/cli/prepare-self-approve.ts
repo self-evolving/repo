@@ -69,6 +69,7 @@ if (!allowSelfApprove) {
       const provenance = evaluateSelfApprovalProvenance({
         comments: fetchIssueCommentRecords(targetNumber, repo),
         trustedActorLogin: fetchAuthenticatedActorLogin(),
+        expectedHeadSha: meta.headOid,
       });
       if (!provenance.trusted) {
         stop(provenance.reason);
@@ -79,7 +80,7 @@ if (!allowSelfApprove) {
         setOutput("body_file", "");
       }
     } catch {
-      stop("could not read trusted review/rubrics signal");
+      stop("could not read trusted review synthesis");
     }
   }
 }

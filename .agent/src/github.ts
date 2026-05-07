@@ -56,6 +56,17 @@ export function postPrComment(prNumber: number, body: string, repo?: string): vo
   gh(args);
 }
 
+export function updateIssueComment(repo: string, commentId: string | number, body: string): void {
+  gh([
+    "api",
+    "--method",
+    "PATCH",
+    `repos/${repo}/issues/comments/${commentId}`,
+    "-f",
+    `body=${body}`,
+  ]);
+}
+
 // --- Labels ---
 
 export interface EnsureLabelOptions {
@@ -217,6 +228,24 @@ export function fetchIssueCommentRecords(issueNumber: number, repo: string): Iss
     }
   }
   return comments;
+}
+
+export function upsertPrCommentByMarker(
+  prNumber: number,
+  repo: string,
+  marker: string,
+  body: string,
+): "created" | "updated" {
+  const existing = fetchIssueCommentRecords(prNumber, repo)
+    .filter((comment) => comment.id && comment.body.includes(marker))
+    .sort((left, right) => Date.parse(left.createdAt || "") - Date.parse(right.createdAt || ""));
+  const latest = existing[existing.length - 1];
+  if (latest) {
+    updateIssueComment(repo, latest.id, body);
+    return "updated";
+  }
+  postPrComment(prNumber, body, repo);
+  return "created";
 }
 
 export function findExistingPr(headBranch: string, repo?: string): string | null {

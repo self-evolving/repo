@@ -6,7 +6,7 @@
 // Outputs: status
 
 import { readFileSync } from "node:fs";
-import { postIssueComment, postPrComment } from "../github.js";
+import { fetchPrMeta, postIssueComment, postPrComment } from "../github.js";
 import {
   collapsePreviousFixPrComments,
   collapsePreviousReviewSummaries,
@@ -46,10 +46,19 @@ const summary = summaryFromAgentResponse(route, rawResponse);
 let body: string;
 
 if (route === "review") {
+  let reviewedHeadSha = "";
+  if (target === "pr" && repo && targetNumber > 0) {
+    try {
+      reviewedHeadSha = fetchPrMeta(targetNumber, repo).headOid;
+    } catch {
+      reviewedHeadSha = "";
+    }
+  }
   body = formatReviewComment({
     synthesisBody: summary,
     requestedBy: requestedBy || undefined,
     approvalCommentUrl: approvalCommentUrl || undefined,
+    reviewedHeadSha: reviewedHeadSha || undefined,
   });
 } else if (route === "fix-pr") {
   body = formatFixPrComment({

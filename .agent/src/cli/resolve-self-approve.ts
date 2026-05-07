@@ -70,14 +70,16 @@ const decision = parseSelfApprovalDecision(readResponse());
 
 let prState = "";
 let currentHeadSha = "";
+let metadataReadReason = "";
 let approvalProvenanceTrusted = false;
-let approvalProvenanceReason = "missing trusted review/rubrics signal for self-approval";
+let approvalProvenanceReason = "missing trusted review synthesis for self-approval";
 if (repo && prNumber) {
   try {
     const meta = fetchPrMeta(prNumber, repo);
     prState = meta.state;
     currentHeadSha = meta.headOid;
   } catch {
+    metadataReadReason = "could not read pull request metadata during self-approval resolution";
     prState = "";
     currentHeadSha = "";
   }
@@ -86,40 +88,64 @@ if (repo && prNumber) {
     const provenance = evaluateSelfApprovalProvenance({
       comments: fetchIssueCommentRecords(prNumber, repo),
       trustedActorLogin: fetchAuthenticatedActorLogin(),
+      expectedHeadSha,
     });
     approvalProvenanceTrusted = provenance.trusted;
     approvalProvenanceReason = provenance.reason;
   } catch {
     approvalProvenanceTrusted = false;
-    approvalProvenanceReason = "could not read trusted review/rubrics signal";
+    approvalProvenanceReason = "could not read trusted review synthesis";
   }
 }
 
-const result = resolveSelfApproval({
-  allowSelfApprove,
-  targetKind,
-  prState,
-  expectedHeadSha,
-  currentHeadSha,
-  decision,
-  approvalProvenanceTrusted,
-  approvalProvenanceReason,
-});
+let result = metadataReadReason
+  ? {
+    conclusion: "failed" as const,
+    shouldApprove: false,
+    shouldOrchestrate: false,
+    reason: metadataReadReason,
+    handoffContext: decision?.handoffContext || "",
+  }
+  : resolveSelfApproval({
+    allowSelfApprove,
+    targetKind,
+    prState,
+    expectedHeadSha,
+    currentHeadSha,
+    decision,
+    approvalProvenanceTrusted,
+    approvalProvenanceReason,
+  });
+let approved = false;
+if (result.shouldApprove) {
+  try {
+    submitApproval(repo, prNumber, expectedHeadSha, formatSelfApprovalBody({
+      conclusion: result.conclusion,
+      reason: result.reason,
+      handoffContext: result.handoffContext,
+      approved: true,
+      runUrl: currentRunUrl(),
+    }));
+    approved = true;
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    result = {
+      conclusion: "failed",
+      shouldApprove: false,
+      shouldOrchestrate: false,
+      reason: `approval submission failed: ${message || "unknown error"}`,
+      handoffContext: result.handoffContext,
+    };
+  }
+}
 
 const body = formatSelfApprovalBody({
   conclusion: result.conclusion,
   reason: result.reason,
   handoffContext: result.handoffContext,
-  approved: result.shouldApprove,
+  approved,
   runUrl: currentRunUrl(),
 });
-
-let approved = false;
-if (result.shouldApprove) {
-  submitApproval(repo, prNumber, expectedHeadSha, body);
-  approved = true;
-}
-
 const bodyFile = writeBodyFile(body);
 setOutput("conclusion", result.conclusion);
 setOutput("approved", String(approved));

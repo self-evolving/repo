@@ -32,8 +32,8 @@ When `AGENT_ALLOW_SELF_APPROVE=true`, orchestrated review runs that ship may
 dispatch `agent-self-approve.yml` as a final pull request approval gate. That
 route re-inspects the PR at a captured head SHA, reads memory and rubrics
 read-only with read-approved tools, and submits an approving PR review only when
-its structured verdict is `APPROVE`, a latest trusted review/rubrics signal
-allows approval, and the inspected/current head SHA did not change. If it
+its structured verdict is `APPROVE`, the latest trusted review synthesis is
+`SHIP` for the same head SHA, and the inspected/current head SHA did not change. If it
 returns `REQUEST_CHANGES`, the orchestrator may hand back to `fix-pr` with the
 supplied context. With the
 default `AGENT_ALLOW_SELF_APPROVE=false`, the route is not dispatched and review

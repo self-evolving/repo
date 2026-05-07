@@ -57,19 +57,8 @@ jobs:
         id: runtime
         uses: ./.github/actions/setup-agent-runtime
 
-      - name: Prepare self-approval
-        id: prepare
-        env:
-          AGENT_ALLOW_SELF_APPROVE: ${{ vars.AGENT_ALLOW_SELF_APPROVE || 'false' }}
-          GH_TOKEN: ${{ github.token }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          TARGET_KIND: pull_request
-          TARGET_NUMBER: ${{ inputs.pr_number }}
-        run: node .agent/dist/cli/prepare-self-approve.js
-
-      - name: Resolve GitHub auth for stop
-        id: stop_auth
-        if: steps.prepare.outputs.should_run != 'true'
+      - name: Resolve GitHub auth
+        id: auth
         uses: ./.github/actions/resolve-github-auth
         with:
           app_id: ${{ secrets.AGENT_APP_ID }}
@@ -77,11 +66,21 @@ jobs:
           pat: ${{ secrets.AGENT_PAT }}
           fallback_token: ${{ github.token }}
 
+      - name: Prepare self-approval
+        id: prepare
+        env:
+          AGENT_ALLOW_SELF_APPROVE: ${{ vars.AGENT_ALLOW_SELF_APPROVE || 'false' }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          TARGET_KIND: pull_request
+          TARGET_NUMBER: ${{ inputs.pr_number }}
+        run: node .agent/dist/cli/prepare-self-approve.js
+
       - name: Post self-approval stop
         if: steps.prepare.outputs.should_run != 'true'
         env:
           BODY_FILE: ${{ steps.prepare.outputs.body_file }}
-          GH_TOKEN: ${{ steps.stop_auth.outputs.token }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           RESPONSE_KIND: pr_comment
           TARGET_NUMBER: ${{ inputs.pr_number }}
@@ -173,24 +172,28 @@ jobs:
 
       - name: Post self-approval status
         if: >-
+          always() &&
           steps.prepare.outputs.should_run == 'true' &&
-          steps.result.outputs.approved != 'true'
+          (steps.result.outcome == 'failure' || steps.result.outputs.approved != 'true')
         env:
           BODY_FILE: ${{ steps.result.outputs.body_file }}
-          GH_TOKEN: ${{ steps.approval_auth.outputs.token }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           RESPONSE_KIND: pr_comment
           TARGET_NUMBER: ${{ inputs.pr_number }}
         run: node .agent/dist/cli/post-response.js
 
       - uses: actions/upload-artifact@v4
-        if: steps.prepare.outputs.should_run == 'true'
+        if: >-
+          always() &&
+          steps.prepare.outputs.should_run == 'true'
         with:
           name: agent-self-approve-result-${{ inputs.pr_number }}
           path: |
             ${{ steps.agent.outputs.response_file }}
             ${{ steps.agent.outputs.session_log_file }}
             ${{ steps.result.outputs.body_file }}
+          if-no-files-found: ignore
           retention-days: 30
 
       - name: Orchestrate follow-up

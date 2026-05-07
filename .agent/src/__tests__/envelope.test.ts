@@ -1428,8 +1428,11 @@ test("agent-self-approve keeps inspection read-only until deterministic resoluti
   assert.match(agentBlock, /github_token:\s*\$\{\{\s*github\.token\s*\}\}/);
   assert.match(agentBlock, /permission_mode:\s*approve-reads/);
   assert.doesNotMatch(agentBlock, /steps\.[a-z_]+\.outputs\.token/);
-  assert.match(workflow, /Resolve GitHub auth for stop[\s\S]*if: steps\.prepare\.outputs\.should_run != 'true'/);
+  assert.match(workflow, /Prepare self-approval[\s\S]*GH_TOKEN:\s*\$\{\{\s*steps\.auth\.outputs\.token\s*\}\}/);
+  assert.match(workflow, /Post self-approval stop[\s\S]*GH_TOKEN:\s*\$\{\{\s*steps\.auth\.outputs\.token\s*\}\}/);
   assert.match(workflow, /Resolve self-approval result[\s\S]*GH_TOKEN:\s*\$\{\{\s*steps\.approval_auth\.outputs\.token\s*\}\}/);
+  assert.match(workflow, /Post self-approval status[\s\S]*always\(\)/);
+  assert.match(workflow, /if-no-files-found:\s*ignore/);
 });
 
 test("branch cleanup preserves shared agent branches", () => {
