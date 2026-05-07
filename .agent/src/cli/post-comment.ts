@@ -8,7 +8,10 @@
 
 import { readFileSync } from "node:fs";
 import { postIssueComment, postPrComment } from "../github.js";
-import { collapsePreviousReviewSummaries } from "../review-summary-minimize.js";
+import {
+  collapsePreviousFixPrComments,
+  collapsePreviousReviewSummaries,
+} from "../review-summary-minimize.js";
 import {
   formatImplementComment,
   formatFixPrComment,
@@ -111,6 +114,19 @@ if (target === "pr") {
       const message = err instanceof Error ? err.message : String(err);
       console.warn(
         `Failed to collapse previous AI review synthesis comments for ${repo}#${targetNumber}: ${message}`,
+      );
+    }
+  }
+  if (route === "fix-pr" && collapseOldReviews) {
+    try {
+      const collapsed = collapsePreviousFixPrComments({ repo, prNumber: targetNumber });
+      if (collapsed > 0) {
+        console.log(`Collapsed ${collapsed} previous fix-pr status comment(s).`);
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.warn(
+        `Failed to collapse previous fix-pr status comments for ${repo}#${targetNumber}: ${message}`,
       );
     }
   }

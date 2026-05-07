@@ -70,14 +70,14 @@ set `base_branch` to stack directly on another branch, or `base_pr` to stack on
 an open same-repository PR head branch. The implementation workflow rejects
 ambiguous input when both are set.
 
-When a new review synthesis, rubrics review, or orchestrator handoff marker is
-posted, the workflows minimize prior visible matching comments and reviews from
-the same authenticated agent account as outdated. Generated review summaries
-carry a hidden HTML marker for robust matching, with a heading fallback for
-older summaries, and review synthesis also minimizes older same-agent inline
-review comments created before the current synthesis started. Rubrics reviews
-match the `## Rubrics Review` heading, `fix-pr` status cleanup matches the
-generated fix-pr status heading, and orchestrator handoffs match their hidden
+When a new review synthesis, rubrics review, `fix-pr` status comment, or
+orchestrator handoff marker is posted, the workflows minimize prior visible
+matching comments and reviews from the same authenticated agent account as
+outdated. Generated review summaries and `fix-pr` status comments carry hidden
+HTML markers for robust matching, with heading/text fallbacks for older
+comments. Review synthesis also minimizes older same-agent inline review
+comments created before the current synthesis started. Rubrics reviews match
+the `## Rubrics Review` heading, and orchestrator handoffs match their hidden
 handoff marker. This keeps the latest generated status prominent while leaving
 older generated comments expandable.
 Set `AGENT_COLLAPSE_OLD_REVIEWS=false` to skip this cleanup and leave prior

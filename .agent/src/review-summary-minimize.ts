@@ -3,6 +3,7 @@ import {
   type GraphQLClient,
 } from "./github-graphql.js";
 import { hasAnyHandoffMarker, parseAnyHandoffMarker } from "./handoff.js";
+import { isFixPrStatusBody } from "./fix-pr-status.js";
 import { isReviewSynthesisBody } from "./review-synthesis.js";
 
 type PageInfo = {
@@ -473,6 +474,34 @@ function collapsePreviousMatchingReviewComments(
   return uniqueNodeIds.length;
 }
 
+function collapsePreviousMatchingPrComments(
+  options: CollapsePreviousReviewSummariesOptions,
+  bodyMatcher: ReviewBodyMatcher,
+): number {
+  const client = options.client || createGhGraphqlClient();
+  const repo = parseRepo(options.repo);
+  const viewerLogin = fetchViewerLogin(client);
+  const nodes = fetchMatchingNodes(
+    client,
+    COMMENTS_QUERY,
+    "comments",
+    repo,
+    options.prNumber,
+    viewerLogin,
+    bodyMatcher,
+  );
+  const uniqueNodeIds = Array.from(new Set(nodes.map((node) => node.id).filter(Boolean))) as string[];
+
+  for (const id of uniqueNodeIds) {
+    client.graphql(MINIMIZE_COMMENT_MUTATION, {
+      id,
+      classifier: "OUTDATED",
+    });
+  }
+
+  return uniqueNodeIds.length;
+}
+
 function collapsePreviousMatchingHandoffComments(
   options: CollapsePreviousHandoffCommentsOptions,
 ): number {
@@ -582,6 +611,15 @@ export function collapsePreviousRubricsReviews(
   options: CollapsePreviousReviewSummariesOptions,
 ): number {
   return collapsePreviousMatchingReviewComments(options, isRubricsReviewBody);
+}
+
+/**
+ * Collapses older agent-generated fix-pr status comments before posting a fresh one.
+ */
+export function collapsePreviousFixPrComments(
+  options: CollapsePreviousReviewSummariesOptions,
+): number {
+  return collapsePreviousMatchingPrComments(options, isFixPrStatusBody);
 }
 
 /**
