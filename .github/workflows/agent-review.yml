@@ -271,6 +271,10 @@ jobs:
           ROUTE: review
         run: node .agent/dist/cli/resolve-task-timeout.js
 
+      - name: Record synthesis start time
+        id: synthesis_start
+        run: node -e "require('node:fs').appendFileSync(process.env.GITHUB_OUTPUT, 'started_at_ms=' + Date.now() + '\n')"
+
       - name: Run synthesis
         id: synthesis
         timeout-minutes: ${{ fromJson(steps.task_timeout.outputs.minutes || '30') }}
@@ -307,6 +311,7 @@ jobs:
           AGENT_COLLAPSE_OLD_REVIEWS: ${{ vars.AGENT_COLLAPSE_OLD_REVIEWS }}
           APPROVAL_COMMENT_URL: ${{ inputs.approval_comment_url }}
           COMMENT_TARGET: pr
+          CURRENT_REVIEW_STARTED_AT_MS: ${{ steps.synthesis_start.outputs.started_at_ms }}
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           REQUESTED_BY: ${{ inputs.requested_by }}
           RESPONSE_FILE: ${{ steps.synthesis.outputs.response_file }}

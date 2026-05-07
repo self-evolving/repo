@@ -13,6 +13,7 @@ type PageInfo = {
 type ReviewSummaryNode = {
   id?: string | null;
   body?: string | null;
+  createdAt?: string | null;
   isMinimized?: boolean | null;
   author?: {
     login?: string | null;
@@ -46,6 +47,30 @@ type PullRequestReviewsResponse = {
   } | null;
 };
 
+type ReviewThreadNode = {
+  id?: string | null;
+  comments?: ReviewSummaryConnection | null;
+};
+
+type ReviewThreadConnection = {
+  nodes?: ReviewThreadNode[] | null;
+  pageInfo: PageInfo;
+};
+
+type PullRequestReviewThreadsResponse = {
+  repository?: {
+    pullRequest?: {
+      reviewThreads?: ReviewThreadConnection | null;
+    } | null;
+  } | null;
+};
+
+type ReviewThreadCommentsResponse = {
+  node?: {
+    comments?: ReviewSummaryConnection | null;
+  } | null;
+};
+
 type IssueCommentsResponse = {
   repository?: {
     issue?: {
@@ -57,6 +82,7 @@ type IssueCommentsResponse = {
 type CollapsePreviousReviewSummariesOptions = {
   repo: string;
   prNumber: number;
+  currentReviewStartedAtMs?: number;
   client?: GraphQLClient;
 };
 
@@ -120,6 +146,68 @@ const REVIEWS_QUERY = `
           nodes {
             id
             body
+            isMinimized
+            author {
+              login
+            }
+          }
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
+        }
+      }
+    }
+  }
+`;
+
+const REVIEW_THREADS_QUERY = `
+  query PullRequestInlineReviewComments(
+    $owner: String!
+    $name: String!
+    $number: Int!
+    $after: String
+  ) {
+    repository(owner: $owner, name: $name) {
+      pullRequest(number: $number) {
+        reviewThreads(first: 100, after: $after) {
+          nodes {
+            id
+            comments(first: 100) {
+              nodes {
+                id
+                body
+                createdAt
+                isMinimized
+                author {
+                  login
+                }
+              }
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
+            }
+          }
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
+        }
+      }
+    }
+  }
+`;
+
+const REVIEW_THREAD_COMMENTS_QUERY = `
+  query PullRequestInlineReviewThreadComments($id: ID!, $after: String) {
+    node(id: $id) {
+      ... on PullRequestReviewThread {
+        comments(first: 100, after: $after) {
+          nodes {
+            id
+            body
+            createdAt
             isMinimized
             author {
               login
@@ -207,6 +295,11 @@ function isGeneratedReviewComment(
   return bodyMatcher(node.body || "");
 }
 
+function isOlderThan(node: ReviewSummaryNode, cutoffMs: number): boolean {
+  const createdAtMs = Date.parse(node.createdAt || "");
+  return Number.isFinite(createdAtMs) && createdAtMs < cutoffMs;
+}
+
 function fetchViewerLogin(client: GraphQLClient): string {
   const data = client.graphql<ViewerResponse>(VIEWER_QUERY, {});
   const login = data.viewer?.login || "";
@@ -257,6 +350,80 @@ function fetchMatchingNodes(
   return matches;
 }
 
+function collectMatchingInlineReviewComments(
+  matches: ReviewSummaryNode[],
+  connection: ReviewSummaryConnection | null | undefined,
+  viewerLogin: string,
+  currentReviewStartedAtMs: number,
+): string | undefined {
+  if (!connection) return undefined;
+  for (const node of connection.nodes || []) {
+    if (
+      isGeneratedReviewComment(node, viewerLogin, () => true)
+      && isOlderThan(node, currentReviewStartedAtMs)
+    ) {
+      matches.push(node);
+    }
+  }
+  return connection.pageInfo.hasNextPage
+    ? connection.pageInfo.endCursor || undefined
+    : undefined;
+}
+
+function fetchMatchingInlineReviewCommentNodes(
+  client: GraphQLClient,
+  repo: { owner: string; name: string },
+  prNumber: number,
+  viewerLogin: string,
+  currentReviewStartedAtMs: number,
+): ReviewSummaryNode[] {
+  const matches: ReviewSummaryNode[] = [];
+  let after: string | undefined;
+
+  do {
+    const data = client.graphql<PullRequestReviewThreadsResponse>(
+      REVIEW_THREADS_QUERY,
+      {
+        owner: repo.owner,
+        name: repo.name,
+        number: prNumber,
+        after,
+      },
+    );
+    const connection = data.repository?.pullRequest?.reviewThreads;
+    if (!connection) return matches;
+
+    for (const thread of connection.nodes || []) {
+      let commentsAfter = collectMatchingInlineReviewComments(
+        matches,
+        thread.comments,
+        viewerLogin,
+        currentReviewStartedAtMs,
+      );
+      while (thread.id && commentsAfter) {
+        const commentsData = client.graphql<ReviewThreadCommentsResponse>(
+          REVIEW_THREAD_COMMENTS_QUERY,
+          {
+            id: thread.id,
+            after: commentsAfter,
+          },
+        );
+        commentsAfter = collectMatchingInlineReviewComments(
+          matches,
+          commentsData.node?.comments,
+          viewerLogin,
+          currentReviewStartedAtMs,
+        );
+      }
+    }
+    after = connection.pageInfo.hasNextPage
+      ? connection.pageInfo.endCursor || undefined
+      : undefined;
+  } while (after);
+
+  return matches;
+}
+
 function collapsePreviousMatchingReviewComments(
   options: CollapsePreviousReviewSummariesOptions,
   bodyMatcher: ReviewBodyMatcher,
@@ -264,6 +431,7 @@ function collapsePreviousMatchingReviewComments(
   const client = options.client || createGhGraphqlClient();
   const repo = parseRepo(options.repo);
   const viewerLogin = fetchViewerLogin(client);
+  const currentReviewStartedAtMs = Number(options.currentReviewStartedAtMs);
   const nodes = [
     ...fetchMatchingNodes(
       client,
@@ -283,6 +451,15 @@ function collapsePreviousMatchingReviewComments(
       viewerLogin,
       bodyMatcher,
     ),
+    ...(Number.isFinite(currentReviewStartedAtMs) && currentReviewStartedAtMs > 0
+      ? fetchMatchingInlineReviewCommentNodes(
+        client,
+        repo,
+        options.prNumber,
+        viewerLogin,
+        currentReviewStartedAtMs,
+      )
+      : []),
   ];
   const uniqueNodeIds = Array.from(new Set(nodes.map((node) => node.id).filter(Boolean))) as string[];
 

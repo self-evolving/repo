@@ -595,6 +595,8 @@ test("workflows use granular CLI helpers for post-processing", () => {
 
   assert.match(reviewWorkflow, /node \.agent\/dist\/cli\/post-comment\.js/);
   assert.match(reviewWorkflow, /AGENT_COLLAPSE_OLD_REVIEWS:\s*\$\{\{ vars\.AGENT_COLLAPSE_OLD_REVIEWS \}\}/);
+  assert.match(reviewWorkflow, /id: synthesis_start/);
+  assert.match(reviewWorkflow, /CURRENT_REVIEW_STARTED_AT_MS:\s*\$\{\{ steps\.synthesis_start\.outputs\.started_at_ms \}\}/);
 });
 
 test("shared run-agent-task action exists and requires explicit prompt/skill/lane/session_policy inputs", () => {

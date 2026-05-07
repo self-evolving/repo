@@ -2,7 +2,8 @@
 // Usage: node .agent/dist/cli/post-comment.js
 // Env: COMMENT_TARGET (issue or pr), TARGET_NUMBER, ROUTE, STATUS,
 //      RESPONSE_FILE (optional), BRANCH, PR_URL, REQUESTED_BY,
-//      APPROVAL_COMMENT_URL, AGENT_COLLAPSE_OLD_REVIEWS
+//      APPROVAL_COMMENT_URL, CURRENT_REVIEW_STARTED_AT_MS,
+//      AGENT_COLLAPSE_OLD_REVIEWS
 // Outputs: status
 
 import { readFileSync } from "node:fs";
@@ -30,6 +31,7 @@ const requestedBy = process.env.REQUESTED_BY || "";
 const approvalCommentUrl = process.env.APPROVAL_COMMENT_URL || "";
 const resumeStatus = process.env.RESUME_STATUS || "";
 const repo = process.env.GITHUB_REPOSITORY || "";
+const currentReviewStartedAtMs = Number(process.env.CURRENT_REVIEW_STARTED_AT_MS || "0");
 const collapseOldReviews = !["false", "0", "no", "off"].includes(
   (process.env.AGENT_COLLAPSE_OLD_REVIEWS || "").trim().toLowerCase(),
 );
@@ -78,7 +80,11 @@ if (continuityNote) {
 if (target === "pr") {
   if (route === "review" && collapseOldReviews) {
     try {
-      const collapsed = collapsePreviousReviewSummaries({ repo, prNumber: targetNumber });
+      const collapsed = collapsePreviousReviewSummaries({
+        repo,
+        prNumber: targetNumber,
+        currentReviewStartedAtMs,
+      });
       if (collapsed > 0) {
         console.log(`Collapsed ${collapsed} previous AI review synthesis comment(s).`);
       }
