@@ -7,6 +7,13 @@ find there. If only one review file exists, synthesize from that single
 reviewer input without treating missing reviewers as an error. Do not infer
 agreement, disagreement, or deduplication from missing reviewer outputs.
 
+Inline cleanup context:
+- `AGENT_COLLAPSE_OLD_REVIEWS`: `${AGENT_COLLAPSE_OLD_REVIEWS}`. Empty means
+  cleanup is enabled; `false`, `0`, `no`, and `off` mean cleanup is disabled.
+- `CURRENT_REVIEW_STARTED_AT_MS`: `${CURRENT_REVIEW_STARTED_AT_MS}`. A positive
+  numeric value is required before older same-agent inline comments can be
+  treated as cleanup-eligible.
+
 Use `gh pr view ${PR_NUMBER} --repo ${GITHUB_REPOSITORY} --json title,body,comments,reviews`
 to inspect the current PR conversation before synthesizing.
 Use `gh api --paginate repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/comments`
@@ -21,11 +28,13 @@ inline comments sparingly:
   top-level comments, or inline comments
 - before posting, fetch existing inline review comments and skip any that
   already cover the same file/line issue well enough
-- do not let older same-agent inline comments that are eligible for review
-  cleanup suppress a fresh current-run inline comment. Treat same-agent inline
-  comments from previous review rounds as cleanup-eligible unless they are
-  clearly from the current run; for repeated current findings, post a fresh
-  inline comment so cleanup does not hide the only visible line-level feedback
+- only override duplicate skipping for older same-agent inline comments when
+  cleanup is enabled, `CURRENT_REVIEW_STARTED_AT_MS` is positive, and the
+  matching same-agent comment was created before that cutoff. In that case,
+  post a fresh inline comment for the repeated current finding so cleanup does
+  not hide the only visible line-level feedback. If cleanup is disabled, the
+  cutoff is missing or invalid, or the existing comment is not older than the
+  cutoff, preserve normal duplicate-skip behavior
 - do not post the full synthesis, a top-level summary, or a separate overall PR
   comment with `gh`; the workflow posts the final synthesis itself
 - if needed, use `gh pr view ${PR_NUMBER} --repo ${GITHUB_REPOSITORY} --json files,headRefOid` and

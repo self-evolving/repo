@@ -11,6 +11,12 @@ Requirements:
 - Output clean GitHub-flavored markdown only
 - Do not output JSON
 - Do not include a preamble
+- Inline cleanup context:
+  - `AGENT_COLLAPSE_OLD_REVIEWS`: `${AGENT_COLLAPSE_OLD_REVIEWS}`. Empty means
+    cleanup is enabled; `false`, `0`, `no`, and `off` mean cleanup is disabled.
+  - `CURRENT_REVIEW_STARTED_AT_MS`: `${CURRENT_REVIEW_STARTED_AT_MS}`. A
+    positive numeric value is required before older same-agent inline comments
+    can be treated as cleanup-eligible.
 - Keep the same synthesis structure and verdict style as the original task,
   including:
   - `## Summary of PR/Issue`
@@ -28,11 +34,13 @@ Requirements:
   repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/comments`.
 - Do not post more inline comments until you have checked the existing inline
   comments and confirmed the new comment would not be a duplicate.
-- Do not let older same-agent inline comments that are eligible for review
-  cleanup suppress a fresh current-run inline comment. Treat same-agent inline
-  comments from previous review rounds as cleanup-eligible unless they are
-  clearly from the current run; for repeated current findings, post a fresh
-  inline comment so cleanup does not hide the only visible line-level feedback.
+- Only override duplicate skipping for older same-agent inline comments when
+  cleanup is enabled, `CURRENT_REVIEW_STARTED_AT_MS` is positive, and the
+  matching same-agent comment was created before that cutoff. In that case,
+  post a fresh inline comment for the repeated current finding so cleanup does
+  not hide the only visible line-level feedback. If cleanup is disabled, the
+  cutoff is missing or invalid, or the existing comment is not older than the
+  cutoff, preserve normal duplicate-skip behavior.
 - If you post inline comments, use:
   `gh api --method POST repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/comments -f body='<comment>' -f commit_id='<headRefOid>' -f path='<path>' -F line=<line> -f side=RIGHT`
   and do not post the full synthesis or a separate summary comment

@@ -364,13 +364,24 @@ test("review synthesis uses a shared reviews directory contract", () => {
   assert.match(reviewWorkflow, /review:\n\s+# Reviewer lanes are best-effort[\s\S]*?continue-on-error:\s*true/);
   assert.match(reviewWorkflow, /synthesize:\n\s*needs:\s*\[review\]\n\s*if:\s*\$\{\{\s*!cancelled\(\)\s*\}\}/);
   assert.match(reviewWorkflow, /find "\$reviews_dir" -type f -name review\.md/);
-  assert.match(reviewWorkflow, /REVIEWS_DIR:\s*\$\{\{\s*steps\.reviews\.outputs\.reviews_dir\s*\}\}/);
+  const runSynthesisStep = reviewWorkflow.match(
+    /- name: Run synthesis[\s\S]*?(?=\n      - name: Post review comment)/,
+  )?.[0] || "";
+  assert.match(runSynthesisStep, /REVIEWS_DIR:\s*\$\{\{\s*steps\.reviews\.outputs\.reviews_dir\s*\}\}/);
+  assert.match(runSynthesisStep, /AGENT_COLLAPSE_OLD_REVIEWS:\s*\$\{\{\s*vars\.AGENT_COLLAPSE_OLD_REVIEWS\s*\}\}/);
+  assert.match(runSynthesisStep, /CURRENT_REVIEW_STARTED_AT_MS:\s*\$\{\{\s*steps\.synthesis_start\.outputs\.started_at_ms\s*\}\}/);
   assert.match(synthesisPrompt, /\$\{REVIEWS_DIR\}/);
-  assert.match(synthesisPrompt, /older same-agent inline comments that are eligible for review\s+cleanup/);
-  assert.match(synthesisPrompt, /post a fresh\s+inline comment so cleanup does not hide the only visible line-level feedback/);
-  assert.match(finalizePrompt, /older same-agent inline comments that are eligible for review\s+cleanup/);
-  assert.match(finalizePrompt, /post a fresh\s+inline comment so cleanup does not hide the only visible line-level feedback/);
+  assert.match(synthesisPrompt, /\$\{AGENT_COLLAPSE_OLD_REVIEWS\}/);
+  assert.match(synthesisPrompt, /\$\{CURRENT_REVIEW_STARTED_AT_MS\}/);
+  assert.match(synthesisPrompt, /only override duplicate skipping for older same-agent inline comments when\s+cleanup is enabled/);
+  assert.match(synthesisPrompt, /If cleanup is disabled, the\s+cutoff is missing or invalid[\s\S]*preserve normal duplicate-skip behavior/);
+  assert.match(finalizePrompt, /\$\{AGENT_COLLAPSE_OLD_REVIEWS\}/);
+  assert.match(finalizePrompt, /\$\{CURRENT_REVIEW_STARTED_AT_MS\}/);
+  assert.match(finalizePrompt, /Only override duplicate skipping for older same-agent inline comments when\s+cleanup is enabled/);
+  assert.match(finalizePrompt, /If cleanup is disabled, the\s+cutoff is missing or invalid[\s\S]*preserve normal duplicate-skip behavior/);
   assert.match(runSource, /"REVIEWS_DIR"/);
+  assert.match(runSource, /"AGENT_COLLAPSE_OLD_REVIEWS"/);
+  assert.match(runSource, /"CURRENT_REVIEW_STARTED_AT_MS"/);
   assert.match(runSource, /"MEMORY_DIR"/);
   assert.doesNotMatch(runSource, /PROMPT_VAR_MEMORY_/);
 });
