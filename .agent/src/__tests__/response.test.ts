@@ -133,6 +133,7 @@ test("formatFixPrComment formats success", () => {
     requestedBy: "alice",
   });
   assert.match(body, /pushed fixes/);
+  assert.match(body, /<!-- sepo-agent-fix-pr-status -->/);
   assert.match(body, /@alice/);
 });
 

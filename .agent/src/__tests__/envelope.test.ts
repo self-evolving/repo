@@ -588,6 +588,7 @@ test("workflows use granular CLI helpers for post-processing", () => {
   assert.match(fixPrWorkflow, /node \.agent\/dist\/cli\/push-pr-head\.js/);
   assert.match(fixPrWorkflow, /node \.agent\/dist\/cli\/add-label\.js/);
   assert.match(fixPrWorkflow, /node \.agent\/dist\/cli\/post-comment\.js/);
+  assert.match(fixPrWorkflow, /AGENT_COLLAPSE_OLD_REVIEWS:\s*\$\{\{ vars\.AGENT_COLLAPSE_OLD_REVIEWS \}\}/);
   assert.match(
     fixPrWorkflow,
     /REQUESTED_BY:\s*\$\{\{\s*inputs\.orchestration_enabled == 'true' && \(vars\.AGENT_HANDLE \|\| '@sepo-agent'\) \|\| inputs\.requested_by \|\| github\.actor\s*\}\}/,

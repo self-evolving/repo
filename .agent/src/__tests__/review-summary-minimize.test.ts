@@ -2,11 +2,13 @@ import { test } from "node:test";
 import { strict as assert } from "node:assert";
 
 import {
+  collapsePreviousFixPrComments,
   collapsePreviousHandoffComments,
   collapsePreviousReviewSummaries,
   collapsePreviousRubricsReviews,
   isRubricsReviewBody,
 } from "../review-summary-minimize.js";
+import { isFixPrStatusBody } from "../fix-pr-status.js";
 import type { GraphQLClient, GraphQLVariableValue } from "../github-graphql.js";
 
 function createQueuedClient(responses: unknown[]): {
@@ -223,6 +225,80 @@ test("collapsePreviousRubricsReviews minimizes rubrics reviews only", () => {
       { id: "review-1", classifier: "OUTDATED" },
     ],
   );
+});
+
+test("collapsePreviousFixPrComments minimizes fix-pr status comments only", () => {
+  const { client, calls } = createQueuedClient([
+    { viewer: { login: "sepo-agent" } },
+    {
+      repository: {
+        pullRequest: {
+          comments: {
+            nodes: [
+              {
+                id: "comment-1",
+                body: "**Sepo pushed fixes for this PR.** Branch: `agent/fix`.\n\n<!-- sepo-agent-fix-pr-status -->",
+                isMinimized: false,
+                author: { login: "sepo-agent" },
+              },
+              {
+                id: "comment-2",
+                body: "**Sepo did not produce code changes for this PR.**\n\nlegacy body",
+                isMinimized: false,
+                author: { login: "sepo-agent" },
+              },
+              {
+                id: "comment-3",
+                body: "## AI Review Synthesis\nnot a fix-pr status",
+                isMinimized: false,
+                author: { login: "sepo-agent" },
+              },
+              {
+                id: "comment-4",
+                body: "**Sepo pushed fixes for this PR.** other author",
+                isMinimized: false,
+                author: { login: "alice" },
+              },
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
+      },
+    },
+    { minimizeComment: { minimizedComment: { isMinimized: true } } },
+    { minimizeComment: { minimizedComment: { isMinimized: true } } },
+  ]);
+
+  const collapsed = collapsePreviousFixPrComments({
+    repo: "self-evolving/repo",
+    prNumber: 320,
+    client,
+  });
+
+  assert.equal(collapsed, 2);
+  assert.match(calls[1]?.query || "", /comments/);
+  assert.doesNotMatch(calls[1]?.query || "", /reviews/);
+  assert.deepEqual(
+    calls.slice(2).map((call) => call.variables),
+    [
+      { id: "comment-1", classifier: "OUTDATED" },
+      { id: "comment-2", classifier: "OUTDATED" },
+    ],
+  );
+});
+
+test("isFixPrStatusBody matches marker and legacy fix-pr status text", () => {
+  assert.equal(isFixPrStatusBody("> Restored session\n\n<!-- sepo-agent-fix-pr-status -->"), true);
+  assert.equal(isFixPrStatusBody("**Sepo could not complete the PR fix run.**"), true);
+  assert.equal(
+    isFixPrStatusBody(
+      "**Sepo made changes, but lightweight verification failed.**\n\n" +
+      "Inspect the workflow logs before retrying the PR fix run.",
+    ),
+    true,
+  );
+  assert.equal(isFixPrStatusBody("**Sepo made changes, but lightweight verification failed.**"), false);
+  assert.equal(isFixPrStatusBody("## AI Review Synthesis\nbody"), false);
 });
 
 test("collapsePreviousHandoffComments minimizes old issue handoff comments only", () => {
