@@ -10,6 +10,7 @@
 | `agent-entrypoint.yml` | `@sepo-agent` in issues, PRs, discussions, comments, reviews | Thin entry point that wires triggers, runner labels, and secrets into `agent-router.yml` | None |
 | `agent-router.yml` | `workflow_call` | Full portal for context extraction, auth gating, mention detection, dispatch triage, routing, approval requests, and response posting | Configurable |
 | `agent-approve.yml` | approval comments | Resolves pending approvals, creates issues when needed, dispatches implementation | None |
+| `agent-publish-failure-report.yml` | `workflow_dispatch`, `/publish-failure-report` | Publishes a human-approved pending agent failure report to the configured Discussion intake after rechecking route authorization | None |
 | `agent-orchestrator.yml` | `workflow_dispatch` | Explicit orchestration route that decides whether to dispatch the next action | None in `heuristics` mode; resolved-provider planner in `agent` mode |
 | `agent-implement.yml` | `workflow_dispatch` | Implementation flow: branch, commit, draft PR; supports `base_branch` or `base_pr` for stacked PRs | Auto |
 | `agent-fix-pr.yml` | `workflow_dispatch`, `workflow_call` | PR fix flow: update existing PR branch, verify, push | Auto |
@@ -133,6 +134,37 @@ fail while posting.
 
 Single-agent routes, autonomous agent workflows, and the review synthesis step resolve their provider before installing provider CLIs. Explicit provider choices from `AGENT_DEFAULT_PROVIDER` or a route-specific override are authoritative: the workflows select that provider even when the matching repository secret is absent, so self-hosted runners can rely on local Codex or Claude authentication. When the provider is `auto`, detection uses configured provider secrets and prefers Codex when both `OPENAI_API_KEY` and `CLAUDE_CODE_OAUTH_TOKEN` are present. Route-specific overrides are available by editing the relevant workflow's `resolve-agent-provider` step inline. Portal and skill jobs use non-fatal early resolution before non-agent response paths, then require a provider only immediately before invoking an agent.
 
+Failed agent runs go through local diagnosis before the shared action rethrows
+the original exit code. The diagnosis step reads the captured stdout/stderr
+paths from `run.ts`, redacts common secret shapes, assigns one of
+`setup_or_auth`, `provider_or_runtime`, `repo_policy_or_access`,
+`user_task_or_prompt`, `agent_product_bug_candidate`, or `unknown`, writes a
+GitHub Actions step summary, and uploads a JSON diagnosis artifact. The default
+mode is conservative: public repositories prepare a pending Bug Report
+Discussion draft for human review, while private repositories write only the
+local diagnosis unless configured otherwise. Set `AGENT_FAILURE_REPORT_MODE` to
+`false`, `diagnose`, `approval`, or `true` to override that behavior. Only
+explicit `true` mode attempts central Discussion publication, and even then only
+for high-confidence `agent_product_bug_candidate` fingerprints; other buckets
+remain local or pending approval. If diagnosis generation or diagnosis artifact
+upload fails, the shared action emits a focused warning/status but still
+propagates the original agent exit code.
+
+To publish a pending approval artifact, run `Agent / Publish Failure Report`
+with the failed Actions `run_id` and optional `run_attempt`, `artifact_name`, or
+`fingerprint`, or comment with
+`@sepo-agent /publish-failure-report run_id=<actions_run_id>`. The router checks
+the comment author against the `publish-failure-report` route policy, and the
+publish CLI rechecks the same policy before reading `diagnosis.json` and
+creating or commenting on the configured central Discussion. Routed approvals
+reply on the trigger thread with the publication status, the central Discussion
+URL when available, or the failure reason. Central Discussions are reused by
+the stable failure fingerprint marker, and repeat occurrence comments are
+deduped by their hidden occurrence marker, including `run_attempt` so reruns of
+the same Actions run remain distinct. Pending artifacts with malformed
+`owner/repo` destinations or empty categories are marked as unpublishable
+previews in the diagnosis output rather than looking ready to publish.
+
 ## Trigger details
 
 ### `agent-entrypoint.yml`
@@ -161,6 +193,7 @@ Explicit routes are:
 - `@sepo-agent /fix-pr`
 - `@sepo-agent /review`
 - `@sepo-agent /orchestrate`
+- `@sepo-agent /publish-failure-report run_id=<actions_run_id>`
 - `@sepo-agent /skill <name>`
 
 Explicit routes skip dispatch triage and resolve locally, but still go through the same route policy checks afterward.

@@ -20,6 +20,9 @@
 | `AGENT_PROJECT_MANAGEMENT_LIMIT` | Maximum open issues and pull requests for the agent to inspect per kind. Defaults to `100`. |
 | `AGENT_ACCESS_POLICY` | JSON trigger allowlist policy. See [Trigger access policy](../access-policy.md). |
 | `AGENT_TASK_TIMEOUT_POLICY` | JSON policy for GitHub Actions step timeouts on agent tasks. Defaults to `{"default_minutes":30}` and accepts route overrides, for example `{"default_minutes":30,"route_overrides":{"implement":60,"review":45}}`. Values must be 1-360 minutes. |
+| `AGENT_FAILURE_REPORT_MODE` | Failed-run diagnosis mode for shared agent tasks. Empty/default uses `approval` for public repos and `diagnose` for private repos. Explicit values: `false` skips diagnosis, `diagnose` writes only a local summary and JSON artifact, `approval` also writes a pending Bug Report Discussion draft, and `true` auto-publishes only policy-qualified product-bug candidates. |
+| `AGENT_FAILURE_REPORT_REPOSITORY` | Repository for pending or auto-published failure report Discussions. Defaults to `self-evolving/repo`. |
+| `AGENT_FAILURE_REPORT_DISCUSSION_CATEGORY` | Discussion category for pending or auto-published failure reports. Defaults to `Bug Report`. |
 | `AGENT_MEMORY_POLICY` | JSON policy controlling which routes can read or write repository memory. See [Repository memory](../architecture/memory.md). |
 | `AGENT_MEMORY_REF` | Default branch name used when workflows mount repository memory. Defaults to `agent/memory`. |
 | `AGENT_SCHEDULE_POLICY` | JSON policy controlling scheduled workflow runs. See [Repository memory](../architecture/memory.md#scheduled-workflow-policy-agent_schedule_policy). |
@@ -42,6 +45,7 @@ The bundled workflows intentionally expose one global provider variable. If a re
 | `AGENT_APP_ID` | Self-managed GitHub App ID for the bring-your-own-app path; set only with `AGENT_APP_PRIVATE_KEY`. The public Sepo App ID `3527007` is informational for hosted/OIDC usage. |
 | `AGENT_APP_PRIVATE_KEY` | Self-managed GitHub App private key for the bring-your-own-app path |
 | `AGENT_PAT` | PAT fallback for environments where app-based auth is not practical |
+| `AGENT_FAILURE_REPORT_TOKEN` | Optional token used when `AGENT_FAILURE_REPORT_MODE=true` or the approved failure-report publish workflow needs to write to a Discussion repository that the normal source-repo token cannot write to. |
 
 
 See [Setup guide](../deployment/setup-guide.md) for how token secrets are used.

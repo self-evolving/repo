@@ -33,6 +33,11 @@ export interface RepositoryDiscussionSummary {
   category: string;
 }
 
+export interface RepositoryDiscussionCommentSummary {
+  body: string;
+  url: string;
+}
+
 /**
  * Resolves the reply-to target for a discussion comment.
  * Returns the parent comment node ID if the comment is a nested reply,
@@ -152,7 +157,11 @@ export function updateDiscussionComment(
   }>(query, { commentId, body });
 }
 
-export function addDiscussionComment(discussionId: string, body: string): string {
+export function addDiscussionComment(
+  discussionId: string,
+  body: string,
+  client: GraphQLClient = createGhGraphqlClient(),
+): string {
   const query = `
     mutation($discussionId: ID!, $body: String!) {
       addDiscussionComment(input: { discussionId: $discussionId, body: $body }) {
@@ -160,7 +169,7 @@ export function addDiscussionComment(discussionId: string, body: string): string
       }
     }
   `;
-  const data = ghGraphqlData<{
+  const data = client.graphql<{
     addDiscussionComment?: { comment?: { url?: string } | null } | null;
   }>(query, { discussionId, body });
   const url = data.addDiscussionComment?.comment?.url || "";
@@ -223,6 +232,114 @@ export function findRepositoryDiscussionByTitle(
         category,
       };
     }
+  }
+
+  return null;
+}
+
+export function findRepositoryDiscussionByBodyMarker(
+  owner: string,
+  repo: string,
+  marker: string,
+  categoryName = "",
+  client: GraphQLClient = createGhGraphqlClient(),
+): RepositoryDiscussionSummary | null {
+  const query = `
+    query($owner: String!, $repo: String!) {
+      repository(owner: $owner, name: $repo) {
+        discussions(first: 50, orderBy: { field: UPDATED_AT, direction: DESC }) {
+          nodes {
+            id
+            number
+            title
+            url
+            body
+            category { name }
+          }
+        }
+      }
+    }
+  `;
+  const data = client.graphql<{
+    repository?: {
+      discussions?: {
+        nodes?: Array<{
+          id?: string;
+          number?: number;
+          title?: string;
+          url?: string;
+          body?: string;
+          category?: { name?: string | null } | null;
+        } | null> | null;
+      } | null;
+    } | null;
+  }>(query, { owner, repo });
+
+  for (const node of data.repository?.discussions?.nodes || []) {
+    const body = node?.body || "";
+    const category = node?.category?.name || "";
+    if (
+      node?.id &&
+      Number.isInteger(node.number) &&
+      body.includes(marker) &&
+      (!categoryName || category === categoryName)
+    ) {
+      return {
+        id: node.id,
+        number: node.number as number,
+        title: node.title || "",
+        url: node.url || "",
+        category,
+      };
+    }
+  }
+
+  return null;
+}
+
+export function findDiscussionCommentByBodyMarker(
+  discussionId: string,
+  marker: string,
+  client: GraphQLClient = createGhGraphqlClient(),
+): RepositoryDiscussionCommentSummary | null {
+  const query = `
+    query($discussionId: ID!, $cursor: String) {
+      node(id: $discussionId) {
+        ... on Discussion {
+          comments(first: 100, after: $cursor) {
+            pageInfo { hasNextPage endCursor }
+            nodes {
+              body
+              url
+            }
+          }
+        }
+      }
+    }
+  `;
+  let cursor = "";
+  let hasNextPage = true;
+
+  while (hasNextPage) {
+    const variables: { discussionId: string; cursor?: string } = { discussionId };
+    if (cursor) variables.cursor = cursor;
+    const data = client.graphql<{
+      node?: {
+        comments?: {
+          pageInfo?: { hasNextPage?: boolean; endCursor?: string | null };
+          nodes?: Array<{ body?: string; url?: string } | null> | null;
+        } | null;
+      } | null;
+    }>(query, variables);
+    const comments = data.node?.comments;
+    for (const node of comments?.nodes || []) {
+      const body = node?.body || "";
+      if (body.includes(marker)) {
+        return { body, url: node?.url || "" };
+      }
+    }
+    hasNextPage = comments?.pageInfo?.hasNextPage ?? false;
+    cursor = comments?.pageInfo?.endCursor || "";
   }
 
   return null;

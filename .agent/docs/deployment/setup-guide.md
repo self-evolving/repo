@@ -67,6 +67,13 @@ If you use a fine-grained PAT, start with these repository permissions:
 - **Discussions:** read and write, only if you use discussion triggers
 - **Actions:** read and write, for approval dispatch and review artifact flows
 
+Failed-run diagnosis is local by default or approval-gated, so diagnosis itself
+does not need extra credentials. If you explicitly set
+`AGENT_FAILURE_REPORT_MODE=true`, or if maintainers approve pending reports for
+a different Discussion repository, configure `AGENT_FAILURE_REPORT_TOKEN` with
+Discussion write access to that intake repository; otherwise publication may
+fail or stay local.
+
 ## Workflow token fallback
 
 If no higher-priority auth mode is configured, the backend can still fall back to `github.token`. This is useful as a lowest-friction fallback, but it should not be treated as the preferred long-term setup for more advanced automation.

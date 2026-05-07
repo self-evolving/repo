@@ -78,6 +78,9 @@ on:
       AGENT_PAT:
         description: "Fine-grained PAT or machine-user token"
         required: false
+      AGENT_FAILURE_REPORT_TOKEN:
+        description: "Optional token for explicit failure_report_mode=true publication"
+        required: false
       OPENAI_API_KEY:
         description: "OpenAI API key for Codex agent"
         required: false
@@ -208,6 +211,10 @@ jobs:
         with:
           agent: ${{ steps.dispatch_provider.outputs.provider }}
           github_token: ${{ steps.auth.outputs.token }}
+          failure_report_mode: ${{ vars.AGENT_FAILURE_REPORT_MODE || '' }}
+          failure_report_repository: ${{ vars.AGENT_FAILURE_REPORT_REPOSITORY || 'self-evolving/repo' }}
+          failure_report_discussion_category: ${{ vars.AGENT_FAILURE_REPORT_DISCUSSION_CATEGORY || 'Bug Report' }}
+          failure_report_token: ${{ secrets.AGENT_FAILURE_REPORT_TOKEN || '' }}
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           permission_mode: approve-all
@@ -259,7 +266,7 @@ jobs:
       - name: React with thumbs up (dispatch acknowledgment)
         if: >-
           steps.context.outputs.should_respond == 'true' &&
-          (steps.dispatch.outputs.route == 'review' || steps.dispatch.outputs.route == 'fix-pr' || steps.dispatch.outputs.route == 'orchestrate') &&
+          (steps.dispatch.outputs.route == 'review' || steps.dispatch.outputs.route == 'fix-pr' || steps.dispatch.outputs.route == 'orchestrate' || steps.dispatch.outputs.route == 'publish-failure-report') &&
           github.event.action != 'edited'
         env:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
@@ -325,6 +332,10 @@ jobs:
         with:
           agent: ${{ steps.provider.outputs.provider }}
           github_token: ${{ steps.auth.outputs.token }}
+          failure_report_mode: ${{ vars.AGENT_FAILURE_REPORT_MODE || '' }}
+          failure_report_repository: ${{ vars.AGENT_FAILURE_REPORT_REPOSITORY || 'self-evolving/repo' }}
+          failure_report_discussion_category: ${{ vars.AGENT_FAILURE_REPORT_DISCUSSION_CATEGORY || 'Bug Report' }}
+          failure_report_token: ${{ secrets.AGENT_FAILURE_REPORT_TOKEN || '' }}
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           permission_mode: approve-all
@@ -473,6 +484,10 @@ jobs:
         with:
           agent: ${{ steps.skill_provider.outputs.provider }}
           github_token: ${{ steps.auth.outputs.token }}
+          failure_report_mode: ${{ vars.AGENT_FAILURE_REPORT_MODE || '' }}
+          failure_report_repository: ${{ vars.AGENT_FAILURE_REPORT_REPOSITORY || 'self-evolving/repo' }}
+          failure_report_discussion_category: ${{ vars.AGENT_FAILURE_REPORT_DISCUSSION_CATEGORY || 'Bug Report' }}
+          failure_report_token: ${{ secrets.AGENT_FAILURE_REPORT_TOKEN || '' }}
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           permission_mode: approve-all
@@ -503,6 +518,25 @@ jobs:
           REVIEW_COMMENT_ID: ${{ needs.portal.outputs.review_comment_id }}
           TARGET_NUMBER: ${{ needs.portal.outputs.target_number }}
         run: node .agent/dist/cli/post-response.js
+
+  # --- Route: publish approved failure report ---
+  publish-failure-report:
+    needs: portal
+    if: >-
+      needs.portal.outputs.should_respond == 'true' &&
+      needs.portal.outputs.route == 'publish-failure-report'
+    uses: ./.github/workflows/agent-publish-failure-report.yml
+    with:
+      runs_on: ${{ inputs.runs_on }}
+      requested_by: ${{ needs.portal.outputs.requested_by }}
+      requester_association: ${{ needs.portal.outputs.association }}
+      request_text: ${{ needs.portal.outputs.body }}
+      response_kind: ${{ needs.portal.outputs.response_kind }}
+      target_number: ${{ needs.portal.outputs.target_number }}
+      discussion_node_id: ${{ needs.portal.outputs.discussion_node_id }}
+      reply_to_id: ${{ needs.portal.outputs.reply_to_id }}
+      review_comment_id: ${{ needs.portal.outputs.review_comment_id }}
+    secrets: inherit
 
   # --- Route: implementation-like routes (approval request) ---
   approval:

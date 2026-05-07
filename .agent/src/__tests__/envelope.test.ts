@@ -169,6 +169,72 @@ test("all execution workflows use the shared run-agent-task action", () => {
   assert.doesNotMatch(fixPrWorkflow, /build-linked-context\.cjs/);
 });
 
+test("run-agent-task diagnoses failed runs and workflows forward report mode", () => {
+  const action = readRepoFile(".github/actions/run-agent-task/action.yml");
+  assert.match(action, /failure_report_mode:/);
+  assert.match(action, /Diagnose failed agent run[\s\S]*diagnose-agent-failure\.js/);
+  assert.match(action, /Upload failure diagnosis artifact[\s\S]*actions\/upload-artifact@v4/);
+  assert.match(action, /Report failure diagnosis persistence status/);
+  assert.match(action, /Failure Diagnosis Persistence Warning/);
+  assert.match(action, /failure_report_persistence_status/);
+  assert.match(action, /Diagnose failed agent run[\s\S]*Propagate agent exit code/);
+
+  const workflowPaths = readdirSync(path.join(repoRoot, ".github/workflows"))
+    .filter((file) => file.endsWith(".yml"))
+    .map((file) => `.github/workflows/${file}`)
+    .concat(".agent/action-templates/agent-action-template.yml");
+
+  for (const workflowPath of workflowPaths) {
+    const workflow = parseYaml(readRepoFile(workflowPath)) as unknown;
+    assert.ok(isRecord(workflow), `${workflowPath} should parse as a YAML object`);
+    if (!isRecord(workflow.jobs)) continue;
+
+    for (const [jobId, job] of Object.entries(workflow.jobs)) {
+      if (!isRecord(job) || !Array.isArray(job.steps)) continue;
+      for (const step of job.steps) {
+        if (!isRecord(step) || step.uses !== "./.github/actions/run-agent-task") continue;
+        assert.ok(isRecord(step.with), `${workflowPath} job ${jobId} run-agent-task needs inputs`);
+        assert.equal(
+          step.with.failure_report_mode,
+          "${{ vars.AGENT_FAILURE_REPORT_MODE || '' }}",
+          `${workflowPath} job ${jobId} should forward AGENT_FAILURE_REPORT_MODE`,
+        );
+        assert.equal(
+          step.with.failure_report_repository,
+          "${{ vars.AGENT_FAILURE_REPORT_REPOSITORY || 'self-evolving/repo' }}",
+          `${workflowPath} job ${jobId} should forward AGENT_FAILURE_REPORT_REPOSITORY`,
+        );
+      }
+    }
+  }
+});
+
+test("approved failure report publishing has a routed authorization recheck", () => {
+  const routerWorkflow = readRepoFile(".github/workflows/agent-router.yml");
+  const publishWorkflow = readRepoFile(".github/workflows/agent-publish-failure-report.yml");
+  const publishCli = readRepoFile(".agent/src/cli/publish-approved-failure-report.ts");
+  const triageSource = readRepoFile(".agent/src/triage.ts");
+
+  assert.match(triageSource, /publish-failure-report/);
+  assert.match(routerWorkflow, /publish-failure-report:\n[\s\S]*agent-publish-failure-report\.yml/);
+  assert.match(routerWorkflow, /requester_association:\s*\$\{\{\s*needs\.portal\.outputs\.association\s*\}\}/);
+  assert.match(routerWorkflow, /response_kind:\s*\$\{\{\s*needs\.portal\.outputs\.response_kind\s*\}\}/);
+  assert.match(routerWorkflow, /review_comment_id:\s*\$\{\{\s*needs\.portal\.outputs\.review_comment_id\s*\}\}/);
+  assert.match(publishWorkflow, /workflow_dispatch:/);
+  assert.match(publishWorkflow, /workflow_call:/);
+  assert.match(publishWorkflow, /workflow_call:[\s\S]*run_attempt:[\s\S]*default: ""/);
+  assert.match(publishWorkflow, /ACCESS_POLICY:\s*\$\{\{\s*vars\.AGENT_ACCESS_POLICY \|\| ''\s*\}\}/);
+  assert.match(publishWorkflow, /REQUESTER_ASSOCIATION:\s*\$\{\{\s*inputs\.requester_association \|\| ''\s*\}\}/);
+  assert.match(publishWorkflow, /FAILURE_REPORT_RUN_ATTEMPT:\s*\$\{\{\s*inputs\.run_attempt \|\| ''\s*\}\}/);
+  assert.match(publishWorkflow, /Post failure report publication status/);
+  assert.match(publishWorkflow, /post-response\.js/);
+  assert.match(publishWorkflow, /publish-approved-failure-report\.js/);
+  assert.match(publishCli, /isAssociationAllowedForRoute\(policy, ROUTE, association, isPublicRepo\)/);
+  assert.match(publishCli, /agent-failure-diagnosis-\$\{args\.runId\}-\$\{args\.runAttempt \|\| "1"\}/);
+  assert.match(publishCli, /publishApprovedFailureReport/);
+  assert.match(publishCli, /failure_report_response_file/);
+});
+
 test("run-agent-task workflow steps are guarded by resolved task timeouts", () => {
   const workflowPaths = readdirSync(path.join(repoRoot, ".github/workflows"))
     .filter((file) => file.endsWith(".yml"))
