@@ -599,6 +599,7 @@ test("workflows use granular CLI helpers for post-processing", () => {
   const synthesisStartStep = reviewWorkflow.match(
     /- name: Record synthesis start time[\s\S]*?(?=\n      - name: Run synthesis)/,
   )?.[0] || "";
+  assert.match(synthesisStartStep, /continue-on-error:\s*true/);
   assert.match(synthesisStartStep, /actions\/runs\/\$\{GITHUB_RUN_ID\}/);
   assert.doesNotMatch(synthesisStartStep, /Date\.now\(\)/);
   assert.match(reviewWorkflow, /CURRENT_REVIEW_STARTED_AT_MS:\s*\$\{\{ steps\.synthesis_start\.outputs\.started_at_ms \}\}/);
