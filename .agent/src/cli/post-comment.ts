@@ -31,10 +31,29 @@ const requestedBy = process.env.REQUESTED_BY || "";
 const approvalCommentUrl = process.env.APPROVAL_COMMENT_URL || "";
 const resumeStatus = process.env.RESUME_STATUS || "";
 const repo = process.env.GITHUB_REPOSITORY || "";
-const currentReviewStartedAtMs = Number(process.env.CURRENT_REVIEW_STARTED_AT_MS || "0");
 const collapseOldReviews = !["false", "0", "no", "off"].includes(
   (process.env.AGENT_COLLAPSE_OLD_REVIEWS || "").trim().toLowerCase(),
 );
+
+function readCurrentReviewStartedAtMs(): number | undefined {
+  const raw = (process.env.CURRENT_REVIEW_STARTED_AT_MS || "").trim();
+  if (!raw) {
+    console.warn(
+      "CURRENT_REVIEW_STARTED_AT_MS is missing; inline review comment cleanup will be skipped.",
+    );
+    return undefined;
+  }
+
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value <= 0) {
+    console.warn(
+      `CURRENT_REVIEW_STARTED_AT_MS is malformed (${JSON.stringify(raw)}); inline review comment cleanup will be skipped.`,
+    );
+    return undefined;
+  }
+
+  return value;
+}
 
 let rawResponse = "";
 if (responseFile) {
@@ -83,7 +102,7 @@ if (target === "pr") {
       const collapsed = collapsePreviousReviewSummaries({
         repo,
         prNumber: targetNumber,
-        currentReviewStartedAtMs,
+        currentReviewStartedAtMs: readCurrentReviewStartedAtMs(),
       });
       if (collapsed > 0) {
         console.log(`Collapsed ${collapsed} previous AI review synthesis comment(s).`);

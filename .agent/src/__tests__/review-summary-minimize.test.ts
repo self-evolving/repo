@@ -242,6 +242,166 @@ test("collapsePreviousReviewSummaries minimizes only prior inline review comment
   assert.deepEqual(calls[4]?.variables, { id: "inline-old", classifier: "OUTDATED" });
 });
 
+test("collapsePreviousReviewSummaries paginates inline review threads", () => {
+  const cutoffMs = Date.parse("2026-05-07T10:00:00.000Z");
+  const { client, calls } = createQueuedClient([
+    { viewer: { login: "sepo-agent-app[bot]" } },
+    {
+      repository: {
+        pullRequest: {
+          comments: {
+            nodes: [],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
+      },
+    },
+    {
+      repository: {
+        pullRequest: {
+          reviews: {
+            nodes: [],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
+      },
+    },
+    {
+      repository: {
+        pullRequest: {
+          reviewThreads: {
+            nodes: [
+              {
+                id: "thread-1",
+                comments: {
+                  nodes: [],
+                  pageInfo: { hasNextPage: false, endCursor: null },
+                },
+              },
+            ],
+            pageInfo: { hasNextPage: true, endCursor: "thread-cursor-1" },
+          },
+        },
+      },
+    },
+    {
+      repository: {
+        pullRequest: {
+          reviewThreads: {
+            nodes: [
+              {
+                id: "thread-2",
+                comments: {
+                  nodes: [
+                    {
+                      id: "inline-old",
+                      body: "Prior inline review finding",
+                      createdAt: "2026-05-07T09:59:59.000Z",
+                      isMinimized: false,
+                      author: { login: "app/sepo-agent-app" },
+                    },
+                  ],
+                  pageInfo: { hasNextPage: false, endCursor: null },
+                },
+              },
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
+      },
+    },
+    { minimizeComment: { minimizedComment: { isMinimized: true } } },
+  ]);
+
+  assert.equal(collapsePreviousReviewSummaries({
+    repo: "self-evolving/repo",
+    prNumber: 320,
+    currentReviewStartedAtMs: cutoffMs,
+    client,
+  }), 1);
+  assert.match(calls[3]?.query || "", /reviewThreads/);
+  assert.equal(calls[3]?.variables.after, undefined);
+  assert.match(calls[4]?.query || "", /reviewThreads/);
+  assert.equal(calls[4]?.variables.after, "thread-cursor-1");
+  assert.deepEqual(calls[5]?.variables, { id: "inline-old", classifier: "OUTDATED" });
+});
+
+test("collapsePreviousReviewSummaries paginates inline review thread comments", () => {
+  const cutoffMs = Date.parse("2026-05-07T10:00:00.000Z");
+  const { client, calls } = createQueuedClient([
+    { viewer: { login: "sepo-agent-app[bot]" } },
+    {
+      repository: {
+        pullRequest: {
+          comments: {
+            nodes: [],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
+      },
+    },
+    {
+      repository: {
+        pullRequest: {
+          reviews: {
+            nodes: [],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
+      },
+    },
+    {
+      repository: {
+        pullRequest: {
+          reviewThreads: {
+            nodes: [
+              {
+                id: "thread-1",
+                comments: {
+                  nodes: [],
+                  pageInfo: { hasNextPage: true, endCursor: "comment-cursor-1" },
+                },
+              },
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
+      },
+    },
+    {
+      node: {
+        comments: {
+          nodes: [
+            {
+              id: "inline-old",
+              body: "Prior inline review finding",
+              createdAt: "2026-05-07T09:59:59.000Z",
+              isMinimized: false,
+              author: { login: "app/sepo-agent-app" },
+            },
+          ],
+          pageInfo: { hasNextPage: false, endCursor: null },
+        },
+      },
+    },
+    { minimizeComment: { minimizedComment: { isMinimized: true } } },
+  ]);
+
+  assert.equal(collapsePreviousReviewSummaries({
+    repo: "self-evolving/repo",
+    prNumber: 320,
+    currentReviewStartedAtMs: cutoffMs,
+    client,
+  }), 1);
+  assert.match(calls[3]?.query || "", /reviewThreads/);
+  assert.match(calls[4]?.query || "", /PullRequestInlineReviewThreadComments/);
+  assert.deepEqual(calls[4]?.variables, {
+    id: "thread-1",
+    after: "comment-cursor-1",
+  });
+  assert.deepEqual(calls[5]?.variables, { id: "inline-old", classifier: "OUTDATED" });
+});
+
 test("collapsePreviousRubricsReviews minimizes rubrics reviews only", () => {
   const { client, calls } = createQueuedClient([
     { viewer: { login: "sepo-agent" } },

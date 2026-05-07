@@ -273,7 +273,13 @@ jobs:
 
       - name: Record synthesis start time
         id: synthesis_start
-        run: node -e "require('node:fs').appendFileSync(process.env.GITHUB_OUTPUT, 'started_at_ms=' + Date.now() + '\n')"
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+        run: |
+          set -euo pipefail
+          started_at="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" --jq '.run_started_at')"
+          started_at_ms="$(node -e "const ms = Date.parse(process.argv[1]); if (!Number.isFinite(ms)) { console.error('Invalid workflow run_started_at: ' + process.argv[1]); process.exit(1); } process.stdout.write(String(ms));" "$started_at")"
+          printf 'started_at_ms=%s\n' "$started_at_ms" >> "$GITHUB_OUTPUT"
 
       - name: Run synthesis
         id: synthesis
