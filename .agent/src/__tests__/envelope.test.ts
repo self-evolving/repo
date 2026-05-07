@@ -588,6 +588,21 @@ test("workflows use granular CLI helpers for post-processing", () => {
   assert.match(fixPrWorkflow, /node \.agent\/dist\/cli\/push-pr-head\.js/);
   assert.match(fixPrWorkflow, /node \.agent\/dist\/cli\/add-label\.js/);
   assert.match(fixPrWorkflow, /node \.agent\/dist\/cli\/post-comment\.js/);
+  assert.match(fixPrWorkflow, /AGENT_COLLAPSE_OLD_REVIEWS:\s*\$\{\{ vars\.AGENT_COLLAPSE_OLD_REVIEWS \}\}/);
+  const unsupportedFixPrStatusStart = fixPrWorkflow.indexOf("- name: Post unsupported status");
+  const orchestrateHandoffStart = fixPrWorkflow.indexOf("- name: Orchestrate automation handoff");
+  assert.ok(unsupportedFixPrStatusStart >= 0);
+  assert.ok(orchestrateHandoffStart > unsupportedFixPrStatusStart);
+  const unsupportedFixPrStatusStep = fixPrWorkflow.slice(
+    unsupportedFixPrStatusStart,
+    orchestrateHandoffStart,
+  );
+  assert.match(unsupportedFixPrStatusStep, /run: node \.agent\/dist\/cli\/post-comment\.js/);
+  assert.match(unsupportedFixPrStatusStep, /AGENT_COLLAPSE_OLD_REVIEWS:\s*\$\{\{ vars\.AGENT_COLLAPSE_OLD_REVIEWS \}\}/);
+  assert.match(unsupportedFixPrStatusStep, /COMMENT_TARGET:\s*pr/);
+  assert.match(unsupportedFixPrStatusStep, /ROUTE:\s*fix-pr/);
+  assert.match(unsupportedFixPrStatusStep, /STATUS:\s*unsupported/);
+  assert.doesNotMatch(unsupportedFixPrStatusStep, /gh pr comment/);
   assert.match(
     fixPrWorkflow,
     /REQUESTED_BY:\s*\$\{\{\s*inputs\.orchestration_enabled == 'true' && \(vars\.AGENT_HANDLE \|\| '@sepo-agent'\) \|\| inputs\.requested_by \|\| github\.actor\s*\}\}/,

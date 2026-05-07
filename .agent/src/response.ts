@@ -4,6 +4,7 @@ import {
   buildReviewSynthesisMarker,
   REVIEW_SYNTHESIS_HEADING,
 } from "./review-synthesis.js";
+import { buildFixPrStatusMarker } from "./fix-pr-status.js";
 
 /**
  * Run statuses for post-agent workflow steps.
@@ -82,17 +83,20 @@ export function formatImplementComment(data: StatusCommentData): string {
 }
 
 export function formatFixPrComment(data: StatusCommentData): string {
+  const marker = buildFixPrStatusMarker();
   switch (data.status) {
     case "success": {
       let line = `**Sepo pushed fixes for this PR.** Branch: \`${data.branch ?? ""}\`.`;
       const requestedBy = data.requestedBy ? formatMention(data.requestedBy) : "";
       if (requestedBy) line += ` Requested by ${requestedBy}.`;
       if (data.approvalCommentUrl) line += ` Approval: ${data.approvalCommentUrl}.`;
-      return [line, "", data.summary ?? ""].join("\n");
+      return [line, "", marker, "", data.summary ?? ""].join("\n");
     }
     case "no_changes":
       return [
         "**Sepo did not produce code changes for this PR.**",
+        "",
+        marker,
         "",
         "Please add more context or restate the requested fixes, then try again.",
         "",
@@ -102,6 +106,8 @@ export function formatFixPrComment(data: StatusCommentData): string {
       return [
         "**Sepo made changes, but lightweight verification failed.**",
         "",
+        marker,
+        "",
         "Inspect the workflow logs before retrying the PR fix run.",
         "",
         data.summary ?? "",
@@ -110,12 +116,16 @@ export function formatFixPrComment(data: StatusCommentData): string {
       return [
         "**Sepo could not update this PR automatically.**",
         "",
+        marker,
+        "",
         "PR fix runs currently support open same-repository pull requests only.",
         data.approvalCommentUrl ? `- Approval: ${data.approvalCommentUrl}` : "",
       ].filter(Boolean).join("\n");
     default:
       return [
         "**Sepo could not complete the PR fix run.**",
+        "",
+        marker,
         "",
         "Inspect the workflow logs and retry if appropriate.",
         "",
