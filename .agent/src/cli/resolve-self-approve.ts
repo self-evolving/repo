@@ -7,10 +7,16 @@
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fetchPrMeta, gh } from "../github.js";
+import {
+  fetchAuthenticatedActorLogin,
+  fetchIssueCommentRecords,
+  fetchPrMeta,
+  gh,
+} from "../github.js";
 import { setOutput } from "../output.js";
 import {
   envFlagEnabled,
+  evaluateSelfApprovalProvenance,
   formatSelfApprovalBody,
   parseSelfApprovalDecision,
   resolveSelfApproval,
@@ -64,6 +70,8 @@ const decision = parseSelfApprovalDecision(readResponse());
 
 let prState = "";
 let currentHeadSha = "";
+let approvalProvenanceTrusted = false;
+let approvalProvenanceReason = "missing trusted review/rubrics signal for self-approval";
 if (repo && prNumber) {
   try {
     const meta = fetchPrMeta(prNumber, repo);
@@ -72,6 +80,18 @@ if (repo && prNumber) {
   } catch {
     prState = "";
     currentHeadSha = "";
+  }
+
+  try {
+    const provenance = evaluateSelfApprovalProvenance({
+      comments: fetchIssueCommentRecords(prNumber, repo),
+      trustedActorLogin: fetchAuthenticatedActorLogin(),
+    });
+    approvalProvenanceTrusted = provenance.trusted;
+    approvalProvenanceReason = provenance.reason;
+  } catch {
+    approvalProvenanceTrusted = false;
+    approvalProvenanceReason = "could not read trusted review/rubrics signal";
   }
 }
 
@@ -82,6 +102,8 @@ const result = resolveSelfApproval({
   expectedHeadSha,
   currentHeadSha,
   decision,
+  approvalProvenanceTrusted,
+  approvalProvenanceReason,
 });
 
 const body = formatSelfApprovalBody({

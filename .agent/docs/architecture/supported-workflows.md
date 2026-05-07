@@ -31,9 +31,11 @@ Direct `/implement`, `/review`, and `/fix-pr` runs remain one-shot.
 When `AGENT_ALLOW_SELF_APPROVE=true`, orchestrated review runs that ship may
 dispatch `agent-self-approve.yml` as a final pull request approval gate. That
 route re-inspects the PR at a captured head SHA, reads memory and rubrics
-read-only, and submits an approving PR review only when its structured verdict
-is `APPROVE` and the head did not change. If it returns `REQUEST_CHANGES`, the
-orchestrator may hand back to `fix-pr` with the supplied context. With the
+read-only with read-approved tools, and submits an approving PR review only when
+its structured verdict is `APPROVE`, a latest trusted review/rubrics signal
+allows approval, and the inspected/current head SHA did not change. If it
+returns `REQUEST_CHANGES`, the orchestrator may hand back to `fix-pr` with the
+supplied context. With the
 default `AGENT_ALLOW_SELF_APPROVE=false`, the route is not dispatched and review
 `SHIP` still stops.
 Explicit `/orchestrate` starts on pull requests are deterministic in both
@@ -79,11 +81,12 @@ set `base_branch` to stack directly on another branch, or `base_pr` to stack on
 an open same-repository PR head branch. The implementation workflow rejects
 ambiguous input when both are set.
 
-When a new review synthesis, rubrics review, or orchestrator handoff marker is
-posted, the workflows minimize prior visible matching comments and reviews from
-the same authenticated agent account as outdated. Generated review summaries
-carry a hidden HTML marker for robust matching, with a heading fallback for
-older summaries. Rubrics reviews match the `## Rubrics Review` heading, and
+When a new review synthesis, rubrics review, `fix-pr` status comment, or
+orchestrator handoff marker is posted, the workflows minimize prior visible
+matching comments and reviews from the same authenticated agent account as
+outdated. Generated review summaries and `fix-pr` status comments carry hidden
+HTML markers for robust matching, with heading/text fallbacks for older
+comments. Rubrics reviews match the `## Rubrics Review` heading, and
 orchestrator handoffs match their hidden handoff marker. This keeps the latest
 generated status prominent while leaving older generated comments expandable.
 Set `AGENT_COLLAPSE_OLD_REVIEWS=false` to skip this cleanup and leave prior

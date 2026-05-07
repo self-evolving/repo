@@ -143,6 +143,23 @@ export interface PrMeta {
   state: string;
 }
 
+export interface IssueCommentRecord {
+  id: string;
+  body: string;
+  authorLogin: string;
+  createdAt: string;
+}
+
+function extractLogin(value: unknown): string {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return "";
+  const login = (value as Record<string, unknown>).login;
+  return typeof login === "string" ? login.trim() : "";
+}
+
+function authorLoginFromRecord(record: Record<string, unknown>): string {
+  return extractLogin(record.author) || extractLogin(record.user);
+}
+
 export function fetchPrMeta(prNumber: number, repo?: string): PrMeta {
   const args = ["pr", "view", String(prNumber), "--json", "headRefName,headRefOid,isCrossRepository,state"];
   if (repo) args.push("--repo", repo);
@@ -153,6 +170,53 @@ export function fetchPrMeta(prNumber: number, repo?: string): PrMeta {
     isCrossRepository: Boolean(data.isCrossRepository),
     state: String(data.state ?? ""),
   };
+}
+
+export function fetchAuthenticatedActorLogin(): string {
+  const raw = gh([
+    "api",
+    "graphql",
+    "-f",
+    "query=query ViewerLogin { viewer { login } }",
+  ]).trim();
+  const parsed = JSON.parse(raw || "{}") as {
+    data?: { viewer?: { login?: unknown } | null } | null;
+    viewer?: { login?: unknown } | null;
+  };
+  return String(parsed.data?.viewer?.login || parsed.viewer?.login || "").trim();
+}
+
+function normalizeIssueCommentRecord(value: unknown): IssueCommentRecord | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  return {
+    id: String(record.id || ""),
+    body: String(record.body || ""),
+    authorLogin: authorLoginFromRecord(record),
+    createdAt: String(record.created_at ?? record.createdAt ?? ""),
+  };
+}
+
+export function fetchIssueCommentRecords(issueNumber: number, repo: string): IssueCommentRecord[] {
+  const raw = gh([
+    "api",
+    "--paginate",
+    "--slurp",
+    `repos/${repo}/issues/${issueNumber}/comments`,
+  ]).trim();
+  if (!raw) return [];
+
+  const parsed = JSON.parse(raw) as unknown;
+  const pages = Array.isArray(parsed) ? parsed : [parsed];
+  const comments: IssueCommentRecord[] = [];
+  for (const page of pages) {
+    const entries = Array.isArray(page) ? page : [page];
+    for (const entry of entries) {
+      const comment = normalizeIssueCommentRecord(entry);
+      if (comment) comments.push(comment);
+    }
+  }
+  return comments;
 }
 
 export function findExistingPr(headBranch: string, repo?: string): string | null {

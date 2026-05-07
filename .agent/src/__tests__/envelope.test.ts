@@ -588,6 +588,21 @@ test("workflows use granular CLI helpers for post-processing", () => {
   assert.match(fixPrWorkflow, /node \.agent\/dist\/cli\/push-pr-head\.js/);
   assert.match(fixPrWorkflow, /node \.agent\/dist\/cli\/add-label\.js/);
   assert.match(fixPrWorkflow, /node \.agent\/dist\/cli\/post-comment\.js/);
+  assert.match(fixPrWorkflow, /AGENT_COLLAPSE_OLD_REVIEWS:\s*\$\{\{ vars\.AGENT_COLLAPSE_OLD_REVIEWS \}\}/);
+  const unsupportedFixPrStatusStart = fixPrWorkflow.indexOf("- name: Post unsupported status");
+  const orchestrateHandoffStart = fixPrWorkflow.indexOf("- name: Orchestrate automation handoff");
+  assert.ok(unsupportedFixPrStatusStart >= 0);
+  assert.ok(orchestrateHandoffStart > unsupportedFixPrStatusStart);
+  const unsupportedFixPrStatusStep = fixPrWorkflow.slice(
+    unsupportedFixPrStatusStart,
+    orchestrateHandoffStart,
+  );
+  assert.match(unsupportedFixPrStatusStep, /run: node \.agent\/dist\/cli\/post-comment\.js/);
+  assert.match(unsupportedFixPrStatusStep, /AGENT_COLLAPSE_OLD_REVIEWS:\s*\$\{\{ vars\.AGENT_COLLAPSE_OLD_REVIEWS \}\}/);
+  assert.match(unsupportedFixPrStatusStep, /COMMENT_TARGET:\s*pr/);
+  assert.match(unsupportedFixPrStatusStep, /ROUTE:\s*fix-pr/);
+  assert.match(unsupportedFixPrStatusStep, /STATUS:\s*unsupported/);
+  assert.doesNotMatch(unsupportedFixPrStatusStep, /gh pr comment/);
   assert.match(
     fixPrWorkflow,
     /REQUESTED_BY:\s*\$\{\{\s*inputs\.orchestration_enabled == 'true' && \(vars\.AGENT_HANDLE \|\| '@sepo-agent'\) \|\| inputs\.requested_by \|\| github\.actor\s*\}\}/,
@@ -1062,10 +1077,11 @@ test("validateEnvelope catches invalid route", () => {
   assert.ok(errors.some((error) => error.includes("Invalid route")));
 });
 
-test("validateEnvelope accepts dispatch, action, and rubrics as first-class routes", () => {
+test("validateEnvelope accepts internal action and rubrics routes", () => {
   for (const route of [
     "dispatch",
     "create-action",
+    "agent-self-approve",
     "rubrics-review",
     "rubrics-initialization",
     "rubrics-update",
@@ -1394,6 +1410,26 @@ test("agent-review permissions are scoped per-job: reviewers read-only, synthesi
     reviewWorkflow,
     /synthesize:\s*\n\s+needs: \[review\]\s*\n\s+if: \$\{\{ !cancelled\(\) \}\}\s*\n\s+permissions:[\s\S]*?contents: write/,
   );
+});
+
+test("agent-self-approve keeps inspection read-only until deterministic resolution", () => {
+  const workflow = readRepoFile(".github/workflows/agent-self-approve.yml");
+  const runIndex = workflow.indexOf("Run self-approval agent");
+  const approvalAuthIndex = workflow.indexOf("Resolve GitHub auth for approval");
+
+  assert.match(workflow, /^permissions:\s*\n\s+actions: read\s*\n\s+contents: read\s*\n\s+pull-requests: read/m);
+  assert.doesNotMatch(workflow, /^\s+pull-requests: write\s*$/m);
+  assert.match(workflow, /persist-credentials:\s*false/);
+  assert.notEqual(runIndex, -1);
+  assert.notEqual(approvalAuthIndex, -1);
+  assert.ok(runIndex < approvalAuthIndex);
+
+  const agentBlock = workflow.slice(runIndex, approvalAuthIndex);
+  assert.match(agentBlock, /github_token:\s*\$\{\{\s*github\.token\s*\}\}/);
+  assert.match(agentBlock, /permission_mode:\s*approve-reads/);
+  assert.doesNotMatch(agentBlock, /steps\.[a-z_]+\.outputs\.token/);
+  assert.match(workflow, /Resolve GitHub auth for stop[\s\S]*if: steps\.prepare\.outputs\.should_run != 'true'/);
+  assert.match(workflow, /Resolve self-approval result[\s\S]*GH_TOKEN:\s*\$\{\{\s*steps\.approval_auth\.outputs\.token\s*\}\}/);
 });
 
 test("branch cleanup preserves shared agent branches", () => {

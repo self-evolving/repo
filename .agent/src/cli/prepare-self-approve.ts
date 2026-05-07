@@ -5,9 +5,17 @@
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fetchPrMeta } from "../github.js";
+import {
+  fetchAuthenticatedActorLogin,
+  fetchIssueCommentRecords,
+  fetchPrMeta,
+} from "../github.js";
 import { setOutput } from "../output.js";
-import { envFlagEnabled, formatSelfApprovalBody } from "../self-approval.js";
+import {
+  envFlagEnabled,
+  evaluateSelfApprovalProvenance,
+  formatSelfApprovalBody,
+} from "../self-approval.js";
 
 function writeBodyFile(body: string): string {
   const dir = mkdtempSync(join(tmpdir(), "sepo-self-approve-"));
@@ -40,19 +48,38 @@ if (!allowSelfApprove) {
 } else if (!repo || !targetNumber) {
   stop("missing pull request target");
 } else {
+  let meta: ReturnType<typeof fetchPrMeta>;
+  let metadataReadable = true;
   try {
-    const meta = fetchPrMeta(targetNumber, repo);
-    if (String(meta.state || "").trim().toUpperCase() !== "OPEN") {
-      stop(`pull request is ${String(meta.state || "not open").toLowerCase()}`);
-    } else if (!meta.headOid) {
-      stop("could not resolve pull request head SHA");
-    } else {
-      setOutput("should_run", "true");
-      setOutput("head_sha", meta.headOid);
-      setOutput("reason", "");
-      setOutput("body_file", "");
-    }
+    meta = fetchPrMeta(targetNumber, repo);
   } catch {
     stop("could not read pull request metadata");
+    metadataReadable = false;
+    meta = { headRef: "", headOid: "", isCrossRepository: false, state: "" };
+  }
+
+  if (!metadataReadable) {
+    // Outputs were already written by stop().
+  } else if (String(meta.state || "").trim().toUpperCase() !== "OPEN") {
+    stop(`pull request is ${String(meta.state || "not open").toLowerCase()}`);
+  } else if (!meta.headOid) {
+    stop("could not resolve pull request head SHA");
+  } else {
+    try {
+      const provenance = evaluateSelfApprovalProvenance({
+        comments: fetchIssueCommentRecords(targetNumber, repo),
+        trustedActorLogin: fetchAuthenticatedActorLogin(),
+      });
+      if (!provenance.trusted) {
+        stop(provenance.reason);
+      } else {
+        setOutput("should_run", "true");
+        setOutput("head_sha", meta.headOid);
+        setOutput("reason", "");
+        setOutput("body_file", "");
+      }
+    } catch {
+      stop("could not read trusted review/rubrics signal");
+    }
   }
 }

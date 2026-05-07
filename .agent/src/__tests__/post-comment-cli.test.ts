@@ -126,3 +126,145 @@ exit 1
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
+
+test("post-comment CLI collapses previous fix-pr status comments", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-post-comment-"));
+
+  try {
+    const countPath = join(tempDir, "graphql-count.txt");
+    const logPath = join(tempDir, "gh.log");
+    const outputPath = join(tempDir, "github-output.txt");
+    const responsePath = join(tempDir, "response.json");
+    writeFileSync(responsePath, '{"summary":"Updated tests."}\n', "utf8");
+    writeFileSync(outputPath, "", "utf8");
+    writeFakeGh(
+      tempDir,
+      `#!/usr/bin/env bash
+printf '%s\\n' "$*" >> "$FAKE_GH_LOG"
+if [ "$1" = "api" ] && [ "$2" = "graphql" ]; then
+  count="$(cat "$FAKE_GH_COUNT" 2>/dev/null || printf '0')"
+  count="$((count + 1))"
+  printf '%s' "$count" > "$FAKE_GH_COUNT"
+  case "$count" in
+    1)
+      printf '{"data":{"viewer":{"login":"sepo-agent"}}}\\n'
+      exit 0
+      ;;
+    2)
+      printf '{"data":{"repository":{"pullRequest":{"comments":{"nodes":[{"id":"old-fix","body":"**Sepo pushed fixes for this PR.** Branch: \`agent/fix\`.\\\\n\\\\n<!-- sepo-agent-fix-pr-status -->","isMinimized":false,"author":{"login":"sepo-agent"}}],"pageInfo":{"hasNextPage":false,"endCursor":null}}}}}}\\n'
+      exit 0
+      ;;
+    3)
+      printf '{"data":{"minimizeComment":{"minimizedComment":{"isMinimized":true}}}}\\n'
+      exit 0
+      ;;
+  esac
+fi
+if [ "$1" = "pr" ] && [ "$2" = "comment" ]; then
+  exit 0
+fi
+printf 'unexpected gh args: %s\\n' "$*" >&2
+exit 1
+`,
+    );
+
+    const result = spawnSync("node", [".agent/dist/cli/post-comment.js"], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        PATH: `${tempDir}:${process.env.PATH || ""}`,
+        BRANCH: "agent/fix",
+        COMMENT_TARGET: "pr",
+        TARGET_NUMBER: "321",
+        ROUTE: "fix-pr",
+        STATUS: "success",
+        RESPONSE_FILE: responsePath,
+        REQUESTED_BY: "lolipopshock",
+        GITHUB_REPOSITORY: "self-evolving/repo",
+        GITHUB_OUTPUT: outputPath,
+        FAKE_GH_COUNT: countPath,
+        FAKE_GH_LOG: logPath,
+      },
+      encoding: "utf8",
+    });
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Collapsed 1 previous fix-pr status comment/);
+
+    const log = readFileSync(logPath, "utf8");
+    assert.match(log, /^api graphql /m);
+    assert.match(log, /id=old-fix/);
+    assert.match(log, /^pr comment 321 --body \*\*Sepo pushed fixes for this PR\.\*\*/m);
+    assert.match(log, /<!-- sepo-agent-fix-pr-status -->/);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("post-comment CLI routes unsupported fix-pr status through cleanup", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-post-comment-"));
+
+  try {
+    const countPath = join(tempDir, "graphql-count.txt");
+    const logPath = join(tempDir, "gh.log");
+    const outputPath = join(tempDir, "github-output.txt");
+    writeFileSync(outputPath, "", "utf8");
+    writeFakeGh(
+      tempDir,
+      `#!/usr/bin/env bash
+printf '%s\\n' "$*" >> "$FAKE_GH_LOG"
+if [ "$1" = "api" ] && [ "$2" = "graphql" ]; then
+  count="$(cat "$FAKE_GH_COUNT" 2>/dev/null || printf '0')"
+  count="$((count + 1))"
+  printf '%s' "$count" > "$FAKE_GH_COUNT"
+  case "$count" in
+    1)
+      printf '{"data":{"viewer":{"login":"sepo-agent"}}}\\n'
+      exit 0
+      ;;
+    2)
+      printf '{"data":{"repository":{"pullRequest":{"comments":{"nodes":[{"id":"old-unsupported","body":"**Sepo could not update this PR automatically.**\\\\n\\\\nPR fix runs currently support open same-repository pull requests only.","isMinimized":false,"author":{"login":"sepo-agent"}}],"pageInfo":{"hasNextPage":false,"endCursor":null}}}}}}\\n'
+      exit 0
+      ;;
+    3)
+      printf '{"data":{"minimizeComment":{"minimizedComment":{"isMinimized":true}}}}\\n'
+      exit 0
+      ;;
+  esac
+fi
+if [ "$1" = "pr" ] && [ "$2" = "comment" ]; then
+  exit 0
+fi
+printf 'unexpected gh args: %s\\n' "$*" >&2
+exit 1
+`,
+    );
+
+    const result = spawnSync("node", [".agent/dist/cli/post-comment.js"], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        PATH: `${tempDir}:${process.env.PATH || ""}`,
+        COMMENT_TARGET: "pr",
+        TARGET_NUMBER: "321",
+        ROUTE: "fix-pr",
+        STATUS: "unsupported",
+        GITHUB_REPOSITORY: "self-evolving/repo",
+        GITHUB_OUTPUT: outputPath,
+        FAKE_GH_COUNT: countPath,
+        FAKE_GH_LOG: logPath,
+      },
+      encoding: "utf8",
+    });
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Collapsed 1 previous fix-pr status comment/);
+
+    const log = readFileSync(logPath, "utf8");
+    assert.match(log, /id=old-unsupported/);
+    assert.match(log, /^pr comment 321 --body \*\*Sepo could not update this PR automatically\.\*\*/m);
+    assert.match(log, /<!-- sepo-agent-fix-pr-status -->/);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});

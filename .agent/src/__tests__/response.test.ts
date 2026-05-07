@@ -133,6 +133,7 @@ test("formatFixPrComment formats success", () => {
     requestedBy: "alice",
   });
   assert.match(body, /pushed fixes/);
+  assert.match(body, /<!-- sepo-agent-fix-pr-status -->/);
   assert.match(body, /@alice/);
 });
 
@@ -149,6 +150,7 @@ test("formatFixPrComment accepts preformatted agent handles", () => {
 test("formatFixPrComment formats unsupported", () => {
   const body = formatFixPrComment({ status: "unsupported" });
   assert.match(body, /could not update this PR/);
+  assert.match(body, /<!-- sepo-agent-fix-pr-status -->/);
 });
 
 // --- formatReviewComment ---

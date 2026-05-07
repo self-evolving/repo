@@ -2,6 +2,7 @@ import { test } from "node:test";
 import { strict as assert } from "node:assert";
 
 import {
+  evaluateSelfApprovalProvenance,
   parseSelfApprovalDecision,
   resolveSelfApproval,
 } from "../self-approval.js";
@@ -96,6 +97,51 @@ test("resolveSelfApproval rejects stale or mismatched head SHAs", () => {
   assert.match(mismatch.reason, /different inspected head/);
 });
 
+test("resolveSelfApproval rejects approval verdicts without inspected head SHA", () => {
+  for (const inspectedHeadSha of ["", "   "]) {
+    const result = resolveSelfApproval({
+      allowSelfApprove: true,
+      targetKind: "pull_request",
+      prState: "OPEN",
+      expectedHeadSha: "abc123",
+      currentHeadSha: "abc123",
+      decision: {
+        verdict: "approve",
+        reason: "Aligned.",
+        handoffContext: "",
+        inspectedHeadSha,
+      },
+    });
+
+    assert.equal(result.shouldApprove, false);
+    assert.equal(result.conclusion, "blocked");
+    assert.match(result.reason, /missing inspected head SHA/);
+  }
+});
+
+test("resolveSelfApproval blocks approval without trusted review provenance", () => {
+  const result = resolveSelfApproval({
+    allowSelfApprove: true,
+    targetKind: "pull_request",
+    prState: "OPEN",
+    expectedHeadSha: "abc123",
+    currentHeadSha: "abc123",
+    approvalProvenanceTrusted: false,
+    approvalProvenanceReason: "latest trusted review synthesis verdict is needs_rework, not SHIP",
+    decision: {
+      verdict: "approve",
+      reason: "Aligned.",
+      handoffContext: "",
+      inspectedHeadSha: "abc123",
+    },
+  });
+
+  assert.equal(result.shouldApprove, false);
+  assert.equal(result.shouldOrchestrate, false);
+  assert.equal(result.conclusion, "blocked");
+  assert.match(result.reason, /needs_rework/);
+});
+
 test("resolveSelfApproval requests orchestration for change requests", () => {
   const result = resolveSelfApproval({
     allowSelfApprove: true,
@@ -115,4 +161,50 @@ test("resolveSelfApproval requests orchestration for change requests", () => {
   assert.equal(result.shouldOrchestrate, true);
   assert.equal(result.conclusion, "request_changes");
   assert.equal(result.handoffContext, "Remove the public slash route.");
+});
+
+test("evaluateSelfApprovalProvenance requires the latest trusted ship signal", () => {
+  const trusted = evaluateSelfApprovalProvenance({
+    trustedActorLogin: "sepo-agent-app[bot]",
+    comments: [
+      {
+        authorLogin: "app/sepo-agent-app",
+        createdAt: "2026-05-07T10:00:00Z",
+        body: "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n## Final Verdict\n\nSHIP",
+      },
+    ],
+  });
+  assert.equal(trusted.trusted, true);
+  assert.match(trusted.reason, /SHIP/);
+
+  const superseded = evaluateSelfApprovalProvenance({
+    trustedActorLogin: "sepo-agent-app[bot]",
+    comments: [
+      {
+        authorLogin: "sepo-agent-app",
+        createdAt: "2026-05-07T10:00:00Z",
+        body: "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n## Final Verdict\n\nSHIP",
+      },
+      {
+        authorLogin: "sepo-agent-app",
+        createdAt: "2026-05-07T10:05:00Z",
+        body: "## Rubrics Review\n\n## Final Rubric Verdict\n\nPARTIAL",
+      },
+    ],
+  });
+  assert.equal(superseded.trusted, false);
+  assert.match(superseded.reason, /PARTIAL|partial/);
+
+  const untrusted = evaluateSelfApprovalProvenance({
+    trustedActorLogin: "sepo-agent-app[bot]",
+    comments: [
+      {
+        authorLogin: "someone-else",
+        createdAt: "2026-05-07T10:00:00Z",
+        body: "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n## Final Verdict\n\nSHIP",
+      },
+    ],
+  });
+  assert.equal(untrusted.trusted, false);
+  assert.match(untrusted.reason, /missing trusted/);
 });

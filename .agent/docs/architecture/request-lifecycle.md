@@ -46,5 +46,6 @@ Current route-level `acpx` permission modes:
 | `implement` | `approve-all` | needs full file system access |
 | `fix-pr` | `approve-all` | needs full file system access |
 | `review` | `approve-all` | reviewers and synthesis may gather PR and repo context |
+| `agent-self-approve` | `approve-reads` | final approval inspection may gather PR context, but deterministic resolver code owns any approval write |
 
-Dedicated memory and rubric maintenance workflows use the same runtime but are documented with their storage systems rather than the user-request lifecycle. The workflow-level GitHub token still has write scope for all jobs. Narrowing that token per job is tracked separately. The `acpx` permission modes restrict agent tool use but not direct `gh` CLI calls.
+Dedicated memory and rubric maintenance workflows use the same runtime but are documented with their storage systems rather than the user-request lifecycle. Most workflow-level GitHub tokens still have write scope for mutation-capable jobs. The self-approval inspection path is narrower: the agent receives a read-only workflow token, and the deterministic resolver step receives the resolved approval token only after inspection completes. The `acpx` permission modes restrict agent tool use but not direct `gh` CLI calls.

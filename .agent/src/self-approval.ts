@@ -1,4 +1,6 @@
 import { extractJsonObject } from "./response.js";
+import { extractReviewConclusion } from "./handoff.js";
+import { isReviewSynthesisBody } from "./review-synthesis.js";
 
 export type SelfApprovalVerdict = "approve" | "request_changes" | "blocked";
 
@@ -16,6 +18,8 @@ export interface SelfApprovalResolveInput {
   expectedHeadSha: string;
   currentHeadSha: string;
   decision: SelfApprovalDecision | null;
+  approvalProvenanceTrusted?: boolean;
+  approvalProvenanceReason?: string;
 }
 
 export interface SelfApprovalResolveResult {
@@ -26,8 +30,27 @@ export interface SelfApprovalResolveResult {
   handoffContext: string;
 }
 
+export interface SelfApprovalSignalComment {
+  body: string;
+  authorLogin: string;
+  createdAt?: string | number | null;
+}
+
+export interface SelfApprovalProvenanceResult {
+  trusted: boolean;
+  reason: string;
+}
+
 function normalizeToken(value: string): string {
   return String(value || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+}
+
+function normalizeActorLogin(value: string): string {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/^app\//i, "")
+    .replace(/\[bot\]$/i, "");
 }
 
 export function envFlagEnabled(value: string | undefined): boolean {
@@ -47,6 +70,91 @@ function normalizeVerdict(value: string): SelfApprovalVerdict | null {
   }
   if (normalized === "blocked" || normalized === "block") return "blocked";
   return null;
+}
+
+function isRubricsReviewBody(body: string): boolean {
+  return /(?:^|\r?\n)## Rubrics Review(?:\s|$)/.test(body);
+}
+
+function extractRubricsVerdict(markdown: string): string {
+  const text = markdown || "";
+  const finalMatch = text.match(/##\s*Final Rubric Verdict\s+`?([A-Z_ -]+)`?/i);
+  if (finalMatch) return normalizeToken(finalMatch[1]);
+
+  const tableMatch = text.match(/\|\s*\d+\s*\|\s*([A-Z_ -]+)\s*\|\s*\d+\s*\|/i);
+  return tableMatch ? normalizeToken(tableMatch[1]) : "unknown";
+}
+
+function createdAtMs(value: string | number | null | undefined): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  const parsed = Date.parse(String(value || ""));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+export function evaluateSelfApprovalProvenance(input: {
+  comments: SelfApprovalSignalComment[];
+  trustedActorLogin: string;
+}): SelfApprovalProvenanceResult {
+  const trustedActor = normalizeActorLogin(input.trustedActorLogin);
+  if (!trustedActor) {
+    return {
+      trusted: false,
+      reason: "could not resolve trusted agent actor for self-approval provenance",
+    };
+  }
+
+  const signals = input.comments
+    .map((comment, index) => {
+      const author = normalizeActorLogin(comment.authorLogin);
+      if (!author || author !== trustedActor) return null;
+
+      const body = String(comment.body || "");
+      if (isReviewSynthesisBody(body)) {
+        return {
+          index,
+          createdAtMs: createdAtMs(comment.createdAt),
+          kind: "review synthesis",
+          conclusion: extractReviewConclusion(body),
+        };
+      }
+      if (isRubricsReviewBody(body)) {
+        return {
+          index,
+          createdAtMs: createdAtMs(comment.createdAt),
+          kind: "rubrics review",
+          conclusion: extractRubricsVerdict(body),
+        };
+      }
+      return null;
+    })
+    .filter((signal): signal is {
+      index: number;
+      createdAtMs: number;
+      kind: "review synthesis" | "rubrics review";
+      conclusion: string;
+    } => Boolean(signal))
+    .sort((left, right) => left.createdAtMs - right.createdAtMs || left.index - right.index);
+
+  const latest = signals[signals.length - 1];
+  if (!latest) {
+    return {
+      trusted: false,
+      reason: "missing trusted review/rubrics signal for self-approval",
+    };
+  }
+
+  if (latest.kind === "review synthesis" && latest.conclusion === "ship") {
+    return { trusted: true, reason: "latest trusted review synthesis verdict is SHIP" };
+  }
+  if (latest.kind === "rubrics review" && latest.conclusion === "pass") {
+    return { trusted: true, reason: "latest trusted rubrics review verdict is PASS" };
+  }
+
+  const expected = latest.kind === "review synthesis" ? "SHIP" : "PASS";
+  return {
+    trusted: false,
+    reason: `latest trusted ${latest.kind} verdict is ${latest.conclusion || "unknown"}, not ${expected}`,
+  };
 }
 
 export function parseSelfApprovalDecision(raw: string): SelfApprovalDecision | null {
@@ -123,6 +231,16 @@ export function resolveSelfApproval(input: SelfApprovalResolveInput): SelfApprov
   const expectedHeadSha = input.expectedHeadSha.trim();
   const currentHeadSha = input.currentHeadSha.trim();
   const inspectedHeadSha = input.decision.inspectedHeadSha.trim();
+  if (input.decision.verdict === "approve" && !inspectedHeadSha) {
+    return {
+      conclusion: "blocked",
+      shouldApprove: false,
+      shouldOrchestrate: false,
+      reason: "self-approval approval verdict was missing inspected head SHA",
+      handoffContext: input.decision.handoffContext,
+    };
+  }
+
   if (!expectedHeadSha || !currentHeadSha || expectedHeadSha !== currentHeadSha) {
     return {
       conclusion: "blocked",
@@ -139,6 +257,16 @@ export function resolveSelfApproval(input: SelfApprovalResolveInput): SelfApprov
       shouldApprove: false,
       shouldOrchestrate: false,
       reason: "self-approval agent reported a different inspected head SHA",
+      handoffContext: input.decision.handoffContext,
+    };
+  }
+
+  if (input.approvalProvenanceTrusted === false) {
+    return {
+      conclusion: "blocked",
+      shouldApprove: false,
+      shouldOrchestrate: false,
+      reason: input.approvalProvenanceReason || "missing trusted review/rubrics signal for self-approval",
       handoffContext: input.decision.handoffContext,
     };
   }
