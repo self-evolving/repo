@@ -1,0 +1,233 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Add a generated marker and legacy matcher for fix-pr status comments.\n- Collapse previous fix-pr status comments before posting a new one when `AGENT_COLLAPSE_OLD_REVIEWS` is enabled.\n- Forward the cleanup toggle from `agent-fix-pr.yml` and update docs/tests.\n\n## Tests\n- `npm run build`\n- `node --test .agent/dist/__tests__/review-summary-minimize.test.js .agent/dist/__tests__/response.test.js .agent/dist/__tests__/post-comment-cli.test.js .agent/dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nCloses #68\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBgSr4g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #162 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: Implementation succeeded and produced open PR #162 for issue #68, so the next useful automatic action is a review of the implementation.\n\n<!-- sepo-agent-handoff state:dispatched created:1778146543067 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU0ODc2NjAzNjI6aW1wbGVtZW50OjY4OnJldmlldzoxNjI6Mw -->",
+      "createdAt": "2026-05-07T09:35:43Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/162#issuecomment-4395936738",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBgTduw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 6 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | PR extends the existing `.agent/src/review-summary-minimize.ts` minimization path with `collapsePreviousFixPrComments` instead of adding separate workflow/API logic. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates `.agent/docs/architecture/supported-workflows.md` and `.agent/docs/customization/configuration-list.md` to include `fix-pr` status comment cleanup under `AGENT_COLLAPSE_OLD_REVIEWS`. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Adds a stable hidden marker in `.agent/src/fix-pr-status.ts` / `.agent/src/response.ts`, legacy text matching, same-agent filtering, and pre-post collapse behavior in `.agent/src/cli/post-comment.ts`. |\n| communication / generic | Keep status comments compact | pass | 6/6 | The new identifier is an HTML marker, so it does not add visible status noise; the visible fix-pr status format remains compact. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is narrowly scoped to fix-pr status cleanup wiring, marker/matcher helpers, targeted tests, one workflow env pass-through, and matching docs. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Implementation is a small marker plus regex matcher and reused GraphQL minimization helper, with focused tests for marker formatting and collapse behavior. |\n\n## Notes\n\n- The linked issue context is narrow: issue #68 asks whether new `fix-pr` runs should collapse previous `fix-pr` comments. The PR directly implements that behavior.\n- The strongest rubric alignment is around idempotent user-facing automation: repeated `fix-pr` status comments now get a stable hidden marker and older matching comments are minimized when cleanup is enabled.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** The PR satisfies the applicable selected rubrics. Route authorization, one-shot orchestration defaults, preview contracts, merge strategy, and rubric-writing guidance were not scored because this PR does not change those behaviors.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-07T09:37:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/162#issuecomment-4395949499",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBgW4KQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #162 addresses #68 by making repeated `fix-pr` status comments collapse older generated `fix-pr` comments when `AGENT_COLLAPSE_OLD_REVIEWS` is enabled.\n- It adds a hidden fix-pr status marker, legacy matchers, a comments-only minimizer, workflow env wiring, focused tests, and docs updates.\n- The goal is consistent with existing cleanup behavior for review synthesis, rubrics reviews, and orchestrator handoff comments.\n- The core open same-repository fix-pr path is implemented, but one user-facing unsupported path still bypasses the shared cleanup flow.\n\n## Review\nThe implementation is broadly sound and aligned with the existing minimization pattern; the rubrics review passed, and one reviewer rated the PR as shippable. The only unresolved issue is a concrete edge-path gap in `.github/workflows/agent-fix-pr.yml`.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Unsupported fix-pr status comments bypass cleanup | WARNING | The normal open same-repo status step now runs cleanup, but the unsupported status step still posts directly with `gh pr comment`, so repeated closed or cross-repo fix-pr runs can leave old unsupported comments visible and miss the new marker. |\n\n## Progress\n- Core marker, matcher, minimizer, workflow env, docs, and tests are already present for the normal fix-pr status path.\n- Rubrics review passed with no required follow-up.\n- No duplicate inline feedback existed before synthesis; I posted one targeted inline comment on the workflow cleanup wiring line.\n\n## Issue Details\n<details>\n<summary>Unsupported fix-pr status comments bypass cleanup</summary>\n\n**Cause:** The new cleanup env is wired only into the shared `post-comment.ts` path for open same-repo PRs, while the later `Post unsupported status` step still uses direct shell-based `gh pr comment` posting.\n\n**Candidate solutions:** Route the unsupported path through `node .agent/dist/cli/post-comment.js` with `ROUTE=fix-pr` and `STATUS=unsupported`, or reuse the same formatter/minimizer before posting from that path.\n\n**Comments:** Reviewer disagreement is only on severity: rubrics and Claude treated the PR as pass/SHIP, while Codex flagged this edge path as a WARNING because the docs now describe fix-pr cleanup generally.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: The remaining issue is a small, concrete workflow/code change that is safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Route unsupported fix-pr status posting through the shared fix-pr comment formatter/cleanup path, or otherwise apply the same marker and minimizer before posting.\n- [ ] Add or update focused coverage so unsupported fix-pr status comments are included in the cleanup contract.",
+      "createdAt": "2026-05-07T09:44:27Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/162#issuecomment-4396005417",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBgXSnA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #162 | 4 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis recommends FIX_PR for a concrete unresolved minor issue: unsupported fix-pr status comments still bypass the cleanup/marker path.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items for PR #162:\n- Route unsupported fix-pr status posting through the shared fix-pr comment formatter/cleanup path, or otherwise apply the same hidden marker and minimizer before posting.\n- Add or update focused coverage so unsupported fix-pr status comments are included in the cleanup contract.\nConstraints: ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1778147124457 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU0ODc5NDczNzM6cmV2aWV3OjE2MjpmaXhfcHI6MTYyOjQ -->",
+      "createdAt": "2026-05-07T09:45:24Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/162#issuecomment-4396012188",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBgZUaA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-68/codex-25487660362`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Routed unsupported `fix-pr` status posting through the shared `post-comment.js` formatter/cleanup path with `STATUS=unsupported`.\n- Added focused coverage for unsupported status cleanup, marker formatting, legacy matching, and workflow wiring.\n- Verified with `npm run build`, targeted `node --test`, and `git diff --check`.",
+      "createdAt": "2026-05-07T09:49:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/162#issuecomment-4396045416",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBgZzNA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #162 | 5 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded after addressing the prior review synthesis action items, so one automatic review pass is warranted to validate the updated PR before stopping.\n\n<!-- sepo-agent-handoff state:dispatched created:1778147458485 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU0ODgzOTMxODE6Zml4X3ByOjE2MjpyZXZpZXc6MTYyOjU -->",
+      "createdAt": "2026-05-07T09:50:58Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/162#issuecomment-4396053300",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBgaY1A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR extends the existing `.agent/src/review-summary-minimize.ts` cleanup path with `collapsePreviousFixPrComments` and routes posting through `.agent/src/cli/post-comment.ts` instead of adding separate workflow-local API logic. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The diff updates `.agent/docs/architecture/supported-workflows.md` and `.agent/docs/customization/configuration-list.md` so `AGENT_COLLAPSE_OLD_REVIEWS` now documents `fix-pr` status cleanup. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Adds `<!-- sepo-agent-fix-pr-status -->`, legacy text matching in `.agent/src/fix-pr-status.ts`, same-agent minimization in `.agent/src/review-summary-minimize.ts`, and pre-post cleanup in `.agent/src/cli/post-comment.ts`. |\n| communication / generic | Keep status comments compact | pass | 6/6 | The new identifier is a hidden HTML marker, and unsupported/success comments remain concise user-facing status text rather than exposing cleanup details. |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | The unsupported `fix-pr` path still posts a visible stop reason, and now does so through `post-comment.js` with `STATUS: unsupported` in `.github/workflows/agent-fix-pr.yml`. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is narrowly scoped to fix-pr status markers, cleanup wiring, focused tests, one workflow pass-through, and matching docs for issue #68. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation is a small marker plus regex matcher and reuse of the existing GraphQL minimization helper, with focused coverage in `post-comment-cli`, `response`, `review-summary-minimize`, and workflow envelope tests. |\n\n## Notes\n\n- The linked issue #68 asks whether new `fix-pr` runs should collapse previous `fix-pr` comments; the PR directly implements that behavior.\n- The latest diff also addresses the prior edge-path concern by routing `Post unsupported status` through the shared `post-comment.js` formatter/cleanup path.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** The applicable selected rubrics are satisfied. Delegated route authorization, one-shot orchestration defaults, preview contracts, merge strategy, and rubric-writing guidance were not scored because this PR does not change those behaviors.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-07T09:52:14Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/162#issuecomment-4396062932",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBgdi1g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #162 closes #68 by extending generated comment cleanup to `fix-pr` status comments.\n- It adds a hidden fix-pr status marker, legacy text matching, shared minimization through `post-comment.ts`, workflow wiring, docs, and focused tests.\n- The previous review round found that unsupported fix-pr status comments still bypassed cleanup.\n- The latest PR head now routes the unsupported path through the shared formatter/cleanup path as well.\n\n## Review\nThe current reviewer outputs converge on SHIP: the prior WARNING has been addressed, rubrics pass, and no remaining required branch change was identified. One reviewer suggested extra direct marker assertions for three formatter cases, but the current behavioral coverage already exercises marker detection and posting paths, so that is optional test hardening rather than an actionable blocker.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | The unsupported-status cleanup gap is fixed, and current reviews report no BLOCKING findings. The remaining formatter-test suggestion is optional and does not require another automated fix-pr pass. |\n\n## Progress\n- Issue #68 is narrow and has no broader parent/tracking context in the linked discussion.\n- The prior inline warning about unsupported fix-pr comments was addressed by routing `Post unsupported status` through `post-comment.js` with `STATUS=unsupported`.\n- Rubrics review now passes 7/7, including idempotent automation, docs sync, surgical change scope, and accepted workflow stop behavior.\n- Reviewer-reported verification includes `npm ci`, `npm run build`, targeted `node --test`, and `git diff --check HEAD`.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: No unresolved required branch-change work remains.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-07T09:59:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/162#issuecomment-4396114646",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-07T09:34:52Z",
+  "files": [
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 6,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 15,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/post-comment-cli.test.ts",
+      "additions": 142,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/response.test.ts",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/review-summary-minimize.test.ts",
+      "additions": 77,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/post-comment.ts",
+      "additions": 17,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/fix-pr-status.ts",
+      "additions": 19,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/response.ts",
+      "additions": 11,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/review-summary-minimize.ts",
+      "additions": 38,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-fix-pr.yml",
+      "additions": 8,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-68/codex-25487660362",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 162,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM785Jql",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-07T09:43:33Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "ebbcdbc7e8daa605be650e988e4db6b6cffa67f9"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Collapse old fix-pr status comments",
+  "updatedAt": "2026-05-07T09:59:02Z",
+  "url": "https://github.com/self-evolving/repo/pull/162"
+}

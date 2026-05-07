@@ -2,9 +2,9 @@
   "number": 153,
   "title": "Add a yolo mode for sepo",
   "url": "https://github.com/self-evolving/repo/discussions/153",
-  "body": "So agents can automatically approve PRs when they see fit; and they will leave humans for decisions when they think it only needs to.",
+  "body": "Enabling agents to approve the PRs:\r\n- there should be an additional route for `agent-self-approve`, which requires careful review of the code again, think whether it is aligned with the repo's goal and rubrics, and then critique. This should be different from review / rubrics (which mostly focuses on low-level implementation details) but should be somewhat high-level, think of long-term goals and impacts, and consider what is the right thing to do to achieve that. \r\n- the orchestrator can now allow calling that route; and `agent-self-approve` can actually call orchestrator or other routes again if it doesn't approve and request follow up changes -> perhaps to make things simple first, it can just call orchestrator.  \r\n- further more, for agent action gating (`@agent /approve xxx`), it should also invoke the self-approve agent whenever it fits.\r\n- this should be gated with an environment variable called AGENT_ALLOW_SELF_APPROVE (default to false). \r\n\r\n@sepo-agent /answer what do you think?",
   "createdAt": "2026-05-05T03:10:32Z",
-  "updatedAt": "2026-05-05T03:10:42Z",
+  "updatedAt": "2026-05-07T10:20:09Z",
   "author": {
     "login": "lolipopshock"
   },
@@ -12,7 +12,49 @@
     "name": "Ideas"
   },
   "comments": {
-    "nodes": [],
+    "nodes": [
+      {
+        "id": "DC_kwDOSOhEMM4BAPFG",
+        "body": "I think this is worth adding, but I would keep the first version conservative: `agent-self-approve` should be a final, opt-in PR approval gate, not an unbounded “merge whatever the agent made” mode.\n\nCurrent fit with the codebase:\n\n- Routes are centrally enumerated in [`triage.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/triage.ts#L12-L31), and explicit slash routes are resolved deterministically before model triage.\n- Prompt lookup is route-based in [`run.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/run.ts#L113-L126), so adding `agent-self-approve` needs a matching prompt.\n- Orchestrator handoffs are currently limited to `implement`, `review`, and `fix-pr` in [`handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L3-L7), with policy edges like `implement -> review`, `review -> fix-pr`, `fix-pr -> review` at [`handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L410-L466).\n- Initial orchestrator authorization also hardcodes the delegated route set in [`orchestrator-capabilities.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/orchestrator-capabilities.ts#L8-L12).\n- The existing human approval flow only dispatches `agent-implement.yml` from [`agent-approve.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-approve.yml#L71-L96), so `/approve` integration needs a small but explicit design choice.\n\nImplementation approach I’d recommend:\n\n1. Add `AGENT_ALLOW_SELF_APPROVE`, default false everywhere. When false, the route should be unavailable to router/orchestrator and should never submit PR approval.\n2. Add a new PR-only workflow, probably `.github/workflows/agent-self-approve.yml`, with `pull-requests: write`, memory/rubrics read-only, and a new `.github/prompts/agent-self-approve.md`.\n3. Make the prompt high-level: product fit, repository goals, long-term maintainability, trust boundaries, automation risk, rubric alignment, and whether approving is actually the right next step. It should not duplicate the low-level review prompt.\n4. Require structured output, e.g. `APPROVE`, `REQUEST_CHANGES`, or `BLOCKED`, plus rationale and follow-up context.\n5. Submit the GitHub PR approval only from deterministic code after validating all of these:\n   - `AGENT_ALLOW_SELF_APPROVE == true`\n   - target is a PR\n   - agent verdict is exactly `APPROVE`\n   - PR head SHA has not changed since the agent inspected it\n   - normal review/rubrics signals are acceptable, or the self-approve prompt explicitly justifies overriding advisory rubrics\n6. Extend orchestrator policy so `review -> agent-self-approve` is allowed when review synthesis says `SHIP` and self-approve is enabled. If self-approve returns changes needed, hand back to orchestrator with context so it can choose `fix-pr`.\n7. For `@agent /approve xxx`, I would not let self-approve replace the initial human approval gate for starting work. I would instead have approved implementation chains opt into the self-approve final gate once a PR exists. That preserves the current meaning of `/approve` while enabling the “YOLO” end-to-end chain.\n\nExecution plan:\n\n1. Update route types, explicit route parsing, access policy behavior, and orchestrator delegated route capability checks.\n2. Add the self-approve prompt and workflow.\n3. Add a typed CLI helper to parse self-approve verdicts and submit the PR approval against a checked head SHA.\n4. Extend handoff policy/tests for `review -> agent-self-approve -> fix-pr/stop`.\n5. Wire `AGENT_ALLOW_SELF_APPROVE` through router, approval, orchestrator, and docs.\n6. Update architecture/config docs and add tests for default-disabled behavior, PR-only enforcement, stale-head rejection, and orchestrator routing.\n\nOne clarification before coding: should `agent-self-approve` be user-invokable as `@sepo-agent /agent-self-approve`, or should it be internal/orchestrator-only for the first version? My default would be internal/orchestrator-only unless explicitly enabled by `AGENT_ALLOW_SELF_APPROVE=true`.",
+        "createdAt": "2026-05-07T09:29:00Z",
+        "url": "https://github.com/self-evolving/repo/discussions/153#discussioncomment-16838982",
+        "author": {
+          "login": "sepo-agent-app"
+        },
+        "replies": {
+          "nodes": [
+            {
+              "id": "DC_kwDOSOhEMM4BAPP4",
+              "body": "@sepo-agent /orchestrate implement this idea ",
+              "createdAt": "2026-05-07T10:19:37Z",
+              "url": "https://github.com/self-evolving/repo/discussions/153#discussioncomment-16839672",
+              "author": {
+                "login": "lolipopshock"
+              },
+              "replyTo": {
+                "id": "DC_kwDOSOhEMM4BAPFG"
+              }
+            },
+            {
+              "id": "DC_kwDOSOhEMM4BAPP7",
+              "body": "Orchestration requests are currently supported on issues and pull requests only.\n",
+              "createdAt": "2026-05-07T10:20:08Z",
+              "url": "https://github.com/self-evolving/repo/discussions/153#discussioncomment-16839675",
+              "author": {
+                "login": "sepo-agent-app"
+              },
+              "replyTo": {
+                "id": "DC_kwDOSOhEMM4BAPFG"
+              }
+            }
+          ],
+          "pageInfo": {
+            "hasNextPage": false,
+            "endCursor": null
+          }
+        }
+      }
+    ],
     "pageInfo": {
       "hasNextPage": false,
       "endCursor": null
