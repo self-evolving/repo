@@ -23,6 +23,16 @@ Confirm these before editing:
 - whether obsolete/legacy agent files should be removed; default is no
 - whether post-merge workflows should be dispatched by you or only documented
 
+When invoked by Sepo's built-in `agent-update.yml` workflow, treat the workflow
+request as that confirmation: the target repository is the current checkout,
+the default source is `self-evolving/repo@main`, optional `.skills/` and
+`AGENT.md` updates default to no, obsolete-file removal defaults to no, and
+post-merge workflows should be documented only unless the request explicitly
+says otherwise. The workflow skips before invoking this skill when an
+`agent/update-agent-infra-*` PR is already open, unless the manual run uses
+`force=true`. Scheduled invocations are enabled by default and can be disabled
+with `AGENT_AUTO_UPDATE=false`; manual dispatch remains available.
+
 Stop if the target repo, installed agent scaffold, or source revision is
 ambiguous.
 
@@ -124,6 +134,8 @@ target root `README.md` unless explicitly requested.
    - Commit message: `chore: update Sepo agent infrastructure`.
    - Stage only intended files, typically `.agent .github`, plus approved
      `.skills/<requested-skill>` and/or `AGENT.md`.
+   - If the update produces no file changes, do not create a branch or PR;
+     report that the target is already current.
    - PR body should include source repo/ref, target branch, changed path groups,
      audit summary, customizations preserved, removed files with confirmation,
      memory/rubrics branch status, validation results, and post-merge notes.

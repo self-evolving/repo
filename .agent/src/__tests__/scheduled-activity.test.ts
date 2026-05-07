@@ -74,6 +74,27 @@ test("resolveScheduledActivityGate bypasses policy for manual runs", () => {
   assert.equal(result.reason, "non-scheduled run");
 });
 
+test("resolveScheduledActivityGate supports disabling only automatic update checks", () => {
+  const policy = '{"workflow_overrides":{"agent-update.yml":"disabled"}}';
+  const scheduled = resolveScheduledActivityGate({
+    eventName: "schedule",
+    schedulePolicy: policy,
+    workflow: "agent-update.yml",
+  });
+  assert.equal(scheduled.skip, true);
+  assert.equal(scheduled.mode, "disabled");
+  assert.equal(scheduled.reason, "schedule policy disabled workflow");
+
+  const manual = resolveScheduledActivityGate({
+    eventName: "workflow_dispatch",
+    schedulePolicy: policy,
+    workflow: "agent-update.yml",
+  });
+  assert.equal(manual.skip, false);
+  assert.equal(manual.mode, "disabled");
+  assert.equal(manual.reason, "non-scheduled run");
+});
+
 test("resolveScheduledActivityGate applies disabled and always_run modes", () => {
   const disabled = resolveScheduledActivityGate({
     eventName: "schedule",

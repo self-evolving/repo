@@ -227,8 +227,10 @@ test("single-agent workflows resolve provider before runtime setup", () => {
   const routerWorkflow = readRepoFile(".github/workflows/agent-router.yml");
   const implementWorkflow = readRepoFile(".github/workflows/agent-implement.yml");
   const fixPrWorkflow = readRepoFile(".github/workflows/agent-fix-pr.yml");
+  const updateWorkflow = readRepoFile(".github/workflows/agent-update.yml");
   const reviewWorkflow = readRepoFile(".github/workflows/agent-review.yml");
   const autonomousWorkflows = [
+    updateWorkflow,
     readRepoFile(".github/workflows/agent-daily-summary.yml"),
     readRepoFile(".github/workflows/agent-memory-bootstrap.yml"),
     readRepoFile(".github/workflows/agent-memory-pr-closed.yml"),
@@ -286,6 +288,7 @@ test("scheduled workflows evaluate skip gates before provider-dependent jobs", (
   const dailySummaryWorkflow = readRepoFile(".github/workflows/agent-daily-summary.yml");
   const memoryScanWorkflow = readRepoFile(".github/workflows/agent-memory-scan.yml");
   const memorySyncWorkflow = readRepoFile(".github/workflows/agent-memory-sync.yml");
+  const updateWorkflow = readRepoFile(".github/workflows/agent-update.yml");
   const gateAction = readRepoFile(".github/actions/scheduled-activity-gate/action.yml");
 
   assert.match(gateAction, /\.agent\/scripts\/resolve-scheduled-activity-gate\.sh/);
@@ -300,6 +303,19 @@ test("scheduled workflows evaluate skip gates before provider-dependent jobs", (
   assert.match(memorySyncWorkflow, /gate:\n[\s\S]*Resolve scheduled activity gate/);
   assert.match(memorySyncWorkflow, /sync:\n\s+needs: gate\n\s+if: needs\.gate\.outputs\.skip != 'true'/);
   assert.doesNotMatch(memorySyncWorkflow, /if: steps\.gate\.outputs\.skip != 'true'/);
+
+  assert.match(updateWorkflow, /gate:\n[\s\S]*Resolve scheduled activity gate/);
+  assert.match(updateWorkflow, /vars\.AGENT_AUTO_UPDATE == 'false'/);
+  assert.match(updateWorkflow, /"workflow_overrides":\{"agent-update\.yml":"disabled"\}/);
+  assert.match(updateWorkflow, /Check pending update PR[\s\S]*resolve-pending-update-pr\.sh/);
+  assert.match(updateWorkflow, /update:\n\s+needs: gate\n\s+if: needs\.gate\.outputs\.skip != 'true'/);
+  assert.match(updateWorkflow, /Resolve update provider[\s\S]*Setup agent runtime/);
+  assert.match(updateWorkflow, /Resolve task timeout[\s\S]*ROUTE: skill[\s\S]*resolve-task-timeout\.js/);
+  assert.match(
+    updateWorkflow,
+    /Run update agent\n\s+id: agent\n\s+timeout-minutes: \$\{\{ fromJson\(steps\.task_timeout\.outputs\.minutes \|\| '30'\) \}\}/,
+  );
+  assert.doesNotMatch(updateWorkflow, /if: steps\.gate\.outputs\.skip != 'true'/);
 
   assert.match(dailySummaryWorkflow, /pre_gate:\n[\s\S]*Resolve scheduled disabled gate/);
   assert.match(dailySummaryWorkflow, /signals:\n\s+needs: pre_gate\n\s+if: needs\.pre_gate\.outputs\.skip != 'true'/);
@@ -796,6 +812,7 @@ test("workflow docs record the minimal metadata contract and developer notes", (
   assert.match(configurationList, /AGENT_SESSION_BUNDLE_MODE/);
   assert.match(configurationList, /AGENT_AUTOMATION_MODE/);
   assert.match(configurationList, /AGENT_AUTOMATION_MAX_ROUNDS/);
+  assert.match(configurationList, /AGENT_AUTO_UPDATE/);
   assert.match(configurationList, /AGENT_STATUS_LABEL_ENABLED/);
 
   assert.match(existingRepoInstall, /open a normal PR in the target repository/i);
