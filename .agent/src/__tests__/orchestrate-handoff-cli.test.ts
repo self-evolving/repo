@@ -903,6 +903,37 @@ test("review handoff dispatches fix-pr with visible task context", () => {
   assert.equal(inputs.orchestrator_context, run.outputs.get("handoff_context"));
 });
 
+test("review SHIP dispatches self-approval only when opt-in is enabled", () => {
+  const disabled = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "ship",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "99",
+    AUTOMATION_MODE: "heuristics",
+    AUTOMATION_CURRENT_ROUND: "2",
+  });
+  assert.equal(disabled.status, 0, disabled.stderr || disabled.stdout);
+  assert.equal(disabled.outputs.get("decision"), "stop");
+  assert.doesNotMatch(disabled.ghLog, /agent-self-approve\.yml/);
+
+  const enabled = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "ship",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "99",
+    AUTOMATION_MODE: "heuristics",
+    AUTOMATION_CURRENT_ROUND: "2",
+    AGENT_ALLOW_SELF_APPROVE: "true",
+  });
+  assert.equal(enabled.status, 0, enabled.stderr || enabled.stdout);
+  assert.equal(enabled.outputs.get("decision"), "dispatch");
+  assert.equal(enabled.outputs.get("next_action"), "agent-self-approve");
+  assert.match(enabled.ghLog, /actions\/workflows\/agent-self-approve\.yml\/dispatches/);
+  const inputs = enabled.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.pr_number, "99");
+  assert.equal(inputs.orchestration_enabled, "true");
+});
+
 test("manual orchestrate dispatches review for open PR targets without CHANGES_REQUESTED", () => {
   const run = runOrchestrateHandoff({
     TARGET_KIND: "pull_request",

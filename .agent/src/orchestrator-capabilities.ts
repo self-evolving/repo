@@ -10,6 +10,7 @@ import {
  * through issue-level delegation.
  */
 export const ORCHESTRATE_DELEGATED_ROUTES = ["implement", "review", "fix-pr"] as const;
+export const ORCHESTRATE_SELF_APPROVE_ROUTE = "agent-self-approve" as const;
 
 /**
  * Requester and policy context needed to decide whether an initial
@@ -22,6 +23,7 @@ export interface InitialOrchestrateCapabilityInput {
   authorAssociation: string;
   accessPolicy: string;
   isPublicRepo: boolean;
+  selfApproveEnabled?: boolean;
 }
 
 function normalizeToken(value: string): string {
@@ -51,7 +53,12 @@ export function initialOrchestrateCapabilityStopReason(input: InitialOrchestrate
   }
 
   const association = isKnownAuthorAssociation(input.authorAssociation) ? input.authorAssociation : "NONE";
-  for (const route of ORCHESTRATE_DELEGATED_ROUTES) {
+  const delegatedRoutes: string[] = [...ORCHESTRATE_DELEGATED_ROUTES];
+  if (input.selfApproveEnabled) {
+    delegatedRoutes.push(ORCHESTRATE_SELF_APPROVE_ROUTE);
+  }
+
+  for (const route of delegatedRoutes) {
     if (isAssociationAllowedForRoute(policy, route, association, input.isPublicRepo)) {
       continue;
     }

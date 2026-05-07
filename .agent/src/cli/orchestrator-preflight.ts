@@ -1,7 +1,7 @@
 // CLI: compute cheap preflight outputs for agent-orchestrator.yml.
 // Env: AUTOMATION_MODE, AUTOMATION_CURRENT_ROUND, AUTOMATION_MAX_ROUNDS,
 //      SOURCE_ACTION, SOURCE_CONCLUSION, TARGET_KIND, AUTHOR_ASSOCIATION,
-//      ACCESS_POLICY, REPOSITORY_PRIVATE
+//      ACCESS_POLICY, REPOSITORY_PRIVATE, AGENT_ALLOW_SELF_APPROVE
 // Outputs: automation_mode, current_round, max_rounds, planner_enabled,
 //          authorization_stop, authorization_stop_reason
 // The authorization_stop outputs are diagnostic; planner_enabled is the workflow gate,
@@ -22,6 +22,9 @@ const maxRounds = positiveInt(process.env.AUTOMATION_MAX_ROUNDS || "", 5);
 const sourceAction = String(process.env.SOURCE_ACTION || "").trim().toLowerCase();
 const sourceConclusion = String(process.env.SOURCE_CONCLUSION || "unknown").trim().toLowerCase();
 const targetKind = String(process.env.TARGET_KIND || "").trim().toLowerCase();
+const selfApproveEnabled = ["true", "1", "yes", "on"].includes(
+  String(process.env.AGENT_ALLOW_SELF_APPROVE || "").trim().toLowerCase(),
+);
 const authorizationStopReason = initialOrchestrateCapabilityStopReason({
   sourceAction,
   sourceConclusion,
@@ -29,6 +32,7 @@ const authorizationStopReason = initialOrchestrateCapabilityStopReason({
   authorAssociation: process.env.AUTHOR_ASSOCIATION || "",
   accessPolicy: process.env.ACCESS_POLICY || "",
   isPublicRepo: String(process.env.REPOSITORY_PRIVATE || "").trim().toLowerCase() === "false",
+  selfApproveEnabled,
 });
 const plannerEnabled = !authorizationStopReason &&
   automationMode === "agent" &&

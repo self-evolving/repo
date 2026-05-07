@@ -25,11 +25,15 @@ stateDiagram-v2
     Implement --> Stop: failed or no PR
 
     Review --> FixPR: MINOR_ISSUES / NEEDS_REWORK / CHANGES_REQUESTED
-    Review --> Stop: SHIP
+    Review --> Stop: SHIP + self-approval disabled
+    Review --> SelfApprove: SHIP + AGENT_ALLOW_SELF_APPROVE=true
     Review --> Stop: failed or unsupported verdict
 
     FixPR --> Review: success
     FixPR --> Stop: no_changes / failed / verify_failed / unsupported PR
+
+    SelfApprove --> Stop: approved / blocked / failed
+    SelfApprove --> FixPR: REQUEST_CHANGES
 
     Review --> Stop: max rounds exhausted
     FixPR --> Stop: max rounds exhausted
@@ -147,6 +151,16 @@ the planner path when enabled.
 In `heuristics` mode, action-originated handoff decisions still use the fixed transition policy and round budget checks.
 
 Review-originated `fix-pr` handoffs carry explicit task context when available. The review dispatcher derives it from the latest review synthesis action items, and heuristic mode falls back to a conservative instruction to address only unresolved review synthesis action items while ignoring optional INFO notes and metadata-only polish. Manual PR `/orchestrate` starts with a `CHANGES_REQUESTED` review decision use separate context that tells `fix-pr` to address the latest unresolved requested-change review comments instead of the review-synthesis fallback.
+
+When `AGENT_ALLOW_SELF_APPROVE=true`, review-originated `SHIP` handoffs dispatch
+`agent-self-approve.yml` instead of stopping. The self-approval workflow captures
+the PR head SHA before the agent runs, asks for a high-level structured verdict,
+and submits an approving PR review only when the verdict is `APPROVE`, the PR is
+still open, and the head SHA still matches. A `REQUEST_CHANGES` verdict hands
+back to the orchestrator as `agent-self-approve -> fix-pr` with the agent's
+handoff context. `BLOCKED`, failed parsing, stale heads, closed PRs, and disabled
+configuration stop without approving. The default is disabled, so existing
+orchestrated review chains still stop on `SHIP`.
 
 In `agent` mode, the orchestrator first runs a scoped planner prompt through the same resolved-provider runtime used by other agent actions. The planner has its own `orchestrator` route and `planner` lane, so session continuation is separate from implement, review, and fix-pr sessions. The planner runs with `approve-all` tool permission so it can gather current GitHub and repository context in non-interactive workflows. It still receives read-only repository memory, selected read-only rubrics, the handoff envelope, any source handoff context, and original request, and returns JSON describing whether to stop, block, delegate a child issue, or hand off. For blocked decisions, the planner may return `user_message` or `clarification_request` to ask for missing context in the visible stop comment. For handoffs, the planner may also return `handoff_context`: explicit, action-oriented instructions for the next workflow. When the next action is `fix-pr`, the dispatcher passes that context into `agent-fix-pr.yml`, and the fix-pr prompt treats it as the selected task and constraints for the automated fix pass. The workflow uses the runtime preflight CLI to skip this planner when the max-round budget is already exhausted or the initial requester lacks delegated-route capability, and the runtime still validates planner JSON against the fixed transition policy, the issue-only direct-implement rule, and max-round budget before dispatching anything.
 
