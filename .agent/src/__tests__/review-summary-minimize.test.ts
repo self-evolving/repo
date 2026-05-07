@@ -289,6 +289,7 @@ test("collapsePreviousFixPrComments minimizes fix-pr status comments only", () =
 
 test("isFixPrStatusBody matches marker and legacy fix-pr status text", () => {
   assert.equal(isFixPrStatusBody("> Restored session\n\n<!-- sepo-agent-fix-pr-status -->"), true);
+  assert.equal(isFixPrStatusBody("**Sepo could not update this PR automatically.**"), true);
   assert.equal(isFixPrStatusBody("**Sepo could not complete the PR fix run.**"), true);
   assert.equal(
     isFixPrStatusBody(
