@@ -360,8 +360,8 @@ test("review synthesis uses a shared reviews directory contract", () => {
   const synthesisPrompt = readRepoFile(".github/prompts/review-synthesize.md");
   const runSource = readRepoFile(".agent/src/run.ts");
 
-  assert.match(reviewWorkflow, /review:\n\s+# Reviewer lanes are best-effort[\s\S]*?continue-on-error:\s*true/);
-  assert.match(reviewWorkflow, /synthesize:\n\s*needs:\s*\[review\]\n\s*if:\s*\$\{\{\s*!cancelled\(\)\s*\}\}/);
+  assert.match(reviewWorkflow, /review:\n\s+needs:\s*\[prepare\]\n\s+# Reviewer lanes are best-effort[\s\S]*?continue-on-error:\s*true/);
+  assert.match(reviewWorkflow, /synthesize:\n\s*needs:\s*\[prepare, review\]\n\s*if:\s*\$\{\{\s*!cancelled\(\)\s*\}\}/);
   assert.match(reviewWorkflow, /find "\$reviews_dir" -type f -name review\.md/);
   assert.match(reviewWorkflow, /REVIEWS_DIR:\s*\$\{\{\s*steps\.reviews\.outputs\.reviews_dir\s*\}\}/);
   assert.match(synthesisPrompt, /\$\{REVIEWS_DIR\}/);
@@ -1402,14 +1402,24 @@ test("agent-review permissions are scoped per-job: reviewers read-only, synthesi
   // Reviewer job keeps contents:read.
   assert.match(
     reviewWorkflow,
-    /review:\s*\n\s+# Reviewer lanes are best-effort[\s\S]*?permissions:\s*\n\s+# Reviewer jobs stay read-only[\s\S]*?contents: read/,
+    /review:\s*\n\s+needs: \[prepare\]\s*\n\s+# Reviewer lanes are best-effort[\s\S]*?permissions:\s*\n\s+# Reviewer jobs stay read-only[\s\S]*?contents: read/,
   );
 
   // Synthesize job upgrades to contents:write for the memory commit.
   assert.match(
     reviewWorkflow,
-    /synthesize:\s*\n\s+needs: \[review\]\s*\n\s+if: \$\{\{ !cancelled\(\) \}\}\s*\n\s+permissions:[\s\S]*?contents: write/,
+    /synthesize:\s*\n\s+needs: \[prepare, review\]\s*\n\s+if: \$\{\{ !cancelled\(\) \}\}\s*\n\s+permissions:[\s\S]*?contents: write/,
   );
+});
+
+test("agent-review captures and forwards a stable reviewed head SHA", () => {
+  const reviewWorkflow = readRepoFile(".github/workflows/agent-review.yml");
+
+  assert.match(reviewWorkflow, /prepare:\s*\n\s+permissions:[\s\S]*?Capture reviewed head[\s\S]*?node \.agent\/dist\/cli\/capture-pr-head\.js/);
+  assert.match(reviewWorkflow, /review:\s*\n\s+needs: \[prepare\]/);
+  assert.match(reviewWorkflow, /rubrics-review:\s*\n\s+needs: \[prepare\]/);
+  assert.match(reviewWorkflow, /synthesize:\s*\n\s+needs: \[prepare, review\]/);
+  assert.match(reviewWorkflow, /REVIEWED_HEAD_SHA:\s*\$\{\{\s*needs\.prepare\.outputs\.reviewed_head_sha\s*\}\}/);
 });
 
 test("agent-self-approve keeps inspection read-only until deterministic resolution", () => {

@@ -171,6 +171,14 @@ function authorLoginFromRecord(record: Record<string, unknown>): string {
   return extractLogin(record.author) || extractLogin(record.user);
 }
 
+function normalizeActorLogin(value: string): string {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/^app\//i, "")
+    .replace(/\[bot\]$/i, "");
+}
+
 export function fetchPrMeta(prNumber: number, repo?: string): PrMeta {
   const args = ["pr", "view", String(prNumber), "--json", "headRefName,headRefOid,isCrossRepository,state"];
   if (repo) args.push("--repo", repo);
@@ -236,8 +244,14 @@ export function upsertPrCommentByMarker(
   marker: string,
   body: string,
 ): "created" | "updated" {
+  const trustedActor = normalizeActorLogin(fetchAuthenticatedActorLogin());
   const existing = fetchIssueCommentRecords(prNumber, repo)
-    .filter((comment) => comment.id && comment.body.includes(marker))
+    .filter((comment) => (
+      comment.id
+      && comment.body.includes(marker)
+      && trustedActor
+      && normalizeActorLogin(comment.authorLogin) === trustedActor
+    ))
     .sort((left, right) => Date.parse(left.createdAt || "") - Date.parse(right.createdAt || ""));
   const latest = existing[existing.length - 1];
   if (latest) {

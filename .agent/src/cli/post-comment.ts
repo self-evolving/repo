@@ -47,10 +47,18 @@ let body: string;
 
 if (route === "review") {
   let reviewedHeadSha = "";
-  if (target === "pr" && repo && targetNumber > 0) {
+  const capturedReviewedHeadSha = String(process.env.REVIEWED_HEAD_SHA || "").trim();
+  if (capturedReviewedHeadSha && target === "pr" && repo && targetNumber > 0) {
     try {
-      reviewedHeadSha = fetchPrMeta(targetNumber, repo).headOid;
-    } catch {
+      const currentHeadSha = fetchPrMeta(targetNumber, repo).headOid;
+      if (currentHeadSha === capturedReviewedHeadSha) {
+        reviewedHeadSha = capturedReviewedHeadSha;
+      } else {
+        console.warn("Review synthesis head marker omitted because the PR head changed during review.");
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.warn(`Review synthesis head marker omitted because PR metadata could not be read: ${message}`);
       reviewedHeadSha = "";
     }
   }

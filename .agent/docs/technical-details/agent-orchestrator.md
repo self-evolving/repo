@@ -153,9 +153,11 @@ In `heuristics` mode, action-originated handoff decisions still use the fixed tr
 Review-originated `fix-pr` handoffs carry explicit task context when available. The review dispatcher derives it from the latest review synthesis action items, and heuristic mode falls back to a conservative instruction to address only unresolved review synthesis action items while ignoring optional INFO notes and metadata-only polish. Manual PR `/orchestrate` starts with a `CHANGES_REQUESTED` review decision use separate context that tells `fix-pr` to address the latest unresolved requested-change review comments instead of the review-synthesis fallback.
 
 When `AGENT_ALLOW_SELF_APPROVE=true`, review-originated `SHIP` handoffs dispatch
-`agent-self-approve.yml` instead of stopping. The self-approval workflow captures
-the PR head SHA before the agent runs, checks for a latest trusted review
-synthesis with a matching reviewed head SHA, and asks for a high-level structured verdict using read-approved tools
+`agent-self-approve.yml` instead of stopping. The review workflow stamps
+synthesis comments with the PR head SHA captured before reviewer lanes start.
+The self-approval workflow captures the PR head SHA before the agent runs,
+checks for a latest trusted review synthesis with a matching reviewed head SHA,
+and asks for a high-level structured verdict using read-approved tools
 and a read-only GitHub token. Only deterministic resolver code receives approval
 authority. It submits an approving PR review only when the verdict is `APPROVE`,
 the PR is still open, that trusted synthesis is `SHIP`, and both the inspected
