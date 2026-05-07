@@ -1,6 +1,6 @@
 import { extractJsonObject } from "./response.js";
 
-export type AgentAction = "implement" | "review" | "fix-pr";
+export type AgentAction = "implement" | "review" | "fix-pr" | "agent-self-approve";
 export type HandoffDecisionKind = "dispatch" | "delegate_issue" | "stop" | "skip";
 export type AutomationMode = "disabled" | "heuristics" | "agent";
 export type HandoffMarkerState = "pending" | "dispatched" | "failed";
@@ -16,6 +16,7 @@ export interface HandoffInput {
   nextTargetNumber?: string;
   currentRound: number;
   maxRounds: number;
+  selfApproveEnabled?: boolean;
   plannerDecision?: PlannerDecision | null;
 }
 
@@ -114,6 +115,9 @@ export function normalizeConclusion(value: string): string {
   if (normalized === "minor_issues") return "minor_issues";
   if (normalized === "needs_rework") return "needs_rework";
   if (normalized === "changes_requested") return "changes_requested";
+  if (normalized === "approved") return "approved";
+  if (normalized === "request_changes") return "request_changes";
+  if (normalized === "blocked") return "blocked";
   return normalized || "unknown";
 }
 
@@ -200,6 +204,7 @@ function normalizeAgentAction(value: string): AgentAction | null {
   if (normalized === "implement") return "implement";
   if (normalized === "review") return "review";
   if (normalized === "fix_pr") return "fix-pr";
+  if (normalized === "agent_self_approve") return "agent-self-approve";
   return null;
 }
 
@@ -448,6 +453,15 @@ function decideHeuristicHandoff(input: HandoffInput): HandoffDecision {
 
   if (sourceAction === "review") {
     if (conclusion === "ship") {
+      if (input.selfApproveEnabled) {
+        return {
+          decision: "dispatch",
+          nextAction: "agent-self-approve",
+          targetNumber: nextTarget,
+          reason: "review verdict is SHIP; dispatching self-approval gate",
+          nextRound,
+        };
+      }
       return { decision: "stop", reason: "review verdict is SHIP", nextRound };
     }
     if (REVIEW_TO_FIX_PR.has(conclusion)) {
@@ -461,6 +475,23 @@ function decideHeuristicHandoff(input: HandoffInput): HandoffDecision {
       };
     }
     return { decision: "stop", reason: `review verdict ${conclusion} has no handoff`, nextRound };
+  }
+
+  if (sourceAction === "agent_self_approve") {
+    if (conclusion === "approved") {
+      return { decision: "stop", reason: "self-approval approved the pull request", nextRound };
+    }
+    if (conclusion === "request_changes" || conclusion === "changes_requested") {
+      return {
+        decision: "dispatch",
+        nextAction: "fix-pr",
+        targetNumber: nextTarget,
+        reason: "self-approval requested follow-up changes; dispatching fix-pr",
+        nextRound,
+        handoffContext: resolveFixPrHandoffContext(input),
+      };
+    }
+    return { decision: "stop", reason: `self-approval concluded ${conclusion}`, nextRound };
   }
 
   return { decision: "stop", reason: `unsupported source action ${input.sourceAction}`, nextRound };

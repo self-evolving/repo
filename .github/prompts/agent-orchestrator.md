@@ -24,6 +24,10 @@ these policy rules:
   produced a pull request target.
 - `review` may hand off to `fix-pr` only for `MINOR_ISSUES`,
   `NEEDS_REWORK`, or `CHANGES_REQUESTED`.
+- `review` may hand off to `agent-self-approve` only for `SHIP` when
+  self-approval is enabled by repository configuration.
+- `agent-self-approve` may hand off to `fix-pr` only when it concludes
+  `REQUEST_CHANGES`.
 - `fix-pr` may hand off to `review` only when fixes succeeded. When
   `fix-pr` reports `no_changes`, `failed`, or `verify_failed`, choose a
   visible stop/block path instead of asking for another automatic review.
@@ -45,7 +49,7 @@ rubrics. Then return exactly one JSON object and nothing else:
 ```json
 {
   "decision": "handoff | delegate_issue | stop | blocked",
-  "next_action": "implement | review | fix-pr",
+  "next_action": "implement | review | fix-pr | agent-self-approve",
   "reason": "Short explanation for logs and the handoff marker.",
   "handoff_context": "Actionable instructions for the next action, especially fix-pr.",
   "user_message": "Optional user-facing message to post when decision is blocked.",
@@ -91,6 +95,9 @@ Rules:
   can be posted directly as the visible clarification comment.
 - Do not use `answer` as `next_action`; if the automation needs to ask the user
   a question, choose `blocked` with a clarification message.
+- Use `agent-self-approve` only as a final PR approval gate after review has
+  shipped, not as a replacement for implementation, review, or human approval
+  of a pending request.
 - Omit `next_action` unless `decision` is `handoff`.
 - Include `handoff_context` for `handoff` decisions when useful. For `fix-pr`,
   it is required: preserve any non-empty source handoff context, or make the

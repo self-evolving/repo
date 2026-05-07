@@ -5,12 +5,15 @@
 //      AGENT_COLLAPSE_OLD_REVIEWS
 
 import { readFileSync } from "node:fs";
+import { upsertPrCommentByMarker } from "../github.js";
 import { postResponse } from "../respond.js";
 import {
   collapsePreviousRubricsReviews,
   isRubricsReviewBody,
 } from "../review-summary-minimize.js";
 import { formatSessionRestoreNotice } from "../session-bundle.js";
+
+const SELF_APPROVAL_STATUS_MARKER = "<!-- sepo-agent-self-approval -->";
 
 const bodyFile = process.env.BODY_FILE || "";
 const responseKind = process.env.RESPONSE_KIND || "issue_comment";
@@ -43,7 +46,20 @@ if (continuityNote) {
   body = `> ${continuityNote}\n\n${body}`;
 }
 
+let posted = false;
 if (
+  responseKind === "pr_comment" &&
+  repo &&
+  targetNumber > 0 &&
+  body.includes(SELF_APPROVAL_STATUS_MARKER)
+) {
+  const action = upsertPrCommentByMarker(targetNumber, repo, SELF_APPROVAL_STATUS_MARKER, body);
+  console.log(`${action === "updated" ? "Updated" : "Created"} self-approval status comment.`);
+  posted = true;
+}
+
+if (
+  !posted &&
   responseKind === "pr_comment" &&
   repo &&
   targetNumber > 0 &&
@@ -63,7 +79,9 @@ if (
   }
 }
 
-postResponse(
-  { responseKind, targetNumber, reviewCommentId, discussionNodeId, replyToId, repo },
-  body,
-);
+if (!posted) {
+  postResponse(
+    { responseKind, targetNumber, reviewCommentId, discussionNodeId, replyToId, repo },
+    body,
+  );
+}

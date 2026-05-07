@@ -84,6 +84,7 @@ const SUPPLEMENTAL_PROMPT_VAR_NAMES = [
   "ORCHESTRATOR_CONTEXT",
   "ORCHESTRATOR_CURRENT_ROUND",
   "ORCHESTRATOR_MAX_ROUNDS",
+  "SELF_APPROVE_EXPECTED_HEAD_SHA",
 ] as const;
 
 // --- Envelope from env ---
@@ -123,6 +124,7 @@ const PROMPT_TEMPLATES: Record<string, string> = {
   "rubrics-initialization": ".github/prompts/rubrics-initialization.md",
   "rubrics-update": ".github/prompts/rubrics-update.md",
   orchestrator: ".github/prompts/agent-orchestrator.md",
+  "agent-self-approve": ".github/prompts/agent-self-approve.md",
 };
 
 /**

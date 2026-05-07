@@ -82,3 +82,31 @@ test("preflight keeps planner enabled for authorized issue meta-orchestration", 
   assert.equal(run.outputs.get("planner_enabled"), "true");
   assert.equal(run.outputs.get("authorization_stop"), "false");
 });
+
+test("preflight checks self-approve access only when enabled", () => {
+  const accessPolicy = JSON.stringify({
+    route_overrides: {
+      "agent-self-approve": ["OWNER"],
+    },
+  });
+
+  const disabled = runPreflight({
+    ACCESS_POLICY: accessPolicy,
+    AUTHOR_ASSOCIATION: "MEMBER",
+  });
+  assert.equal(disabled.status, 0, disabled.stderr || disabled.stdout);
+  assert.equal(disabled.outputs.get("authorization_stop"), "false");
+
+  const enabled = runPreflight({
+    ACCESS_POLICY: accessPolicy,
+    AUTHOR_ASSOCIATION: "MEMBER",
+    AGENT_ALLOW_SELF_APPROVE: "true",
+  });
+  assert.equal(enabled.status, 0, enabled.stderr || enabled.stdout);
+  assert.equal(enabled.outputs.get("planner_enabled"), "false");
+  assert.equal(enabled.outputs.get("authorization_stop"), "true");
+  assert.equal(
+    enabled.outputs.get("authorization_stop_reason"),
+    "orchestrate requests require agent-self-approve access; agent-self-approve currently requires OWNER access.",
+  );
+});

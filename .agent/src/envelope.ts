@@ -56,6 +56,7 @@ export const VALID_ROUTES = new Set([
   "review",
   "implement",
   "fix-pr",
+  "agent-self-approve",
   "answer",
   "create-action",
   "dispatch",

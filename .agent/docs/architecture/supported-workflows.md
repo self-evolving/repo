@@ -14,6 +14,7 @@
 | `agent-implement.yml` | `workflow_dispatch` | Implementation flow: branch, commit, draft PR; supports `base_branch` or `base_pr` for stacked PRs | Auto |
 | `agent-fix-pr.yml` | `workflow_dispatch`, `workflow_call` | PR fix flow: update existing PR branch, verify, push | Auto |
 | `agent-review.yml` | `workflow_dispatch`, `workflow_call` | Parallel Claude and Codex review with resolved-provider synthesis, plus a separate rubric review comment | Claude + Codex reviewers; configurable synthesis |
+| `agent-self-approve.yml` | `workflow_dispatch` | Opt-in final PR approval gate after review ships; gated by `AGENT_ALLOW_SELF_APPROVE` | Auto |
 | `agent-branch-cleanup.yml` | `pull_request_target.closed` | Event-driven cleanup of merged agent-created branches after retargeting open stacked PRs. Excludes the shared `agent/memory` and `agent/rubrics` branches. | None |
 | `agent-close-stale-issues.yml` | `schedule` (daily), `workflow_dispatch` | Closes open `agent` issues that have had no activity for 30 days by default | None |
 | `agent-daily-summary.yml` | `schedule` (daily), `workflow_dispatch` | Generates a concise repository activity summary and posts it as a Discussion | Auto |
@@ -27,6 +28,16 @@ dispatches one built-in action (`implement`, `review`, or `fix-pr`) when useful.
 That dispatch includes explicit orchestration context; only those orchestrator
 launched action runs hand back to `agent-orchestrator.yml` after post-processing.
 Direct `/implement`, `/review`, and `/fix-pr` runs remain one-shot.
+When `AGENT_ALLOW_SELF_APPROVE=true`, orchestrated review runs that ship may
+dispatch `agent-self-approve.yml` as a final pull request approval gate. That
+route re-inspects the PR at a captured head SHA, reads memory and rubrics
+read-only with read-approved tools, and submits an approving PR review only when
+its structured verdict is `APPROVE`, the latest trusted review synthesis is
+`SHIP` for the same head SHA, and the inspected/current head SHA did not change. If it
+returns `REQUEST_CHANGES`, the orchestrator may hand back to `fix-pr` with the
+supplied context. With the
+default `AGENT_ALLOW_SELF_APPROVE=false`, the route is not dispatched and review
+`SHIP` still stops.
 Explicit `/orchestrate` starts on pull requests are deterministic in both
 `heuristics` and `agent` modes. Issue-level `/orchestrate` starts in `agent`
 mode may use the planner. For small self-contained issue work, the planner can

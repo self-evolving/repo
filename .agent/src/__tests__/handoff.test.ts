@@ -202,6 +202,84 @@ test("agent mode falls back to default fix-pr context when planner omits it", ()
   assert.equal(decision.handoffContext, defaultFixPrHandoffContext());
 });
 
+test("review SHIP dispatches self-approval only when enabled", () => {
+  const disabled = decideHandoff({
+    automationMode: "heuristics",
+    sourceAction: "review",
+    sourceConclusion: "ship",
+    targetNumber: "99",
+    currentRound: 2,
+    maxRounds: 5,
+  });
+  assert.equal(disabled.decision, "stop");
+  assert.match(disabled.reason, /SHIP/);
+
+  const enabled = decideHandoff({
+    automationMode: "heuristics",
+    sourceAction: "review",
+    sourceConclusion: "ship",
+    targetNumber: "99",
+    currentRound: 2,
+    maxRounds: 5,
+    selfApproveEnabled: true,
+  });
+  assert.equal(enabled.decision, "dispatch");
+  assert.equal(enabled.nextAction, "agent-self-approve");
+  assert.equal(enabled.targetNumber, "99");
+});
+
+test("self-approval change requests dispatch fix-pr with context", () => {
+  const decision = decideHandoff({
+    automationMode: "heuristics",
+    sourceAction: "agent-self-approve",
+    sourceConclusion: "request_changes",
+    sourceHandoffContext: "Narrow the trust boundary.",
+    targetNumber: "99",
+    currentRound: 3,
+    maxRounds: 5,
+    selfApproveEnabled: true,
+  });
+
+  assert.equal(decision.decision, "dispatch");
+  assert.equal(decision.nextAction, "fix-pr");
+  assert.equal(decision.handoffContext, "Narrow the trust boundary.");
+});
+
+test("agent mode validates self-approval planner handoff against policy", () => {
+  const disabled = decideHandoff({
+    automationMode: "agent",
+    sourceAction: "review",
+    sourceConclusion: "ship",
+    targetNumber: "99",
+    currentRound: 2,
+    maxRounds: 5,
+    plannerDecision: {
+      decision: "handoff",
+      nextAction: "agent-self-approve",
+      reason: "Review shipped.",
+    },
+  });
+  assert.equal(disabled.decision, "stop");
+  assert.match(disabled.reason, /policy disallows/);
+
+  const enabled = decideHandoff({
+    automationMode: "agent",
+    sourceAction: "review",
+    sourceConclusion: "ship",
+    targetNumber: "99",
+    currentRound: 2,
+    maxRounds: 5,
+    selfApproveEnabled: true,
+    plannerDecision: {
+      decision: "handoff",
+      nextAction: "agent-self-approve",
+      reason: "Review shipped.",
+    },
+  });
+  assert.equal(enabled.decision, "dispatch");
+  assert.equal(enabled.nextAction, "agent-self-approve");
+});
+
 test("agent mode stops invalid or disallowed planner handoffs", () => {
   const disallowed = decideHandoff({
     automationMode: "agent",

@@ -159,9 +159,11 @@ test("formatReviewComment builds synthesis header", () => {
   const body = formatReviewComment({
     synthesisBody: "## Summary\nLooks good.",
     requestedBy: "bob",
+    reviewedHeadSha: "abc123",
   });
   assert.match(body, /AI Review Synthesis/);
   assert.match(body, /<!-- sepo-agent-review-synthesis -->/);
+  assert.match(body, /<!-- sepo-agent-review-synthesis-head: abc123 -->/);
   assert.match(body, /@bob/);
   assert.match(body, /Looks good/);
 });

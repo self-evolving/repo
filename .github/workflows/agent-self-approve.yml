@@ -1,0 +1,220 @@
+name: Agent / Self Approve
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Pull request number to self-approve"
+        required: true
+      requested_by:
+        description: "GitHub login that requested the original run"
+        required: false
+      request_text:
+        description: "Original user request text forwarded from the source action"
+        required: false
+      session_bundle_mode:
+        description: "Session bundle persistence mode"
+        required: false
+        default: ""
+      automation_mode:
+        description: "Post-action orchestration mode (disabled, heuristics, agent)"
+        required: false
+        default: "disabled"
+      automation_current_round:
+        description: "Current automation handoff round"
+        required: false
+        default: "1"
+      automation_max_rounds:
+        description: "Maximum automation handoff rounds"
+        required: false
+        default: "5"
+      orchestration_enabled:
+        description: "Whether this run belongs to an explicit orchestrator chain"
+        required: false
+        default: "false"
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: read
+  id-token: write # required for GitHub Actions OIDC broker exchange
+
+concurrency:
+  group: agent-self-approve-${{ github.repository }}-${{ inputs.pr_number }}
+  cancel-in-progress: false
+
+jobs:
+  self-approve:
+    runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          token: ${{ github.token }}
+          persist-credentials: false
+
+      - name: Setup agent runtime
+        id: runtime
+        uses: ./.github/actions/setup-agent-runtime
+
+      - name: Resolve GitHub auth
+        id: auth
+        uses: ./.github/actions/resolve-github-auth
+        with:
+          app_id: ${{ secrets.AGENT_APP_ID }}
+          app_private_key: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
+          pat: ${{ secrets.AGENT_PAT }}
+          fallback_token: ${{ github.token }}
+
+      - name: Prepare self-approval
+        id: prepare
+        env:
+          AGENT_ALLOW_SELF_APPROVE: ${{ vars.AGENT_ALLOW_SELF_APPROVE || 'false' }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          TARGET_KIND: pull_request
+          TARGET_NUMBER: ${{ inputs.pr_number }}
+        run: node .agent/dist/cli/prepare-self-approve.js
+
+      - name: Post self-approval stop
+        if: steps.prepare.outputs.should_run != 'true'
+        env:
+          BODY_FILE: ${{ steps.prepare.outputs.body_file }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          RESPONSE_KIND: pr_comment
+          TARGET_NUMBER: ${{ inputs.pr_number }}
+        run: node .agent/dist/cli/post-response.js
+
+      - name: Resolve self-approval provider
+        id: provider
+        if: steps.prepare.outputs.should_run == 'true'
+        uses: ./.github/actions/resolve-agent-provider
+        with:
+          route: agent-self-approve
+          default_provider: ${{ vars.AGENT_DEFAULT_PROVIDER || 'auto' }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+      - name: Install self-approval provider
+        if: steps.prepare.outputs.should_run == 'true'
+        uses: ./.github/actions/setup-agent-runtime
+        with:
+          install_codex: ${{ steps.provider.outputs.install_codex }}
+          install_claude: ${{ steps.provider.outputs.install_claude }}
+
+      - name: Resolve task timeout
+        if: steps.prepare.outputs.should_run == 'true'
+        id: task_timeout
+        env:
+          AGENT_TASK_TIMEOUT_POLICY: ${{ vars.AGENT_TASK_TIMEOUT_POLICY || '' }}
+          ROUTE: agent-self-approve
+        run: node .agent/dist/cli/resolve-task-timeout.js
+
+      - name: Run self-approval agent
+        id: agent
+        if: steps.prepare.outputs.should_run == 'true'
+        timeout-minutes: ${{ fromJson(steps.task_timeout.outputs.minutes || '30') }}
+        uses: ./.github/actions/run-agent-task
+        with:
+          agent: ${{ steps.provider.outputs.provider }}
+          github_token: ${{ github.token }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          permission_mode: approve-reads
+          prompt: agent-self-approve
+          route: agent-self-approve
+          lane: self-approve
+          memory_mode_override: read-only
+          memory_ref: ${{ vars.AGENT_MEMORY_REF || 'agent/memory' }}
+          memory_policy: ${{ vars.AGENT_MEMORY_POLICY || '' }}
+          rubrics_ref: ${{ vars.AGENT_RUBRICS_REF || 'agent/rubrics' }}
+          rubrics_policy: ${{ vars.AGENT_RUBRICS_POLICY || '' }}
+          rubrics_mode_override: read-only
+          rubrics_limit: ${{ vars.AGENT_RUBRICS_LIMIT || '10' }}
+          session_bundle_mode: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
+          session_policy: track-only
+          request_text: ${{ inputs.request_text }}
+          requested_by: ${{ inputs.requested_by || github.actor }}
+          source_kind: workflow_dispatch
+          target_kind: pull_request
+          target_number: ${{ inputs.pr_number }}
+          target_url: ${{ github.server_url }}/${{ github.repository }}/pull/${{ inputs.pr_number }}
+          reasoning_effort: xhigh
+          workflow: agent-self-approve.yml
+        env:
+          SELF_APPROVE_EXPECTED_HEAD_SHA: ${{ steps.prepare.outputs.head_sha }}
+
+      - name: Resolve GitHub auth for approval
+        id: approval_auth
+        if: steps.prepare.outputs.should_run == 'true'
+        uses: ./.github/actions/resolve-github-auth
+        with:
+          app_id: ${{ secrets.AGENT_APP_ID }}
+          app_private_key: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
+          pat: ${{ secrets.AGENT_PAT }}
+          fallback_token: ${{ github.token }}
+
+      - name: Resolve self-approval result
+        id: result
+        if: steps.prepare.outputs.should_run == 'true'
+        env:
+          AGENT_ALLOW_SELF_APPROVE: ${{ vars.AGENT_ALLOW_SELF_APPROVE || 'false' }}
+          EXPECTED_HEAD_SHA: ${{ steps.prepare.outputs.head_sha }}
+          GH_TOKEN: ${{ steps.approval_auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          RESPONSE_FILE: ${{ steps.agent.outputs.response_file }}
+          TARGET_KIND: pull_request
+          TARGET_NUMBER: ${{ inputs.pr_number }}
+        run: node .agent/dist/cli/resolve-self-approve.js
+
+      - name: Post self-approval status
+        if: >-
+          always() &&
+          steps.prepare.outputs.should_run == 'true' &&
+          (steps.result.outcome == 'failure' || steps.result.outputs.approved != 'true')
+        env:
+          BODY_FILE: ${{ steps.result.outputs.body_file }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          RESPONSE_KIND: pr_comment
+          TARGET_NUMBER: ${{ inputs.pr_number }}
+        run: node .agent/dist/cli/post-response.js
+
+      - uses: actions/upload-artifact@v4
+        if: >-
+          always() &&
+          steps.prepare.outputs.should_run == 'true'
+        with:
+          name: agent-self-approve-result-${{ inputs.pr_number }}
+          path: |
+            ${{ steps.agent.outputs.response_file }}
+            ${{ steps.agent.outputs.session_log_file }}
+            ${{ steps.result.outputs.body_file }}
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Orchestrate follow-up
+        if: >-
+          steps.prepare.outputs.should_run == 'true' &&
+          steps.result.outputs.should_orchestrate == 'true' &&
+          inputs.orchestration_enabled == 'true'
+        env:
+          AUTOMATION_CURRENT_ROUND: ${{ inputs.automation_current_round }}
+          AUTOMATION_MAX_ROUNDS: ${{ inputs.automation_max_rounds }}
+          AUTOMATION_MODE: ${{ inputs.automation_mode }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GH_TOKEN: ${{ steps.approval_auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          ORCHESTRATION_ENABLED: ${{ inputs.orchestration_enabled }}
+          REQUESTED_BY: ${{ inputs.requested_by || github.actor }}
+          REQUEST_TEXT: ${{ inputs.request_text }}
+          SESSION_BUNDLE_MODE: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
+          SOURCE_ACTION: agent-self-approve
+          SOURCE_CONCLUSION: ${{ steps.result.outputs.conclusion }}
+          SOURCE_HANDOFF_CONTEXT: ${{ steps.result.outputs.handoff_context }}
+          TARGET_KIND: pull_request
+          TARGET_NUMBER: ${{ inputs.pr_number }}
+        run: node .agent/dist/cli/dispatch-agent-orchestrator.js

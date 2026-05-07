@@ -6,7 +6,7 @@
 // Outputs: status
 
 import { readFileSync } from "node:fs";
-import { postIssueComment, postPrComment } from "../github.js";
+import { fetchPrMeta, postIssueComment, postPrComment } from "../github.js";
 import {
   collapsePreviousFixPrComments,
   collapsePreviousReviewSummaries,
@@ -46,10 +46,27 @@ const summary = summaryFromAgentResponse(route, rawResponse);
 let body: string;
 
 if (route === "review") {
+  let reviewedHeadSha = "";
+  const capturedReviewedHeadSha = String(process.env.REVIEWED_HEAD_SHA || "").trim();
+  if (capturedReviewedHeadSha && target === "pr" && repo && targetNumber > 0) {
+    try {
+      const currentHeadSha = fetchPrMeta(targetNumber, repo).headOid;
+      if (currentHeadSha === capturedReviewedHeadSha) {
+        reviewedHeadSha = capturedReviewedHeadSha;
+      } else {
+        console.warn("Review synthesis head marker omitted because the PR head changed during review.");
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.warn(`Review synthesis head marker omitted because PR metadata could not be read: ${message}`);
+      reviewedHeadSha = "";
+    }
+  }
   body = formatReviewComment({
     synthesisBody: summary,
     requestedBy: requestedBy || undefined,
     approvalCommentUrl: approvalCommentUrl || undefined,
+    reviewedHeadSha: reviewedHeadSha || undefined,
   });
 } else if (route === "fix-pr") {
   body = formatFixPrComment({
