@@ -51,12 +51,26 @@ See [Setup guide](setup-guide.md) for the auth options and trade-offs.
 
 After the files and secrets are in place:
 
-1. run `Agent / Onboarding / Check Setup` from GitHub Actions
-2. review the `Sepo setup check` issue that the workflow opens or updates
-3. run the copyable test command from that issue, or open another issue and mention `@sepo-agent`
-4. wait for the `👀` reaction and the follow-up workflow run
+1. review the `Sepo setup check` issue, if the Sepo GitHub App already created one
+2. run `Agent / Onboarding / Check Setup` from GitHub Actions if automatic onboarding did not start
+3. review the `Sepo setup check` issue that the workflow opens or updates
+4. run the copyable test command from that issue, or open another issue and mention `@sepo-agent`
+5. wait for the `👀` reaction and the follow-up workflow run
 
-The onboarding workflow is safe to rerun. It creates the built-in trigger labels
+When the hosted Sepo GitHub App receives an installation event, it can try to
+dispatch the onboarding workflow on the repository default branch. If the
+workflow file is missing, Actions dispatch is unavailable, or the App lacks the
+needed permissions, the App falls back to creating or updating the same setup
+issue with manual next steps. Provider secrets still must be configured by a
+repository owner; the App cannot read or create `OPENAI_API_KEY` or
+`CLAUDE_CODE_OAUTH_TOKEN`.
+
+For self-managed App installations, the same dispatch-first behavior can be
+implemented by a webhook service that calls
+`node .agent/dist/cli/installation-bootstrap.js` with `GITHUB_REPOSITORY`,
+`DEFAULT_BRANCH`, and an installation token in `GH_TOKEN`.
+
+The manual onboarding workflow is safe to rerun. It creates the built-in trigger labels
 (`agent/answer`, `agent/implement`, `agent/create-action`, `agent/review`,
 `agent/fix-pr`, and `agent/orchestrate`) when they are missing, then updates the
 same setup issue comment with GitHub auth, provider, memory, and rubrics status.
