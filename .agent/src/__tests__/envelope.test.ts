@@ -358,14 +358,30 @@ test("review workflow forwards requested_by to review, rubrics, and synthesis ru
 test("review synthesis uses a shared reviews directory contract", () => {
   const reviewWorkflow = readRepoFile(".github/workflows/agent-review.yml");
   const synthesisPrompt = readRepoFile(".github/prompts/review-synthesize.md");
+  const finalizePrompt = readRepoFile(".github/prompts/review-synthesize-finalize.md");
   const runSource = readRepoFile(".agent/src/run.ts");
 
   assert.match(reviewWorkflow, /review:\n\s+# Reviewer lanes are best-effort[\s\S]*?continue-on-error:\s*true/);
   assert.match(reviewWorkflow, /synthesize:\n\s*needs:\s*\[review\]\n\s*if:\s*\$\{\{\s*!cancelled\(\)\s*\}\}/);
   assert.match(reviewWorkflow, /find "\$reviews_dir" -type f -name review\.md/);
-  assert.match(reviewWorkflow, /REVIEWS_DIR:\s*\$\{\{\s*steps\.reviews\.outputs\.reviews_dir\s*\}\}/);
+  const runSynthesisStep = reviewWorkflow.match(
+    /- name: Run synthesis[\s\S]*?(?=\n      - name: Post review comment)/,
+  )?.[0] || "";
+  assert.match(runSynthesisStep, /REVIEWS_DIR:\s*\$\{\{\s*steps\.reviews\.outputs\.reviews_dir\s*\}\}/);
+  assert.match(runSynthesisStep, /AGENT_COLLAPSE_OLD_REVIEWS:\s*\$\{\{\s*vars\.AGENT_COLLAPSE_OLD_REVIEWS\s*\}\}/);
+  assert.match(runSynthesisStep, /CURRENT_REVIEW_STARTED_AT_MS:\s*\$\{\{\s*steps\.synthesis_start\.outputs\.started_at_ms\s*\}\}/);
   assert.match(synthesisPrompt, /\$\{REVIEWS_DIR\}/);
+  assert.match(synthesisPrompt, /\$\{AGENT_COLLAPSE_OLD_REVIEWS\}/);
+  assert.match(synthesisPrompt, /\$\{CURRENT_REVIEW_STARTED_AT_MS\}/);
+  assert.match(synthesisPrompt, /only override duplicate skipping for older same-agent inline comments when\s+cleanup is enabled/);
+  assert.match(synthesisPrompt, /If cleanup is disabled, the\s+cutoff is missing or invalid[\s\S]*preserve normal duplicate-skip behavior/);
+  assert.match(finalizePrompt, /\$\{AGENT_COLLAPSE_OLD_REVIEWS\}/);
+  assert.match(finalizePrompt, /\$\{CURRENT_REVIEW_STARTED_AT_MS\}/);
+  assert.match(finalizePrompt, /Only override duplicate skipping for older same-agent inline comments when\s+cleanup is enabled/);
+  assert.match(finalizePrompt, /If cleanup is disabled, the\s+cutoff is missing or invalid[\s\S]*preserve normal duplicate-skip behavior/);
   assert.match(runSource, /"REVIEWS_DIR"/);
+  assert.match(runSource, /"AGENT_COLLAPSE_OLD_REVIEWS"/);
+  assert.match(runSource, /"CURRENT_REVIEW_STARTED_AT_MS"/);
   assert.match(runSource, /"MEMORY_DIR"/);
   assert.doesNotMatch(runSource, /PROMPT_VAR_MEMORY_/);
 });
@@ -610,6 +626,14 @@ test("workflows use granular CLI helpers for post-processing", () => {
 
   assert.match(reviewWorkflow, /node \.agent\/dist\/cli\/post-comment\.js/);
   assert.match(reviewWorkflow, /AGENT_COLLAPSE_OLD_REVIEWS:\s*\$\{\{ vars\.AGENT_COLLAPSE_OLD_REVIEWS \}\}/);
+  assert.match(reviewWorkflow, /id: synthesis_start/);
+  const synthesisStartStep = reviewWorkflow.match(
+    /- name: Record synthesis start time[\s\S]*?(?=\n      - name: Run synthesis)/,
+  )?.[0] || "";
+  assert.match(synthesisStartStep, /continue-on-error:\s*true/);
+  assert.match(synthesisStartStep, /actions\/runs\/\$\{GITHUB_RUN_ID\}/);
+  assert.doesNotMatch(synthesisStartStep, /Date\.now\(\)/);
+  assert.match(reviewWorkflow, /CURRENT_REVIEW_STARTED_AT_MS:\s*\$\{\{ steps\.synthesis_start\.outputs\.started_at_ms \}\}/);
 });
 
 test("shared run-agent-task action exists and requires explicit prompt/skill/lane/session_policy inputs", () => {

@@ -2,7 +2,8 @@
 // Usage: node .agent/dist/cli/post-comment.js
 // Env: COMMENT_TARGET (issue or pr), TARGET_NUMBER, ROUTE, STATUS,
 //      RESPONSE_FILE (optional), BRANCH, PR_URL, REQUESTED_BY,
-//      APPROVAL_COMMENT_URL, AGENT_COLLAPSE_OLD_REVIEWS
+//      APPROVAL_COMMENT_URL, CURRENT_REVIEW_STARTED_AT_MS,
+//      AGENT_COLLAPSE_OLD_REVIEWS
 // Outputs: status
 
 import { readFileSync } from "node:fs";
@@ -36,6 +37,26 @@ const repo = process.env.GITHUB_REPOSITORY || "";
 const collapseOldReviews = !["false", "0", "no", "off"].includes(
   (process.env.AGENT_COLLAPSE_OLD_REVIEWS || "").trim().toLowerCase(),
 );
+
+function readCurrentReviewStartedAtMs(): number | undefined {
+  const raw = (process.env.CURRENT_REVIEW_STARTED_AT_MS || "").trim();
+  if (!raw) {
+    console.warn(
+      "CURRENT_REVIEW_STARTED_AT_MS is missing; inline review comment cleanup will be skipped.",
+    );
+    return undefined;
+  }
+
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value <= 0) {
+    console.warn(
+      `CURRENT_REVIEW_STARTED_AT_MS is malformed (${JSON.stringify(raw)}); inline review comment cleanup will be skipped.`,
+    );
+    return undefined;
+  }
+
+  return value;
+}
 
 let rawResponse = "";
 if (responseFile) {
@@ -81,7 +102,11 @@ if (continuityNote) {
 if (target === "pr") {
   if (route === "review" && collapseOldReviews) {
     try {
-      const collapsed = collapsePreviousReviewSummaries({ repo, prNumber: targetNumber });
+      const collapsed = collapsePreviousReviewSummaries({
+        repo,
+        prNumber: targetNumber,
+        currentReviewStartedAtMs: readCurrentReviewStartedAtMs(),
+      });
       if (collapsed > 0) {
         console.log(`Collapsed ${collapsed} previous AI review synthesis comment(s).`);
       }
