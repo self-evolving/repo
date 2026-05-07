@@ -21,6 +21,11 @@ inline comments sparingly:
   top-level comments, or inline comments
 - before posting, fetch existing inline review comments and skip any that
   already cover the same file/line issue well enough
+- do not let older same-agent inline comments that are eligible for review
+  cleanup suppress a fresh current-run inline comment. Treat same-agent inline
+  comments from previous review rounds as cleanup-eligible unless they are
+  clearly from the current run; for repeated current findings, post a fresh
+  inline comment so cleanup does not hide the only visible line-level feedback
 - do not post the full synthesis, a top-level summary, or a separate overall PR
   comment with `gh`; the workflow posts the final synthesis itself
 - if needed, use `gh pr view ${PR_NUMBER} --repo ${GITHUB_REPOSITORY} --json files,headRefOid` and

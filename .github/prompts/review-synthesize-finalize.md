@@ -28,6 +28,11 @@ Requirements:
   repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/comments`.
 - Do not post more inline comments until you have checked the existing inline
   comments and confirmed the new comment would not be a duplicate.
+- Do not let older same-agent inline comments that are eligible for review
+  cleanup suppress a fresh current-run inline comment. Treat same-agent inline
+  comments from previous review rounds as cleanup-eligible unless they are
+  clearly from the current run; for repeated current findings, post a fresh
+  inline comment so cleanup does not hide the only visible line-level feedback.
 - If you post inline comments, use:
   `gh api --method POST repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/comments -f body='<comment>' -f commit_id='<headRefOid>' -f path='<path>' -F line=<line> -f side=RIGHT`
   and do not post the full synthesis or a separate summary comment

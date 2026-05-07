@@ -358,6 +358,7 @@ test("review workflow forwards requested_by to review, rubrics, and synthesis ru
 test("review synthesis uses a shared reviews directory contract", () => {
   const reviewWorkflow = readRepoFile(".github/workflows/agent-review.yml");
   const synthesisPrompt = readRepoFile(".github/prompts/review-synthesize.md");
+  const finalizePrompt = readRepoFile(".github/prompts/review-synthesize-finalize.md");
   const runSource = readRepoFile(".agent/src/run.ts");
 
   assert.match(reviewWorkflow, /review:\n\s+# Reviewer lanes are best-effort[\s\S]*?continue-on-error:\s*true/);
@@ -365,6 +366,10 @@ test("review synthesis uses a shared reviews directory contract", () => {
   assert.match(reviewWorkflow, /find "\$reviews_dir" -type f -name review\.md/);
   assert.match(reviewWorkflow, /REVIEWS_DIR:\s*\$\{\{\s*steps\.reviews\.outputs\.reviews_dir\s*\}\}/);
   assert.match(synthesisPrompt, /\$\{REVIEWS_DIR\}/);
+  assert.match(synthesisPrompt, /older same-agent inline comments that are eligible for review\s+cleanup/);
+  assert.match(synthesisPrompt, /post a fresh\s+inline comment so cleanup does not hide the only visible line-level feedback/);
+  assert.match(finalizePrompt, /older same-agent inline comments that are eligible for review\s+cleanup/);
+  assert.match(finalizePrompt, /post a fresh\s+inline comment so cleanup does not hide the only visible line-level feedback/);
   assert.match(runSource, /"REVIEWS_DIR"/);
   assert.match(runSource, /"MEMORY_DIR"/);
   assert.doesNotMatch(runSource, /PROMPT_VAR_MEMORY_/);
