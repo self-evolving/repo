@@ -1,0 +1,678 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n\n- Add `agent-self-approve` as an internal orchestrator-dispatched PR approval gate gated by `AGENT_ALLOW_SELF_APPROVE`.\n- Add deterministic CLIs to preflight PR head state, parse structured self-approval verdicts, and submit approval only for matching open PR heads.\n- Extend orchestrator handoff policy, delegated authorization checks, prompts, workflow docs, and config docs.\n- Add focused tests for self-approval parsing, stale-head rejection, opt-in dispatch, and delegated route authorization.\n\n## Verification\n\n- `npm run build`\n- `node --test dist/__tests__/self-approval.test.js dist/__tests__/handoff.test.js dist/__tests__/triage.test.js dist/__tests__/orchestrator-preflight-cli.test.js dist/__tests__/orchestrate-handoff-cli.test.js`\n- YAML parse check for `agent-self-approve.yml` and `agent-orchestrator.yml`\n- `git diff --check`\n\nCloses #165\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBjRI0Q",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate there's a merge conflict to main after merging #162 can you check and fix",
+      "createdAt": "2026-05-07T16:36:31Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/166#issuecomment-4399057105",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBjRr2w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | review | PR #166 | 2 / 40 | Dispatched |\n\nReason: manual orchestrate start on PR; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1778171839497 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU1MDkwNjI0MTM6b3JjaGVzdHJhdGU6MTY2OnJldmlldzoxNjY6Mg -->",
+      "createdAt": "2026-05-07T16:37:19Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/166#issuecomment-4399066075",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBjTFiA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 90 | PARTIAL | 11 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Initial `/orchestrate` capability checks include `agent-self-approve` only when enabled and validate the requester against route policy: [orchestrator-capabilities.ts](https://github.com/self-evolving/repo/blob/80fc3c4a6f010e5be40672cc00b522ae50071ca7/.agent/src/orchestrator-capabilities.ts#L55-L67). |\n| coding_workflow / specific | Default follow-up orchestration to one-shot | pass | 8/8 | The new follow-up is opt-in and only follows `review -> SHIP`; disabled still stops on `SHIP`: [handoff.ts](https://github.com/self-evolving/repo/blob/80fc3c4a6f010e5be40672cc00b522ae50071ca7/.agent/src/handoff.ts#L454-L465). |\n| communication / generic | Keep status comments compact | pass | 5/6 | Self-approval status uses a short table plus reason/context outside the table: [self-approval.ts](https://github.com/self-evolving/repo/blob/80fc3c4a6f010e5be40672cc00b522ae50071ca7/.agent/src/self-approval.ts#L181-L200). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR routes through existing typed CLIs/helpers, `post-response`, `fetchPrMeta`, access policy checks, and orchestrator handoff machinery rather than embedding the behavior in workflow shell. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are scoped to the new self-approval route, orchestrator handoff/capability plumbing, docs, prompt, workflow, and focused tests. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Config and workflow docs document `AGENT_ALLOW_SELF_APPROVE` and the new route: [configuration-list.md](https://github.com/self-evolving/repo/blob/80fc3c4a6f010e5be40672cc00b522ae50071ca7/.agent/docs/customization/configuration-list.md#L11-L14). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Workflow inputs remain separate typed fields, and the prompt requires a structured JSON verdict with `verdict`, `reason`, `handoff_context`, and `inspected_head_sha`. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation is a small state resolver plus two CLIs; approval is submitted only after deterministic `resolveSelfApproval` checks. |\n| coding_workflow / generic | Make user-facing automation idempotent | partial | 3/7 | The body includes `<!-- sepo-agent-self-approval -->`, but the workflow posts via generic `post-response` without looking up/updating that marker: [workflow](https://github.com/self-evolving/repo/blob/80fc3c4a6f010e5be40672cc00b522ae50071ca7/.github/workflows/agent-self-approve.yml#L162-L172), [post-response.ts](https://github.com/self-evolving/repo/blob/80fc3c4a6f010e5be40672cc00b522ae50071ca7/.agent/src/cli/post-response.ts#L66-L69). |\n| coding_workflow / generic | Surface stateful failures | partial | 4/7 | `resolve-self-approve` swallows PR metadata read failures and converts them to empty state/head, later reported as “pull request is not open” or “head changed” instead of surfacing metadata read failure: [resolve-self-approve.ts](https://github.com/self-evolving/repo/blob/80fc3c4a6f010e5be40672cc00b522ae50071ca7/.agent/src/cli/resolve-self-approve.ts#L65-L85), [self-approval.ts](https://github.com/self-evolving/repo/blob/80fc3c4a6f010e5be40672cc00b522ae50071ca7/.agent/src/self-approval.ts#L103-L131). |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Disabled or unsupported self-approval runs post a visible stop comment instead of silently doing nothing: [agent-self-approve.yml](https://github.com/self-evolving/repo/blob/80fc3c4a6f010e5be40672cc00b522ae50071ca7/.github/workflows/agent-self-approve.yml#L68-L86). |\n\n## Notes\n\n- The strongest rubric fit is around conservative opt-in behavior: the route is not user-invokable through slash commands, is default-disabled, validates requester authorization when orchestrator delegation could reach it, and rechecks PR head state before approval.\n- The main rubric gaps are operational polish: repeated blocked/status runs can create duplicate visible comments, and a late PR metadata read failure is safe but misleadingly reported.\n\n## Findings\n\n- **WARNING:** The self-approval status marker is not used for idempotent updates. Rerunning a blocked or non-approved self-approval can create another PR comment even though the body has a stable marker.\n- **WARNING:** A metadata read failure during result resolution is swallowed and can be surfaced as “not open” or “head changed,” which weakens retry/debug visibility.\n\n## Final Rubric Verdict\n\nPARTIAL",
+      "createdAt": "2026-05-07T16:40:14Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/166#issuecomment-4399089032",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBjXcdA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #166 adds an opt-in `agent-self-approve` gate for Sepo, closing #165 and implementing the discussion request for a conservative final PR approval step.\n- The intended model is internal/orchestrator-led: after review synthesis returns `SHIP`, a self-approval agent inspects the PR and deterministic code submits approval only when opt-in, PR state, verdict, and head SHA checks pass.\n- The PR adds a new workflow, prompt, typed prepare/resolve CLIs, orchestration handoff policy, delegated authorization plumbing, docs, and focused tests.\n- The current PR is still unmergeable against `main` after #162, and reviewers found several runtime and safety gaps in the approval path.\n\n## Review\nCodex marked the PR `NEEDS_REWORK`, Claude’s overall verdict was `MINOR_ISSUES`, and the rubrics review was `PARTIAL`. This synthesis prioritizes the blockers because GitHub currently reports the PR as `CONFLICTING`/`DIRTY`, and the approval workflow has deterministic runtime and trust-boundary issues.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Merge conflict with main after #162 | BLOCKING | PR #166 is not currently mergeable. The docs conflict needs a rebase that preserves both #162’s comment-collapse wording and this PR’s self-approval documentation. |\n| `agent-self-approve` is not a valid runtime route | BLOCKING | The workflow passes `route: agent-self-approve`, but `.agent/src/envelope.ts` does not include that route in `VALID_ROUTES`, so `run.ts` will reject the envelope before the prompt runs. |\n| Agent inspection step can mutate GitHub before deterministic checks | BLOCKING | The self-approval agent runs with `permission_mode: approve-all` and a write-capable GitHub token, bypassing the intended guarantee that only deterministic post-processing can approve. |\n| Missing `inspected_head_sha` still allows approval | BLOCKING | A blank inspected SHA skips the mismatch check, so an `APPROVE` verdict can still set `shouldApprove: true` without proving which head the agent inspected. |\n| Self-approval can bypass the review-to-SHIP handoff | WARNING | Direct `workflow_dispatch` plus current preflight allows enabled self-approval on an open PR without verifying trusted `review -> SHIP` provenance or equivalent review/rubrics signals. |\n| Failure handling can hide or misreport approval-state errors | WARNING | Metadata read failures are swallowed, approval API failures can skip PR-visible status, and artifacts are skipped on result-step failure. |\n| Self-approval status comments are not idempotent | WARNING | The body has a stable marker, but the workflow posts via generic `post-response` without updating/reusing an existing self-approval comment. |\n\n## Progress\n- The PR already implements the conservative default-disabled opt-in flag, PR-only preflight, orchestrator handoff wiring, docs, and focused tests for the main happy and stale-head paths.\n- The rubrics review already acknowledged strong alignment on delegated authorization, one-shot default behavior, code reuse, and docs.\n- The rubrics review already surfaced the idempotency and metadata-read warnings, so no duplicate inline comments were added for those.\n- Inline comments were posted for the unregistered route, write-capable inspection step, missing inspected head SHA, skipped failure status, and direct dispatch handoff bypass.\n- Claude’s INFO notes about prompt substitution and approval-review-body asymmetry look intentional and are not included as required action items.\n\n## Issue Details\n\n<details>\n<summary>Merge conflict with main after #162</summary>\n\n**Cause:** GitHub reports PR #166 as `mergeable: CONFLICTING` / `mergeStateStatus: DIRTY` after #162 landed adjacent documentation changes.\n\n**Candidate solutions:** Rebase the PR branch onto `main` and reconcile the docs so both `AGENT_COLLAPSE_OLD_REVIEWS` wording and the new `AGENT_ALLOW_SELF_APPROVE` content remain.\n\n**Comments:** Codex treated this as blocking; Claude called it mechanical but still identified it as unresolved.\n\n</details>\n\n<details>\n<summary>`agent-self-approve` is not a valid runtime route</summary>\n\n**Cause:** [agent-self-approve.yml#L125](https://github.com/self-evolving/repo/blob/80fc3c4a6f010e5be40672cc00b522ae50071ca7/.github/workflows/agent-self-approve.yml#L125) sends `route: agent-self-approve`, while [envelope.ts](https://github.com/self-evolving/repo/blob/80fc3c4a6f010e5be40672cc00b522ae50071ca7/.agent/src/envelope.ts#L55) lacks that route in `VALID_ROUTES`.\n\n**Candidate solutions:** Add `agent-self-approve` to `VALID_ROUTES` and extend `validateEnvelope` tests to cover it.\n\n</details>\n\n<details>\n<summary>Agent inspection step can mutate GitHub before deterministic checks</summary>\n\n**Cause:** [agent-self-approve.yml#L120-L123](https://github.com/self-evolving/repo/blob/80fc3c4a6f010e5be40672cc00b522ae50071ca7/.github/workflows/agent-self-approve.yml#L120) gives the inspection agent a write-capable token and `approve-all` permissions.\n\n**Candidate solutions:** Run the agent inspection step with read-only permissions and reserve the write-capable token for `resolve-self-approve.js`, or otherwise prevent tool-level mutation before deterministic verdict/head checks.\n\n</details>\n\n<details>\n<summary>Missing `inspected_head_sha` still allows approval</summary>\n\n**Cause:** [self-approval.ts#L136](https://github.com/self-evolving/repo/blob/80fc3c4a6f010e5be40672cc00b522ae50071ca7/.agent/src/self-approval.ts#L136) only blocks when `inspectedHeadSha` is non-empty and mismatched.\n\n**Candidate solutions:** Reject blank `inspected_head_sha` for approval verdicts and add a regression test for blank/missing inspected SHA.\n\n**Comments:** Claude considered this lower risk because current-head still matches expected-head; Codex treated it as blocking because it weakens the stated inspected-head contract.\n\n</details>\n\n<details>\n<summary>Self-approval can bypass the review-to-SHIP handoff</summary>\n\n**Cause:** [agent-self-approve.yml#L4](https://github.com/self-evolving/repo/blob/80fc3c4a6f010e5be40672cc00b522ae50071ca7/.github/workflows/agent-self-approve.yml#L4) is directly dispatchable, and preflight does not validate trusted orchestration provenance or latest trusted review/rubrics state.\n\n**Candidate solutions:** Require trusted orchestrator context, or deterministically verify a latest trusted `SHIP` review/rubrics signal before approval can proceed.\n\n</details>\n\n<details>\n<summary>Failure handling can hide or misreport approval-state errors</summary>\n\n**Cause:** [resolve-self-approve.ts#L68-L75](https://github.com/self-evolving/repo/blob/80fc3c4a6f010e5be40672cc00b522ae50071ca7/.agent/src/cli/resolve-self-approve.ts#L68) converts PR metadata read failures into empty state/head, and [agent-self-approve.yml#L162-L175](https://github.com/self-evolving/repo/blob/80fc3c4a6f010e5be40672cc00b522ae50071ca7/.github/workflows/agent-self-approve.yml#L162) lacks `always()` handling for result-step failures.\n\n**Candidate solutions:** Surface metadata read failures explicitly, catch approval submission failures into a failed status body, and make status/artifact steps run on resolver failure with focused tests.\n\n</details>\n\n<details>\n<summary>Self-approval status comments are not idempotent</summary>\n\n**Cause:** [self-approval.ts#L200](https://github.com/self-evolving/repo/blob/80fc3c4a6f010e5be40672cc00b522ae50071ca7/.agent/src/self-approval.ts#L200) emits a stable marker, but [agent-self-approve.yml#L162-L172](https://github.com/self-evolving/repo/blob/80fc3c4a6f010e5be40672cc00b522ae50071ca7/.github/workflows/agent-self-approve.yml#L162) posts through generic `post-response` without marker lookup/update.\n\n**Candidate solutions:** Reuse or update the existing `<!-- sepo-agent-self-approval -->` comment, or add collapse/update behavior equivalent to existing agent status comment handling.\n\n**Comments:** Already covered clearly in the posted rubrics review.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: The unresolved findings require concrete branch changes, and the merge conflict plus deterministic route/safety fixes are suitable for an automated fix-pr pass.\n\n## Final Verdict\n`NEEDS_REWORK`\n\n## Action Items\n- [ ] Rebase/resolve the #162 merge conflict while preserving both #162 and #166 documentation changes.\n- [ ] Add `agent-self-approve` to `VALID_ROUTES` and cover it in `validateEnvelope` tests.\n- [ ] Run self-approval inspection without write-capable tools/token; reserve approval authority for deterministic resolver code.\n- [ ] Reject approval verdicts with missing or blank `inspected_head_sha` and add regression coverage.\n- [ ] Enforce trusted `review -> SHIP` provenance or latest trusted review/rubrics signal before approval.\n- [ ] Surface metadata and approval submission failures visibly, including status/artifact behavior on resolver failure.\n- [ ] Reuse/update the stable self-approval status comment instead of creating duplicate comments.",
+      "createdAt": "2026-05-07T16:50:08Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/166#issuecomment-4399160436",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBjYD-Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #166 | 3 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis recommends FIX_PR for PR #166; the PR is still CONFLICTING/DIRTY and has concrete unresolved deterministic route/safety findings suitable for an automated fix-pr pass.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Rebase/resolve the #162 merge conflict while preserving both #162 and #166 documentation changes.\n- Add `agent-self-approve` to `VALID_ROUTES` and cover it in `validateEnvelope` tests.\n- Run self-approval inspection without write-capable tools/token; reserve approval authority for deterministic resolver code.\n- Reject approval verdicts with missing or blank `inspected_head_sha` and add regression coverage.\n- Enforce trusted `review -> SHIP` provenance or latest trusted review/rubrics signal before approval.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1778172682810 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU1MDkxMDE2NjA6cmV2aWV3OjE2NjpmaXhfcHI6MTY2OjM -->",
+      "createdAt": "2026-05-07T16:51:23Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/166#issuecomment-4399170553",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBjfLCA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-165/codex-25508067922`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Merged `origin/main` into the PR branch worktree and resolved the #162 docs conflict while preserving both self-approval docs and `fix-pr` cleanup docs.\n- Added `agent-self-approve` to `VALID_ROUTES` with `validateEnvelope` coverage.\n- Hardened self-approval: read-only inspection token/tools, required `inspected_head_sha` for approvals, and trusted latest review/rubrics provenance checks in prepare + resolve.\n- Left the worktree in a resolved merge state for the workflow commit step; no unmerged paths or conflict markers remain.\n\n<details><summary>Verification</summary>\n\n- `npm run build`\n- `node --test dist/__tests__/self-approval.test.js dist/__tests__/envelope.test.js dist/__tests__/handoff.test.js dist/__tests__/orchestrate-handoff-cli.test.js dist/__tests__/orchestrator-preflight-cli.test.js dist/__tests__/post-comment-cli.test.js dist/__tests__/response.test.js dist/__tests__/review-summary-minimize.test.js`\n- `git diff --check`\n- `git diff --cached --check`\n- temporary merge validation confirmed `origin/main` is an ancestor of the resolved merge result\n\n</details>",
+      "createdAt": "2026-05-07T17:07:00Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/166#issuecomment-4399287048",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBjfqhQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #166 | 4 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on PR #166, merge state is now CLEAN, checks are passing, and the prior review had concrete blocking findings that should be revalidated after the branch changes.\n\n<!-- sepo-agent-handoff state:dispatched created:1778173677323 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU1MDk4MDE2OTg6Zml4X3ByOjE2NjpyZXZpZXc6MTY2OjQ -->",
+      "createdAt": "2026-05-07T17:07:57Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/166#issuecomment-4399295109",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBjhLlA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 91 | PARTIAL | 11 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Initial `/orchestrate` checks include `agent-self-approve` only when enabled and require requester access to that downstream route: [orchestrator-capabilities.ts](https://github.com/self-evolving/repo/blob/f08c84bd0bd891ad14faa98a0c2a3e4a40cb75e6/.agent/src/orchestrator-capabilities.ts#L55-L67). |\n| coding_workflow / specific | Default follow-up orchestration to one-shot | pass | 8/8 | Direct `review -> SHIP` still stops unless `AGENT_ALLOW_SELF_APPROVE` is enabled; self-approval only hands back to `fix-pr` on `REQUEST_CHANGES`: [handoff.ts](https://github.com/self-evolving/repo/blob/f08c84bd0bd891ad14faa98a0c2a3e4a40cb75e6/.agent/src/handoff.ts#L454-L494). |\n| communication / generic | Keep status comments compact | pass | 5/6 | Self-approval status uses a short two-column table plus reason/context text, not raw logs: [self-approval.ts](https://github.com/self-evolving/repo/blob/f08c84bd0bd891ad14faa98a0c2a3e4a40cb75e6/.agent/src/self-approval.ts#L303-L329). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR uses typed CLIs, existing GitHub helpers, `run-agent-task`, `post-response`, handoff policy, and access-policy plumbing instead of putting nontrivial logic in workflow shell. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are scoped to the self-approval route, prompt, workflow, orchestration plumbing, docs, and focused tests; PR is now `MERGEABLE`/`CLEAN` after the conflict fix. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Config and architecture docs now document the opt-in flag, route behavior, read-only inspection token, deterministic approval resolver, and stop conditions: [configuration-list.md](https://github.com/self-evolving/repo/blob/f08c84bd0bd891ad14faa98a0c2a3e4a40cb75e6/.agent/docs/customization/configuration-list.md#L11-L14), [agent-orchestrator.md](https://github.com/self-evolving/repo/blob/f08c84bd0bd891ad14faa98a0c2a3e4a40cb75e6/.agent/docs/technical-details/agent-orchestrator.md#L155-L167). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The workflow keeps explicit inputs, and the parser expects structured verdict fields including `verdict`, `reason`, `handoff_context`, and `inspected_head_sha`: [self-approval.ts](https://github.com/self-evolving/repo/blob/f08c84bd0bd891ad14faa98a0c2a3e4a40cb75e6/.agent/src/self-approval.ts#L160-L187). |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation is a small resolver/preflight path with direct state checks for opt-in, PR-only target, open state, head SHA, provenance, and verdict: [self-approval.ts](https://github.com/self-evolving/repo/blob/f08c84bd0bd891ad14faa98a0c2a3e4a40cb75e6/.agent/src/self-approval.ts#L190-L301). |\n| coding_workflow / generic | Make user-facing automation idempotent | partial | 4/7 | Status bodies include a stable marker, but the workflow still posts through generic `post-response` without marker lookup/update for self-approval comments: [self-approval.ts](https://github.com/self-evolving/repo/blob/f08c84bd0bd891ad14faa98a0c2a3e4a40cb75e6/.agent/src/self-approval.ts#L328), [agent-self-approve.yml](https://github.com/self-evolving/repo/blob/f08c84bd0bd891ad14faa98a0c2a3e4a40cb75e6/.github/workflows/agent-self-approve.yml#L174-L184), [post-response.ts](https://github.com/self-evolving/repo/blob/f08c84bd0bd891ad14faa98a0c2a3e4a40cb75e6/.agent/src/cli/post-response.ts#L46-L68). |\n| coding_workflow / generic | Surface stateful failures | partial | 5/7 | Preflight surfaces metadata/provenance read failures, but result resolution still swallows PR metadata read failures into empty state/head, which later reports a generic closed/stale-head condition; approval submission failure also occurs before outputs/body file are written: [prepare-self-approve.ts](https://github.com/self-evolving/repo/blob/f08c84bd0bd891ad14faa98a0c2a3e4a40cb75e6/.agent/src/cli/prepare-self-approve.ts#L53-L83), [resolve-self-approve.ts](https://github.com/self-evolving/repo/blob/f08c84bd0bd891ad14faa98a0c2a3e4a40cb75e6/.agent/src/cli/resolve-self-approve.ts#L75-L83), [resolve-self-approve.ts](https://github.com/self-evolving/repo/blob/f08c84bd0bd891ad14faa98a0c2a3e4a40cb75e6/.agent/src/cli/resolve-self-approve.ts#L117-L123). |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Disabled, unsupported, stale, missing-provenance, and blocked paths produce visible stop/status bodies instead of silently doing nothing: [prepare-self-approve.ts](https://github.com/self-evolving/repo/blob/f08c84bd0bd891ad14faa98a0c2a3e4a40cb75e6/.agent/src/cli/prepare-self-approve.ts#L32-L83), [agent-self-approve.yml](https://github.com/self-evolving/repo/blob/f08c84bd0bd891ad14faa98a0c2a3e4a40cb75e6/.github/workflows/agent-self-approve.yml#L70-L88). |\n\n## Notes\n\n- The fix-pr pass addressed the prior blocking rubric gaps: the route is registered, inspection is read-only, approval requires `inspected_head_sha`, and approval provenance is checked before and after inspection.\n- Remaining rubric gaps are non-blocking operational polish: self-approval status comments are not idempotently updated, and late resolver failures are still partly generic.\n\n## Findings\n\n- **WARNING:** Self-approval status comments can duplicate on reruns because the stable marker is emitted but not used for update/reuse.\n- **INFO:** Resolver-side metadata or approval API failures could be surfaced more explicitly with focused tests, but the current behavior blocks approval rather than approving unsafely.\n\n## Final Rubric Verdict\n\nPARTIAL",
+      "createdAt": "2026-05-07T17:10:48Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/166#issuecomment-4399319956",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBjkgsQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #166 adds an opt-in `agent-self-approve` workflow gated by `AGENT_ALLOW_SELF_APPROVE`.\n- The broader goal from #165 / discussion #153 is a conservative final PR approval gate, not a general “merge whatever the agent made” mode.\n- The design adds structured self-approval verdict parsing, head-SHA checks, orchestrator handoff support, docs, and tests.\n- A follow-up fix-pr pass already resolved the merge conflict and several earlier self-approval safety issues, but current reviewers still found trust-boundary and runtime gaps.\n\n## Review\nThe PR is closer after the fix-pr pass, and GitHub now reports the branch as `MERGEABLE` / `CLEAN` at `f08c84bd0bd891ad14faa98a0c2a3e4a40cb75e6`. It still needs rework before shipping because the self-approval gate can either block forever in the normal App setup or trust stale review provenance.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Self-approval preflight trusts the wrong actor token | BLOCKING | `prepare-self-approve` uses `github.token` to resolve the trusted actor, while trusted review/rubrics comments are posted by the resolved App/PAT token. In the canonical App setup, provenance matching compares `github-actions[bot]` to `sepo-agent-app` and blocks every run. |\n| Provenance is not tied to the reviewed head | BLOCKING | The approval gate trusts the latest matching SHIP/PASS issue comment without proving it applies to the current PR head. A stale SHIP comment can authorize approval of later commits. |\n| Failure paths can skip visible status and artifacts | WARNING | `submitApproval` can throw before outputs/body are written, and workflow status/artifact steps lack `always()`. Resolver failures can be visible only in Actions logs and lose debugging artifacts. |\n| Self-approval status comments are not idempotent | WARNING | The body has `<!-- sepo-agent-self-approval -->`, but posting still goes through generic `post-response` without updating or collapsing the prior self-approval status comment. |\n\n## Progress\n- The #162 merge conflict is resolved; the PR is currently `MERGEABLE` / `CLEAN`.\n- Earlier blockers for route registration, read-only inspection permissions, missing `inspected_head_sha`, and direct dispatch provenance were addressed in the fix-pr pass.\n- Claude’s merge-conflict finding was from an older head and is now fixed; its failure-handling warnings still overlap current code.\n- New inline comments were posted for the actor-token blocker, stale-head provenance blocker, and artifact upload failure path.\n- Idempotency and status-failure concerns were already clearly covered in existing PR discussion, so duplicate inline comments were avoided.\n\n## Issue Details\n\n<details>\n<summary>Self-approval preflight trusts the wrong actor token</summary>\n\n**Cause:** `.github/workflows/agent-self-approve.yml` runs `prepare-self-approve.js` with `GH_TOKEN: ${{ github.token }}`, but review synthesis and rubrics comments are posted with `steps.auth.outputs.token` from the App/PAT auth path.\n\n**Candidate solutions:** Resolve GitHub auth before prepare and use that token for provenance reads. Keep the agent inspection step on the read-only `github.token` boundary.\n\n**Comments:** Codex treats this as blocking because the normal Sepo App deployment would never pass provenance.\n\n</details>\n\n<details>\n<summary>Provenance is not tied to the reviewed head</summary>\n\n**Cause:** `evaluateSelfApprovalProvenance()` looks only at trusted issue comments and verdict text. Issue comments are not commit-scoped, and the function does not compare a reviewed head SHA to `expectedHeadSha`.\n\n**Candidate solutions:** Persist or pass the reviewed head SHA from review synthesis/handoff and require it to match the current expected head. Do not allow rubrics `PASS` alone to replace a current `SHIP` review synthesis.\n\n**Comments:** Rubrics review considered provenance generally improved, but Codex identified the remaining stale-head gap.\n\n</details>\n\n<details>\n<summary>Failure paths can skip visible status and artifacts</summary>\n\n**Cause:** `submitApproval()` throws on API failure before outputs/body are written. The post-status and artifact upload steps also lack `always()`, so they are skipped after resolver failure.\n\n**Candidate solutions:** Catch approval submission failures in `resolve-self-approve` and write a failed status body, or make the workflow run status/artifact steps with `always()` and safe fallback body paths.\n\n</details>\n\n<details>\n<summary>Self-approval status comments are not idempotent</summary>\n\n**Cause:** `formatSelfApprovalBody()` emits a stable marker, but `.github/workflows/agent-self-approve.yml` posts through generic `post-response.js`, which does not update/reuse that marker.\n\n**Candidate solutions:** Add marker-based update/reuse for `<!-- sepo-agent-self-approval -->`, or collapse/update self-approval status comments like the existing review/fix-pr status paths.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: The remaining blockers and warnings require concrete branch changes and are safe for an automated fix-pr pass.\n\n## Final Verdict\n`NEEDS_REWORK`\n\n## Action Items\n- [ ] Use the resolved App/PAT auth token for self-approval provenance reads in prepare, while keeping the agent inspection token read-only.\n- [ ] Tie trusted review synthesis provenance to the reviewed head SHA and require it to match the current approval head.\n- [ ] Require a current trusted `SHIP` review synthesis for approval; do not let rubrics `PASS` alone authorize self-approval.\n- [ ] Surface resolver/approval failures with PR-visible status and keep status/artifact steps running on resolver failure.\n- [ ] Reuse or update the stable self-approval status comment instead of creating duplicates.",
+      "createdAt": "2026-05-07T17:17:08Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/166#issuecomment-4399374513",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBjlGeg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #166 | 5 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis recommends FIX_PR for PR #166; remaining trust-boundary, provenance, failure-status, and idempotent-comment issues require concrete branch changes and are suitable for automated fix-pr.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Use the resolved App/PAT auth token for self-approval provenance reads in prepare, while keeping the agent inspection token read-only.\n- Tie trusted review synthesis provenance to the reviewed head SHA and require it to match the current approval head.\n- Require a current trusted `SHIP` review synthesis for approval; do not let rubrics `PASS` alone authorize self-approval.\n- Surface resolver/approval failures with PR-visible status and keep status/artifact steps running on resolver failure.\n- Reuse or update the stable self-approval status comment instead of creating duplicates.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1778174284249 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU1MTA2MjY0NzY6cmV2aWV3OjE2NjpmaXhfcHI6MTY2OjU -->",
+      "createdAt": "2026-05-07T17:18:04Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/166#issuecomment-4399384186",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBjrO5Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-165/codex-25508067922`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Used the resolved App/PAT auth token for self-approval prepare/provenance reads while keeping the inspection agent on `github.token` with `approve-reads`.\n- Required the latest trusted review synthesis to be `SHIP` for the current reviewed head SHA; rubrics `PASS` alone no longer authorizes approval.\n- Added reviewed-head markers to review synthesis comments and regression coverage for missing/stale provenance.\n- Made self-approval status comments marker-upserted, and kept status/artifact steps running on resolver failures.\n- Verification: `npm run build`; `node --test dist/__tests__/self-approval.test.js dist/__tests__/post-response-cli.test.js dist/__tests__/response.test.js dist/__tests__/envelope.test.js`; YAML parse check; `git diff --check`.",
+      "createdAt": "2026-05-07T17:28:08Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/166#issuecomment-4399484645",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBjr1fQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #166 | 6 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on PR #166 and pushed fixes for the latest review synthesis action items; the PR remains open and CLEAN, so another review should validate the new head before the chain stops.\n\n<!-- sepo-agent-handoff state:dispatched created:1778174950132 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU1MTExMTcxMjc6Zml4X3ByOjE2NjpyZXZpZXc6MTY2OjY -->",
+      "createdAt": "2026-05-07T17:29:10Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/166#issuecomment-4399494525",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBjtWjw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 11 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | `/orchestrate` includes `agent-self-approve` in delegated-route authorization only when self-approval is enabled, and checks the requester against that route policy: [.agent/src/orchestrator-capabilities.ts](https://github.com/self-evolving/repo/blob/e34fc892f2fbab6f05e2e8f56cf28968f5d35249/.agent/src/orchestrator-capabilities.ts#L55-L67). |\n| coding_workflow / specific | Default follow-up orchestration to one-shot | pass | 8/8 | Review `SHIP` still stops by default; self-approval dispatch only happens when explicitly enabled, and self-approval only hands back to `fix-pr` on change requests: [.agent/src/handoff.ts](https://github.com/self-evolving/repo/blob/e34fc892f2fbab6f05e2e8f56cf28968f5d35249/.agent/src/handoff.ts#L454-L494). |\n| communication / generic | Keep status comments compact | pass | 6/6 | Self-approval status uses a short status/conclusion table plus concise reason/context text: [.agent/src/self-approval.ts](https://github.com/self-evolving/repo/blob/e34fc892f2fbab6f05e2e8f56cf28968f5d35249/.agent/src/self-approval.ts#L300-L329). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR uses typed CLIs, shared GitHub helpers, existing handoff policy, route validation, and `post-response` instead of embedding substantial behavior in workflow shell. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is scoped to the new opt-in self-approval route, workflow, prompt, orchestration plumbing, docs, and focused tests. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Self-approval comments include a stable marker and `post-response` now updates the latest matching PR comment instead of always creating a new one: [.agent/src/cli/post-response.ts](https://github.com/self-evolving/repo/blob/e34fc892f2fbab6f05e2e8f56cf28968f5d35249/.agent/src/cli/post-response.ts#L42-L54). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Architecture/config docs describe `AGENT_ALLOW_SELF_APPROVE`, read-only inspection, deterministic approval checks, and stop behavior: [.agent/docs/architecture/supported-workflows.md](https://github.com/self-evolving/repo/blob/e34fc892f2fbab6f05e2e8f56cf28968f5d35249/.agent/docs/architecture/supported-workflows.md#L31-L40). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The workflow uses explicit inputs, and the agent prompt/decision parser require structured verdict fields including `verdict`, `reason`, `handoff_context`, and `inspected_head_sha`: [.github/prompts/agent-self-approve.md](https://github.com/self-evolving/repo/blob/e34fc892f2fbab6f05e2e8f56cf28968f5d35249/.github/prompts/agent-self-approve.md#L42-L50). |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The resolver is a direct sequence of opt-in, PR state, head SHA, provenance, and verdict checks: [.agent/src/self-approval.ts](https://github.com/self-evolving/repo/blob/e34fc892f2fbab6f05e2e8f56cf28968f5d35249/.agent/src/self-approval.ts#L190-L299). |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Prepare/resolve surface metadata, provenance, parse, stale-head, and approval-submission failures into explicit non-approval results, and the workflow keeps status/artifact steps running with `always()`: [.agent/src/cli/resolve-self-approve.ts](https://github.com/self-evolving/repo/blob/e34fc892f2fbab6f05e2e8f56cf28968f5d35249/.agent/src/cli/resolve-self-approve.ts#L101-L155), [.github/workflows/agent-self-approve.yml](https://github.com/self-evolving/repo/blob/e34fc892f2fbab6f05e2e8f56cf28968f5d35249/.github/workflows/agent-self-approve.yml#L171-L191). |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Disabled, unsupported, unreadable, untrusted, stale, and blocked paths produce visible self-approval stop/status bodies rather than silent no-ops: [.agent/src/cli/prepare-self-approve.ts](https://github.com/self-evolving/repo/blob/e34fc892f2fbab6f05e2e8f56cf28968f5d35249/.agent/src/cli/prepare-self-approve.ts#L32-L84). |\n\n## Notes\n\n- The current head addresses the earlier rubric gaps: route registration, read-only inspection, required inspected head SHA, current-head review synthesis provenance, resolver failure handling, and idempotent status comments.\n- I did not score unrelated rubrics such as preview-contract validation or rubric-authoring guidance.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-07T17:32:01Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/166#issuecomment-4399519375",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBjx9yQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #166 adds an opt-in `agent-self-approve` workflow gated by `AGENT_ALLOW_SELF_APPROVE`.\n- The broader goal from #165 / discussion #153 is a conservative final PR approval gate after review, not a general autonomous merge mode.\n- The current head has already resolved earlier blockers around route registration, read-only inspection, required inspected head SHA, trusted review provenance, visible failures, and idempotent status comments.\n- The remaining concern is whether the trusted review-head marker actually represents the commit reviewers inspected.\n\n## Review\nThe PR is close, and rubrics review is now `PASS`, but one trust-boundary issue still needs a branch fix before this can ship. I posted inline comments for the two current actionable findings.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Review provenance can be stamped onto an unreviewed head | BLOCKING | `post-comment.ts` fetches the PR head when synthesis is posted, not when reviewers inspected the diff. A PR head change during review/synthesis can let a stale `SHIP` synthesis authorize self-approval of new commits. |\n| Self-approval status upsert can target untrusted marker comments | WARNING | `upsertPrCommentByMarker()` updates the latest comment containing the marker without checking the author. A user-seeded marker can cause Sepo to PATCH the wrong comment or fail to post its own status. |\n\n## Progress\n- Current PR head: `e34fc892f2fbab6f05e2e8f56cf28968f5d35249`; GitHub reports `MERGEABLE` / `CLEAN`, with the visible test check passing.\n- Earlier review blockers for the merge conflict, route registration, write-capable inspection token, missing `inspected_head_sha`, stale synthesis comments, resolver failure visibility, and duplicate self-approval comments were addressed.\n- Claude’s round-6 handoff findings appear stale for the current head: `orchestration_enabled: \"true\"` is already in `commonInputs`, and `SOURCE_HANDOFF_CONTEXT` is read and forwarded.\n- Rubrics review reports `PASS` with no rubric-specific follow-up.\n\n## Issue Details\n\n<details>\n<summary>Review provenance can be stamped onto an unreviewed head</summary>\n\n**Cause:** [`post-comment.ts`](https://github.com/self-evolving/repo/blob/e34fc892f2fbab6f05e2e8f56cf28968f5d35249/.agent/src/cli/post-comment.ts#L52) calls `fetchPrMeta()` while posting the synthesis comment, after reviewer lanes have already run.\n\n**Candidate solutions:** Capture the PR head SHA before reviewer lanes start, pass that captured SHA through the review/synthesis path, and only emit the trusted synthesis-head marker when it still matches the reviewed head.\n\n**Comments:** This is the remaining blocker because self-approval now trusts the synthesis-head marker as approval provenance.\n\n</details>\n\n<details>\n<summary>Self-approval status upsert can target untrusted marker comments</summary>\n\n**Cause:** [`upsertPrCommentByMarker()`](https://github.com/self-evolving/repo/blob/e34fc892f2fbab6f05e2e8f56cf28968f5d35249/.agent/src/github.ts#L240) filters only by marker text, not by authenticated Sepo actor.\n\n**Candidate solutions:** Resolve the authenticated actor and update only matching comments authored by that actor; otherwise create a fresh Sepo-authored status comment.\n\n**Comments:** Existing tests cover marker update behavior, but not the untrusted-marker case.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: One blocking trust-boundary bug and one concrete idempotency hardening issue remain, both suitable for a narrow automated fix.\n\n## Final Verdict\n`NEEDS_REWORK`\n\n## Action Items\n- [ ] Capture and propagate the reviewed PR head SHA from the start of the review run, and only trust synthesis provenance for that captured head.\n- [ ] Filter self-approval marker upserts to Sepo-authored comments before updating an existing PR comment.",
+      "createdAt": "2026-05-07T17:41:18Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/166#issuecomment-4399594953",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBjyc8A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #166 | 7 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis recommends FIX_PR for PR #166; one blocking reviewed-head provenance issue and one concrete self-approval comment-author hardening issue remain, both suitable for a narrow automated fix-pr pass.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Capture and propagate the reviewed PR head SHA from the start of the review run, and only trust synthesis provenance for that captured head.\n- Filter self-approval marker upserts to Sepo-authored comments before updating an existing PR comment.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1778175735060 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU1MTE2NTA0ODA6cmV2aWV3OjE2NjpmaXhfcHI6MTY2Ojc -->",
+      "createdAt": "2026-05-07T17:42:15Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/166#issuecomment-4399602928",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBj1qkQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-165/codex-25508067922`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Captured the reviewed PR head before review lanes start and forwarded it to synthesis comment posting.\n- Omitted the trusted synthesis head marker when the PR head changes before posting, so self-approval cannot trust stale review provenance.\n- Filtered self-approval status marker updates to comments authored by the authenticated Sepo actor; untrusted marker comments now cause a fresh Sepo comment instead.\n- Added focused regression coverage for stable reviewed-head markers, changed-head omission, and untrusted marker comments.\n- Verification: `npm run build`; `node --test dist/__tests__/post-comment-cli.test.js dist/__tests__/post-response-cli.test.js dist/__tests__/envelope.test.js`; YAML parse check; `git diff --check`.",
+      "createdAt": "2026-05-07T17:48:40Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/166#issuecomment-4399655569",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBj2Nwg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #166 | 8 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on PR #166 and pushed targeted fixes for the latest review synthesis findings; the PR is open, CLEAN, and checks are passing, so one more review should validate the new head before stopping.\n\n<!-- sepo-agent-handoff state:dispatched created:1778176175391 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU1MTIyOTI4OTQ6Zml4X3ByOjE2NjpyZXZpZXc6MTY2Ojg -->",
+      "createdAt": "2026-05-07T17:49:35Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/166#issuecomment-4399664578",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBj3sCQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 11 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | `/orchestrate` includes `agent-self-approve` in downstream authorization only when self-approval is enabled, and validates requester access for each delegated route: https://github.com/self-evolving/repo/blob/c40d76aacc01f53d51a318364c724b235a8e5586/.agent/src/orchestrator-capabilities.ts#L55-L67 |\n| coding_workflow / specific | Default follow-up orchestration to one-shot | pass | 8/8 | Review `SHIP` still stops unless `selfApproveEnabled` is true; self-approval only hands back to `fix-pr` on `REQUEST_CHANGES`: https://github.com/self-evolving/repo/blob/c40d76aacc01f53d51a318364c724b235a8e5586/.agent/src/handoff.ts#L454-L494 |\n| communication / generic | Keep status comments compact | pass | 6/6 | Self-approval status is a compact two-column table with concise reason/context text: https://github.com/self-evolving/repo/blob/c40d76aacc01f53d51a318364c724b235a8e5586/.agent/src/self-approval.ts#L302-L328 |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR uses existing workflow/action patterns, typed CLIs, `run-agent-task`, shared GitHub helpers, route validation, and handoff policy instead of embedding substantial logic in shell. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is scoped to the opt-in self-approval route, prompt, workflow, authorization/orchestration plumbing, docs, and focused tests. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Self-approval comments carry a stable marker, and upsert updates only comments authored by the authenticated Sepo actor: https://github.com/self-evolving/repo/blob/c40d76aacc01f53d51a318364c724b235a8e5586/.agent/src/github.ts#L241-L262 |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Orchestrator docs describe opt-in dispatch, captured reviewed head, trusted synthesis provenance, read-only inspection, deterministic approval, and stop conditions: https://github.com/self-evolving/repo/blob/c40d76aacc01f53d51a318364c724b235a8e5586/.agent/docs/technical-details/agent-orchestrator.md#L155-L169 |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The workflow keeps explicit `workflow_dispatch` inputs, and the parser expects structured verdict fields including `verdict`, `reason`, `handoff_context`, and `inspected_head_sha`: https://github.com/self-evolving/repo/blob/c40d76aacc01f53d51a318364c724b235a8e5586/.agent/src/self-approval.ts#L159-L187 |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The resolver is a direct sequence of opt-in, PR state, decision, head SHA, provenance, and verdict checks: https://github.com/self-evolving/repo/blob/c40d76aacc01f53d51a318364c724b235a8e5586/.agent/src/self-approval.ts#L189-L299 |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Metadata/provenance/approval failures become explicit failed or blocked results, and the workflow keeps status/artifact steps under `always()`: https://github.com/self-evolving/repo/blob/c40d76aacc01f53d51a318364c724b235a8e5586/.agent/src/cli/resolve-self-approve.ts#L71-L155 and https://github.com/self-evolving/repo/blob/c40d76aacc01f53d51a318364c724b235a8e5586/.github/workflows/agent-self-approve.yml#L173-L197 |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Disabled, non-PR, unreadable metadata, closed PR, missing head, or untrusted synthesis paths write visible stop bodies instead of silently no-oping: https://github.com/self-evolving/repo/blob/c40d76aacc01f53d51a318364c724b235a8e5586/.agent/src/cli/prepare-self-approve.ts#L30-L84 |\n\n## Notes\n\n- The current head satisfies the main conservative-gate rubrics: default-disabled, PR-only, requester-aware delegated authorization, read-only inspection, deterministic approval submission, current-head provenance, and visible stop/failure behavior.\n- I did not score unrelated rubrics such as default merge strategy, preview contracts, rubric-authoring guidance, or docs inventory rules.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-07T17:51:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/166#issuecomment-4399688713",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBj68rQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #166 adds an opt-in `agent-self-approve` gate for Sepo, closing #165 and implementing the discussion request for a conservative final PR approval step.\n- The intended model is internal/orchestrator-led: after review synthesis returns `SHIP`, a self-approval agent inspects the PR and deterministic code submits approval only when opt-in, PR state, verdict, and head SHA checks pass.\n- The PR adds a new workflow, prompt, typed prepare/resolve CLIs, orchestration handoff policy, delegated authorization plumbing, docs, and focused tests.\n- The current PR is still unmergeable against `main` after #162, and reviewers found several runtime and safety gaps in the approval path.\n\n## Review\nCodex marked the PR `NEEDS_REWORK`, Claude’s overall verdict was `MINOR_ISSUES`, and the rubrics review was `PARTIAL`. This synthesis prioritizes the blockers because GitHub currently reports the PR as `CONFLICTING`/`DIRTY`, and the approval workflow has deterministic runtime and trust-boundary issues.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Merge conflict with main after #162 | BLOCKING | PR #166 is not currently mergeable. The docs conflict needs a rebase that preserves both #162’s comment-collapse wording and this PR’s self-approval documentation. |\n| `agent-self-approve` is not a valid runtime route | BLOCKING | The workflow passes `route: agent-self-approve`, but `.agent/src/envelope.ts` does not include that route in `VALID_ROUTES`, so `run.ts` will reject the envelope before the prompt runs. |\n| Agent inspection step can mutate GitHub before deterministic checks | BLOCKING | The self-approval agent runs with `permission_mode: approve-all` and a write-capable GitHub token, bypassing the intended guarantee that only deterministic post-processing can approve. |\n| Missing `inspected_head_sha` still allows approval | BLOCKING | A blank inspected SHA skips the mismatch check, so an `APPROVE` verdict can still set `shouldApprove: true` without proving which head the agent inspected. |\n| Self-approval can bypass the review-to-SHIP handoff | WARNING | Direct `workflow_dispatch` plus current preflight allows enabled self-approval on an open PR without verifying trusted `review -> SHIP` provenance or equivalent review/rubrics signals. |\n| Failure handling can hide or misreport approval-state errors | WARNING | Metadata read failures are swallowed, approval API failures can skip PR-visible status, and artifacts are skipped on result-step failure. |\n| Self-approval status comments are not idempotent | WARNING | The body has a stable marker, but the workflow posts via generic `post-response` without updating/reusing an existing self-approval comment. |\n\n## Progress\n- The PR already implements the conservative default-disabled opt-in flag, PR-only preflight, orchestrator handoff wiring, docs, and focused tests for the main happy and stale-head paths.\n- The rubrics review already acknowledged strong alignment on delegated authorization, one-shot default behavior, code reuse, and docs.\n- The rubrics review already surfaced the idempotency and metadata-read warnings, so no duplicate inline comments were added for those.\n- Inline comments were posted for the unregistered route, write-capable inspection step, missing inspected head SHA, skipped failure status, and direct dispatch handoff bypass.\n- Claude’s INFO notes about prompt substitution and approval-review-body asymmetry look intentional and are not included as required action items.\n\n## Issue Details\n\n<details>\n<summary>Merge conflict with main after #162</summary>\n\n**Cause:** GitHub reports PR #166 as `mergeable: CONFLICTING` / `mergeStateStatus: DIRTY` after #162 landed adjacent documentation changes.\n\n**Candidate solutions:** Rebase the PR branch onto `main` and reconcile the docs so both `AGENT_COLLAPSE_OLD_REVIEWS` wording and the new `AGENT_ALLOW_SELF_APPROVE` content remain.\n\n**Comments:** Codex treated this as blocking; Claude called it mechanical but still identified it as unresolved.\n\n</details>\n\n<details>\n<summary>`agent-self-approve` is not a valid runtime route</summary>\n\n**Cause:** `agent-self-approve.yml` sends `route: agent-self-approve`, while `envelope.ts` lacks that route in `VALID_ROUTES`.\n\n**Candidate solutions:** Add `agent-self-approve` to `VALID_ROUTES` and extend `validateEnvelope` tests to cover it.\n\n</details>\n\n<details>\n<summary>Agent inspection step can mutate GitHub before deterministic checks</summary>\n\n**Cause:** `agent-self-approve.yml` gives the inspection agent a write-capable token and `approve-all` permissions.\n\n**Candidate solutions:** Run the agent inspection step with read-only permissions and reserve the write-capable token for `resolve-self-approve.js`, or otherwise prevent tool-level mutation before deterministic verdict/head checks.\n\n</details>\n\n<details>\n<summary>Missing `inspected_head_sha` still allows approval</summary>\n\n**Cause:** `self-approval.ts` only blocks when `inspectedHeadSha` is non-empty and mismatched.\n\n**Candidate solutions:** Reject blank `inspected_head_sha` for approval verdicts and add a regression test for blank/missing inspected SHA.\n\n**Comments:** Claude considered this lower risk because current-head still matches expected-head; Codex treated it as blocking because it weakens the stated inspected-head contract.\n\n</details>\n\n<details>\n<summary>Self-approval can bypass the review-to-SHIP handoff</summary>\n\n**Cause:** `agent-self-approve.yml` is directly dispatchable, and preflight does not validate trusted orchestration provenance or latest trusted review/rubrics state.\n\n**Candidate solutions:** Require trusted orchestrator context, or deterministically verify a latest trusted `SHIP` review/rubrics signal before approval can proceed.\n\n</details>\n\n<details>\n<summary>Failure handling can hide or misreport approval-state errors</summary>\n\n**Cause:** `resolve-self-approve.ts` converts PR metadata read failures into empty state/head, and `agent-self-approve.yml` lacks `always()` handling for result-step failures.\n\n**Candidate solutions:** Surface metadata read failures explicitly, catch approval submission failures into a failed status body, and make status/artifact steps run on resolver failure with focused tests.\n\n</details>\n\n<details>\n<summary>Self-approval status comments are not idempotent</summary>\n\n**Cause:** `self-approval.ts` emits a stable marker, but `agent-self-approve.yml` posts through generic `post-response` without marker lookup/update.\n\n**Candidate solutions:** Reuse or update the existing `<!-- sepo-agent-self-approval -->` comment, or add collapse/update behavior equivalent to existing agent status comment handling.\n\n**Comments:** Already covered clearly in the posted rubrics review.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: The unresolved findings require concrete branch changes, and the merge conflict plus deterministic route/safety fixes are suitable for an automated fix-pr pass.\n\n## Final Verdict\n`NEEDS_REWORK`\n\n## Action Items\n- [ ] Rebase/resolve the #162 merge conflict while preserving both #162 and #166 documentation changes.\n- [ ] Add `agent-self-approve` to `VALID_ROUTES` and cover it in `validateEnvelope` tests.\n- [ ] Run self-approval inspection without write-capable tools/token; reserve approval authority for deterministic resolver code.\n- [ ] Reject approval verdicts with missing or blank `inspected_head_sha` and add regression coverage.\n- [ ] Enforce trusted `review -> SHIP` provenance or latest trusted review/rubrics signal before approval.\n- [ ] Surface metadata and approval submission failures visibly, including status/artifact behavior on resolver failure.\n- [ ] Reuse/update the stable self-approval status comment instead of creating duplicate comments.",
+      "createdAt": "2026-05-07T17:57:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/166#issuecomment-4399742125",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-07T16:27:35Z",
+  "files": [
+    {
+      "path": ".agent/docs/architecture/request-lifecycle.md",
+      "additions": 2,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 11,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/agent-orchestrator.md",
+      "additions": 21,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 39,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/handoff.test.ts",
+      "additions": 78,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrate-handoff-cli.test.ts",
+      "additions": 31,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrator-preflight-cli.test.ts",
+      "additions": 28,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/post-comment-cli.test.ts",
+      "additions": 107,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/post-response-cli.test.ts",
+      "additions": 104,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/response.test.ts",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/self-approval.test.ts",
+      "additions": 257,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/capture-pr-head.ts",
+      "additions": 20,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrate-handoff.ts",
+      "additions": 13,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrator-preflight.ts",
+      "additions": 5,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/post-comment.ts",
+      "additions": 18,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/post-response.ts",
+      "additions": 22,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/prepare-self-approve.ts",
+      "additions": 86,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/resolve-self-approve.ts",
+      "additions": 155,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/envelope.ts",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/github.ts",
+      "additions": 107,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/handoff.ts",
+      "additions": 32,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/orchestrator-capabilities.ts",
+      "additions": 8,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/response.ts",
+      "additions": 5,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/review-synthesis.ts",
+      "additions": 13,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/run.ts",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/self-approval.ts",
+      "additions": 329,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/actions/run-agent-task/action.yml",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-orchestrator.md",
+      "additions": 8,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-self-approve.md",
+      "additions": 52,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/workflows/agent-orchestrator.yml",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-review.yml",
+      "additions": 40,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-self-approve.yml",
+      "additions": 220,
+      "deletions": 0,
+      "changeType": "ADDED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-165/codex-25508067922",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 166,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM79FARa",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-07T16:47:56Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "80fc3c4a6f010e5be40672cc00b522ae50071ca7"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM79FAf7",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-07T16:48:04Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "80fc3c4a6f010e5be40672cc00b522ae50071ca7"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM79FAqD",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-07T16:48:10Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "80fc3c4a6f010e5be40672cc00b522ae50071ca7"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM79FA1W",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-07T16:48:16Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "80fc3c4a6f010e5be40672cc00b522ae50071ca7"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM79FBLt",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-07T16:48:27Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "80fc3c4a6f010e5be40672cc00b522ae50071ca7"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM79F3VE",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-07T17:15:51Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "f08c84bd0bd891ad14faa98a0c2a3e4a40cb75e6"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM79F3lH",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-07T17:15:59Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "f08c84bd0bd891ad14faa98a0c2a3e4a40cb75e6"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM79F30k",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-07T17:16:07Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "f08c84bd0bd891ad14faa98a0c2a3e4a40cb75e6"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM79GnQi",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-07T17:40:35Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "e34fc892f2fbab6f05e2e8f56cf28968f5d35249"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM79GnQw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-07T17:40:35Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "e34fc892f2fbab6f05e2e8f56cf28968f5d35249"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Add opt-in agent self-approval gate",
+  "updatedAt": "2026-05-07T17:57:50Z",
+  "url": "https://github.com/self-evolving/repo/pull/166"
+}

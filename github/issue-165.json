@@ -1,0 +1,39 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "body": "## Goal\nImplement the requested change from the agent mention.\n\n## Original request\n> I think this is worth adding, but I would keep the first version conservative: `agent-self-approve` should be a final, opt-in PR approval gate, not an unbounded “merge whatever the agent made” mode.\n> \n> Current fit with the codebase:\n> \n> - Routes are centrally enumerated in [`triage.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/triage.ts#L12-L31), and explicit slash routes are resolved deterministically before model triage.\n> - Prompt lookup is route-based in [`run.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/run.ts#L113-L126), so adding `agent-self-approve` needs a matching prompt.\n> - Orchestrator handoffs are currently limited to `implement`, `review`, and `fix-pr` in [`handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L3-L7), with policy edges like `implement -> review`, `review -> fix-pr`, `fix-pr -> review` at [`handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L410-L466).\n> - Initial orchestrator authorization also hardcodes the delegated route set in [`orchestrator-capabilities.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/orchestrator-capabilities.ts#L8-L12).\n> - The existing human approval flow only dispatches `agent-implement.yml` from [`agent-approve.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-approve.yml#L71-L96), so `/approve` integration needs a small but explicit design choice.\n> \n> Implementation approach I’d recommend:\n> \n> 1. Add `AGENT_ALLOW_SELF_APPROVE`, default false everywhere. When false, the route should be unavailable to router/orchestrator and should never submit PR approval.\n> 2. Add a new PR-only workflow, probably `.github/workflows/agent-self-approve.yml`, with `pull-requests: write`, memory/rubrics read-only, and a new `.github/prompts/agent-self-approve.md`.\n> 3. Make the prompt high-level: product fit, repository goals, long-term maintainability, trust boundaries, automation risk, rubric alignment, and whether approving is actually the right next step. It should not duplicate the low-level review prompt.\n> 4. Require structured output, e.g. `APPROVE`, `REQUEST_CHANGES`, or `BLOCKED`, plus rationale and follow-up context.\n> 5. Submit the GitHub PR approval only from deterministic code after validating all of these:\n>    - `AGENT_ALLOW_SELF_APPROVE == true`\n>    - target is a PR\n>    - agent verdict is exactly `APPROVE`\n>    - PR head SHA has not changed since the agent inspected it\n>    - normal review/rubrics signals are acceptable, or the self-approve prompt explicitly justifies overriding advisory rubrics\n> 6. Extend orchestrator policy so `review -> agent-self-approve` is allowed when review synthesis says `SHIP` and self-approve is enabled. If self-approve returns changes needed, hand back to orchestrator with context so it can choose `fix-pr`.\n> 7. For `@agent /approve xxx`, I would not let self-approve replace the initial human approval gate for starting work. I would instead have approved implementation chains opt into the self-approve final gate once a PR exists. That preserves the current meaning of `/approve` while enabling the “YOLO” end-to-end chain.\n> \n> Execution plan:\n> \n> 1. Update route types, explicit route parsing, access policy behavior, and orchestrator delegated route capability checks.\n> 2. Add the self-approve prompt and workflow.\n> 3. Add a typed CLI helper to parse self-approve verdicts and submit the PR approval against a checked head SHA.\n> 4. Extend handoff policy/tests for `review -> agent-self-approve -> fix-pr/stop`.\n> 5. Wire `AGENT_ALLOW_SELF_APPROVE` through router, approval, orchestrator, and docs.\n> 6. Update architecture/config docs and add tests for default-disabled behavior, PR-only enforcement, stale-head rejection, and orchestrator routing.\n> \n> One clarification before coding: should `agent-self-approve` be user-invokable as `@sepo-agent /agent-self-approve`, or should it be internal/orchestrator-only for the first version? My default would be internal/orchestrator-only unless explicitly enabled by `AGENT_ALLOW_SELF_APPROVE=true`.\n\n@sepo-agent /implement\n\n## Acceptance criteria\n- Implement the requested change.\n- Preserve existing behavior unless the request requires a change.\n- Update tests or validation as needed.\n\n---\n\nRequested via discussion_comment at https://github.com/self-evolving/repo/discussions/153\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBjM5vw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-165/codex-25508067922`\n- Pull request: https://github.com/self-evolving/repo/pull/166\n\nImplemented an opt-in `agent-self-approve` PR approval gate gated by `AGENT_ALLOW_SELF_APPROVE=false` by default, including a new workflow, prompt, typed self-approval CLIs, orchestrator handoff policy updates, authorization checks, docs, and focused regression coverage. Verified with `npm run build`, targeted node tests, YAML parsing for the touched workflows, and `git diff --check`.",
+      "createdAt": "2026-05-07T16:27:39Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/165#issuecomment-4398987711",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-07T16:17:15Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 165,
+  "state": "OPEN",
+  "title": "Implement requested change",
+  "updatedAt": "2026-05-07T16:27:40Z",
+  "url": "https://github.com/self-evolving/repo/issues/165"
+}

@@ -5,7 +5,7 @@
   },
   "baseRefName": "main",
   "body": "## Summary\n- Add a generated marker and legacy matcher for fix-pr status comments.\n- Collapse previous fix-pr status comments before posting a new one when `AGENT_COLLAPSE_OLD_REVIEWS` is enabled.\n- Forward the cleanup toggle from `agent-fix-pr.yml` and update docs/tests.\n\n## Tests\n- `npm run build`\n- `node --test .agent/dist/__tests__/review-summary-minimize.test.js .agent/dist/__tests__/response.test.js .agent/dist/__tests__/post-comment-cli.test.js .agent/dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nCloses #68\n",
-  "closedAt": null,
+  "closedAt": "2026-05-07T16:34:56Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABBgSr4g",
@@ -126,6 +126,36 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/162#issuecomment-4396114646",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBjLwYQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, for that specific step. The `Post unsupported status` comment only runs when the PR cannot be handled by `fix-pr`: cross-repo or not open.\n\nThat does not mean all `fix-pr` comments only post in unsupported cases. The supported open same-repo path is handled by the step just above it, `Post status comment`, which posts success/no_changes/failed/etc. Both now route through `post-comment.js`:  \nhttps://github.com/self-evolving/repo/blob/950bdfbed2d560fe182342f8d5ff49cd996d5ffc/.github/workflows/agent-fix-pr.yml#L260-L287\n\nSmall wording nuance: `ROUTE: fix-pr` is still supported here; `STATUS: unsupported` means the PR target is unsupported for automatic fixing. That status formats the “could not update this PR automatically” comment and still goes through fix-pr cleanup/marker handling:  \nhttps://github.com/self-evolving/repo/blob/950bdfbed2d560fe182342f8d5ff49cd996d5ffc/.agent/src/response.ts#L115-L123",
+      "createdAt": "2026-05-07T16:25:07Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/162#issuecomment-4398968929",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBjQy8g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #162.\n\nno rubric changes\n\nI found no trusted, durable new preference to encode. The only human PR input was a clarification question from `lolipopshock`; the substantive review guidance was agent-authored and already covered by active rubrics like `idempotent-user-facing-automation`, `reuse-existing-code`, `compact-user-facing-status-comments`, and `comment-on-accepted-workflow-stops`.\n\nRubrics checkout remains clean.\n",
+      "createdAt": "2026-05-07T16:36:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/162#issuecomment-4399051506",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-07T09:34:52Z",
@@ -204,9 +234,21 @@
       "name": "agent",
       "description": "Handled by the agent",
       "color": "0e8a16"
+    },
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChVB4ig",
+      "name": "priority/p2",
+      "description": "Project management: medium priority",
+      "color": "fbca04"
+    },
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChVB5Dg",
+      "name": "effort/low",
+      "description": "Project management: low effort",
+      "color": "c2e0c6"
     }
   ],
-  "mergedAt": null,
+  "mergedAt": "2026-05-07T16:34:55Z",
   "number": 162,
   "reviewDecision": "",
   "reviews": [
@@ -224,10 +266,32 @@
       "commit": {
         "oid": "ebbcdbc7e8daa605be650e988e4db6b6cffa67f9"
       }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM79EUI_",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer can you check my comment? ",
+      "submittedAt": "2026-05-07T16:23:05Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "950bdfbed2d560fe182342f8d5ff49cd996d5ffc"
+      }
     }
   ],
-  "state": "OPEN",
+  "state": "MERGED",
   "title": "Collapse old fix-pr status comments",
-  "updatedAt": "2026-05-07T09:59:02Z",
+  "updatedAt": "2026-05-07T16:36:02Z",
   "url": "https://github.com/self-evolving/repo/pull/162"
 }
