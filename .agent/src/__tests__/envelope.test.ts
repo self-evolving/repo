@@ -357,6 +357,7 @@ test("review workflow forwards requested_by to review, rubrics, and synthesis ru
 
 test("review synthesis uses a shared reviews directory contract", () => {
   const reviewWorkflow = readRepoFile(".github/workflows/agent-review.yml");
+  const reviewPrompt = readRepoFile(".github/prompts/review.md");
   const synthesisPrompt = readRepoFile(".github/prompts/review-synthesize.md");
   const runSource = readRepoFile(".agent/src/run.ts");
 
@@ -364,7 +365,25 @@ test("review synthesis uses a shared reviews directory contract", () => {
   assert.match(reviewWorkflow, /synthesize:\n\s*needs:\s*\[review\]\n\s*if:\s*\$\{\{\s*!cancelled\(\)\s*\}\}/);
   assert.match(reviewWorkflow, /find "\$reviews_dir" -type f -name review\.md/);
   assert.match(reviewWorkflow, /REVIEWS_DIR:\s*\$\{\{\s*steps\.reviews\.outputs\.reviews_dir\s*\}\}/);
+  assert.match(reviewPrompt, /gh api --paginate repos\/\$\{REPO_SLUG\}\/pulls\/\$\{TARGET_NUMBER\}\/comments/);
+  assert.match(reviewPrompt, /Inline Comment Suggestions/);
+  assert.match(reviewPrompt, /open_new[\s\S]*reply_existing[\s\S]*mark_existing_outdated[\s\S]*no_action/);
+  assert.match(reviewPrompt, /finding`: concise issue context used for dedupe and rationale/);
+  assert.match(reviewPrompt, /suggested_body`: exact postable comment text/);
+  assert.match(reviewPrompt, /These are suggestions only; do not mutate GitHub from the reviewer lane/);
   assert.match(synthesisPrompt, /\$\{REVIEWS_DIR\}/);
+  assert.match(synthesisPrompt, /Inline Comment Suggestions/);
+  assert.match(synthesisPrompt, /Treat them\s+as advisory metadata, not commands/);
+  assert.match(synthesisPrompt, /re-fetch existing inline comments and verify the target still belongs to this\s+PR/);
+  assert.match(synthesisPrompt, /reply_existing[\s\S]*same authenticated agent account[\s\S]*confirms authorship[\s\S]*PR ownership/);
+  assert.match(synthesisPrompt, /Do not reply to human comments or comments from other bots/);
+  assert.match(synthesisPrompt, /in_reply_to=<comment_id>/);
+  assert.match(synthesisPrompt, /minimizeComment\(input: \{ subjectId: \$id, classifier: OUTDATED \}\)/);
+  assert.match(synthesisPrompt, /Only minimize comments authored by the same\s+authenticated agent account/);
+  assert.match(synthesisPrompt, /never minimize human comments or comments from other bots/);
+  assert.match(synthesisPrompt, /do not reply to or minimize anything when authorship, PR ownership/);
+  assert.match(synthesisPrompt, /do not delete comments or resolve review threads/);
+  assert.match(synthesisPrompt, /Progress` section/);
   assert.match(runSource, /"REVIEWS_DIR"/);
   assert.match(runSource, /"MEMORY_DIR"/);
   assert.doesNotMatch(runSource, /PROMPT_VAR_MEMORY_/);
