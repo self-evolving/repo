@@ -13,7 +13,7 @@
 | `agent-orchestrator.yml` | `workflow_dispatch` | Explicit orchestration route that decides whether to dispatch the next action | None in `heuristics` mode; resolved-provider planner in `agent` mode |
 | `agent-implement.yml` | `workflow_dispatch` | Implementation flow: branch, commit, draft PR; supports `base_branch` or `base_pr` for stacked PRs | Auto |
 | `agent-fix-pr.yml` | `workflow_dispatch`, `workflow_call` | PR fix flow: update existing PR branch, verify, push | Auto |
-| `agent-review.yml` | `workflow_dispatch`, `workflow_call` | Parallel Claude and Codex review with resolved-provider synthesis, plus a separate rubric review comment | Claude + Codex reviewers; configurable synthesis |
+| `agent-review.yml` | `workflow_dispatch`, `workflow_call` | Parallel Claude and Codex review with resolved-provider synthesis, captured reviewed-head provenance, plus a separate rubric review comment | Claude + Codex reviewers; configurable synthesis |
 | `agent-branch-cleanup.yml` | `pull_request_target.closed` | Event-driven cleanup of merged agent-created branches after retargeting open stacked PRs. Excludes the shared `agent/memory` and `agent/rubrics` branches. | None |
 | `agent-close-stale-issues.yml` | `schedule` (daily), `workflow_dispatch` | Closes open `agent` issues that have had no activity for 30 days by default | None |
 | `agent-daily-summary.yml` | `schedule` (daily), `workflow_dispatch` | Generates a concise repository activity summary and posts it as a Discussion | Auto |
@@ -80,6 +80,10 @@ orchestrator handoffs match their hidden handoff marker. This keeps the latest
 generated status prominent while leaving older generated comments expandable.
 Set `AGENT_COLLAPSE_OLD_REVIEWS=false` to skip this cleanup and leave prior
 generated comments visible.
+
+Review runs also capture the pull request head before reviewer lanes start. The
+synthesis comment includes a hidden reviewed-head marker only if the pull
+request still points at that same head before posting.
 
 Review synthesis can also make prompt-managed inline review comment updates:
 it may post a new inline comment, reply to an existing same-agent inline
