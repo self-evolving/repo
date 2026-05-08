@@ -378,6 +378,11 @@ test("review workflow captures reviewed head as best-effort prepare output", () 
   const reviewJob = workflow.jobs.review;
   assert.ok(isRecord(reviewJob), "review workflow should define review job");
   assert.deepEqual(reviewJob.needs, ["prepare"]);
+  assert.equal(reviewJob.if, "${{ !cancelled() }}");
+
+  const rubricsReviewJob = workflow.jobs["rubrics-review"];
+  assert.ok(isRecord(rubricsReviewJob), "review workflow should define rubrics-review job");
+  assert.equal(rubricsReviewJob.needs, undefined);
 
   const synthesizeJob = workflow.jobs.synthesize;
   assert.ok(isRecord(synthesizeJob), "review workflow should define synthesize job");
@@ -401,7 +406,7 @@ test("review synthesis uses a shared reviews directory contract", () => {
   const synthesisPrompt = readRepoFile(".github/prompts/review-synthesize.md");
   const runSource = readRepoFile(".agent/src/run.ts");
 
-  assert.match(reviewWorkflow, /review:\n\s*needs:\s*\[prepare\]\n\s+# Reviewer lanes are best-effort[\s\S]*?continue-on-error:\s*true/);
+  assert.match(reviewWorkflow, /review:\n\s*# Ordering-only:[\s\S]*?needs:\s*\[prepare\]\n\s*if:\s*\$\{\{\s*!cancelled\(\)\s*\}\}\n\s*# Reviewer lanes are best-effort[\s\S]*?continue-on-error:\s*true/);
   assert.match(reviewWorkflow, /synthesize:\n\s*needs:\s*\[prepare,\s*review\]\n\s*if:\s*\$\{\{\s*!cancelled\(\)\s*\}\}/);
   assert.match(reviewWorkflow, /find "\$reviews_dir" -type f -name review\.md/);
   assert.match(reviewWorkflow, /REVIEWS_DIR:\s*\$\{\{\s*steps\.reviews\.outputs\.reviews_dir\s*\}\}/);
@@ -1460,7 +1465,7 @@ test("agent-review permissions are scoped per-job: reviewers read-only, synthesi
   // Reviewer job keeps contents:read.
   assert.match(
     reviewWorkflow,
-    /review:\s*\n\s+needs: \[prepare\]\s*\n\s+# Reviewer lanes are best-effort[\s\S]*?permissions:\s*\n\s+# Reviewer jobs stay read-only[\s\S]*?contents: read/,
+    /review:\s*\n\s+# Ordering-only:[\s\S]*?needs: \[prepare\]\s*\n\s+if: \$\{\{ !cancelled\(\) \}\}\s*\n\s+# Reviewer lanes are best-effort[\s\S]*?permissions:\s*\n\s+# Reviewer jobs stay read-only[\s\S]*?contents: read/,
   );
 
   // Synthesize job upgrades to contents:write for the memory commit.

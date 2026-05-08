@@ -81,10 +81,11 @@ generated status prominent while leaving older generated comments expandable.
 Set `AGENT_COLLAPSE_OLD_REVIEWS=false` to skip this cleanup and leave prior
 generated comments visible.
 
-Review runs also capture the pull request head before reviewer lanes start. The
-synthesis comment includes a hidden reviewed-head marker only if the pull
-request still points at that same head before posting. If capture or comparison
-cannot read PR metadata, synthesis still posts without the hidden marker.
+Review runs also attempt to capture the pull request head before reviewer lanes
+start. The synthesis comment includes a hidden reviewed-head marker only if the
+pull request still points at that same head before posting. If capture,
+comparison, or prepare metadata setup cannot read PR metadata, synthesis still
+posts without the hidden marker.
 
 Review synthesis can also make prompt-managed inline review comment updates:
 it may post a new inline comment, reply to an existing same-agent inline

@@ -119,7 +119,10 @@ jobs:
   # One job definition, two parallel runs via matrix.
   # Adding a third reviewer = one more matrix entry.
   review:
+    # Ordering-only: capture the reviewed head before reviewer lanes when
+    # prepare succeeds. Reviewers still run without provenance if prepare fails.
     needs: [prepare]
+    if: ${{ !cancelled() }}
     # Reviewer lanes are best-effort; synthesis fails later if no lane uploads a review.
     continue-on-error: true
     permissions:
@@ -226,7 +229,6 @@ jobs:
           retention-days: 30
 
   rubrics-review:
-    needs: [prepare]
     uses: ./.github/workflows/agent-rubrics-review.yml
     with:
       pr_number: ${{ inputs.pr_number }}
