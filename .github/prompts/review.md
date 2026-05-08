@@ -27,7 +27,10 @@ This review phase must not mutate GitHub state:
   shape when existing inline comments affect what synthesis should do:
   - `action`: `open_new`, `reply_existing`, `mark_existing_outdated`, or
     `no_action`
-  - `path`, `line`, `finding`, `suggested_body`
+  - `path`, `line`
+  - `finding`: concise issue context used for dedupe and rationale
+  - `suggested_body`: exact postable comment text for synthesis to use if it
+    acts on the suggestion
   - `existing_comment_id` for replies and `existing_comment_node_id` for
     minimization when known
   - `rationale`

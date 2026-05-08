@@ -81,6 +81,15 @@ generated status prominent while leaving older generated comments expandable.
 Set `AGENT_COLLAPSE_OLD_REVIEWS=false` to skip this cleanup and leave prior
 generated comments visible.
 
+Review synthesis can also make prompt-managed inline review comment updates:
+it may post a new inline comment, reply to an existing same-agent inline
+comment, or mark an older same-agent inline comment as outdated. Synthesis
+re-fetches PR inline comments before acting; replies and minimization require
+confirmed same-agent authorship and PR ownership. Reviewer lanes only suggest
+these actions; they do not mutate GitHub. This inline behavior is separate from
+the deterministic generated-comment cleanup controlled by
+`AGENT_COLLAPSE_OLD_REVIEWS`.
+
 ### Repository memory workflows
 
 | Workflow | Actions name | Trigger | Purpose | Model |
