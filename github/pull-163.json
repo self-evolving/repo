@@ -611,6 +611,80 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/163#issuecomment-4399991129",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBmGuSA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer\n\nOk that's fine. But\n\n> Time gate: inline comments are only cleanup-eligible if they were created before the current review synthesis started.\n\nWhy do we need this though? Shouldn't the logic automatically handle it?",
+      "createdAt": "2026-05-08T00:00:00Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/163#issuecomment-4402032200",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBmHJIw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "The time gate is needed because the cleanup pass cannot otherwise tell “old inline comments from prior review rounds” apart from “new inline comments this synthesis just posted.”\n\nFor top-level generated comments, Sepo has stronger signals: hidden markers, known headings, current comment IDs, and route-specific bodies. For inline review comments, the available cleanup signals are much weaker:\n\n- same GitHub actor\n- same PR review thread/comment API surface\n- comment body/path/line content\n- created time\n- minimized state\n\nWithout the cutoff, the cleanup could do this bad sequence:\n\n1. Review synthesis posts a fresh inline comment for a current finding.\n2. The post-comment cleanup runs.\n3. Cleanup queries same-agent inline comments.\n4. The fresh inline comment matches “same agent, not minimized.”\n5. Sepo minimizes the new comment too, leaving no visible line-level finding.\n\nSo the timestamp is a guardrail: only collapse same-agent inline comments created **before this synthesis run began**. Anything posted during the current synthesis stays visible.\n\n“Shouldn’t the logic automatically handle it?” Only if we add another durable identity signal for current-run inline comments, for example:\n\n- embed a hidden run marker in every inline comment,\n- record IDs of inline comments posted during synthesis and pass them to cleanup,\n- or post cleanup before any new inline comments are created.\n\nThis PR chose the simpler run-boundary approach. It is still agent-supported cleanup: Sepo actively minimizes old comments via GitHub’s API, but it uses time as the safest available discriminator for inline comments.",
+      "createdAt": "2026-05-08T00:01:15Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/163#issuecomment-4402039075",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBmH1Ag",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\nI think there's a logical fallacy here:\n\n> Review synthesis posts a fresh inline comment for a current finding.\nThe post-comment cleanup runs.\nCleanup queries same-agent inline comments.\nThe fresh inline comment matches “same agent, not minimized.”\nSepo minimizes the new comment too, leaving no visible line-level finding\n\nI mean we should only do the clean up only once per review session? Instead of attempting to collapse every time? ",
+      "createdAt": "2026-05-08T00:03:35Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/163#issuecomment-4402050306",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBmIHSg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I agree with the direction, but “only once per review session” solves a different problem.\n\nThe current design already intends cleanup to run once for the review synthesis posting path. The timestamp is not there because cleanup is repeatedly firing inside one session; it is there to define **which inline comments belong to prior sessions**.\n\nThe order matters:\n\n1. Synthesis may post inline comments.\n2. Workflow posts the final synthesis comment through `post-comment`.\n3. `post-comment` runs cleanup.\n\nAt step 3, GitHub now contains both:\n- old same-agent inline comments from prior review sessions\n- fresh same-agent inline comments from the current synthesis\n\nIf the cleanup runs once but has no session boundary, “once” can still minimize the fresh comments.\n\nYou could avoid the timestamp with a different architecture:\n\n- run inline cleanup **before** synthesis posts any new inline comments, or\n- tag inline comments with a hidden run marker, or\n- record the IDs of inline comments posted during the current synthesis and exclude them.\n\nBut with the current architecture, cleanup happens after synthesis, and inline comments do not have reliable hidden metadata. So the timestamp acts as the session boundary: collapse only comments created before this review session started.\n\nSo I’d phrase it as:\n\n> Cleanup should run once per review session, but it still needs a way to identify comments from previous sessions. The current PR uses creation time as that boundary. A stronger future design would use explicit run markers or created-comment IDs instead.",
+      "createdAt": "2026-05-08T00:04:41Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/163#issuecomment-4402054986",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-07T09:36:04Z",
@@ -845,6 +919,6 @@
   ],
   "state": "OPEN",
   "title": "Collapse older generated inline review comments",
-  "updatedAt": "2026-05-07T18:30:40Z",
+  "updatedAt": "2026-05-08T00:04:41Z",
   "url": "https://github.com/self-evolving/repo/pull/163"
 }
