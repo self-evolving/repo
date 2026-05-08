@@ -16,10 +16,22 @@ This review phase must not mutate GitHub state:
 - do not post inline review comments
 - do not post top-level PR comments
 - return your review only as markdown in the final response
+- inspect existing inline review comments with
+  `gh api --paginate repos/${REPO_SLUG}/pulls/${TARGET_NUMBER}/comments`
+  before recommending line-specific feedback
 - if a finding deserves line-specific feedback, include the exact `path`, `line`,
   and suggested comment body so the review synthesis agent can post it later
   with:
   `gh api --method POST repos/${REPO_SLUG}/pulls/${TARGET_NUMBER}/comments -f body='<comment>' -f commit_id='<headRefOid>' -f path='<path>' -F line=<line> -f side=RIGHT`
+- You may include an optional `Inline Comment Suggestions` section using this
+  shape when existing inline comments affect what synthesis should do:
+  - `action`: `open_new`, `reply_existing`, `mark_existing_outdated`, or
+    `no_action`
+  - `path`, `line`, `finding`, `suggested_body`
+  - `existing_comment_id` for replies and `existing_comment_node_id` for
+    minimization when known
+  - `rationale`
+  These are suggestions only; do not mutate GitHub from the reviewer lane.
 
 Review in this order:
 
