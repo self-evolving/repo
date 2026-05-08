@@ -355,14 +355,54 @@ test("review workflow forwards requested_by to review, rubrics, and synthesis ru
   assert.equal(matches.length, 3);
 });
 
+test("review workflow captures reviewed head as best-effort prepare output", () => {
+  const workflow = parseYaml(readRepoFile(".github/workflows/agent-review.yml")) as unknown;
+  assert.ok(isRecord(workflow), "review workflow should parse as a YAML object");
+  assert.ok(isRecord(workflow.jobs), "review workflow should define jobs");
+
+  const prepareJob = workflow.jobs.prepare;
+  assert.ok(isRecord(prepareJob), "review workflow should define prepare job");
+  assert.ok(isRecord(prepareJob.outputs), "prepare job should define outputs");
+  assert.equal(prepareJob.outputs.reviewed_head_sha, "${{ steps.capture.outputs.head_sha }}");
+  assert.ok(Array.isArray(prepareJob.steps), "prepare job should define steps");
+
+  const captureStep = prepareJob.steps.find(
+    (step): step is Record<string, unknown> => isRecord(step) && step.id === "capture",
+  );
+  assert.ok(captureStep, "prepare job should capture the reviewed head");
+  assert.equal(captureStep["continue-on-error"], true);
+  assert.equal(captureStep.run, "node .agent/dist/cli/capture-pr-head.js");
+  assert.ok(isRecord(captureStep.env), "capture step should define env");
+  assert.equal(captureStep.env.TARGET_NUMBER, "${{ inputs.pr_number }}");
+
+  const reviewJob = workflow.jobs.review;
+  assert.ok(isRecord(reviewJob), "review workflow should define review job");
+  assert.deepEqual(reviewJob.needs, ["prepare"]);
+
+  const synthesizeJob = workflow.jobs.synthesize;
+  assert.ok(isRecord(synthesizeJob), "review workflow should define synthesize job");
+  assert.deepEqual(synthesizeJob.needs, ["prepare", "review"]);
+  assert.ok(Array.isArray(synthesizeJob.steps), "synthesize job should define steps");
+
+  const postCommentStep = synthesizeJob.steps.find(
+    (step): step is Record<string, unknown> => isRecord(step) && step.name === "Post review comment",
+  );
+  assert.ok(postCommentStep, "synthesize job should post the review comment");
+  assert.ok(isRecord(postCommentStep.env), "post review comment step should define env");
+  assert.equal(
+    postCommentStep.env.REVIEWED_HEAD_SHA,
+    "${{ needs.prepare.outputs.reviewed_head_sha }}",
+  );
+});
+
 test("review synthesis uses a shared reviews directory contract", () => {
   const reviewWorkflow = readRepoFile(".github/workflows/agent-review.yml");
   const reviewPrompt = readRepoFile(".github/prompts/review.md");
   const synthesisPrompt = readRepoFile(".github/prompts/review-synthesize.md");
   const runSource = readRepoFile(".agent/src/run.ts");
 
-  assert.match(reviewWorkflow, /review:\n\s+# Reviewer lanes are best-effort[\s\S]*?continue-on-error:\s*true/);
-  assert.match(reviewWorkflow, /synthesize:\n\s*needs:\s*\[review\]\n\s*if:\s*\$\{\{\s*!cancelled\(\)\s*\}\}/);
+  assert.match(reviewWorkflow, /review:\n\s*needs:\s*\[prepare\]\n\s+# Reviewer lanes are best-effort[\s\S]*?continue-on-error:\s*true/);
+  assert.match(reviewWorkflow, /synthesize:\n\s*needs:\s*\[prepare,\s*review\]\n\s*if:\s*\$\{\{\s*!cancelled\(\)\s*\}\}/);
   assert.match(reviewWorkflow, /find "\$reviews_dir" -type f -name review\.md/);
   assert.match(reviewWorkflow, /REVIEWS_DIR:\s*\$\{\{\s*steps\.reviews\.outputs\.reviews_dir\s*\}\}/);
   assert.match(reviewPrompt, /gh api --paginate repos\/\$\{REPO_SLUG\}\/pulls\/\$\{TARGET_NUMBER\}\/comments/);
@@ -1420,13 +1460,13 @@ test("agent-review permissions are scoped per-job: reviewers read-only, synthesi
   // Reviewer job keeps contents:read.
   assert.match(
     reviewWorkflow,
-    /review:\s*\n\s+# Reviewer lanes are best-effort[\s\S]*?permissions:\s*\n\s+# Reviewer jobs stay read-only[\s\S]*?contents: read/,
+    /review:\s*\n\s+needs: \[prepare\]\s*\n\s+# Reviewer lanes are best-effort[\s\S]*?permissions:\s*\n\s+# Reviewer jobs stay read-only[\s\S]*?contents: read/,
   );
 
   // Synthesize job upgrades to contents:write for the memory commit.
   assert.match(
     reviewWorkflow,
-    /synthesize:\s*\n\s+needs: \[review\]\s*\n\s+if: \$\{\{ !cancelled\(\) \}\}\s*\n\s+permissions:[\s\S]*?contents: write/,
+    /synthesize:\s*\n\s+needs: \[prepare, review\]\s*\n\s+if: \$\{\{ !cancelled\(\) \}\}\s*\n\s+permissions:[\s\S]*?contents: write/,
   );
 });
 
