@@ -66,6 +66,13 @@ export interface PlannerDecision {
 }
 
 const REVIEW_TO_FIX_PR = new Set(["minor_issues", "needs_rework", "changes_requested"]);
+const PLANNER_DECISION_KINDS: Partial<Record<string, PlannerDecisionKind>> = {
+  handoff: "handoff",
+  delegate_issue: "delegate_issue",
+  answer: "answer",
+  stop: "stop",
+  blocked: "blocked",
+};
 const HANDOFF_MARKER_PREFIX = "sepo-agent-handoff";
 const DEFAULT_FIX_PR_HANDOFF_CONTEXT = [
   "Address only the latest unresolved review synthesis action items.",
@@ -217,17 +224,7 @@ export function parsePlannerDecision(raw: string): PlannerDecision | null {
 
   const record = parsed as Record<string, unknown>;
   const decisionToken = normalizeToken(String(record.decision || ""));
-  const decision: PlannerDecisionKind | null = decisionToken === "handoff"
-    ? "handoff"
-    : decisionToken === "delegate_issue"
-      ? "delegate_issue"
-    : decisionToken === "answer"
-      ? "answer"
-    : decisionToken === "stop"
-      ? "stop"
-      : decisionToken === "blocked"
-        ? "blocked"
-        : null;
+  const decision = PLANNER_DECISION_KINDS[decisionToken];
   if (!decision) return null;
 
   const nextAction = normalizeAgentAction(String(record.next_action ?? record.nextAction ?? ""));

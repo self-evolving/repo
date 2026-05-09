@@ -670,6 +670,7 @@ test("parsePlannerDecision reads planner JSON", () => {
     },
   );
   assert.equal(parsePlannerDecision("not json"), null);
+  assert.equal(parsePlannerDecision('{"decision":"deploy","reason":"Ship it."}'), null);
   assert.equal(parsePlannerDecision('{"decision":"handoff","next_action":"deploy"}')?.nextAction, undefined);
   assert.deepEqual(
     parsePlannerDecision('{"decision":"answer","reason":"The user asked a question.","user_message":"Use /review for a full pass."}'),
