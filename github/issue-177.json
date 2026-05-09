@@ -81,6 +81,101 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/177#issuecomment-4410692135",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBw6dkA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\nAdding repo name gating is a good ideas. \n\n\n> Release / Prepare: validates version, updates docs/metadata, opens a PR.\n\nI think we should add a route to tell the agent to release and it's basically a customized implement route to tell the agent to release a specific version. It will modify the code and make a pr \n\n> Release / Publish: manual dispatch after merge, creates tag/release.\n\nYes I think manual dispatch of this is a good starting point. I guess there are a few things:\n1. Creat a proper tag (if it does not exist)\n2. And then create a GitHub release?\n3. Think of how this can be automated as well. ",
+      "createdAt": "2026-05-09T18:33:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/177#issuecomment-4413365648",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBw6zOw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, I think this should become a dedicated **release route**, but it should be split into two phases:\n\n1. **Agent-assisted prepare**: opens a PR.\n2. **Manual publish**: creates tag + GitHub Release after the PR is merged.\n\nThat matches the existing architecture well because [`agent-implement.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-implement.yml) already has `implementation_route` and `implementation_prompt` inputs, so a `release` route can mostly be a specialized implement route rather than a totally separate agent runner.\n\nRecommended shape:\n\n- `@sepo-agent /release 0.2.0`\n- Router recognizes `release` as an implementation-like route.\n- It creates an issue like “Prepare Sepo release 0.2.0”.\n- It dispatches `agent-implement.yml` with:\n  - `implementation_route: release`\n  - `implementation_prompt: release`\n- New prompt: `.github/prompts/agent-release.md`.\n\nThe release prepare prompt should tell the agent to:\n\n- Validate requested version against the policy in [`versioning.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/technical-details/versioning.md).\n- Update `.agent/package.json`, which remains the canonical package version: [`package.json`](https://github.com/self-evolving/repo/blob/main/.agent/package.json#L2-L4).\n- Update lockfile if package metadata changes require it.\n- Update `.agent/sepo-version.json` only if we still keep the version field there: [`sepo-version.json`](https://github.com/self-evolving/repo/blob/main/.agent/sepo-version.json).\n- Update release docs/checklist.\n- Open a PR.\n- **Not** create tags or GitHub Releases.\n\nFor publish, I would add a separate manual workflow, gated hard to the source repo:\n\n```yaml\nif: github.repository == 'self-evolving/repo'\n```\n\nInputs:\n\n- `version`: `0.2.0`\n- `target_ref`: default `main`\n- `draft`: default `true`\n- `prerelease`: default inferred from `0.x` / `rc`\n\nPublish steps:\n\n1. Verify `.agent/package.json` version equals the input.\n2. Resolve target commit SHA.\n3. Check whether tag `vX.Y.Z` exists.\n4. If missing, create annotated tag `vX.Y.Z`.\n5. Create GitHub Release if missing.\n6. If release exists, fail unless an explicit `overwrite` / `update_existing` input is set.\n\nI would not automate publish from the agent route yet. The agent should prepare the release PR; a maintainer should merge and manually run publish. Later, once trusted, we can automate publish on merged release PRs, but still keep repo-name gating and probably require GitHub Environments approval.",
+      "createdAt": "2026-05-09T18:35:09Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/177#issuecomment-4413371195",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBw7QWA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Yes, I think this should become a dedicated **release route**, but it should be split into two phases:\n> \n> 1. **Agent-assisted prepare**: opens a PR.\n> 2. **Manual publish**: creates tag + GitHub Release after the PR is merged.\n> \n> That matches the existing architecture well because [`agent-implement.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-implement.yml) already has `implementation_route` and `implementation_prompt` inputs, so a `release` route can mostly be a specialized implement route rather than a totally separate agent runner.\n> \n> Recommended shape:\n> \n> - `@sepo-agent /release 0.2.0`\n> - Router recognizes `release` as an implementation-like route.\n> - It creates an issue like “Prepare Sepo release 0.2.0”.\n> - It dispatches `agent-implement.yml` with:\n>   - `implementation_route: release`\n>   - `implementation_prompt: release`\n> - New prompt: `.github/prompts/agent-release.md`.\n> \n> The release prepare prompt should tell the agent to:\n> \n> - Validate requested version against the policy in [`versioning.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/technical-details/versioning.md).\n> - Update `.agent/package.json`, which remains the canonical package version: [`package.json`](https://github.com/self-evolving/repo/blob/main/.agent/package.json#L2-L4).\n> - Update lockfile if package metadata changes require it.\n> - Update `.agent/sepo-version.json` only if we still keep the version field there: [`sepo-version.json`](https://github.com/self-evolving/repo/blob/main/.agent/sepo-version.json).\n> - Update release docs/checklist.\n> - Open a PR.\n> - **Not** create tags or GitHub Releases.\n> \n> For publish, I would add a separate manual workflow, gated hard to the source repo:\n> \n> ```yaml\n> if: github.repository == 'self-evolving/repo'\n> ```\n> \n> Inputs:\n> \n> - `version`: `0.2.0`\n> - `target_ref`: default `main`\n> - `draft`: default `true`\n> - `prerelease`: default inferred from `0.x` / `rc`\n> \n> Publish steps:\n> \n> 1. Verify `.agent/package.json` version equals the input.\n> 2. Resolve target commit SHA.\n> 3. Check whether tag `vX.Y.Z` exists.\n> 4. If missing, create annotated tag `vX.Y.Z`.\n> 5. Create GitHub Release if missing.\n> 6. If release exists, fail unless an explicit `overwrite` / `update_existing` input is set.\n> \n> I would not automate publish from the agent route yet. The agent should prepare the release PR; a maintainer should merge and manually run publish. Later, once trusted, we can automate publish on merged release PRs, but still keep repo-name gating and probably require GitHub Environments approval.\n\n@sepo-agent /orchestrate ",
+      "createdAt": "2026-05-09T18:37:13Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/177#issuecomment-4413378648",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBw753w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | implement | Issue #177 | 2 / 40 | Dispatched |\n\nReason: agent planner selected implement: The latest human request turns the prior release automation plan into a concrete, issue-scoped implementation task; one implementation PR is warranted.\n\n<!-- sepo-agent-handoff state:dispatched created:1778352000915 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU2MDg3OTExNTc6b3JjaGVzdHJhdGU6MTc3OmltcGxlbWVudDoxNzc6Mg -->",
+      "createdAt": "2026-05-09T18:40:01Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/177#issuecomment-4413389279",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBw-aDA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-177/codex-25608848723`\n- Pull request: https://github.com/self-evolving/repo/pull/192\n\nAdded a `/release <version>` implementation-like route that opens a release-prep issue, dispatches `agent-implement.yml` with the new release prompt, and documents package-version source-of-truth behavior. Also added a source-repo-gated manual publish workflow backed by a TypeScript CLI for version verification, annotated tag creation, and GitHub Release creation/update. Verified with `npm --prefix .agent test`, workflow YAML parsing, and `git diff --check`.",
+      "createdAt": "2026-05-09T18:59:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/177#issuecomment-4413430284",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-08T23:54:11Z",
@@ -95,6 +190,6 @@
   "number": 177,
   "state": "OPEN",
   "title": "Clarify Sepo version source of truth vs install provenance",
-  "updatedAt": "2026-05-09T00:07:27Z",
+  "updatedAt": "2026-05-09T18:59:02Z",
   "url": "https://github.com/self-evolving/repo/issues/177"
 }

@@ -80,6 +80,43 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/179#issuecomment-4410699418",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBwqdjQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "Is https://github.com/self-evolving/repo/pull/188#issuecomment-4413093176 caused by the same issue?\n\n@sepo-agent /answer",
+      "createdAt": "2026-05-09T17:21:19Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/179#issuecomment-4413103501",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBwrFyw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes. It is the same underlying issue.\n\nThe triggering comment on PR #188 was:\n\n> `@sepo-agent /orchestrate`\n>\n> `Fix this and then review?`\n>\n> `parsePlannerDecision ... cleanup ...`\n\nBut Sepo dispatched:\n\n`orchestrate -> review`\n\nwith reason:\n\n`manual orchestrate start on PR; dispatching review`\n\nThat reason comes from the current main-branch deterministic PR `/orchestrate` path in [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L1249-L1272). It only dispatches `fix-pr` when GitHub reports `reviewDecision === CHANGES_REQUESTED`; otherwise it dispatches `review`. It does not inspect the request text, so “Fix this and then review?” is ignored as routing intent.\n\nSo the classification is:\n\n- **Same root cause:** PR-target `/orchestrate` on live main is still deterministic and ignores explicit natural-language fix intent.\n- **Same symptom:** user asks for fix-first behavior, orchestrator starts with review instead.\n- **Not the later PR #188 review finding:** this is not the “planner-selected fix-pr missing handoff_context” bug. It happened before the planner-backed PR orchestration behavior from PR #188 is merged into the default branch.\n\nOnce PR #188, or an equivalent fix, lands on `main`, agent-mode PR `/orchestrate` should be able to route this kind of request to `fix-pr` first, then review.",
+      "createdAt": "2026-05-09T17:24:37Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/179#issuecomment-4413113803",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-08T23:56:35Z",
@@ -94,6 +131,6 @@
   "number": 179,
   "state": "OPEN",
   "title": "Bug: the orchestrator tend to do review first despite an explicit ask to fix-pr",
-  "updatedAt": "2026-05-09T00:09:15Z",
+  "updatedAt": "2026-05-09T17:24:37Z",
   "url": "https://github.com/self-evolving/repo/issues/179"
 }

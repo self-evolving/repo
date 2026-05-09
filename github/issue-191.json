@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "Can you look at #172 #180 #184 #186 and check if the code is meaningfully improved in the process?\n\n@sepo-agent /answer",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBw6BOA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes. Across #172, #180, #184, and #186, the review -> fix-pr loop produced meaningful code improvements, not just style churn.\n\n| PR | Meaningful improvement from the loop |\n| --- | --- |\n| #172 | Fixed review-provenance reliability: head capture now degrades instead of hard-gating review output, reviewer lanes still run if prepare fails, rubrics review is independent again, and marker parsing was tightened. See `capture-pr-head.ts`, `post-comment.ts`, and `agent-review.yml` at final head `adbb1dc`. |\n| #180 | Fixed a real approval-authority bug: self-approval now blocks when the approval actor matches the PR author, which would otherwise fail or violate GitHub’s approval model. It also added missing success-path coverage. See `evaluateSelfApprovalActor`, `prepare-self-approve.ts`, and `resolve-self-approve.ts` at `e7d2724`. |\n| #184 | Fixed orchestration correctness: terminal self-approval outcomes now hand back to the orchestrator, not only `REQUEST_CHANGES`. Without this, approved/blocked/failed child work could stop locally and fail to resume the parent. See `agent-self-approve.yml` and `resultStateFromTerminal` at `4062890`. |\n| #186 | Fixed operational/idempotency edge cases: stop comments now only post after prepare produced an intended body, and self-approval upsert failures no longer fall back to creating duplicate marker comments. See `agent-self-approve.yml` and `post-response.ts` at `9a51528`. |\n\nMy read: **the loop materially improved safety, correctness, and reliability**, especially because these PRs touch privileged self-approval and orchestrated follow-up behavior. The strongest wins were catching an approval actor bug in #180 and a lost orchestrator handback path in #184. #186 was more edge-case hardening, but still meaningful because it preserves the idempotent status-comment contract.",
+      "createdAt": "2026-05-09T18:31:35Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/191#issuecomment-4413358392",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-09T18:28:36Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 191,
+  "state": "OPEN",
+  "title": "Does the orchestrator review fix loop meaningfully improve the code?",
+  "updatedAt": "2026-05-09T18:31:35Z",
+  "url": "https://github.com/self-evolving/repo/issues/191"
+}
