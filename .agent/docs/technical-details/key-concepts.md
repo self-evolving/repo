@@ -30,6 +30,7 @@ A route is the high-level backend behavior being run. Current first-class routes
 - `implement`
 - `fix-pr`
 - `review`
+- `agent-self-approve`
 - `create-action`
 - `dispatch`
 - `skill`
@@ -63,7 +64,7 @@ Every agent run receives a shared metadata envelope.
 |---|---|
 | `schema_version` | Envelope version, currently `1` |
 | `repo_slug` | Repository as `owner/repo` |
-| `route` | agent action like `review`, `implement`, `fix-pr`, `answer`, `create-action`, `dispatch`, or `skill` |
+| `route` | agent action like `review`, `implement`, `fix-pr`, `answer`, `agent-self-approve`, `create-action`, `dispatch`, or `skill` |
 | `source_kind` | Triggering surface, such as `issue_comment`, `pull_request_review`, or `workflow_dispatch` |
 | `target_kind` | `issue`, `pull_request`, `discussion`, or `repository` |
 | `target_number`, `target_url` | Canonical target identity. Repo-scoped runs reserve `target_number=0` and use the repository URL. |

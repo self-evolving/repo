@@ -11,6 +11,7 @@
 | `agent-router.yml` | `workflow_call` | Full portal for context extraction, auth gating, mention detection, dispatch triage, routing, approval requests, and response posting | Configurable |
 | `agent-approve.yml` | approval comments | Resolves pending approvals, creates issues when needed, dispatches implementation | None |
 | `agent-orchestrator.yml` | `workflow_dispatch` | Explicit orchestration route that decides whether to dispatch the next action | None in `heuristics` mode; resolved-provider planner in `agent` mode |
+| `agent-self-approve.yml` | `workflow_dispatch` | Opt-in pull request self-approval gate after trusted current-head review synthesis | Auto |
 | `agent-implement.yml` | `workflow_dispatch` | Implementation flow: branch, commit, draft PR; supports `base_branch` or `base_pr` for stacked PRs | Auto |
 | `agent-fix-pr.yml` | `workflow_dispatch`, `workflow_call` | PR fix flow: update existing PR branch, verify, push | Auto |
 | `agent-review.yml` | `workflow_dispatch`, `workflow_call` | Parallel Claude and Codex review with resolved-provider synthesis, captured reviewed-head provenance, plus a separate rubric review comment | Claude + Codex reviewers; configurable synthesis |
@@ -209,6 +210,22 @@ If `AGENT_STATUS_LABEL_ENABLED=true`, accepted non-unsupported issue and pull re
 Label triggers authorize the label applier rather than the issue or pull request author. Personal-repository owners map to `OWNER`; visible organization members map to `MEMBER`; repository collaborators with label permission map to `COLLABORATOR`.
 
 Skill names are normalized to lowercase, so `agent/s/Release-Notes` resolves to `.skills/release-notes/SKILL.md`. Skill directories should use lowercase names to match consistently across case-sensitive filesystems.
+
+### `agent-self-approve.yml`
+
+Self-approval is disabled unless `AGENT_ALLOW_SELF_APPROVE=true`. The manual
+workflow accepts a pull request number, confirms the target is an open PR, and
+requires the latest trusted review synthesis from the authenticated Sepo actor
+to be `SHIP` for the current reviewed-head marker before it runs an approval
+agent. The agent runs with read-approved permissions and returns structured JSON
+with a verdict, reason, optional follow-up context, and `inspected_head_sha`.
+
+Deterministic resolver code is the only part that can submit the GitHub
+approval. It rereads the current PR head, rechecks trusted current-head review
+provenance, parses the agent verdict, and approves only when the expected,
+current, and inspected head SHAs match. Non-approval outcomes post a compact PR
+status comment. Review-to-self-approval orchestration and status-comment upsert
+behavior are intentionally separate follow-up workflow slices.
 
 ### `agent-approve.yml`
 

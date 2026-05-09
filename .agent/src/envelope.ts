@@ -60,6 +60,7 @@ export const VALID_ROUTES = new Set([
   "create-action",
   "dispatch",
   "orchestrator",
+  "agent-self-approve",
   "skill",
   "rubrics-review",
   "rubrics-initialization",
