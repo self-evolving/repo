@@ -424,7 +424,8 @@ test("self-approval workflow stays opt-in and read-only until deterministic reso
   assert.match(workflowText, /AGENT_ALLOW_SELF_APPROVE:\s*\$\{\{\s*vars\.AGENT_ALLOW_SELF_APPROVE \|\| 'false'\s*\}\}/);
   assert.match(workflowText, /node \.agent\/dist\/cli\/prepare-self-approve\.js/);
   assert.match(workflowText, /node \.agent\/dist\/cli\/resolve-self-approve\.js/);
-  assert.match(workflowText, /steps\.result\.outputs\.conclusion == 'request_changes'/);
+  assert.doesNotMatch(workflowText, /steps\.result\.outputs\.conclusion == 'request_changes'/);
+  assert.match(workflowText, /steps\.result\.outcome == 'success' &&\s+inputs\.orchestration_enabled == 'true'/);
   assert.match(workflowText, /node \.agent\/dist\/cli\/dispatch-agent-orchestrator\.js/);
 });
 

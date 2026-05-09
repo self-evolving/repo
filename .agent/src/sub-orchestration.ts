@@ -191,6 +191,9 @@ export function resultStateFromTerminal(input: {
   const conclusion = input.sourceConclusion.trim().toLowerCase().replace(/[\s-]+/g, "_");
   const reason = input.reason.trim().toLowerCase();
   if (action === "review" && conclusion === "ship") return "done";
+  if (action === "agent_self_approve" && conclusion === "approved") return "done";
+  if (action === "agent_self_approve" && conclusion === "blocked") return "blocked";
+  if (action === "agent_self_approve" && conclusion === "failed") return "failed";
   if (
     reason.startsWith("agent planner blocked:") ||
     isAuthorizationStopReason(reason) ||

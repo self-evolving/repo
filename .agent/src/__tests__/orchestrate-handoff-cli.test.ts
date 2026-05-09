@@ -986,6 +986,34 @@ test("self-approval request changes respects the round budget", () => {
   assert.equal(run.dispatchPayload, null);
 });
 
+test("terminal self-approval child reports approval to parent", () => {
+  const childBody = "<!-- sepo-sub-orchestrator parent:76 stage:stage-1 state:running parent_round:2 -->";
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "agent-self-approve",
+    SOURCE_CONCLUSION: "approved",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "88",
+    AUTOMATION_MODE: "heuristics",
+    AUTOMATION_CURRENT_ROUND: "3",
+    FAKE_PR_BODY: "Implements #77",
+    FAKE_ISSUE_BODY: childBody,
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.equal(run.outputs.get("reason"), "agent-self-approve concluded approved");
+  assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/76\/comments/);
+  assert.match(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
+  assert.match(run.ghLog, /\| #77 \| #88 \| Ready to ship \| 2 \/ 5 \| Resuming parent orchestration \|/);
+  assert.match(run.ghLog, /Summary: agent-self-approve concluded approved/);
+  assert.match(run.ghLog, /<!-- sepo-sub-orchestrator-report child:77 resume:dispatched -->/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.source_action, "orchestrate");
+  assert.equal(inputs.source_conclusion, "done");
+  assert.equal(inputs.target_number, "76");
+  assert.equal(inputs.automation_mode, "agent");
+});
+
 test("manual orchestrate dispatches review for open PR targets without CHANGES_REQUESTED", () => {
   const run = runOrchestrateHandoff({
     TARGET_KIND: "pull_request",
