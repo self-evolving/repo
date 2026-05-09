@@ -870,6 +870,7 @@ test("manual orchestrate dispatches fix-pr for PR targets with explicit fix inte
     "@sepo-agent /orchestrate there's a merge conflict to main after merging #162 can you check and fix",
     "@sepo-agent /orchestrate please fix this PR",
     "@sepo-agent /orchestrate can you rebase this PR onto main",
+    "@sepo-agent /orchestrate could you please rebase this PR",
   ]) {
     const run = runOrchestrateHandoff({
       TARGET_KIND: "pull_request",
@@ -922,12 +923,16 @@ test("manual orchestrate preserves explicit fix context when requested changes a
   assert.equal(inputs.orchestrator_context, run.outputs.get("handoff_context"));
 });
 
-test("manual orchestrate dispatches review for review-only rebase and ambiguous fix wording", () => {
+test("manual orchestrate dispatches review for review-only, negated, or self-directed fix wording", () => {
   for (const requestText of [
     "@sepo-agent /orchestrate please review whether a rebase is needed",
     "@sepo-agent /orchestrate please review whether we should rebase this PR",
+    "@sepo-agent /orchestrate please review whether this PR has merge conflicts",
     "@sepo-agent /orchestrate can you check this PR and tell me how to fix it",
     "@sepo-agent /orchestrate can you review this and say if we should fix this",
+    "@sepo-agent /orchestrate tell me what to fix in this PR",
+    "@sepo-agent /orchestrate do not fix this PR",
+    "@sepo-agent /orchestrate please do not rebase this PR",
   ]) {
     const run = runOrchestrateHandoff({
       TARGET_KIND: "pull_request",

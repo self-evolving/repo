@@ -930,27 +930,40 @@ function hasExplicitPrFixIntent(value: string): boolean {
   const text = normalizeIntentText(value);
   if (!text) return false;
 
-  const conflictOrMergeabilityPatterns = [
-    /\bmerge\s+conflicts?\b/,
-    /\bconflicts?\s+(?:with|against|to)\s+(?:main|master|trunk)\b/,
-    /\bconflicting\b/,
-    /\bresolve\s+(?:the\s+|this\s+)?(?:merge\s+)?conflicts?\b/,
-    /\bunmergeable\b/,
-    /\bnot\s+mergeable\b/,
+  const negatedActionPatterns = [
+    /\b(?:do not|don't|dont|never|not)\s+(?:fix[-_\s]?pr|fix|rebase|resolve|address|handle)\b/,
+    /\bno\s+need\s+to\s+(?:fix|rebase|resolve|address|handle)\b/,
+    /\bwithout\s+(?:fixing|rebasing|resolving|addressing|handling)\b/,
   ];
-  if (conflictOrMergeabilityPatterns.some((pattern) => pattern.test(text))) return true;
+  if (negatedActionPatterns.some((pattern) => pattern.test(text))) return false;
+
+  const selfDirectedPatterns = [
+    /\b(?:tell|show|advise)\s+me\b.*\b(?:what|how)\s+to\s+fix\b/,
+    /\bwhat\s+(?:should|do)\s+i\s+fix\b/,
+    /\bhow\s+(?:should|do)\s+i\s+fix\b/,
+  ];
+  if (selfDirectedPatterns.some((pattern) => pattern.test(text))) return false;
 
   const rebasePatterns = [
     /(?:^|(?:\/orchestrate|agent\/orchestrate)\s+)(?:please\s+)?rebase\b/,
-    /\b(?:please|can you|could you|would you)\s+rebase\b/,
+    /\b(?:please\s+rebase|(?:can|could|would)\s+you\s+(?:please\s+)?rebase)\b/,
   ];
   if (rebasePatterns.some((pattern) => pattern.test(text))) return true;
 
+  const conflictFixPatterns = [
+    /\b(?:fix|resolve|address|handle)\s+(?:the\s+|this\s+)?(?:merge\s+)?conflicts?\b/,
+    /\b(?:merge\s+)?conflicts?\b.*\b(?:fix|resolve|address|handle)\b/,
+    /\b(?:conflicting|unmergeable|not\s+mergeable)\b.*\b(?:fix|resolve|address|handle)\b/,
+  ];
+  if (conflictFixPatterns.some((pattern) => pattern.test(text))) return true;
+
   const explicitFixPatterns = [
     /\bfix[-_\s]?pr\b/,
-    /\bfix\s+(?:this|the)\s+(?:pr|pull request)\b/,
-    /\bfix\b.*\b(?:pr|pull request|branch)\b/,
-    /\b(?:address|resolve|handle)\s+(?:the\s+|this\s+)?(?:pr|pull request|branch|issue|comments?|requested changes?)\b/,
+    /(?:^|(?:\/orchestrate|agent\/orchestrate)\s+)(?:please\s+)?fix\b/,
+    /(?:^|(?:\/orchestrate|agent\/orchestrate)\s+)(?:please\s+)?(?:resolve|address|handle)\s+(?:the\s+|this\s+)?(?:pr|pull request|branch|comments?|requested changes?)\b/,
+    /\bplease\s+(?:fix|resolve|address|handle)\s+(?:this|the)?\s*(?:pr|pull request|branch|comments?|requested changes?)\b/,
+    /\b(?:can|could|would)\s+you\s+(?:please\s+)?(?:check\s+and\s+)?fix\b/,
+    /\b(?:can|could|would)\s+you\s+(?:please\s+)?(?:resolve|address|handle)\s+(?:the\s+|this\s+)?(?:pr|pull request|branch|comments?|requested changes?)\b/,
   ];
   return explicitFixPatterns.some((pattern) => pattern.test(text));
 }
