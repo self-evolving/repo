@@ -43,6 +43,154 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/188#issuecomment-4411263909",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBvYTNQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate",
+      "createdAt": "2026-05-09T06:44:22Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/188#issuecomment-4411757365",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBvYatA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | review | PR #188 | 2 / 40 | Dispatched |\n\nReason: manual orchestrate start on PR; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1778309105022 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU1OTQ0NTQ4NDg6b3JjaGVzdHJhdGU6MTg4OnJldmlldzoxODg6Mg -->",
+      "createdAt": "2026-05-09T06:45:05Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/188#issuecomment-4411759284",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBvYuZA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 96 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Initial `/orchestrate` still checks delegated route capability before planning/dispatch via `validateInitialOrchestrateCapabilities()`, and that helper requires access to all delegated routes (`implement`, `review`, `fix-pr`). PR planner dispatch is then limited to `review` or `fix-pr`. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The change extends existing `decideHandoff`, `parsePlannerDecision`, preflight, status-comment, and dispatch paths rather than adding a parallel PR orchestration implementation. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updated `.agent/docs/actions/agent-actions.md`, `.agent/docs/architecture/supported-workflows.md`, `.agent/docs/technical-details/agent-orchestrator.md`, and `.github/prompts/agent-orchestrator.md` to describe planner-backed PR starts and route constraints. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Planner output remains structured JSON with separate `decision`, `next_action`, `user_message`, and `handoff_context`; prompt docs explicitly constrain PR starts to `review`, `fix-pr`, `answer`, `stop`, or `blocked`. |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Planner `answer` decisions now produce a visible stop/answer comment, and closed PR starts stop before dispatch with covered behavior. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | New answer/stop comments reuse the existing `ORCHESTRATE_STOP_MARKER` and exact trusted-comment dedupe path before creating comments. |\n| communication / generic | Keep status comments compact | pass | 6/6 | The new answer comment is concise and user-facing: a short heading, visible answer text, compact source/target/round/reason bullets, and the hidden marker. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is scoped to orchestrator handoff/preflight logic, prompt/docs, and focused regression tests for the changed PR-start behavior. |\n\n## Notes\n\n- The strongest rubric fit is the delegated-route authorization path: the PR enables planner intent parsing, but dispatch still passes through existing access and route policy gates.\n- The linked issue asked for PR `/orchestrate` in agent mode to call the planner with strict allowed outcomes. The implementation matches that request while preserving deterministic PR routing in `heuristics` mode.\n- Tests cover planner-selected `fix-pr`, planner-selected `review`, closed PR stops, invalid PR handoffs, and answer-without-dispatch behavior.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** The implementation satisfies the applicable selected rubrics. No blocking or warning-level rubric issues found.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-09T06:46:58Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/188#issuecomment-4411764324",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBvaKYg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #188 implements #187 by making agent-mode PR `/orchestrate` starts planner-backed instead of purely deterministic.\n- The planner can select `review`, `fix-pr`, `answer`, `stop`, or `blocked`, while runtime policy keeps PR starts limited to `review` and `fix-pr` dispatches.\n- The change also updates prompts/docs and adds focused tests for PR planner routing, closed PR stops, and answer handling.\n- This is the right direction, but one dispatch-context gap can send write-capable `fix-pr` automation after the wrong task.\n\n## Review\nThe design is mostly coherent and preserves the important route-policy gates, but the planner-selected PR `fix-pr` path needs a guard before this can ship. There is also one stale technical-doc paragraph that contradicts the new behavior.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Planner-selected PR fix-pr can fall back to wrong task context | BLOCKING | A PR planner `fix-pr` handoff can omit `handoff_context`; the CLI then supplies the manual `CHANGES_REQUESTED` fallback even for planner-parsed tasks like fixing CI or merge conflicts. |\n| Technical docs still say PR agent starts are deterministic | WARNING | A later paragraph in the orchestrator technical docs still says manual PR starts remain deterministic in `agent` mode, contradicting this PR’s new behavior. |\n\n## Progress\n- Existing PR discussion already addressed the “is this too complicated?” question and the workflow dispatched this review round.\n- Rubrics review passed, including delegated-route authorization, idempotent stop comments, and broad docs coverage.\n- Existing inline review comments were empty before synthesis; I posted one new inline comment on `.agent/src/handoff.ts` line 566 for the blocking context issue.\n- No replies were added and no existing comments were minimized.\n- One reviewer judged the PR shippable with only optional naming/test-readability nits; those are not included as required action items.\n\n## Issue Details\n<details>\n<summary>Planner-selected PR fix-pr can fall back to wrong task context</summary>\n\n**Cause:** The new PR planner block accepts `next_action: \"fix-pr\"` and forwards `handoffContext: plannerDecision.handoffContext` without requiring it: https://github.com/self-evolving/repo/blob/ed0df2bee677790c90a0dbedb9759981faa922ff/.agent/src/handoff.ts#L558-L567. If it is empty, the CLI later applies `fallbackFixPrHandoffContext()`, which returns the manual `CHANGES_REQUESTED` PR text for any `orchestrate` + `pull_request`: https://github.com/self-evolving/repo/blob/ed0df2bee677790c90a0dbedb9759981faa922ff/.agent/src/cli/orchestrate-handoff.ts#L884-L890.\n\n**Candidate solutions:** Require non-empty `handoff_context` for planner-selected PR `fix-pr`, or derive a task-specific context from the planner reason/request instead of using the manual requested-change fallback. Add a regression where agent-mode PR orchestration selects `fix-pr` with no context on an approved PR.\n\n**Comments:** This is blocking because `agent-fix-pr` treats `ORCHESTRATOR_CONTEXT` as the selected task, so the fallback can steer branch-changing automation toward unrelated requested-change review comments.\n\n</details>\n\n<details>\n<summary>Technical docs still say PR agent starts are deterministic</summary>\n\n**Cause:** The updated doc explains planner-backed PR starts earlier, but a later paragraph still says “Manual pull request starts remain deterministic in `agent` mode” and only mentions issue-level manual starts invoking the planner: https://github.com/self-evolving/repo/blob/ed0df2bee677790c90a0dbedb9759981faa922ff/.agent/docs/technical-details/agent-orchestrator.md#L149-L152.\n\n**Candidate solutions:** Update that paragraph to say PR starts are deterministic only in `heuristics` mode, while `agent` mode can invoke the planner for issue and PR manual starts.\n\n**Comments:** I did not post an inline comment for this because the stale sentence is outside the changed diff hunk, but it is still required docs cleanup for the behavior change.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: The remaining issues are concrete branch changes, and the blocking fix plus docs cleanup are safe for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Require or derive task-specific context for planner-selected PR `fix-pr` handoffs, and add a missing-context regression.\n- [ ] Update the stale technical-doc paragraph that still says manual PR starts are deterministic in `agent` mode.",
+      "createdAt": "2026-05-09T06:56:16Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/188#issuecomment-4411787874",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBvaS2A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #188 | 3 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis verdict is NEEDS_REWORK with Recommended Next Step FIX_PR; the remaining items are concrete branch changes and round budget remains available.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Require or derive task-specific context for planner-selected PR `fix-pr` handoffs, and add a missing-context regression. Specifically, prevent planner-selected PR `fix-pr` from falling back to the generic manual `CHANGES_REQUESTED` PR context when `handoff_context` is empty; either require non-empty planner context or derive task-specific context from the planner decision/request.\n- Add a regression where agent-mode PR orchestration selects `fix-pr` with no context on an approved PR, proving it does not dispatch with unrelated requested-change fallback context.\n- Update the stale paragraph in `.agent/docs/technical-details/agent-orchestrator.md` that still says manual PR starts are deterministic in `agent` mode; it should say PR starts are deterministic only in `heuristics` mode, while `agent` mode can invoke the planner for issue and PR manual starts.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1778309832838 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU1OTQ0Njk3MDM6cmV2aWV3OjE4ODpmaXhfcHI6MTg4OjM -->",
+      "createdAt": "2026-05-09T06:57:13Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/188#issuecomment-4411790040",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBva9Aw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-187/codex-25588734184`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Required planner-selected PR `fix-pr` handoffs to include concrete `handoff_context` before dispatch, so agent-mode PR starts no longer inherit the manual `CHANGES_REQUESTED` fallback.\n- Added regressions for the route-policy stop and the approved-PR CLI path with missing context.\n- Updated the stale orchestrator technical-doc paragraph to distinguish `heuristics` deterministic PR starts from `agent` planner-backed issue/PR starts.\n\n<details><summary>Verification</summary>\n\n- `npm run build`\n- `node --test .agent/dist/__tests__/handoff.test.js`\n- `node --test .agent/dist/__tests__/orchestrate-handoff-cli.test.js`\n- `git diff --check`\n\n</details>",
+      "createdAt": "2026-05-09T07:01:27Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/188#issuecomment-4411800835",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBvbILw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #188 | 4 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded after the prior review's NEEDS_REWORK/FIX_PR recommendation; one follow-up review should verify the blocking context fix, regression coverage, and docs cleanup before the chain stops.\n\n<!-- sepo-agent-handoff state:dispatched created:1778310152751 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU1OTQ3MTgyNDM6Zml4X3ByOjE4ODpyZXZpZXc6MTg4OjQ -->",
+      "createdAt": "2026-05-09T07:02:33Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/188#issuecomment-4411803695",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBvbWOQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | PR keeps initial `/orchestrate` capability validation and adds PR planner route policy so PR starts dispatch only `review` or `fix-pr`; invalid `implement`/`delegate_issue` PR handoffs stop. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The diff extends existing handoff parsing, `decideHandoff`, preflight, status-comment, and workflow dispatch paths instead of creating a separate PR-orchestration system. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates `.agent/docs/actions/agent-actions.md`, `.agent/docs/architecture/supported-workflows.md`, `.agent/docs/technical-details/agent-orchestrator.md`, and `.github/prompts/agent-orchestrator.md` for planner-backed PR starts and route constraints. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Planner contract remains structured JSON with separate `decision`, `next_action`, `handoff_context`, `user_message`, and stop/block fields; invalid combinations are rejected. |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Planner `answer`/clarification and initial stop paths produce visible no-dispatch comments, while closed PRs and invalid planner routes stop before workflow dispatch. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Stop/answer comments use the existing hidden stop marker and trusted exact-body dedupe before creating new comments. |\n| communication / generic | Keep status comments compact | pass | 6/6 | New answer comments are short, user-facing, and structured as concise fields rather than raw logs. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | The follow-up fix prevents planner-selected PR `fix-pr` from silently inheriting the generic requested-changes fallback when `handoff_context` is missing, and adds regression coverage. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The change is localized to planner routing, PR preflight, comments, docs, and tests; the final fix requires context rather than adding a larger derivation layer. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is scoped to orchestrator handoff/preflight logic, prompt/docs, and focused tests for #187’s PR `/orchestrate` behavior. |\n\n## Notes\n\n- #187 asked for agent-mode PR `/orchestrate` to call the planner with strict outcomes like `review`, `fix-pr`, `answer`, and `stop`, then validate selected routes before dispatch. The final PR matches that shape.\n- The earlier blocking review finding about missing `handoff_context` for planner-selected PR `fix-pr` is addressed in the current diff with both policy enforcement and CLI regression coverage.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** The implementation satisfies the applicable selected rubrics. No blocking or warning-level rubric issues found.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-09T07:03:59Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/188#issuecomment-4411807289",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBvcjEA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #188 implements #187 by making PR-target `/orchestrate` starts planner-backed in `agent` mode.\n- The planner can choose `review`, `fix-pr`, `answer`, `stop`, or `blocked`, while runtime policy still limits PR workflow dispatch to `review` or `fix-pr`.\n- The follow-up fix-pr pass addressed the prior blocking concern by requiring `handoff_context` for planner-selected PR `fix-pr` handoffs.\n- Docs, prompts, and regression tests now cover the new planner-backed PR behavior and the missing-context stop path.\n\n## Review\nThe current head looks shippable. The prior blocking context fallback issue is fixed, the stale documentation paragraph is corrected, and reviewers found no remaining blocking or warning-level issues.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable issues | INFO | The latest reviewer outputs and rubric review agree that the current head resolves the prior findings and has no required branch-change work remaining. |\n\n## Progress\n- Prior BLOCKING finding fixed: planner-selected PR `fix-pr` now stops when `handoff_context` is missing.\n- Prior docs WARNING fixed: technical docs now distinguish deterministic PR starts in `heuristics` mode from planner-backed PR starts in `agent` mode.\n- Rubrics review passed with no required follow-up.\n- Minimized the older same-agent inline comment on `.agent/src/handoff.ts` as `outdated` after verifying same-agent authorship and PR ownership.\n- No new inline comments or replies were posted.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved actionable branch changes remain.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-09T07:12:01Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/188#issuecomment-4411826960",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-09T02:17:00Z",
@@ -61,19 +209,19 @@
     },
     {
       "path": ".agent/docs/technical-details/agent-orchestrator.md",
-      "additions": 10,
-      "deletions": 3,
+      "additions": 14,
+      "deletions": 7,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/__tests__/handoff.test.ts",
-      "additions": 87,
+      "additions": 104,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/__tests__/orchestrate-handoff-cli.test.ts",
-      "additions": 95,
+      "additions": 121,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
@@ -97,7 +245,7 @@
     },
     {
       "path": ".agent/src/handoff.ts",
-      "additions": 32,
+      "additions": 39,
       "deletions": 1,
       "changeType": "MODIFIED"
     },
@@ -120,9 +268,25 @@
   "mergedAt": null,
   "number": 188,
   "reviewDecision": "",
-  "reviews": [],
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM79vidI",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-09T06:55:23Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "ed0df2bee677790c90a0dbedb9759981faa922ff"
+      }
+    }
+  ],
   "state": "OPEN",
   "title": "Plan PR orchestrate starts in agent mode",
-  "updatedAt": "2026-05-09T03:21:10Z",
+  "updatedAt": "2026-05-09T07:12:01Z",
   "url": "https://github.com/self-evolving/repo/pull/188"
 }
