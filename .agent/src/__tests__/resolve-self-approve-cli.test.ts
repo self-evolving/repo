@@ -7,10 +7,25 @@ import { strict as assert } from "node:assert";
 
 const repoRoot = resolve(__dirname, "../../..");
 
+function parseGithubOutput(raw: string): Map<string, string> {
+  const outputs = new Map<string, string>();
+  const blocks = raw.matchAll(/^([^<\n]+)<<([^\n]+)\n([\s\S]*?)\n\2$/gm);
+  for (const [, name, , value] of blocks) {
+    outputs.set(name, value);
+  }
+  return outputs;
+}
+
 function writeFakeGh(
   tempDir: string,
   headOid: string,
-  opts: { prAuthorLogin?: string; viewerLogin?: string; synthesisAuthorLogin?: string } = {},
+  opts: {
+    failApprovalSubmission?: boolean;
+    failPrView?: boolean;
+    prAuthorLogin?: string;
+    synthesisAuthorLogin?: string;
+    viewerLogin?: string;
+  } = {},
 ): string {
   const prAuthorLogin = opts.prAuthorLogin || "lolipopshock";
   const viewerLogin = opts.viewerLogin || "sepo-agent-app";
@@ -19,6 +34,10 @@ function writeFakeGh(
   writeFileSync(join(tempDir, "gh"), `#!/usr/bin/env bash
 printf '%s\\n' "$*" >> "$FAKE_GH_LOG"
 if [ "$1" = "pr" ] && [ "$2" = "view" ]; then
+  if [ "${opts.failPrView ? "true" : "false"}" = "true" ]; then
+    printf 'pr metadata unavailable\\n' >&2
+    exit 1
+  fi
   printf '{"author":{"login":"${prAuthorLogin}"},"headRefName":"agent/test","headRefOid":"${headOid}","isCrossRepository":false,"state":"OPEN"}\\n'
   exit 0
 fi
@@ -31,6 +50,10 @@ if [ "$1" = "api" ] && [ "$2" = "graphql" ]; then
   exit 0
 fi
 if [ "$1" = "api" ] && [ "$2" = "--method" ] && [ "$3" = "POST" ]; then
+  if [ "${opts.failApprovalSubmission ? "true" : "false"}" = "true" ]; then
+    printf 'review API unavailable\\n' >&2
+    exit 1
+  fi
   exit 0
 fi
 printf 'unexpected gh args: %s\\n' "$*" >&2
@@ -140,6 +163,77 @@ test("resolve-self-approve does not submit approval after head changes", () => {
     assert.match(result.output, /conclusion<<[^\n]+\nblocked/);
     assert.match(result.output, /pull request head changed/);
     assert.doesNotMatch(result.log, /^api --method POST repos\/self-evolving\/repo\/pulls\/42\/reviews /m);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("resolve-self-approve writes failed status body when metadata cannot be read", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-self-approve-cli-"));
+  try {
+    writeFakeGh(tempDir, "abc123", { failPrView: true });
+
+    const result = runResolveSelfApprove(tempDir, JSON.stringify({
+      verdict: "APPROVE",
+      reason: "Aligned.",
+      inspected_head_sha: "abc123",
+    }));
+
+    assert.equal(result.status, 0, result.stderr);
+    const outputs = parseGithubOutput(result.output);
+    assert.equal(outputs.get("approved"), "false");
+    assert.equal(outputs.get("conclusion"), "failed");
+    assert.match(outputs.get("reason") || "", /could not read pull request metadata/);
+    const body = readFileSync(outputs.get("body_file") || "", "utf8");
+    assert.match(body, /\| Failed \| `failed` \|/);
+    assert.match(body, /could not read pull request metadata/);
+    assert.match(body, /<!-- sepo-agent-self-approval -->/);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("resolve-self-approve writes failed status body for parser failures", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-self-approve-cli-"));
+  try {
+    writeFakeGh(tempDir, "abc123");
+
+    const result = runResolveSelfApprove(tempDir, "The agent did not return JSON.");
+
+    assert.equal(result.status, 0, result.stderr);
+    const outputs = parseGithubOutput(result.output);
+    assert.equal(outputs.get("approved"), "false");
+    assert.equal(outputs.get("conclusion"), "failed");
+    assert.match(outputs.get("reason") || "", /missing a valid JSON decision/);
+    const body = readFileSync(outputs.get("body_file") || "", "utf8");
+    assert.match(body, /\| Failed \| `failed` \|/);
+    assert.match(body, /missing a valid JSON decision/);
+    assert.doesNotMatch(result.log, /^api --method POST repos\/self-evolving\/repo\/pulls\/42\/reviews /m);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("resolve-self-approve writes failed status body when approval API fails", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-self-approve-cli-"));
+  try {
+    writeFakeGh(tempDir, "abc123", { failApprovalSubmission: true });
+
+    const result = runResolveSelfApprove(tempDir, JSON.stringify({
+      verdict: "APPROVE",
+      reason: "Aligned.",
+      inspected_head_sha: "abc123",
+    }));
+
+    assert.equal(result.status, 0, result.stderr);
+    const outputs = parseGithubOutput(result.output);
+    assert.equal(outputs.get("approved"), "false");
+    assert.equal(outputs.get("conclusion"), "failed");
+    assert.match(outputs.get("reason") || "", /approval submission failed/);
+    const body = readFileSync(outputs.get("body_file") || "", "utf8");
+    assert.match(body, /\| Failed \| `failed` \|/);
+    assert.match(body, /approval submission failed/);
+    assert.match(result.log, /^api --method POST repos\/self-evolving\/repo\/pulls\/42\/reviews /m);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }

@@ -230,8 +230,10 @@ parses the agent verdict, and approves only when the expected, current, and
 inspected head SHAs match. Non-approval outcomes post a compact PR status
 comment. In orchestrated chains, `SHIP` review synthesis can hand off to
 `agent-self-approve`, and a self-approval `REQUEST_CHANGES` result can hand off
-to `fix-pr` with the approval agent's handoff context. Status-comment upsert
-behavior is intentionally a separate follow-up workflow slice.
+to `fix-pr` with the approval agent's handoff context. Self-approval status
+comments are upserted by marker against comments authored by the authenticated
+Sepo actor, and result artifacts are retained for failed or blocked resolution
+paths where available.
 
 ### `agent-approve.yml`
 
