@@ -60,3 +60,4 @@
 - Installation registries belong to Sepo/App-owner automation; installed repos must not enumerate other installs.
 - Prompt-managed inline review actions: reviewer lanes suggest only; synthesis re-fetches and only replies/minimizes same-agent PR comments.
 - Provider credentials belong in repo secrets; pass only fixed Sepo-needed secrets, not arbitrary repo secrets.
+- Agent-mode PR /orchestrate plans PR outcomes; dispatch only review/fix-pr, and planner-selected fix-pr needs concrete context.
