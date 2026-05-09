@@ -34,7 +34,7 @@ description: >-
 type: generic # generic | specific
 domain: coding_workflow # coding_style | coding_workflow | communication | review_quality
 applies_to:
-  - implement # implement | fix-pr | review | answer | skill | rubrics-review | rubrics-initialization | rubrics-update
+  - implement # implement | release | fix-pr | review | answer | skill | rubrics-review | rubrics-initialization | rubrics-update
 severity: should # must | should | consider
 weight: 3 # 1-10
 status: active # active | draft | retired
@@ -67,7 +67,7 @@ Selection is intentionally simple and acts as prompt-time retrieval guidance:
 
 1. Load `rubrics/**/*.yaml`.
 2. Validate schema and unique IDs.
-3. Keep active rubrics whose `applies_to` includes the current route. `implement` rubrics also apply to `fix-pr` as baseline implementation guidance.
+3. Keep active rubrics whose `applies_to` includes the current route. `implement` rubrics also apply to `release` and `fix-pr` as baseline implementation guidance.
 4. For answer runs, keep only communication-domain rubrics so answer behavior is steered by communication preferences.
 5. Rank by severity, weight, and token matches against request text.
 6. Inject the top N rubrics into the prompt through `${RUBRICS_CONTEXT}` as a starting shortlist.

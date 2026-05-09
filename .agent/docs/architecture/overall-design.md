@@ -56,7 +56,7 @@ flowchart LR
     react_thumbs["React with 👍"]
 
     route -- "answer / unsupported" --> answer_run --> post_answer
-    route -- "implement" --> is_issue
+    route -- "implement / release" --> is_issue
     is_issue -- yes --> post_approval_issue --> approve --> dispatch_impl
     is_issue -- no --> post_proposal --> approve --> create_issue --> dispatch_impl
     route -- "fix-pr (PR only, not on edit)" --> dispatch_fix --> react_thumbs

@@ -24,7 +24,15 @@ const workflowFile = process.env.WORKFLOW_FILE || "agent-implement.yml";
 const mention = process.env.INPUT_MENTION || DEFAULT_MENTION;
 const requestId = `req-${randomBytes(3).toString("hex")}`;
 
-const routeLabel = route === "create-action" ? "action creation" : "implementation";
+const routeLabel = route === "create-action"
+  ? "action creation"
+  : route === "release"
+    ? "release preparation"
+    : "implementation";
+const shouldShowProposedIssue =
+  (route === "implement" || route === "create-action" || route === "release") &&
+  Boolean(issueTitle) &&
+  (targetKind !== "issue" || route === "release");
 
 // Build the hidden marker with dispatch metadata
 const markerData: Record<string, unknown> = {
@@ -50,7 +58,7 @@ lines.push("");
 lines.push(summary);
 lines.push("");
 
-if ((route === "implement" || route === "create-action") && issueTitle && targetKind !== "issue") {
+if (shouldShowProposedIssue) {
   lines.push("### Proposed issue");
   lines.push("");
   lines.push(`> **${issueTitle}**`);

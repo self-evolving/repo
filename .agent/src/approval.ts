@@ -169,9 +169,15 @@ export function findPendingRequestById(
 export function shouldCreateIssueFromApprovalRequest(
   request: Record<string, unknown>,
 ): boolean {
+  const route = String(request?.route || "");
+  const hasIssueTitle = String(request?.issue_title || "").trim() !== "";
+  if (route === "release") {
+    return hasIssueTitle;
+  }
+
   return (
-    (request?.route === "implement" || request?.route === "create-action") &&
+    (route === "implement" || route === "create-action") &&
     request?.target_kind !== "issue" &&
-    String(request?.issue_title || "").trim() !== ""
+    hasIssueTitle
   );
 }

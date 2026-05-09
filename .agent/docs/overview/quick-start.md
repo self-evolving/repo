@@ -32,6 +32,7 @@ Use an explicit slash route when you already know the action:
 |---|---|---|
 | Answer | Ask a question, or request plan-only procedure guidance before coding. | `@sepo-agent /answer ...` |
 | Implement | Turn an issue request into a branch and draft PR. | `@sepo-agent /implement ...` |
+| Release prepare | Prepare a version bump and release checklist PR without publishing. | `@sepo-agent /release 0.2.0` |
 | Create action | Propose a standalone scheduled agent workflow through a PR. | `@sepo-agent /create-action ...` |
 | Review | Run the dual-agent PR review flow. | `@sepo-agent /review` |
 | Fix PR | Push fixes to the current PR branch. | `@sepo-agent /fix-pr` |
@@ -50,4 +51,4 @@ You can also trigger the same built-in routes with labels:
 
 Only authorized repository users can trigger Sepo. By default, repositories allow `OWNER`, `MEMBER`, `COLLABORATOR`, and `CONTRIBUTOR` associations; public repositories can tighten this with `AGENT_ACCESS_POLICY`. See [Trigger access policy](../access-policy.md) to customize that behavior.
 
-`Agent / Onboarding / Check Setup` creates the built-in labels listed above. Custom skill labels still use the `agent/s/<name>` pattern and can be created as needed.
+`Agent / Onboarding / Check Setup` creates the built-in labels listed above. The versioned release route is slash-only because it requires an explicit version. Custom skill labels still use the `agent/s/<name>` pattern and can be created as needed.

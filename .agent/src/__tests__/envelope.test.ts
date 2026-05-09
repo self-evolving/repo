@@ -517,6 +517,7 @@ test("agent router dispatches agent-implement directly for explicit implement re
   // Mutual exclusion with the approval job: runs only when the dispatch
   // decision said an implementation-like route and no approval gate is needed.
   assert.match(implementJob, /needs\.portal\.outputs\.route == 'implement'/);
+  assert.match(implementJob, /needs\.portal\.outputs\.route == 'release'/);
   assert.match(implementJob, /needs\.portal\.outputs\.route == 'create-action'/);
   assert.match(implementJob, /needs\.portal\.outputs\.needs_approval == 'false'/);
 
@@ -527,7 +528,7 @@ test("agent router dispatches agent-implement directly for explicit implement re
   // TS backend rather than inline shell.
   assert.match(
     implementJob,
-    /- name: Create implementation issue[\s\S]*if:\s*needs\.portal\.outputs\.target_kind != 'issue'[\s\S]*node \.agent\/dist\/cli\/create-issue\.js/,
+    /- name: Create implementation issue[\s\S]*if:\s*needs\.portal\.outputs\.target_kind != 'issue' \|\| needs\.portal\.outputs\.route == 'release'[\s\S]*node \.agent\/dist\/cli\/create-issue\.js/,
   );
   assert.match(
     implementJob,
@@ -542,13 +543,51 @@ test("agent router dispatches agent-implement directly for explicit implement re
   // tracking issue that was just created.
   assert.match(
     implementJob,
-    /- name: Post link-back to original surface[\s\S]*if:\s*needs\.portal\.outputs\.target_kind != 'issue'[\s\S]*node \.agent\/dist\/cli\/post-response\.js/,
+    /- name: Post link-back to original surface[\s\S]*if:\s*steps\.create_issue\.outputs\.issue_url != ''[\s\S]*node \.agent\/dist\/cli\/post-response\.js/,
   );
 
   // agent-approve.yml uses the same CLIs — no duplicate inline shell.
   assert.match(approveWorkflow, /node \.agent\/dist\/cli\/create-issue\.js/);
   assert.match(approveWorkflow, /node \.agent\/dist\/cli\/dispatch-agent-implement\.js/);
   assert.doesNotMatch(approveWorkflow, /actions\/workflows\/\$\{WORKFLOW\}\/dispatches/);
+});
+
+test("release route uses the implementation workflow with release prompt", () => {
+  const dispatchPrompt = readRepoFile(".github/prompts/agent-dispatch.md");
+  const releasePrompt = readRepoFile(".github/prompts/agent-release.md");
+  const runSource = readRepoFile(".agent/src/run.ts");
+  const triageSource = readRepoFile(".agent/src/triage.ts");
+  const envelopeSource = readRepoFile(".agent/src/envelope.ts");
+
+  assert.match(dispatchPrompt, /`release`: request approval to prepare a Sepo release PR/);
+  assert.match(triageSource, /"release"/);
+  assert.match(envelopeSource, /"release"/);
+  assert.match(runSource, /release:\s*"\.github\/prompts\/agent-release\.md"/);
+  assert.match(releasePrompt, /\.agent\/package\.json/);
+  assert.match(releasePrompt, /Do not create git tags/);
+  assert.match(releasePrompt, /GitHub Releases/);
+});
+
+test("manual release publish workflow is source-repo gated", () => {
+  const workflow = readRepoFile(".github/workflows/agent-release-publish.yml");
+  const publishCli = readRepoFile(".agent/src/cli/publish-release.ts");
+  const publishSource = readRepoFile(".agent/src/release-publish.ts");
+
+  assert.match(workflow, /^name: Agent \/ Release \/ Publish$/m);
+  assert.match(workflow, /workflow_dispatch:/);
+  assert.match(workflow, /version:/);
+  assert.match(workflow, /target_ref:/);
+  assert.match(workflow, /draft:[\s\S]*default:\s*true/);
+  assert.match(workflow, /prerelease:[\s\S]*default:\s*auto/);
+  assert.match(workflow, /update_existing:[\s\S]*default:\s*false/);
+  assert.match(workflow, /if:\s*github\.repository == 'self-evolving\/repo'/);
+  assert.match(workflow, /node \.agent\/dist\/cli\/publish-release\.js/);
+  assert.match(publishCli, /publishRelease/);
+  assert.match(publishSource, /release publishing is only allowed in/);
+  assert.match(publishSource, /\.agent\/package\.json version/);
+  assert.match(publishSource, /repos\/\$\{repo\}\/git\/tags/);
+  assert.match(publishSource, /release"\s*,\s*"create"/);
+  assert.match(publishSource, /update_existing=true/);
 });
 
 test("session bundle persistence is configurable through workflow inputs and AGENT_SESSION_BUNDLE_MODE", () => {

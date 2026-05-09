@@ -1,0 +1,73 @@
+name: Agent / Release / Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Sepo version to publish, for example 0.2.0"
+        required: true
+      target_ref:
+        description: "Branch, tag, or SHA to publish"
+        required: false
+        default: main
+      draft:
+        description: "Create or update the GitHub Release as a draft"
+        required: false
+        type: boolean
+        default: true
+      prerelease:
+        description: "Whether to mark the GitHub Release as a prerelease"
+        required: false
+        type: choice
+        options:
+          - auto
+          - "true"
+          - "false"
+        default: auto
+      update_existing:
+        description: "Update an existing GitHub Release instead of failing"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  id-token: write # required for GitHub Actions OIDC broker exchange
+
+jobs:
+  publish:
+    if: github.repository == 'self-evolving/repo'
+    runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ inputs.target_ref }}
+          token: ${{ github.token }}
+
+      - name: Resolve GitHub auth
+        id: auth
+        uses: ./.github/actions/resolve-github-auth
+        with:
+          app_id: ${{ secrets.AGENT_APP_ID }}
+          app_private_key: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
+          pat: ${{ secrets.AGENT_PAT }}
+          fallback_token: ${{ github.token }}
+
+      - name: Setup agent runtime
+        uses: ./.github/actions/setup-agent-runtime
+        with:
+          install_codex: "false"
+          install_claude: "false"
+
+      - name: Publish release
+        env:
+          DRAFT: ${{ inputs.draft }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PRERELEASE: ${{ inputs.prerelease }}
+          TARGET_REF: ${{ inputs.target_ref }}
+          UPDATE_EXISTING: ${{ inputs.update_existing }}
+          VERSION: ${{ inputs.version }}
+        run: node .agent/dist/cli/publish-release.js

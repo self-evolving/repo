@@ -6,6 +6,7 @@ Agent actions are route-level behaviors exposed by the `.agent` backend. They ar
 |---|---|---|---|
 | Answer | `answer` | `.github/prompts/agent-answer.md` | inline response through `agent-router.yml` |
 | Implement | `implement` | `.github/prompts/agent-implement.md` | explicit `/implement` or `agent/implement` label dispatches `agent-implement.yml` directly; triaged implement goes through approval first |
+| Release prepare | `release` | `.github/prompts/agent-release.md` | versioned `/release <version>` route that dispatches `agent-implement.yml` with release-specific instructions and opens a PR without publishing tags or GitHub Releases |
 | Fix PR | `fix-pr` | `.github/prompts/agent-fix-pr.md` | PR-only dispatch to `agent-fix-pr.yml` |
 | Review | `review` | `.github/prompts/review.md` and `.github/prompts/review-synthesize.md` | parallel review jobs plus synthesis in `agent-review.yml` |
 | Orchestrate | `orchestrate` | `.github/prompts/agent-orchestrator.md` | explicit `/orchestrate` or `agent/orchestrate` dispatches `agent-orchestrator.yml`, which selects the next action based on current target state |

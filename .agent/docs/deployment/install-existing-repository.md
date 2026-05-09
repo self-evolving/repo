@@ -29,9 +29,10 @@ The workflows build `.agent/dist/` on GitHub-hosted runners. Keeping generated r
 ## Sepo version metadata
 
 Keep `.agent/sepo-version.json` with the copied `.agent/` tree. It records the
-installed Sepo version, source repository/ref, optional exact source SHA,
-install source kind, and optional installed-file hash. See [Sepo versioning](../technical-details/versioning.md)
-for the schema and SemVer policy.
+installed Sepo source identity. `.agent/package.json` remains the canonical
+Sepo package/runtime version; metadata version fields only mirror it while they
+exist. See [Sepo versioning](../technical-details/versioning.md) for the schema
+and SemVer policy.
 
 For release installs, prefer a release tag in `source_ref` such as `v0.1.0` and
 record the exact source commit in `source_sha`. For moving-branch development

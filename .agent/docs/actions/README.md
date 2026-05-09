@@ -6,7 +6,7 @@ The docs use three terms consistently:
 
 - **Workflows** are GitHub workflow files in `.github/workflows/`. They define triggers, jobs, permissions, and dispatch boundaries. See [Supported workflows](../architecture/supported-workflows.md).
 - **Internal actions** are shared composite GitHub Actions in `.github/actions/`. They scaffold the runtime, resolve GitHub auth, and run agent tasks for workflows.
-- **Agent actions** are route-level behaviors such as `answer`, `implement`, `fix-pr`, and `review`. They are selected by mention, label, approval, or workflow dispatch, and are implemented through workflow wiring plus prompts.
+- **Agent actions** are route-level behaviors such as `answer`, `implement`, `release`, `fix-pr`, and `review`. They are selected by mention, label, approval, or workflow dispatch, and are implemented through workflow wiring plus prompts.
 
 ## Documentation model
 

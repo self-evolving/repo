@@ -61,7 +61,7 @@ if (route === "review") {
   });
 } else {
   // implement or other
-  const parsed = route === "implement"
+  const parsed = route === "implement" || route === "release"
     ? normalizeImplementationResponse(rawResponse)
     : { summary, prTitle: "", prBody: "" };
   body = formatImplementComment({

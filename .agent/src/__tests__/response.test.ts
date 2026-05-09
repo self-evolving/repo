@@ -100,6 +100,14 @@ test("summaryFromAgentResponse parses fix-pr JSON summaries", () => {
   assert.equal(summary, "- Fixed the failing parser\n- Added coverage");
 });
 
+test("summaryFromAgentResponse parses release JSON summaries", () => {
+  const summary = summaryFromAgentResponse(
+    "release",
+    '{"summary":"Prepared release 0.2.0","commit_message":"chore: prepare release"}',
+  );
+  assert.equal(summary, "Prepared release 0.2.0");
+});
+
 test("summaryFromAgentResponse leaves review text unchanged", () => {
   const summary = summaryFromAgentResponse("review", "## Summary\nLooks good.");
   assert.equal(summary, "## Summary\nLooks good.");

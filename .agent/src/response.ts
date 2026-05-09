@@ -243,7 +243,7 @@ export interface ImplementationResponse {
 
 export function summaryFromAgentResponse(route: string, raw: string): string {
   const normalizedRoute = String(route || "").trim().toLowerCase();
-  if (normalizedRoute === "implement" || normalizedRoute === "fix-pr") {
+  if (normalizedRoute === "implement" || normalizedRoute === "fix-pr" || normalizedRoute === "release") {
     return normalizeImplementationResponse(raw).summary;
   }
   return String(raw ?? "").trim();

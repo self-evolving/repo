@@ -168,23 +168,25 @@ weight: 2
   assert.ok(selected[0]?.matchedTerms.includes("regression"));
 });
 
-test("selectRubrics applies implementation rubrics to fix-pr", () => {
+test("selectRubrics applies implementation rubrics to implementation-like routes", () => {
   const root = tempDir();
   writeRubric(root, "implementation.yaml", `
 id: implementation-guidance
 title: Implementation guidance
-description: PR fixes should reuse implementation guidance.
+description: Implementation-like routes should reuse implementation guidance.
 applies_to: [implement]
 severity: should
 `);
 
-  const { selected, errors } = selectRubrics({
-    rootDir: root,
-    route: "fix-pr",
-    query: "fix pull request",
-  });
-  assert.deepEqual(errors, []);
-  assert.equal(selected[0]?.rubric.id, "implementation-guidance");
+  for (const route of ["fix-pr", "release"]) {
+    const { selected, errors } = selectRubrics({
+      rootDir: root,
+      route,
+      query: "fix pull request release",
+    });
+    assert.deepEqual(errors, []);
+    assert.equal(selected[0]?.rubric.id, "implementation-guidance");
+  }
 });
 
 test("selectRubrics can include all routes for rubric review", () => {

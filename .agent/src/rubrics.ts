@@ -33,6 +33,7 @@ export type RubricStatus = typeof RUBRIC_STATUSES[number];
 export const RUBRIC_ROUTE_NAMES = [
   "answer",
   "implement",
+  "release",
   "create-action",
   "fix-pr",
   "review",
@@ -310,9 +311,9 @@ function routeMatches(rubric: Rubric, route: string): boolean {
   const normalized = String(route || "").trim().toLowerCase();
   if (!normalized) return true;
   if (rubric.applies_to.includes(normalized as RubricRouteName)) return true;
-  // Rubrics for implementation also apply to the PR-fix implementation path
+  // Rubrics for implementation also apply to implementation-like paths.
   // unless the author chose a more specific route list.
-  return normalized === "fix-pr" && rubric.applies_to.includes("implement");
+  return (normalized === "fix-pr" || normalized === "release") && rubric.applies_to.includes("implement");
 }
 
 function severityScore(severity: RubricSeverity): number {

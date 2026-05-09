@@ -2,6 +2,10 @@
 
 Sepo uses SemVer for public version labels.
 
+`.agent/package.json` is the canonical Sepo package/runtime version. Other
+metadata may mirror that version for install diagnostics, but it must not become
+a second independent version authority.
+
 ## Policy
 
 - Use `v0.x.y` tags while the install, update, and bug-report contract is still pre-release.
@@ -10,7 +14,39 @@ Sepo uses SemVer for public version labels.
 - Use `v1.0.0-rc.N` only when the public contract is frozen and the release is truly a candidate for `v1.0.0`.
 - Use `v1.0.0` for the first public stable release.
 
-The metadata version omits the leading `v` so it remains plain SemVer and can stay aligned with `.agent/package.json`. Git tags and release refs include the leading `v`, for example `v0.1.0`.
+Package and metadata versions omit the leading `v` so they remain plain SemVer
+and can stay aligned with `.agent/package.json`. Git tags and release refs
+include the leading `v`, for example `v0.1.0`.
+
+## Release flow
+
+Release work is split into two phases:
+
+1. Agent-assisted prepare: `@sepo-agent /release 0.2.0` opens a normal release
+   preparation PR.
+2. Manual publish: after the PR is merged, a maintainer runs
+   `Agent / Release / Publish` from GitHub Actions in `self-evolving/repo`.
+
+Prepare checklist:
+
+- Validate the requested version against the policy above.
+- Update `.agent/package.json`.
+- Update `.agent/package-lock.json` if package metadata changes require it.
+- Update `.agent/sepo-version.json` only while it still carries a mirrored
+  `version` field; `.agent/package.json` remains canonical.
+- Update release notes, docs, or checklist content changed by the release.
+- Do not create tags, GitHub Releases, or package publications from the agent
+  preparation route.
+
+Publish checklist:
+
+- Run only from `self-evolving/repo`; the publish workflow is hard-gated to that
+  repository so forks do not accidentally publish upstream releases.
+- Verify `.agent/package.json` equals the requested version.
+- Resolve the target commit SHA from the checked-out `target_ref`.
+- Create annotated tag `vX.Y.Z` when it does not already exist.
+- Create the GitHub Release when it does not already exist.
+- Fail on an existing GitHub Release unless `update_existing=true` is set.
 
 ## Installed metadata
 
@@ -34,7 +70,7 @@ Fields:
 | Field | Meaning |
 |---|---|
 | `schema_version` | Metadata schema version, currently `1`. |
-| `version` | Sepo SemVer string without a leading `v`. |
+| `version` | Mirrored Sepo SemVer string without a leading `v`; `.agent/package.json` is canonical. |
 | `channel` | `pre-release`, `release-candidate`, or `stable`. |
 | `source_repo` | GitHub `owner/repo` slug used as the Sepo source. |
 | `source_ref` | Branch, tag, or ref used by the install. Release installs should use a tag such as `v0.1.0`. |
@@ -44,4 +80,5 @@ Fields:
 
 This separates the user-facing Sepo version from the exact source identity. A fork or copied install can keep saying which Sepo line it started from while later tooling can add the exact commit and file hash when available.
 
-Future update, bug-report, or release workflows can add a small reader/CLI when they need to consume this metadata directly.
+Future update or bug-report workflows can add a small reader/CLI when they need
+to consume this metadata directly.
