@@ -10,7 +10,6 @@ ${MENTION_BODY}
 Choose exactly one route:
 - `answer`: answer inline now
 - `implement`: request approval to run the implementation workflow
-- `release`: request approval to prepare a Sepo release PR for a specific version
 - `fix-pr`: start the PR-fix workflow immediately; only valid for `pull_request`
 - `review`: start the review workflow immediately; only valid for `pull_request`
 - `create-action`: request approval to create a scheduled GitHub Actions workflow for recurring agent automation
@@ -20,7 +19,7 @@ Return exactly one JSON object and nothing else:
 
 ```json
 {
-  "route": "answer | implement | release | fix-pr | review | create-action | unsupported",
+  "route": "answer | implement | fix-pr | review | create-action | unsupported",
   "needs_approval": true,
   "summary": "One short sentence for the user describing what the agent will do next.",
   "confidence": "low | medium | high",
@@ -31,7 +30,6 @@ Return exactly one JSON object and nothing else:
 
 Rules:
 - Use `implement` when the user is explicitly asking the agent to make code changes.
-- Use `release` when the user asks to prepare a Sepo release for a specific version. This route prepares a PR only; it does not publish tags or GitHub Releases.
 - Use `fix-pr` when the user is explicitly asking the agent to update an existing PR to address review feedback or requested changes.
 - Use `review` only when the user is explicitly asking for a PR review or another review pass.
 - Use `create-action` when the user asks to create an automatically running or durable automation, monitor, scheduled job, or recurring check.
@@ -40,8 +38,8 @@ Rules:
 - Use `unsupported` when the user asks for a workflow this repo does not support yet.
 - `fix-pr` is only valid for `pull_request` targets. If the request is not on a pull request, use `unsupported`.
 - Keep `summary` short and user-facing.
-- When `route` is `implement`, `release`, or `create-action`, always populate `issue_title` (concise, under 70 chars)
+- When `route` is `implement` or `create-action`, always populate `issue_title` (concise, under 70 chars)
   and `issue_body` (structured markdown with goal, acceptance criteria, and any
   relevant context from the original message). These will be used to create a
   tracking issue that the user can review and edit before approving.
-- When `route` is not `implement`, `release`, or `create-action`, leave `issue_title` and `issue_body` empty.
+- When `route` is not `implement` or `create-action`, leave `issue_title` and `issue_body` empty.

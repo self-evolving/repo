@@ -12,6 +12,7 @@
 | `agent-approve.yml` | approval comments | Resolves pending approvals, creates issues when needed, dispatches implementation | None |
 | `agent-orchestrator.yml` | `workflow_dispatch` | Explicit orchestration route that decides whether to dispatch the next action | None in `heuristics` mode; resolved-provider planner in `agent` mode |
 | `agent-implement.yml` | `workflow_dispatch` | Implementation flow: branch, commit, draft PR; supports `base_branch` or `base_pr` for stacked PRs | Auto |
+| `agent-release-prepare.yml` | `workflow_dispatch` | Source-repo-only manual prepare flow that creates or reuses a release preparation issue and dispatches the implementation workflow with the release prompt | Auto |
 | `agent-release-publish.yml` | `workflow_dispatch` | Source-repo-only manual publish flow that verifies the prepared version, creates the annotated tag when missing, and creates or explicitly updates the GitHub Release | None |
 | `agent-fix-pr.yml` | `workflow_dispatch`, `workflow_call` | PR fix flow: update existing PR branch, verify, push | Auto |
 | `agent-review.yml` | `workflow_dispatch`, `workflow_call` | Parallel Claude and Codex review with resolved-provider synthesis, plus a separate rubric review comment | Claude + Codex reviewers; configurable synthesis |
@@ -74,21 +75,22 @@ set `base_branch` to stack directly on another branch, or `base_pr` to stack on
 an open same-repository PR head branch. The implementation workflow rejects
 ambiguous input when both are set.
 
-Release preparation is a specialized implementation route. A request like
-`@sepo-agent /release 0.2.0` creates or updates a tracking issue titled like
-`Prepare Sepo release 0.2.0`, then dispatches `agent-implement.yml` with
-`implementation_route: release` and the release prompt. Repeated requests for
-the same open version issue reuse that issue instead of creating duplicates. The
-release prompt updates version files and docs through a normal PR only; it must
-not create git tags or GitHub Releases. Because this route delegates to
-implementation, callers and approvers must also satisfy the `implement` access
-policy. After that PR is merged, maintainers run
-`Agent / Release / Publish` manually in `self-evolving/repo`. That workflow is
-hard-gated with `github.repository == 'self-evolving/repo'`, verifies
-`.agent/package.json` matches the requested version, creates an annotated
-`vX.Y.Z` tag if missing, verifies an existing tag points at the target commit,
-and creates the GitHub Release. Existing releases fail the run unless
-`update_existing=true` is set.
+Release preparation is a specialized implementation workflow, not a public
+mention route. Maintainers run `Agent / Release / Prepare` manually in
+`self-evolving/repo`, optionally with a SemVer `version` input. The workflow
+creates or reuses a tracking issue titled like `Prepare Sepo release 0.2.0`,
+then dispatches `agent-implement.yml` with `implementation_route: release` and
+the release prompt. If no version is provided, the prompt asks the agent to
+inspect `.agent/package.json`, recent changes, and the versioning policy, then
+choose the next version and explain it in the PR. The release prompt updates
+version files and docs through a normal PR only; it must not create git tags or
+GitHub Releases. After that PR is merged, maintainers run
+`Agent / Release / Publish` manually in `self-evolving/repo`. Both release
+workflows are hard-gated with `github.repository == 'self-evolving/repo'`. The
+publish workflow verifies `.agent/package.json` matches the requested version,
+creates an annotated `vX.Y.Z` tag if missing, verifies an existing tag points at
+the target commit, and creates the GitHub Release. Existing releases fail the
+run unless `update_existing=true` is set.
 
 When a new review synthesis, rubrics review, `fix-pr` status comment, or
 orchestrator handoff marker is posted, the workflows minimize prior visible
@@ -186,7 +188,6 @@ Explicit routes are:
 
 - `@sepo-agent /answer`
 - `@sepo-agent /implement`
-- `@sepo-agent /release <version>`
 - `@sepo-agent /create-action`
 - `@sepo-agent /fix-pr`
 - `@sepo-agent /review`

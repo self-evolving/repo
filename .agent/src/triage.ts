@@ -2,7 +2,6 @@
 // and converts it into the portal's validated dispatch shape.
 
 import { escapeRegex, stripNonLiveMentions } from "./mentions.js";
-import { parseReleaseVersion } from "./release-version.js";
 import { extractJsonObject } from "./response.js";
 import {
   type AccessPolicy,
@@ -12,7 +11,6 @@ import {
 export const ROUTES = new Set([
   "answer",
   "implement",
-  "release",
   "fix-pr",
   "review",
   "orchestrate",
@@ -29,7 +27,7 @@ export interface DispatchDecision {
   issueBody: string;
 }
 
-const EXPLICIT_ROUTE_COMMANDS = ["answer", "implement", "release", "fix-pr", "review", "orchestrate", "create-action"] as const;
+const EXPLICIT_ROUTE_COMMANDS = ["answer", "implement", "fix-pr", "review", "orchestrate", "create-action"] as const;
 const LABEL_ROUTE_PREFIX = "agent/";
 const LABEL_SKILL_PREFIX = "agent/s/";
 const VALID_SKILL_LABEL = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
@@ -123,44 +121,6 @@ export function buildRequestedRouteDecision(route: string, requestText: string):
         "- Implement the requested change.",
         "- Preserve existing behavior unless the request requires a change.",
         "- Update tests or validation as needed.",
-      ].join("\n"),
-    };
-  }
-
-  if (normalizedRoute === "release") {
-    const originalRequest = String(requestText || "").trim() || "No request text provided.";
-    const version = extractReleaseVersionFromRequest(originalRequest);
-    if (!version) {
-      return {
-        route: "unsupported",
-        needsApproval: false,
-        confidence: "high",
-        summary: "Release requests require a SemVer version, for example `@sepo-agent /release 0.2.0`.",
-        issueTitle: "",
-        issueBody: "",
-      };
-    }
-    return {
-      route: "release",
-      needsApproval: false,
-      confidence: "high",
-      summary: `I’ll prepare the Sepo ${version} release PR.`,
-      issueTitle: `Prepare Sepo release ${version}`,
-      issueBody: [
-        "## Goal",
-        `Prepare the Sepo ${version} release pull request.`,
-        "",
-        "## Original request",
-        originalRequest,
-        "",
-        "## Acceptance criteria",
-        `- Validate \`${version}\` against \`.agent/docs/technical-details/versioning.md\`.`,
-        "- Update `.agent/package.json`, the canonical Sepo package/runtime version.",
-        "- Update `.agent/package-lock.json` if package metadata changes require it.",
-        "- Update `.agent/sepo-version.json` only while it still carries a version field, keeping `.agent/package.json` canonical.",
-        "- Update release docs or checklist entries touched by this release.",
-        "- Open a pull request.",
-        "- Do not create git tags or GitHub Releases.",
       ].join("\n"),
     };
   }
@@ -286,17 +246,6 @@ export function resolveRequestedLabel(labelName: string): RequestedLabelDecision
   return null;
 }
 
-export function extractReleaseVersionFromRequest(requestText: string): string {
-  const sanitized = stripNonLiveMentions(String(requestText || ""));
-  const match = sanitized.match(/(?:^|[\s(])\/release(?:\s+([^\s,;:!?)\]}]+))?/i);
-  const raw = String(match?.[1] || "").trim().replace(/[),;:!?]+$/g, "");
-  try {
-    return parseReleaseVersion(raw).version;
-  } catch {
-    return "";
-  }
-}
-
 /**
  * Validates and normalizes the portal dispatch decision emitted by the model.
  */
@@ -368,25 +317,6 @@ export function applyDispatchPolicy(
     // explicit /implement (slash command or agent/implement label) skips the
     // gate because the user already stated the intent.
     normalized.needsApproval = !isExplicit;
-    return normalized;
-  }
-
-  if (normalized.route === "release") {
-    normalized.needsApproval = !isExplicit;
-    if (!normalized.issueTitle) {
-      normalized.issueTitle = "Prepare Sepo release";
-    }
-    if (!normalized.issueBody) {
-      normalized.issueBody = [
-        "Prepare a Sepo release pull request for the requested version.",
-        "",
-        "Acceptance criteria:",
-        "- Validate the version against `.agent/docs/technical-details/versioning.md`.",
-        "- Update `.agent/package.json` as the canonical package/runtime version.",
-        "- Update release docs/checklist.",
-        "- Do not create tags or GitHub Releases.",
-      ].join("\n");
-    }
     return normalized;
   }
 

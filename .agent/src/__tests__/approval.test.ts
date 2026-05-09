@@ -187,7 +187,7 @@ test("markApprovalRequestSatisfied renders table without extra context", () => {
   assert.match(body, /sepo-agent-approved/);
 });
 
-test("shouldCreateIssueFromApprovalRequest only for issue-creating implementation-like routes", () => {
+test("shouldCreateIssueFromApprovalRequest only for non-issue implementation-like routes", () => {
   assert.ok(
     shouldCreateIssueFromApprovalRequest({
       route: "implement",
@@ -200,13 +200,6 @@ test("shouldCreateIssueFromApprovalRequest only for issue-creating implementatio
       route: "create-action",
       target_kind: "discussion",
       issue_title: "Create scheduled action",
-    }),
-  );
-  assert.ok(
-    shouldCreateIssueFromApprovalRequest({
-      route: "release",
-      target_kind: "issue",
-      issue_title: "Prepare Sepo release 0.2.0",
     }),
   );
   assert.ok(

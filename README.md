@@ -35,9 +35,6 @@ Check [Install into an existing repository](.agent/docs/deployment/install-exist
 # Use an explicit slash route when you already know the action
 @sepo-agent /implement implement issue #2
 
-# Prepare a release PR without publishing tags or GitHub Releases
-@sepo-agent /release 0.2.0
-
 # Invoke arbitrary skills
 @sepo-agent /skill <skill-name>
 
@@ -51,7 +48,7 @@ Check [Install into an existing repository](.agent/docs/deployment/install-exist
 > Only authorized repository users can trigger Sepo. By default, repositories allow `OWNER`, `MEMBER`, `COLLABORATOR`, and `CONTRIBUTOR` associations; public repositories can tighten this with `AGENT_ACCESS_POLICY`. See [Trigger access policy](.agent/docs/access-policy.md) to customize that behavior.
 
 
-### You can also trigger most built-in routes by adding `agent/*` labels to PRs
+### You can also trigger the same built-in routes by adding `agent/*` labels to PRs
 
 For example, adding the `agent/review` label will run the review agent. The `Agent / Onboarding / Check Setup` workflow creates the built-in trigger labels on first run.
 

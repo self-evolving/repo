@@ -139,9 +139,6 @@ function getAuthorizationRoutesForRoute(route: string): string[] {
   if (!normalizedRoute) {
     return [normalizedRoute];
   }
-  if (normalizedRoute === "release") {
-    return [normalizedRoute, "implement"];
-  }
   return [normalizedRoute];
 }
 

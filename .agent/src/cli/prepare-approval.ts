@@ -26,13 +26,11 @@ const requestId = `req-${randomBytes(3).toString("hex")}`;
 
 const routeLabel = route === "create-action"
   ? "action creation"
-  : route === "release"
-    ? "release preparation"
-    : "implementation";
+  : "implementation";
 const shouldShowProposedIssue =
-  (route === "implement" || route === "create-action" || route === "release") &&
+  (route === "implement" || route === "create-action") &&
   Boolean(issueTitle) &&
-  (targetKind !== "issue" || route === "release");
+  targetKind !== "issue";
 
 // Build the hidden marker with dispatch metadata
 const markerData: Record<string, unknown> = {

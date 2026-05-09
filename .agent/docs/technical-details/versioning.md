@@ -22,21 +22,22 @@ include the leading `v`, for example `v0.1.0`.
 
 Release work is split into two phases:
 
-1. Agent-assisted prepare: `@sepo-agent /release 0.2.0` opens a normal release
-   preparation PR.
+1. Agent-assisted prepare: a maintainer runs `Agent / Release / Prepare` from
+   GitHub Actions. The optional `version` input pins the exact version; when it
+   is omitted, the agent chooses the next version from `.agent/package.json`,
+   recent changes, and this policy, then explains the choice in the PR.
 2. Manual publish: after the PR is merged, a maintainer runs
    `Agent / Release / Publish` from GitHub Actions in `self-evolving/repo`.
 
 Prepare checklist:
 
-- Validate the requested version against the policy above.
+- Validate the release version against the policy above.
 - Update `.agent/package.json`.
 - Update `.agent/package-lock.json` if package metadata changes require it.
 - Update `.agent/sepo-version.json` only while it still carries a mirrored
   `version` field; `.agent/package.json` remains canonical.
 - Update release notes, docs, or checklist content changed by the release.
-- Do not create tags, GitHub Releases, or package publications from the agent
-  preparation route.
+- Do not create tags, GitHub Releases, or package publications during prepare.
 
 Publish checklist:
 

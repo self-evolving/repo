@@ -517,7 +517,6 @@ test("agent router dispatches agent-implement directly for explicit implement re
   // Mutual exclusion with the approval job: runs only when the dispatch
   // decision said an implementation-like route and no approval gate is needed.
   assert.match(implementJob, /needs\.portal\.outputs\.route == 'implement'/);
-  assert.match(implementJob, /needs\.portal\.outputs\.route == 'release'/);
   assert.match(implementJob, /needs\.portal\.outputs\.route == 'create-action'/);
   assert.match(implementJob, /needs\.portal\.outputs\.needs_approval == 'false'/);
 
@@ -528,7 +527,7 @@ test("agent router dispatches agent-implement directly for explicit implement re
   // TS backend rather than inline shell.
   assert.match(
     implementJob,
-    /- name: Create implementation issue[\s\S]*if:\s*needs\.portal\.outputs\.target_kind != 'issue' \|\| needs\.portal\.outputs\.route == 'release'[\s\S]*node \.agent\/dist\/cli\/create-issue\.js/,
+    /- name: Create implementation issue[\s\S]*if:\s*needs\.portal\.outputs\.target_kind != 'issue'[\s\S]*node \.agent\/dist\/cli\/create-issue\.js/,
   );
   assert.match(implementJob, /ROUTE:\s*\$\{\{ needs\.portal\.outputs\.route \}\}/);
   assert.match(
@@ -554,18 +553,26 @@ test("agent router dispatches agent-implement directly for explicit implement re
   assert.doesNotMatch(approveWorkflow, /actions\/workflows\/\$\{WORKFLOW\}\/dispatches/);
 });
 
-test("release route uses the implementation workflow with release prompt", () => {
+test("manual release prepare workflow dispatches implementation with release prompt", () => {
   const dispatchPrompt = readRepoFile(".github/prompts/agent-dispatch.md");
   const releasePrompt = readRepoFile(".github/prompts/agent-release.md");
+  const prepareWorkflow = readRepoFile(".github/workflows/agent-release-prepare.yml");
   const runSource = readRepoFile(".agent/src/run.ts");
   const triageSource = readRepoFile(".agent/src/triage.ts");
   const envelopeSource = readRepoFile(".agent/src/envelope.ts");
 
-  assert.match(dispatchPrompt, /`release`: request approval to prepare a Sepo release PR/);
-  assert.match(triageSource, /"release"/);
+  assert.doesNotMatch(dispatchPrompt, /`release`/);
+  assert.doesNotMatch(triageSource, /"release"/);
   assert.match(envelopeSource, /"release"/);
   assert.match(runSource, /release:\s*"\.github\/prompts\/agent-release\.md"/);
+  assert.match(prepareWorkflow, /^name: Agent \/ Release \/ Prepare$/m);
+  assert.match(prepareWorkflow, /workflow_dispatch:[\s\S]*version:/);
+  assert.match(prepareWorkflow, /if:\s*github\.repository == 'self-evolving\/repo'/);
+  assert.match(prepareWorkflow, /IMPLEMENTATION_ROUTE:\s*release/);
+  assert.match(prepareWorkflow, /IMPLEMENTATION_PROMPT:\s*release/);
+  assert.match(prepareWorkflow, /node \.agent\/dist\/cli\/dispatch-agent-implement\.js/);
   assert.match(releasePrompt, /\.agent\/package\.json/);
+  assert.match(releasePrompt, /choose the next version/);
   assert.match(releasePrompt, /Do not create git tags/);
   assert.match(releasePrompt, /GitHub Releases/);
 });

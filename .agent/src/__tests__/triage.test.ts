@@ -6,7 +6,6 @@ import {
   applyDispatchPolicy,
   extractRequestedRoute,
   extractRequestedRouteDecision,
-  extractReleaseVersionFromRequest,
   buildRequestedRouteDecision,
   resolveRequestedLabel,
 } from "../triage.js";
@@ -110,10 +109,6 @@ test("extractRequestedRoute detects explicit slash routes after the agent mentio
     extractRequestedRoute("@sepo-agent /create-action monitor flaky tests", "@sepo-agent"),
     "create-action",
   );
-  assert.equal(
-    extractRequestedRoute("@sepo-agent /release 0.2.0", "@sepo-agent"),
-    "release",
-  );
 });
 
 test("extractRequestedRouteDecision detects mention-based skill requests", () => {
@@ -129,6 +124,10 @@ test("extractRequestedRouteDecision detects mention-based skill requests", () =>
 test("extractRequestedRoute ignores non-route slash commands and commands without the mention", () => {
   assert.equal(
     extractRequestedRoute("@sepo-agent /approve req-a1b2c3", "@sepo-agent"),
+    "",
+  );
+  assert.equal(
+    extractRequestedRoute("@sepo-agent /release 0.2.0", "@sepo-agent"),
     "",
   );
   assert.equal(
@@ -179,38 +178,6 @@ test("buildRequestedRouteDecision builds deterministic create-action metadata", 
   assert.equal(d.needsApproval, false);
   assert.equal(d.issueTitle, "Create scheduled agent workflow");
   assert.match(d.issueBody, /scheduled GitHub Actions workflow/);
-});
-
-test("buildRequestedRouteDecision builds deterministic release metadata", () => {
-  const d = buildRequestedRouteDecision(
-    "release",
-    "@sepo-agent /release 0.2.0",
-  );
-  assert.equal(d.route, "release");
-  assert.equal(d.needsApproval, false);
-  assert.equal(d.issueTitle, "Prepare Sepo release 0.2.0");
-  assert.match(d.issueBody, /\.agent\/package\.json/);
-  assert.match(d.issueBody, /Do not create git tags or GitHub Releases/);
-});
-
-test("buildRequestedRouteDecision rejects release requests without a SemVer version", () => {
-  const d = buildRequestedRouteDecision("release", "@sepo-agent /release soon");
-  assert.equal(d.route, "unsupported");
-  assert.match(d.summary, /SemVer version/);
-});
-
-test("extractReleaseVersionFromRequest normalizes optional leading v", () => {
-  assert.equal(extractReleaseVersionFromRequest("@sepo-agent /release v1.0.0-rc.1"), "1.0.0-rc.1");
-  assert.equal(extractReleaseVersionFromRequest("@sepo-agent /release beta"), "");
-  assert.equal(extractReleaseVersionFromRequest("@sepo-agent /release 01.0.0"), "");
-  assert.equal(extractReleaseVersionFromRequest("@sepo-agent /release 1.0.0-01"), "");
-  assert.equal(extractReleaseVersionFromRequest("@sepo-agent /release 1.0.0-rc.01"), "");
-});
-
-test("buildRequestedRouteDecision rejects release requests with leading-zero prerelease identifiers", () => {
-  const d = buildRequestedRouteDecision("release", "@sepo-agent /release 1.0.0-rc.01");
-  assert.equal(d.route, "unsupported");
-  assert.match(d.summary, /SemVer version/);
 });
 
 test("buildRequestedRouteDecision supports skill routes", () => {
@@ -290,50 +257,6 @@ test("applyDispatchPolicy skips approval gate for explicit create-action request
   );
   assert.equal(d.route, "create-action");
   assert.equal(d.needsApproval, false);
-});
-
-test("applyDispatchPolicy requires approval for triaged release decisions", () => {
-  const d = applyDispatchPolicy(
-    normalizeDispatch(
-      '{"route":"release","needs_approval":false,"summary":"s","issue_title":"Prepare Sepo release 0.2.0","issue_body":"b"}',
-    ),
-    "issue",
-  );
-  assert.equal(d.route, "release");
-  assert.equal(d.needsApproval, true);
-});
-
-test("applyDispatchPolicy skips approval gate for explicit release requests", () => {
-  const d = applyDispatchPolicy(
-    buildRequestedRouteDecision("release", "@sepo-agent /release 0.2.0"),
-    "issue",
-    "MEMBER",
-    undefined,
-    false,
-    true,
-  );
-  assert.equal(d.route, "release");
-  assert.equal(d.needsApproval, false);
-});
-
-test("applyDispatchPolicy denies explicit release when downstream implement policy is narrower", () => {
-  const d = applyDispatchPolicy(
-    buildRequestedRouteDecision("release", "@sepo-agent /release 0.2.0"),
-    "issue",
-    "CONTRIBUTOR",
-    parseAccessPolicy(
-      JSON.stringify({
-        route_overrides: {
-          implement: ["OWNER", "MEMBER"],
-        },
-      }),
-    ),
-    false,
-    true,
-  );
-  assert.equal(d.route, "unsupported");
-  assert.equal(d.needsApproval, false);
-  assert.match(d.summary, /release requests require implement access/);
 });
 
 test("applyDispatchPolicy denies explicit implement when access policy restricts the route", () => {

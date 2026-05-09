@@ -171,10 +171,6 @@ export function shouldCreateIssueFromApprovalRequest(
 ): boolean {
   const route = String(request?.route || "");
   const hasIssueTitle = String(request?.issue_title || "").trim() !== "";
-  if (route === "release") {
-    return hasIssueTitle;
-  }
-
   return (
     (route === "implement" || route === "create-action") &&
     request?.target_kind !== "issue" &&

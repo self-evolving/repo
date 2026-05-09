@@ -1,0 +1,108 @@
+name: Agent / Release / Prepare
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Optional Sepo version to prepare, for example 0.2.0"
+        required: false
+        default: ""
+
+permissions:
+  actions: write
+  contents: read
+  issues: write
+  id-token: write # required for GitHub Actions OIDC broker exchange
+
+jobs:
+  prepare:
+    if: github.repository == 'self-evolving/repo'
+    runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          token: ${{ github.token }}
+
+      - name: Resolve GitHub auth
+        id: auth
+        uses: ./.github/actions/resolve-github-auth
+        with:
+          app_id: ${{ secrets.AGENT_APP_ID }}
+          app_private_key: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
+          pat: ${{ secrets.AGENT_PAT }}
+          fallback_token: ${{ github.token }}
+
+      - name: Setup agent runtime
+        id: runtime
+        uses: ./.github/actions/setup-agent-runtime
+        with:
+          install_codex: "false"
+          install_claude: "false"
+
+      - name: Prepare release request
+        id: release_request
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          version="$(printf '%s' "${VERSION}" | xargs)"
+          if [ -n "${version}" ]; then
+            version="$(node -e "const { parseReleaseVersion } = require('./.agent/dist/release-version.js'); process.stdout.write(parseReleaseVersion(process.argv[1]).version)" "${version}")"
+            title="Prepare Sepo release ${version}"
+            goal="Prepare the Sepo ${version} release pull request."
+            version_note="Use the explicit requested version ${version}."
+          else
+            title="Prepare Sepo release"
+            goal="Choose and prepare the next Sepo release pull request."
+            version_note="No version was provided. Inspect .agent/package.json, recent changes, and .agent/docs/technical-details/versioning.md; choose the next version and explain the choice in the PR."
+          fi
+          {
+            echo "title<<EOF"
+            echo "${title}"
+            echo "EOF"
+            echo "body<<EOF"
+            echo "## Goal"
+            echo "${goal}"
+            echo
+            echo "## Version"
+            echo "${version_note}"
+            echo
+            echo "## Acceptance criteria"
+            echo "- Validate the release version against .agent/docs/technical-details/versioning.md."
+            echo "- Update .agent/package.json, the canonical Sepo package/runtime version."
+            echo "- Update .agent/package-lock.json if package metadata changes require it."
+            echo "- Update .agent/sepo-version.json only while it still carries a mirrored version field."
+            echo "- Update release docs or checklist entries touched by this release."
+            echo "- Open a pull request."
+            echo "- Do not create git tags or GitHub Releases."
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create release preparation issue
+        id: create_issue
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          ISSUE_BODY: ${{ steps.release_request.outputs.body }}
+          ISSUE_TITLE: ${{ steps.release_request.outputs.title }}
+          ROUTE: release
+          SOURCE_KIND: workflow_dispatch
+          TARGET_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node .agent/dist/cli/create-issue.js
+
+      - name: Dispatch agent-implement
+        env:
+          APPROVAL_COMMENT_URL: ""
+          AUTOMATION_MAX_ROUNDS: "5"
+          AUTOMATION_MODE: disabled
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          IMPLEMENTATION_PROMPT: release
+          IMPLEMENTATION_ROUTE: release
+          ISSUE_NUMBER: ${{ steps.create_issue.outputs.issue_number }}
+          REQUESTED_BY: ${{ github.actor }}
+          REQUEST_TEXT: ${{ steps.release_request.outputs.body }}
+          SESSION_FORK_FROM_THREAD_KEY: ""
+        run: node .agent/dist/cli/dispatch-agent-implement.js
