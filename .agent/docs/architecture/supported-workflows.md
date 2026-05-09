@@ -24,7 +24,8 @@
 
 `agent-orchestrator.yml` is started explicitly through `/orchestrate` or
 `agent/orchestrate`. On start, it inspects the current target state and
-dispatches one built-in action (`implement`, `review`, or `fix-pr`) when useful.
+dispatches one built-in action (`implement`, `review`, `fix-pr`, or
+`agent-self-approve`) when useful.
 That dispatch includes explicit orchestration context; only those orchestrator
 launched action runs hand back to `agent-orchestrator.yml` after post-processing.
 Direct `/implement`, `/review`, and `/fix-pr` runs remain one-shot.
@@ -60,11 +61,13 @@ and only then marks the trusted child marker as `done`, `blocked`, or `failed`.
 Already-dispatched terminal reports are idempotent so reruns do not overwrite
 completed child state.
 
-Because `/orchestrate` can delegate into implementation, review, and fix
-workflows, initial user-launched orchestrate requests validate the requester
-against the delegated route capability set up front. Internal child and parent
-resume dispatches carry `requested_by` for audit and display, but they do not
-thread route authorization inputs through every child workflow.
+Because `/orchestrate` can delegate into implementation, review, fix, and
+enabled self-approval workflows, initial user-launched orchestrate requests
+validate the requester against the delegated route capability set up front.
+`agent-self-approve` is included in that check only when
+`AGENT_ALLOW_SELF_APPROVE=true`. Internal child and parent resume dispatches
+carry `requested_by` for audit and display, but they do not thread route
+authorization inputs through every child workflow.
 
 Implementation dispatches default to the repository default branch. Callers can
 set `base_branch` to stack directly on another branch, or `base_pr` to stack on
@@ -225,8 +228,10 @@ approval. It rereads the current PR head, rechecks trusted current-head review
 provenance, verifies the approval actor differs from the pull request author,
 parses the agent verdict, and approves only when the expected, current, and
 inspected head SHAs match. Non-approval outcomes post a compact PR status
-comment. Review-to-self-approval orchestration and status-comment upsert
-behavior are intentionally separate follow-up workflow slices.
+comment. In orchestrated chains, `SHIP` review synthesis can hand off to
+`agent-self-approve`, and a self-approval `REQUEST_CHANGES` result can hand off
+to `fix-pr` with the approval agent's handoff context. Status-comment upsert
+behavior is intentionally a separate follow-up workflow slice.
 
 ### `agent-approve.yml`
 

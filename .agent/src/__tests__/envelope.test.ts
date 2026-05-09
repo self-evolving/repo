@@ -410,6 +410,7 @@ test("self-approval workflow stays opt-in and read-only until deterministic reso
   const job = workflow.jobs["self-approve"];
   assert.ok(isRecord(job), "self-approval workflow should define self-approve job");
   assert.ok(Array.isArray(job.steps), "self-approval job should define steps");
+  assert.match(workflowText, /permissions:\s*\n\s+actions:\s*read/);
 
   const runStep = job.steps.find(
     (step): step is Record<string, unknown> =>
@@ -423,7 +424,8 @@ test("self-approval workflow stays opt-in and read-only until deterministic reso
   assert.match(workflowText, /AGENT_ALLOW_SELF_APPROVE:\s*\$\{\{\s*vars\.AGENT_ALLOW_SELF_APPROVE \|\| 'false'\s*\}\}/);
   assert.match(workflowText, /node \.agent\/dist\/cli\/prepare-self-approve\.js/);
   assert.match(workflowText, /node \.agent\/dist\/cli\/resolve-self-approve\.js/);
-  assert.doesNotMatch(workflowText, /dispatch-agent-orchestrator\.js/);
+  assert.match(workflowText, /steps\.result\.outputs\.conclusion == 'request_changes'/);
+  assert.match(workflowText, /node \.agent\/dist\/cli\/dispatch-agent-orchestrator\.js/);
 });
 
 test("review synthesis uses a shared reviews directory contract", () => {
@@ -988,6 +990,7 @@ test("execution workflows expose automation handoff inputs", () => {
   const implementWorkflow = readRepoFile(".github/workflows/agent-implement.yml");
   const fixPrWorkflow = readRepoFile(".github/workflows/agent-fix-pr.yml");
   const reviewWorkflow = readRepoFile(".github/workflows/agent-review.yml");
+  const selfApprovalWorkflow = readRepoFile(".github/workflows/agent-self-approve.yml");
   const runSource = readRepoFile(".agent/src/run.ts");
   const handoffSource = readRepoFile(".agent/src/handoff.ts");
   const orchestrateHandoffCli = readRepoFile(".agent/src/cli/orchestrate-handoff.ts");
@@ -1020,7 +1023,7 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestratorWorkflow, /agent:\s*\$\{\{\s*steps\.provider\.outputs\.provider\s*\}\}/);
   assert.match(orchestratorWorkflow, /node \.agent\/dist\/cli\/orchestrate-handoff\.js/);
 
-  for (const workflow of [implementWorkflow, fixPrWorkflow, reviewWorkflow]) {
+  for (const workflow of [implementWorkflow, fixPrWorkflow, reviewWorkflow, selfApprovalWorkflow]) {
     assert.match(workflow, /automation_mode:/);
     assert.match(workflow, /automation_current_round:/);
     assert.match(workflow, /automation_max_rounds:/);
@@ -1056,6 +1059,7 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestrateHandoffCli, /orchestration_enabled:\s*"true"/);
   assert.match(orchestrateHandoffCli, /automationMode === "disabled" \? "heuristics" : automationMode/);
   assert.match(orchestrateHandoffCli, /orchestrator_context:\s*decision\.handoffContext/);
+  assert.match(orchestrateHandoffCli, /agent-self-approve\.yml/);
   assert.match(handoffSource, /Task for fix-pr/);
   assert.match(orchestrateHandoffCli, /collapsePreviousHandoffComments/);
   assert.match(orchestrateHandoffCli, /manual orchestrate start on issue; dispatching implement/);
@@ -1064,10 +1068,12 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(fixPrPrompt, /\$\{ORCHESTRATOR_CONTEXT\}/);
   assert.match(orchestratorPrompt, /"handoff_context"/);
   assert.match(orchestratorPrompt, /ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT/);
+  assert.match(orchestratorPrompt, /ORCHESTRATOR_SELF_APPROVE_ENABLED/);
   assert.match(orchestratorPrompt, /"user_message"/);
   assert.match(orchestratorPrompt, /"clarification_request"/);
   assert.match(orchestratorPrompt, /prior child finished with an open, unmerged PR/);
   assert.match(runSource, /"ORCHESTRATOR_CONTEXT"/);
+  assert.match(runSource, /"ORCHESTRATOR_SELF_APPROVE_ENABLED"/);
   assert.match(orchestratorDoc, /Implement --> Review: success \+ PR created/);
   assert.match(orchestratorDoc, /continues sequential child implementation work/);
   assert.match(orchestratorDoc, /workflow_dispatch/);

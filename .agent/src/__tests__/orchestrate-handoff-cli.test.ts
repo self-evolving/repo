@@ -903,6 +903,89 @@ test("review handoff dispatches fix-pr with visible task context", () => {
   assert.equal(inputs.orchestrator_context, run.outputs.get("handoff_context"));
 });
 
+test("review SHIP dispatches self-approval when enabled", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "128",
+    AUTOMATION_CURRENT_ROUND: "2",
+    AUTOMATION_MAX_ROUNDS: "5",
+    AGENT_ALLOW_SELF_APPROVE: "true",
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "dispatch");
+  assert.equal(run.outputs.get("next_action"), "agent-self-approve");
+  assert.equal(run.outputs.get("target_number"), "128");
+  assert.match(run.outputs.get("reason") || "", /review verdict is SHIP/);
+  assert.match(run.ghLog, /actions\/workflows\/agent-self-approve\.yml\/dispatches/);
+  assert.match(run.ghLog, /\| review \| agent-self-approve \| PR #128 \| 3 \/ 5 \| Dispatched \|/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.pr_number, "128");
+  assert.equal(inputs.orchestration_enabled, "true");
+  assert.equal(inputs.automation_current_round, "3");
+});
+
+test("review SHIP stops when self-approval is disabled", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "128",
+    AUTOMATION_CURRENT_ROUND: "2",
+    AUTOMATION_MAX_ROUNDS: "5",
+    AGENT_ALLOW_SELF_APPROVE: "false",
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.equal(run.outputs.get("reason"), "review verdict is SHIP");
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-self-approve\.yml\/dispatches/);
+  assert.equal(run.dispatchPayload, null);
+});
+
+test("self-approval request changes dispatches fix-pr with context", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "agent-self-approve",
+    SOURCE_CONCLUSION: "request_changes",
+    SOURCE_HANDOFF_CONTEXT: "Update the resolver guard and add regression coverage.",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "128",
+    AUTOMATION_CURRENT_ROUND: "3",
+    AUTOMATION_MAX_ROUNDS: "5",
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "dispatch");
+  assert.equal(run.outputs.get("next_action"), "fix-pr");
+  assert.equal(run.outputs.get("handoff_context"), "Update the resolver guard and add regression coverage.");
+  assert.match(run.ghLog, /actions\/workflows\/agent-fix-pr\.yml\/dispatches/);
+  assert.match(run.ghLog, /Task for fix-pr:/);
+  assert.match(run.ghLog, /Update the resolver guard and add regression coverage\./);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.pr_number, "128");
+  assert.equal(inputs.orchestrator_context, "Update the resolver guard and add regression coverage.");
+  assert.equal(inputs.automation_current_round, "4");
+});
+
+test("self-approval request changes respects the round budget", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "agent-self-approve",
+    SOURCE_CONCLUSION: "request_changes",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "128",
+    AUTOMATION_CURRENT_ROUND: "5",
+    AUTOMATION_MAX_ROUNDS: "5",
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.equal(run.outputs.get("reason"), "automation round budget exhausted");
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-fix-pr\.yml\/dispatches/);
+  assert.equal(run.dispatchPayload, null);
+});
+
 test("manual orchestrate dispatches review for open PR targets without CHANGES_REQUESTED", () => {
   const run = runOrchestrateHandoff({
     TARGET_KIND: "pull_request",
@@ -938,6 +1021,44 @@ test("initial orchestrate checks delegated route capabilities before dispatch", 
   assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/20\/comments/);
   assert.match(run.ghLog, /Source conclusion: `requested`/);
   assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-implement\.yml\/dispatches/);
+});
+
+test("initial orchestrate checks self-approval route access only when enabled", () => {
+  const accessPolicy = JSON.stringify({
+    route_overrides: {
+      "agent-self-approve": ["MEMBER"],
+    },
+  });
+  const disabled = runOrchestrateHandoff({
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "20",
+    AUTHOR_ASSOCIATION: "CONTRIBUTOR",
+    REPOSITORY_PRIVATE: "false",
+    ACCESS_POLICY: accessPolicy,
+    AGENT_ALLOW_SELF_APPROVE: "false",
+  });
+
+  assert.equal(disabled.status, 0, disabled.stderr || disabled.stdout);
+  assert.equal(disabled.outputs.get("decision"), "dispatch");
+  assert.equal(disabled.outputs.get("next_action"), "implement");
+  assert.match(disabled.ghLog, /actions\/workflows\/agent-implement\.yml\/dispatches/);
+
+  const enabled = runOrchestrateHandoff({
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "20",
+    AUTHOR_ASSOCIATION: "CONTRIBUTOR",
+    REPOSITORY_PRIVATE: "false",
+    ACCESS_POLICY: accessPolicy,
+    AGENT_ALLOW_SELF_APPROVE: "true",
+  });
+
+  assert.equal(enabled.status, 0, enabled.stderr || enabled.stdout);
+  assert.equal(enabled.outputs.get("decision"), "stop");
+  assert.equal(
+    enabled.outputs.get("reason"),
+    "orchestrate requests require agent-self-approve access; agent-self-approve currently requires MEMBER access.",
+  );
+  assert.doesNotMatch(enabled.ghLog, /actions\/workflows\/agent-implement\.yml\/dispatches/);
 });
 
 test("agent parent orchestrate stop posts final comment without follow-up", () => {

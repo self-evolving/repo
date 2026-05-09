@@ -19,6 +19,7 @@ export interface InitialOrchestrateCapabilityInput {
   sourceAction: string;
   sourceConclusion: string;
   currentRound: number;
+  allowSelfApprove?: boolean;
   authorAssociation: string;
   accessPolicy: string;
   isPublicRepo: boolean;
@@ -51,7 +52,10 @@ export function initialOrchestrateCapabilityStopReason(input: InitialOrchestrate
   }
 
   const association = isKnownAuthorAssociation(input.authorAssociation) ? input.authorAssociation : "NONE";
-  for (const route of ORCHESTRATE_DELEGATED_ROUTES) {
+  const delegatedRoutes = input.allowSelfApprove
+    ? [...ORCHESTRATE_DELEGATED_ROUTES, "agent-self-approve"]
+    : [...ORCHESTRATE_DELEGATED_ROUTES];
+  for (const route of delegatedRoutes) {
     if (isAssociationAllowedForRoute(policy, route, association, input.isPublicRepo)) {
       continue;
     }

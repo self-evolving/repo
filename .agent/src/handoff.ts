@@ -1,6 +1,6 @@
 import { extractJsonObject } from "./response.js";
 
-export type AgentAction = "implement" | "review" | "fix-pr";
+export type AgentAction = "implement" | "review" | "fix-pr" | "agent-self-approve";
 export type HandoffDecisionKind = "dispatch" | "delegate_issue" | "stop" | "skip";
 export type AutomationMode = "disabled" | "heuristics" | "agent";
 export type HandoffMarkerState = "pending" | "dispatched" | "failed";
@@ -16,6 +16,7 @@ export interface HandoffInput {
   nextTargetNumber?: string;
   currentRound: number;
   maxRounds: number;
+  allowSelfApprove?: boolean;
   plannerDecision?: PlannerDecision | null;
 }
 
@@ -66,10 +67,15 @@ export interface PlannerDecision {
 }
 
 const REVIEW_TO_FIX_PR = new Set(["minor_issues", "needs_rework", "changes_requested"]);
+const SELF_APPROVAL_TO_FIX_PR = new Set(["request_changes", "changes_requested"]);
 const HANDOFF_MARKER_PREFIX = "sepo-agent-handoff";
 const DEFAULT_FIX_PR_HANDOFF_CONTEXT = [
   "Address only the latest unresolved review synthesis action items.",
   "Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by the selected fix.",
+].join(" ");
+const DEFAULT_SELF_APPROVAL_FIX_PR_HANDOFF_CONTEXT = [
+  "Address only the self-approval REQUEST_CHANGES findings.",
+  "Preserve the reviewed-head and deterministic approval safeguards; avoid unrelated changes.",
 ].join(" ");
 const ANY_HANDOFF_MARKER_RE = new RegExp(
   `<!--\\s*${HANDOFF_MARKER_PREFIX}(?:\\s+state:(pending|dispatched|failed))?(?:\\s+created:(\\d+))?\\s+base64:[A-Za-z0-9_-]+\\s*-->`,
@@ -195,11 +201,16 @@ function resolveFixPrHandoffContext(input: HandoffInput): string {
   return String(input.sourceHandoffContext || "").trim() || defaultFixPrHandoffContext();
 }
 
+function resolveSelfApprovalFixPrHandoffContext(input: HandoffInput): string {
+  return String(input.sourceHandoffContext || "").trim() || DEFAULT_SELF_APPROVAL_FIX_PR_HANDOFF_CONTEXT;
+}
+
 function normalizeAgentAction(value: string): AgentAction | null {
   const normalized = normalizeToken(value);
   if (normalized === "implement") return "implement";
   if (normalized === "review") return "review";
   if (normalized === "fix_pr") return "fix-pr";
+  if (normalized === "agent_self_approve" || normalized === "self_approve") return "agent-self-approve";
   return null;
 }
 
@@ -448,6 +459,15 @@ function decideHeuristicHandoff(input: HandoffInput): HandoffDecision {
 
   if (sourceAction === "review") {
     if (conclusion === "ship") {
+      if (input.allowSelfApprove) {
+        return {
+          decision: "dispatch",
+          nextAction: "agent-self-approve",
+          targetNumber: nextTarget,
+          reason: "review verdict is SHIP; dispatching agent-self-approve",
+          nextRound,
+        };
+      }
       return { decision: "stop", reason: "review verdict is SHIP", nextRound };
     }
     if (REVIEW_TO_FIX_PR.has(conclusion)) {
@@ -461,6 +481,20 @@ function decideHeuristicHandoff(input: HandoffInput): HandoffDecision {
       };
     }
     return { decision: "stop", reason: `review verdict ${conclusion} has no handoff`, nextRound };
+  }
+
+  if (sourceAction === "agent_self_approve") {
+    if (SELF_APPROVAL_TO_FIX_PR.has(conclusion)) {
+      return {
+        decision: "dispatch",
+        nextAction: "fix-pr",
+        targetNumber: nextTarget,
+        reason: `agent-self-approve concluded ${conclusion}; dispatching fix-pr`,
+        nextRound,
+        handoffContext: resolveSelfApprovalFixPrHandoffContext(input),
+      };
+    }
+    return { decision: "stop", reason: `agent-self-approve concluded ${conclusion}`, nextRound };
   }
 
   return { decision: "stop", reason: `unsupported source action ${input.sourceAction}`, nextRound };
