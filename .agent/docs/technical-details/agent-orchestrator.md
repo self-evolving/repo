@@ -20,6 +20,7 @@ stateDiagram-v2
     [*] --> Implement: /orchestrate on issue
     [*] --> Review: /orchestrate on PR
     [*] --> FixPR: /orchestrate on PR with CHANGES_REQUESTED
+    [*] --> FixPR: /orchestrate on PR with explicit fix intent
 
     Implement --> Review: success + PR created
     Implement --> Stop: failed or no PR
@@ -69,6 +70,8 @@ In `heuristics` mode, manual starts use deterministic status checks:
 
 - issue target: dispatch `implement`
 - pull request target with `CHANGES_REQUESTED`: dispatch `fix-pr`
+- pull request target with explicit fix intent, such as a merge-conflict or
+  rebase request: dispatch `fix-pr`
 - other open pull request targets: dispatch `review`
 
 In `agent` mode, an issue-level manual start can either dispatch `implement`

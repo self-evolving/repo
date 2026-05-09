@@ -881,6 +881,16 @@ function manualPrChangesRequestedFixPrHandoffContext(): string {
   ].join(" ");
 }
 
+function manualPrExplicitFixHandoffContext(): string {
+  const originalRequest = String(requestText || "").replace(/\s+/g, " ").trim();
+  return [
+    "Address the explicit PR fix request from the manual /orchestrate comment.",
+    originalRequest ? `Original request: ${originalRequest}` : "",
+    "Treat that request as the selected fix-pr task; do not do a review-only pass before attempting the requested fix.",
+    "Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by the requested fix.",
+  ].filter(Boolean).join(" ");
+}
+
 function fallbackFixPrHandoffContext(): string {
   const explicitContext = sourceHandoffContext.trim();
   if (explicitContext) return explicitContext;
@@ -906,6 +916,39 @@ function readPlannerDecision(): ReturnType<typeof parsePlannerDecision> {
 
 function normalizeToken(value: string): string {
   return String(value || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+}
+
+function normalizeIntentText(value: string): string {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[`*_~]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function hasExplicitPrFixIntent(value: string): boolean {
+  const text = normalizeIntentText(value);
+  if (!text) return false;
+
+  const conflictOrMergeabilityPatterns = [
+    /\bmerge\s+conflicts?\b/,
+    /\bconflicts?\s+(?:with|against|to)\s+(?:main|master|trunk)\b/,
+    /\bconflicting\b/,
+    /\bresolve\s+(?:the\s+|this\s+)?(?:merge\s+)?conflicts?\b/,
+    /\brebase\b/,
+    /\bunmergeable\b/,
+    /\bnot\s+mergeable\b/,
+  ];
+  if (conflictOrMergeabilityPatterns.some((pattern) => pattern.test(text))) return true;
+
+  const explicitFixPatterns = [
+    /\bfix[-_\s]?pr\b/,
+    /\bfix\s+(?:this|the)\s+(?:pr|pull request)\b/,
+    /\bfix\s+(?:it|this|that)\b/,
+    /\bfix\b.*\b(?:pr|pull request|branch)\b/,
+    /\b(?:address|resolve|handle)\s+(?:the\s+|this\s+)?(?:pr|pull request|branch|issue|comments?|requested changes?)\b/,
+  ];
+  return explicitFixPatterns.some((pattern) => pattern.test(text));
 }
 
 function readPrStatus(repoSlug: string, prNumber: string): { state: string; reviewDecision: string } | null {
@@ -1261,6 +1304,16 @@ function decideManualOrchestration(): HandoffDecision {
         targetNumber,
         reason: "manual orchestrate start on PR with CHANGES_REQUESTED; dispatching fix-pr",
         nextRound,
+      };
+    }
+    if (hasExplicitPrFixIntent(requestText)) {
+      return {
+        decision: "dispatch",
+        nextAction: "fix-pr",
+        targetNumber,
+        reason: "manual orchestrate start on PR with explicit fix intent; dispatching fix-pr",
+        nextRound,
+        handoffContext: manualPrExplicitFixHandoffContext(),
       };
     }
     return {

@@ -865,6 +865,37 @@ test("manual orchestrate dispatches fix-pr for PR targets with CHANGES_REQUESTED
   assert.equal(inputs.orchestrator_context, run.outputs.get("handoff_context"));
 });
 
+test("manual orchestrate dispatches fix-pr for PR targets with explicit fix intent", () => {
+  for (const requestText of [
+    "@sepo-agent /orchestrate there's a merge conflict to main after merging #162 can you check and fix",
+    "@sepo-agent /orchestrate please fix this PR",
+  ]) {
+    const run = runOrchestrateHandoff({
+      TARGET_KIND: "pull_request",
+      TARGET_NUMBER: "21",
+      FAKE_PR_STATE: "OPEN",
+      FAKE_PR_REVIEW_DECISION: "",
+      REQUEST_TEXT: requestText,
+    });
+
+    assert.equal(run.status, 0, run.stderr || run.stdout);
+    assert.equal(run.outputs.get("decision"), "dispatch");
+    assert.equal(run.outputs.get("next_action"), "fix-pr");
+    assert.equal(
+      run.outputs.get("reason"),
+      "manual orchestrate start on PR with explicit fix intent; dispatching fix-pr",
+    );
+    const escapedRequest = requestText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    assert.match(run.outputs.get("handoff_context") || "", /explicit PR fix request/);
+    assert.match(run.outputs.get("handoff_context") || "", new RegExp(escapedRequest));
+    assert.doesNotMatch(run.outputs.get("handoff_context") || "", /requested-change review comments/);
+    assert.match(run.ghLog, /actions\/workflows\/agent-fix-pr\.yml\/dispatches/);
+    assert.match(run.ghLog, /Task for fix-pr:/);
+    const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+    assert.equal(inputs.orchestrator_context, run.outputs.get("handoff_context"));
+  }
+});
+
 test("review handoff dispatches fix-pr with visible task context", () => {
   const run = runOrchestrateHandoff({
     SOURCE_ACTION: "review",

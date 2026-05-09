@@ -28,7 +28,9 @@ That dispatch includes explicit orchestration context; only those orchestrator
 launched action runs hand back to `agent-orchestrator.yml` after post-processing.
 Direct `/implement`, `/review`, and `/fix-pr` runs remain one-shot.
 Explicit `/orchestrate` starts on pull requests are deterministic in both
-`heuristics` and `agent` modes. Issue-level `/orchestrate` starts in `agent`
+`heuristics` and `agent` modes: PRs with requested changes or explicit fix
+intent, including merge-conflict and rebase requests, dispatch `fix-pr`;
+other open PRs dispatch `review`. Issue-level `/orchestrate` starts in `agent`
 mode may use the planner. For small self-contained issue work, the planner can
 return a normal handoff to `implement` on the current issue. For
 meta-orchestration, the planner can return an internal `delegate_issue` command
