@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "- For example, for openai api keys, agent should be able to read them by default? \n- The downside of using repo secrets is that it will pass a chain of variables? \n\n@sepo-agent /answer",
+  "closedAt": "2026-05-09T00:02:23Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuU73g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Use **repository secrets for API keys**. Use **repository variables / workflow `env` only for non-secret configuration** like `AGENT_DEFAULT_PROVIDER`, `AGENT_RUNS_ON`, or policy JSON.\n\nConcretely for `OPENAI_API_KEY`: yes, Sepo should wire it into agent runs by default when Codex is selected, but it should be treated as a provider credential, not as general prompt context. The current repo already follows that model:\n\n- Quick start says to add `OPENAI_API_KEY` as a repo secret: [README.md](https://github.com/self-evolving/repo/blob/main/README.md#L17-L18)\n- Config docs classify it under repository secrets, not variables: [.agent/docs/customization/configuration-list.md](https://github.com/self-evolving/repo/blob/main/.agent/docs/customization/configuration-list.md#L34-L40)\n- Provider resolution uses the secret to detect Codex in `auto` mode: [.github/actions/resolve-agent-provider/resolve-provider.sh](https://github.com/self-evolving/repo/blob/main/.github/actions/resolve-agent-provider/resolve-provider.sh#L39-L75)\n- The task runner maps the action input into `OPENAI_API_KEY` only for the subprocess that runs the agent/provider: [.agent/src/run.ts](https://github.com/self-evolving/repo/blob/main/.agent/src/run.ts#L254-L262)\n\nThe “chain of variables” is a little annoying, but it is the right GitHub Actions shape:\n\n```yaml\nsecrets.OPENAI_API_KEY\n  -> reusable workflow secret\n  -> composite action input\n  -> INPUT_OPENAI_API_KEY\n  -> OPENAI_API_KEY for the provider process\n```\n\nThat indirection is better than storing the key in repo variables because GitHub masks secrets in logs, controls when secrets are available, and keeps secret values out of normal workflow/config surfaces.\n\nThe important boundary I’d keep is: **do not pass arbitrary repository secrets to the agent by default**. Only pass the small fixed set Sepo needs to operate, such as provider credentials and GitHub auth. If a repository wants the agent to use application-specific secrets, that should be an explicit opt-in per workflow/action, ideally scoped to that route or task.",
+      "createdAt": "2026-05-08T23:54:45Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/176#issuecomment-4410653662",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-08T23:52:57Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 176,
+  "state": "CLOSED",
+  "title": "Should we do environment variable or repo secrets?",
+  "updatedAt": "2026-05-09T00:02:23Z",
+  "url": "https://github.com/self-evolving/repo/issues/176"
+}

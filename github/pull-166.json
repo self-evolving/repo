@@ -304,6 +304,191 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/166#issuecomment-4399742125",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuA3oA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer I think this PR becomes quite complicated compared to the original version /vision. Can you summarize what's changed in this process -- what are the new concerns addressed here? ",
+      "createdAt": "2026-05-08T22:29:21Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/166#issuecomment-4410324896",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuBtBw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes. The PR grew because “agent can approve a PR” is a privileged write path, so the implementation had to defend several trust boundaries.\n\nOriginal `/vision` scope was roughly: add `AGENT_ALLOW_SELF_APPROVE`, a PR-only `agent-self-approve` route/workflow/prompt, structured verdict parsing, deterministic approval after head-SHA checks, and `review -> agent-self-approve -> fix-pr/stop` orchestration.\n\nThe new concerns added during the PR process were:\n\n- **Runtime integration correctness:** `agent-self-approve` had to be registered as a valid runtime route, not just a workflow name.\n- **Write-authority separation:** the self-approval agent now runs with read-approved tools and a read-only GitHub token; only deterministic resolver code gets approval authority. See [`agent-self-approve.yml`](https://github.com/self-evolving/repo/blob/c40d76aacc01f53d51a318364c724b235a8e5586/.github/workflows/agent-self-approve.yml#L114-L171).\n- **Trusted review provenance:** approval now requires the latest trusted review synthesis to be `SHIP` for the same PR head. Rubrics `PASS` alone is not enough. See [`self-approval.ts`](https://github.com/self-evolving/repo/blob/c40d76aacc01f53d51a318364c724b235a8e5586/.agent/src/self-approval.ts#L84-L157).\n- **Reviewed-head correctness:** review now captures the PR head before reviewer lanes run, and synthesis only stamps that head if the PR did not change before posting. See [`agent-review.yml`](https://github.com/self-evolving/repo/blob/c40d76aacc01f53d51a318364c724b235a8e5586/.github/workflows/agent-review.yml#L82-L117) and [`post-comment.ts`](https://github.com/self-evolving/repo/blob/c40d76aacc01f53d51a318364c724b235a8e5586/.agent/src/cli/post-comment.ts#L48-L70).\n- **Inspected-head enforcement:** an `APPROVE` verdict must include `inspected_head_sha`, and expected/current/inspected heads must match. See [`self-approval.ts`](https://github.com/self-evolving/repo/blob/c40d76aacc01f53d51a318364c724b235a8e5586/.agent/src/self-approval.ts#L230-L270).\n- **Requester/delegated-route authorization:** orchestrator capability checks include `agent-self-approve` only when enabled and require route access. See [`orchestrator-capabilities.ts`](https://github.com/self-evolving/repo/blob/c40d76aacc01f53d51a318364c724b235a8e5586/.agent/src/orchestrator-capabilities.ts#L55-L67).\n- **Failure visibility:** metadata/provenance/approval failures now become explicit blocked/failed results, and status/artifacts run under `always()`. See [`resolve-self-approve.ts`](https://github.com/self-evolving/repo/blob/c40d76aacc01f53d51a318364c724b235a8e5586/.agent/src/cli/resolve-self-approve.ts#L71-L155).\n- **Idempotent/trusted status comments:** self-approval status comments use a marker, but updates are limited to comments authored by the authenticated Sepo actor. See [`github.ts`](https://github.com/self-evolving/repo/blob/c40d76aacc01f53d51a318364c724b235a8e5586/.agent/src/github.ts#L241-L262).\n\nSo the short version: the original idea was “add a conservative final approval gate.” The added complexity is mostly about making sure that gate cannot approve the wrong commit, trust stale review output, use the wrong actor token, let the inspecting agent mutate GitHub directly, silently fail, or overwrite untrusted comments.",
+      "createdAt": "2026-05-08T22:31:46Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/166#issuecomment-4410338567",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuD3iQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\nOk let's address the issues one by one\n\n> Trusted review provenance: approval now requires the latest trusted review synthesis to be SHIP for the same PR head. Rubrics PASS alone is not enough. See self-approval.ts.\n\nFor this, I worry the requirement might be too strict. This might lead to infinite loops? Alternatively the approval agent can decide to start a new implementation with slightly adjusted decisions? But this may pose a bigger issue for how to change the architecture... ",
+      "createdAt": "2026-05-08T22:38:10Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/166#issuecomment-4410374025",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuESVw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I think your concern is valid, but I’d separate two cases:\n\n1. **Requirement for actually approving:** keep this strict.\n   A self-approval should only approve when there is a trusted `SHIP` review synthesis for the exact PR head. Otherwise the agent could approve commits that were never reviewed, which is the dangerous failure mode.\n\n2. **What happens when that requirement is not met:** this should not necessarily be terminal forever.\n   If the blocker is just “missing/stale review provenance,” the right next action is probably **refresh review**, not `fix-pr` and not approval.\n\nSo I would not loosen the approval condition, but I would make the orchestration state machine more expressive.\n\nA good model would be:\n\n- `review -> SHIP` plus `AGENT_ALLOW_SELF_APPROVE=true` dispatches `agent-self-approve`.\n- `agent-self-approve -> APPROVE` submits approval only if:\n  - same PR head\n  - trusted latest synthesis is `SHIP`\n  - self-approval inspected the same head\n- `agent-self-approve -> REQUEST_CHANGES` dispatches `fix-pr` with the self-approval rationale.\n- `agent-self-approve -> NEEDS_REVIEW` dispatches `review`, not `fix-pr`.\n- `agent-self-approve -> BLOCKED` stops visibly.\n\nThat avoids making the self-approval agent start implementation directly. I’d avoid giving self-approval a free-form “start new implementation with adjusted decisions” power, because then the final approval gate becomes a second orchestrator with approval authority. That mixes two roles that should stay separate:\n\n- **Orchestrator:** decides next workflow.\n- **Self-approval:** makes the final high-level approve/request-changes/block judgment.\n- **Fix-pr/implement:** changes code.\n\nFor loop risk: yes, `review -> self-approve -> review` can loop if review provenance keeps going stale. The fix is a bounded transition, not weaker approval. For example:\n\n- only dispatch `NEEDS_REVIEW` when provenance is stale/missing, not when the self-approval agent dislikes the PR;\n- obey the existing max-round budget;\n- stop if the same head has already produced the same provenance failure;\n- include a clear stop reason like “review synthesis for current head is missing; rerun review before self-approval.”\n\nSo my revised stance: **strict current-head `SHIP` provenance is right for approval, but stale/missing provenance should be a recoverable orchestration condition, not treated the same as code needing changes.**",
+      "createdAt": "2026-05-08T22:39:30Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/166#issuecomment-4410380887",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuEUGw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\n> Failure visibility: metadata/provenance/approval failures now become explicit blocked/failed results, and status/artifacts run under always(). See resolve-self-approve.ts.\n\nWhat is this? ",
+      "createdAt": "2026-05-08T22:39:35Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/166#issuecomment-4410381339",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuEq0g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "That item is about **making self-approval failures visible on the PR**, instead of only showing up as a failed GitHub Actions log.\n\nConcrete examples:\n\n- Sepo cannot read PR metadata.\n- Sepo cannot read the trusted review synthesis comments.\n- The self-approval agent returns malformed JSON.\n- The PR head changed while self-approval was running.\n- The GitHub API rejects the approval submission.\n- The provenance check says “there is no trusted `SHIP` review for this head.”\n\nWithout explicit handling, the workflow could fail before posting anything useful. Then the PR would just have a failed Actions run, and the user would need to dig through logs to understand why no approval happened.\n\nSo the PR added two behaviors:\n\n1. Convert known failure cases into structured `blocked` or `failed` outcomes with a reason.\n   Example: “latest trusted review synthesis reviewed a different head SHA” or “approval submission failed.”\n\n2. Run status/comment/artifact steps with `always()`.\n   In GitHub Actions, `always()` means “run this step even if an earlier step failed.” That lets Sepo still post a PR-visible status and upload debugging artifacts.\n\nThis is not central to the product idea. It is operational hardening: if self-approval does not approve, the PR should say **why**, and the workflow should preserve enough evidence to debug it.",
+      "createdAt": "2026-05-08T22:40:45Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/166#issuecomment-4410387154",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuHWIQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> That item is about **making self-approval failures visible on the PR**, instead of only showing up as a failed GitHub Actions log.\n> \n> Concrete examples:\n> \n> - Sepo cannot read PR metadata.\n> - Sepo cannot read the trusted review synthesis comments.\n> - The self-approval agent returns malformed JSON.\n> - The PR head changed while self-approval was running.\n> - The GitHub API rejects the approval submission.\n> - The provenance check says “there is no trusted `SHIP` review for this head.”\n> \n> Without explicit handling, the workflow could fail before posting anything useful. Then the PR would just have a failed Actions run, and the user would need to dig through logs to understand why no approval happened.\n> \n> So the PR added two behaviors:\n> \n> 1. Convert known failure cases into structured `blocked` or `failed` outcomes with a reason.\n>    Example: “latest trusted review synthesis reviewed a different head SHA” or “approval submission failed.”\n> \n> 2. Run status/comment/artifact steps with `always()`.\n>    In GitHub Actions, `always()` means “run this step even if an earlier step failed.” That lets Sepo still post a PR-visible status and upload debugging artifacts.\n> \n> This is not central to the product idea. It is operational hardening: if self-approval does not approve, the PR should say **why**, and the workflow should preserve enough evidence to debug it.\n\n@sepo-agent /answer ok yeah that's a good addition. Can you finally summarize the system architecture and then we should jointly decide if we should (1) start a new PR since there's a lot of patches on the initial version or (2) split this change into smaller PR and then having orchestrator to run them individually? ",
+      "createdAt": "2026-05-08T22:49:56Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/166#issuecomment-4410431009",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuHrcw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "System architecture as it stands:\n\n1. **Configuration gate**\n   `AGENT_ALLOW_SELF_APPROVE=false` by default. When disabled, normal `review -> SHIP` still stops as before.\n\n2. **Orchestrator transition**\n   When enabled, `review -> SHIP` dispatches `agent-self-approve` instead of stopping. If self-approval requests changes, it hands back to `fix-pr`; if approved or blocked, it stops.\n\n3. **Review provenance**\n   The review workflow captures the PR head before reviewer lanes run. Review synthesis is trusted for self-approval only if it is `SHIP` and stamped for that exact head.\n\n4. **Self-approval preflight**\n   Before running the approval agent, Sepo checks: enabled flag, PR target, open PR, readable head SHA, trusted current-head review synthesis.\n\n5. **Approval agent**\n   The agent performs high-level judgment: product fit, repo direction, risk, rubrics, maintainability. It runs read-only and returns structured JSON: `APPROVE`, `REQUEST_CHANGES`, or `BLOCKED`, plus reason/context and inspected head SHA.\n\n6. **Deterministic resolver**\n   Only deterministic code can submit the GitHub approval. It rechecks PR state, current head, inspected head, trusted `SHIP` provenance, and parser validity. Approval is submitted only if all checks pass.\n\n7. **Visibility/idempotency**\n   Non-approval outcomes post a visible status. Failures still upload artifacts. Self-approval status comments are marker-upserted, but only for Sepo-authored comments.\n\nOn PR strategy: I would choose **option 2: split into smaller stacked PRs**, not start over from scratch.\n\nStarting a new PR gives a cleaner conversation, but it does not reduce the review surface unless we also split the code. The current patch has become a bundle of several separable concerns, and this is a security/trust-boundary feature, so smaller review units are worth it.\n\nSuggested split:\n\n1. **Review provenance infrastructure**\n   Capture reviewed PR head, stamp synthesis with reviewed head, parse synthesis-head marker, add tests.\n\n2. **Self-approval core**\n   Add `AGENT_ALLOW_SELF_APPROVE`, route/prompt/workflow shell, parser, resolver, PR-only/open/head checks, docs/tests. Keep orchestration disabled or manually dispatchable only for this PR.\n\n3. **Orchestrator integration**\n   Add `review -> agent-self-approve -> fix-pr/stop`, delegated authorization checks, max-round behavior, handoff context.\n\n4. **Operational polish**\n   Status upsert, Sepo-authored marker filtering, `always()` artifacts/status, failure visibility.\n\nI would not ask the orchestrator to independently invent all four. Better: use the current PR as the reference implementation, then have orchestrator/fix-pr produce stacked PRs with explicit ownership for each slice. That preserves the work already done while making review much easier.",
+      "createdAt": "2026-05-08T22:51:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/166#issuecomment-4410436467",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuI9Mw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> System architecture as it stands:\n> \n> 1. **Configuration gate**\n>    `AGENT_ALLOW_SELF_APPROVE=false` by default. When disabled, normal `review -> SHIP` still stops as before.\n> \n> 2. **Orchestrator transition**\n>    When enabled, `review -> SHIP` dispatches `agent-self-approve` instead of stopping. If self-approval requests changes, it hands back to `fix-pr`; if approved or blocked, it stops.\n> \n> 3. **Review provenance**\n>    The review workflow captures the PR head before reviewer lanes run. Review synthesis is trusted for self-approval only if it is `SHIP` and stamped for that exact head.\n> \n> 4. **Self-approval preflight**\n>    Before running the approval agent, Sepo checks: enabled flag, PR target, open PR, readable head SHA, trusted current-head review synthesis.\n> \n> 5. **Approval agent**\n>    The agent performs high-level judgment: product fit, repo direction, risk, rubrics, maintainability. It runs read-only and returns structured JSON: `APPROVE`, `REQUEST_CHANGES`, or `BLOCKED`, plus reason/context and inspected head SHA.\n> \n> 6. **Deterministic resolver**\n>    Only deterministic code can submit the GitHub approval. It rechecks PR state, current head, inspected head, trusted `SHIP` provenance, and parser validity. Approval is submitted only if all checks pass.\n> \n> 7. **Visibility/idempotency**\n>    Non-approval outcomes post a visible status. Failures still upload artifacts. Self-approval status comments are marker-upserted, but only for Sepo-authored comments.\n> \n> On PR strategy: I would choose **option 2: split into smaller stacked PRs**, not start over from scratch.\n> \n> Starting a new PR gives a cleaner conversation, but it does not reduce the review surface unless we also split the code. The current patch has become a bundle of several separable concerns, and this is a security/trust-boundary feature, so smaller review units are worth it.\n> \n> Suggested split:\n> \n> 1. **Review provenance infrastructure**\n>    Capture reviewed PR head, stamp synthesis with reviewed head, parse synthesis-head marker, add tests.\n> \n> 2. **Self-approval core**\n>    Add `AGENT_ALLOW_SELF_APPROVE`, route/prompt/workflow shell, parser, resolver, PR-only/open/head checks, docs/tests. Keep orchestration disabled or manually dispatchable only for this PR.\n> \n> 3. **Orchestrator integration**\n>    Add `review -> agent-self-approve -> fix-pr/stop`, delegated authorization checks, max-round behavior, handoff context.\n> \n> 4. **Operational polish**\n>    Status upsert, Sepo-authored marker filtering, `always()` artifacts/status, failure visibility.\n> \n> I would not ask the orchestrator to independently invent all four. Better: use the current PR as the reference implementation, then have orchestrator/fix-pr produce stacked PRs with explicit ownership for each slice. That preserves the work already done while making review much easier.\n\n@sepo-agent /answer \n\nCan you create a new issue detailing this? ",
+      "createdAt": "2026-05-08T22:56:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/166#issuecomment-4410457395",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuJRSA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Created the issue: https://github.com/self-evolving/repo/issues/170\n\nIt captures the current architecture, recommends using PR #166 as the reference implementation, and proposes a four-PR stacked split: review provenance, self-approval core, orchestrator integration, and operational polish.",
+      "createdAt": "2026-05-08T22:58:15Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/166#issuecomment-4410462536",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-07T16:27:35Z",
@@ -685,6 +870,6 @@
   ],
   "state": "OPEN",
   "title": "Add opt-in agent self-approval gate",
-  "updatedAt": "2026-05-07T19:55:15Z",
+  "updatedAt": "2026-05-08T22:58:15Z",
   "url": "https://github.com/self-evolving/repo/pull/166"
 }

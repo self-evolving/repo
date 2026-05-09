@@ -1,0 +1,99 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "Example: \n\nhttps://github.com/self-evolving/repo/pull/166#issuecomment-4399057105\n\n@sepo-agent /answer ",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuWArw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Confirmed. This is a real orchestration-intent bug, but specifically in initial PR `/orchestrate`, not direct `/fix-pr`.\n\nIn the referenced PR #166 comment, the user said:\n\n`@sepo-agent /orchestrate there's a merge conflict to main after merging #162 can you check and fix`\n\nThe current code ignores that “fix” intent for PR `/orchestrate`. In [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L1232-L1272), initial PR orchestration does this:\n\n- if PR `reviewDecision == CHANGES_REQUESTED`: dispatch `fix-pr`\n- otherwise: dispatch `review`\n\nThat matches the observed handoff on PR #166: `orchestrate -> review`, reason `manual orchestrate start on PR; dispatching review`.\n\nDirect `/fix-pr` is already routed correctly through [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L721-L741), so I would not change that path.\n\nProposed fix:\n\n1. Add a small deterministic helper for initial PR `/orchestrate` routing.\n2. Keep `CHANGES_REQUESTED -> fix-pr`.\n3. Also route to `fix-pr` when the request text explicitly asks to fix the PR, especially merge-conflict language like “merge conflict”, “conflicting”, “rebase”, “resolve conflict”, “fix this PR”.\n4. Optionally extend PR status reading to include mergeability/merge-state, so known conflicting PRs route to `fix-pr` even if the wording is less direct.\n5. Add tests next to the existing cases in [`orchestrate-handoff-cli.test.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/orchestrate-handoff-cli.test.ts#L845-L918):\n   - `/orchestrate ... merge conflict ... fix` dispatches `fix-pr`\n   - plain `/orchestrate` on an open PR without changes requested still dispatches `review`\n   - `CHANGES_REQUESTED` behavior remains unchanged\n   - direct `/fix-pr` remains one-shot and does not become orchestrated unless launched by orchestrator context\n\nI’d implement this as a narrow routing fix, not by sending PR `/orchestrate` through the planner. The documented architecture says explicit PR `/orchestrate` starts are deterministic, and that pattern is still right here; the deterministic rule just needs to account for explicit fix intent in the request text.",
+      "createdAt": "2026-05-09T00:00:45Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/179#issuecomment-4410671279",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuWXhg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate ",
+      "createdAt": "2026-05-09T00:02:43Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/179#issuecomment-4410677126",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuWmOA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | implement | Issue #179 | 2 / 40 | Dispatched |\n\nReason: agent planner selected implement: Issue #179 is a small, self-contained routing bug with a clear proposed fix: initial PR /orchestrate should route explicit fix/merge-conflict requests to fix-pr instead of review.\n\n<!-- sepo-agent-handoff state:dispatched created:1778285039983 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU1ODU1NTE0NTY6b3JjaGVzdHJhdGU6MTc5OmltcGxlbWVudDoxNzk6Mg -->",
+      "createdAt": "2026-05-09T00:04:00Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/179#issuecomment-4410680888",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuXumg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-179/codex-25585587305`\n- Pull request: https://github.com/self-evolving/repo/pull/181\n\nUpdated initial PR /orchestrate routing so explicit fix intent, including merge-conflict, rebase, and \"fix this PR\" requests, dispatches fix-pr with request-specific handoff context while plain PR orchestration still dispatches review. Updated orchestrator docs and verified with npm run build, git diff --check, and the targeted orchestrate-handoff CLI test suite.",
+      "createdAt": "2026-05-09T00:09:15Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/179#issuecomment-4410699418",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-08T23:56:35Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 179,
+  "state": "OPEN",
+  "title": "Bug: the orchestrator tend to do review first despite an explicit ask to fix-pr",
+  "updatedAt": "2026-05-09T00:09:15Z",
+  "url": "https://github.com/self-evolving/repo/issues/179"
+}

@@ -1,0 +1,187 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "body": "## Context\n\nPR #166 implemented the first version of opt-in agent self-approval, but the scope grew during review because PR approval is a privileged write path. The final design now includes route/workflow plumbing, current-head review provenance, read-only approval-agent inspection, deterministic approval submission, orchestration handoff behavior, visible failure handling, and idempotent status comments.\n\nBecause these concerns are separable and security-sensitive, the current PR should be treated as a reference implementation and split into smaller stacked PRs for easier review.\n\n## Current architecture to preserve\n\n1. Configuration gate: AGENT_ALLOW_SELF_APPROVE defaults to false. When disabled, review -> SHIP still stops as before.\n2. Orchestrator transition: when enabled, review -> SHIP dispatches agent-self-approve. APPROVE stops after approval, REQUEST_CHANGES hands back to fix-pr, and BLOCKED/failed stops visibly.\n3. Review provenance: review captures the PR head before reviewer lanes run. Review synthesis is trusted only when it is SHIP and stamped for that exact head.\n4. Self-approval preflight: before running the approval agent, Sepo checks enabled flag, PR target, open state, readable head SHA, and trusted current-head review synthesis.\n5. Approval agent: high-level read-only judgment over product fit, repo direction, risk, rubrics, and maintainability. It returns structured JSON with verdict, reason/context, and inspected head SHA.\n6. Deterministic resolver: only deterministic code can submit GitHub approval. It rechecks PR state, current head, inspected head, trusted SHIP provenance, and parser validity.\n7. Visibility/idempotency: non-approval outcomes post a visible status, failures preserve artifacts, and self-approval status comments are marker-upserted only for Sepo-authored comments.\n\n## Proposed split\n\n### PR 1: Review provenance infrastructure\n\n- Capture reviewed PR head before reviewer lanes start.\n- Stamp review synthesis with the reviewed head only when the PR head has not changed before posting.\n- Add parser/helper for synthesis-head marker.\n- Add focused tests for stable head, changed head, and marker parsing.\n\n### PR 2: Self-approval core\n\n- Add AGENT_ALLOW_SELF_APPROVE configuration and docs.\n- Add agent-self-approve route/prompt/workflow shell.\n- Add structured verdict parser and deterministic resolver.\n- Enforce PR-only/open/head checks.\n- Keep orchestration integration disabled or manual-only in this slice.\n- Add focused parser, stale-head, closed-PR, disabled-flag, and approval-submission tests.\n\n### PR 3: Orchestrator integration\n\n- Add review -> agent-self-approve when review synthesis is SHIP and self-approval is enabled.\n- Add agent-self-approve -> fix-pr when REQUEST_CHANGES is returned.\n- Preserve max-round behavior and handoff context.\n- Extend delegated authorization checks for agent-self-approve only when enabled.\n- Add orchestration/handoff tests.\n\n### PR 4: Operational polish\n\n- Add visible blocked/failed statuses for metadata/provenance/parser/API failures.\n- Ensure status/artifact steps run with always() where appropriate.\n- Add marker-based self-approval status upsert.\n- Filter upsert targets to Sepo-authored comments only.\n- Add regression tests for duplicate/untrusted marker comments and resolver failure visibility.\n\n## Recommendation\n\nDo not restart from a blank implementation. Use PR #166 as the reference implementation, then create stacked PRs with explicit ownership for each slice above. This preserves the working design while making review and rollback boundaries clearer.\n\n## Acceptance criteria\n\n- The split PRs can be reviewed independently in the order above.\n- Each PR has focused tests for its slice.\n- Default behavior remains unchanged unless AGENT_ALLOW_SELF_APPROVE=true.\n- Approval is never submitted unless deterministic checks pass for the current PR head and trusted SHIP review provenance.\n- The final integrated behavior matches the architecture summarized above.",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuJd7Q",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate ",
+      "createdAt": "2026-05-08T22:59:12Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/170#issuecomment-4410465773",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuJ5Yw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is starting a focused child task for this orchestration.\n\n| Child task | Focus | Parent issue | Status |\n| --- | --- | --- | --- |\n| #171 | review-provenance | #170 | Running |\n\nI'll report back here when the child task finishes.\n\n<!-- sepo-sub-orchestrator-child parent:170 stage:review-provenance child:171 -->",
+      "createdAt": "2026-05-08T23:01:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/170#issuecomment-4410472803",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuTWLw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Child task completed.\n\n| Child task | PR | Outcome | Parent round | Next step |\n| --- | --- | --- | --- | --- |\n| #171 | #172 | Ready to ship | 2 / 40 | Resuming parent orchestration |\n\nSummary: review verdict is SHIP\n\n<!-- sepo-sub-orchestrator-report child:171 resume:dispatched -->",
+      "createdAt": "2026-05-08T23:46:12Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/170#issuecomment-4410627631",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuTkxQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is starting a focused child task for this orchestration.\n\n| Child task | Focus | Parent issue | Status |\n| --- | --- | --- | --- |\n| #175 | self-approval-core | #170 | Running |\n\nI'll report back here when the child task finishes.\n\n<!-- sepo-sub-orchestrator-child parent:170 stage:self-approval-core child:175 -->",
+      "createdAt": "2026-05-08T23:47:29Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/170#issuecomment-4410631365",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBucAVw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Child task completed.\n\n| Child task | PR | Outcome | Parent round | Next step |\n| --- | --- | --- | --- | --- |\n| #175 | #180 | Ready to ship | 3 / 40 | Resuming parent orchestration |\n\nSummary: review verdict is SHIP\n\n<!-- sepo-sub-orchestrator-report child:175 resume:dispatched -->",
+      "createdAt": "2026-05-09T00:29:35Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/170#issuecomment-4410769495",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBucUnw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is starting a focused child task for this orchestration.\n\n| Child task | Focus | Parent issue | Status |\n| --- | --- | --- | --- |\n| #183 | orchestrator-integration | #170 | Running |\n\nI'll report back here when the child task finishes.\n\n<!-- sepo-sub-orchestrator-child parent:170 stage:orchestrator-integration child:183 -->",
+      "createdAt": "2026-05-09T00:30:44Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/170#issuecomment-4410774687",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBukTNw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Child task completed.\n\n| Child task | PR | Outcome | Parent round | Next step |\n| --- | --- | --- | --- | --- |\n| #183 | #184 | Ready to ship | 4 / 40 | Resuming parent orchestration |\n\nSummary: review verdict is SHIP\n\n<!-- sepo-sub-orchestrator-report child:183 resume:dispatched -->",
+      "createdAt": "2026-05-09T01:06:15Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/170#issuecomment-4410905399",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBukhMg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is starting a focused child task for this orchestration.\n\n| Child task | Focus | Parent issue | Status |\n| --- | --- | --- | --- |\n| #185 | operational-polish | #170 | Running |\n\nI'll report back here when the child task finishes.\n\n<!-- sepo-sub-orchestrator-child parent:170 stage:operational-polish child:185 -->",
+      "createdAt": "2026-05-09T01:07:25Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/170#issuecomment-4410908978",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBurWOg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Child task completed.\n\n| Child task | PR | Outcome | Parent round | Next step |\n| --- | --- | --- | --- | --- |\n| #185 | #186 | Ready to ship | 5 / 40 | Resuming parent orchestration |\n\nSummary: review verdict is SHIP\n\n<!-- sepo-sub-orchestrator-report child:185 resume:dispatched -->",
+      "createdAt": "2026-05-09T01:50:30Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/170#issuecomment-4411020858",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBureRw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo orchestration stopped after `orchestrate` concluded `done`.\n\n- Source action: `orchestrate`\n- Source conclusion: `done`\n- Target: `issue #170`\n- Round: `5/40`\n- Reason: agent planner stop: All four planned child slices for issue #170 have completed with SHIP: review provenance (#171/#172), self-approval core (#175/#180), orchestrator integration (#183/#184), and operational polish (#185/#186). No further automated child work remains; the stacked PRs are ready for human merge/release handling.\n- Source run ID: `25588129935`\n\nNo follow-up workflow was dispatched. Inspect the source action status comment and workflow logs before retrying or continuing manually.\n\n<!-- sepo-agent-orchestrate-stop -->",
+      "createdAt": "2026-05-09T01:51:20Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/170#issuecomment-4411022919",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-08T22:58:07Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 170,
+  "state": "OPEN",
+  "title": "Split agent self-approval into reviewable stacked PRs",
+  "updatedAt": "2026-05-09T01:51:20Z",
+  "url": "https://github.com/self-evolving/repo/issues/170"
+}

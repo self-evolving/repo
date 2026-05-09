@@ -1,0 +1,128 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n\n- Enable planner-backed initial PR `/orchestrate` starts in `agent` mode while preserving deterministic PR routing in `heuristics` mode.\n- Validate planner-selected PR routes so open PR starts can dispatch only `review` or `fix-pr`, while `answer`, `stop`, and `blocked` produce visible no-dispatch outcomes.\n- Update orchestrator prompt/docs and add focused tests for preflight, policy validation, PR dispatch, closed PR stops, and planner answer handling.\n\n## Verification\n\n- `npm run build`\n- `node --test .agent/dist/__tests__/handoff.test.js`\n- `node --test .agent/dist/__tests__/orchestrator-preflight-cli.test.js`\n- `node --test .agent/dist/__tests__/orchestrate-handoff-cli.test.js`\n- `git diff --check`\n\nCloses #187\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBu52ZA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer is it too complicated?",
+      "createdAt": "2026-05-09T03:18:59Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/188#issuecomment-4411258468",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBu6LpQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "No, I don’t think it’s too complicated. It’s more complex than the regex heuristic in #181, but it puts the complexity in the right place: model intent parsing plus deterministic policy gates.\n\nWhy it feels reasonable:\n\n- `heuristics` mode stays simple and deterministic: PRs still route by status to `review` or `fix-pr`.\n- `agent` mode now does what we wanted: planner-backed PR `/orchestrate` can choose `review`, `fix-pr`, `answer`, `stop`, or `blocked`.\n- The write-capable routes are still gated in code: PR planner starts can only dispatch `review` or `fix-pr`, and closed PRs stop before dispatch.\n- Most of the added size is tests/docs, especially for `fix-pr`, `review`, closed PR stop, and answer-without-dispatch behavior.\n\nKey pieces:\n- Planner PR path: https://github.com/self-evolving/repo/blob/ed0df2bee677790c90a0dbedb9759981faa922ff/.agent/src/cli/orchestrate-handoff.ts#L1310-L1353\n- PR route validation: https://github.com/self-evolving/repo/blob/ed0df2bee677790c90a0dbedb9759981faa922ff/.agent/src/handoff.ts#L558-L573\n- `answer` handling: https://github.com/self-evolving/repo/blob/ed0df2bee677790c90a0dbedb9759981faa922ff/.agent/src/handoff.ts#L487-L497\n- Regression tests: https://github.com/self-evolving/repo/blob/ed0df2bee677790c90a0dbedb9759981faa922ff/.agent/src/__tests__/orchestrate-handoff-cli.test.ts#L868-L960\n\nMy only caution: if `decideAgentHandoff()` keeps accumulating route-specific cases, we should split PR-start validation into a helper. But for this PR, the scope is coherent and the `check` job is passing.",
+      "createdAt": "2026-05-09T03:21:10Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/188#issuecomment-4411263909",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-09T02:17:00Z",
+  "files": [
+    {
+      "path": ".agent/docs/actions/agent-actions.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 17,
+      "deletions": 14,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/agent-orchestrator.md",
+      "additions": 10,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/handoff.test.ts",
+      "additions": 87,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrate-handoff-cli.test.ts",
+      "additions": 95,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrator-preflight-cli.test.ts",
+      "additions": 10,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrate-handoff.ts",
+      "additions": 64,
+      "deletions": 16,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrator-preflight.ts",
+      "additions": 2,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/handoff.ts",
+      "additions": 32,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-orchestrator.md",
+      "additions": 14,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-187/codex-25588734184",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 188,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "OPEN",
+  "title": "Plan PR orchestrate starts in agent mode",
+  "updatedAt": "2026-05-09T03:21:10Z",
+  "url": "https://github.com/self-evolving/repo/pull/188"
+}

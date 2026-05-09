@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "@sepo-agent /answer \n\nWhen the agent runs in orchestrator mode, it will start to gradually increase the scope or the original PR and it might start to incorporate some patch-y fixes rather than a good canonical design. I wonder should we consider adding a \"self reflection step inside the orchestrator route such that it can rethink what happens in the implementation? See examples in: \n\n\nhttps://github.com/self-evolving/repo/pull/158#issuecomment-4410485532\n\nhttps://github.com/self-evolving/repo/pull/166#issuecomment-4410324896",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuN3Qg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes. I would add it, but as a **structured reflection gate**, not just “ask the model to think harder.”\n\nCurrent architecture already has an agent planner in `agent` mode: [`agent-orchestrator.yml`](https://github.com/self-evolving/repo/blob/1dd7fdf1f27aae4944508926533b07dcd6924716/.github/workflows/agent-orchestrator.yml#L145-L186) runs the planner, then [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/1dd7fdf1f27aae4944508926533b07dcd6924716/.agent/src/cli/orchestrate-handoff.ts#L1290-L1317) parses the result and dispatches. The runtime validates route transitions in [`handoff.ts`](https://github.com/self-evolving/repo/blob/1dd7fdf1f27aae4944508926533b07dcd6924716/.agent/src/handoff.ts#L469-L566), but it mostly asks “is this transition allowed?”, not “has the implementation drifted into patchy scope expansion?”\n\nSo the gap is real. In PR #158 and PR #166, the chain kept following concrete review findings, but some findings were actually architecture/scope signals. The orchestrator should pause and ask: “Is the next fix still the canonical implementation path, or are we now expanding the design enough that we should split, stop, or ask a human?”\n\nRecommended approach:\n\n1. Add a **Reflection Checkpoint** section to [`agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/1dd7fdf1f27aae4944508926533b07dcd6924716/.github/prompts/agent-orchestrator.md#L39-L98).\n   It should require the planner to compare the original request, current PR/issue state, latest review findings, and accumulated handoff context.\n\n2. Extend the planner JSON with structured fields like:\n   - `scope_assessment`: `in_scope | bounded_extension | scope_creep | needs_split`\n   - `design_assessment`: `canonical | patchy | uncertain`\n   - `reflection_summary`\n   - `split_recommendation`\n   - `human_decision_required`\n\n3. Update [`parsePlannerDecision`](https://github.com/self-evolving/repo/blob/1dd7fdf1f27aae4944508926533b07dcd6924716/.agent/src/handoff.ts#L206-L263) and `decideAgentHandoff` so reflection is enforceable. For example: if `human_decision_required=true` or `scope_assessment=needs_split`, the runtime should stop/block visibly instead of dispatching another `fix-pr`.\n\n4. Surface the reflection in stop comments from [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/1dd7fdf1f27aae4944508926533b07dcd6924716/.agent/src/cli/orchestrate-handoff.ts#L1324-L1332), so the maintainer sees why the chain paused.\n\n5. Add tests in `handoff.test.ts`, `orchestrate-handoff-cli.test.ts`, and `envelope.test.ts`, plus docs in [`agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/1dd7fdf1f27aae4944508926533b07dcd6924716/.agent/docs/technical-details/agent-orchestrator.md#L149-L169).\n\nI would start with this integrated planner-gate version before adding a second LLM workflow step. It gives us most of the benefit with less runtime cost and less orchestration complexity. A separate `orchestrator-reflect` step can come later if the single planner still rubber-stamps patchy follow-ups.\n\nProposed implementation scope: add the structured checkpoint, enforce stop/block on scope drift, update visible comments/docs/tests. Please confirm whether to proceed with that scoped implementation.",
+      "createdAt": "2026-05-08T23:20:01Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/173#issuecomment-4410537794",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-08T23:16:39Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 173,
+  "state": "OPEN",
+  "title": "Add a self reflection step in orchestrator?",
+  "updatedAt": "2026-05-08T23:20:01Z",
+  "url": "https://github.com/self-evolving/repo/issues/173"
+}

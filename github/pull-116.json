@@ -454,6 +454,43 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4367797378",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuTJEg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \r\n\r\nTwo more questions: \r\n1. can we actually check the latest releases (and the corresponding tagged) version?  -- we will do the release very shortly. \r\n2. And also cane the users run the action themselves manually? ",
+      "createdAt": "2026-05-08T23:45:03Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4410624274",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuTXCA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "1. Yes, we can check GitHub Releases. The current PR does **not** do that yet; it defaults the source to `self-evolving/repo@main`. We can add a resolve step that calls GitHub’s latest-release API or `gh release view` to get the latest published release tag, then use that tag as `source_ref`.\n\nRecommended behavior:\n\n- Default automatic updates to latest stable release, not `main`.\n- Resolve:\n  - `latest_release_tag`, e.g. `v0.2.0`\n  - exact tagged commit SHA\n  - release URL\n- Pass `source_repo@<tag>` into `update-agent`.\n- Put old/new version info in the update PR title/body.\n- Once #74 lands, compare installed version metadata against latest release metadata before doing the full file diff.\n\nGitHub has a dedicated “latest release” endpoint; it returns the latest published non-draft, non-prerelease release. For prereleases, we would need to list releases and choose explicitly. Docs: https://docs.github.com/en/rest/releases/releases#get-the-latest-release\n\n2. Yes, users can run the action manually. PR #116 includes `workflow_dispatch`, so users with permission to run workflows can go to **Actions -> Agent / Update -> Run workflow**. They can also use CLI/API, for example:\n\n```bash\ngh workflow run agent-update.yml --repo OWNER/REPO\n```\n\nor with an explicit version/ref after we add release support:\n\n```bash\ngh workflow run agent-update.yml --repo OWNER/REPO -f source_ref=v0.2.0\n```\n\nCurrent limitation: there is no `@sepo-agent /update` comment trigger in this PR. Manual run means GitHub Actions UI/CLI/API.",
+      "createdAt": "2026-05-08T23:46:16Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4410627848",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-03T07:19:42Z",
@@ -583,6 +620,6 @@
   ],
   "state": "OPEN",
   "title": "Add scheduled Sepo update checks",
-  "updatedAt": "2026-05-04T02:08:47Z",
+  "updatedAt": "2026-05-08T23:46:16Z",
   "url": "https://github.com/self-evolving/repo/pull/116"
 }

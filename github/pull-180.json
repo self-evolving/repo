@@ -1,0 +1,293 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "agent/implement-issue-171/codex-25583716962",
+  "body": "## Summary\n- Add the `agent-self-approve` route, prompt, and manual workflow gated by `AGENT_ALLOW_SELF_APPROVE`.\n- Add self-approval parsing, trusted review provenance checks, PR open/current-head safeguards, and deterministic approval submission.\n- Update docs and focused coverage for parser behavior, disabled/non-PR/closed stops, stale heads, and approval submission safeguards.\n\n## Verification\n- `npm run build`\n- `node --test dist/__tests__/self-approval.test.js dist/__tests__/prepare-self-approve-cli.test.js dist/__tests__/resolve-self-approve-cli.test.js dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nCloses #175\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuWfrA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #180 | 3 / 40 | Dispatched |\n\nReason: implementation succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1778285003922 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU1ODUxMTY5Njk6aW1wbGVtZW50OjE3NTpyZXZpZXc6MTgwOjM -->",
+      "createdAt": "2026-05-09T00:03:24Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/180#issuecomment-4410679212",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuW87A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 91 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Scope matches parent #170 / child #175: manual self-approval core only, with orchestration and upsert polish explicitly left for later. Diff is limited to route plumbing, helpers, tests, prompt, workflow, and docs. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Reuses existing review synthesis and response parsing helpers in [`self-approval.ts`](https://github.com/self-evolving/repo/blob/b8d27c53f9e0610ebba395382909aa6cce15f431/.agent/src/self-approval.ts#L1-L4), shared GitHub helpers in [`github.ts`](https://github.com/self-evolving/repo/blob/b8d27c53f9e0610ebba395382909aa6cce15f431/.agent/src/github.ts#L163-L220), and existing `post-response.js` workflow path. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Workflow inputs are separate fields, not an overloaded string, in [`agent-self-approve.yml`](https://github.com/self-evolving/repo/blob/b8d27c53f9e0610ebba395382909aa6cce15f431/.github/workflows/agent-self-approve.yml#L4-L18). The agent prompt requires a structured JSON verdict with `inspected_head_sha` in [`agent-self-approve.md`](https://github.com/self-evolving/repo/blob/b8d27c53f9e0610ebba395382909aa6cce15f431/.github/prompts/agent-self-approve.md#L43-L51). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Adds `AGENT_ALLOW_SELF_APPROVE` config docs and workflow behavior docs, including the current planned split boundaries, in [`configuration-list.md`](https://github.com/self-evolving/repo/blob/b8d27c53f9e0610ebba395382909aa6cce15f431/.agent/docs/customization/configuration-list.md#L13-L13) and [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/b8d27c53f9e0610ebba395382909aa6cce15f431/.agent/docs/architecture/supported-workflows.md#L214-L228). |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Disabled, non-PR, closed, missing-head, and missing-provenance stops produce `body_file` output in [`prepare-self-approve.ts`](https://github.com/self-evolving/repo/blob/b8d27c53f9e0610ebba395382909aa6cce15f431/.agent/src/cli/prepare-self-approve.ts#L27-L74), then the workflow posts that visible stop comment in [`agent-self-approve.yml`](https://github.com/self-evolving/repo/blob/b8d27c53f9e0610ebba395382909aa6cce15f431/.github/workflows/agent-self-approve.yml#L62-L70). |\n| communication / generic | Keep status comments compact | pass | 6/6 | Self-approval status uses a short status/conclusion table plus reason and optional follow-up context in [`formatSelfApprovalBody`](https://github.com/self-evolving/repo/blob/b8d27c53f9e0610ebba395382909aa6cce15f431/.agent/src/self-approval.ts#L288-L318). |\n| coding_workflow / generic | Make user-facing automation idempotent | partial | 4/7 | Status comments include a stable marker, but this slice always posts through `post-response.js` and does not yet look up/update an existing self-approval status. The docs explicitly defer status-comment upsert to a later slice in [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/b8d27c53f9e0610ebba395382909aa6cce15f431/.agent/docs/architecture/supported-workflows.md#L226-L228). |\n| coding_workflow / generic | Surface stateful failures | partial | 5/7 | Parser, metadata, provenance, stale-head, and approval submission failures become explicit non-approval results in [`resolve-self-approve.ts`](https://github.com/self-evolving/repo/blob/b8d27c53f9e0610ebba395382909aa6cce15f431/.agent/src/cli/resolve-self-approve.ts#L79-L156), with focused tests for stale heads and approval submission safeguards in [`resolve-self-approve-cli.test.ts`](https://github.com/self-evolving/repo/blob/b8d27c53f9e0610ebba395382909aa6cce15f431/.agent/src/__tests__/resolve-self-approve-cli.test.ts#L73-L115). Broader `always()` failure visibility is intentionally deferred. |\n\n## Notes\n\n- The core safety rubrics are satisfied: self-approval is opt-in, PR-only, open-state checked, trusted review-provenance gated, current-head checked before approval, and approval submission is deterministic code rather than direct agent mutation.\n- The main rubric gaps are acknowledged by the staged plan: marker-based status upsert and broader workflow failure visibility are reserved for the operational polish slice.\n- I did not rerun tests; this review is based on the live PR diff, linked issue context, and the PR’s declared verification.\n\n## Findings\n\n- **WARNING:** Self-approval status comments are not idempotent yet. Re-running blocked or non-approval self-approval can create another marker comment instead of updating the existing one. This is explicitly deferred to a later slice, so it is not blocking for this PR’s stated scope, but it remains a rubric gap.\n- **INFO:** Failure visibility is good inside the deterministic resolver, but workflow-level agent/action failures before the resolver step are still outside this slice’s coverage.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-09T00:05:55Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/180#issuecomment-4410686700",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuY1Lg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #180 implements the `self-approval-core` slice from issue #175, which is part of the staged self-approval plan in parent issue #170.\n- The PR adds `AGENT_ALLOW_SELF_APPROVE`, a manual `agent-self-approve` workflow, structured approval-agent parsing, deterministic resolve logic, docs, and focused tests.\n- The intended safety model is opt-in, PR-only, open-state checked, trusted current-head `SHIP` review provenance, read-only agent inspection, and deterministic approval submission.\n- Orchestration integration, status-comment upsert, and broader operational failure handling are explicitly deferred to later slices.\n\n## Review\nThe implementation is well-scoped and most safety invariants are in place, but one approval-authority issue likely makes the feature fail in the default Sepo setup. The PR needs a branch change before it should ship.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Approval may be submitted by the PR author | BLOCKING | The workflow passes the normal Sepo auth token into the resolver for the `APPROVE` write, but Sepo-created PRs are authored by the same app actor in the default setup. GitHub does not allow pull request authors to approve their own PRs, so this path needs a distinct approval actor or a deterministic preflight/block. |\n| Prepare success output contract lacks CLI coverage | WARNING | `prepare-self-approve` CLI tests cover stop paths, but not the success path that emits `should_run=true` and `head_sha`. A regression there would silently skip the approval-agent workflow branch. |\n\n## Progress\n- Rubrics review passed overall and acknowledged status-comment upsert plus broader failure visibility as intentionally deferred follow-up slices.\n- Reviewer verification reported `npm ci`, `npm run build`, and focused `node --test` coverage passing, with only the existing Node engine warning.\n- Existing inline PR comments were empty before mutation.\n- Posted one inline comment on `.github/workflows/agent-self-approve.yml` line 137 for the approval-token issue; no replies or minimizations were made.\n\n## Issue Details\n<details>\n<summary>Approval may be submitted by the PR author</summary>\n\n**Cause:** `.github/workflows/agent-self-approve.yml` passes `steps.auth.outputs.token` to `resolve-self-approve`, and `.agent/src/cli/resolve-self-approve.ts` submits the `APPROVE` review with that token. In the public default setup, Sepo PRs are authored by `app/sepo-agent-app`, and the resolved auth token can be the same app actor. GitHub’s required-review docs state that pull request authors cannot approve their own pull requests: https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/reviewing-changes-in-pull-requests/approving-a-pull-request-with-required-reviews\n\n**Candidate solutions:** Wire a distinct self-approval token/actor, or fetch both PR author and approval-token actor and block before submission when they normalize to the same actor. Add focused tests for same-author blocking and distinct-author approval.\n\n**Comments:** One reviewer marked this blocking; the other reviews did not identify it, but there is no substantive disagreement on the underlying GitHub rule.\n\n</details>\n\n<details>\n<summary>Prepare success output contract lacks CLI coverage</summary>\n\n**Cause:** `.agent/src/__tests__/prepare-self-approve-cli.test.ts` currently covers disabled, non-PR, and closed-PR stop paths only. It does not exercise the successful open-PR plus trusted-current-head-`SHIP` provenance path.\n\n**Candidate solutions:** Add a fake-`gh` integration test that returns an open PR and trusted synthesis comment, then assert `should_run=true`, `head_sha=<expected>`, and an empty/benign stop body output.\n\n**Comments:** Core provenance logic and resolver approval flow have coverage, so this is a workflow contract gap rather than evidence of a current behavior bug.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: Resolve the approval-author/token preflight and add focused CLI coverage; both are concrete branch changes that automation can make.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Add a distinct self-approval approval actor/token path, or block deterministically when the approval actor matches the PR author, with regression coverage.\n- [ ] Add a `prepare-self-approve` CLI success-path test for `should_run=true` and `head_sha` output.",
+      "createdAt": "2026-05-09T00:14:23Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/180#issuecomment-4410717486",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuY4CQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #180 | 4 / 40 | Dispatched |\n\nReason: review verdict is needs_rework; dispatching fix-pr\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Add a distinct self-approval approval actor/token path, or block deterministically when the approval actor matches the PR author, with regression coverage.\n- Add a `prepare-self-approve` CLI success-path test for `should_run=true` and `head_sha` output.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1778285676746 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU1ODU1Njk2NzI6cmV2aWV3OjE4MDpmaXhfcHI6MTgwOjQ -->",
+      "createdAt": "2026-05-09T00:14:37Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/180#issuecomment-4410718217",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuaNaw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-175/codex-25585116969`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Added a deterministic self-approval guard that blocks approval when the resolved approval actor matches the PR author.\n- Wired the guard into prepare and resolve paths, with docs updated for the approval-actor invariant.\n- Added regression coverage for same-author blocking and the `prepare-self-approve` success output contract (`should_run=true`, `head_sha`).\n- Verification: `npm run build`; `node --test dist/__tests__/self-approval.test.js dist/__tests__/prepare-self-approve-cli.test.js dist/__tests__/resolve-self-approve-cli.test.js`; `git diff --check`.",
+      "createdAt": "2026-05-09T00:21:27Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/180#issuecomment-4410740075",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuaP4A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #180 | 5 / 40 | Dispatched |\n\nReason: PR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1778286099868 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU1ODU4NzgyMDM6Zml4X3ByOjE4MDpyZXZpZXc6MTgwOjU -->",
+      "createdAt": "2026-05-09T00:21:40Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/180#issuecomment-4410740704",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuaqiw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 94 | PASS | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Scope matches parent #170 / child #175: this PR adds the manual self-approval core while leaving orchestration integration and status upsert for later slices. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Reuses existing route runtime/action patterns, `post-response.js`, review-synthesis helpers, response JSON extraction, and typed GitHub helpers rather than embedding workflow-only logic. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | [`agent-self-approve.yml`](https://github.com/self-evolving/repo/blob/e7d2724ff8e0615104db9c022a56fd5ebe0b9afc/.github/workflows/agent-self-approve.yml) uses separate `pr_number`, `requested_by`, `request_text`, and `session_bundle_mode` inputs; the prompt requires structured JSON with `verdict`, `reason`, `handoff_context`, and `inspected_head_sha`. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates route/action docs, workflow architecture docs, config docs, key concepts, and rubric prompt route lists for `agent-self-approve` and `AGENT_ALLOW_SELF_APPROVE`. |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | [`prepare-self-approve.ts`](https://github.com/self-evolving/repo/blob/e7d2724ff8e0615104db9c022a56fd5ebe0b9afc/.agent/src/cli/prepare-self-approve.ts) writes a compact stop body for disabled, non-PR, closed, same-author, or missing-provenance states; the workflow posts it through `post-response.js`. |\n| communication / generic | Keep status comments compact | pass | 6/6 | [`formatSelfApprovalBody`](https://github.com/self-evolving/repo/blob/e7d2724ff8e0615104db9c022a56fd5ebe0b9afc/.agent/src/self-approval.ts) produces a short status/conclusion table, reason, optional follow-up context, run URL, and stable marker. |\n| coding_workflow / generic | Surface stateful failures | partial | 6/7 | Resolver failures for metadata reads, actor checks, provenance reads, malformed agent output, stale heads, and approval submission are surfaced in outputs/status bodies. Workflow-level failures before the resolver still lack `always()` style reporting, which #170 reserves for the operational polish slice. |\n| coding_workflow / generic | Make user-facing automation idempotent | partial | 4/7 | Status bodies include `<!-- sepo-agent-self-approval -->`, but this PR still posts through `post-response.js` without marker-based lookup/update. The docs explicitly defer status-comment upsert to a later slice. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation keeps the agent read-only and moves approval decisions into small deterministic helpers/CLIs with focused tests, without adding orchestration behavior or broader failure plumbing in this slice. |\n\n## Notes\n\n- The post-fix head addresses the earlier blocking approval-authority risk: `evaluateSelfApprovalActor` normalizes actor logins and blocks approval when the approval actor matches the PR author, and both prepare/resolve paths call it before approval can proceed.\n- The requested success-path coverage was added: `prepare-self-approve` now has a trusted current-head `SHIP` test asserting `should_run=true` and `head_sha`.\n- Remaining rubric gaps are aligned with the staged plan in #170: idempotent status upsert and broader workflow failure visibility are intentionally PR 4 work, not part of this core slice.\n\n## Findings\n\n- **WARNING:** Self-approval status comments are not idempotent yet. Reruns can create another marked PR comment instead of updating the existing Sepo-authored marker comment. This is documented as deferred operational polish, so it is not blocking for this PR’s scoped slice.\n- **INFO:** Resolver-level failures are visible, but failures before the resolver step, such as provider/runtime/agent step failures, still depend on later workflow polish for guaranteed visible status.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-09T00:23:55Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/180#issuecomment-4410747531",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBub8bw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #180 implements the `self-approval-core` slice from issue #175, under the staged self-approval plan in parent issue #170.\n- It adds the opt-in `AGENT_ALLOW_SELF_APPROVE` gate, manual `agent-self-approve` workflow, route prompt, structured verdict parsing, deterministic resolver logic, docs, and focused tests.\n- The scoped safety model is PR-only, open-state checked, current-head checked, trusted `SHIP` review provenance, read-only agent inspection, and deterministic approval submission.\n- Orchestration integration, marker-based status upsert, and broader workflow failure visibility remain intentionally deferred to later planned slices.\n\n## Review\nThe current head resolves the prior blocking approval-authority issue and the missing prepare success-path coverage. Reviewers agree there are no remaining blocking or warning-level branch changes required for this scoped PR.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable issues | INFO | The remaining notes are deferred operational polish or non-blocking follow-ups, not required branch changes for this self-approval core slice. |\n\n## Progress\n- The previous BLOCKING finding is fixed: same approval actor vs PR author is now normalized and blocked in both prepare and resolve paths.\n- The previous WARNING is fixed: `prepare-self-approve` now has success-path CLI coverage for `should_run=true` and `head_sha`.\n- Rubrics review passes overall and records status-comment upsert plus broader workflow failure visibility as planned later-slice work from #170.\n- Minimized one outdated same-agent inline comment on `.github/workflows/agent-self-approve.yml` line 137; no new inline comments or replies were posted.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: No unresolved required branch changes remain for this PR’s scoped self-approval core work.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change action items.",
+      "createdAt": "2026-05-09T00:29:21Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/180#issuecomment-4410768495",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-09T00:03:08Z",
+  "files": [
+    {
+      "path": ".agent/docs/actions/agent-actions.md",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/request-lifecycle.md",
+      "additions": 2,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/rubrics.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 18,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/key-concepts.md",
+      "additions": 2,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 35,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/prepare-self-approve-cli.test.ts",
+      "additions": 140,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/resolve-self-approve-cli.test.ts",
+      "additions": 146,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/self-approval.test.ts",
+      "additions": 295,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/prepare-self-approve.ts",
+      "additions": 86,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/resolve-self-approve.ts",
+      "additions": 177,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/envelope.ts",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/github.ts",
+      "additions": 71,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/run.ts",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/self-approval.ts",
+      "additions": 365,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/actions/run-agent-task/action.yml",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-self-approve.md",
+      "additions": 52,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/prompts/rubrics-initialization.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/rubrics-update.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-self-approve.yml",
+      "additions": 156,
+      "deletions": 0,
+      "changeType": "ADDED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-175/codex-25585116969",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 180,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM79rsZA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-09T00:13:32Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "b8d27c53f9e0610ebba395382909aa6cce15f431"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Add opt-in self-approval core",
+  "updatedAt": "2026-05-09T00:29:21Z",
+  "url": "https://github.com/self-evolving/repo/pull/180"
+}

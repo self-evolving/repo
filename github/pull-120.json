@@ -276,6 +276,169 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/120#issuecomment-4367007820",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBtVimQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Checked the inline comment.\n\nYes, the same **setup issue lookup shape** already exists in onboarding: [`findExistingOnboardingIssue()`](https://github.com/self-evolving/repo/blob/58180397b0ad979c017033da7cb98ab7a2395ea1/.agent/src/onboarding.ts#L54-L69). PR #120 adds the parallel bootstrap version as [`findExistingSetupIssue()`](https://github.com/self-evolving/repo/blob/58180397b0ad979c017033da7cb98ab7a2395ea1/.agent/src/installation-bootstrap.ts#L102-L117).\n\nThe issue body is already shared via [`setupIssueBody()`](https://github.com/self-evolving/repo/blob/58180397b0ad979c017033da7cb98ab7a2395ea1/.agent/src/onboarding.ts#L102-L123), which bootstrap imports here: [`installation-bootstrap.ts#L5`](https://github.com/self-evolving/repo/blob/58180397b0ad979c017033da7cb98ab7a2395ea1/.agent/src/installation-bootstrap.ts#L5). If we want to reduce duplication further, the concrete cleanup would be extracting the common “find open `Sepo setup check` issue” helper into a shared setup-issue helper. I would treat that as cleanup, not webhook-blocking.\n\nOn the webhook question: **the GitHub App webhook should not compile the target repo or run tests.** It should mostly call GitHub APIs.\n\nThe intended flow is:\n\n1. Webhook receives `installation` / `installation_repositories`.\n2. Webhook verifies signature and mints an installation token.\n3. Webhook checks whether `.github/workflows/agent-onboarding.yml` exists on the repo default branch.\n4. If present, webhook dispatches the existing workflow: [`agent-onboarding.yml`](https://github.com/self-evolving/repo/blob/58180397b0ad979c017033da7cb98ab7a2395ea1/.github/workflows/agent-onboarding.yml#L1-L69).\n5. If missing or dispatch fails, webhook creates/updates the fallback `Sepo setup check` issue via the bootstrap path.\n\nThe dispatched onboarding workflow does run [`setup-agent-runtime`](https://github.com/self-evolving/repo/blob/58180397b0ad979c017033da7cb98ab7a2395ea1/.github/actions/setup-agent-runtime/action.yml#L79-L87), so inside GitHub Actions it runs `npm ci` and `npm run build` for `.agent`. That is just building the Sepo runtime in the target repo’s workflow run. It does **not** install Codex/Claude for onboarding, and it does **not** compile the user’s application code or run an existing CI/test workflow.\n\nWhat onboarding does exactly:\n\n- resolves GitHub auth\n- checks provider readiness without requiring a model provider\n- builds the `.agent` runtime\n- creates missing built-in `agent/*` labels\n- checks memory/rubrics branch refs\n- creates or reuses one `Sepo setup check` issue\n- posts or updates one onboarding status comment\n- includes copyable `/answer`, `/implement`, and `/review` test prompts\n\nThat behavior is in [`runOnboardingCheck()`](https://github.com/self-evolving/repo/blob/58180397b0ad979c017033da7cb98ab7a2395ea1/.agent/src/onboarding.ts#L160-L184).\n\nConcretely, webhook side should do this:\n\n1. Verify `X-Hub-Signature-256`.\n2. Accept `installation.created` and `installation_repositories.added`.\n3. For each repo, get default branch if needed.\n4. Mint an installation token with at least `Contents: read`, `Actions: write`, and `Issues: write`.\n5. Either call the PR’s bootstrap contract, [`installation-bootstrap`](https://github.com/self-evolving/repo/blob/58180397b0ad979c017033da7cb98ab7a2395ea1/.agent/src/installation-bootstrap.ts#L195-L224), from a prebuilt service environment, or implement the same GitHub API calls directly.\n6. Dispatch `agent-onboarding.yml` when available.\n7. On failure, create/update the marked fallback issue/comment instead of retry-spamming.\n8. Do not try to read/create provider secrets. The fallback should tell users to configure `OPENAI_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`.\n\nSo: compile/build can happen once as part of deploying the webhook service, or inside the target repo’s onboarding workflow after dispatch. The webhook request itself should be API-only and dispatch-first.",
+      "createdAt": "2026-05-08T20:28:51Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/120#issuecomment-4409615001",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBta1tw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \r\n\r\nok so\r\n- .agent/dist/cli/onboarding-check.js ( the yaml file) is the same one used for manual onboarding as well? \r\n- how existing `onbaording.ts` is used? \r\n- and what's the purpose of the existing `.agent/src/installation-bootstrap.ts` ? ",
+      "createdAt": "2026-05-08T20:41:51Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/120#issuecomment-4409701815",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBtblRQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, with one naming correction:\n\n- `.github/workflows/agent-onboarding.yml` is the workflow YAML.\n- `.agent/dist/cli/onboarding-check.js` is the built JS CLI that the YAML runs.\n- `.agent/src/onboarding.ts` is the TypeScript source for the onboarding logic.\n\nManual onboarding and automatic onboarding use the same workflow path **when dispatch succeeds**.\n\nManual flow:\n\n1. User goes to GitHub Actions.\n2. Runs `Agent / Onboarding / Check Setup`.\n3. That workflow runs `node .agent/dist/cli/onboarding-check.js`.\n\nThat is here: [`agent-onboarding.yml#L56-L69`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-onboarding.yml#L56-L69).\n\nAutomatic GitHub App install flow:\n\n1. Webhook receives app installation event.\n2. Webhook/bootstrap dispatches `agent-onboarding.yml`.\n3. GitHub Actions runs the same workflow.\n4. The workflow runs the same `onboarding-check.js`.\n\nSo yes: if automatic dispatch works, it lands on the same manual onboarding workflow/CLI.\n\n`onboarding.ts` is the implementation behind `onboarding-check.js`.\n\nThe chain is:\n\n```text\nagent-onboarding.yml\n  -> node .agent/dist/cli/onboarding-check.js\n    -> compiled from .agent/src/cli/onboarding-check.ts\n      -> imports runOnboardingCheck() from .agent/src/onboarding.ts\n```\n\nThe CLI wrapper reads env vars and calls `runOnboardingCheck()`: [`onboarding-check.ts#L7-L34`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/onboarding-check.ts#L7-L34).\n\n`onboarding.ts` does the real work:\n\n- creates/ensures built-in `agent/*` labels\n- checks memory/rubrics branch refs\n- finds or creates the `Sepo setup check` issue\n- posts or updates the onboarding status comment\n- includes the copyable `/answer`, `/implement`, `/review` test prompts\n\nSee [`runOnboardingCheck()`](https://github.com/self-evolving/repo/blob/main/.agent/src/onboarding.ts#L160-L184).\n\n`installation-bootstrap.ts` is **not** the onboarding logic itself. Its purpose is to bridge the external GitHub App webhook into the repo-local onboarding workflow.\n\nIt answers: “The app was just installed; how do we start onboarding in this repo?”\n\nOn the PR #120 branch, it does this:\n\n1. Check whether `.github/workflows/agent-onboarding.yml` exists on the default branch.\n2. If it exists, dispatch that workflow.\n3. If it is missing or dispatch fails, create/update a fallback `Sepo setup check` issue with manual next steps.\n\nThat dispatch/fallback decision is here: [`installation-bootstrap.ts#L195-L224`](https://github.com/self-evolving/repo/blob/agent/implement-issue-119/codex-25286562888/.agent/src/installation-bootstrap.ts#L195-L224).\n\nSo the split is:\n\n- `onboarding.ts`: actual setup check behavior inside the target repo.\n- `agent-onboarding.yml`: manual or dispatched workflow that runs onboarding.\n- `installation-bootstrap.ts`: webhook-side bootstrap helper that tries to start that workflow, or posts fallback guidance if it cannot.",
+      "createdAt": "2026-05-08T20:43:48Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/120#issuecomment-4409713989",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBtdVQg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \r\n\r\n> installation-bootstrap.ts: webhook-side bootstrap helper that tries to start that workflow, or posts fallback guidance if it cannot...\r\n\r\nGiven that, does it mean \"installation-bootstrap.ts\" is not useful at this stage yet (until we build the github action backend)? ",
+      "createdAt": "2026-05-08T20:48:29Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/120#issuecomment-4409742658",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBtdqxQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I’ll answer this narrowly: whether `installation-bootstrap.ts` has standalone value before the hosted GitHub App backend exists, and what it should mean for this PR.Mostly yes: `installation-bootstrap.ts` is **not user-visible by itself** until there is a GitHub App webhook/backend that calls it.\n\nBut it is still useful now as a **repo-side contract/reference implementation** for that future backend:\n\n- It defines the exact bootstrap behavior: check for `agent-onboarding.yml`, dispatch it, or create/update a fallback `Sepo setup check` issue.\n- It gives self-managed App users a concrete CLI they can call from their own webhook service.\n- It makes the hosted backend work smaller later because the expected repo-side behavior is already implemented and tested.\n- It documents the install-time behavior before the hosted backend exists.\n\nSo I’d phrase it this way:\n\n> `installation-bootstrap.ts` is preparatory infrastructure. It does not make automatic install onboarding happen on its own. Automatic onboarding only happens once the GitHub App backend listens for installation events and calls this helper or implements the same logic.\n\nIf we are optimizing for immediate end-user impact only, then PR #62’s manual `Agent / Onboarding / Check Setup` is the useful part today. PR #120’s `installation-bootstrap.ts` is useful for the next stage: hosted/self-managed GitHub App installation automation.",
+      "createdAt": "2026-05-08T20:49:29Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/120#issuecomment-4409748165",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBtnUXA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer but there is a logical issue? \r\n\r\nif the external github app calls for this `installation-bootstrap.ts` -> but this was not by default compiled with js. So this feels weird to me actually. ",
+      "createdAt": "2026-05-08T21:13:45Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/120#issuecomment-4409906268",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBtnz2A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I’ll separate the two execution environments, because that is where the awkwardness is: target repo workflow runtime versus external GitHub App backend runtime.Yes, that is a real logical concern.\n\nThe awkward part is this assumption:\n\n```text\nexternal GitHub App webhook\n  -> run node .agent/dist/cli/installation-bootstrap.js\n```\n\nThat only works if the webhook backend already has a **built copy** of Sepo’s `.agent/dist`. But a newly installed target repo will usually only have source files, and `.agent/dist` is intentionally generated/ignored. The external App should not clone a user repo, run `npm ci`, build `.agent`, and then execute its local CLI just to bootstrap installation.\n\nSo the cleaner architecture is:\n\n- The **hosted GitHub App backend** should implement this bootstrap logic directly, or import it from a separately built/deployed package.\n- The target repo should only receive the dispatched `agent-onboarding.yml` workflow.\n- The target repo’s workflow then builds `.agent/dist` inside GitHub Actions before running `onboarding-check.js`.\n\nSo I’d revise the framing:\n\n> `installation-bootstrap.ts` should not be treated as something the hosted App runs out of the newly installed repository. It is either a reference implementation, a self-managed helper for people who build Sepo into their own webhook service, or code that should move into the hosted backend package.\n\nConcrete implication for this PR:\n\n- If this repo does **not** contain the hosted GitHub App backend, then `installation-bootstrap.ts` is preparatory/reference code, not complete automatic onboarding.\n- The docs should avoid implying the hosted backend literally runs `node .agent/dist/cli/installation-bootstrap.js` from the target repo.\n- Better wording: “the hosted App performs the same dispatch-first, issue-fallback bootstrap behavior.”\n\nI think your instinct is right: as currently described, “external webhook calls this repo-local compiled CLI” is weird unless we explicitly say the webhook service owns a prebuilt copy.",
+      "createdAt": "2026-05-08T21:14:56Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/120#issuecomment-4409914328",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBt1x3Q",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \r\n\r\nok then the question is, what are other parts in this PR that still remains useful (again, we focus on minimally important functions to implement)? or shall we just switch to a github app installation only to add all these functions?",
+      "createdAt": "2026-05-08T21:56:36Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/120#issuecomment-4410143197",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBt2Lvw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes. If the goal is **minimal important functions**, I would not keep most of PR #120 as repo-local runtime code.\n\nThe useful pieces are:\n\n1. **The behavior contract**\n   - On GitHub App installation:\n     - check whether `agent-onboarding.yml` exists\n     - dispatch it if possible\n     - otherwise create/update one `Sepo setup check` issue\n   - This logic is useful, but it belongs in the **GitHub App backend**, not necessarily in this repo as `.agent/src/installation-bootstrap.ts`.\n\n2. **The docs concept**\n   - It is useful to document: “Installing the hosted App may automatically start onboarding; if not, run onboarding manually.”\n   - But docs should not imply the hosted App runs `node .agent/dist/cli/installation-bootstrap.js` from the installed repo.\n\n3. **The onboarding compatibility concern**\n   - If the App backend creates the `Sepo setup check` issue first, the normal onboarding workflow should still reuse/update it cleanly.\n   - That behavior is worth preserving/testing, but it can be tested around `onboarding.ts` and the issue title/markers without requiring a repo-local `installation-bootstrap.ts`.\n\nThe less useful pieces, for minimal scope:\n\n- `.agent/src/installation-bootstrap.ts`\n- `.agent/src/cli/installation-bootstrap.ts`\n- most `installation-bootstrap` CLI tests\n\nThose are only useful if we explicitly support a **self-managed webhook service that has already built this repo’s `.agent/dist`**. That is a valid advanced path, but it is not the minimal hosted-App path.\n\nMy recommendation:\n\n- Keep PR #62/manual onboarding as the baseline.\n- For PR #120, either:\n  - reduce it to docs + maybe small onboarding compatibility tests, or\n  - close/defer it until the GitHub App backend work exists.\n- Put the actual install-event bootstrap in the GitHub App backend:\n  - webhook receives install event\n  - mints installation token\n  - calls GitHub Contents API\n  - calls Actions workflow dispatch API\n  - falls back to Issues API\n\nSo yes, I’d switch the real implementation to **GitHub App installation backend only**, and not add repo-local bootstrap code unless we intentionally want to support self-managed backend operators.",
+      "createdAt": "2026-05-08T21:58:09Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/120#issuecomment-4410149823",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-03T18:09:13Z",
@@ -425,10 +588,32 @@
       "commit": {
         "oid": "7087f9207a306352c34d31ce70fa4f53205e57b6"
       }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM79Ol9J",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\n1. Check my inline comments;\n2. When the github app webhook runs this onboarding, does it need to compile everything and run an existing workflow? \n    - What does the onboarding do exactly? \n3. What should be done on the webhook side, concretely? ",
+      "submittedAt": "2026-05-08T20:26:27Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "58180397b0ad979c017033da7cb98ab7a2395ea1"
+      }
     }
   ],
   "state": "OPEN",
   "title": "Add GitHub App installation bootstrap",
-  "updatedAt": "2026-05-08T00:06:18Z",
+  "updatedAt": "2026-05-08T21:58:09Z",
   "url": "https://github.com/self-evolving/repo/pull/120"
 }

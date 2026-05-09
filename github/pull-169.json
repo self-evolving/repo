@@ -1,0 +1,264 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Prompt reviewer lanes to inspect existing inline review comments and emit optional structured suggestions without mutating GitHub.\n- Allow review synthesis to reply to existing inline comments or mark older same-agent inline comments as outdated, with guardrails against deleting comments, resolving threads, or touching human/other-bot comments.\n- Add prompt-contract assertions covering the new inline comment suggestion and mutation rules.\n\n## Verification\n- `npm run build`\n- `node --test dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nCloses #168\n",
+  "closedAt": "2026-05-08T22:28:04Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBtx9ZQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate ",
+      "createdAt": "2026-05-08T21:43:03Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/169#issuecomment-4410080613",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBtyIdA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | review | PR #169 | 2 / 40 | Dispatched |\n\nReason: manual orchestrate start on PR; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1778276623996 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU1ODEwMDA1MzA6b3JjaGVzdHJhdGU6MTY5OnJldmlldzoxNjk6Mg -->",
+      "createdAt": "2026-05-08T21:43:44Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/169#issuecomment-4410083444",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBtyd4A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 84 | PASS | 6 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | PR keeps behavior in the existing review prompt flow: `.github/prompts/review.md`, `.github/prompts/review-synthesize.md`, and existing prompt-contract tests in `.agent/src/__tests__/envelope.test.ts`. It avoids adding a new CLI or workflow for the prototype. |\n| coding_workflow / generic | Keep docs in sync | partial | 4/7 | The prompt behavior changes user-facing review synthesis behavior, including replying to inline comments and minimizing same-agent inline comments, but no `.agent/docs` page was updated. Existing docs still only describe generated summary/comment cleanup at a high level. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | `review.md` adds an explicit `Inline Comment Suggestions` shape with enumerated actions: `open_new`, `reply_existing`, `mark_existing_outdated`, `no_action`, plus typed fields like `existing_comment_id` and `existing_comment_node_id`. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff touches only the two active review prompts and one prompt-contract test file, matching the linked discussion that said to leave `review-synthesize-finalize.md` alone because it is not used by the current workflow. |\n| coding_workflow / generic | Make user-facing automation idempotent | partial | 5/7 | Synthesis is told to re-fetch inline comments, skip duplicates, and only minimize same-agent comments when certain. This supports reruns, but reply/minimize actions remain prompt-managed without a stable marker or deterministic validation. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation follows the requested “prompt-managed prototype” path from the linked discussion: prompt changes plus contract assertions, without introducing a larger deterministic inline-action system. |\n\n## Notes\n\n- The strongest rubric fit is surgical/simple implementation: the PR directly implements the scoped prototype from issue #168 and the linked PR #163 discussion.\n- The main rubric gap is documentation. Since review synthesis can now reply to inline comments and minimize old same-agent inline comments, the behavior should be reflected in the relevant `.agent/docs` review/workflow documentation.\n- No rubric-specific follow-up is needed for route authorization, merge strategy, preview contracts, or compact status comments; those selected rubrics do not materially apply to this prompt-only PR.\n\n## Findings\n\n- **WARNING:** `keep-docs-in-sync` is only partially satisfied. The PR changes review automation behavior that users may observe on PRs, but it updates only prompts/tests. Add a concise note to the review workflow docs explaining that synthesis may post new inline comments, reply to existing inline comments, and mark older same-agent inline comments as outdated under the stated guardrails.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-08T21:45:06Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/169#issuecomment-4410088928",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBt0fXw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #169 implements the prompt-managed inline review comment prototype requested by issue #168 and the linked PR #163 discussion.\n- Reviewer lanes now inspect existing inline review comments and can emit structured `Inline Comment Suggestions` without mutating GitHub.\n- Review synthesis can use those suggestions to post inline comments, reply to inline comments, or mark older same-agent inline comments as outdated.\n- The change is intentionally prompt-focused, with prompt-contract assertions added in `envelope.test.ts`.\n\n## Review\n- The PR is directionally sound and keeps the implementation small, but several guardrails need tightening before this should merge. There are no BLOCKING issues, but the remaining WARNING items are concrete and safe for a fix-pr pass.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Reply actions lack a same-agent guard | WARNING | `reply_existing` is allowed “when useful” without the same authorship/uncertainty guard used for minimization, even though the linked design constrained inline mutations to same-agent comments. |\n| Prompt-contract tests miss mutation preconditions | WARNING | The test pins mutation shapes and minimization authorship, but not the re-fetch/PR-ownership precondition or a reply authorship guard. |\n| Inline suggestion fields need clearer roles | WARNING | `finding` and `suggested_body` are listed together without defining which is issue context and which is the exact postable comment text. |\n| Docs missing for prompt-managed inline behavior | WARNING | The PR changes user-visible review synthesis behavior, but docs still only describe generated-comment cleanup and `AGENT_COLLAPSE_OLD_REVIEWS`. |\n\n## Progress\n- Inline comments were posted for the reply guard, test coverage gap, and suggestion-field ambiguity.\n- The existing rubrics review already clearly flagged the docs-sync gap, so no duplicate inline docs comment was posted.\n- Reviewers agreed the prompt-only prototype is appropriately scoped.\n- Reviewers differed on `review-synthesize-finalize.md`: one flagged the registered-but-unused prompt as a future guardrail risk, while the linked discussion explicitly left it out because the current workflow does not call it. This synthesis treats that as out of scope for the current fix.\n\n## Issue Details\n<details>\n<summary>Reply actions lack a same-agent guard</summary>\n\n**Cause:** `review-synthesize.md` allows synthesis to reply to an existing inline review comment “when useful,” but the same-agent and human/other-bot restrictions are only stated for minimization.\n\n**Candidate solutions:** Add an explicit rule that `reply_existing` may only target comments from the same authenticated agent account when authorship and PR ownership are certain, or document a narrower intentional exception for replies.\n\n**Comments:** Inline feedback was posted on `.github/prompts/review-synthesize.md:28`.\n\n</details>\n\n<details>\n<summary>Prompt-contract tests miss mutation preconditions</summary>\n\n**Cause:** The test asserts `in_reply_to`, `minimizeComment`, same-agent minimization, no delete/resolve, and Progress reporting, but it does not assert the re-fetch/PR-ownership guard or the reply-authorship guard.\n\n**Candidate solutions:** Add regex assertions for re-fetching existing inline comments, verifying the target still belongs to the PR, and the reply same-agent rule once added.\n\n**Comments:** Inline feedback was posted on `.agent/src/__tests__/envelope.test.ts:377`.\n\n</details>\n\n<details>\n<summary>Inline suggestion fields need clearer roles</summary>\n\n**Cause:** The reviewer prompt lists `finding` and `suggested_body` on the same schema line without explaining how synthesis should use each one.\n\n**Candidate solutions:** Split them into separate bullets with parenthetical roles, or remove one field if `rationale` plus `suggested_body` is enough.\n\n**Comments:** Inline feedback was posted on `.github/prompts/review.md:30`.\n\n</details>\n\n<details>\n<summary>Docs missing for prompt-managed inline behavior</summary>\n\n**Cause:** `.agent/docs` describes generated review-comment cleanup and `AGENT_COLLAPSE_OLD_REVIEWS`, but not the new prompt-managed inline reply/minimization behavior.\n\n**Candidate solutions:** Add a concise note to the relevant review workflow docs explaining when synthesis may post, reply, or minimize inline comments and that this behavior is separate from deterministic generated-comment cleanup.\n\n**Comments:** This was already covered by the posted rubrics review, so it was not duplicated inline.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: The remaining issues are concrete prompt, test, and docs edits that are safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Add a same-agent/authorship uncertainty guard for `reply_existing` in `review-synthesize.md`.\n- [ ] Extend the prompt-contract test to assert re-fetch/PR-ownership checks and the reply guard.\n- [ ] Clarify the distinct roles of `finding` and `suggested_body` in `review.md`.\n- [ ] Update `.agent/docs` to describe the new prompt-managed inline comment behavior.",
+      "createdAt": "2026-05-08T21:52:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/169#issuecomment-4410122079",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBt0yrg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #169 | 3 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis recommends FIX_PR with MINOR_ISSUES; remaining items are concrete prompt, test, and docs edits safe for automation.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Add a same-agent/authorship uncertainty guard for `reply_existing` in `review-synthesize.md`.\n- Extend the prompt-contract test to assert re-fetch/PR-ownership checks and the reply guard.\n- Clarify the distinct roles of `finding` and `suggested_body` in `review.md`.\n- Update `.agent/docs` to describe the new prompt-managed inline comment behavior.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1778277176528 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU1ODEwMjQyNDU6cmV2aWV3OjE2OTpmaXhfcHI6MTY5OjM -->",
+      "createdAt": "2026-05-08T21:52:56Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/169#issuecomment-4410127022",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBt1oXg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-168/codex-25579923999`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Added same-agent/authorship and PR-ownership guards for `reply_existing` in review synthesis.\n- Extended prompt-contract coverage for re-fetch/PR ownership checks, reply guardrails, and inline suggestion field roles.\n- Clarified `finding` vs `suggested_body` in `review.md` and documented prompt-managed inline comment behavior in `.agent/docs`.\n- Verification: `npm run build`; `node --test dist/__tests__/envelope.test.js`; `git diff --check`.",
+      "createdAt": "2026-05-08T21:56:00Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/169#issuecomment-4410140766",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBt14hg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #169 | 4 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr completed successfully and pushed changes addressing the prior review synthesis action items; one follow-up review is warranted to verify the fixes before the chain stops.\n\n<!-- sepo-agent-handoff state:dispatched created:1778277420626 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU1ODEzNjc1NDk6Zml4X3ByOjE2OTpyZXZpZXc6MTY5OjQ -->",
+      "createdAt": "2026-05-08T21:57:01Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/169#issuecomment-4410144902",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBt2NPw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 6 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR extends the existing review prompt and synthesis flow in `.github/prompts/review.md`, `.github/prompts/review-synthesize.md`, and existing prompt-contract tests, instead of adding a separate workflow or new inline-comment subsystem. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | `.agent/docs/architecture/supported-workflows.md` now documents prompt-managed inline comment posting, same-agent replies, same-agent outdated minimization, re-fetch/ownership checks, and its separation from `AGENT_COLLAPSE_OLD_REVIEWS`. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | `review.md` defines an explicit `Inline Comment Suggestions` shape with enumerated `action` values and distinct fields for `path`, `line`, `finding`, `suggested_body`, `existing_comment_id`, `existing_comment_node_id`, and `rationale`. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | `review-synthesize.md` requires re-fetching existing inline comments, skipping duplicates, verifying PR ownership, limiting replies/minimization to same-agent comments, and avoiding action when authorship or supersession is uncertain. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is limited to the active review prompts, one prompt-contract test file, and the relevant workflow documentation. It does not refactor adjacent workflow code. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation matches issue #168’s “simple implementation” request by using prompt-contract updates plus documentation, without adding unnecessary architecture. |\n\n## Notes\n\n- The follow-up fixes resolved the earlier docs-sync and guardrail gaps: current PR diff includes documentation, same-agent reply constraints, PR ownership checks, and prompt-contract assertions.\n- Route authorization, one-shot orchestration defaults, merge strategy, preview contracts, and status-comment formatting were not scored because this PR does not materially change those behaviors.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings remain.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-08T21:58:14Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/169#issuecomment-4410150207",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBt3iMg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #169 implements the prompt-managed inline review comment prototype requested by #168 and the linked PR #163 discussion.\n- Reviewer lanes now inspect existing inline comments and can emit structured advisory `Inline Comment Suggestions` without mutating GitHub.\n- Review synthesis can post new inline comments, reply to same-agent inline comments, or mark older same-agent inline comments as outdated under explicit guardrails.\n- The latest fix-pr pass added the missing same-agent reply guard, prompt-contract assertions, schema clarity, and docs in [supported-workflows.md](https://github.com/self-evolving/repo/blob/62607d772cf52885b4560fd8b209630956840c9f/.agent/docs/architecture/supported-workflows.md).\n\n## Review\nThe current PR head looks ready to ship. Claude noted a few INFO-level prompt clarity observations, but no reviewer found remaining BLOCKING or WARNING issues.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable issues | INFO | The prior review findings have been addressed, and the remaining reviewer notes are optional prototype polish rather than required branch changes. |\n\n## Progress\n- Prior findings around `reply_existing` guardrails, prompt-contract coverage, `finding` vs `suggested_body`, and docs sync are fixed.\n- Rubrics review now scores the PR 100/PASS with no remaining rubric-specific findings.\n- Codex reported `npm ci`, `npm run build`, `node --test dist/__tests__/envelope.test.js`, and `git diff --check main origin/pr-169` passing.\n- No new inline comments were posted in this synthesis because there are no concrete unresolved line-specific issues.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: No unresolved actionable branch work remains for an automated fix-pr pass.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-08T22:03:17Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/169#issuecomment-4410171954",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuA7EQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #169.\n\nno rubric changes\n\nI reviewed PR #169, linked issue #168, and the referenced PR #163 discussion. The only human source was `lolipopshock` with `CONTRIBUTOR` association, and the substantive review/rubric feedback was bot-authored, so it is not enough to learn a new durable team rubric under the trusted-source rules.\n\nThe reusable lessons from the PR are also already covered by active rubrics: simple implementation, structured inputs, idempotent user-facing automation, docs sync, and surgical changes. No rubrics branch files were modified.\n",
+      "createdAt": "2026-05-08T22:29:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/169#issuecomment-4410325777",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-08T21:18:16Z",
+  "files": [
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 9,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 19,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/review-synthesize.md",
+      "additions": 20,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/review.md",
+      "additions": 15,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-168/codex-25579923999",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": "2026-05-08T22:28:04Z",
+  "number": 169,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM79p7-V",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-08T21:51:19Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "7ef2b9b54a178d72fce81fd45669173c0a3b4e46"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM79p7-W",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-08T21:51:19Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "7ef2b9b54a178d72fce81fd45669173c0a3b4e46"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM79p7-Y",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-08T21:51:19Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "7ef2b9b54a178d72fce81fd45669173c0a3b4e46"
+      }
+    }
+  ],
+  "state": "MERGED",
+  "title": "Allow prompt-managed inline review comment actions",
+  "updatedAt": "2026-05-08T22:29:32Z",
+  "url": "https://github.com/self-evolving/repo/pull/169"
+}

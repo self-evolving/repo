@@ -1,0 +1,480 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n\n- Capture the PR head before review lanes run in `agent-review.yml`.\n- Add reviewed-head synthesis marker helpers and stamp review comments only when the PR head still matches.\n- Add focused tests for stable head stamping, changed head omission, and marker parsing.\n- Document reviewed-head provenance in supported workflows.\n\n## Verification\n\n- `npm run build`\n- `node --test dist/__tests__/review-synthesis.test.js dist/__tests__/response.test.js dist/__tests__/post-comment-cli.test.js`\n- YAML parse check for `.github/workflows/agent-review.yml`\n- `git diff --check`\n\nCloses #171\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuLDeA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #172 | 3 / 40 | Dispatched |\n\nReason: implementation succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1778281565735 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU1ODM3MTY5NjI6aW1wbGVtZW50OjE3MTpyZXZpZXc6MTcyOjM -->",
+      "createdAt": "2026-05-08T23:06:06Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/172#issuecomment-4410491768",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuLT9w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 96 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Reuses existing typed helpers: `fetchPrMeta` from `.agent/src/github.ts`, `setOutput` from `.agent/src/output.ts`, and existing `formatReviewComment`/review synthesis marker flow instead of adding workflow-only shell logic. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates `.agent/docs/architecture/supported-workflows.md` to document captured reviewed-head provenance and conditional synthesis marker behavior. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Adds a clear `head_sha` workflow output from `capture-pr-head.ts` and passes it as `REVIEWED_HEAD_SHA`; no overloaded command/string input is introduced. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | `capture-pr-head.ts` fails clearly when the PR target or head SHA is missing. `post-comment.ts` warns and omits the marker when the PR head changed or metadata cannot be read, avoiding misleading provenance. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR scope matches linked issue #171 and parent #170: it implements only PR 1 review provenance infrastructure and avoids self-approval route/orchestrator/status work reserved for later slices. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are limited to review provenance: one capture CLI, review marker helpers, review comment posting, review workflow wiring, focused tests, and one docs section. No unrelated refactor is visible in the diff. |\n| coding_style / generic | Prefer simple implementations | partial | 6/7 | Implementation is straightforward and typed, though it adds a separate `prepare` job that also gates `rubrics-review`; this is reasonable for shared provenance but slightly broad for the rubric-review job, which does not appear to use the captured head. |\n\n## Notes\n\n- Main score drivers are strong: the PR follows the parent/child split, keeps the change narrow, uses existing helpers, adds focused regression tests, and documents the new review provenance behavior.\n- The only minor reservation is workflow breadth: `rubrics-review` now depends on `prepare` even though the reviewed-head output is only consumed by synthesis. This is not blocking, but the smallest cleanup would be to leave `rubrics-review` independent unless ordering is intentional.\n\n## Findings\n\n- **INFO:** `rubrics-review` is made dependent on the new `prepare` job, but the live diff does not show it consuming `needs.prepare.outputs.reviewed_head_sha`. If this dependency is only for ordering, it is acceptable; otherwise, it can be removed to keep the workflow slice tighter.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-08T23:07:20Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/172#issuecomment-4410495991",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuM-0w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #172 implements the first review-provenance slice from parent issue #170 via child issue #171.\n- The PR captures the PR head before review lanes run, stamps synthesis comments with a reviewed-head marker only when the head is unchanged, adds marker parsing helpers, and updates focused tests/docs.\n- This provenance is intended to support later self-approval trust checks without adding the self-approval route, orchestrator transitions, approval submission, or status-upsert polish in this slice.\n- The design is directionally aligned with the split plan, but the current branch leaves the review workflow tests failing and introduces a hard workflow gate around best-effort metadata capture.\n\n## Review\nThe core implementation is well-scoped, but it is not merge-ready. Two blocking issues need a branch update before this PR can ship.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Envelope tests still fail against the new review DAG | BLOCKING | `.agent` `npm test` fails with 499 passing and 2 failing tests because [`envelope.test.ts`](https://github.com/self-evolving/repo/blob/fddd0d7bc65e0fcb281701facd6523cec8d50e50/.agent/src/__tests__/envelope.test.ts#L364) still asserts the old `agent-review.yml` shape. |\n| Head capture now hard-gates review output | BLOCKING | [`prepare`](https://github.com/self-evolving/repo/blob/fddd0d7bc65e0fcb281701facd6523cec8d50e50/.github/workflows/agent-review.yml#L82) now gates review jobs, so a metadata capture failure can skip all review output instead of degrading to a no-marker synthesis. |\n| `rubrics-review` is serialized behind unused prepare output | WARNING | [`rubrics-review`](https://github.com/self-evolving/repo/blob/fddd0d7bc65e0fcb281701facd6523cec8d50e50/.github/workflows/agent-review.yml#L227) depends on `prepare` but does not consume `reviewed_head_sha`, adding coupling and latency without a clear data dependency. |\n\n## Progress\n- Rubrics review passed and confirmed the PR matches the #170/#171 split, reuses typed helpers, and updates docs.\n- Existing PR discussion already noted the `rubrics-review` dependency as INFO; I did not duplicate that as an inline comment.\n- Posted inline comments on [`agent-review.yml#L82`](https://github.com/self-evolving/repo/pull/172#discussion_r3211828318) and [`agent-review.yml#L121`](https://github.com/self-evolving/repo/pull/172#discussion_r3211828320).\n- No existing inline comments were minimized or replied to.\n\n## Issue Details\n<details>\n<summary>Envelope tests still fail against the new review DAG</summary>\n\n**Cause:** The workflow now inserts `prepare`, changes `review` to `needs: [prepare]`, and changes `synthesize` to `needs: [prepare, review]`, but the envelope contract tests still expect the old layout.\n\n**Candidate solutions:** Update the envelope tests to assert the new `prepare` job, the new `needs` graph, and the `REVIEWED_HEAD_SHA` handoff into `post-comment`.\n\n**Comments:** I reproduced the failure with `.agent` `npm test`; GitHub currently reports the `check` job failing too.\n\n</details>\n\n<details>\n<summary>Head capture now hard-gates review output</summary>\n\n**Cause:** `prepare` is required by downstream review jobs, but `capture-pr-head.js` throws on missing PR metadata or failed lookup. That turns best-effort provenance capture into a workflow-wide gate.\n\n**Candidate solutions:** Make head capture degrade to an empty `reviewed_head_sha` while allowing review to continue, for example via a non-blocking capture step/job or a CLI fallback that sets no output marker on recoverable metadata failures.\n\n**Comments:** This matters because #171 says default behavior outside provenance marker infrastructure should stay unchanged.\n\n</details>\n\n<details>\n<summary>`rubrics-review` is serialized behind unused prepare output</summary>\n\n**Cause:** `rubrics-review` has `needs: [prepare]`, but it never reads `needs.prepare.outputs.reviewed_head_sha`.\n\n**Candidate solutions:** Remove that dependency unless there is an intentional ordering reason; if there is, document it in the workflow or tests.\n\n**Comments:** Reviewers disagreed on severity here: one marked it WARNING, while the rubrics review treated it as INFO. It is secondary to the blocking failures.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the failing tests and review-gating regression are concrete branch changes and are safe for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Update the review workflow envelope tests to cover `prepare`, the new `needs` graph, and `REVIEWED_HEAD_SHA`.\n- [ ] Make reviewed-head capture non-blocking so review still runs without a provenance marker when capture fails.",
+      "createdAt": "2026-05-08T23:15:36Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/172#issuecomment-4410523347",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuNBmg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #172 | 4 / 40 | Dispatched |\n\nReason: review verdict is needs_rework; dispatching fix-pr\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Update the review workflow envelope tests to cover `prepare`, the new `needs` graph, and `REVIEWED_HEAD_SHA`.\n- Make reviewed-head capture non-blocking so review still runs without a provenance marker when capture fails.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1778282149155 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU1ODM4Njg5ODY6cmV2aWV3OjE3MjpmaXhfcHI6MTcyOjQ -->",
+      "createdAt": "2026-05-08T23:15:49Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/172#issuecomment-4410524058",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuOCwg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-171/codex-25583716962`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Made reviewed-head capture degrade to an empty output instead of throwing, and marked the workflow capture step best-effort so synthesis can post without the provenance marker when lookup fails.\n- Updated review workflow envelope coverage for `prepare`, the `review`/`synthesize` `needs` graph, and the `REVIEWED_HEAD_SHA` handoff.\n- Added a CLI regression test for metadata lookup failure and synced the workflow docs.\n\n<details><summary>Verification</summary>\n\n- `npm test`\n- `git diff --check`\n\n</details>",
+      "createdAt": "2026-05-08T23:20:48Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/172#issuecomment-4410540738",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuOGrg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #172 | 5 / 40 | Dispatched |\n\nReason: PR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1778282462918 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU1ODQxNjA2MTA6Zml4X3ByOjE3MjpyZXZpZXc6MTcyOjU -->",
+      "createdAt": "2026-05-08T23:21:03Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/172#issuecomment-4410541742",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuOg4w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 99 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Uses existing typed helpers: `fetchPrMeta`, `setOutput`, `formatReviewComment`, and review synthesis marker helpers rather than embedding PR metadata logic in workflow shell. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates `.agent/docs/architecture/supported-workflows.md` to document reviewed-head capture, conditional marker stamping, and no-marker fallback when metadata cannot be read. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Adds a dedicated `head_sha` CLI output and passes it as `REVIEWED_HEAD_SHA`; no overloaded command string or implicit mini-language is introduced. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Current diff makes capture failures visible via `Reviewed head capture skipped`, writes an empty output, and makes posting omit the marker with warnings when the PR head changed or metadata lookup fails. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR matches issue #171’s PR 1 slice from parent #170: review provenance only, with self-approval route, approval submission, orchestrator transitions, and status-upsert polish left out. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is limited to review provenance plumbing, focused tests, workflow wiring, and one docs update. It does not expand into the later self-approval slices from #170. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation is straightforward: one small capture CLI, a hidden marker helper/parser, conditional head comparison before posting, and direct workflow output handoff. |\n\n## Notes\n\n- The current PR head addresses the earlier review blockers: envelope tests now cover the new `prepare` job and `REVIEWED_HEAD_SHA` handoff, and capture now degrades to an empty marker instead of throwing.\n- The implementation stays aligned with the parent plan’s security boundary by adding provenance only, without adding approval authority or route delegation behavior.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** Several selected route/orchestration rubrics are not scored because this PR does not add delegated route authorization, follow-up orchestration policy, merge behavior, preview mode, or self-approval status upserts.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-08T23:22:39Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/172#issuecomment-4410548451",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuQFSg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #172 implements the review-provenance slice from parent issue #170 via child issue #171.\n- It captures a PR head before review lanes run, conditionally stamps synthesis comments with that reviewed head, and adds marker helpers, tests, and workflow docs.\n- The earlier blocking review issues were addressed by the fix-pr pass: envelope tests now cover the new workflow shape, and head capture now degrades without throwing.\n- The remaining concerns are workflow DAG coupling: `review` and `rubrics-review` wait on `prepare` even though only `synthesize` consumes the captured head output.\n\n## Review\nThe PR is substantially improved and the current check is passing. I see no remaining blockers, but there are two concrete workflow coupling issues worth fixing before merge.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| `review` waits on unused `prepare` output | WARNING | [`review` depends on `prepare`](https://github.com/self-evolving/repo/blob/31a15cb475ee5da4ab9dd7f0744ecf0251b7b88e/.github/workflows/agent-review.yml#L122), but it does not consume `reviewed_head_sha`; only `synthesize` does. A job-level `prepare` failure can still skip reviewer lanes. |\n| `rubrics-review` waits on unused `prepare` output | WARNING | [`rubrics-review` depends on `prepare`](https://github.com/self-evolving/repo/blob/31a15cb475ee5da4ab9dd7f0744ecf0251b7b88e/.github/workflows/agent-review.yml#L228), but it does not consume the captured head. This serializes an independent advisory lane and can skip it on a `prepare` job-level failure. |\n| Optional coverage polish remains | INFO | One reviewer noted optional success-path coverage for `capture-pr-head` and the `post-comment.ts` metadata-fetch catch branch. These are not required for the current slice. |\n\n## Progress\n- Prior blockers are fixed: current reviewer output reports `.agent` `npm test` passing with 503 tests and GitHub `check` is passing.\n- Rubrics review now scores 99/PASS and confirms the PR stays within the #170/#171 provenance-only slice.\n- Minimized older same-agent inline comments [r3211828318](https://github.com/self-evolving/repo/pull/172#discussion_r3211828318) and [r3211828320](https://github.com/self-evolving/repo/pull/172#discussion_r3211828320) as outdated.\n- Posted current inline comments for [`review` dependency](https://github.com/self-evolving/repo/pull/172#discussion_r3211858709) and [`rubrics-review` dependency](https://github.com/self-evolving/repo/pull/172#discussion_r3211858710).\n- No inline replies were added.\n\n## Issue Details\n<details>\n<summary>`review` waits on unused `prepare` output</summary>\n\n**Cause:** `review` has `needs: [prepare]`, but it never reads `needs.prepare.outputs.reviewed_head_sha`.\n\n**Candidate solutions:** Remove `needs: [prepare]` from `review`, or add an explicit `if: ${{ !cancelled() }}` if the ordering is intentional and should survive prepare failures.\n\n**Comments:** Reviewers disagreed on severity: one reviewer treated the remaining coupling as a warning, while the newer Codex review only called out `rubrics-review` as INFO. The reliability concern is still concrete because job-level `prepare` failures are separate from the now-fixed capture-step failure path.\n\n</details>\n\n<details>\n<summary>`rubrics-review` waits on unused `prepare` output</summary>\n\n**Cause:** `rubrics-review` has `needs: [prepare]`, but it does not consume `reviewed_head_sha`.\n\n**Candidate solutions:** Remove the dependency so the advisory rubrics lane can run in parallel as before.\n\n**Comments:** This is not blocking, but it is a small, safe workflow cleanup that restores the previous independence of the rubrics lane.\n\n</details>\n\n<details>\n<summary>Optional coverage polish remains</summary>\n\n**Cause:** Current tests cover the failure path for `capture-pr-head` and the main marker paths, but not every low-risk branch.\n\n**Candidate solutions:** Add a happy-path `capture-pr-head` CLI test and a `post-comment.ts` fetch-failure-at-post-time test in a later cleanup if desired.\n\n**Comments:** These are optional INFO notes and should not drive automation unless maintainers want extra coverage.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the remaining workflow DAG changes are concrete, small, and safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Remove or explicitly justify `review` depending on `prepare` despite not consuming `reviewed_head_sha`.\n- [ ] Remove `rubrics-review` depending on `prepare` so the advisory lane remains independent.",
+      "createdAt": "2026-05-08T23:29:14Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/172#issuecomment-4410574154",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuQIdQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #172 | 6 / 40 | Dispatched |\n\nReason: review verdict is minor_issues; dispatching fix-pr\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Remove or explicitly justify `review` depending on `prepare` despite not consuming `reviewed_head_sha`.\n- Remove `rubrics-review` depending on `prepare` so the advisory lane remains independent.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1778282967395 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU1ODQzMTQ3MzM6cmV2aWV3OjE3MjpmaXhfcHI6MTcyOjY -->",
+      "createdAt": "2026-05-08T23:29:27Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/172#issuecomment-4410574965",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuQu8A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-171/codex-25583716962`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Kept `review`'s ordering-only `prepare` dependency, explicitly documented it, and added `if: ${{ !cancelled() }}` so reviewer lanes still run without provenance if `prepare` fails.\n- Removed `rubrics-review`'s `prepare` dependency so the advisory lane stays independent.\n- Updated envelope tests and workflow docs for the revised DAG/fallback behavior.\n\n<details><summary>Verification</summary>\n\n- `npm test` (passed after rerun with escalated temp-file access; initial sandbox run hit `GITHUB_OUTPUT` EPERM)\n- `git diff --check`\n\n</details>",
+      "createdAt": "2026-05-08T23:32:29Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/172#issuecomment-4410584816",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuQxnA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #172 | 7 / 40 | Dispatched |\n\nReason: PR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1778283162293 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU1ODQ1NzAwNTE6Zml4X3ByOjE3MjpyZXZpZXc6MTcyOjc -->",
+      "createdAt": "2026-05-08T23:32:42Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/172#issuecomment-4410585500",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuRApA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR reuses existing typed helpers and paths: `fetchPrMeta` in `.agent/src/cli/capture-pr-head.ts` and `.agent/src/cli/post-comment.ts`, `setOutput`, `formatReviewComment`, and the existing review synthesis marker module. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | `.agent/docs/architecture/supported-workflows.md` documents reviewed-head capture, conditional hidden marker stamping, and the no-marker fallback when metadata cannot be read. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Adds a dedicated `head_sha` output from `capture-pr-head.ts` and passes it through `REVIEWED_HEAD_SHA`; no overloaded command string or implicit multi-meaning input is introduced. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Capture failures warn with `Reviewed head capture skipped` and emit an empty output. Posting warns and omits the marker when the PR head changed or PR metadata cannot be read. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The diff matches issue #171’s PR 1 slice from parent #170: review provenance only, excluding self-approval route, resolver, orchestrator transitions, approval submission, and status-upsert polish. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are limited to review provenance plumbing, the review workflow DAG, focused tests, and one workflow doc update. The PR does not expand into later #170 self-approval slices. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation is direct: one small capture CLI, a hidden marker helper/parser, conditional current-head comparison before posting, and focused workflow output handoff. |\n\n## Notes\n\n- The strongest rubric drivers are the tight alignment with #170/#171, the use of existing `.agent/src` helpers instead of workflow shell logic, and the explicit fallback behavior for unavailable or stale PR metadata.\n- The latest diff also addresses prior workflow coupling concerns: `rubrics-review` is no longer dependent on `prepare`, and `review` keeps its ordering-only dependency with `if: ${{ !cancelled() }}` plus a comment documenting the fallback intent.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** Several selected rubrics are not scored because this PR does not add delegated route authorization, preview/dry-run behavior, merge flow, onboarding/status upserts, or follow-up orchestration policy.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-08T23:33:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/172#issuecomment-4410589348",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuR8bQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #172 implements the review-provenance slice from parent issue #170 via child issue #171.\n- It captures the PR head before review lanes run, stamps review synthesis only when the head is still unchanged, and adds parser/helper coverage plus workflow documentation.\n- Earlier review blockers around failing envelope tests, hard-gated review output, and `rubrics-review` DAG coupling have been addressed on the latest head.\n- The remaining issue is a small parser maintenance risk before later self-approval work depends on this marker as trust input.\n\n## Review\nThe current head is close and checks are passing, but one concrete branch change remains. Claude flagged the marker parser inconsistency as a WARNING, while Codex and rubrics review found no current blocking issues.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Marker parser duplicates the trusted prefix string | WARNING | `extractReviewSynthesisHeadSha` hardcodes `sepo-agent-review-synthesis-head` instead of deriving from `REVIEW_SYNTHESIS_HEAD_MARKER_PREFIX`, so future prefix changes could silently break provenance extraction. |\n\n## Progress\n- Prior blockers are fixed: envelope tests cover the new DAG, capture degrades to empty output, and the latest PR check is passing.\n- `rubrics-review` is independent again, and `review` keeps its ordering-only `prepare` dependency with `if: ${{ !cancelled() }}` plus documentation.\n- Posted a new inline comment on `.agent/src/review-synthesis.ts` at line 16: https://github.com/self-evolving/repo/pull/172#discussion_r3211881145\n- Marked older same-agent inline comments `r3211858709` and `r3211858710` as outdated.\n- No inline replies were added.\n\n## Issue Details\n<details>\n<summary>Marker parser duplicates the trusted prefix string</summary>\n\n**Cause:** `buildReviewSynthesisHeadMarker` uses `REVIEW_SYNTHESIS_HEAD_MARKER_PREFIX`, but `extractReviewSynthesisHeadSha` repeats the literal prefix inside its regex.\n\n**Candidate solutions:** Build the regex from `REVIEW_SYNTHESIS_HEAD_MARKER_PREFIX`, escaping the constant if needed before interpolation.\n\n**Comments:** This is not a current runtime failure, but PR #170’s next slices will rely on this parser for a trust-sensitive current-head review provenance check.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the remaining concern is a concrete, low-risk code change suitable for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Derive `extractReviewSynthesisHeadSha`’s marker regex from `REVIEW_SYNTHESIS_HEAD_MARKER_PREFIX` instead of duplicating the prefix literal.",
+      "createdAt": "2026-05-08T23:38:59Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/172#issuecomment-4410604653",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuR-jQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #172 | 8 / 40 | Dispatched |\n\nReason: review verdict is minor_issues; dispatching fix-pr\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Derive `extractReviewSynthesisHeadSha`’s marker regex from `REVIEW_SYNTHESIS_HEAD_MARKER_PREFIX` instead of duplicating the prefix literal.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1778283551733 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU1ODQ2NjkwMTE6cmV2aWV3OjE3MjpmaXhfcHI6MTcyOjg -->",
+      "createdAt": "2026-05-08T23:39:12Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/172#issuecomment-4410605197",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuSZYQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-171/codex-25583716962`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Derived the reviewed-head marker parser regex from `REVIEW_SYNTHESIS_HEAD_MARKER_PREFIX` instead of duplicating the marker literal.\n- Kept the change scoped to the review synthesis helper.\n\n<details><summary>Verification</summary>\n\n- `npm run build && node --test dist/__tests__/review-synthesis.test.js`\n- `git diff --check`\n\n</details>",
+      "createdAt": "2026-05-08T23:41:15Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/172#issuecomment-4410612065",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuScxA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #172 | 9 / 40 | Dispatched |\n\nReason: PR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1778283687503 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU1ODQ4NjUyMDk6Zml4X3ByOjE3MjpyZXZpZXc6MTcyOjk -->",
+      "createdAt": "2026-05-08T23:41:28Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/172#issuecomment-4410612932",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuSqHw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Uses existing typed helpers and flows: `fetchPrMeta`, `setOutput`, `formatReviewComment`, and review synthesis marker helpers instead of embedding metadata logic in workflow shell. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates `.agent/docs/architecture/supported-workflows.md` for reviewed-head capture, conditional marker stamping, and no-marker fallback. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Adds a dedicated `head_sha` output from `capture-pr-head.ts` and passes it as `REVIEWED_HEAD_SHA`; no overloaded string command/input is introduced. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Capture failures warn with `Reviewed head capture skipped` and emit an empty output; posting warns and omits provenance when the PR head changed or metadata cannot be read. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR matches issue #171’s PR 1 slice from parent #170: review provenance only, leaving self-approval route, resolver, orchestrator transitions, approval submission, and status-upsert polish for later slices. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is limited to review provenance plumbing, workflow DAG adjustments, focused tests, and one docs update. It does not expand into later self-approval work. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Implementation is direct: one small capture CLI, a hidden marker builder/parser, conditional head comparison before posting, and focused workflow output handoff. |\n\n## Notes\n\n- The PR satisfies the applicable rubrics cleanly: it stays inside the #170/#171 review-provenance slice, reuses existing `.agent/src` helpers, documents the behavior, and adds focused regression coverage.\n- The latest diff addresses earlier workflow coupling concerns by keeping reviewer execution non-cancelled on prepare failure and removing the unused `rubrics-review` dependency.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** Several selected rubrics are not scored because this PR does not implement delegated route authorization, follow-up orchestration policy, preview/dry-run behavior, merge flow, onboarding/status upserts, or documentation inventory changes.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-08T23:42:35Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/172#issuecomment-4410616351",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuTTcw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #172 implements the review-provenance slice from parent issue #170 via child issue #171.\n- It captures the PR head before review lanes run, conditionally stamps synthesis comments only when that head is still current, and adds marker helpers, focused tests, and docs.\n- Follow-up fixes addressed the earlier test, workflow fallback, DAG coupling, and marker-prefix parser concerns.\n- The current head `adbb1dc7680384ed98e709c9f4ca201f1ec9bf89` stays scoped to provenance infrastructure and leaves self-approval authority for later slices.\n\n## Review\nThe current reviewer outputs converge on SHIP: no BLOCKING or WARNING findings remain. Only optional low-risk test polish was noted, and it does not require automation for this PR.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues | INFO | Current reviewers found no blocking or warning findings on the latest head. Optional coverage ideas remain, but they are not required for this provenance slice. |\n\n## Progress\n- Current GitHub `check` is passing.\n- Rubrics review scores 100/PASS and confirms the PR stays within the #170/#171 review-provenance scope.\n- Marked five resolved same-agent inline comments as outdated: [r3211828318](https://github.com/self-evolving/repo/pull/172#discussion_r3211828318), [r3211828320](https://github.com/self-evolving/repo/pull/172#discussion_r3211828320), [r3211858709](https://github.com/self-evolving/repo/pull/172#discussion_r3211858709), [r3211858710](https://github.com/self-evolving/repo/pull/172#discussion_r3211858710), and [r3211881145](https://github.com/self-evolving/repo/pull/172#discussion_r3211881145).\n- No new inline comments or replies were added.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved actionable branch-change work remains.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch changes.",
+      "createdAt": "2026-05-08T23:45:58Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/172#issuecomment-4410626931",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuZgvg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer can you remind again why this is pr needed for implementing the agent self approval pr?",
+      "createdAt": "2026-05-09T00:17:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/172#issuecomment-4410728638",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuZ5Pg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "This PR is needed because agent self-approval needs a trusted answer to: **“was this exact PR head already reviewed and given SHIP?”**\n\nPR #172 is the provenance slice. It does not implement self-approval itself; it adds the marker that later self-approval code can trust:\n\n- `agent-review.yml` captures the PR head before reviewer lanes run and passes it into synthesis: https://github.com/self-evolving/repo/blob/adbb1dc7680384ed98e709c9f4ca201f1ec9bf89/.github/workflows/agent-review.yml#L82-L117 and https://github.com/self-evolving/repo/blob/adbb1dc7680384ed98e709c9f4ca201f1ec9bf89/.github/workflows/agent-review.yml#L244-L358\n- `post-comment.ts` only stamps the synthesis comment if the PR head still matches the captured head before posting: https://github.com/self-evolving/repo/blob/adbb1dc7680384ed98e709c9f4ca201f1ec9bf89/.agent/src/cli/post-comment.ts#L48-L69\n- `review-synthesis.ts` adds the hidden reviewed-head marker and parser: https://github.com/self-evolving/repo/blob/adbb1dc7680384ed98e709c9f4ca201f1ec9bf89/.agent/src/review-synthesis.ts#L18-L25\n\nThe self-approval PR then builds on that. In PR #180, the resolver checks the latest trusted Sepo review synthesis, extracts the reviewed head marker, requires `SHIP`, and rejects approval if that reviewed head is not the current PR head: https://github.com/self-evolving/repo/blob/b8d27c53f9e0610ebba395382909aa6cce15f431/.agent/src/self-approval.ts#L83-L158\n\nSo the safety chain is:\n\n`review synthesis says SHIP for head H` -> `self-approval agent inspects head H` -> `deterministic resolver approves only if the PR is still at head H`.\n\nWithout PR #172, self-approval would only know “some review said SHIP”, not whether that SHIP applies to the exact commit being approved. That is the trust boundary this PR creates.",
+      "createdAt": "2026-05-09T00:19:52Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/172#issuecomment-4410734910",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-08T23:05:49Z",
+  "files": [
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 7,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/capture-pr-head-cli.test.ts",
+      "additions": 46,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 49,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/post-comment-cli.test.ts",
+      "additions": 107,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/response.test.ts",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/review-synthesis.test.ts",
+      "additions": 42,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/capture-pr-head.ts",
+      "additions": 33,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/post-comment.ts",
+      "additions": 17,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/response.ts",
+      "additions": 5,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/review-synthesis.ts",
+      "additions": 20,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-review.yml",
+      "additions": 43,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-171/codex-25583716962",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 172,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM79rJ_I",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-08T23:14:46Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "fddd0d7bc65e0fcb281701facd6523cec8d50e50"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM79rJ_M",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-08T23:14:46Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "fddd0d7bc65e0fcb281701facd6523cec8d50e50"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM79rSsp",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-08T23:28:24Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "31a15cb475ee5da4ab9dd7f0744ecf0251b7b88e"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM79rSsq",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-08T23:28:24Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "31a15cb475ee5da4ab9dd7f0744ecf0251b7b88e"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM79rYjP",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-08T23:38:33Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "61d9fd8919fdc552fb82e3fb82541b83c800abb2"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Add reviewed-head provenance to review synthesis",
+  "updatedAt": "2026-05-09T00:19:52Z",
+  "url": "https://github.com/self-evolving/repo/pull/172"
+}

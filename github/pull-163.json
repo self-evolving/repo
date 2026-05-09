@@ -5,7 +5,7 @@
   },
   "baseRefName": "main",
   "body": "## Summary\n- Collapse older same-agent inline PR review comments when posting a new review synthesis.\n- Record synthesis start time so inline comments posted by the current run remain visible.\n- Update docs and focused regression coverage.\n\n## Verification\n- `npm run build`\n- `node --test dist/__tests__/review-summary-minimize.test.js dist/__tests__/envelope.test.js dist/__tests__/post-comment-cli.test.js`\n\nCloses #67\n",
-  "closedAt": null,
+  "closedAt": "2026-05-08T22:28:15Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABBgTYIQ",
@@ -685,6 +685,160 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/163#issuecomment-4402054986",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBtY2DA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \r\n\r\noh good point. so \"Synthesis may post inline comments\" -> I see. the synthesis agent can decide whether to post inline comments, and this might not be deterministic. \r\n\r\nIn that view, can we actually try another way to implement it: \r\n1. a simple way is to prompt the review agent that to check existing inline comment. when it decides to post more inline comments, it will also suggest whether to close existing ones, or just comment inside the threads? \r\n2. and for the synthesizer agent prompt, (1) it will take the corresponding inline review metadata (open new, close, and comment inside threads) and (2) it can then post new and remove the old ones. The prompt can perhaps give it more information for how to post reviews? \r\n",
+      "createdAt": "2026-05-08T20:36:56Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/163#issuecomment-4409669132",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBtZaTw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, that alternative is viable, and I think the clean version is: let agents propose inline-comment actions, but keep the actual mutation deterministic.\n\nCurrent shape:\n\n- Reviewer lanes use [`.github/prompts/review.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/review.md) and are currently instructed not to post inline comments.\n- The synthesis lane uses [`.github/prompts/review-synthesize.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/review-synthesize.md) and may directly post inline comments with `gh`.\n- The workflow wires that through [`.github/workflows/agent-review.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-review.yml).\n- Cleanup/minimization is handled in [`.agent/src/review-summary-minimize.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/review-summary-minimize.ts) and [`.agent/src/cli/post-comment.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/post-comment.ts).\n\nI would not have the reviewer or synthesizer freely “close/remove” comments themselves. That makes the behavior harder to audit and easier for model variance to break. Better pattern:\n\n1. Reviewer agents output structured inline-comment intents, not GitHub mutations:\n   - `open_new`\n   - `reply_to_existing`\n   - `minimize_existing`\n   - `no_action`\n   - path, line, finding key/body, existing comment/thread IDs if known\n\n2. Synthesizer consumes reviewer intents plus existing inline comment metadata and produces one final action plan:\n   - dedupe findings\n   - decide whether a finding needs a fresh inline comment\n   - decide whether an older same-agent inline comment should be minimized\n   - optionally decide whether to reply in an existing thread instead of opening a new top-level inline comment\n\n3. A typed CLI executes that plan:\n   - validates comment IDs/thread IDs belong to the same PR\n   - only minimizes same-agent comments\n   - posts new inline comments or replies using GitHub API\n   - reports exactly what it did\n\nThat gives us the model judgment you want, but keeps the risky operations bounded and testable.\n\nOne important distinction: “close” should probably mean **minimize as outdated**, not delete. Deleting old agent comments loses audit history. Resolving review threads is also a different semantic action and may imply the code issue is fixed; I’d avoid that unless the user explicitly asks for thread resolution behavior.\n\nImplementation plan I’d suggest:\n\n1. Update reviewer prompts to emit optional structured inline feedback metadata while still not mutating GitHub.\n2. Update synthesis prompt to produce a structured inline-action plan instead of directly posting comments.\n3. Add a deterministic `.agent/src/cli/apply-inline-review-actions.ts` CLI.\n4. Wire that CLI into `agent-review.yml` before posting the final synthesis.\n5. Keep `AGENT_COLLAPSE_OLD_REVIEWS` as the feature gate.\n6. Add tests for dedupe, same-agent-only minimization, reply-vs-new behavior, and malformed action plans.\n\nThis would be a cleaner long-term design than relying only on the timestamp cutoff, but it is a larger change than PR #163. It fits better as part of the broader #65 refactor, with #67 as the acceptance case.",
+      "createdAt": "2026-05-08T20:38:23Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/163#issuecomment-4409678415",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBtcnYA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Yes, that alternative is viable, and I think the clean version is: let agents propose inline-comment actions, but keep the actual mutation deterministic.\r\n> \r\n> Current shape:\r\n> \r\n> * Reviewer lanes use [`.github/prompts/review.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/review.md) and are currently instructed not to post inline comments.\r\n> * The synthesis lane uses [`.github/prompts/review-synthesize.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/review-synthesize.md) and may directly post inline comments with `gh`.\r\n> * The workflow wires that through [`.github/workflows/agent-review.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-review.yml).\r\n> * Cleanup/minimization is handled in [`.agent/src/review-summary-minimize.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/review-summary-minimize.ts) and [`.agent/src/cli/post-comment.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/post-comment.ts).\r\n> \r\n> I would not have the reviewer or synthesizer freely “close/remove” comments themselves. That makes the behavior harder to audit and easier for model variance to break. Better pattern:\r\n> \r\n> 1. Reviewer agents output structured inline-comment intents, not GitHub mutations:\r\n>    \r\n>    * `open_new`\r\n>    * `reply_to_existing`\r\n>    * `minimize_existing`\r\n>    * `no_action`\r\n>    * path, line, finding key/body, existing comment/thread IDs if known\r\n> 2. Synthesizer consumes reviewer intents plus existing inline comment metadata and produces one final action plan:\r\n>    \r\n>    * dedupe findings\r\n>    * decide whether a finding needs a fresh inline comment\r\n>    * decide whether an older same-agent inline comment should be minimized\r\n>    * optionally decide whether to reply in an existing thread instead of opening a new top-level inline comment\r\n> 3. A typed CLI executes that plan:\r\n>    \r\n>    * validates comment IDs/thread IDs belong to the same PR\r\n>    * only minimizes same-agent comments\r\n>    * posts new inline comments or replies using GitHub API\r\n>    * reports exactly what it did\r\n> \r\n> That gives us the model judgment you want, but keeps the risky operations bounded and testable.\r\n> \r\n> One important distinction: “close” should probably mean **minimize as outdated**, not delete. Deleting old agent comments loses audit history. Resolving review threads is also a different semantic action and may imply the code issue is fixed; I’d avoid that unless the user explicitly asks for thread resolution behavior.\r\n> \r\n> Implementation plan I’d suggest:\r\n> \r\n> 1. Update reviewer prompts to emit optional structured inline feedback metadata while still not mutating GitHub.\r\n> 2. Update synthesis prompt to produce a structured inline-action plan instead of directly posting comments.\r\n> 3. Add a deterministic `.agent/src/cli/apply-inline-review-actions.ts` CLI.\r\n> 4. Wire that CLI into `agent-review.yml` before posting the final synthesis.\r\n> 5. Keep `AGENT_COLLAPSE_OLD_REVIEWS` as the feature gate.\r\n> 6. Add tests for dedupe, same-agent-only minimization, reply-vs-new behavior, and malformed action plans.\r\n> \r\n> This would be a cleaner long-term design than relying only on the timestamp cutoff, but it is a larger change than PR #163. It fits better as part of the broader #65 refactor, with #67 as the acceptance case.\r\n\r\n@sepo-agent /answer \r\n\r\nI agree most of it, apart from \"Add a deterministic `.agent/src/cli/apply-inline-review-actions.ts` CLI.\". For the purpose of starting simple, let's just do this ?\r\n\r\n1. Update reviewer prompts to emit optional structured inline feedback metadata while still not mutating GitHub. Also it should be prompted to check existing inline comments as well. \r\n2. In synthesis prompt, additionally allow it to mark existing inline comments as outdated (minimize it) or further comment in existing thread. \r\n\r\nIn this implementation, it won't be gated \"AGENT_COLLAPSE_OLD_REVIEWS\" -> we will let agents to decide themselves to manage the comment state. \r\n\r\nThis can help us start with something simple, and can help us test if we need additional scaffolding. ",
+      "createdAt": "2026-05-08T20:46:37Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/163#issuecomment-4409730912",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBtdHkw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, that is a reasonable first experiment. I’d frame it as a prompt-managed prototype, with very tight rules, rather than a full deterministic inline-action system.\n\nThe important safety constraints I’d keep:\n\n- Reviewer agents still **do not mutate GitHub**.\n- Reviewer agents may inspect existing inline comments and emit structured suggestions.\n- Synthesizer may mutate GitHub, but only for inline comments authored by the same agent account.\n- “Outdated” means GitHub `minimizeComment(... OUTDATED)`, not delete.\n- Do not resolve review threads yet. Resolving implies the code issue is fixed, which is a stronger claim than “this generated comment is stale.”\n- Do not minimize human comments or other bots’ comments.\n- Do not minimize comments if the synthesizer is uncertain about authorship, PR ownership, or whether the new synthesis supersedes the old comment.\n\nI agree this does not need to be gated behind `AGENT_COLLAPSE_OLD_REVIEWS` for the first version if the intent is to test agent-managed state. I would leave the existing generated-summary cleanup behavior alone, and treat this as separate synthesis behavior.\n\nA simple implementation plan:\n\n1. Update [`.github/prompts/review.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/review.md)\n   - Tell reviewer lanes to fetch existing inline review comments.\n   - Keep the existing “do not post inline review comments” rule.\n   - Add an optional structured section like:\n\n   ```md\n   ## Inline Comment Suggestions\n   - action: open_new | reply_existing | mark_existing_outdated | no_action\n     path:\n     line:\n     finding:\n     existing_comment_id:\n     existing_comment_node_id:\n     rationale:\n   ```\n\n2. Update [`.github/prompts/review-synthesize.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/review-synthesize.md)\n   - Tell synthesis to read reviewer inline suggestions.\n   - Fetch existing inline comments itself before mutating.\n   - Allow it to:\n     - post a new inline comment\n     - reply to an existing inline thread/comment\n     - minimize an older same-agent inline comment as `OUTDATED`\n   - Require it to explain any inline mutations in the final synthesis `Progress` section.\n\n3. Update [`.github/prompts/review-synthesize-finalize.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/review-synthesize-finalize.md)\n   - Mirror the same rules for resumed synthesis sessions.\n   - Ensure a resumed session checks whether actions were already taken before posting/minimizing more comments.\n\n4. Add prompt-contract tests in [`.agent/src/__tests__/envelope.test.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/envelope.test.ts)\n   - Reviewer prompt says inspect existing inline comments but do not mutate.\n   - Synthesis prompt permits only same-agent minimization.\n   - Synthesis prompt forbids deleting comments and resolving threads.\n   - Synthesis prompt requires existing-comment checks before mutation.\n\nI’d avoid touching [`.agent/src/review-summary-minimize.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/review-summary-minimize.ts) for this first pass. That keeps the experiment small: prompt behavior only, plus tests that lock in the intended contract.\n\nThe tradeoff is that this is less deterministic than a CLI-backed action plan. But as a prototype to learn whether agent-managed inline comment state feels useful, this is a good smaller step.",
+      "createdAt": "2026-05-08T20:47:52Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/163#issuecomment-4409739155",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBtdnzA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer I don't think [.github/prompts/review-synthesize-finalize.md](https://github.com/self-evolving/repo/blob/main/.github/prompts/review-synthesize-finalize.md) is currently used? can you double check? \r\n",
+      "createdAt": "2026-05-08T20:49:21Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/163#issuecomment-4409747404",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBteFoQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "You’re right. I double checked, and [`.github/prompts/review-synthesize-finalize.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/review-synthesize-finalize.md) does not appear to be used by the current review workflow.\n\nWhat I found:\n\n- [`.github/workflows/agent-review.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-review.yml) runs synthesis with `prompt: review-synthesize`.\n- [`.agent/src/run.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/run.ts) registers both `review-synthesize` and `review-synthesize-finalize` as valid prompt names, but registration alone does not mean it is called.\n- `rg` only found `review-synthesize-finalize` in:\n  - prompt registration in `run.ts`\n  - generated `.agent/dist/run.js`\n  - the prompt file itself\n- I did not find a workflow/action path that passes `prompt: review-synthesize-finalize`.\n\nSo for the proposed simple implementation, I’d update only:\n\n1. [`.github/prompts/review.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/review.md)\n2. [`.github/prompts/review-synthesize.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/review-synthesize.md)\n3. Prompt-contract tests in [`.agent/src/__tests__/envelope.test.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/envelope.test.ts)\n\nI’d leave `review-synthesize-finalize.md` alone unless we first wire it into an actual resume/finalization path or decide to remove it as unused cleanup.",
+      "createdAt": "2026-05-08T20:50:34Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/163#issuecomment-4409755041",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBtn7NA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /implement based on our discussion above, https://github.com/self-evolving/repo/pull/163#issuecomment-4409755041 and https://github.com/self-evolving/repo/pull/163#issuecomment-4409739155 and make a simple implementation. ",
+      "createdAt": "2026-05-08T21:15:14Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/163#issuecomment-4409916212",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBtoISg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Implementing this request — tracking in https://github.com/self-evolving/repo/issues/168.\n",
+      "createdAt": "2026-05-08T21:15:46Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/163#issuecomment-4409919562",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-07T09:36:04Z",
@@ -917,8 +1071,8 @@
       }
     }
   ],
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Collapse older generated inline review comments",
-  "updatedAt": "2026-05-08T00:04:41Z",
+  "updatedAt": "2026-05-08T22:28:15Z",
   "url": "https://github.com/self-evolving/repo/pull/163"
 }

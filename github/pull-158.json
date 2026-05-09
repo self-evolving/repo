@@ -426,6 +426,43 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/158#issuecomment-4378077123",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuKrHA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer ugh ok this turned into a gigantic pr -> can you summarize how this evolves into this current situation and what are the core function components here? ",
+      "createdAt": "2026-05-08T23:04:36Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/158#issuecomment-4410485532",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuLQ6A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "This got big because the scope moved from “auto-post failures” to a safer end-to-end reporting system.\n\nThe evolution:\n\n1. PR #117 had useful pieces, but the UX was too aggressive: public repos could auto-report centrally. In #156 the accepted direction changed to: `failure -> self-diagnosis -> pending report -> human approval -> central Discussion`.\n2. PR #158 was created from scratch for that new model. The first pass added local diagnosis, redaction, classification, fingerprints, pending artifacts, workflow wiring, and docs.\n3. Review then found the approval loop was incomplete: `approval` mode made a pending artifact, but nothing consumed it. Fixes added `/publish-failure-report`, an approval workflow, auth re-checking, destination validation, and safer classifier behavior.\n4. Later review found rerun/idempotency gaps. Fixes added `run_attempt` to occurrence markers and warnings when diagnosis/artifact persistence fails.\n5. The PR is now large mainly because `run-agent-task` is shared by nearly every agent workflow, so every route had to forward the new `failure_report_*` inputs, plus docs/tests had to track the new behavior.\n\nCore functional components:\n\n- [`failure-report.ts`](https://github.com/self-evolving/repo/blob/b8ba0d5cc50c095f1f228b5b65bb5f2c795a1294/.agent/src/failure-report.ts#L115): core library. Resolves modes, redacts evidence, classifies failures, builds fingerprints, renders the pending Discussion body, validates destination, and handles publish/dedupe.\n- [`diagnose-agent-failure.ts`](https://github.com/self-evolving/repo/blob/b8ba0d5cc50c095f1f228b5b65bb5f2c795a1294/.agent/src/cli/diagnose-agent-failure.ts#L70): failure-time CLI. Reads captured stdout/stderr, builds `diagnosis.json` and `pending-report.md`, writes step summary/outputs, and optionally auto-publishes only in explicit `true` mode.\n- [`run-agent-task/action.yml`](https://github.com/self-evolving/repo/blob/b8ba0d5cc50c095f1f228b5b65bb5f2c795a1294/.github/actions/run-agent-task/action.yml#L390): shared hook point. Runs diagnosis after an agent exits nonzero, uploads the artifact, warns if persistence fails, then still preserves the original agent failure.\n- [`publish-approved-failure-report.ts`](https://github.com/self-evolving/repo/blob/b8ba0d5cc50c095f1f228b5b65bb5f2c795a1294/.agent/src/cli/publish-approved-failure-report.ts#L105): approval CLI. Parses `/publish-failure-report`, rechecks `AGENT_ACCESS_POLICY`, downloads the artifact, validates schema/mode/fingerprint, then publishes.\n- [`agent-publish-failure-report.yml`](https://github.com/self-evolving/repo/blob/b8ba0d5cc50c095f1f228b5b65bb5f2c795a1294/.github/workflows/agent-publish-failure-report.yml#L1): workflow wrapper for manual dispatch or routed approval comments.\n- [`agent-router.yml`](https://github.com/self-evolving/repo/blob/b8ba0d5cc50c095f1f228b5b65bb5f2c795a1294/.github/workflows/agent-router.yml#L522): adds `/publish-failure-report` as a real route.\n- [`discussion.ts`](https://github.com/self-evolving/repo/blob/b8ba0d5cc50c095f1f228b5b65bb5f2c795a1294/.agent/src/discussion.ts#L196): shared Discussion lookup/create/comment helpers, extended for fingerprint marker lookup and repeat-occurrence dedupe.\n\nCurrent behavior in one line: failed agent runs are diagnosed locally by default; public repos get a pending sanitized report for approval, private repos stay local unless configured, and central posting only happens after explicit approval or explicit `AGENT_FAILURE_REPORT_MODE=true`.",
+      "createdAt": "2026-05-08T23:07:06Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/158#issuecomment-4410495208",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-05T07:41:37Z",
@@ -786,6 +823,6 @@
   ],
   "state": "OPEN",
   "title": "Add approval-gated agent failure diagnosis",
-  "updatedAt": "2026-05-05T09:34:41Z",
+  "updatedAt": "2026-05-08T23:07:06Z",
   "url": "https://github.com/self-evolving/repo/pull/158"
 }

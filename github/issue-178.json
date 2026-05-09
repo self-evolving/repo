@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "I think the most important tasks include \n\n- [ ] github app installation webhook \n- [ ] versioning #177 \n- [ ] auto updates #116 \n\n@sepo-agent /answer \nwhat do you think?",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuVnfA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I agree these are the right top priorities, but I’d order them slightly differently:\n\n1. **Versioning / release identity first (#177)**\n   This blocks the other two. Right now `.agent/package.json` says `0.1.0`, while `.agent/sepo-version.json` also says `0.1.0` but still points at `main` with `source_sha: null`:  \n   https://github.com/self-evolving/repo/blob/main/.agent/package.json#L2-L4  \n   https://github.com/self-evolving/repo/blob/main/.agent/sepo-version.json#L2-L9\n\n   Before a formal `v0.1.0`, we should decide the source of truth: package version in `.agent/package.json`, and optional install provenance separately. Then tag/release `v0.1.0` from that.\n\n2. **Auto updates second (#116)**\n   #116 looks close and useful, but for release readiness I would not default updates to moving `main`. The versioning docs already say release installs should use tags like `v0.1.0`:  \n   https://github.com/self-evolving/repo/blob/main/.agent/docs/technical-details/versioning.md#L7-L13\n\n   So #116 should ideally resolve latest release/tag and open PRs like “Update Sepo from v0.1.0 to v0.1.1”, with file diff as validation.\n\n3. **GitHub App installation webhook third**\n   Important, but the real implementation belongs in the hosted GitHub App backend: receive `installation` events, verify signature, mint installation token, dispatch `agent-onboarding.yml`, or create/update a setup issue fallback. The repo already has the onboarding workflow/manual path:  \n   https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-onboarding.yml#L1-L69\n\n   I would avoid treating repo-local `installation-bootstrap.ts` as the core solution unless the hosted backend actually imports a built Sepo package. The backend should implement the dispatch/fallback behavior directly.\n\nOne extra release gate I’d add: a clean install smoke test. Before tagging `v0.1.0`, install Sepo into a fresh repo, run onboarding, try `/answer`, and verify the update check can see the current installed version.\n\nSo my recommended pre-`v0.1.0` checklist is:\n\n- [ ] Resolve #177: one canonical version source plus clear install provenance.\n- [ ] Tag/release `v0.1.0` from `main`.\n- [ ] Adjust/merge #116 so updates target release tags, not `main`.\n- [ ] Implement hosted GitHub App installation webhook behavior, with manual onboarding fallback.\n- [ ] Run a fresh-repo install/onboarding/update smoke test.",
+      "createdAt": "2026-05-08T23:58:26Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/178#issuecomment-4410664828",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-08T23:54:48Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 178,
+  "state": "OPEN",
+  "title": "Most high priority tasks before a formal v0.1.0 release",
+  "updatedAt": "2026-05-08T23:58:26Z",
+  "url": "https://github.com/self-evolving/repo/issues/178"
+}

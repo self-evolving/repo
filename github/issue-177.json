@@ -1,0 +1,100 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "## Background\n\nRecent versioning work introduced `.agent/sepo-version.json` with both Sepo package identity and install/source provenance:\n\n```json\n{\n  \"schema_version\": 1,\n  \"version\": \"0.1.0\",\n  \"channel\": \"pre-release\",\n  \"source_repo\": \"self-evolving/repo\",\n  \"source_ref\": \"main\",\n  \"source_sha\": null,\n  \"installed_from\": \"source\",\n  \"agent_files_hash\": null\n}\n```\n\nBut `.agent/package.json` already carries the Sepo runtime/package identity:\n\n```json\n{\n  \"name\": \"@self-evolving/sepo\",\n  \"version\": \"0.1.0\"\n}\n```\n\nThis creates a risk of duplicate version sources drifting apart, especially if/when the agent backend scripts are released as a normal package.\n\nRelated context:\n- #74: broader versioning discussion\n- #116: updater workflow context\n- #117: bug report/version reporting context\n- #133: typed reader/validator + `print-sepo-version` CLI around `.agent/sepo-version.json`\n\n## Concern\n\n`version` and `channel` in `.agent/sepo-version.json` appear redundant with `.agent/package.json`:\n\n- `.agent/package.json` should be the canonical Sepo runtime/package version.\n- `channel` can be derived from versioning policy if needed (`0.x` pre-release, `1.0.0-rc.N` release candidate, `1.x` stable).\n- A separate metadata file may still be useful later, but only for install provenance, not package identity.\n\nThe current metadata file also does not yet provide precise provenance because `source_sha` and `agent_files_hash` are `null`, so it is not giving a reproducible install identity today.\n\n## Proposed direction\n\nSeparate the concepts:\n\n1. **Package identity**\n   - Canonical source: `.agent/package.json`\n   - Fields: package name/version, eventually normal npm/package release metadata.\n\n2. **Install provenance** (only if/when needed by updater, bug reports, or release tooling)\n   - Possible future file: `.agent/install.json` or similar\n   - Fields: `source_repo`, `source_ref`, `source_sha`, `installed_from`, `agent_files_hash`\n   - Avoid duplicating `version` from `.agent/package.json`.\n\n## Concrete actions\n\n- [ ] Remove `.agent/sepo-version.json` from the current tree, or at least stop treating it as the version source of truth.\n- [ ] Defer or close #133 unless/until a concrete workflow consumes this metadata.\n- [ ] If #116 or #117 needs provenance later, introduce a smaller provenance-only file/reader shaped by that workflow's exact needs.\n- [ ] Update docs to say `.agent/package.json` is the canonical Sepo runtime/package version.\n- [ ] If a future CLI is needed, keep it minimal: read `.agent/package.json` for version and optional provenance file for install source details.\n\n## Acceptance criteria\n\n- There is only one canonical Sepo version source: `.agent/package.json`.\n- No separate metadata file duplicates package version/channel unless a concrete release/install workflow justifies it.\n- Future provenance metadata, if added, is clearly install-source metadata rather than package version metadata.\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuWADA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\n1. Should we stick to `package.json` for now? \n2. We should consider releasing the repo on version ids. ",
+      "createdAt": "2026-05-09T00:00:42Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/177#issuecomment-4410671116",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuWWAA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, I’d stick to `.agent/package.json` as the canonical **package/runtime version** for now: [`name` / `version`](https://github.com/self-evolving/repo/blob/main/.agent/package.json#L2-L4).\n\nI would not let `.agent/sepo-version.json` become a second independent version source. If we keep it, it should be treated as install/source provenance, not package identity. Today it duplicates `version` / `channel` while `source_sha` and `agent_files_hash` are still `null`: [`.agent/sepo-version.json`](https://github.com/self-evolving/repo/blob/main/.agent/sepo-version.json#L1-L9). That is the drift risk in #177.\n\nRecommended direction:\n\n1. **Now**\n   - Canonical Sepo version: `.agent/package.json`.\n   - No standalone rich version CLI/validator unless an updater/release workflow consumes it immediately.\n   - Either remove `.agent/sepo-version.json`, or narrow it later to provenance-only fields like `source_repo`, `source_ref`, `source_sha`, `installed_from`, `agent_files_hash`.\n\n2. **Release by version ids**\n   - Yes. We should release the repo by immutable Git tags / GitHub Releases: `v0.1.0`, `v0.2.0`, etc.\n   - The release tag should be derived from `.agent/package.json` version, e.g. package `0.2.0` -> tag `v0.2.0`.\n   - Update/install workflows should eventually target release tags, not moving `main`.\n   - Exact identity should be tag + commit SHA. Version alone is human-readable; SHA is reproducible.\n\nSo the clean rule is:\n\n> `.agent/package.json` owns the Sepo version. Git tags/releases publish that version. Install provenance records where an installed copy came from, but does not define a separate version.",
+      "createdAt": "2026-05-09T00:02:36Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/177#issuecomment-4410676736",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuW92w",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer should we consider adding another automation for it? Or we should do this manually? \n\nMy concern is that i just want to minimize the github workflows so when people fork this library it should cause minimal disruptions. For example, if we indeed need that workflow, we should consider add a repo name gating?",
+      "createdAt": "2026-05-09T00:05:59Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/177#issuecomment-4410686939",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBuXSJw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I would start **manual**, then add automation only after the release checklist stabilizes.\n\nGiven the fork-disruption concern, I would **not** add another always-on workflow right now. The repo already ships many agent workflows, and scheduled ones are specifically the kind that surprise forks. Version docs already define the intended SemVer/tag policy, and even say future update/report/release workflows can add helpers when they have a real consumer: https://github.com/self-evolving/repo/blob/main/.agent/docs/technical-details/versioning.md#L1-L47\n\nMy recommendation:\n\n1. **For the first few releases: manual**\n   - Update `.agent/package.json` version.\n   - Create tag `vX.Y.Z`.\n   - Create GitHub Release, mark `v0.x.y` as pre-release.\n   - Keep `.agent/package.json` as the canonical version source.\n   - Use `.agent/sepo-version.json` only as install/source metadata, not a separate version authority.\n\n2. **If we add automation, make it source-repo-only**\n   - `workflow_dispatch` only; no schedule.\n   - Job-level gate:\n     ```yaml\n     if: github.repository == 'self-evolving/repo'\n     ```\n   - Prefer a repo variable too if we want explicit opt-in:\n     ```yaml\n     if: github.repository == 'self-evolving/repo' && vars.AGENT_RELEASE_ENABLED == 'true'\n     ```\n   - Give it write permissions only on the gated job.\n\n3. **Split prepare from publish**\n   - `Release / Prepare`: validates version, updates docs/metadata, opens a PR.\n   - `Release / Publish`: manual dispatch after merge, creates tag/release.\n   - Do not auto-publish from forks or installed repos.\n\nSo: yes, repo-name gating is the right instinct if we add this. But I’d avoid adding the workflow until we have done one or two manual releases and know the exact steps we want to encode.",
+      "createdAt": "2026-05-09T00:07:27Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/177#issuecomment-4410692135",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-08T23:54:11Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 177,
+  "state": "OPEN",
+  "title": "Clarify Sepo version source of truth vs install provenance",
+  "updatedAt": "2026-05-09T00:07:27Z",
+  "url": "https://github.com/self-evolving/repo/issues/177"
+}

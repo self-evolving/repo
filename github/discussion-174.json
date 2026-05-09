@@ -1,0 +1,38 @@
+{
+  "number": 174,
+  "title": "Behavior induction",
+  "url": "https://github.com/self-evolving/repo/discussions/174",
+  "body": "For example in #173, beyond learning rubrics it would be great if the agent can learn from the user behavior and create proper updates to the infra as well? \n\n@sepo-agent /answer what do u think? ",
+  "createdAt": "2026-05-08T23:20:14Z",
+  "updatedAt": "2026-05-08T23:29:15Z",
+  "author": {
+    "login": "lolipopshock"
+  },
+  "category": {
+    "name": "Ideas"
+  },
+  "comments": {
+    "nodes": [
+      {
+        "id": "DC_kwDOSOhEMM4BATvJ",
+        "body": "Yes, I think this is the right direction, but I would make it a **proposal-and-approval loop**, not silent infra mutation.\n\nThe current split is good: [`agent/rubrics`](https://github.com/self-evolving/repo/blob/1dd7fdf1f27aae4944508926533b07dcd6924716/.agent/docs/architecture/rubrics.md#L3-L8) captures normative user/team preferences, while [`agent/memory`](https://github.com/self-evolving/repo/blob/1dd7fdf1f27aae4944508926533b07dcd6924716/.agent/docs/architecture/memory.md#L3-L5) captures agent/project continuity. The missing third category is: **behavior signals that imply the infra itself should change**.\n\nExample from #173: if repeated orchestrator runs drift into patchy scope expansion, that is not just a rubric like “prefer canonical design.” It is evidence that the orchestrator needs a structured reflection gate. That should become an infra proposal, then an implementation PR.\n\nI would implement it this way:\n\n1. Add an `infra_gap` / `behavior_observation` output path to the existing learning flow.\n   - `agent-rubrics-update.yml` already learns from merged PR conversations and writes only dedicated rubrics via [`rubrics_mode_override: enabled`](https://github.com/self-evolving/repo/blob/1dd7fdf1f27aae4944508926533b07dcd6924716/.github/workflows/agent-rubrics-update.yml#L85-L107).\n   - `agent-memory-pr-closed.yml` already records durable lessons after PR close via [`memory_mode_override: enabled`](https://github.com/self-evolving/repo/blob/1dd7fdf1f27aae4944508926533b07dcd6924716/.github/workflows/agent-memory-pr-closed.yml#L80-L103).\n   - Both can identify “this is not a rubric/memory note; this is an infra gap.”\n\n2. Add a dedicated workflow, probably `Agent / Self Improvement / Propose`.\n   - It should read memory, rubrics, mirrored GitHub artifacts, and recent PR/issue behavior.\n   - It should produce a GitHub issue or discussion comment with:\n     - observed behavior pattern\n     - evidence links\n     - affected infra files\n     - proposed fix\n     - risk level\n     - suggested implementation route\n\n3. Keep code changes behind explicit approval at first.\n   - The proposal can say: “Recommended next step: `/implement` this infra update.”\n   - Existing routes can then do the actual code change.\n   - This avoids letting a scheduled learning pass rewrite workflows or orchestration logic without a human checkpoint.\n\n4. Later, allow opt-in auto-PR creation for low-risk infra updates.\n   - For example: prompt wording, docs, small deterministic validation, missing tests.\n   - Workflow/orchestrator policy changes should stay approval-gated until this proves reliable.\n\nThis fits the current architecture because [`run-agent-task`](https://github.com/self-evolving/repo/blob/1dd7fdf1f27aae4944508926533b07dcd6924716/.github/actions/run-agent-task/action.yml#L229-L263) already has policy-gated memory/rubrics mounting, and commits are already separately gated for memory and rubrics via [`Commit memory edits`](https://github.com/self-evolving/repo/blob/1dd7fdf1f27aae4944508926533b07dcd6924716/.github/actions/run-agent-task/action.yml#L339-L355) and [`Commit rubric edits`](https://github.com/self-evolving/repo/blob/1dd7fdf1f27aae4944508926533b07dcd6924716/.github/actions/run-agent-task/action.yml#L366-L402). We can reuse that pattern instead of blending infra changes into rubric learning.\n\nFor #173 specifically, the first behavior-induced infra proposal would be: add a structured orchestrator reflection checkpoint. The orchestrator planner already runs in [`agent-orchestrator.yml`](https://github.com/self-evolving/repo/blob/1dd7fdf1f27aae4944508926533b07dcd6924716/.github/workflows/agent-orchestrator.yml#L145-L184), but today the handoff action space is still basically `implement | review | fix-pr` as defined in [`handoff.ts`](https://github.com/self-evolving/repo/blob/1dd7fdf1f27aae4944508926533b07dcd6924716/.agent/src/handoff.ts#L3-L4). The reflection gate would teach the planner when to stop, split, or ask for human design input instead of continuing the loop.\n\nRecommended next step: implement a scoped `self-improvement-propose` workflow that only opens proposals. After that lands, we can decide which proposal classes are safe enough to auto-open draft PRs.",
+        "createdAt": "2026-05-08T23:29:15Z",
+        "url": "https://github.com/self-evolving/repo/discussions/174#discussioncomment-16858057",
+        "author": {
+          "login": "sepo-agent-app"
+        },
+        "replies": {
+          "nodes": [],
+          "pageInfo": {
+            "hasNextPage": false,
+            "endCursor": null
+          }
+        }
+      }
+    ],
+    "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": null
+    }
+  }
+}
