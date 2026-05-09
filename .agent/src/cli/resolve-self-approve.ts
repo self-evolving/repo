@@ -9,12 +9,14 @@ import { join } from "node:path";
 import {
   fetchAuthenticatedActorLogin,
   fetchIssueCommentRecords,
+  fetchPrAuthorLogin,
   fetchPrMeta,
   gh,
 } from "../github.js";
 import { setOutput } from "../output.js";
 import {
   envFlagEnabled,
+  evaluateSelfApprovalActor,
   evaluateSelfApprovalProvenance,
   formatSelfApprovalBody,
   parseSelfApprovalDecision,
@@ -74,9 +76,12 @@ const decision = parseSelfApprovalDecision(readResponse());
 let prState = "";
 let currentHeadSha = "";
 let metadataReadReason = "";
+let approvalActorAllowed = false;
+let approvalActorReason = "approval actor could not be verified as distinct from pull request author";
 let approvalProvenanceTrusted = false;
 let approvalProvenanceReason = "missing trusted review synthesis for self-approval";
 if (allowSelfApprove && normalizeTargetKind(targetKind) === "pull_request" && repo && prNumber) {
+  let authenticatedActorLogin = "";
   try {
     const meta = fetchPrMeta(prNumber, repo);
     prState = meta.state;
@@ -86,9 +91,23 @@ if (allowSelfApprove && normalizeTargetKind(targetKind) === "pull_request" && re
   }
 
   try {
+    authenticatedActorLogin = fetchAuthenticatedActorLogin();
+    const approvalActor = evaluateSelfApprovalActor({
+      approvalActorLogin: authenticatedActorLogin,
+      prAuthorLogin: fetchPrAuthorLogin(prNumber, repo),
+    });
+    approvalActorAllowed = approvalActor.allowed;
+    approvalActorReason = approvalActor.reason;
+  } catch {
+    approvalActorAllowed = false;
+    approvalActorReason = "could not verify approval actor differs from pull request author";
+  }
+
+  try {
+    const trustedActorLogin = authenticatedActorLogin || fetchAuthenticatedActorLogin();
     const provenance = evaluateSelfApprovalProvenance({
       comments: fetchIssueCommentRecords(prNumber, repo),
-      trustedActorLogin: fetchAuthenticatedActorLogin(),
+      trustedActorLogin,
       expectedHeadSha,
     });
     approvalProvenanceTrusted = provenance.trusted;
@@ -115,6 +134,8 @@ let result = metadataReadReason
     expectedHeadSha,
     currentHeadSha,
     decision,
+    approvalActorAllowed,
+    approvalActorReason,
     approvalProvenanceTrusted,
     approvalProvenanceReason,
   });

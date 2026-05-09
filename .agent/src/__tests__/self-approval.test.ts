@@ -2,6 +2,7 @@ import { test } from "node:test";
 import { strict as assert } from "node:assert";
 
 import {
+  evaluateSelfApprovalActor,
   evaluateSelfApprovalProvenance,
   parseSelfApprovalDecision,
   resolveSelfApproval,
@@ -12,6 +13,11 @@ const approveDecision = {
   reason: "Aligned.",
   handoffContext: "",
   inspectedHeadSha: "abc123",
+};
+
+const distinctApprovalActor = {
+  approvalActorAllowed: true,
+  approvalActorReason: "approval actor is distinct from pull request author",
 };
 
 test("parseSelfApprovalDecision accepts structured verdict JSON", () => {
@@ -82,6 +88,28 @@ test("resolveSelfApproval rejects non-PR and closed PR targets", () => {
   assert.match(closed.reason, /closed/);
 });
 
+test("evaluateSelfApprovalActor requires a distinct approval actor", () => {
+  const allowed = evaluateSelfApprovalActor({
+    approvalActorLogin: "human-reviewer",
+    prAuthorLogin: "app/sepo-agent-app",
+  });
+  assert.equal(allowed.allowed, true);
+
+  const sameApp = evaluateSelfApprovalActor({
+    approvalActorLogin: "sepo-agent-app[bot]",
+    prAuthorLogin: "app/sepo-agent-app",
+  });
+  assert.equal(sameApp.allowed, false);
+  assert.match(sameApp.reason, /matches the pull request author/);
+
+  const missing = evaluateSelfApprovalActor({
+    approvalActorLogin: "",
+    prAuthorLogin: "lolipopshock",
+  });
+  assert.equal(missing.allowed, false);
+  assert.match(missing.reason, /could not resolve approval actor/);
+});
+
 test("resolveSelfApproval approves only matching open PR heads with trusted provenance", () => {
   const result = resolveSelfApproval({
     allowSelfApprove: true,
@@ -90,11 +118,30 @@ test("resolveSelfApproval approves only matching open PR heads with trusted prov
     expectedHeadSha: "abc123",
     currentHeadSha: "abc123",
     decision: approveDecision,
+    ...distinctApprovalActor,
     approvalProvenanceTrusted: true,
   });
 
   assert.equal(result.shouldApprove, true);
   assert.equal(result.conclusion, "approved");
+});
+
+test("resolveSelfApproval blocks approval by the pull request author", () => {
+  const result = resolveSelfApproval({
+    allowSelfApprove: true,
+    targetKind: "pull_request",
+    prState: "OPEN",
+    expectedHeadSha: "abc123",
+    currentHeadSha: "abc123",
+    decision: approveDecision,
+    approvalActorAllowed: false,
+    approvalActorReason: "approval actor matches the pull request author",
+    approvalProvenanceTrusted: true,
+  });
+
+  assert.equal(result.shouldApprove, false);
+  assert.equal(result.conclusion, "blocked");
+  assert.match(result.reason, /matches the pull request author/);
 });
 
 test("resolveSelfApproval rejects stale or mismatched head SHAs", () => {
@@ -150,6 +197,7 @@ test("resolveSelfApproval blocks approval without trusted review provenance", ()
     prState: "OPEN",
     expectedHeadSha: "abc123",
     currentHeadSha: "abc123",
+    ...distinctApprovalActor,
     approvalProvenanceTrusted: false,
     approvalProvenanceReason: "latest trusted review synthesis verdict is needs_rework, not SHIP",
     decision: approveDecision,

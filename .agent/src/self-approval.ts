@@ -21,6 +21,8 @@ export interface SelfApprovalResolveInput {
   expectedHeadSha: string;
   currentHeadSha: string;
   decision: SelfApprovalDecision | null;
+  approvalActorAllowed?: boolean;
+  approvalActorReason?: string;
   approvalProvenanceTrusted?: boolean;
   approvalProvenanceReason?: string;
 }
@@ -40,6 +42,11 @@ export interface SelfApprovalSignalComment {
 
 export interface SelfApprovalProvenanceResult {
   trusted: boolean;
+  reason: string;
+}
+
+export interface SelfApprovalActorResult {
+  allowed: boolean;
   reason: string;
 }
 
@@ -63,6 +70,36 @@ function createdAtMs(value: string | number | null | undefined): number {
 
 export function envFlagEnabled(value: string | undefined): boolean {
   return ["true", "1", "yes", "on"].includes(normalizeToken(value || ""));
+}
+
+export function evaluateSelfApprovalActor(input: {
+  approvalActorLogin: string;
+  prAuthorLogin: string;
+}): SelfApprovalActorResult {
+  const approvalActor = normalizeActorLogin(input.approvalActorLogin);
+  const prAuthor = normalizeActorLogin(input.prAuthorLogin);
+  if (!approvalActor) {
+    return {
+      allowed: false,
+      reason: "could not resolve approval actor for self-approval",
+    };
+  }
+  if (!prAuthor) {
+    return {
+      allowed: false,
+      reason: "could not resolve pull request author for self-approval",
+    };
+  }
+  if (approvalActor === prAuthor) {
+    return {
+      allowed: false,
+      reason: "approval actor matches the pull request author",
+    };
+  }
+  return {
+    allowed: true,
+    reason: "approval actor is distinct from pull request author",
+  };
 }
 
 function normalizeVerdict(value: string): SelfApprovalVerdict | null {
@@ -251,6 +288,15 @@ export function resolveSelfApproval(input: SelfApprovalResolveInput): SelfApprov
         conclusion: "blocked",
         shouldApprove: false,
         reason: "self-approval agent reported a different inspected head SHA",
+        handoffContext: input.decision.handoffContext,
+      };
+    }
+
+    if (input.approvalActorAllowed !== true) {
+      return {
+        conclusion: "blocked",
+        shouldApprove: false,
+        reason: input.approvalActorReason || "approval actor could not be verified as distinct from pull request author",
         handoffContext: input.decision.handoffContext,
       };
     }

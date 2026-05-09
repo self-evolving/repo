@@ -222,9 +222,10 @@ with a verdict, reason, optional follow-up context, and `inspected_head_sha`.
 
 Deterministic resolver code is the only part that can submit the GitHub
 approval. It rereads the current PR head, rechecks trusted current-head review
-provenance, parses the agent verdict, and approves only when the expected,
-current, and inspected head SHAs match. Non-approval outcomes post a compact PR
-status comment. Review-to-self-approval orchestration and status-comment upsert
+provenance, verifies the approval actor differs from the pull request author,
+parses the agent verdict, and approves only when the expected, current, and
+inspected head SHAs match. Non-approval outcomes post a compact PR status
+comment. Review-to-self-approval orchestration and status-comment upsert
 behavior are intentionally separate follow-up workflow slices.
 
 ### `agent-approve.yml`

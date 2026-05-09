@@ -186,6 +186,13 @@ export function fetchAuthenticatedActorLogin(): string {
   return String(parsed.data?.viewer?.login || parsed.viewer?.login || "").trim();
 }
 
+export function fetchPrAuthorLogin(prNumber: number, repo?: string): string {
+  const args = ["pr", "view", String(prNumber), "--json", "author"];
+  if (repo) args.push("--repo", repo);
+  const data = JSON.parse(gh(args)) as Record<string, unknown>;
+  return authorLoginFromRecord(data);
+}
+
 function normalizeIssueCommentRecord(value: unknown): IssueCommentRecord | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const record = value as Record<string, unknown>;

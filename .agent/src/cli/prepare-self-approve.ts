@@ -8,11 +8,13 @@ import { join } from "node:path";
 import {
   fetchAuthenticatedActorLogin,
   fetchIssueCommentRecords,
+  fetchPrAuthorLogin,
   fetchPrMeta,
 } from "../github.js";
 import { setOutput } from "../output.js";
 import {
   envFlagEnabled,
+  evaluateSelfApprovalActor,
   evaluateSelfApprovalProvenance,
   formatSelfApprovalBody,
 } from "../self-approval.js";
@@ -55,18 +57,27 @@ if (!allowSelfApprove) {
     } else if (!meta.headOid) {
       stop("could not resolve pull request head SHA");
     } else {
-      const provenance = evaluateSelfApprovalProvenance({
-        comments: fetchIssueCommentRecords(targetNumber, repo),
-        trustedActorLogin: fetchAuthenticatedActorLogin(),
-        expectedHeadSha: meta.headOid,
+      const authenticatedActorLogin = fetchAuthenticatedActorLogin();
+      const approvalActor = evaluateSelfApprovalActor({
+        approvalActorLogin: authenticatedActorLogin,
+        prAuthorLogin: fetchPrAuthorLogin(targetNumber, repo),
       });
-      if (!provenance.trusted) {
-        stop(provenance.reason);
+      if (!approvalActor.allowed) {
+        stop(approvalActor.reason);
       } else {
-        setOutput("should_run", "true");
-        setOutput("head_sha", meta.headOid);
-        setOutput("reason", "");
-        setOutput("body_file", "");
+        const provenance = evaluateSelfApprovalProvenance({
+          comments: fetchIssueCommentRecords(targetNumber, repo),
+          trustedActorLogin: authenticatedActorLogin,
+          expectedHeadSha: meta.headOid,
+        });
+        if (!provenance.trusted) {
+          stop(provenance.reason);
+        } else {
+          setOutput("should_run", "true");
+          setOutput("head_sha", meta.headOid);
+          setOutput("reason", "");
+          setOutput("body_file", "");
+        }
       }
     }
   } catch {
