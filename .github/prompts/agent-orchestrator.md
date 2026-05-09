@@ -33,6 +33,11 @@ these policy rules:
 - Issue-level `orchestrate` in agent mode may return `delegate_issue` to
   create, reuse, or adopt one child issue and start the child issue's normal
   orchestrator flow.
+- Pull-request-level `orchestrate` in agent mode may return `handoff` with
+  `next_action: "review"` or `next_action: "fix-pr"` for open PR targets. Use
+  `review` for analysis-only or review-first requests, and `fix-pr` only when
+  the user clearly wants branch changes or PR fixes. Use `answer`, `stop`, or
+  `blocked` when no follow-up workflow should run.
 - Duplicate handoffs are skipped by the orchestrator marker dedupe logic.
 - You may always choose to stop when another automatic action is not useful.
 
@@ -44,11 +49,11 @@ rubrics. Then return exactly one JSON object and nothing else:
 
 ```json
 {
-  "decision": "handoff | delegate_issue | stop | blocked",
+  "decision": "handoff | delegate_issue | answer | stop | blocked",
   "next_action": "implement | review | fix-pr",
   "reason": "Short explanation for logs and the handoff marker.",
   "handoff_context": "Actionable instructions for the next action, especially fix-pr.",
-  "user_message": "Optional user-facing message to post when decision is blocked.",
+  "user_message": "Optional user-facing message to post when decision is answer or blocked.",
   "clarification_request": "Optional focused question to post when decision is blocked.",
   "child_stage": "Short child issue stage name when decision is delegate_issue.",
   "child_instructions": "Concrete child issue task instructions when decision is delegate_issue.",
@@ -72,6 +77,9 @@ Rules:
   `next_action` with `delegate_issue`; it is an internal command, not a public
   route. Provide either `child_instructions`, `handoff_context`, or
   `child_issue_number`.
+- For pull-request-level `orchestrate`, choose only `handoff` to `review`,
+  `handoff` to `fix-pr`, `answer`, `stop`, or `blocked`. Do not choose
+  `implement` or `delegate_issue` for PR targets.
 - When `delegate_issue` continues sequential child implementation work after a
   prior child finished with an open, unmerged PR, set `base_pr` to that prior
   child PR so the next child stacks on it. Omit stack inputs only when the next
@@ -89,8 +97,11 @@ Rules:
 - Use `blocked` when required context is missing or the chain cannot proceed
   safely. Include `user_message` and/or `clarification_request` with text that
   can be posted directly as the visible clarification comment.
+- Use `answer` only as a top-level `decision` when the user asked a question or
+  needs guidance and no follow-up workflow should run. Put the visible response
+  in `user_message`.
 - Do not use `answer` as `next_action`; if the automation needs to ask the user
-  a question, choose `blocked` with a clarification message.
+  a question before continuing, choose `blocked` with a clarification message.
 - Omit `next_action` unless `decision` is `handoff`.
 - Include `handoff_context` for `handoff` decisions when useful. For `fix-pr`,
   it is required: preserve any non-empty source handoff context, or make the

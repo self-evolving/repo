@@ -27,20 +27,23 @@ dispatches one built-in action (`implement`, `review`, or `fix-pr`) when useful.
 That dispatch includes explicit orchestration context; only those orchestrator
 launched action runs hand back to `agent-orchestrator.yml` after post-processing.
 Direct `/implement`, `/review`, and `/fix-pr` runs remain one-shot.
-Explicit `/orchestrate` starts on pull requests are deterministic in both
-`heuristics` and `agent` modes. Issue-level `/orchestrate` starts in `agent`
-mode may use the planner. For small self-contained issue work, the planner can
-return a normal handoff to `implement` on the current issue. For
-meta-orchestration, the planner can return an internal `delegate_issue` command
-instead of adding a new public route. That command creates or reuses a child
-issue with parent/stage metadata, dispatches the child issue through the normal
-`/orchestrate` flow in heuristic mode, and keeps the parent/child relationship
-in GitHub issue state rather than session identity. When `delegate_issue` names
-an existing user-authored issue, the orchestrator adopts it by writing the
-trusted child marker in an agent-authored issue comment and recording the
-parent/child link on the parent issue. The dispatcher also best-effort adds the
-child as a GitHub sub-issue of the parent when the repository supports that REST
-API; trusted markers remain the fallback relation if the API is unavailable.
+Explicit `/orchestrate` starts on pull requests remain deterministic in
+`heuristics` mode. In `agent` mode, issue-level and pull-request-level
+`/orchestrate` starts may use the planner. For small self-contained issue work,
+the planner can return a normal handoff to `implement` on the current issue. For
+PR work, the planner can choose review-first, fix-the-PR, answer-only, or stop
+behavior; runtime policy validates that PR starts dispatch only `review` or
+`fix-pr` workflows. For meta-orchestration, the planner can return an internal
+`delegate_issue` command instead of adding a new public route. That command
+creates or reuses a child issue with parent/stage metadata, dispatches the child
+issue through the normal `/orchestrate` flow in heuristic mode, and keeps the
+parent/child relationship in GitHub issue state rather than session identity.
+When `delegate_issue` names an existing user-authored issue, the orchestrator
+adopts it by writing the trusted child marker in an agent-authored issue comment
+and recording the parent/child link on the parent issue. The dispatcher also
+best-effort adds the child as a GitHub sub-issue of the parent when the
+repository supports that REST API; trusted markers remain the fallback relation
+if the API is unavailable.
 
 Planner-based selection is also used for action-originated handoff runs. The planner can include a
 `handoff_context` string for the next action; `fix-pr` receives it as explicit

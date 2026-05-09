@@ -4,7 +4,7 @@ export type AgentAction = "implement" | "review" | "fix-pr";
 export type HandoffDecisionKind = "dispatch" | "delegate_issue" | "stop" | "skip";
 export type AutomationMode = "disabled" | "heuristics" | "agent";
 export type HandoffMarkerState = "pending" | "dispatched" | "failed";
-export type PlannerDecisionKind = "handoff" | "delegate_issue" | "stop" | "blocked";
+export type PlannerDecisionKind = "handoff" | "delegate_issue" | "answer" | "stop" | "blocked";
 
 export interface HandoffInput {
   automationMode: string;
@@ -66,6 +66,13 @@ export interface PlannerDecision {
 }
 
 const REVIEW_TO_FIX_PR = new Set(["minor_issues", "needs_rework", "changes_requested"]);
+const PLANNER_DECISION_KINDS: Partial<Record<string, PlannerDecisionKind>> = {
+  handoff: "handoff",
+  delegate_issue: "delegate_issue",
+  answer: "answer",
+  stop: "stop",
+  blocked: "blocked",
+};
 const HANDOFF_MARKER_PREFIX = "sepo-agent-handoff";
 const DEFAULT_FIX_PR_HANDOFF_CONTEXT = [
   "Address only the latest unresolved review synthesis action items.",
@@ -217,15 +224,7 @@ export function parsePlannerDecision(raw: string): PlannerDecision | null {
 
   const record = parsed as Record<string, unknown>;
   const decisionToken = normalizeToken(String(record.decision || ""));
-  const decision: PlannerDecisionKind | null = decisionToken === "handoff"
-    ? "handoff"
-    : decisionToken === "delegate_issue"
-      ? "delegate_issue"
-    : decisionToken === "stop"
-      ? "stop"
-      : decisionToken === "blocked"
-        ? "blocked"
-        : null;
+  const decision = PLANNER_DECISION_KINDS[decisionToken];
   if (!decision) return null;
 
   const nextAction = normalizeAgentAction(String(record.next_action ?? record.nextAction ?? ""));
@@ -482,6 +481,18 @@ function decideAgentHandoff(input: HandoffInput): HandoffDecision {
       clarificationRequest: plannerDecision.clarificationRequest,
     };
   }
+  if (plannerDecision.decision === "answer") {
+    if (plannerDecision.nextAction) {
+      return { decision: "stop", reason: "answer must not set next_action", nextRound };
+    }
+    return {
+      decision: "stop",
+      reason: `agent planner answered: ${plannerDecision.reason}`,
+      nextRound,
+      plannerDecisionKind: "answer",
+      userMessage: plannerDecision.userMessage || plannerDecision.handoffContext,
+    };
+  }
   if (plannerDecision.decision === "delegate_issue") {
     const sourceAction = normalizeToken(input.sourceAction);
     const targetKind = normalizeToken(input.targetKind || "");
@@ -539,6 +550,30 @@ function decideAgentHandoff(input: HandoffInput): HandoffDecision {
       handoffContext: plannerDecision.handoffContext,
       baseBranch: plannerDecision.baseBranch,
       basePr: plannerDecision.basePr,
+    };
+  }
+  if (sourceAction === "orchestrate" && targetKind === "pull_request") {
+    if (plannerDecision.nextAction === "review" || plannerDecision.nextAction === "fix-pr") {
+      if (plannerDecision.nextAction === "fix-pr" && !plannerDecision.handoffContext) {
+        return {
+          decision: "stop",
+          reason: "agent planner selected fix-pr for PR orchestration without handoff_context",
+          nextRound,
+        };
+      }
+      return {
+        decision: "dispatch",
+        nextAction: plannerDecision.nextAction,
+        targetNumber: input.targetNumber,
+        reason: `agent planner selected ${plannerDecision.nextAction}: ${plannerDecision.reason}`,
+        nextRound,
+        handoffContext: plannerDecision.handoffContext,
+      };
+    }
+    return {
+      decision: "stop",
+      reason: `agent planner requested ${plannerDecision.nextAction}, but PR orchestration can dispatch only review or fix-pr`,
+      nextRound,
     };
   }
 
