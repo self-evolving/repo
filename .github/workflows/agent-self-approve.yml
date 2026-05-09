@@ -78,7 +78,9 @@ jobs:
       - name: Post self-approval stop
         if: >-
           always() &&
-          steps.prepare.outputs.should_run != 'true'
+          steps.prepare.outcome == 'success' &&
+          steps.prepare.outputs.should_run != 'true' &&
+          steps.prepare.outputs.body_file != ''
         env:
           BODY_FILE: ${{ steps.prepare.outputs.body_file }}
           GH_TOKEN: ${{ steps.auth.outputs.token }}

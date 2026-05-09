@@ -424,7 +424,7 @@ test("self-approval workflow stays opt-in and read-only until deterministic reso
   assert.match(workflowText, /AGENT_ALLOW_SELF_APPROVE:\s*\$\{\{\s*vars\.AGENT_ALLOW_SELF_APPROVE \|\| 'false'\s*\}\}/);
   assert.match(workflowText, /node \.agent\/dist\/cli\/prepare-self-approve\.js/);
   assert.match(workflowText, /node \.agent\/dist\/cli\/resolve-self-approve\.js/);
-  assert.match(workflowText, /Post self-approval stop[\s\S]*always\(\)/);
+  assert.match(workflowText, /Post self-approval stop[\s\S]*always\(\)[\s\S]*steps\.prepare\.outcome == 'success'[\s\S]*steps\.prepare\.outputs\.should_run != 'true'[\s\S]*steps\.prepare\.outputs\.body_file != ''/);
   assert.match(workflowText, /Resolve self-approval result[\s\S]*always\(\)/);
   assert.match(workflowText, /Post self-approval status[\s\S]*always\(\)[\s\S]*steps\.result\.outcome == 'failure'/);
   assert.match(workflowText, /actions\/upload-artifact@v4/);
