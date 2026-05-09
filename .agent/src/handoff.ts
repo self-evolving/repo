@@ -557,6 +557,13 @@ function decideAgentHandoff(input: HandoffInput): HandoffDecision {
   }
   if (sourceAction === "orchestrate" && targetKind === "pull_request") {
     if (plannerDecision.nextAction === "review" || plannerDecision.nextAction === "fix-pr") {
+      if (plannerDecision.nextAction === "fix-pr" && !plannerDecision.handoffContext) {
+        return {
+          decision: "stop",
+          reason: "agent planner selected fix-pr for PR orchestration without handoff_context",
+          nextRound,
+        };
+      }
       return {
         decision: "dispatch",
         nextAction: plannerDecision.nextAction,

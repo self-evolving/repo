@@ -146,10 +146,10 @@ resolves to the open same-repository PR head branch, and the repository default
 branch is used when neither input is present. Setting both base inputs is
 rejected.
 
-Manual pull request starts remain deterministic in `agent` mode. Issue-level
-manual starts may invoke the planner for direct `implement` handoff or
-`delegate_issue` meta-orchestration, and action-originated handoff envelopes use
-the planner path when enabled.
+Manual pull request starts are deterministic only in `heuristics` mode. In
+`agent` mode, issue-level and pull-request-level manual starts may invoke the
+planner for the first orchestration step, and action-originated handoff
+envelopes use the planner path when enabled.
 
 In `heuristics` mode, action-originated handoff decisions still use the fixed transition policy and round budget checks.
 

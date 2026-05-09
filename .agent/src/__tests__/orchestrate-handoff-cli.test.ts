@@ -894,6 +894,32 @@ test("agent orchestrate dispatches planner-selected fix-pr for PR targets", () =
   assert.equal(inputs.orchestrator_context, run.outputs.get("handoff_context"));
 });
 
+test("agent orchestrate stops planner-selected PR fix-pr without context", () => {
+  const run = runOrchestrateHandoff({
+    AUTOMATION_MODE: "agent",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "21",
+    FAKE_PR_STATE: "OPEN",
+    FAKE_PR_REVIEW_DECISION: "APPROVED",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "handoff",
+      next_action: "fix-pr",
+      reason: "The request asks to fix CI on this approved PR.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.equal(run.outputs.get("next_action"), "");
+  assert.equal(run.outputs.get("handoff_context"), "");
+  assert.equal(run.outputs.get("reason"), "agent planner selected fix-pr for PR orchestration without handoff_context");
+  assert.match(run.ghLog, /pr view 21/);
+  assert.match(run.ghLog, /No follow-up workflow was dispatched/);
+  assert.doesNotMatch(run.ghLog, /latest unresolved requested-change review comments/);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-fix-pr\.yml\/dispatches/);
+  assert.equal(run.dispatchPayload, null);
+});
+
 test("agent orchestrate dispatches planner-selected review for PR targets", () => {
   const run = runOrchestrateHandoff({
     AUTOMATION_MODE: "agent",

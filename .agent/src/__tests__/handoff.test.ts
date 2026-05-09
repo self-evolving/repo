@@ -188,6 +188,23 @@ test("agent mode rejects invalid PR-level orchestrate handoffs", () => {
   });
   assert.equal(mixedAnswer.decision, "stop");
   assert.match(mixedAnswer.reason, /answer must not set next_action/);
+
+  const fixWithoutContext = decideHandoff({
+    automationMode: "agent",
+    sourceAction: "orchestrate",
+    sourceConclusion: "requested",
+    targetKind: "pull_request",
+    targetNumber: "66",
+    currentRound: 1,
+    maxRounds: 5,
+    plannerDecision: {
+      decision: "handoff",
+      nextAction: "fix-pr",
+      reason: "Fix the PR.",
+    },
+  });
+  assert.equal(fixWithoutContext.decision, "stop");
+  assert.match(fixWithoutContext.reason, /without handoff_context/);
 });
 
 test("agent mode rejects invalid child issue delegation", () => {
