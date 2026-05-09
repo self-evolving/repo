@@ -203,6 +203,14 @@ test("extractReleaseVersionFromRequest normalizes optional leading v", () => {
   assert.equal(extractReleaseVersionFromRequest("@sepo-agent /release v1.0.0-rc.1"), "1.0.0-rc.1");
   assert.equal(extractReleaseVersionFromRequest("@sepo-agent /release beta"), "");
   assert.equal(extractReleaseVersionFromRequest("@sepo-agent /release 01.0.0"), "");
+  assert.equal(extractReleaseVersionFromRequest("@sepo-agent /release 1.0.0-01"), "");
+  assert.equal(extractReleaseVersionFromRequest("@sepo-agent /release 1.0.0-rc.01"), "");
+});
+
+test("buildRequestedRouteDecision rejects release requests with leading-zero prerelease identifiers", () => {
+  const d = buildRequestedRouteDecision("release", "@sepo-agent /release 1.0.0-rc.01");
+  assert.equal(d.route, "unsupported");
+  assert.match(d.summary, /SemVer version/);
 });
 
 test("buildRequestedRouteDecision supports skill routes", () => {

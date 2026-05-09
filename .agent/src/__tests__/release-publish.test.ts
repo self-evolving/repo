@@ -64,8 +64,11 @@ class FakeRunner implements CommandRunner {
 
 function withPackage(version: string, callback: (cwd: string) => void): void {
   const tempDir = mkdtempSync(join(tmpdir(), "sepo-release-publish-"));
+  const previousOutput = process.env.GITHUB_OUTPUT;
   try {
     mkdirSync(join(tempDir, ".agent"));
+    process.env.GITHUB_OUTPUT = join(tempDir, "github-output.txt");
+    writeFileSync(process.env.GITHUB_OUTPUT, "", "utf8");
     writeFileSync(
       join(tempDir, ".agent", "package.json"),
       JSON.stringify({ name: "@self-evolving/sepo", version }),
@@ -73,6 +76,11 @@ function withPackage(version: string, callback: (cwd: string) => void): void {
     );
     callback(tempDir);
   } finally {
+    if (previousOutput === undefined) {
+      delete process.env.GITHUB_OUTPUT;
+    } else {
+      process.env.GITHUB_OUTPUT = previousOutput;
+    }
     rmSync(tempDir, { recursive: true, force: true });
   }
 }
@@ -189,6 +197,28 @@ test("publishRelease rejects package version mismatches", () => {
       }),
       /does not match 0\.2\.0/,
     );
+    assert.equal(runner.calls.length, 0);
+  });
+});
+
+test("publishRelease rejects leading-zero prerelease identifiers", () => {
+  withPackage("1.0.0-rc.1", (cwd) => {
+    const runner = new FakeRunner();
+    for (const version of ["1.0.0-01", "1.0.0-rc.01"]) {
+      assert.throws(
+        () => publishRelease({
+          repo: "self-evolving/repo",
+          version,
+          targetRef: "main",
+          draft: "true",
+          prerelease: "auto",
+          updateExisting: "false",
+          cwd,
+          runner,
+        }),
+        /version must be SemVer/,
+      );
+    }
     assert.equal(runner.calls.length, 0);
   });
 });

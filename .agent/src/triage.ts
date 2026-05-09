@@ -2,6 +2,7 @@
 // and converts it into the portal's validated dispatch shape.
 
 import { escapeRegex, stripNonLiveMentions } from "./mentions.js";
+import { parseReleaseVersion } from "./release-version.js";
 import { extractJsonObject } from "./response.js";
 import {
   type AccessPolicy,
@@ -32,7 +33,6 @@ const EXPLICIT_ROUTE_COMMANDS = ["answer", "implement", "release", "fix-pr", "re
 const LABEL_ROUTE_PREFIX = "agent/";
 const LABEL_SKILL_PREFIX = "agent/s/";
 const VALID_SKILL_LABEL = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
-const RELEASE_VERSION_RE = /^v?(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/;
 
 export interface RequestedLabelDecision {
   route: string;
@@ -290,12 +290,11 @@ export function extractReleaseVersionFromRequest(requestText: string): string {
   const sanitized = stripNonLiveMentions(String(requestText || ""));
   const match = sanitized.match(/(?:^|[\s(])\/release(?:\s+([^\s,;:!?)\]}]+))?/i);
   const raw = String(match?.[1] || "").trim().replace(/[),;:!?]+$/g, "");
-  const versionMatch = raw.match(RELEASE_VERSION_RE);
-  if (!versionMatch) {
+  try {
+    return parseReleaseVersion(raw).version;
+  } catch {
     return "";
   }
-  const [, major, minor, patch, prerelease] = versionMatch;
-  return `${major}.${minor}.${patch}${prerelease ? `-${prerelease}` : ""}`;
 }
 
 /**

@@ -187,10 +187,46 @@ export interface CreateIssueOptions {
   repo?: string;
 }
 
+export interface IssueSummary {
+  number: number;
+  title: string;
+  url: string;
+}
+
 export function createIssue(opts: CreateIssueOptions): string {
   const args = ["issue", "create", "--title", opts.title, "--body-file", opts.bodyFile];
   if (opts.repo) args.push("--repo", opts.repo);
   return gh(args).trim();
+}
+
+export function findOpenIssueByTitle(title: string, repo?: string): IssueSummary | null {
+  const normalizedTitle = String(title || "").trim();
+  if (!normalizedTitle) return null;
+
+  const args = [
+    "issue",
+    "list",
+    "--state",
+    "open",
+    "--search",
+    `in:title ${normalizedTitle}`,
+    "--json",
+    "number,title,url",
+    "--limit",
+    "50",
+  ];
+  if (repo) args.push("--repo", repo);
+
+  const raw = gh(args).trim();
+  const issues = JSON.parse(raw || "[]") as Array<Record<string, unknown>>;
+  const match = issues.find((issue) => String(issue.title || "").trim() === normalizedTitle);
+  if (!match) return null;
+
+  return {
+    number: Number(match.number || 0),
+    title: String(match.title || ""),
+    url: String(match.url || ""),
+  };
 }
 
 // --- Workflow dispatch ---

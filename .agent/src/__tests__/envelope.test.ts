@@ -530,6 +530,7 @@ test("agent router dispatches agent-implement directly for explicit implement re
     implementJob,
     /- name: Create implementation issue[\s\S]*if:\s*needs\.portal\.outputs\.target_kind != 'issue' \|\| needs\.portal\.outputs\.route == 'release'[\s\S]*node \.agent\/dist\/cli\/create-issue\.js/,
   );
+  assert.match(implementJob, /ROUTE:\s*\$\{\{ needs\.portal\.outputs\.route \}\}/);
   assert.match(
     implementJob,
     /- name: Dispatch agent-implement[\s\S]*APPROVAL_COMMENT_URL: ""[\s\S]*node \.agent\/dist\/cli\/dispatch-agent-implement\.js/,
@@ -547,6 +548,7 @@ test("agent router dispatches agent-implement directly for explicit implement re
   );
 
   // agent-approve.yml uses the same CLIs — no duplicate inline shell.
+  assert.match(approveWorkflow, /ROUTE:\s*\$\{\{ steps\.approval\.outputs\.route \}\}/);
   assert.match(approveWorkflow, /node \.agent\/dist\/cli\/create-issue\.js/);
   assert.match(approveWorkflow, /node \.agent\/dist\/cli\/dispatch-agent-implement\.js/);
   assert.doesNotMatch(approveWorkflow, /actions\/workflows\/\$\{WORKFLOW\}\/dispatches/);

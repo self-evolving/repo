@@ -2,9 +2,9 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { setOutput } from "./output.js";
+import { type ReleaseVersion, parseReleaseVersion } from "./release-version.js";
 
 const SOURCE_REPOSITORY = "self-evolving/repo";
-const SEMVER_RE = /^v?(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/;
 
 export interface CommandRunner {
   run(command: string, args: string[], cwd?: string): string;
@@ -33,13 +33,6 @@ export interface PublishReleaseResult {
   releaseUrl: string;
 }
 
-interface NormalizedVersion {
-  version: string;
-  tag: string;
-  major: number;
-  prereleaseLabel: string;
-}
-
 interface GitObjectPointer {
   type: string;
   sha: string;
@@ -55,23 +48,6 @@ class DefaultCommandRunner implements CommandRunner {
   }
 }
 
-function normalizeVersion(value: string): NormalizedVersion {
-  const raw = String(value || "").trim();
-  const match = raw.match(SEMVER_RE);
-  if (!match) {
-    throw new Error("version must be SemVer without build metadata, for example 0.2.0 or 1.0.0-rc.1");
-  }
-
-  const [, major, minor, patch, prereleaseLabel = ""] = match;
-  const version = `${major}.${minor}.${patch}${prereleaseLabel ? `-${prereleaseLabel}` : ""}`;
-  return {
-    version,
-    tag: `v${version}`,
-    major: Number.parseInt(major, 10),
-    prereleaseLabel,
-  };
-}
-
 function parseBoolean(value: string, label: string, defaultValue: boolean): boolean {
   const normalized = String(value || "").trim().toLowerCase();
   if (!normalized) return defaultValue;
@@ -80,7 +56,7 @@ function parseBoolean(value: string, label: string, defaultValue: boolean): bool
   throw new Error(`${label} must be true or false`);
 }
 
-function resolvePrerelease(value: string, version: NormalizedVersion): boolean {
+function resolvePrerelease(value: string, version: ReleaseVersion): boolean {
   const normalized = String(value || "auto").trim().toLowerCase();
   if (!normalized || normalized === "auto") {
     return version.major === 0 || Boolean(version.prereleaseLabel);
@@ -283,7 +259,7 @@ export function publishRelease(options: PublishReleaseOptions): PublishReleaseRe
     throw new Error(`release publishing is only allowed in ${SOURCE_REPOSITORY}`);
   }
 
-  const normalizedVersion = normalizeVersion(options.version);
+  const normalizedVersion = parseReleaseVersion(options.version);
   const packageJsonPath = resolve(cwd, options.packageJsonPath || ".agent/package.json");
   const packageVersion = readPackageVersion(packageJsonPath);
   if (packageVersion !== normalizedVersion.version) {

@@ -75,12 +75,14 @@ an open same-repository PR head branch. The implementation workflow rejects
 ambiguous input when both are set.
 
 Release preparation is a specialized implementation route. A request like
-`@sepo-agent /release 0.2.0` creates a tracking issue titled like
+`@sepo-agent /release 0.2.0` creates or updates a tracking issue titled like
 `Prepare Sepo release 0.2.0`, then dispatches `agent-implement.yml` with
-`implementation_route: release` and the release prompt. The release prompt
-updates version files and docs through a normal PR only; it must not create git
-tags or GitHub Releases. Because this route delegates to implementation, callers
-and approvers must also satisfy the `implement` access policy. After that PR is merged, maintainers run
+`implementation_route: release` and the release prompt. Repeated requests for
+the same open version issue reuse that issue instead of creating duplicates. The
+release prompt updates version files and docs through a normal PR only; it must
+not create git tags or GitHub Releases. Because this route delegates to
+implementation, callers and approvers must also satisfy the `implement` access
+policy. After that PR is merged, maintainers run
 `Agent / Release / Publish` manually in `self-evolving/repo`. That workflow is
 hard-gated with `github.repository == 'self-evolving/repo'`, verifies
 `.agent/package.json` matches the requested version, creates an annotated
