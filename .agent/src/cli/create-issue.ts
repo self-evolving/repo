@@ -50,15 +50,16 @@ if (targetUrl) {
 }
 const releaseVersion = route === "release" ? releaseVersionFromTitle(title) : "";
 const issueTitle = releaseVersion ? `Prepare Sepo release ${releaseVersion}` : title;
-if (releaseVersion) {
-  bodyLines.push("", `<!-- sepo-agent-release-prep version:${releaseVersion} -->`);
+const releasePrepVersion = route === "release" ? releaseVersion || "next" : "";
+if (releasePrepVersion) {
+  bodyLines.push("", `<!-- sepo-agent-release-prep version:${releasePrepVersion} -->`);
 }
 
 const runnerTemp = process.env.RUNNER_TEMP || "/tmp";
 const bodyFile = join(runnerTemp, `agent-issue-body-${randomBytes(8).toString("hex")}.md`);
 writeFileSync(bodyFile, bodyLines.join("\n") + "\n", "utf8");
 
-const existingIssue = releaseVersion ? findOpenIssueByTitle(issueTitle, repo) : null;
+const existingIssue = releasePrepVersion ? findOpenIssueByTitle(issueTitle, repo) : null;
 if (existingIssue) {
   setOutput("issue_url", existingIssue.url);
   setOutput("issue_number", String(existingIssue.number));
