@@ -71,12 +71,19 @@ In `heuristics` mode, manual starts use deterministic status checks:
 - pull request target with `CHANGES_REQUESTED`: dispatch `fix-pr`
 - other open pull request targets: dispatch `review`
 
-In `agent` mode, an issue-level manual start can either dispatch `implement`
+In `agent` mode, a manual start can ask the planner to choose the first
+orchestration step. For issue targets, the planner can dispatch `implement`
 directly for a small, self-contained change on the current issue, or act as a
 meta-orchestrator when a separate child issue materially helps. For direct
 implementation, the planner returns `handoff` with `next_action: "implement"`,
-and the dispatcher launches `agent-implement.yml` for the current issue. For
-child work, the planner may return `delegate_issue`, which is an internal
+and the dispatcher launches `agent-implement.yml` for the current issue. For PR
+targets, the planner can return `handoff` with `next_action: "review"` or
+`next_action: "fix-pr"` after parsing the user's request text; runtime policy
+checks that the PR is open and rejects PR starts that try to dispatch
+`implement` or `delegate_issue`. The planner may also return `answer`, `stop`,
+or `blocked` when no follow-up workflow should run.
+
+For child work, the planner may return `delegate_issue`, which is an internal
 command rather than a public route. The dispatcher creates or reuses one child
 issue for the requested stage and dispatches `agent-orchestrator.yml` for the
 child issue in heuristic mode. New agent-created child issues store a hidden

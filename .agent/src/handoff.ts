@@ -4,7 +4,7 @@ export type AgentAction = "implement" | "review" | "fix-pr";
 export type HandoffDecisionKind = "dispatch" | "delegate_issue" | "stop" | "skip";
 export type AutomationMode = "disabled" | "heuristics" | "agent";
 export type HandoffMarkerState = "pending" | "dispatched" | "failed";
-export type PlannerDecisionKind = "handoff" | "delegate_issue" | "stop" | "blocked";
+export type PlannerDecisionKind = "handoff" | "delegate_issue" | "answer" | "stop" | "blocked";
 
 export interface HandoffInput {
   automationMode: string;
@@ -221,6 +221,8 @@ export function parsePlannerDecision(raw: string): PlannerDecision | null {
     ? "handoff"
     : decisionToken === "delegate_issue"
       ? "delegate_issue"
+    : decisionToken === "answer"
+      ? "answer"
     : decisionToken === "stop"
       ? "stop"
       : decisionToken === "blocked"
@@ -482,6 +484,18 @@ function decideAgentHandoff(input: HandoffInput): HandoffDecision {
       clarificationRequest: plannerDecision.clarificationRequest,
     };
   }
+  if (plannerDecision.decision === "answer") {
+    if (plannerDecision.nextAction) {
+      return { decision: "stop", reason: "answer must not set next_action", nextRound };
+    }
+    return {
+      decision: "stop",
+      reason: `agent planner answered: ${plannerDecision.reason}`,
+      nextRound,
+      plannerDecisionKind: "answer",
+      userMessage: plannerDecision.userMessage || plannerDecision.handoffContext,
+    };
+  }
   if (plannerDecision.decision === "delegate_issue") {
     const sourceAction = normalizeToken(input.sourceAction);
     const targetKind = normalizeToken(input.targetKind || "");
@@ -539,6 +553,23 @@ function decideAgentHandoff(input: HandoffInput): HandoffDecision {
       handoffContext: plannerDecision.handoffContext,
       baseBranch: plannerDecision.baseBranch,
       basePr: plannerDecision.basePr,
+    };
+  }
+  if (sourceAction === "orchestrate" && targetKind === "pull_request") {
+    if (plannerDecision.nextAction === "review" || plannerDecision.nextAction === "fix-pr") {
+      return {
+        decision: "dispatch",
+        nextAction: plannerDecision.nextAction,
+        targetNumber: input.targetNumber,
+        reason: `agent planner selected ${plannerDecision.nextAction}: ${plannerDecision.reason}`,
+        nextRound,
+        handoffContext: plannerDecision.handoffContext,
+      };
+    }
+    return {
+      decision: "stop",
+      reason: `agent planner requested ${plannerDecision.nextAction}, but PR orchestration can dispatch only review or fix-pr`,
+      nextRound,
     };
   }
 
