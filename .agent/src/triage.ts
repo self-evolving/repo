@@ -5,8 +5,7 @@ import { escapeRegex, stripNonLiveMentions } from "./mentions.js";
 import { extractJsonObject } from "./response.js";
 import {
   type AccessPolicy,
-  getAllowedAssociationsForRoute,
-  isAssociationAllowedForRoute,
+  getRouteAuthorizationDenial,
 } from "./access-policy.js";
 
 export const ROUTES = new Set([
@@ -343,28 +342,26 @@ export function applyDispatchPolicy(
 ): DispatchDecision {
   const normalized = { ...decision };
 
-  if (
-    String(authorAssociation || "").trim() &&
-    !isAssociationAllowedForRoute(
+  if (String(authorAssociation || "").trim()) {
+    const denial = getRouteAuthorizationDenial(
       accessPolicy,
       normalized.route,
       authorAssociation || "",
       isPublicRepo,
-    )
-  ) {
-    const allowed = getAllowedAssociationsForRoute(
-      accessPolicy,
-      normalized.route,
-      isPublicRepo,
     );
-    return {
-      ...normalized,
-      route: "unsupported",
-      needsApproval: false,
-      summary: `${normalized.route} requests currently require ${allowed.join(", ")} access.`,
-      issueTitle: "",
-      issueBody: "",
-    };
+    if (denial) {
+      const summary = denial.route === normalized.route
+        ? `${normalized.route} requests currently require ${denial.allowedAssociations.join(", ")} access.`
+        : `${normalized.route} requests require ${denial.route} access; ${denial.route} currently requires ${denial.allowedAssociations.join(", ")} access.`;
+      return {
+        ...normalized,
+        route: "unsupported",
+        needsApproval: false,
+        summary,
+        issueTitle: "",
+        issueBody: "",
+      };
+    }
   }
 
   if (normalized.route === "implement") {

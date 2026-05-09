@@ -308,6 +308,26 @@ test("applyDispatchPolicy skips approval gate for explicit release requests", ()
   assert.equal(d.needsApproval, false);
 });
 
+test("applyDispatchPolicy denies explicit release when downstream implement policy is narrower", () => {
+  const d = applyDispatchPolicy(
+    buildRequestedRouteDecision("release", "@sepo-agent /release 0.2.0"),
+    "issue",
+    "CONTRIBUTOR",
+    parseAccessPolicy(
+      JSON.stringify({
+        route_overrides: {
+          implement: ["OWNER", "MEMBER"],
+        },
+      }),
+    ),
+    false,
+    true,
+  );
+  assert.equal(d.route, "unsupported");
+  assert.equal(d.needsApproval, false);
+  assert.match(d.summary, /release requests require implement access/);
+});
+
 test("applyDispatchPolicy denies explicit implement when access policy restricts the route", () => {
   // Explicit /implement bypasses the approval gate but must still honor the
   // access policy — isExplicit=true does not mean access-unrestricted.

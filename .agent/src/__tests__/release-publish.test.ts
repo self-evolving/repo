@@ -7,10 +7,12 @@ import { strict as assert } from "node:assert";
 import { type CommandRunner, publishRelease } from "../release-publish.js";
 
 const TARGET_SHA = "0123456789abcdef0123456789abcdef01234567";
+const TAG_OBJECT_SHA = "89abcdef0123456789abcdef0123456789abcdef";
 
 class FakeRunner implements CommandRunner {
   calls: Array<{ command: string; args: string[] }> = [];
   tagExists = false;
+  tagTargetSha = TARGET_SHA;
   releaseExists = false;
   releaseCreated = false;
   releaseUpdated = false;
@@ -25,14 +27,20 @@ class FakeRunner implements CommandRunner {
     }
 
     const text = args.join(" ");
-    if (text.includes("/git/ref/tags/")) {
+    const methodIndex = args.indexOf("-X");
+    const method = methodIndex >= 0 ? args[methodIndex + 1] : "GET";
+    const apiPath = args.find((arg) => arg.startsWith("repos/")) || "";
+    if (method === "GET" && apiPath.includes("/git/ref/tags/")) {
       if (!this.tagExists) throw new Error("missing tag");
-      return "refs/tags/v0.1.0\n";
+      return JSON.stringify({ object: { type: "tag", sha: TAG_OBJECT_SHA } });
     }
-    if (text.includes("/git/tags")) {
-      return "89abcdef0123456789abcdef0123456789abcdef\n";
+    if (method === "GET" && apiPath.includes(`/git/tags/${TAG_OBJECT_SHA}`)) {
+      return JSON.stringify({ object: { type: "commit", sha: this.tagTargetSha } });
     }
-    if (text.includes("/git/refs")) {
+    if (method === "POST" && apiPath.includes("/git/tags")) {
+      return `${TAG_OBJECT_SHA}\n`;
+    }
+    if (method === "POST" && apiPath.includes("/git/refs")) {
       this.tagExists = true;
       return "{}\n";
     }
@@ -114,6 +122,54 @@ test("publishRelease fails when release exists without update_existing", () => {
       }),
       /already exists/,
     );
+  });
+});
+
+test("publishRelease rejects an existing tag that points at another commit", () => {
+  withPackage("0.1.0", (cwd) => {
+    const runner = new FakeRunner();
+    runner.tagExists = true;
+    runner.tagTargetSha = "fedcba9876543210fedcba9876543210fedcba98";
+
+    assert.throws(
+      () => publishRelease({
+        repo: "self-evolving/repo",
+        version: "0.1.0",
+        targetRef: "main",
+        draft: "true",
+        prerelease: "auto",
+        updateExisting: "false",
+        cwd,
+        runner,
+      }),
+      /Existing tag v0\.1\.0 points to fedcba9876543210fedcba9876543210fedcba98, not target/,
+    );
+    assert.equal(runner.releaseCreated, false);
+    assert.equal(runner.releaseUpdated, false);
+  });
+});
+
+test("publishRelease updates existing releases when update_existing is true", () => {
+  withPackage("0.1.0", (cwd) => {
+    const runner = new FakeRunner();
+    runner.tagExists = true;
+    runner.releaseExists = true;
+
+    const result = publishRelease({
+      repo: "self-evolving/repo",
+      version: "0.1.0",
+      targetRef: "main",
+      draft: "false",
+      prerelease: "false",
+      updateExisting: "true",
+      cwd,
+      runner,
+    });
+
+    assert.equal(result.tagCreated, false);
+    assert.equal(result.releaseAction, "updated");
+    assert.equal(runner.releaseUpdated, true);
+    assert.ok(runner.calls.some((call) => call.args[0] === "release" && call.args[1] === "edit"));
   });
 });
 

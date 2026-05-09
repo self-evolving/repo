@@ -30,6 +30,8 @@ Both keys are optional:
 
 Route override keys are matched after route resolution, so future routes can use the same policy shape without changing this schema. If a route has no override, it uses `allowed_associations`; if `allowed_associations` is also unset, it uses the repository visibility default below.
 
+The `release` route dispatches the implementation workflow, so it must satisfy both `route_overrides.release` when configured and the downstream `implement` route policy.
+
 ## Example
 
 This policy lets contributors ask questions through the default `answer` behavior, while keeping implementation work limited to owners and organization members:
@@ -71,7 +73,7 @@ For mention and label triggers, trigger extraction validates the event, resolves
 
 That means `route_overrides` also apply to plain implicit mentions such as `@sepo-agent can you help?`. If the resolved route is not allowed, the router posts an inline unsupported reply instead of silently dropping the request.
 
-Approval comments use the same policy after the pending request is found. The approval check uses the route stored in the pending request marker.
+Approval comments use the same policy after the pending request is found. The approval check uses the route stored in the pending request marker, including delegated route requirements such as `release` also requiring `implement` access.
 
 Label triggers authorize the label applier rather than the issue or pull request author. Personal-repository owners map to `OWNER`; visible organization members map to `MEMBER`; repository collaborators with label permission map to `COLLABORATOR`. After a label-triggered request is accepted by the router, `agent-label.yml` removes the triggering `agent/*` label even when the route is denied, so unauthorized queue labels do not linger.
 

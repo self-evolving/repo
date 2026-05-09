@@ -13,8 +13,7 @@ import { setOutput } from "../output.js";
 import { DEFAULT_MENTION } from "../context.js";
 import {
   type AccessPolicy,
-  getAllowedAssociationsForRoute,
-  isAssociationAllowedForRoute,
+  getRouteAuthorizationDenial,
   isKnownAuthorAssociation,
   parseAccessPolicy,
 } from "../access-policy.js";
@@ -140,9 +139,12 @@ function main(): void {
   }
 
   const route = String(pending.request.route || "");
-  if (!isAssociationAllowedForRoute(accessPolicy, route, association, isPublicRepo)) {
-    const allowed = getAllowedAssociationsForRoute(accessPolicy, route, isPublicRepo);
-    console.log(`Skipping unauthorized approval for route ${route || "default"} from ${association}; requires ${allowed.join(", ")}`);
+  const denial = getRouteAuthorizationDenial(accessPolicy, route, association, isPublicRepo);
+  if (denial) {
+    const reason = denial.route === route
+      ? `requires ${denial.allowedAssociations.join(", ")}`
+      : `requires downstream ${denial.route} access (${denial.allowedAssociations.join(", ")})`;
+    console.log(`Skipping unauthorized approval for route ${route || "default"} from ${association}; ${reason}`);
     setOutput("should_dispatch", "false");
     return;
   }

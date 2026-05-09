@@ -40,6 +40,11 @@ interface NormalizedVersion {
   prereleaseLabel: string;
 }
 
+interface GitObjectPointer {
+  type: string;
+  sha: string;
+}
+
 class DefaultCommandRunner implements CommandRunner {
   run(command: string, args: string[], cwd?: string): string {
     return execFileSync(command, args, {
@@ -106,8 +111,63 @@ function git(runner: CommandRunner, args: string[], cwd?: string): string {
   return runner.run("git", args, cwd).trim();
 }
 
-function tagExists(runner: CommandRunner, repo: string, tag: string, cwd?: string): boolean {
-  return commandSucceeds(runner, "gh", ["api", `repos/${repo}/git/ref/tags/${tag}`], cwd);
+function parseGitObjectPointer(value: unknown, context: string): GitObjectPointer {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`GitHub API response for ${context} did not include an object pointer`);
+  }
+  const record = value as Record<string, unknown>;
+  const type = String(record.type || "").trim();
+  const sha = String(record.sha || "").trim();
+  if (!type || !sha) {
+    throw new Error(`GitHub API response for ${context} did not include object type and SHA`);
+  }
+  return { type, sha };
+}
+
+function parseGitObjectResponse(raw: string, context: string): GitObjectPointer {
+  let data: unknown;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    throw new Error(`GitHub API response for ${context} was not valid JSON`);
+  }
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    throw new Error(`GitHub API response for ${context} was not an object`);
+  }
+  return parseGitObjectPointer((data as Record<string, unknown>).object, context);
+}
+
+function resolveGitObjectToCommitSha(
+  runner: CommandRunner,
+  repo: string,
+  tag: string,
+  object: GitObjectPointer,
+  cwd?: string,
+): string {
+  let current = object;
+  for (let depth = 0; depth < 5; depth += 1) {
+    const type = current.type.toLowerCase();
+    if (type === "commit") {
+      return current.sha;
+    }
+    if (type !== "tag") {
+      throw new Error(`Existing tag ${tag} points to ${current.type} object ${current.sha}, not a commit`);
+    }
+    const raw = gh(runner, ["api", `repos/${repo}/git/tags/${current.sha}`], cwd);
+    current = parseGitObjectResponse(raw, `tag object ${current.sha}`);
+  }
+  throw new Error(`Existing tag ${tag} did not resolve to a commit`);
+}
+
+function existingTagCommitSha(runner: CommandRunner, repo: string, tag: string, cwd?: string): string | null {
+  let raw: string;
+  try {
+    raw = gh(runner, ["api", `repos/${repo}/git/ref/tags/${tag}`], cwd);
+  } catch {
+    return null;
+  }
+  const object = parseGitObjectResponse(raw, `tag ref ${tag}`);
+  return resolveGitObjectToCommitSha(runner, repo, tag, object, cwd);
 }
 
 function createAnnotatedTag(
@@ -242,8 +302,14 @@ export function publishRelease(options: PublishReleaseOptions): PublishReleaseRe
   const prerelease = resolvePrerelease(options.prerelease, normalizedVersion);
   const updateExisting = parseBoolean(options.updateExisting, "update_existing", false);
 
-  const existingTag = tagExists(runner, repo, normalizedVersion.tag, cwd);
-  if (!existingTag) {
+  const existingTagTargetSha = existingTagCommitSha(runner, repo, normalizedVersion.tag, cwd);
+  if (existingTagTargetSha) {
+    if (existingTagTargetSha.toLowerCase() !== targetSha.toLowerCase()) {
+      throw new Error(
+        `Existing tag ${normalizedVersion.tag} points to ${existingTagTargetSha}, not target ${targetSha}`,
+      );
+    }
+  } else {
     createAnnotatedTag(
       runner,
       repo,
@@ -276,7 +342,7 @@ export function publishRelease(options: PublishReleaseOptions): PublishReleaseRe
     targetSha,
     draft,
     prerelease,
-    tagCreated: !existingTag,
+    tagCreated: existingTagTargetSha === null,
     releaseAction,
     releaseUrl: url,
   };

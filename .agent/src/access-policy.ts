@@ -30,6 +30,11 @@ export interface AccessPolicy {
   routeOverrides: Record<string, readonly string[]>;
 }
 
+export interface RouteAuthorizationDenial {
+  route: string;
+  allowedAssociations: string[];
+}
+
 function normalizeAssociationList(
   value: unknown,
   label: string,
@@ -127,4 +132,38 @@ export function isAssociationAllowedForRoute(
   return getAllowedAssociationsForRoute(policy, route, isPublicRepo).includes(
     normalizedAssociation,
   );
+}
+
+function getAuthorizationRoutesForRoute(route: string): string[] {
+  const normalizedRoute = String(route || "").trim().toLowerCase();
+  if (!normalizedRoute) {
+    return [normalizedRoute];
+  }
+  if (normalizedRoute === "release") {
+    return [normalizedRoute, "implement"];
+  }
+  return [normalizedRoute];
+}
+
+export function getRouteAuthorizationDenial(
+  policy: AccessPolicy,
+  route: string,
+  association: string,
+  isPublicRepo: boolean,
+): RouteAuthorizationDenial | null {
+  const normalizedAssociation = String(association || "").trim().toUpperCase();
+  for (const requiredRoute of getAuthorizationRoutesForRoute(route)) {
+    const allowedAssociations = getAllowedAssociationsForRoute(
+      policy,
+      requiredRoute,
+      isPublicRepo,
+    );
+    if (!allowedAssociations.includes(normalizedAssociation)) {
+      return {
+        route: requiredRoute,
+        allowedAssociations,
+      };
+    }
+  }
+  return null;
 }
