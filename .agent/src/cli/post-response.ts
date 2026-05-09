@@ -46,6 +46,7 @@ if (continuityNote) {
 }
 
 let posted = false;
+let selfApprovalUpsertFailed = false;
 if (
   responseKind === "pr_comment" &&
   repo &&
@@ -58,14 +59,17 @@ if (
     posted = true;
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    console.warn(
+    console.error(
       `Failed to upsert self-approval status comment for ${repo}#${targetNumber}: ${message}`,
     );
+    selfApprovalUpsertFailed = true;
+    process.exitCode = 1;
   }
 }
 
 if (
   !posted &&
+  !selfApprovalUpsertFailed &&
   responseKind === "pr_comment" &&
   repo &&
   targetNumber > 0 &&
@@ -85,7 +89,7 @@ if (
   }
 }
 
-if (!posted) {
+if (!posted && !selfApprovalUpsertFailed) {
   postResponse(
     { responseKind, targetNumber, reviewCommentId, discussionNodeId, replyToId, repo },
     body,
