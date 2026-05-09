@@ -869,6 +869,7 @@ test("manual orchestrate dispatches fix-pr for PR targets with explicit fix inte
   for (const requestText of [
     "@sepo-agent /orchestrate there's a merge conflict to main after merging #162 can you check and fix",
     "@sepo-agent /orchestrate please fix this PR",
+    "@sepo-agent /orchestrate can you rebase this PR onto main",
   ]) {
     const run = runOrchestrateHandoff({
       TARGET_KIND: "pull_request",
@@ -893,6 +894,54 @@ test("manual orchestrate dispatches fix-pr for PR targets with explicit fix inte
     assert.match(run.ghLog, /Task for fix-pr:/);
     const inputs = run.dispatchPayload?.inputs as Record<string, string>;
     assert.equal(inputs.orchestrator_context, run.outputs.get("handoff_context"));
+  }
+});
+
+test("manual orchestrate preserves explicit fix context when requested changes also exist", () => {
+  const requestText =
+    "@sepo-agent /orchestrate there's a merge conflict to main after merging #162 can you check and fix";
+  const run = runOrchestrateHandoff({
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "21",
+    FAKE_PR_STATE: "OPEN",
+    FAKE_PR_REVIEW_DECISION: "CHANGES_REQUESTED",
+    REQUEST_TEXT: requestText,
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "dispatch");
+  assert.equal(run.outputs.get("next_action"), "fix-pr");
+  assert.equal(
+    run.outputs.get("reason"),
+    "manual orchestrate start on PR with CHANGES_REQUESTED and explicit fix intent; dispatching fix-pr",
+  );
+  assert.match(run.outputs.get("handoff_context") || "", /explicit PR fix request/);
+  assert.match(run.outputs.get("handoff_context") || "", /merge conflict to main/);
+  assert.doesNotMatch(run.outputs.get("handoff_context") || "", /requested-change review comments/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.orchestrator_context, run.outputs.get("handoff_context"));
+});
+
+test("manual orchestrate dispatches review for review-only rebase and ambiguous fix wording", () => {
+  for (const requestText of [
+    "@sepo-agent /orchestrate please review whether a rebase is needed",
+    "@sepo-agent /orchestrate please review whether we should rebase this PR",
+    "@sepo-agent /orchestrate can you check this PR and tell me how to fix it",
+    "@sepo-agent /orchestrate can you review this and say if we should fix this",
+  ]) {
+    const run = runOrchestrateHandoff({
+      TARGET_KIND: "pull_request",
+      TARGET_NUMBER: "21",
+      FAKE_PR_STATE: "OPEN",
+      FAKE_PR_REVIEW_DECISION: "APPROVED",
+      REQUEST_TEXT: requestText,
+    });
+
+    assert.equal(run.status, 0, run.stderr || run.stdout);
+    assert.equal(run.outputs.get("decision"), "dispatch");
+    assert.equal(run.outputs.get("next_action"), "review");
+    assert.match(run.ghLog, /actions\/workflows\/agent-review\.yml\/dispatches/);
+    assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-fix-pr\.yml\/dispatches/);
   }
 });
 

@@ -935,16 +935,20 @@ function hasExplicitPrFixIntent(value: string): boolean {
     /\bconflicts?\s+(?:with|against|to)\s+(?:main|master|trunk)\b/,
     /\bconflicting\b/,
     /\bresolve\s+(?:the\s+|this\s+)?(?:merge\s+)?conflicts?\b/,
-    /\brebase\b/,
     /\bunmergeable\b/,
     /\bnot\s+mergeable\b/,
   ];
   if (conflictOrMergeabilityPatterns.some((pattern) => pattern.test(text))) return true;
 
+  const rebasePatterns = [
+    /(?:^|(?:\/orchestrate|agent\/orchestrate)\s+)(?:please\s+)?rebase\b/,
+    /\b(?:please|can you|could you|would you)\s+rebase\b/,
+  ];
+  if (rebasePatterns.some((pattern) => pattern.test(text))) return true;
+
   const explicitFixPatterns = [
     /\bfix[-_\s]?pr\b/,
     /\bfix\s+(?:this|the)\s+(?:pr|pull request)\b/,
-    /\bfix\s+(?:it|this|that)\b/,
     /\bfix\b.*\b(?:pr|pull request|branch)\b/,
     /\b(?:address|resolve|handle)\s+(?:the\s+|this\s+)?(?:pr|pull request|branch|issue|comments?|requested changes?)\b/,
   ];
@@ -1297,16 +1301,20 @@ function decideManualOrchestration(): HandoffDecision {
     if (status.state !== "OPEN") {
       return { decision: "stop", reason: `pull request is ${status.state.toLowerCase()}`, nextRound };
     }
+    const hasExplicitFixIntent = hasExplicitPrFixIntent(requestText);
     if (status.reviewDecision === "CHANGES_REQUESTED") {
       return {
         decision: "dispatch",
         nextAction: "fix-pr",
         targetNumber,
-        reason: "manual orchestrate start on PR with CHANGES_REQUESTED; dispatching fix-pr",
+        reason: hasExplicitFixIntent
+          ? "manual orchestrate start on PR with CHANGES_REQUESTED and explicit fix intent; dispatching fix-pr"
+          : "manual orchestrate start on PR with CHANGES_REQUESTED; dispatching fix-pr",
         nextRound,
+        handoffContext: hasExplicitFixIntent ? manualPrExplicitFixHandoffContext() : undefined,
       };
     }
-    if (hasExplicitPrFixIntent(requestText)) {
+    if (hasExplicitFixIntent) {
       return {
         decision: "dispatch",
         nextAction: "fix-pr",
