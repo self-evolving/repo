@@ -6,7 +6,7 @@ import { test } from "node:test";
 import { strict as assert } from "node:assert";
 
 function runUpdateSourceResolver(
-  mode: "latest-release" | "manual" | "no-release",
+  mode: "latest-release" | "manual" | "no-release" | "release-error",
   extraEnv: Record<string, string> = {},
 ) {
   const tempDir = mkdtempSync(join(tmpdir(), "update-source-resolver-"));
@@ -27,8 +27,8 @@ function runUpdateSourceResolver(
       "  exit 1",
       "fi",
       "case \"${GH_STUB_MODE}:${2:-}\" in",
-      "  latest-release:repos/self-evolving/repo/releases/latest)",
-      "    printf '%s\\n' '{\"tag_name\":\"v0.2.0\",\"html_url\":\"https://github.com/self-evolving/repo/releases/tag/v0.2.0\"}'",
+      "  latest-release:repos/self-evolving/repo/releases?per_page=100)",
+      "    printf '%s\\n' '[{\"tag_name\":\"v0.2.0\",\"html_url\":\"https://github.com/self-evolving/repo/releases/tag/v0.2.0\",\"draft\":false,\"prerelease\":false}]'",
       "    ;;",
       "  latest-release:repos/self-evolving/repo/commits/v0.2.0)",
       "    printf '%s\\n' '{\"sha\":\"abc123release\"}'",
@@ -36,12 +36,15 @@ function runUpdateSourceResolver(
       "  manual:repos/self-evolving/repo/commits/main)",
       "    printf '%s\\n' '{\"sha\":\"def456manual\"}'",
       "    ;;",
-      "  no-release:repos/self-evolving/repo/releases/latest)",
-      "    echo \"Not Found\" >&2",
-      "    exit 1",
+      "  no-release:repos/self-evolving/repo/releases?per_page=100)",
+      "    printf '%s\\n' '[]'",
       "    ;;",
       "  no-release:repos/self-evolving/repo/commits/main)",
       "    printf '%s\\n' '{\"sha\":\"fed789fallback\"}'",
+      "    ;;",
+      "  release-error:repos/self-evolving/repo/releases?per_page=100)",
+      "    echo \"server unavailable\" >&2",
+      "    exit 1",
       "    ;;",
       "  *)",
       "    echo \"unexpected gh invocation for ${GH_STUB_MODE}: $*\" >&2",
@@ -82,7 +85,7 @@ test("update source resolver defaults to the latest stable release tag", () => {
   assert.equal(payload.sourceSha, "abc123release");
   assert.equal(payload.sourceKind, "latest-release");
   assert.equal(payload.fallback, false);
-  assert.match(calls, /repos\/self-evolving\/repo\/releases\/latest/);
+  assert.match(calls, /repos\/self-evolving\/repo\/releases\?per_page=100/);
   assert.match(calls, /repos\/self-evolving\/repo\/commits\/v0\.2\.0/);
   assert.match(outputText, /source_ref<<[\s\S]*v0\.2\.0/);
   assert.match(outputText, /source_sha<<[\s\S]*abc123release/);
@@ -111,4 +114,14 @@ test("update source resolver falls back to main when no release exists", () => {
   assert.match(payload.reason, /no stable Sepo release found; falling back to main/);
   assert.match(outputText, /fallback<<[\s\S]*true/);
   assert.match(outputText, /reason<<[\s\S]*no stable Sepo release found/);
+});
+
+test("update source resolver fails when release listing fails", () => {
+  const { calls, payload, result } = runUpdateSourceResolver("release-error");
+
+  assert.notEqual(result.status, 0);
+  assert.equal(payload, null);
+  assert.match(result.stderr, /could not list stable releases for self-evolving\/repo/);
+  assert.match(calls, /repos\/self-evolving\/repo\/releases\?per_page=100/);
+  assert.doesNotMatch(calls, /repos\/self-evolving\/repo\/commits\/main/);
 });

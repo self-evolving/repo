@@ -263,7 +263,9 @@ test("scheduled workflows evaluate skip gates before provider-dependent jobs", (
   assert.match(updateWorkflow, /gate:\n[\s\S]*Resolve scheduled activity gate/);
   assert.match(updateWorkflow, /vars\.AGENT_AUTO_UPDATE == 'false'/);
   assert.match(updateWorkflow, /"workflow_overrides":\{"agent-update\.yml":"disabled"\}/);
-  assert.match(updateWorkflow, /Check pending update PR[\s\S]*resolve-pending-update-pr\.sh/);
+  assert.match(updateWorkflow, /Resolve canonical source guard[\s\S]*canonical source repo requires explicit source_ref/);
+  assert.match(updateWorkflow, /Check pending update PR[\s\S]*steps\.canonical_source\.outputs\.skip != 'true'[\s\S]*resolve-pending-update-pr\.sh/);
+  assert.match(updateWorkflow, /CANONICAL_SKIP: \$\{\{ steps\.canonical_source\.outputs\.skip \}\}/);
   assert.match(updateWorkflow, /update:\n\s+needs: gate\n\s+if: needs\.gate\.outputs\.skip != 'true'/);
   assert.match(updateWorkflow, /Resolve update provider[\s\S]*Setup agent runtime/);
   assert.match(updateWorkflow, /source_ref:[\s\S]*default:\s*""/);

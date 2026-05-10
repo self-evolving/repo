@@ -59,6 +59,18 @@ resolve_commit_sha() {
   printf '%s' "$sha"
 }
 
+lookup_latest_stable_release() {
+  local repo="$1"
+  local releases
+
+  if ! releases="$(gh api "repos/${repo}/releases?per_page=100")"; then
+    fail_config "could not list stable releases for ${repo}"
+  fi
+
+  printf '%s' "$releases" |
+    jq -c '[.[] | select((.draft | not) and (.prerelease | not))][0] // {}'
+}
+
 emit_result() {
   local repo="$1"
   local ref="$2"
@@ -96,7 +108,7 @@ emit_result() {
 }
 
 main() {
-  local repo manual_ref fallback_ref release_error release_json tag release_url sha reason
+  local repo manual_ref fallback_ref release_json tag release_url sha reason
   repo="$(trim "${UPDATE_SOURCE_REPO:-$DEFAULT_UPDATE_SOURCE_REPO}")"
   manual_ref="$(trim "${UPDATE_SOURCE_REF:-}")"
   fallback_ref="$(trim "${DEFAULT_UPDATE_SOURCE_REF:-$DEFAULT_UPDATE_SOURCE_FALLBACK_REF}")"
@@ -114,27 +126,23 @@ main() {
     return 0
   fi
 
-  release_error="$(mktemp "${TMPDIR:-/tmp}/resolve-update-source.XXXXXX")"
-  if release_json="$(gh api "repos/${repo}/releases/latest" 2>"$release_error")"; then
-    tag="$(printf '%s' "$release_json" | jq -r '.tag_name // ""')"
-    release_url="$(printf '%s' "$release_json" | jq -r '.html_url // ""')"
-    if [ -z "$tag" ]; then
-      fail_config "latest release for ${repo} did not include tag_name"
-    fi
+  release_json="$(lookup_latest_stable_release "$repo")"
+  tag="$(printf '%s' "$release_json" | jq -r '.tag_name // ""')"
+  release_url="$(printf '%s' "$release_json" | jq -r '.html_url // ""')"
+  if [ -n "$tag" ]; then
     sha="$(resolve_commit_sha "$repo" "$tag" "release")"
     emit_result "$repo" "$tag" "$sha" "latest-release" "false" "" "$release_url"
     return 0
   fi
 
-  if grep -Eiq '(Not Found|404)' "$release_error"; then
+  if [ "$(printf '%s' "$release_json" | jq -r 'length')" = "0" ]; then
     sha="$(resolve_commit_sha "$repo" "$fallback_ref" "fallback")"
     reason="no stable Sepo release found; falling back to ${fallback_ref}"
     emit_result "$repo" "$fallback_ref" "$sha" "fallback-main" "true" "$reason"
     return 0
   fi
 
-  cat "$release_error" >&2
-  fail_config "could not resolve latest stable release for ${repo}"
+  fail_config "latest stable release for ${repo} did not include tag_name"
 }
 
 main "$@"
