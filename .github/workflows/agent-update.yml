@@ -12,9 +12,9 @@ on:
         required: false
         default: "self-evolving/repo"
       source_ref:
-        description: "Source Sepo agent ref to update from"
+        description: "Optional source Sepo agent ref; defaults to latest stable release tag"
         required: false
-        default: "main"
+        default: ""
       update_skills:
         description: "Also update .skills directories"
         required: false
@@ -44,7 +44,8 @@ concurrency:
 
 env:
   UPDATE_SOURCE_REPO: ${{ inputs.source_repo || 'self-evolving/repo' }}
-  UPDATE_SOURCE_REF: ${{ inputs.source_ref || 'main' }}
+  UPDATE_SOURCE_REF: ${{ inputs.source_ref || '' }}
+  DEFAULT_UPDATE_SOURCE_REF: main
   UPDATE_SKILLS: ${{ inputs.update_skills && 'true' || 'false' }}
   UPDATE_AGENT_MD: ${{ inputs.update_agent_md && 'true' || 'false' }}
   UPDATE_BRANCH_PREFIX: agent/update-agent-infra-
@@ -164,6 +165,29 @@ jobs:
           install_codex: ${{ steps.provider.outputs.install_codex }}
           install_claude: ${{ steps.provider.outputs.install_claude }}
 
+      - name: Resolve update source
+        id: update_source
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          UPDATE_SOURCE_REPO: ${{ env.UPDATE_SOURCE_REPO }}
+          UPDATE_SOURCE_REF: ${{ env.UPDATE_SOURCE_REF }}
+          DEFAULT_UPDATE_SOURCE_REF: ${{ env.DEFAULT_UPDATE_SOURCE_REF }}
+        run: bash .agent/scripts/resolve-update-source.sh
+
+      - name: Write update source summary
+        env:
+          SOURCE_KIND: ${{ steps.update_source.outputs.source_kind }}
+          SOURCE_REASON: ${{ steps.update_source.outputs.reason }}
+          SOURCE_REF: ${{ steps.update_source.outputs.source_ref }}
+          SOURCE_REPO: ${{ steps.update_source.outputs.source_repo }}
+          SOURCE_SHA: ${{ steps.update_source.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          printf '%s\n' "Sepo update source: ${SOURCE_REPO}@${SOURCE_REF} (${SOURCE_SHA}; ${SOURCE_KIND})." >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "${SOURCE_REASON}" ]; then
+            printf '%s\n' "${SOURCE_REASON}." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Resolve task timeout
         id: task_timeout
         env:
@@ -197,7 +221,9 @@ jobs:
             Confirmed inputs:
             - target repository: ${{ github.repository }}
             - target default branch: ${{ github.event.repository.default_branch }}
-            - source agent repo/ref: ${{ env.UPDATE_SOURCE_REPO }}@${{ env.UPDATE_SOURCE_REF }}
+            - source agent repo/ref: ${{ steps.update_source.outputs.source_repo }}@${{ steps.update_source.outputs.source_ref }}
+            - source agent SHA: ${{ steps.update_source.outputs.source_sha }}
+            - source resolution: ${{ steps.update_source.outputs.source_kind }}
             - update branch: use `${{ env.UPDATE_BRANCH_PREFIX }}<yyyymmdd>`
             - update .skills directories: ${{ env.UPDATE_SKILLS }}
             - update AGENT.md when agent-owned: ${{ env.UPDATE_AGENT_MD }}
@@ -206,6 +232,8 @@ jobs:
 
             Open a pull request only when the update produces changes. If the target
             is already current, leave no PR and report that no update was needed.
+            When a PR is opened, title and summarize it as:
+            `Update Sepo from <installed version/ref> to ${{ steps.update_source.outputs.source_ref }}/${{ steps.update_source.outputs.source_sha }}`.
           requested_by: ${{ github.actor }}
           source_kind: workflow_dispatch
           target_kind: repository

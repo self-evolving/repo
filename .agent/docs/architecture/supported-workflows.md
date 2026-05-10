@@ -128,9 +128,12 @@ signal collection and summary generation instead of spending runtime only to
 fail while posting.
 
 `agent-update.yml` runs near-biweekly because GitHub cron does not support a
-native every-14-days cadence. It invokes the existing `update-agent` skill from
-the repository default branch, skips when `AGENT_AUTO_UPDATE=false` or
-`AGENT_SCHEDULE_POLICY` disables the workflow, and skips when a same-repository
+native every-14-days cadence. It resolves its source to the latest published
+stable Sepo release tag before invoking the existing `update-agent` skill.
+Manual dispatch can pass `source_ref` to test `main`, a branch, or a specific
+tag. If no release exists yet, it falls back to `main` and records that fallback
+in the run summary. The workflow skips when `AGENT_AUTO_UPDATE=false` or
+`AGENT_SCHEDULE_POLICY` disables it, and skips when a same-repository
 `agent/update-agent-infra-*` PR is already open unless a manual run uses
 `force=true`.
 
