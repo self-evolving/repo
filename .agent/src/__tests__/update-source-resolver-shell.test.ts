@@ -99,7 +99,7 @@ test("update source resolver preserves manual source_ref overrides", () => {
   assert.equal(payload.sourceSha, "def456manual");
   assert.equal(payload.sourceKind, "manual");
   assert.equal(payload.fallback, false);
-  assert.doesNotMatch(calls, /releases\/latest/);
+  assert.doesNotMatch(calls, /releases/);
   assert.match(calls, /repos\/self-evolving\/repo\/commits\/main/);
 });
 
