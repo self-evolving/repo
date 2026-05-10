@@ -76,8 +76,8 @@
       "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-183/codex-25586306639`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Updated `.github/workflows/agent-self-approve.yml` so orchestrated self-approval handback runs for any successful resolver conclusion, not just `request_changes`.\n- Added terminal self-approval regression coverage and mapped approved/blocked/failed child reports to the correct parent result states.\n- Verified with `npm run build`, focused `node --test` coverage, and `git diff --check`.",
       "createdAt": "2026-05-09T00:57:55Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/184#issuecomment-4410879170",
       "viewerDidAuthor": true
@@ -91,8 +91,8 @@
       "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #184 | 5 / 40 | Dispatched |\n\nReason: PR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1778288288398 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU1ODY4ODEwODk6Zml4X3ByOjE4NDpyZXZpZXc6MTg0OjU -->",
       "createdAt": "2026-05-09T00:58:08Z",
       "includesCreatedEdit": true,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/184#issuecomment-4410879755",
       "viewerDidAuthor": true
@@ -106,8 +106,8 @@
       "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 11 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | [`orchestrator-capabilities.ts`](https://github.com/self-evolving/repo/blob/406289094cf4ddef7a8c4b3dea98b48dc2f756ea/.agent/src/orchestrator-capabilities.ts) includes `agent-self-approve` in delegated route checks only when `allowSelfApprove` is true, with preflight and handoff tests covering enabled/disabled access. |\n| coding_workflow / specific | Default follow-up orchestration to one-shot | pass | 8/8 | [`agent-self-approve.yml`](https://github.com/self-evolving/repo/blob/406289094cf4ddef7a8c4b3dea98b48dc2f756ea/.github/workflows/agent-self-approve.yml) adds handoff inputs but keeps `orchestration_enabled` defaulted to `false`; docs state manual/direct runs remain one-shot. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updated [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/406289094cf4ddef7a8c4b3dea98b48dc2f756ea/.agent/docs/architecture/supported-workflows.md), [`agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/406289094cf4ddef7a8c4b3dea98b48dc2f756ea/.agent/docs/technical-details/agent-orchestrator.md), and [`agent-actions.md`](https://github.com/self-evolving/repo/blob/406289094cf4ddef7a8c4b3dea98b48dc2f756ea/.agent/docs/actions/agent-actions.md) for the new self-approval orchestration behavior. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Scope matches issue #183 / parent #170 PR 3: routing, auth gating, workflow inputs, prompt/docs, and focused tests. PR 4 polish remains deferred. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR extends existing handoff, preflight, workflow dispatch, marker-comment, and sub-orchestration helpers instead of adding parallel orchestration plumbing. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | New behavior uses separate inputs/env such as `automation_mode`, `automation_current_round`, `automation_max_rounds`, `orchestration_enabled`, and `AGENT_ALLOW_SELF_APPROVE`. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Handoffs continue through the existing marker/dedupe dispatcher; tests assert dispatch comments and terminal child reporting paths for the new route. |\n| communication / generic | Keep status comments compact | pass | 6/6 | The new handoffs preserve the existing compact transposed table style, with test coverage asserting `review | agent-self-approve | PR #128 | 3 / 5`. |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | The post-fix workflow handback runs for all successful self-approval resolver conclusions, letting terminal `approved`, `blocked`, and `failed` outcomes use existing visible stop/reporting paths. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | Documentation changes describe orchestration behavior and policy transitions, not file inventories. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation is a small state-machine and workflow extension around one opt-in flag, with focused regression tests rather than broader redesign. |\n\n## Notes\n\n- The main score drivers are the opt-in `AGENT_ALLOW_SELF_APPROVE` gate, authorization expansion only when enabled, preservation of direct one-shot behavior, and focused coverage for review-to-self-approval and self-approval-to-fix-pr handoffs.\n- The earlier review blocker about terminal self-approval handback appears addressed in the current PR head: `agent-self-approve.yml` now dispatches the orchestrator for all successful resolver conclusions when orchestration is enabled.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
       "createdAt": "2026-05-09T00:59:58Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/184#issuecomment-4410885492",
       "viewerDidAuthor": true
@@ -121,10 +121,150 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #184 implements issue #183, the orchestrator-integration slice of parent issue #170.\n- It wires `review -> agent-self-approve` when a review synthesis is `SHIP` and `AGENT_ALLOW_SELF_APPROVE=true`.\n- It also wires `agent-self-approve -> fix-pr` for `REQUEST_CHANGES`, preserves handoff context and round limits, and expands delegated route authorization only when self-approval is enabled.\n- The PR includes matching workflow, prompt, docs, and focused test updates while leaving PR 4 operational polish out of scope.\n\n## Review\nThe current head addresses the earlier blocking workflow guard and now matches the intended parent/child scope. Codex, Claude, and rubrics review all conclude there are no unresolved required branch changes; Claude’s remaining notes are INFO-level cleanup or future hardening.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues | INFO | Current reviewer outputs found no unresolved blocking or warning-level branch changes. Optional INFO notes do not need to block this PR. |\n\n## Progress\n- Earlier blocker about self-approval terminal results bypassing orchestrator handback is fixed in current head `406289094cf4ddef7a8c4b3dea98b48dc2f756ea`.\n- Existing fix-pr status reports workflow handback now runs for all successful self-approval resolver conclusions.\n- Rubrics review passed 11/11 scored rubrics.\n- No new inline comments were posted.\n- Minimized the older same-agent inline blocker at `.github/workflows/agent-self-approve.yml:178` as outdated.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved required branch-change work remains, and the remaining reviewer notes are optional cleanup or future-test hardening.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change action items.",
       "createdAt": "2026-05-09T01:06:00Z",
       "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/184#issuecomment-4410904098",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzaLQQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer check my inline reviews on the code",
+      "createdAt": "2026-05-10T18:10:27Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/184#issuecomment-4415982401",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzab9A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Checked the current inline review threads against PR #184 head `406289094cf4ddef7a8c4b3dea98b48dc2f756ea` and parent scope #170/#183.\n\n- The old bot inline blocker on `agent-self-approve.yml` is outdated. It was fixed: self-approval now hands back to the orchestrator for all successful resolver conclusions, not only `request_changes`.\n\n- `TARGET_KIND: pull_request` in [`agent-review.yml`](https://github.com/self-evolving/repo/blob/406289094cf4ddef7a8c4b3dea98b48dc2f756ea/.github/workflows/agent-review.yml#L384-L390) is explicit handoff context for `dispatch-agent-orchestrator.ts`, which forwards `target_kind` into `agent-orchestrator.yml`. It is not harmful; without it the orchestrator currently falls back to `pull_request` for review-originated handoffs, but keeping it makes the dispatch envelope explicit and consistent.\n\n- The structure comment on [`sub-orchestration.ts`](https://github.com/self-evolving/repo/blob/406289094cf4ddef7a8c4b3dea98b48dc2f756ea/.agent/src/sub-orchestration.ts#L193-L196) is fair as a style note. A small map/table would scale better if more terminal action/conclusion mappings are added. I would not block this PR on it.\n\n- The `self_approve` alias in [`handoff.ts`](https://github.com/self-evolving/repo/blob/406289094cf4ddef7a8c4b3dea98b48dc2f756ea/.agent/src/handoff.ts#L208-L214) appears to be just a permissive synonym. The canonical route is `agent-self-approve`, normalized as `agent_self_approve`. Since no workflow or prompt seems to emit plain `self_approve`, I’d lean toward removing that alias for strictness, but it is not a behavioral blocker.\n\n- The prompt constraint that `agent-self-approve REQUEST_CHANGES` goes to `fix-pr` is correct for this PR’s scope. Parent #170 / child #183 explicitly define PR 3 as `review -> agent-self-approve` and `agent-self-approve -> fix-pr`. Allowing a PR-level handoff back to `implement` when a PR is “too chaotic” is a reasonable future design question, but it should be a separate workflow policy change.\n\nRecommendation: no required branch-change blocker from these inline reviews. Optional cleanup: remove the `self_approve` alias, and maybe convert the terminal result mapping to a table if you want to polish the style before merge.",
+      "createdAt": "2026-05-10T18:12:43Z",
+      "includesCreatedEdit": false,
       "isMinimized": false,
       "minimizedReason": "",
       "reactionGroups": [],
-      "url": "https://github.com/self-evolving/repo/pull/184#issuecomment-4410904098",
+      "url": "https://github.com/self-evolving/repo/pull/184#issuecomment-4415986676",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzcAqw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> remove the `self_approve` alias, and maybe convert the terminal result mapping to a table if you want to polish the style before merge.\r\n\r\n@sepo-agent /orchestrate launch minimal fixes\r\n\r\n",
+      "createdAt": "2026-05-10T18:25:13Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/184#issuecomment-4416012459",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzcOUw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | fix-pr | PR #184 | 2 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Newer human input after the SHIP review requests minimal branch fixes on open PR #184.\n\nTask for fix-pr:\nApply only the requested minimal cleanup on PR #184: remove the permissive `self_approve` alias so only the canonical `agent-self-approve`/normalized `agent_self_approve` route maps to self-approval, and update focused tests if needed. If it is a small localized polish, convert the self-approval terminal result mapping in `.agent/src/sub-orchestration.ts` to a compact table/object lookup while preserving existing approved->done, blocked->blocked, and failed->failed behavior. Avoid unrelated workflow, policy, docs, or operational-polish changes.\n\n<!-- sepo-agent-handoff state:dispatched created:1778437606264 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU2MzYzMzI1NTg6b3JjaGVzdHJhdGU6MTg0OmZpeF9wcjoxODQ6Mg -->",
+      "createdAt": "2026-05-10T18:26:46Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/184#issuecomment-4416015955",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzck1g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-183/codex-25586306639`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Removed the permissive `self_approve` planner alias; only canonical `agent-self-approve` / normalized `agent_self_approve` maps to self-approval.\n- Converted self-approval terminal result mapping to a compact lookup while preserving `approved -> done`, `blocked -> blocked`, and `failed -> failed`.\n- Verified with `npm run build`, `node --test dist/__tests__/handoff.test.js dist/__tests__/sub-orchestration.test.js`, and `git diff --check`.",
+      "createdAt": "2026-05-10T18:29:30Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/184#issuecomment-4416021718",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzcsCg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #184 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded after applying the requested minimal branch cleanup, so the updated PR should receive a fresh review before stopping.\n\n<!-- sepo-agent-handoff state:dispatched created:1778437824913 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU2MzYzNjUwMjk6Zml4X3ByOjE4NDpyZXZpZXc6MTg0OjM -->",
+      "createdAt": "2026-05-10T18:30:25Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/184#issuecomment-4416023562",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzc3dg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 11 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | `orchestrator-capabilities.ts` includes `agent-self-approve` in delegated route checks only when `AGENT_ALLOW_SELF_APPROVE` is enabled, with preflight and handoff tests for enabled/disabled behavior. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The latest fix removes only the `self_approve` alias, updates the focused parser test, and localizes terminal mapping polish to `sub-orchestration.ts`; no unrelated workflow or policy changes were added. |\n| coding_workflow / specific | Default follow-up orchestration to one-shot | pass | 8/8 | `agent-self-approve.yml` adds orchestration inputs while keeping `orchestration_enabled` defaulted to `false`; docs state manual/direct runs remain one-shot. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR extends existing handoff, preflight, workflow dispatch, marker-comment, and sub-orchestration helpers rather than adding parallel orchestration plumbing. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | New behavior uses separate fields such as `automation_mode`, `automation_current_round`, `automation_max_rounds`, `orchestration_enabled`, and `AGENT_ALLOW_SELF_APPROVE`. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Handoffs continue through the existing marker/dedupe dispatcher; tests assert dispatch comments and terminal child reporting paths for the new route. |\n| communication / generic | Keep status comments compact | pass | 6/6 | The new handoff comments preserve the compact table style, and tests assert the `review | agent-self-approve | PR #128 | 3 / 5` shape. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | Documentation changes describe route behavior and orchestration policy, not per-file inventories. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The current head uses a small transition extension plus a compact terminal-state lookup; it does not redesign the orchestration state machine. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updated `agent-actions.md`, `supported-workflows.md`, and `agent-orchestrator.md` cover the new self-approval orchestration behavior. |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | The workflow now hands back all successful self-approval resolver conclusions, letting approved/blocked/failed outcomes use existing terminal reporting and stop paths. |\n\n## Notes\n\n- The latest requested cleanup is present in the PR diff: `self_approve` no longer normalizes to `agent-self-approve`, and the regression test asserts the legacy alias does not map.\n- The optional terminal mapping polish was also applied as a compact lookup preserving `approved -> done`, `blocked -> blocked`, and `failed -> failed`.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-10T18:31:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/184#issuecomment-4416026486",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzdm2Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #184 implements issue #183, the orchestrator-integration slice of parent plan #170.\n- It wires `review -> agent-self-approve` when review synthesis is `SHIP` and `AGENT_ALLOW_SELF_APPROVE=true`.\n- It wires `agent-self-approve -> fix-pr` for `REQUEST_CHANGES`, preserves handoff context and round limits, and expands delegated authorization only when self-approval is enabled.\n- The latest fix also applies the requested minimal cleanup: removing the permissive `self_approve` alias and using a compact terminal-result mapping.\n\n## Review\nThe current head `e5fc865406f35cd15c713bb346e1149b5b9e4263` has no unresolved required branch changes. Current Claude, Codex, and rubrics reviews agree on SHIP/no actionable findings; prior blockers and requested cleanup are addressed.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues | INFO | Current reviewer outputs found no unresolved blocking or warning-level branch changes. Remaining notes are explanatory or future-scope only. |\n\n## Progress\n- Earlier blocker about terminal self-approval results bypassing orchestrator handback is fixed.\n- User-requested cleanup is present: the `self_approve` alias was removed and terminal self-approval state mapping was compacted.\n- Rubrics review passed 11/11 scored rubrics.\n- No new inline comments were posted, no replies were added, and no comments were minimized in this synthesis.\n- Advisory inline actions targeting human-authored comments were skipped per the prompt-managed inline comment rules.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved required branch-change work remains.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change action items.",
+      "createdAt": "2026-05-10T18:37:26Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/184#issuecomment-4416038617",
       "viewerDidAuthor": true
     }
   ],
@@ -156,7 +296,7 @@
     },
     {
       "path": ".agent/src/__tests__/handoff.test.ts",
-      "additions": 77,
+      "additions": 83,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
@@ -210,7 +350,7 @@
     },
     {
       "path": ".agent/src/sub-orchestration.ts",
-      "additions": 3,
+      "additions": 9,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
@@ -266,10 +406,25 @@
       "commit": {
         "oid": "4dfd8ae550c7360721e2e57897c2ccd429f7ed6b"
       }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM794klO",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer check my reviews",
+      "submittedAt": "2026-05-10T14:22:11Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "406289094cf4ddef7a8c4b3dea98b48dc2f756ea"
+      }
     }
   ],
   "state": "OPEN",
   "title": "Add self-approval orchestrator handoffs",
-  "updatedAt": "2026-05-09T01:06:00Z",
+  "updatedAt": "2026-05-10T18:37:26Z",
   "url": "https://github.com/self-evolving/repo/pull/184"
 }

@@ -168,6 +168,86 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/170#issuecomment-4411022919",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzgm2w",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\nI think there is a key missing task in this stacked PRs -> when agent has self-approval ready, it should merge it automatically (otherwise what's the point, right?). \n\nhttps://github.com/self-evolving/repo/pull/180#issuecomment-4416030062\n\nmaybe we can stack PR on top of #186 ? \n",
+      "createdAt": "2026-05-10T19:03:03Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/170#issuecomment-4416087771",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzhASg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I agree there is a real missing follow-up here. Current self-approval gets Sepo to a GitHub `APPROVE`, then stops. In the current stack, [`agent-self-approve.yml`](https://github.com/self-evolving/repo/blob/9a515285a7d60eaaee315ca74bcce6d38b9a503a/.github/workflows/agent-self-approve.yml#L196-L219) hands back to the orchestrator, and [`handoff.ts`](https://github.com/self-evolving/repo/blob/9a515285a7d60eaaee315ca74bcce6d38b9a503a/.agent/src/handoff.ts#L486-L497) stops on `approved`; only `REQUEST_CHANGES` routes to `fix-pr`. The approval write itself is deterministic in [`resolve-self-approve.ts`](https://github.com/self-evolving/repo/blob/9a515285a7d60eaaee315ca74bcce6d38b9a503a/.agent/src/cli/resolve-self-approve.ts#L50-L62), but there is no merge path.\n\nYes, I’d add this as a **new stacked PR on top of #186**, but first #186 should be refreshed onto the latest #184 head because #184 received later cleanup commits.\n\nProposed implementation slice:\n\n1. Add a separate opt-in gate, likely `AGENT_ALLOW_SELF_MERGE=false` by default. Keep this separate from `AGENT_ALLOW_SELF_APPROVE`; approval and merge are different privilege boundaries.\n\n2. Add a deterministic `agent-self-merge` workflow/CLI, not an LLM route. It should verify:\n   - target is an open PR and not draft\n   - current head still matches the approved/self-approved head\n   - Sepo can see a current-head approval from the self-approval path\n   - no blocking requested-changes state\n   - required checks / mergeability are acceptable\n   - stack/base state is safe\n\n3. Extend orchestration so:\n   - `review -> SHIP` still dispatches `agent-self-approve` when self-approval is enabled\n   - `agent-self-approve -> request_changes` still dispatches `fix-pr`\n   - `agent-self-approve -> approved` dispatches `agent-self-merge` only when `AGENT_ALLOW_SELF_MERGE=true`\n   - otherwise it keeps the current stop behavior\n\n4. For stacked PR safety, v1 should avoid merging a child PR into an unmerged parent branch by accident. Conservative behavior: merge only when the PR base is the default branch; if the PR is stacked on another open PR, post a visible “waiting on base PR” status. Existing branch cleanup already knows how to retarget stacked children after a parent merges.\n\n5. Add focused tests around handoff routing, merge preflight, stale head, draft PR, failed checks, non-default/stacked base, successful merge/auto-merge, and docs.\n\nDefault merge behavior I’d pick unless you want otherwise: use GitHub auto-merge when checks are still pending but merge requirements are satisfiable, and perform the merge immediately only when GitHub reports it is currently mergeable.\n\nIf that sounds right, approve this as PR 5 on top of #186 and I’d implement it there.",
+      "createdAt": "2026-05-10T19:06:13Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/170#issuecomment-4416094282",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzhRyw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> I agree there is a real missing follow-up here. Current self-approval gets Sepo to a GitHub `APPROVE`, then stops. In the current stack, [`agent-self-approve.yml`](https://github.com/self-evolving/repo/blob/9a515285a7d60eaaee315ca74bcce6d38b9a503a/.github/workflows/agent-self-approve.yml#L196-L219) hands back to the orchestrator, and [`handoff.ts`](https://github.com/self-evolving/repo/blob/9a515285a7d60eaaee315ca74bcce6d38b9a503a/.agent/src/handoff.ts#L486-L497) stops on `approved`; only `REQUEST_CHANGES` routes to `fix-pr`. The approval write itself is deterministic in [`resolve-self-approve.ts`](https://github.com/self-evolving/repo/blob/9a515285a7d60eaaee315ca74bcce6d38b9a503a/.agent/src/cli/resolve-self-approve.ts#L50-L62), but there is no merge path.\n> \n> Yes, I’d add this as a **new stacked PR on top of [#186](https://github.com/self-evolving/repo/pull/186)**, but first [#186](https://github.com/self-evolving/repo/pull/186) should be refreshed onto the latest [#184](https://github.com/self-evolving/repo/pull/184) head because [#184](https://github.com/self-evolving/repo/pull/184) received later cleanup commits.\n> \n> Proposed implementation slice:\n> \n> 1. Add a separate opt-in gate, likely `AGENT_ALLOW_SELF_MERGE=false` by default. Keep this separate from `AGENT_ALLOW_SELF_APPROVE`; approval and merge are different privilege boundaries.\n> 2. Add a deterministic `agent-self-merge` workflow/CLI, not an LLM route. It should verify:\n>    \n>    * target is an open PR and not draft\n>    * current head still matches the approved/self-approved head\n>    * Sepo can see a current-head approval from the self-approval path\n>    * no blocking requested-changes state\n>    * required checks / mergeability are acceptable\n>    * stack/base state is safe\n> 3. Extend orchestration so:\n>    \n>    * `review -> SHIP` still dispatches `agent-self-approve` when self-approval is enabled\n>    * `agent-self-approve -> request_changes` still dispatches `fix-pr`\n>    * `agent-self-approve -> approved` dispatches `agent-self-merge` only when `AGENT_ALLOW_SELF_MERGE=true`\n>    * otherwise it keeps the current stop behavior\n> 4. For stacked PR safety, v1 should avoid merging a child PR into an unmerged parent branch by accident. Conservative behavior: merge only when the PR base is the default branch; if the PR is stacked on another open PR, post a visible “waiting on base PR” status. Existing branch cleanup already knows how to retarget stacked children after a parent merges.\n> 5. Add focused tests around handoff routing, merge preflight, stale head, draft PR, failed checks, non-default/stacked base, successful merge/auto-merge, and docs.\n> \n> Default merge behavior I’d pick unless you want otherwise: use GitHub auto-merge when checks are still pending but merge requirements are satisfiable, and perform the merge immediately only when GitHub reports it is currently mergeable.\n> \n> If that sounds right, approve this as PR 5 on top of [#186](https://github.com/self-evolving/repo/pull/186) and I’d implement it there.\n\n@sepo-agent /orchestrate",
+      "createdAt": "2026-05-10T19:08:31Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/170#issuecomment-4416098763",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzhnJQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is starting a focused child task for this orchestration.\n\n| Child task | Focus | Parent issue | Status |\n| --- | --- | --- | --- |\n| #200 | self-merge | #170 | Running |\n\nI'll report back here when the child task finishes.\n\n<!-- sepo-sub-orchestrator-child parent:170 stage:self-merge child:200 -->",
+      "createdAt": "2026-05-10T19:11:16Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/170#issuecomment-4416104229",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-08T22:58:07Z",
@@ -182,6 +262,6 @@
   "number": 170,
   "state": "OPEN",
   "title": "Split agent self-approval into reviewable stacked PRs",
-  "updatedAt": "2026-05-09T01:51:20Z",
+  "updatedAt": "2026-05-10T19:11:16Z",
   "url": "https://github.com/self-evolving/repo/issues/170"
 }

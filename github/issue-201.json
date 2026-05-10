@@ -1,0 +1,78 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "Skill can be gradually used as an extension system \n\n1. in the specific skill folder, we can add skill-setup.yaml action \n2. in our skill dispatch route, it can check if that action exists and the load and run it \n\nExample: setting up https://github.com/collaborative-deep-research/agent-papers-cli and run deep research \n\n\n@sepo-agent /answer what do you thinkz",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzi7-Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I think this is a good direction, with one important constraint: `skill-setup.yaml` should be a Sepo-defined setup manifest, not arbitrary GitHub Actions YAML. Dynamic `uses:` steps are hard to do safely, and running repo-provided setup code with agent tokens/secrets needs a tight contract.\n\nCurrent shape:\n- `/skill <name>` is already parsed explicitly in [`triage.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/triage.ts#L75-L87).\n- The skill job checks only `.skills/<name>/SKILL.md`, then runs the skill inline from [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L380-L506).\n- Runtime prompt resolution maps `SKILL_NAME` directly to `.skills/<name>/SKILL.md` in [`run.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/run.ts#L128-L152).\n- The shared action already models `skill` as a first-class input in [`run-agent-task/action.yml`](https://github.com/self-evolving/repo/blob/main/.github/actions/run-agent-task/action.yml#L9-L15).\n\nRecommended implementation:\n\n1. Add optional `.skills/<name>/skill-setup.yaml`.\n2. Add a typed CLI like `.agent/src/cli/run-skill-setup.ts` that:\n   - resolves the skill directory safely,\n   - parses YAML with the existing `yaml` dependency,\n   - validates a small schema,\n   - runs setup steps before the agent task,\n   - fails with a clear posted response when setup fails.\n3. Insert it in the skill job after `Check skill exists` and before `Run skill`.\n4. Keep the manifest minimal at first, for example:\n\n```yaml\nversion: 1\nsteps:\n  - name: Install agent papers CLI\n    run: npm install -g <package-or-repo-install-command>\n```\n\nFor the deep-research example, the repo could add:\n\n```text\n.skills/deep-research/SKILL.md\n.skills/deep-research/skill-setup.yaml\n```\n\n`skill-setup.yaml` installs or exposes `agent-papers-cli`; `SKILL.md` tells the agent when and how to use it.\n\nI would also fix one nearby issue while doing this: `agent-router.yml` exposes a `skill_root` input, but the current skill path is still hardcoded to `.skills`. The setup work should route all skill path resolution through one helper/CLI so `skill_root` works consistently.\n\nExecution plan if approved:\n\n1. Define the `skill-setup.yaml` v1 schema and docs.\n2. Add a `run-skill-setup` CLI with schema validation, path traversal protection, and good error messages.\n3. Wire the CLI into the skill route before `Run skill`.\n4. Add tests around setup detection, missing setup, invalid YAML, path safety, and failure behavior.\n5. Update README/docs for `/skill`, including the `agent-papers-cli` style example.\n\nMain open question: should setup execution be enabled by default for trusted users, or gated behind a repo variable such as `AGENT_SKILL_SETUP_ENABLED=true` for the first release? My recommendation is to gate it initially, then relax once the contract proves stable.",
+      "createdAt": "2026-05-10T19:22:31Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/201#issuecomment-4416125945",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzjjOw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Dynamic uses: steps are hard to do safely, and running repo-provided setup code with agent tokens/secrets needs a tight contract\n\n@sepo-agent I'd imagine this is installed on users repo so they have the trust model themselves. ",
+      "createdAt": "2026-05-10T19:25:29Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/201#issuecomment-4416135995",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzj9WA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, that trust model makes sense: if Sepo is installed in a user’s repo, repo-owned skill setup is comparable to repo-owned workflows. I would frame it as “the repository opts into executable skill setup,” not as Sepo centrally trusting arbitrary third-party code.\n\nThe remaining caution is mostly about *which ref* supplies the setup file. For issue/discussion/default-branch runs, `.skills/<name>/skill-setup.yaml` is repo-owned config. For PR-triggered runs, we should avoid executing a `skill-setup.yaml` that came from an unreviewed PR head while the job has agent tokens/secrets. So I’d make the rule explicit:\n\n- Skill setup is allowed when loaded from the trusted checkout/ref Sepo is already running from.\n- For PRs, either load skill setup from the base/default branch, or skip setup unless the PR author/ref is trusted by policy.\n- Surface this clearly in docs as “skill setup runs code in your Actions runner with the route’s permissions.”\n\nGiven that, I’d loosen my earlier stance: we do not need heavy sandboxing for v1. A simple manifest runner is enough:\n\n```yaml\nversion: 1\nsteps:\n  - name: Install deep research CLI\n    run: npm install -g ...\n```\n\nThe reason I’d still avoid calling it “raw GitHub Actions YAML” is practical: dynamic `uses:` for `.skills/${skill}/...` is awkward in workflow syntax. A Sepo `skill-setup.yaml` manifest interpreted by a small CLI is easier to validate, test, and evolve.\n\nSo yes: trust belongs to the installing repo. Sepo’s job is to make execution explicit, predictable, and not accidentally run PR-supplied setup with elevated credentials.",
+      "createdAt": "2026-05-10T19:27:22Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/201#issuecomment-4416142680",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-10T19:19:52Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 201,
+  "state": "OPEN",
+  "title": "Augment the skill route",
+  "updatedAt": "2026-05-10T19:27:22Z",
+  "url": "https://github.com/self-evolving/repo/issues/201"
+}

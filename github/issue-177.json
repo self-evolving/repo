@@ -6,7 +6,7 @@
     "name": "Shannon Shen"
   },
   "body": "## Background\n\nRecent versioning work introduced `.agent/sepo-version.json` with both Sepo package identity and install/source provenance:\n\n```json\n{\n  \"schema_version\": 1,\n  \"version\": \"0.1.0\",\n  \"channel\": \"pre-release\",\n  \"source_repo\": \"self-evolving/repo\",\n  \"source_ref\": \"main\",\n  \"source_sha\": null,\n  \"installed_from\": \"source\",\n  \"agent_files_hash\": null\n}\n```\n\nBut `.agent/package.json` already carries the Sepo runtime/package identity:\n\n```json\n{\n  \"name\": \"@self-evolving/sepo\",\n  \"version\": \"0.1.0\"\n}\n```\n\nThis creates a risk of duplicate version sources drifting apart, especially if/when the agent backend scripts are released as a normal package.\n\nRelated context:\n- #74: broader versioning discussion\n- #116: updater workflow context\n- #117: bug report/version reporting context\n- #133: typed reader/validator + `print-sepo-version` CLI around `.agent/sepo-version.json`\n\n## Concern\n\n`version` and `channel` in `.agent/sepo-version.json` appear redundant with `.agent/package.json`:\n\n- `.agent/package.json` should be the canonical Sepo runtime/package version.\n- `channel` can be derived from versioning policy if needed (`0.x` pre-release, `1.0.0-rc.N` release candidate, `1.x` stable).\n- A separate metadata file may still be useful later, but only for install provenance, not package identity.\n\nThe current metadata file also does not yet provide precise provenance because `source_sha` and `agent_files_hash` are `null`, so it is not giving a reproducible install identity today.\n\n## Proposed direction\n\nSeparate the concepts:\n\n1. **Package identity**\n   - Canonical source: `.agent/package.json`\n   - Fields: package name/version, eventually normal npm/package release metadata.\n\n2. **Install provenance** (only if/when needed by updater, bug reports, or release tooling)\n   - Possible future file: `.agent/install.json` or similar\n   - Fields: `source_repo`, `source_ref`, `source_sha`, `installed_from`, `agent_files_hash`\n   - Avoid duplicating `version` from `.agent/package.json`.\n\n## Concrete actions\n\n- [ ] Remove `.agent/sepo-version.json` from the current tree, or at least stop treating it as the version source of truth.\n- [ ] Defer or close #133 unless/until a concrete workflow consumes this metadata.\n- [ ] If #116 or #117 needs provenance later, introduce a smaller provenance-only file/reader shaped by that workflow's exact needs.\n- [ ] Update docs to say `.agent/package.json` is the canonical Sepo runtime/package version.\n- [ ] If a future CLI is needed, keep it minimal: read `.agent/package.json` for version and optional provenance file for install source details.\n\n## Acceptance criteria\n\n- There is only one canonical Sepo version source: `.agent/package.json`.\n- No separate metadata file duplicates package version/channel unless a concrete release/install workflow justifies it.\n- Future provenance metadata, if added, is clearly install-source metadata rather than package version metadata.\n",
-  "closedAt": null,
+  "closedAt": "2026-05-10T19:00:36Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABBuWADA",
@@ -188,8 +188,8 @@
     }
   ],
   "number": 177,
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Clarify Sepo version source of truth vs install provenance",
-  "updatedAt": "2026-05-09T18:59:02Z",
+  "updatedAt": "2026-05-10T19:00:36Z",
   "url": "https://github.com/self-evolving/repo/issues/177"
 }

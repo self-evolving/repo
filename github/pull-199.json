@@ -1,0 +1,226 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Add `AGENT_INLINE_COMMENT_CLEANUP_MODE` for prompt-managed inline cleanup.\n- Support `resolve` by default, opt-in `minimize`, and `off` for older inline feedback.\n- Update review prompts, workflow wiring, docs, and prompt-contract assertions.\n\n## Verification\n- `npm run build`\n- `node --test dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nCloses #198\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzhgKQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate review first; but also compare with #197",
+      "createdAt": "2026-05-10T19:10:23Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/199#issuecomment-4416102441",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzhsqA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | review | PR #199 | 2 / 40 | Dispatched |\n\nReason: agent planner selected review: Open PR #199 has an explicit /orchestrate request to review first, and the requester specifically asked to compare it with PR #197.\n\n<!-- sepo-agent-handoff state:dispatched created:1778440319511 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU2MzczMDYxNDg6b3JjaGVzdHJhdGU6MTk5OnJldmlldzoxOTk6Mg -->",
+      "createdAt": "2026-05-10T19:11:59Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/199#issuecomment-4416105640",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzh3iA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 6 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #199 closes #198, which was created from the PR #197 follow-up request to support dual inline cleanup modes. The diff implements that exact plan: `resolve|minimize|off`, default `resolve`, docs, workflow wiring, prompts, and contract tests. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | `.agent/docs/architecture/supported-workflows.md` documents the default `resolve` behavior plus `minimize` and `off`; `.agent/docs/customization/configuration-list.md` adds `AGENT_INLINE_COMMENT_CLEANUP_MODE`. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is limited to the expected review cleanup surface: two prompts, review workflow env wiring, supplemental prompt vars, docs, and the existing prompt-contract test. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The PR keeps cleanup prompt-managed and adds one enum-like env var instead of adding new runtime machinery or a separate cleanup workflow. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The new setting is a named variable with explicit allowed values, and prompts define behavior for unsupported values rather than relying on implicit precedence. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The implementation extends the existing review/synthesis prompt contract, existing `run.ts` supplemental prompt variable allowlist, existing `agent-review.yml`, and existing `envelope.test.ts` assertions. |\n\n## Notes\n\n- Compared with #197, PR #199 preserves the guarded thread-resolution default while restoring the prior minimization path only behind `AGENT_INLINE_COMMENT_CLEANUP_MODE=minimize`.\n- I did not score route/process rubrics such as delegated authorization, one-shot orchestration, preview contracts, merge flow, status-comment formatting, or idempotent setup because this PR does not implement those behaviors.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-10T19:13:21Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/199#issuecomment-4416108424",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzilqA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #199 implements the follow-up from #198 after the discussion on PR #197.\n- It adds `AGENT_INLINE_COMMENT_CLEANUP_MODE=resolve|minimize|off` for prompt-managed inline review cleanup.\n- The default remains `resolve`, preserving PR #197’s guarded review-thread resolution behavior.\n- The PR restores minimization only as an opt-in mode, adds `off`, and updates prompts, workflow wiring, docs, and prompt-contract tests.\n\n## Review\nThe implementation is narrow and aligned with the requested follow-up. One reviewer noted optional hardening around negative mode-gating test coverage, while the Codex review and rubrics review found no actionable issues; this synthesis treats that as non-blocking and not required branch work.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | PR #199 cleanly extends PR #197’s default behavior with opt-in `minimize` and `off` modes, and the updated prompts, docs, workflow env wiring, and contract tests are consistent. |\n\n## Progress\n- Inspected PR #199 conversation, linked issue #198, and compared the change against PR #197 as requested.\n- Read all three review outputs: rubrics review, Claude review, and Codex review.\n- Re-fetched existing inline PR comments and review threads; both were empty.\n- No inline comments were posted, no replies were added, no comments were minimized, and no review threads were resolved.\n- Current PR checks show `check` passing.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: No unresolved required branch-change work remains; the only caveat is optional prompt-contract test hardening.\n\n## Final Verdict\n`SHIP`\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-10T19:19:21Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/199#issuecomment-4416120232",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzjCeA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \r\n\r\ncan we further simplify it? the agent itself should determine whether it's a resolve vs minimize. So no need to have an environment variable. ",
+      "createdAt": "2026-05-10T19:23:24Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/199#issuecomment-4416127608",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzjaIg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, I agree. We can simplify #199 by removing `AGENT_INLINE_COMMENT_CLEANUP_MODE` entirely and making this a synthesis-agent judgment.\n\nThe existing flow already supports that shape: reviewer lanes only suggest actions, and `review-synthesize.md` is the only place that re-fetches current inline comments/threads and mutates GitHub. So the decision can live there:\n\n1. Resolve an existing same-agent review thread when it is unresolved, `viewerCanResolve`, belongs to the PR, all thread comments are same-agent, and the issue is addressed/superseded.\n2. Minimize an older same-agent inline comment as `OUTDATED` when it is superseded but there is no appropriate resolvable review thread path.\n3. Do nothing when authorship, PR ownership, supersession, or resolution confidence is uncertain.\n\nImplementation plan for a follow-up on this PR:\n\n- Remove `AGENT_INLINE_COMMENT_CLEANUP_MODE` from `.github/workflows/agent-review.yml`, `.agent/src/run.ts`, and `.agent/docs/customization/configuration-list.md`.\n- Update `.github/prompts/review.md` so suggestions can include both `resolve_existing_thread` and `mark_existing_outdated` without mode gates.\n- Update `.github/prompts/review-synthesize.md` to encode the decision policy above directly.\n- Update `.agent/docs/architecture/supported-workflows.md` to describe agent-decided inline cleanup, not configurable cleanup mode.\n- Adjust `.agent/src/__tests__/envelope.test.ts` to assert the new prompt contract and absence of the env var wiring.\n\nThat keeps the useful dual behavior, removes repo-level configuration surface, and matches the current prompt-managed architecture.",
+      "createdAt": "2026-05-10T19:25:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/199#issuecomment-4416133666",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzj4fA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Yes, I agree. We can simplify #199 by removing `AGENT_INLINE_COMMENT_CLEANUP_MODE` entirely and making this a synthesis-agent judgment.\r\n> \r\n> The existing flow already supports that shape: reviewer lanes only suggest actions, and `review-synthesize.md` is the only place that re-fetches current inline comments/threads and mutates GitHub. So the decision can live there:\r\n> \r\n> 1. Resolve an existing same-agent review thread when it is unresolved, `viewerCanResolve`, belongs to the PR, all thread comments are same-agent, and the issue is addressed/superseded.\r\n> 2. Minimize an older same-agent inline comment as `OUTDATED` when it is superseded but there is no appropriate resolvable review thread path.\r\n> 3. Do nothing when authorship, PR ownership, supersession, or resolution confidence is uncertain.\r\n> \r\n> Implementation plan for a follow-up on this PR:\r\n> \r\n> * Remove `AGENT_INLINE_COMMENT_CLEANUP_MODE` from `.github/workflows/agent-review.yml`, `.agent/src/run.ts`, and `.agent/docs/customization/configuration-list.md`.\r\n> * Update `.github/prompts/review.md` so suggestions can include both `resolve_existing_thread` and `mark_existing_outdated` without mode gates.\r\n> * Update `.github/prompts/review-synthesize.md` to encode the decision policy above directly.\r\n> * Update `.agent/docs/architecture/supported-workflows.md` to describe agent-decided inline cleanup, not configurable cleanup mode.\r\n> * Adjust `.agent/src/__tests__/envelope.test.ts` to assert the new prompt contract and absence of the env var wiring.\r\n> \r\n> That keeps the useful dual behavior, removes repo-level configuration surface, and matches the current prompt-managed architecture.\r\n\r\n@sepo-agent /orchestrate ",
+      "createdAt": "2026-05-10T19:26:46Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/199#issuecomment-4416141436",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzkEaA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | fix-pr | PR #199 | 2 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Newer human input overrides the earlier NO_AUTOMATED_ACTION review result and clearly requests branch changes on open PR #199 to simplify inline cleanup by removing the cleanup-mode env var.\n\nTask for fix-pr:\nApply the requester-approved follow-up plan on PR #199. Remove AGENT_INLINE_COMMENT_CLEANUP_MODE entirely from .github/workflows/agent-review.yml, .agent/src/run.ts, and .agent/docs/customization/configuration-list.md. Update .github/prompts/review.md so reviewer suggestions may include both resolve_existing_thread and mark_existing_outdated without mode gates. Update .github/prompts/review-synthesize.md so synthesis decides directly: resolve an existing same-agent review thread only when unresolved, viewerCanResolve, belongs to this PR, all thread comments are same-agent, and the issue is addressed or superseded; minimize an older same-agent inline comment as OUTDATED when superseded but no appropriate resolvable review-thread path exists; otherwise do nothing when authorship, PR ownership, supersession, or resolution confidence is uncertain. Update .agent/docs/architecture/supported-workflows.md to describe agent-decided inline cleanup rather than configurable cleanup mode. Adjust .agent/src/__tests__/envelope.test.ts to assert the new prompt contract and absence of env var wiring. Preserve the prompt-managed architecture where reviewer lanes only suggest actions and review-synthesize is the only place that re-fetches current inline comments/threads and mutates GitHub. Avoid unrelated refactors. Run focused verification, at minimum npm run build, node --test dist/__tests__/envelope.test.js after build if applicable, and git diff --check.\n\n<!-- sepo-agent-handoff state:dispatched created:1778441293857 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU2Mzc2NDkwNzQ6b3JjaGVzdHJhdGU6MTk5OmZpeF9wcjoxOTk6Mg -->",
+      "createdAt": "2026-05-10T19:28:14Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/199#issuecomment-4416144488",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-10T19:02:44Z",
+  "files": [
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 11,
+      "deletions": 6,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 24,
+      "deletions": 6,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/run.ts",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/review-synthesize.md",
+      "additions": 32,
+      "deletions": 11,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/review.md",
+      "additions": 17,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-review.yml",
+      "additions": 3,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-198/codex-25637047514",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 199,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "OPEN",
+  "title": "Support inline review cleanup modes",
+  "updatedAt": "2026-05-10T19:28:28Z",
+  "url": "https://github.com/self-evolving/repo/pull/199"
+}

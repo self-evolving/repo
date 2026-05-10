@@ -1,0 +1,223 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "agent/implement-issue-185/codex-25587257587",
+  "body": "## Summary\n- Add `AGENT_ALLOW_SELF_MERGE` and a deterministic `agent-self-merge.yml` workflow/CLI.\n- Route `agent-self-approve -> approved` to self-merge only when self-merge is enabled, while preserving disabled stop behavior and `REQUEST_CHANGES -> fix-pr`.\n- Verify open non-draft PRs, current-head Sepo self-approval, no blocking requested changes, check/mergeability state, and default-branch base safety before merging or enabling auto-merge.\n- Add marker-upserted self-merge statuses, docs, and focused regression tests.\n\n## Verification\n- `npm run build`\n- `node --test dist/__tests__/self-merge.test.js dist/__tests__/resolve-self-merge-cli.test.js dist/__tests__/handoff.test.js dist/__tests__/orchestrate-handoff-cli.test.js dist/__tests__/orchestrator-preflight-cli.test.js dist/__tests__/sub-orchestration.test.js dist/__tests__/post-response-cli.test.js dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nCloses #200\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzkI_w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #202 | 3 / 40 | Dispatched |\n\nReason: implementation succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1778441328269 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU2MzczMzAxNTE6aW1wbGVtZW50OjIwMDpyZXZpZXc6MjAyOjM -->",
+      "createdAt": "2026-05-10T19:28:48Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/202#issuecomment-4416145663",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzkd8A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 95 | PARTIAL | 12 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | `agent-self-merge` is added to the initial `/orchestrate` delegated route capability set only when both self-approval and self-merge are enabled, with tests for the authorization stop path. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR keeps workflow glue thin and puts merge preflight in typed modules/CLIs: `.agent/src/self-merge.ts`, `.agent/src/cli/resolve-self-merge.ts`, and GitHub helpers in `.agent/src/github.ts`. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The new workflow uses explicit `pr_number`, orchestration, round, requester, and session inputs instead of overloading a string command. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Self-merge statuses use `SELF_MERGE_STATUS_MARKER` and `upsertPrCommentByMarker`, so reruns update the existing trusted marker comment instead of creating repeated statuses. |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Non-merge outcomes such as blocked/waiting self-merge write a visible status; stacked bases return `waiting` with “waiting on the base PR” rather than silently stopping. |\n| communication / generic | Keep status comments compact | pass | 6/6 | `formatSelfMergeBody` uses a short status/conclusion table plus a single reason and run link. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are scoped to the requested self-merge route, orchestration handoff, docs, and focused tests; no broad unrelated refactor is evident. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The resolver is deterministic and linear: gate, PR state, draft, current-head approval, base branch, requested changes, checks, then merge/auto-merge decision. |\n| coding_workflow / generic | Use default merge flow | pass | 7/7 | GitHub merge helpers use `gh pr merge --merge` and `--merge --auto`, not squash. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Docs were updated in actions, supported workflows, configuration, request lifecycle, orchestrator details, and key concepts. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Merge and auto-merge failures become `failed` conclusions with surfaced reasons, and status-comment upsert failures set a nonzero exit code. |\n| coding_workflow / generic | Read docs and linked context first | partial | 4/6 | The implementation follows the requested design, but the requested stack refresh was not completed: PR #202 is based on #186 head `9a515285...`; #186 is still based on `4062890...`, while #184 head is now `e5fc865...`. |\n\n## Notes\n\n- The implementation strongly satisfies the self-merge design rubrics: separate opt-in gate, deterministic resolver, current-head self-approval validation, requested-changes/check/base safeguards, immediate merge vs auto-merge behavior, idempotent visible statuses, and focused regression coverage.\n- The only rubric-specific gap is stack hygiene from the linked context: refresh #186 onto the current #184 head, then rebase/refresh #202 if needed.\n\n## Findings\n\n- **WARNING:** `read-docs-first` / linked context was only partially honored. The request explicitly said #186 should first be refreshed onto the latest #184 head before adding this stacked PR. Live PR metadata shows #202 is stacked on #186, but #186’s base OID is `406289094cf4ddef7a8c4b3dea98b48dc2f756ea` while #184’s current head is `e5fc865406f35cd15c713bb346e1149b5b9e4263`.\n\n## Final Rubric Verdict\n\nPARTIAL",
+      "createdAt": "2026-05-10T19:31:24Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/202#issuecomment-4416151024",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-10T19:28:34Z",
+  "files": [
+    {
+      "path": ".agent/docs/actions/agent-actions.md",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/request-lifecycle.md",
+      "additions": 3,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 23,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/agent-orchestrator.md",
+      "additions": 15,
+      "deletions": 9,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/key-concepts.md",
+      "additions": 2,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 7,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/handoff.test.ts",
+      "additions": 72,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrate-handoff-cli.test.ts",
+      "additions": 82,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrator-preflight-cli.test.ts",
+      "additions": 42,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/resolve-self-merge-cli.test.ts",
+      "additions": 155,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/self-merge.test.ts",
+      "additions": 175,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/sub-orchestration.test.ts",
+      "additions": 16,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrate-handoff.ts",
+      "additions": 13,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrator-preflight.ts",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/post-response.ts",
+      "additions": 14,
+      "deletions": 8,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/resolve-self-merge.ts",
+      "additions": 153,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/envelope.ts",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/github.ts",
+      "additions": 108,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/handoff.ts",
+      "additions": 16,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/orchestrator-capabilities.ts",
+      "additions": 4,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/run.ts",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/self-merge.ts",
+      "additions": 345,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/sub-orchestration.ts",
+      "additions": 5,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-orchestrator.md",
+      "additions": 8,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-orchestrator.yml",
+      "additions": 3,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-self-merge.yml",
+      "additions": 129,
+      "deletions": 0,
+      "changeType": "ADDED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-200/codex-25637330151",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 202,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "OPEN",
+  "title": "Add opt-in self-merge after self-approval",
+  "updatedAt": "2026-05-10T19:31:24Z",
+  "url": "https://github.com/self-evolving/repo/pull/202"
+}

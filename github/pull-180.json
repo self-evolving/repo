@@ -163,6 +163,117 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/180#issuecomment-4414806554",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBy8MCg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer how does it handle review approval then?",
+      "createdAt": "2026-05-10T14:11:36Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/180#issuecomment-4415491082",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBy8bLg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "It handles GitHub review approval outside the agent runtime.\n\nFlow in PR #180:\n\n1. The self-approval agent runs read-only with `permission_mode: approve-reads` and returns only JSON: `APPROVE`, `REQUEST_CHANGES`, or `BLOCKED`.\n   See [`agent-self-approve.yml`](https://github.com/self-evolving/repo/blob/e7d2724ff8e0615104db9c022a56fd5ebe0b9afc/.github/workflows/agent-self-approve.yml#L97-L144).\n\n2. The deterministic resolver parses that JSON and re-checks:\n   - `AGENT_ALLOW_SELF_APPROVE=true`\n   - target is an open PR\n   - PR head still matches the captured expected head\n   - agent reported the same inspected head\n   - approval actor differs from PR author\n   - latest trusted review synthesis is `SHIP` for that same head\n\n3. Only if all checks pass, resolver submits the actual GitHub PR review with `event=APPROVE` through the REST API:\n   [`resolve-self-approve.ts`](https://github.com/self-evolving/repo/blob/e7d2724ff8e0615104db9c022a56fd5ebe0b9afc/.agent/src/cli/resolve-self-approve.ts#L50-L62).\n\nSo the agent does not directly approve the PR. It recommends approval; deterministic code performs the GitHub review approval.\n\nFor `REQUEST_CHANGES`, PR #180 does **not** submit a GitHub “changes requested” review. It records the self-approval conclusion and handoff context. The orchestrator handback behavior is the next stacked PR (#184): `REQUEST_CHANGES` routes to `fix-pr`, while terminal outcomes report back to the parent orchestration.",
+      "createdAt": "2026-05-10T14:13:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/180#issuecomment-4415494958",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzaHdg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer ok then does this self-approval handle merge of a PR?",
+      "createdAt": "2026-05-10T18:09:58Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/180#issuecomment-4415981430",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzaPNw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "No. The self-approval work handles **PR review approval**, not **PR merge**.\n\nCurrent intended flow is:\n\n1. Review synthesis says `SHIP`.\n2. Self-approval agent inspects the PR.\n3. Deterministic resolver may submit a GitHub PR review with `event=APPROVE`.\n4. If approval succeeds, the PR is merely approved. It is not merged by this workflow.\n\nSo branch protection can then consider the PR approved, but the merge still has to happen through the normal merge path: human merge, merge queue, auto-merge, or a separate future Sepo merge workflow.\n\nI would keep merge separate from self-approval. Merging needs another layer of checks: current head, required status checks, mergeability/queue state, stacked PR base handling, and whether Sepo is allowed to close the loop without a human. That is a different privilege boundary than “agent may approve this PR.”",
+      "createdAt": "2026-05-10T18:11:00Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/180#issuecomment-4415983415",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzcaGQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> No. The self-approval work handles **PR review approval**, not **PR merge**.\r\n> \r\n> Current intended flow is:\r\n> \r\n> 1. Review synthesis says `SHIP`.\r\n> 2. Self-approval agent inspects the PR.\r\n> 3. Deterministic resolver may submit a GitHub PR review with `event=APPROVE`.\r\n> 4. If approval succeeds, the PR is merely approved. It is not merged by this workflow.\r\n> \r\n> So branch protection can then consider the PR approved, but the merge still has to happen through the normal merge path: human merge, merge queue, auto-merge, or a separate future Sepo merge workflow.\r\n> \r\n> I would keep merge separate from self-approval. Merging needs another layer of checks: current head, required status checks, mergeability/queue state, stacked PR base handling, and whether Sepo is allowed to close the loop without a human. That is a different privilege boundary than “agent may approve this PR.”\r\n\r\n@sepo-agent /answer\r\nSo what does self-approval do in the end? it just another level of meta reviewing? How do we handle merging then? ",
+      "createdAt": "2026-05-10T18:28:16Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/180#issuecomment-4416018969",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzdFbg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, self-approval is basically a **final policy/owner gate**, not a merge mechanism.\n\nIt does two useful things:\n\n1. It turns “review synthesis says `SHIP`” into a real GitHub PR approval, when allowed.\n2. It keeps that approval behind extra safeguards: opt-in config, current-head checks, trusted review provenance, distinct approval actor, and structured agent judgment.\n\nSo it is more than another review comment: it can satisfy GitHub’s required-review branch protection by submitting `APPROVE`. But it does not click merge.\n\nMerging should be one of these:\n\n- **Human merge:** Sepo approves, maintainer merges.\n- **GitHub auto-merge / merge queue:** Sepo approves, GitHub merges once all required checks and queue rules pass.\n- **Future Sepo merge workflow:** separate opt-in route, probably with its own config like `AGENT_ALLOW_SELF_MERGE`, checking current head, required checks, mergeability, stack/base state, and permissions before calling the merge API.\n\nIf the product goal is “agents can fully close approved PRs,” then self-approval is only half the loop. We should add a separate merge slice rather than fold merging into self-approval, because approval and merge are different trust boundaries.",
+      "createdAt": "2026-05-10T18:33:24Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/180#issuecomment-4416030062",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-09T00:03:08Z",
@@ -340,6 +451,6 @@
   ],
   "state": "OPEN",
   "title": "Add opt-in self-approval core",
-  "updatedAt": "2026-05-10T08:10:51Z",
+  "updatedAt": "2026-05-10T18:33:24Z",
   "url": "https://github.com/self-evolving/repo/pull/180"
 }

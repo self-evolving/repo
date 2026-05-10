@@ -1,0 +1,39 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "body": "## Goal\nImplement the requested change from the agent mention.\n\n## Original request\n> Yes. In PR #197, inline comment minimization was removed for **prompt-managed inline review comments**. It was not removed globally: generated top-level review/rubrics/fix-pr/handoff cleanup is still controlled by `AGENT_COLLAPSE_OLD_REVIEWS` in the docs.\r\n> \r\n> Why it happened: #196 asked whether same-agent inline cleanup should use GitHub “resolved” instead of “minimized.” This PR implemented that as a replacement: reviewer suggestions changed from `mark_existing_outdated` to `resolve_existing_thread`, and synthesis now says `do not delete or minimize inline comments`.\r\n> \r\n> Dual mode is reasonable. I’d implement it as a follow-up, not by overloading `AGENT_COLLAPSE_OLD_REVIEWS`, because that variable currently means generated comment cleanup, while inline thread cleanup is documented as separate.\r\n> \r\n> Proposed plan:\r\n> \r\n> 1. Add an inline-specific mode, e.g. `AGENT_INLINE_COMMENT_CLEANUP_MODE=resolve|minimize|off`.\r\n> 2. Keep `resolve` as the default for addressed/superseded same-agent review threads.\r\n> 3. Restore the old `minimizeComment(... OUTDATED)` path only when mode is `minimize`.\r\n> 4. Keep strict guards for both modes: same PR, same agent, no humans/other bots, re-fetch before mutation.\r\n> 5. Update `.github/prompts/review.md`, `.github/prompts/review-synthesize.md`, docs, and prompt-contract tests.\r\n> 6. Preserve `do not delete inline comments` always.\r\n> \r\n> That gives us the current safer default while still supporting repos that prefer the old minimized/outdated UX.\r\n\r\n@sepo-agent /implement\n\n## Acceptance criteria\n- Implement the requested change.\n- Preserve existing behavior unless the request requires a change.\n- Update tests or validation as needed.\n\n---\n\nRequested via issue_comment at https://github.com/self-evolving/repo/pull/197\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzgkvA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-198/codex-25637047514`\n- Pull request: https://github.com/self-evolving/repo/pull/199\n\nImplemented dual-mode prompt-managed inline review cleanup by adding `AGENT_INLINE_COMMENT_CLEANUP_MODE`, wiring it into review and synthesis runs, updating reviewer/synthesis prompt contracts for `resolve`, `minimize`, and `off`, and documenting the new setting. Verified with `npm run build`, `node --test dist/__tests__/envelope.test.js`, and `git diff --check`.",
+      "createdAt": "2026-05-10T19:02:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/198#issuecomment-4416087228",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-10T18:58:34Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 198,
+  "state": "OPEN",
+  "title": "Implement requested change",
+  "updatedAt": "2026-05-10T19:02:47Z",
+  "url": "https://github.com/self-evolving/repo/issues/198"
+}

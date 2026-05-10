@@ -1,0 +1,271 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Replace the inline cleanup suggestion contract with `resolve_existing_thread` and `existing_thread_id`.\n- Teach review synthesis to re-fetch GraphQL `reviewThreads` and resolve only same-agent, unresolved, viewer-resolvable threads when the issue is addressed or superseded.\n- Update supported workflow docs and prompt-contract assertions for the new behavior.\n\n## Verification\n- `npm run build`\n- `node --test dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nCloses #196\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzbmLQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #197 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: Implementation succeeded and opened PR #197 for issue #196; an automated review is the appropriate next validation step before stopping the chain.\n\n<!-- sepo-agent-handoff state:dispatched created:1778437316936 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU2MzYxNDYzNDI6aW1wbGVtZW50OjE5NjpyZXZpZXc6MTk3OjM -->",
+      "createdAt": "2026-05-10T18:21:57Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/197#issuecomment-4416005677",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzbw6Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 6 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #197 directly follows issue #196’s requested plan: replace outdated minimization with guarded review-thread resolution, add thread-id contract, update docs/tests. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | `.agent/docs/architecture/supported-workflows.md` is updated to describe resolving same-agent review threads and the required `viewerCanResolve`/unresolved checks. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is limited to four targeted files: two prompts, one docs page, and one prompt-contract test. No unrelated refactor or cleanup. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The PR makes the minimal prompt-contract change requested by #196 rather than adding new runtime machinery. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Reviewer suggestion schema replaces `existing_comment_node_id` minimization with explicit GraphQL `existing_thread_id` for `resolve_existing_thread`. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The change preserves the existing prompt-managed inline-review flow and extends the existing envelope test instead of inventing a separate workflow path. |\n\n## Notes\n\n- The strongest rubric drivers are the narrow scope and docs/test alignment: the PR updates the reviewer prompt, synthesis prompt, supported-workflows docs, and contract assertions together.\n- I did not score selected route/process rubrics like delegated authorization, one-shot orchestration, preview contracts, merge flow, or status-comment formatting because this PR does not implement those behaviors.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-10T18:23:18Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/197#issuecomment-4416008425",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzcV_w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\nThe inline comment was created on `.github/prompts/review.md` line 22. I’m now collapsing the three reviewer outputs into the final synthesis, with the disagreement called out instead of treating the single warning as unanimous.## Summary of PR/Issue\n- Issue #196 asked whether prompt-managed inline review cleanup should resolve GitHub review threads instead of minimizing comments as outdated.\n- PR #197 replaces the reviewer suggestion contract with `resolve_existing_thread` and `existing_thread_id`.\n- It updates synthesis guidance to re-fetch GraphQL `reviewThreads` and only resolve same-agent, unresolved, viewer-resolvable threads when the issue is addressed or superseded.\n- The PR also updates supported workflow docs and prompt-contract assertions for the new behavior.\n\n## Review\nThe core change is correct, narrow, and aligned with #196. One reviewer raised a concrete prompt-completeness gap; the Codex review and rubrics review found no unresolved actionable issues, so this synthesis treats the gap as a minor warning rather than a design blocker.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Reviewer prompt lacks a reviewThreads query | WARNING | `.github/prompts/review.md` tells reviewer lanes to inspect GraphQL `reviewThreads`, but does not provide the query needed to reliably obtain `existing_thread_id`. Reviewer lanes run separately from synthesis, so relying on the synthesis prompt’s query can make resolution suggestions brittle. |\n\n## Progress\n- Reviewed PR #197 conversation, linked issue #196, reviewer outputs, current diff, existing inline comments, and GraphQL review threads.\n- Existing inline comments and review threads were empty before synthesis action.\n- Posted one inline comment on `.github/prompts/review.md` line 22: https://github.com/self-evolving/repo/pull/197#discussion_r3215310268\n- No replies were added, no threads were resolved, and no comments were minimized.\n- Rubrics review passed, and one independent code review reported no unresolved actionable issues.\n\n## Issue Details\n<details>\n<summary>Reviewer prompt lacks a reviewThreads query</summary>\n\n**Cause:** The synthesis prompt includes a concrete `reviewThreads` GraphQL query, but the reviewer prompt only says to inspect `reviewThreads`. Review agents are asked to provide `existing_thread_id` when known, yet the prompt does not show them the canonical way to fetch it.\n\n**Candidate solutions:** Add the same query example from `review-synthesize.md`, or a trimmed reviewer-focused query that returns `id`, `isResolved`, `viewerCanResolve`, `path`, `line`, and comment author data.\n\n**Comments:** One reviewer flagged this as a warning; the other review and rubric pass did not consider it blocking. The fix is small and should stay scoped to the reviewer prompt, with test updates only if the project wants to pin the query text.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: The remaining warning is a concrete, low-risk prompt update that an automated fix-pr pass can safely make.\n\n## Final Verdict\n`MINOR_ISSUES`\n\n## Action Items\n- [ ] Add a concrete GraphQL `reviewThreads` query example to `.github/prompts/review.md` so reviewer lanes can reliably populate `existing_thread_id` for `resolve_existing_thread` suggestions.",
+      "createdAt": "2026-05-10T18:27:45Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/197#issuecomment-4416017919",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzccYw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #197 | 4 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis recommended FIX_PR for one concrete unresolved warning on open PR #197; the requested branch change is small and safe for automation.\n\nTask for fix-pr:\nAddress only the latest review synthesis action item:\n- Add a concrete GraphQL `reviewThreads` query example to `.github/prompts/review.md` so reviewer lanes can reliably populate `existing_thread_id` for `resolve_existing_thread` suggestions.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by this action item.\n\n<!-- sepo-agent-handoff state:dispatched created:1778437711061 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU2MzYyNjEzMjI6cmV2aWV3OjE5NzpmaXhfcHI6MTk3OjQ -->",
+      "createdAt": "2026-05-10T18:28:31Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/197#issuecomment-4416019555",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzc44A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-196/codex-25636146342`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Added a concrete GraphQL `reviewThreads` query example to `.github/prompts/review.md`.\n- Clarified that reviewer lanes should use the thread node `id` as `existing_thread_id` for `resolve_existing_thread` suggestions.\n- Verified with `npm run build`, `node --test dist/__tests__/envelope.test.js`, and `git diff --check`.",
+      "createdAt": "2026-05-10T18:32:00Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/197#issuecomment-4416026848",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzdBRw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #197 | 5 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on open PR #197 after addressing the prior review synthesis warning; one automated review should verify the prompt query addition and close the loop.\n\n<!-- sepo-agent-handoff state:dispatched created:1778437975456 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU2MzY0MDI4MTA6Zml4X3ByOjE5NzpyZXZpZXc6MTk3OjU -->",
+      "createdAt": "2026-05-10T18:32:55Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/197#issuecomment-4416028999",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzdKwg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 6 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | Linked issue #196 requested a minimal move from outdated minimization to guarded review-thread resolution; the PR implements that exact plan and incorporates the later synthesis warning by adding the reviewer-side `reviewThreads` query. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | `.agent/docs/architecture/supported-workflows.md` now documents resolving same-agent review threads, re-fetching inline comments and threads, and requiring unresolved `viewerCanResolve` threads. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is limited to four targeted files: reviewer prompt, synthesis prompt, supported-workflows docs, and the prompt-contract test. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The PR uses prompt-contract changes for the existing prompt-managed review flow rather than adding new runtime machinery. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The suggestion contract replaces `mark_existing_outdated` / `existing_comment_node_id` with explicit `resolve_existing_thread` and GraphQL `existing_thread_id`. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The implementation extends the existing reviewer/synthesis prompt flow and existing `envelope.test.ts` contract assertions instead of introducing a parallel cleanup path. |\n\n## Notes\n\n- The strongest score drivers are narrow scope, explicit thread-id contract changes, and synchronized prompt/docs/test updates.\n- I did not score selected route/process rubrics such as delegated authorization, one-shot orchestration, preview contracts, merge strategy, or status-comment formatting because this PR does not change those behaviors.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-10T18:33:59Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/197#issuecomment-4416031426",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzd7Ow",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- [Issue #196](https://github.com/self-evolving/repo/issues/196) asked whether same-agent inline review cleanup should use resolved review threads instead of minimizing comments as outdated.\n- PR #197 updates the reviewer and synthesis prompts to use `resolve_existing_thread`, GraphQL `existing_thread_id`, `reviewThreads`, and guarded `resolveReviewThread` behavior.\n- It keeps reviewer lanes non-mutating while synthesis re-fetches current state and checks PR ownership, same-agent authorship, `isResolved`, and `viewerCanResolve`.\n- The PR also updates [.agent/docs/architecture/supported-workflows.md](https://github.com/self-evolving/repo/blob/05b021d6f250cf0489e65561daf7ced931047df6/.agent/docs/architecture/supported-workflows.md) and [.agent/src/__tests__/envelope.test.ts](https://github.com/self-evolving/repo/blob/05b021d6f250cf0489e65561daf7ced931047df6/.agent/src/__tests__/envelope.test.ts) to match the new prompt contract.\n- A follow-up fix-pr already addressed the prior warning by adding the concrete reviewer-side `reviewThreads` query to [.github/prompts/review.md](https://github.com/self-evolving/repo/blob/05b021d6f250cf0489e65561daf7ced931047df6/.github/prompts/review.md).\n\n## Review\nThe reviewer outputs agree that no blocking or warning-level branch changes remain. Claude noted two INFO-level tradeoffs, while Codex and the rubrics review found no actionable issues. The only cleanup disagreement was whether to resolve or mark the prior same-agent inline thread outdated; this synthesis followed the active runner instructions and minimized the comment rather than resolving the thread.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | The prior missing-query warning is fixed, docs and tests are in sync, and the remaining reviewer notes are non-blocking design tradeoffs. |\n\n## Progress\n- Inspected PR #197 conversation, linked issue #196, current diff, all three review files, existing inline comments, and GraphQL review threads.\n- Verified the latest PR check is passing.\n- Confirmed the previous inline warning on [.github/prompts/review.md line 22](https://github.com/self-evolving/repo/pull/197#discussion_r3215310268) is addressed by the current head.\n- Minimized that older same-agent inline comment as outdated after re-fetching authorship and PR ownership state.\n- No new inline comments were posted, no replies were added, and no review threads were resolved.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: No unresolved actionable branch work remains, so another automation pass would only add churn.\n\n## Final Verdict\n`SHIP`\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-10T18:40:05Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/197#issuecomment-4416043835",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzfkDw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> \"do not delete or minimize inline comments\"\r\n\r\n@sepo-agent /answer it seems inline comment minimization is completely removed? why? can we support dual mode?",
+      "createdAt": "2026-05-10T18:54:09Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/197#issuecomment-4416070671",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzfy0A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes. In PR #197, inline comment minimization was removed for **prompt-managed inline review comments**. It was not removed globally: generated top-level review/rubrics/fix-pr/handoff cleanup is still controlled by `AGENT_COLLAPSE_OLD_REVIEWS` in the docs.\n\nWhy it happened: #196 asked whether same-agent inline cleanup should use GitHub “resolved” instead of “minimized.” This PR implemented that as a replacement: reviewer suggestions changed from `mark_existing_outdated` to `resolve_existing_thread`, and synthesis now says `do not delete or minimize inline comments`.\n\nDual mode is reasonable. I’d implement it as a follow-up, not by overloading `AGENT_COLLAPSE_OLD_REVIEWS`, because that variable currently means generated comment cleanup, while inline thread cleanup is documented as separate.\n\nProposed plan:\n\n1. Add an inline-specific mode, e.g. `AGENT_INLINE_COMMENT_CLEANUP_MODE=resolve|minimize|off`.\n2. Keep `resolve` as the default for addressed/superseded same-agent review threads.\n3. Restore the old `minimizeComment(... OUTDATED)` path only when mode is `minimize`.\n4. Keep strict guards for both modes: same PR, same agent, no humans/other bots, re-fetch before mutation.\n5. Update `.github/prompts/review.md`, `.github/prompts/review-synthesize.md`, docs, and prompt-contract tests.\n6. Preserve `do not delete inline comments` always.\n\nThat gives us the current safer default while still supporting repos that prefer the old minimized/outdated UX.",
+      "createdAt": "2026-05-10T18:56:05Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/197#issuecomment-4416074448",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzgBgw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Yes. In PR #197, inline comment minimization was removed for **prompt-managed inline review comments**. It was not removed globally: generated top-level review/rubrics/fix-pr/handoff cleanup is still controlled by `AGENT_COLLAPSE_OLD_REVIEWS` in the docs.\r\n> \r\n> Why it happened: #196 asked whether same-agent inline cleanup should use GitHub “resolved” instead of “minimized.” This PR implemented that as a replacement: reviewer suggestions changed from `mark_existing_outdated` to `resolve_existing_thread`, and synthesis now says `do not delete or minimize inline comments`.\r\n> \r\n> Dual mode is reasonable. I’d implement it as a follow-up, not by overloading `AGENT_COLLAPSE_OLD_REVIEWS`, because that variable currently means generated comment cleanup, while inline thread cleanup is documented as separate.\r\n> \r\n> Proposed plan:\r\n> \r\n> 1. Add an inline-specific mode, e.g. `AGENT_INLINE_COMMENT_CLEANUP_MODE=resolve|minimize|off`.\r\n> 2. Keep `resolve` as the default for addressed/superseded same-agent review threads.\r\n> 3. Restore the old `minimizeComment(... OUTDATED)` path only when mode is `minimize`.\r\n> 4. Keep strict guards for both modes: same PR, same agent, no humans/other bots, re-fetch before mutation.\r\n> 5. Update `.github/prompts/review.md`, `.github/prompts/review-synthesize.md`, docs, and prompt-contract tests.\r\n> 6. Preserve `do not delete inline comments` always.\r\n> \r\n> That gives us the current safer default while still supporting repos that prefer the old minimized/outdated UX.\r\n\r\n@sepo-agent /implement ",
+      "createdAt": "2026-05-10T18:58:05Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/197#issuecomment-4416078211",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzgFLw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Implementing this request — tracking in https://github.com/self-evolving/repo/issues/198.\n",
+      "createdAt": "2026-05-10T18:58:36Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/197#issuecomment-4416079151",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-10T18:21:07Z",
+  "files": [
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 7,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 12,
+      "deletions": 7,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/review-synthesize.md",
+      "additions": 18,
+      "deletions": 11,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/review.md",
+      "additions": 8,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-196/codex-25636146342",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 197,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM795ozB",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-10T18:26:58Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "226cf6459732ed02c525fa2d5cf4e5d450c364dd"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Resolve same-agent inline review threads",
+  "updatedAt": "2026-05-10T18:58:36Z",
+  "url": "https://github.com/self-evolving/repo/pull/197"
+}

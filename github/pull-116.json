@@ -91,8 +91,8 @@
       "body": "Sepo automation handoff dispatched: `fix-pr` -> `review` (round 5/10).\n\nPR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1777795253350 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjUyNzM2MzU0MDc6Zml4X3ByOjExNjpyZXZpZXc6MTE2OjU -->",
       "createdAt": "2026-05-03T08:00:53Z",
       "includesCreatedEdit": true,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4365705563",
       "viewerDidAuthor": true
@@ -296,8 +296,8 @@
       "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 94 | PARTIAL | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | `agent-update.yml` composes existing shared actions: `scheduled-activity-gate`, `resolve-github-auth`, `resolve-agent-provider`, `setup-agent-runtime`, `resolve-task-timeout`, and `run-agent-task`; it invokes the existing `update-agent` skill. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | `.agent/scripts/resolve-pending-update-pr.sh` exits clearly for missing repo or empty branch prefix and emits structured `skip`, `reason`, and PR metadata outputs. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | The pending update PR guard skips when an open same-repo `agent/update-agent-infra-*` PR already exists, with a manual `force` override. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | The docs describe workflow behavior and configuration without adding a per-file inventory table. |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | The workflow resolves GitHub auth before `run-agent-task`, uses `route: skill`, and preserves requester/audit context with `requested_by: ${{ github.actor }}`. |\n| coding_workflow / generic | Keep docs in sync | partial | 5/7 | Docs were updated for `agent-update.yml` and `AGENT_AUTO_UPDATE`, but the PR diff also adds a duplicate `AGENT_TASK_TIMEOUT_POLICY` row in `.agent/docs/customization/configuration-list.md`. |\n| coding_workflow / generic | Make surgical changes | partial | 6/8 | The main diff is well scoped after the rebase, but the duplicate `AGENT_TASK_TIMEOUT_POLICY` docs addition appears unrelated to the scheduled-update request and current PR scope. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Manual inputs are separate fields: `source_repo`, `source_ref`, `update_skills`, `update_agent_md`, and `force`. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The implementation matches issue #27 and parent #107 context: near-biweekly default scheduled update checks, reuse update skills, no PR when no update, and non-spammy duplicate avoidance. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The guard is a small shell script around `gh pr list`/`jq`, and the workflow mostly wires existing actions rather than adding new runtime architecture. |\n\n## Notes\n\n- The PR satisfies the central requested behavior and most applicable rubrics.\n- The only rubric-specific follow-up is to remove the duplicate `AGENT_TASK_TIMEOUT_POLICY` configuration-list row from the PR diff.\n\n## Findings\n\n- **WARNING:** The live PR diff adds `AGENT_TASK_TIMEOUT_POLICY` to `.agent/docs/customization/configuration-list.md` even though that variable is already present later in the same repository-variable table. That is a small docs-sync/surgicality regression from base-drift cleanup, not part of the scheduled Sepo update feature.\n\n## Final Rubric Verdict\n\nPARTIAL",
       "createdAt": "2026-05-04T01:09:25Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4367658588",
       "viewerDidAuthor": true
@@ -412,8 +412,8 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #116 implements issue #27, a focused child of parent issue #107, by adding a default near-biweekly Sepo update workflow.\n- The workflow uses the existing `update-agent` skill, skips duplicate update PRs, supports manual dispatch, and honors `AGENT_AUTO_UPDATE=false` for scheduled runs.\n- The PR also adds the pending-update PR guard, focused tests, and docs for the workflow/configuration behavior.\n- Earlier review issues around timeout wiring, gate output safety, test coverage, and duplicate docs rows have been addressed.\n\n## Review\nThe current PR head looks ready to ship. Codex and rubrics reviews report no unresolved findings; Claude only notes optional INFO-level cleanup/hardening items that do not require branch changes.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | Current review outputs do not identify any required branch-change work. Remaining notes are optional cleanup or low-risk hardening. |\n\n## Progress\n- The prior duplicate `AGENT_TASK_TIMEOUT_POLICY` docs row is fixed.\n- The update workflow now includes task-timeout wiring and delimiter-safe gate output writes.\n- The scheduled-gate negative assertion is covered in `envelope.test.ts`.\n- Existing inline comments are from earlier review rounds and are already resolved by the current head; no new inline comments were posted.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: No unresolved actionable branch-change work remains; optional INFO notes can be left to maintainer preference.\n\n## Final Verdict\n`SHIP`\n\n## Action Items\n- [ ] No required branch-change work remains.",
       "createdAt": "2026-05-04T01:28:40Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4367703564",
       "viewerDidAuthor": true
@@ -491,19 +491,174 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4410627848",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzf7Cw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \r\n\r\n1. after we just merge #194, should we update it to support checking against the latest release rather than main ? \r\n2. can users run the agent-update workflow themselves manually?",
+      "createdAt": "2026-05-10T18:57:13Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4416076555",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzgFjA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "1. Yes. After #194, we now have an explicit release/versioning model, so `agent-update` should move away from defaulting to `main`.\n\nRecommended behavior:\n\n- Scheduled update checks should default to the latest **published stable GitHub Release** tag, e.g. `v0.2.0`, not `main`.\n- Manual runs should still allow `source_ref` override for testing `main`, a branch, or a specific tag.\n- If no release exists yet, either:\n  - fall back to `main` with a clear summary, or\n  - skip with “no Sepo release found” once we want stricter behavior.\n- The update PR should clearly say: `Update Sepo from <installed version/ref> to <latest release tag/sha>`.\n\nReason: `main` is a development stream. Once we cut releases, installed repos should update against release tags so users get a stable, explainable version.\n\nI’d add a small resolver step before `Run update agent`:\n\n```text\nsource_repo = self-evolving/repo\nsource_ref = latest release tag unless manually overridden\nsource_sha = resolved tag commit\n```\n\nThen pass that resolved `source_ref` into the existing update skill.\n\n2. Yes, users can run `agent-update` manually once that workflow is merged. It should have `workflow_dispatch`, so repo users with permission to run Actions can use:\n\n- GitHub UI: **Actions -> Agent / Update -> Run workflow**\n- GitHub CLI/API:\n\n```bash\ngh workflow run agent-update.yml --repo OWNER/REPO\n```\n\nAnd with an explicit ref:\n\n```bash\ngh workflow run agent-update.yml --repo OWNER/REPO -f source_ref=v0.2.0\n```\n\nThis is separate from comment commands. Unless we add an `@sepo-agent /update` route later, manual triggering means Actions UI/CLI/API.",
+      "createdAt": "2026-05-10T18:58:40Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4416079244",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzhXUQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> 1. Yes. After [Add Actions-only Sepo release flow #194](https://github.com/self-evolving/repo/pull/194), we now have an explicit release/versioning model, so `agent-update` should move away from defaulting to `main`.\r\n> \r\n> Recommended behavior:\r\n> \r\n> * Scheduled update checks should default to the latest **published stable GitHub Release** tag, e.g. `v0.2.0`, not `main`.\r\n> * Manual runs should still allow `source_ref` override for testing `main`, a branch, or a specific tag.\r\n> * If no release exists yet, either:\r\n>   \r\n>   * fall back to `main` with a clear summary, or\r\n>   * skip with “no Sepo release found” once we want stricter behavior.\r\n> * The update PR should clearly say: `Update Sepo from <installed version/ref> to <latest release tag/sha>`.\r\n> \r\n> Reason: `main` is a development stream. Once we cut releases, installed repos should update against release tags so users get a stable, explainable version.\r\n> \r\n> I’d add a small resolver step before `Run update agent`:\r\n> \r\n> ```\r\n> source_repo = self-evolving/repo\r\n> source_ref = latest release tag unless manually overridden\r\n> source_sha = resolved tag commit\r\n> ```\r\n> \r\n> Then pass that resolved `source_ref` into the existing update skill.\r\n> \r\n> 2. Yes, users can run `agent-update` manually once that workflow is merged. It should have `workflow_dispatch`, so repo users with permission to run Actions can use:\r\n> \r\n> * GitHub UI: **Actions -> Agent / Update -> Run workflow**\r\n> * GitHub CLI/API:\r\n> \r\n> ```shell\r\n> gh workflow run agent-update.yml --repo OWNER/REPO\r\n> ```\r\n> \r\n> And with an explicit ref:\r\n> \r\n> ```shell\r\n> gh workflow run agent-update.yml --repo OWNER/REPO -f source_ref=v0.2.0\r\n> ```\r\n> \r\n> This is separate from comment commands. Unless we add an `@sepo-agent /update` route later, manual triggering means Actions UI/CLI/API.\r\n\r\n@sepo-agent /orchestrate",
+      "createdAt": "2026-05-10T19:09:15Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4416100177",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzhkrg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | fix-pr | PR #116 | 2 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Newer maintainer /orchestrate request overrides the previous SHIP synthesis and asks for concrete PR changes: after merged #194, agent-update should default scheduled checks to the latest stable release instead of main.\n\nTask for fix-pr:\nUpdate PR #116 to resolve the Sepo update source before running the update agent. Implement latest published stable GitHub Release as the default source_ref for scheduled agent-update runs, while preserving workflow_dispatch source_ref override for main/branches/tags. Resolve and expose source_repo=self-evolving/repo, source_ref=<manual override or latest release tag>, and source_sha=<resolved tag/ref commit> before Run update agent, then pass the resolved source_ref into the existing update-agent skill. If no stable release exists yet, use the less-strict fallback for now: fall back to main and make that explicit in the workflow summary/log output. Update the generated update PR wording where applicable so it clearly says Update Sepo from <installed version/ref> to <latest release tag/sha>. Keep changes scoped to PR #116’s workflow/update-agent/docs/tests; do not add an @sepo-agent /update comment route. Add/adjust focused tests and docs covering release default, manual override, and no-release fallback.\n\n<!-- sepo-agent-handoff state:dispatched created:1778440255343 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU2MzcyODA4NDM6b3JjaGVzdHJhdGU6MTE2OmZpeF9wcjoxMTY6Mg -->",
+      "createdAt": "2026-05-10T19:10:55Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4416103598",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBziY_Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-27/codex-25272756852`. Requested by @sepo-agent.\n\n- Added a release-aware update source resolver for `agent-update.yml`: manual `source_ref` overrides are preserved, scheduled/default runs use the latest stable GitHub Release, and no-release repos fall back to `main` with summary output.\n- Passed resolved `source_repo`, `source_ref`, and `source_sha` into the update-agent prompt and updated PR wording guidance to `Update Sepo from <installed version/ref> to <resolved source ref/sha>`.\n- Updated docs and focused tests for release default, manual override, and no-release fallback.\n- Validation: `bash -n`, workflow YAML parse, `git diff --check`, targeted resolver/envelope tests, and `env -u GITHUB_OUTPUT npm --prefix .agent test` all pass.",
+      "createdAt": "2026-05-10T19:17:44Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4416116989",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzifuw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #116 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded after adding release-aware agent-update source resolution; a fresh review is warranted for the new workflow/script/docs/tests changes before stopping.\n\n<!-- sepo-agent-handoff state:dispatched created:1778440715376 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU2MzczMTY1NTk6Zml4X3ByOjExNjpyZXZpZXc6MTE2OjM -->",
+      "createdAt": "2026-05-10T19:18:35Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4416118715",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBziqRw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | `agent-update.yml` resolves GitHub auth before `run-agent-task`, invokes `route: skill`, and passes `requested_by: ${{ github.actor }}`. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Manual inputs remain separate fields: `source_repo`, `source_ref`, `update_skills`, `update_agent_md`, and `force`; the new resolver emits structured `source_repo`, `source_ref`, `source_sha`, `source_kind`, and fallback outputs. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | `resolve-pending-update-pr.sh` skips when a same-repo `agent/update-agent-infra-*` PR already exists, with explicit `force` override support. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The workflow composes existing shared actions for scheduled gates, auth, provider resolution, runtime setup, task timeout resolution, and `run-agent-task`, then reuses the existing `update-agent` skill. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The latest diff reflects the #194 follow-up: scheduled update checks now default to the latest stable GitHub Release tag, while manual `source_ref` overrides still allow `main`, branches, or tags. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates `README.md`, `.agent/docs/actions/agent-actions.md`, `.agent/docs/architecture/supported-workflows.md`, `.agent/docs/customization/configuration-list.md`, and `.skills/update-agent/SKILL.md` for release-default update behavior. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | `resolve-update-source.sh` fails clearly on invalid config or unresolved refs, falls back to `main` only for no-release 404 cases, and records fallback reason in outputs/summary. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff stays scoped to the update workflow, release/pending PR resolver scripts, focused tests, and directly related docs/skill guidance. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | Docs describe behavior/configuration and do not introduce a file inventory table. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The release resolver is a small shell wrapper around `gh api` and `jq`; workflow logic stays mostly declarative and compositional. |\n\n## Notes\n\n- The latest follow-up request is covered: scheduled/default runs resolve `self-evolving/repo` to the latest stable release tag, manual `source_ref` overrides are preserved, and no-release fallback to `main` is summarized.\n- Focused coverage was added for release default, manual override, no-release fallback, pending PR skip behavior, and workflow envelope expectations.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No selected-rubric failures found in the current PR diff.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-10T19:20:01Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4416121415",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzkQdg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #116 adds the default near-biweekly Sepo update workflow requested by issue #27 under the broader #107 distribution/update workstream.\n- The workflow uses the existing `update-agent` skill, avoids duplicate update PRs, supports manual dispatch, and honors `AGENT_AUTO_UPDATE=false` for scheduled runs.\n- After the May 10 follow-up, scheduled/default update checks now resolve the source to the latest stable GitHub Release tag, while manual `source_ref` overrides still allow `main`, branches, or explicit tags.\n- The PR includes focused resolver/gate tests and docs updates for the new release-default behavior.\n\n## Review\nRubrics review passes, but the independent code reviews identify two remaining WARNING-level workflow/resolver issues. These are concrete, scoped fixes; the rest of the notes are optional cleanup or hardening.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Canonical repo can self-update from an older release | WARNING | When this workflow runs in `self-evolving/repo`, default release resolution can compare `main` against the latest release tag and generate a PR that copies older release files back onto `main`. |\n| No-release fallback parses `gh` stderr | WARNING | `resolve-update-source.sh` distinguishes no-release fallback by grepping `gh api` stderr for `Not Found` or `404`, which is brittle compared with a structured release-list lookup. |\n| Optional cleanup notes | INFO | Reviewers also noted unused `release_url` output, missing docs on `AGENT_AUTO_UPDATE` precedence, temp-file cleanup, and minor shell-test cwd consistency. These are optional and should not drive automation unless maintainers want extra hardening. |\n\n## Progress\n- Previous review findings are fixed: task-timeout wiring, delimiter-safe gate outputs, the `updateWorkflow` negative assertion, and the duplicate timeout-policy docs row.\n- The latest requested release-aware behavior is implemented: default latest stable release, manual `source_ref` override, visible no-release fallback to `main`, and focused tests/docs.\n- Posted inline comments for the two current actionable changed-line issues:\n  - `.github/workflows/agent-update.yml:168`\n  - `.agent/scripts/resolve-update-source.sh:129`\n- No replies or minimizations were made; older same-agent inline comments were left untouched.\n\n## Issue Details\n\n<details>\n<summary>Canonical repo can self-update from an older release</summary>\n\n**Cause:** The new [`Resolve update source`](https://github.com/self-evolving/repo/blob/56c2ca0e658a4be6dc2b07bbed03f885cb41335b/.github/workflows/agent-update.yml#L168) step defaults to the latest stable release tag even when the workflow is running in the canonical source repo, where `main` should usually be ahead of the latest release.\n\n**Candidate solutions:** Add a deterministic pre-runtime guard that skips scheduled/default runs when `github.repository == UPDATE_SOURCE_REPO` and no manual `source_ref` was provided. Keep explicit manual overrides available.\n\n**Comments:** Codex flagged this as the main current workflow correctness issue; no existing inline comment covered it.\n\n</details>\n\n<details>\n<summary>No-release fallback parses `gh` stderr</summary>\n\n**Cause:** [`resolve-update-source.sh`](https://github.com/self-evolving/repo/blob/56c2ca0e658a4be6dc2b07bbed03f885cb41335b/.agent/scripts/resolve-update-source.sh#L129) treats `grep -Eiq '(Not Found|404)' \"$release_error\"` as the signal that no stable release exists.\n\n**Candidate solutions:** Use a structured release lookup such as `gh release list --repo \"$repo\" --limit 1 --json tagName --jq ...`; an empty result can trigger fallback, while command errors still fail clearly.\n\n**Comments:** Claude flagged this as a WARNING; rubrics did not object to the current shape, so this is a robustness fix rather than a design rejection.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: The unresolved warnings require small deterministic workflow/script changes and are safe for an automated fix-pr pass.\n\n## Final Verdict\n`MINOR_ISSUES`\n\n## Action Items\n- [ ] Add a canonical-source guard so scheduled/default runs in `self-evolving/repo` do not update `main` from the latest release tag.\n- [ ] Replace stderr-based no-release detection in `resolve-update-source.sh` with a structured release lookup.",
+      "createdAt": "2026-05-10T19:29:42Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4416147574",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzkXHg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #116 | 4 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis recommends FIX_PR for two concrete unresolved WARNING-level issues on open PR #116; fixes are small, deterministic workflow/script changes within round budget.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Add a canonical-source guard so scheduled/default runs in `self-evolving/repo` do not update `main` from the latest release tag. Keep manual `source_ref` overrides available for testing `main`, branches, or tags.\n- Replace stderr-based no-release detection in `.agent/scripts/resolve-update-source.sh` with a structured release lookup, treating an empty stable release result as the no-release fallback and real command errors as failures.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items. Preserve existing release-aware behavior: scheduled/default installed repos use latest stable GitHub Release tag, manual overrides win, no-release fallback to `main` remains clearly summarized, and update prompt wording includes resolved ref/sha.\n\n<!-- sepo-agent-handoff state:dispatched created:1778441433357 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU2Mzc0Nzc0MTk6cmV2aWV3OjExNjpmaXhfcHI6MTE2OjQ -->",
+      "createdAt": "2026-05-10T19:30:33Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4416149278",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-03T07:19:42Z",
   "files": [
     {
       "path": ".agent/docs/actions/agent-actions.md",
-      "additions": 7,
+      "additions": 11,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/docs/architecture/supported-workflows.md",
-      "additions": 8,
+      "additions": 11,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
@@ -520,8 +675,14 @@
       "changeType": "ADDED"
     },
     {
+      "path": ".agent/scripts/resolve-update-source.sh",
+      "additions": 140,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
       "path": ".agent/src/__tests__/envelope.test.ts",
-      "additions": 17,
+      "additions": 24,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
@@ -538,21 +699,27 @@
       "changeType": "MODIFIED"
     },
     {
+      "path": ".agent/src/__tests__/update-source-resolver-shell.test.ts",
+      "additions": 114,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
       "path": ".github/workflows/agent-update.yml",
-      "additions": 223,
+      "additions": 251,
       "deletions": 0,
       "changeType": "ADDED"
     },
     {
       "path": ".github/workflows/test-scripts.yml",
-      "additions": 1,
+      "additions": 2,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
       "path": ".skills/update-agent/SKILL.md",
-      "additions": 12,
-      "deletions": 0,
+      "additions": 21,
+      "deletions": 3,
       "changeType": "MODIFIED"
     },
     {
@@ -616,10 +783,40 @@
       "commit": {
         "oid": "20ecaa3bfe5ba5b0f38cc6462ad76c63e7be022b"
       }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM7953VZ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-10T19:28:41Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "56c2ca0e658a4be6dc2b07bbed03f885cb41335b"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM7953b-",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-10T19:29:07Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "56c2ca0e658a4be6dc2b07bbed03f885cb41335b"
+      }
     }
   ],
   "state": "OPEN",
   "title": "Add scheduled Sepo update checks",
-  "updatedAt": "2026-05-08T23:46:16Z",
+  "updatedAt": "2026-05-10T19:30:48Z",
   "url": "https://github.com/self-evolving/repo/pull/116"
 }

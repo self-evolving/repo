@@ -1,0 +1,99 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "@sepo-agent /answer \n\nAfter #169 , the agent can mark inline code review as outdated. Ideally we should mark it as resolved? \n\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzamCQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, for inline PR review threads, `resolved` is probably the better target state when the agent believes its prior inline finding is no longer actionable.\n\nCurrent #169 behavior intentionally uses `minimizeComment(... classifier: OUTDATED)` and explicitly says not to resolve review threads: [`review-synthesize.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/review-synthesize.md#L33-L39). The reviewer-side schema also only has `mark_existing_outdated`: [`review.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/review.md#L26-L37), and the prompt-contract test pins “do not resolve review threads”: [`envelope.test.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/envelope.test.ts#L381-L385).\n\nThe main limitation is that “resolved” is not a different minimize classifier. It is a separate GraphQL operation on the **review thread**, not the comment. The implementation should therefore move from comment-node based minimization to thread-id based resolution using `resolveReviewThread`, after re-fetching `reviewThreads` and checking `isResolved`, `viewerCanResolve`, PR ownership, and same-agent authorship.\n\nSuggested plan:\n\n1. Replace or supplement `mark_existing_outdated` with `resolve_existing_thread`.\n2. Add `existing_thread_id` to the inline suggestion contract.\n3. Update synthesis to fetch PR `reviewThreads`, not only REST review comments.\n4. Resolve only same-agent threads where the finding is clearly addressed or superseded.\n5. Keep refusing to resolve human or other-bot threads.\n6. Update docs around the inline behavior in [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/supported-workflows.md#L87-L94).\n7. Update prompt-contract tests to assert `resolveReviewThread` and remove the current “do not resolve review threads” expectation.\n\nI would not use resolved for every stale inline comment blindly. For old agent comments on outdated diff lines where we cannot determine the issue was addressed, `OUTDATED` is still semantically defensible. But for the common “agent raised it, fix-pr addressed it, later review confirms it” path, resolving the thread is the right GitHub state.",
+      "createdAt": "2026-05-10T18:14:01Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/196#issuecomment-4415989257",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzat3A",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate implement a minimal fix for it?",
+      "createdAt": "2026-05-10T18:15:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/196#issuecomment-4415991260",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBza7Kg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | implement | Issue #196 | 2 / 40 | Dispatched |\n\nReason: agent planner selected implement: Issue #196 is an open issue-level request for a minimal implementation, and the #169 context shows a small self-contained follow-up to existing prompt-managed inline review behavior.\n\n<!-- sepo-agent-handoff state:dispatched created:1778436993150 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU2MzYxMTQwNDQ6b3JjaGVzdHJhdGU6MTk2OmltcGxlbWVudDoxOTY6Mg -->",
+      "createdAt": "2026-05-10T18:16:33Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/196#issuecomment-4415994666",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBzbgCQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-196/codex-25636146342`\n- Pull request: https://github.com/self-evolving/repo/pull/197\n\nUpdated the review prompts, docs, and prompt-contract test so inline review cleanup now uses guarded same-agent review thread resolution via GraphQL `resolveReviewThread` instead of minimizing inline comments as outdated. Verified with `npm run build`, `node --test dist/__tests__/envelope.test.js`, and `git diff --check`.",
+      "createdAt": "2026-05-10T18:21:10Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/196#issuecomment-4416004105",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-10T18:11:49Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 196,
+  "state": "OPEN",
+  "title": "When collapsing inline code reviews, consider using \"resolved\" rather than minimized",
+  "updatedAt": "2026-05-10T18:21:10Z",
+  "url": "https://github.com/self-evolving/repo/issues/196"
+}
