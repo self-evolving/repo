@@ -317,12 +317,37 @@ export function fetchPrReviewRecords(prNumber: number, repo: string): PrReviewRe
   return reviews;
 }
 
-export function mergePullRequest(prNumber: number, repo: string): void {
-  gh(["pr", "merge", String(prNumber), "--repo", repo, "--merge"]);
+function requireMatchHeadCommit(matchHeadCommit: string): string {
+  const trimmed = String(matchHeadCommit || "").trim();
+  if (!trimmed) throw new Error("match head commit is required");
+  return trimmed;
 }
 
-export function enablePullRequestAutoMerge(prNumber: number, repo: string): void {
-  gh(["pr", "merge", String(prNumber), "--repo", repo, "--merge", "--auto"]);
+export function mergePullRequest(prNumber: number, repo: string, matchHeadCommit: string): void {
+  gh([
+    "pr",
+    "merge",
+    String(prNumber),
+    "--repo",
+    repo,
+    "--merge",
+    "--match-head-commit",
+    requireMatchHeadCommit(matchHeadCommit),
+  ]);
+}
+
+export function enablePullRequestAutoMerge(prNumber: number, repo: string, matchHeadCommit: string): void {
+  gh([
+    "pr",
+    "merge",
+    String(prNumber),
+    "--repo",
+    repo,
+    "--merge",
+    "--auto",
+    "--match-head-commit",
+    requireMatchHeadCommit(matchHeadCommit),
+  ]);
 }
 
 function normalizeIssueCommentRecord(value: unknown): IssueCommentRecord | null {

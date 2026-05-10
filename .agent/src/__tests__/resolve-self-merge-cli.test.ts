@@ -92,7 +92,7 @@ test("resolve-self-merge merges immediately when preflight passes", () => {
     assert.equal(result.outputs.get("conclusion"), "merged");
     assert.equal(result.outputs.get("merged"), "true");
     assert.equal(result.outputs.get("status_post"), "false");
-    assert.match(result.log, /^pr merge 42 --repo self-evolving\/repo --merge$/m);
+    assert.match(result.log, /^pr merge 42 --repo self-evolving\/repo --merge --match-head-commit abc123$/m);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
@@ -113,7 +113,7 @@ test("resolve-self-merge enables auto-merge when checks are pending", () => {
     assert.equal(result.outputs.get("conclusion"), "auto_merge_enabled");
     assert.equal(result.outputs.get("auto_merge_enabled"), "true");
     assert.equal(result.outputs.get("status_post"), "true");
-    assert.match(result.log, /^pr merge 42 --repo self-evolving\/repo --merge --auto$/m);
+    assert.match(result.log, /^pr merge 42 --repo self-evolving\/repo --merge --auto --match-head-commit abc123$/m);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }

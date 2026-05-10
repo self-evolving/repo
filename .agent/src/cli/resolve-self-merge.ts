@@ -55,6 +55,7 @@ const defaultBranch = process.env.DEFAULT_BRANCH || "";
 const allowSelfMerge = envFlagEnabled(process.env.AGENT_ALLOW_SELF_MERGE);
 
 let result: SelfMergeResolveResult;
+let verifiedHeadSha = "";
 if (!allowSelfMerge || String(targetKind || "").trim().toLowerCase().replace(/[\s-]+/g, "_") !== "pull_request" || !repo || !prNumber) {
   result = resolveSelfMerge({
     allowSelfMerge,
@@ -91,6 +92,9 @@ if (!allowSelfMerge || String(targetKind || "").trim().toLowerCase().replace(/[\
         reason: "could not read current-head self-approval reviews",
       };
     }
+    if (approval.approved) {
+      verifiedHeadSha = approval.approvedHeadSha || meta.headOid;
+    }
 
     result = resolveSelfMerge({
       allowSelfMerge,
@@ -118,7 +122,7 @@ if (!allowSelfMerge || String(targetKind || "").trim().toLowerCase().replace(/[\
 
 if (result.nextStep === "merge") {
   try {
-    mergePullRequest(prNumber, repo);
+    mergePullRequest(prNumber, repo, verifiedHeadSha);
     result = { ...result, conclusion: "merged" };
   } catch (err: unknown) {
     result = {
@@ -129,7 +133,7 @@ if (result.nextStep === "merge") {
   }
 } else if (result.nextStep === "enable_auto_merge") {
   try {
-    enablePullRequestAutoMerge(prNumber, repo);
+    enablePullRequestAutoMerge(prNumber, repo, verifiedHeadSha);
     result = { ...result, conclusion: "auto_merge_enabled" };
   } catch (err: unknown) {
     result = {
