@@ -111,3 +111,45 @@ test("preflight checks self-approval delegated access only when enabled", () => 
     "orchestrate requests require agent-self-approve access; agent-self-approve currently requires MEMBER access.",
   );
 });
+
+test("preflight checks self-merge delegated access only when approval and merge are enabled", () => {
+  const accessPolicy = JSON.stringify({
+    route_overrides: {
+      "agent-self-merge": ["MEMBER"],
+    },
+  });
+
+  const mergeDisabled = runPreflight({
+    AUTHOR_ASSOCIATION: "CONTRIBUTOR",
+    ACCESS_POLICY: accessPolicy,
+    REPOSITORY_PRIVATE: "false",
+    AGENT_ALLOW_SELF_APPROVE: "true",
+    AGENT_ALLOW_SELF_MERGE: "false",
+  });
+  assert.equal(mergeDisabled.status, 0, mergeDisabled.stderr || mergeDisabled.stdout);
+  assert.equal(mergeDisabled.outputs.get("authorization_stop"), "false");
+
+  const approvalDisabled = runPreflight({
+    AUTHOR_ASSOCIATION: "CONTRIBUTOR",
+    ACCESS_POLICY: accessPolicy,
+    REPOSITORY_PRIVATE: "false",
+    AGENT_ALLOW_SELF_APPROVE: "false",
+    AGENT_ALLOW_SELF_MERGE: "true",
+  });
+  assert.equal(approvalDisabled.status, 0, approvalDisabled.stderr || approvalDisabled.stdout);
+  assert.equal(approvalDisabled.outputs.get("authorization_stop"), "false");
+
+  const enabled = runPreflight({
+    AUTHOR_ASSOCIATION: "CONTRIBUTOR",
+    ACCESS_POLICY: accessPolicy,
+    REPOSITORY_PRIVATE: "false",
+    AGENT_ALLOW_SELF_APPROVE: "true",
+    AGENT_ALLOW_SELF_MERGE: "true",
+  });
+  assert.equal(enabled.status, 0, enabled.stderr || enabled.stdout);
+  assert.equal(enabled.outputs.get("authorization_stop"), "true");
+  assert.equal(
+    enabled.outputs.get("authorization_stop_reason"),
+    "orchestrate requests require agent-self-merge access; agent-self-merge currently requires MEMBER access.",
+  );
+});
