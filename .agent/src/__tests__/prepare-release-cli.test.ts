@@ -49,6 +49,7 @@ exit 1
         GH_CALLS: callsPath,
         GITHUB_OUTPUT: outputPath,
         GITHUB_REPOSITORY: "self-evolving/repo",
+        RUNNER_TEMP: tempDir,
         VERSION: "0.2.0",
       },
     });
@@ -99,6 +100,7 @@ exit 1
         GH_CALLS: callsPath,
         GITHUB_OUTPUT: outputPath,
         GITHUB_REPOSITORY: "self-evolving/repo",
+        RUNNER_TEMP: tempDir,
         VERSION: "0.2.0",
       },
     });
@@ -148,6 +150,7 @@ exit 1
         GH_CALLS: callsPath,
         GITHUB_OUTPUT: outputPath,
         GITHUB_REPOSITORY: "self-evolving/repo",
+        RUNNER_TEMP: tempDir,
         VERSION: "0.2.0",
       },
     });

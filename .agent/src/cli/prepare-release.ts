@@ -38,7 +38,7 @@ function issueBody(version: string, requestedBy: string): string {
     "- Validate the release version against `.agent/docs/technical-details/versioning.md`.",
     "- Update `.agent/package-lock.json` if package metadata changes require it.",
     "- Update `.agent/sepo-version.json` only while it still carries a mirrored version field.",
-    "- Update release notes, docs, or checklist content changed by this release.",
+    "- Update docs or checklist content changed by this release.",
     "- Open a pull request.",
     "- Do not create git tags, GitHub Releases, or package publications.",
     "",

@@ -20,9 +20,9 @@ include the leading `v`, for example `v0.1.0`.
 
 ## Release Flow
 
-Release automation is intentionally GitHub Actions-only, not a public slash
-route. The workflows are hard-gated to `self-evolving/repo` so forks and
-installed repositories do not accidentally prepare or publish upstream Sepo
+Release preparation automation is intentionally GitHub Actions-only, not a
+public slash route. The prepare workflow is hard-gated to `self-evolving/repo`
+so forks and installed repositories do not accidentally prepare upstream Sepo
 releases.
 
 Prepare:
@@ -35,15 +35,8 @@ Prepare:
 - The release prompt may update files and open a PR, but must not create git
   tags, GitHub Releases, or package publications.
 
-Publish:
-
-- Run `Agent / Release / Publish` manually after the release preparation PR is
-  merged.
-- Optionally provide `version`; if omitted, the workflow reads
-  `.agent/package.json` from the checked-out `target_ref`.
-- The workflow verifies the requested version matches `.agent/package.json`,
-  targets the checked-out commit, and creates or updates the GitHub Release.
-- Existing releases fail the run unless `update_existing=true` is set.
+Publishing is deferred until a follow-up can publish reviewed changelog or
+release-note content instead of inventing notes at publish time.
 
 ## Installed metadata
 

@@ -9,7 +9,7 @@ Instructions:
 4. Update `.agent/package.json`; it is the canonical Sepo package/runtime version.
 5. Update `.agent/package-lock.json` if package metadata changes require it.
 6. Update `.agent/sepo-version.json` only if the version field still exists there, and keep `.agent/package.json` as the canonical version authority.
-7. Update release notes, docs, or checklist entries that should change for this version.
+7. Update docs or checklist entries that should change for this version.
 8. Run lightweight, directly relevant checks when applicable.
 9. Do not create git tags. Do not create or edit GitHub Releases. Do not publish packages.
 10. Do not commit. Leave changes in the working tree.
