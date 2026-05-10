@@ -1,0 +1,62 @@
+name: Agent / Release / Prepare
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Optional Sepo version to prepare, for example 0.2.0"
+        required: false
+        default: ""
+
+permissions:
+  actions: write
+  contents: read
+  issues: write
+  id-token: write # required for GitHub Actions OIDC broker exchange
+
+jobs:
+  prepare:
+    if: github.repository == 'self-evolving/repo'
+    runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          token: ${{ github.token }}
+
+      - name: Resolve GitHub auth
+        id: auth
+        uses: ./.github/actions/resolve-github-auth
+        with:
+          app_id: ${{ secrets.AGENT_APP_ID }}
+          app_private_key: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
+          pat: ${{ secrets.AGENT_PAT }}
+          fallback_token: ${{ github.token }}
+
+      - name: Setup agent runtime
+        uses: ./.github/actions/setup-agent-runtime
+        with:
+          install_codex: "false"
+          install_claude: "false"
+
+      - name: Create or reuse release issue
+        id: release_issue
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          REQUESTED_BY: ${{ github.actor }}
+          VERSION: ${{ inputs.version }}
+        run: node .agent/dist/cli/prepare-release.js
+
+      - name: Dispatch implementation workflow
+        env:
+          APPROVAL_COMMENT_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          IMPLEMENTATION_PROMPT: agent-release
+          IMPLEMENTATION_ROUTE: implement
+          ISSUE_NUMBER: ${{ steps.release_issue.outputs.issue_number }}
+          REQUESTED_BY: ${{ github.actor }}
+          REQUEST_TEXT: ${{ steps.release_issue.outputs.request_text }}
+        run: node .agent/dist/cli/dispatch-agent-implement.js

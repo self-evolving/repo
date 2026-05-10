@@ -2,6 +2,10 @@
 
 Sepo uses SemVer for public version labels.
 
+`.agent/package.json` is the canonical Sepo package/runtime version. Other
+metadata may mirror that version for install diagnostics, but it must not become
+a second independent version authority.
+
 ## Policy
 
 - Use `v0.x.y` tags while the install, update, and bug-report contract is still pre-release.
@@ -10,7 +14,36 @@ Sepo uses SemVer for public version labels.
 - Use `v1.0.0-rc.N` only when the public contract is frozen and the release is truly a candidate for `v1.0.0`.
 - Use `v1.0.0` for the first public stable release.
 
-The metadata version omits the leading `v` so it remains plain SemVer and can stay aligned with `.agent/package.json`. Git tags and release refs include the leading `v`, for example `v0.1.0`.
+Package and metadata versions omit the leading `v` so they remain plain SemVer
+and can stay aligned with `.agent/package.json`. Git tags and release refs
+include the leading `v`, for example `v0.1.0`.
+
+## Release Flow
+
+Release automation is intentionally GitHub Actions-only, not a public slash
+route. The workflows are hard-gated to `self-evolving/repo` so forks and
+installed repositories do not accidentally prepare or publish upstream Sepo
+releases.
+
+Prepare:
+
+- Run `Agent / Release / Prepare` manually from GitHub Actions.
+- Optionally provide a SemVer `version`; if omitted, the release agent determines
+  the next version from `.agent/package.json`, recent changes, and this policy.
+- The workflow creates or reuses a release preparation issue, then dispatches the
+  existing implementation workflow with the release prompt.
+- The release prompt may update files and open a PR, but must not create git
+  tags, GitHub Releases, or package publications.
+
+Publish:
+
+- Run `Agent / Release / Publish` manually after the release preparation PR is
+  merged.
+- Optionally provide `version`; if omitted, the workflow reads
+  `.agent/package.json` from the checked-out `target_ref`.
+- The workflow verifies the requested version matches `.agent/package.json`,
+  targets the checked-out commit, and creates or updates the GitHub Release.
+- Existing releases fail the run unless `update_existing=true` is set.
 
 ## Installed metadata
 
@@ -34,7 +67,7 @@ Fields:
 | Field | Meaning |
 |---|---|
 | `schema_version` | Metadata schema version, currently `1`. |
-| `version` | Sepo SemVer string without a leading `v`. |
+| `version` | Mirrored Sepo SemVer string without a leading `v`; `.agent/package.json` is canonical. |
 | `channel` | `pre-release`, `release-candidate`, or `stable`. |
 | `source_repo` | GitHub `owner/repo` slug used as the Sepo source. |
 | `source_ref` | Branch, tag, or ref used by the install. Release installs should use a tag such as `v0.1.0`. |
@@ -44,4 +77,5 @@ Fields:
 
 This separates the user-facing Sepo version from the exact source identity. A fork or copied install can keep saying which Sepo line it started from while later tooling can add the exact commit and file hash when available.
 
-Future update, bug-report, or release workflows can add a small reader/CLI when they need to consume this metadata directly.
+Future update or bug-report workflows can add a small reader/CLI when they need
+to consume this metadata directly.
