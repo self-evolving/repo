@@ -16,24 +16,37 @@ This review phase must not mutate GitHub state:
 - do not post inline review comments
 - do not post top-level PR comments
 - return your review only as markdown in the final response
+- inline cleanup mode is `${AGENT_INLINE_COMMENT_CLEANUP_MODE}`. Valid values
+  are `resolve`, `minimize`, and `off`; treat an empty value as `resolve`.
 - inspect existing inline review comments with
   `gh api --paginate repos/${REPO_SLUG}/pulls/${TARGET_NUMBER}/comments`
   before recommending line-specific feedback
+- when inline cleanup mode is `resolve`, inspect existing review threads with
+  GraphQL `reviewThreads` before recommending a thread-resolution suggestion,
+  for example:
+  `gh api graphql -f query='query ReviewThreads($owner: String!, $repo: String!, $number: Int!) { repository(owner: $owner, name: $repo) { pullRequest(number: $number) { reviewThreads(first: 100) { nodes { id isResolved viewerCanResolve path line comments(first: 100) { nodes { id databaseId author { login } body } } } } } } }' -F owner='<owner>' -F repo='<repo>' -F number=${TARGET_NUMBER}`
+  Use the thread node `id` as `existing_thread_id` when suggesting
+  `resolve_existing_thread`.
 - if a finding deserves line-specific feedback, include the exact `path`, `line`,
   and suggested comment body so the review synthesis agent can post it later
   with:
   `gh api --method POST repos/${REPO_SLUG}/pulls/${TARGET_NUMBER}/comments -f body='<comment>' -f commit_id='<headRefOid>' -f path='<path>' -F line=<line> -f side=RIGHT`
 - You may include an optional `Inline Comment Suggestions` section using this
   shape when existing inline comments affect what synthesis should do:
-  - `action`: `open_new`, `reply_existing`, `mark_existing_outdated`, or
-    `no_action`
+  - `action`: `open_new`, `reply_existing`, `resolve_existing_thread`,
+    `mark_existing_outdated`, or `no_action`
   - `path`, `line`
   - `finding`: concise issue context used for dedupe and rationale
   - `suggested_body`: exact postable comment text for synthesis to use if it
     acts on the suggestion
-  - `existing_comment_id` for replies and `existing_comment_node_id` for
-    minimization when known
+  - `existing_comment_id` for replies, GraphQL `existing_thread_id` for
+    resolution when known, and `existing_comment_node_id` for minimization when
+    known
   - `rationale`
+  Only suggest `resolve_existing_thread` when inline cleanup mode is `resolve`.
+  Only suggest `mark_existing_outdated` when inline cleanup mode is `minimize`.
+  Do not suggest either cleanup action when inline cleanup mode is `off` or an
+  unsupported value.
   These are suggestions only; do not mutate GitHub from the reviewer lane.
 
 Review in this order:

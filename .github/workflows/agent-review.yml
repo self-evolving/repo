@@ -166,6 +166,8 @@ jobs:
           target_number: ${{ inputs.pr_number }}
           target_url: ${{ github.server_url }}/${{ github.repository }}/pull/${{ inputs.pr_number }}
           workflow: agent-review.yml
+        env:
+          AGENT_INLINE_COMMENT_CLEANUP_MODE: ${{ vars.AGENT_INLINE_COMMENT_CLEANUP_MODE || 'resolve' }}
 
       - name: Persist review artifacts
         if: ${{ steps.agent.outcome == 'success' }}
@@ -299,6 +301,7 @@ jobs:
           target_url: ${{ github.server_url }}/${{ github.repository }}/pull/${{ inputs.pr_number }}
           workflow: agent-review.yml
         env:
+          AGENT_INLINE_COMMENT_CLEANUP_MODE: ${{ vars.AGENT_INLINE_COMMENT_CLEANUP_MODE || 'resolve' }}
           REVIEWS_DIR: ${{ steps.reviews.outputs.reviews_dir }}
 
       - name: Post review comment
