@@ -5,7 +5,7 @@
 - Public defaults use `@sepo-agent` and the `sepo-agent-app` GitHub App.
 
 - Repository license is MIT.
-- Current pre-v0.1 priorities: version/release identity (#177), release-tag updates (#116), hosted App install webhook, #75, and fresh install/onboarding/update smoke tests.
+- Current pre-v0.1 priorities: release-tag updates (#116), hosted App install webhook, #75, and fresh install/onboarding/update smoke tests.
 ## Open Questions
 - Should Sepo add inner/reportable timeouts in run.ts/runAcpx/acpx-adapter after the GitHub-step timeout first pass?
 - Should hosted Sepo be the quick-start default while repo-local Actions remains first-class for control/auditability?
