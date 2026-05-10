@@ -20,7 +20,10 @@ This review phase must not mutate GitHub state:
   `gh api --paginate repos/${REPO_SLUG}/pulls/${TARGET_NUMBER}/comments`
   before recommending line-specific feedback
 - inspect existing review threads with GraphQL `reviewThreads` before
-  recommending a thread-resolution suggestion
+  recommending a thread-resolution suggestion, for example:
+  `gh api graphql -f query='query ReviewThreads($owner: String!, $repo: String!, $number: Int!) { repository(owner: $owner, name: $repo) { pullRequest(number: $number) { reviewThreads(first: 100) { nodes { id isResolved viewerCanResolve path line comments(first: 100) { nodes { id databaseId author { login } body } } } } } } }' -F owner='<owner>' -F repo='<repo>' -F number=${TARGET_NUMBER}`
+  Use the thread node `id` as `existing_thread_id` when suggesting
+  `resolve_existing_thread`.
 - if a finding deserves line-specific feedback, include the exact `path`, `line`,
   and suggested comment body so the review synthesis agent can post it later
   with:
