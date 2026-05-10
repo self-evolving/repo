@@ -51,7 +51,7 @@
 - First-run onboarding is idempotent: create agent/* labels and update one open Sepo setup check issue/comment.
 - Branch cleanup retargets stacked child PRs before deleting merged parent agent branches.
 - Generic orchestrator handoff comments use compact tables and fix-pr task blocks.
-- Sepo installs carry .agent/sepo-version.json as the installed version/source-identity metadata contract.
+- Sepo releases use .agent/package.json as canonical version; release prepare is a source-repo-gated manual Action, not /release.
 - Sepo version labels use SemVer: v0.x.y pre-release, v1.0.0-rc.N only for true RCs, v1.0.0 for stable.
 - GitHub App issue authors may appear as app/<login>; trusted actor checks normalize app/ and [bot] forms.
 - Rejected terminal sub-orchestrator metadata gets a deduped visible stop; ordinary terminal PR stops remain silent.
