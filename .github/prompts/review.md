@@ -16,14 +16,11 @@ This review phase must not mutate GitHub state:
 - do not post inline review comments
 - do not post top-level PR comments
 - return your review only as markdown in the final response
-- inline cleanup mode is `${AGENT_INLINE_COMMENT_CLEANUP_MODE}`. Valid values
-  are `resolve`, `minimize`, and `off`; treat an empty value as `resolve`.
 - inspect existing inline review comments with
   `gh api --paginate repos/${REPO_SLUG}/pulls/${TARGET_NUMBER}/comments`
   before recommending line-specific feedback
-- when inline cleanup mode is `resolve`, inspect existing review threads with
-  GraphQL `reviewThreads` before recommending a thread-resolution suggestion,
-  for example:
+- inspect existing review threads with GraphQL `reviewThreads` before
+  recommending a thread-resolution suggestion, for example:
   `gh api graphql -f query='query ReviewThreads($owner: String!, $repo: String!, $number: Int!) { repository(owner: $owner, name: $repo) { pullRequest(number: $number) { reviewThreads(first: 100) { nodes { id isResolved viewerCanResolve path line comments(first: 100) { nodes { id databaseId author { login } body } } } } } } }' -F owner='<owner>' -F repo='<repo>' -F number=${TARGET_NUMBER}`
   Use the thread node `id` as `existing_thread_id` when suggesting
   `resolve_existing_thread`.
@@ -43,10 +40,13 @@ This review phase must not mutate GitHub state:
     resolution when known, and `existing_comment_node_id` for minimization when
     known
   - `rationale`
-  Only suggest `resolve_existing_thread` when inline cleanup mode is `resolve`.
-  Only suggest `mark_existing_outdated` when inline cleanup mode is `minimize`.
-  Do not suggest either cleanup action when inline cleanup mode is `off` or an
-  unsupported value.
+  Cleanup suggestions are advisory. Suggest `resolve_existing_thread` only when
+  the fetched thread appears same-agent, unresolved, viewer-resolvable, on this
+  PR, and the issue appears addressed or superseded. Suggest
+  `mark_existing_outdated` only for older same-agent inline comments that appear
+  superseded when no appropriate resolvable review-thread path is known. Use
+  `no_action` when authorship, PR ownership, supersession, or resolution
+  confidence is uncertain.
   These are suggestions only; do not mutate GitHub from the reviewer lane.
 
 Review in this order:

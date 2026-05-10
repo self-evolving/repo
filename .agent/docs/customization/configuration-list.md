@@ -11,7 +11,6 @@
 | `AGENT_AUTOMATION_MODE` | Orchestrator decision mode. Defaults to `agent` for planner-backed orchestration validated by runtime policy. Set to `heuristics` for deterministic status-based routing with lower model cost. Compatibility alias: `true` = `heuristics`; explicit `false` or legacy `disabled` values fall back to `heuristics` for explicit `/orchestrate` chains. See [Agent orchestrator](../technical-details/agent-orchestrator.md). |
 | `AGENT_AUTOMATION_MAX_ROUNDS` | Maximum number of explicit orchestration handoff rounds. Defaults to `5`. |
 | `AGENT_COLLAPSE_OLD_REVIEWS` | Generated comment cleanup toggle. Defaults to enabled; set to `false` to leave older AI review synthesis, rubrics review, `fix-pr` status, and orchestrator handoff comments visible instead of minimizing them as outdated. |
-| `AGENT_INLINE_COMMENT_CLEANUP_MODE` | Prompt-managed inline review cleanup mode. Defaults to `resolve`; set to `minimize` to mark superseded same-agent inline comments as outdated, or `off` to leave older inline comments untouched. |
 | `AGENT_STATUS_LABEL_ENABLED` | Set to `true` to apply the fixed `agent` status label to handled issues and pull requests. |
 | `AGENT_PROJECT_MANAGEMENT_ENABLED` | Set to `true` to enable scheduled prompt-driven project-management runs. Manual runs can also use the workflow's `enabled` input. Defaults off. |
 | `AGENT_PROJECT_MANAGEMENT_DRY_RUN` | Defaults project-management runs to dry-run mode. Defaults to `true`; set to `false` to apply validated managed-label plans when label application is enabled. |
