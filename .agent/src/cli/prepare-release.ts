@@ -71,6 +71,20 @@ function findOpenIssue(repo: string, title: string): ListedIssue | null {
   return issues.find((issue) => issue.title === title && issue.number && issue.url) || null;
 }
 
+function createReleaseIssue(repo: string, title: string, version: string, requestedBy: string): ListedIssue | null {
+  const runnerTemp = process.env.RUNNER_TEMP || "/tmp";
+  const bodyFile = join(runnerTemp, `release-prepare-${randomBytes(8).toString("hex")}.md`);
+  writeFileSync(bodyFile, issueBody(version, requestedBy) + "\n", "utf8");
+  const url = createIssue({ title, bodyFile, repo });
+  const numberMatch = url.match(/\/issues\/(\d+)$/);
+  if (!numberMatch) {
+    console.error(`Could not parse created release prepare issue number from URL: ${url || "(empty)"}`);
+    process.exitCode = 1;
+    return null;
+  }
+  return { number: Number.parseInt(numberMatch[1], 10), title, url };
+}
+
 const repo = process.env.GITHUB_REPOSITORY || "";
 const requestedBy = process.env.REQUESTED_BY || "";
 const version = normalizeVersion(process.env.VERSION || "");
@@ -81,20 +95,15 @@ if (!repo) {
 } else {
   const title = issueTitle(version);
   const existing = findOpenIssue(repo, title);
-  const issue = existing || (() => {
-    const runnerTemp = process.env.RUNNER_TEMP || "/tmp";
-    const bodyFile = join(runnerTemp, `release-prepare-${randomBytes(8).toString("hex")}.md`);
-    writeFileSync(bodyFile, issueBody(version, requestedBy) + "\n", "utf8");
-    const url = createIssue({ title, bodyFile, repo });
-    const numberMatch = url.match(/(\d+)$/);
-    return { number: numberMatch ? Number.parseInt(numberMatch[1], 10) : 0, title, url };
-  })();
+  const issue = existing || createReleaseIssue(repo, title, version, requestedBy);
 
-  setOutput("issue_number", String(issue.number || ""));
-  setOutput("issue_url", issue.url || "");
-  setOutput("issue_action", existing ? "reused" : "created");
-  setOutput("request_text", requestText(version));
-  setOutput("version", version);
+  if (issue) {
+    setOutput("issue_number", String(issue.number || ""));
+    setOutput("issue_url", issue.url || "");
+    setOutput("issue_action", existing ? "reused" : "created");
+    setOutput("request_text", requestText(version));
+    setOutput("version", version);
 
-  console.log(`${existing ? "Reused" : "Created"} release prepare issue: ${issue.url}`);
+    console.log(`${existing ? "Reused" : "Created"} release prepare issue: ${issue.url}`);
+  }
 }

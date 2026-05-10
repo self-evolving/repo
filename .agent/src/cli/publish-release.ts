@@ -81,8 +81,12 @@ if (repo !== "self-evolving/repo") {
           ? ["release", "edit", requested.tag]
           : ["release", "create", requested.tag, "--target", targetSha];
         args.push("--title", requested.tag, "--notes-file", notesFile);
-        if (draft) args.push("--draft");
-        if (prerelease) args.push("--prerelease");
+        if (existingReleaseUrl) {
+          args.push(`--draft=${draft}`, `--prerelease=${prerelease}`);
+        } else {
+          if (draft) args.push("--draft");
+          if (prerelease) args.push("--prerelease");
+        }
 
         gh(args);
         const url = releaseUrl(requested.tag);

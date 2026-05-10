@@ -71,3 +71,55 @@ exit 1
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
+
+test("publish-release updates existing releases with explicit false flags", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-publish-release-"));
+  try {
+    const outputPath = join(tempDir, "github-output.txt");
+    const callsPath = join(tempDir, "gh-calls.txt");
+    writeFileSync(outputPath, "", "utf8");
+    writeFileSync(callsPath, "", "utf8");
+    writeFileSync(
+      join(tempDir, "gh"),
+      `#!/usr/bin/env bash
+printf '%s\\n' "$*" >> "$GH_CALLS"
+if [ "$1" = "release" ] && [ "$2" = "view" ]; then
+  printf '{"url":"https://github.com/self-evolving/repo/releases/tag/v0.1.0"}\\n'
+  exit 0
+fi
+if [ "$1" = "release" ] && [ "$2" = "edit" ]; then
+  exit 0
+fi
+printf 'unexpected gh args: %s\\n' "$*" >&2
+exit 1
+`,
+      { encoding: "utf8", mode: 0o755 },
+    );
+
+    execFileSync("node", [".agent/dist/cli/publish-release.js"], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        PATH: `${tempDir}:${process.env.PATH || ""}`,
+        GH_CALLS: callsPath,
+        GITHUB_OUTPUT: outputPath,
+        GITHUB_REPOSITORY: "self-evolving/repo",
+        PRERELEASE: "false",
+        RUNNER_TEMP: tempDir,
+        UPDATE_EXISTING: "true",
+        VERSION: "",
+        DRAFT: "false",
+      },
+    });
+
+    const outputs = parseGithubOutput(outputPath);
+    assert.equal(outputs.get("release_action"), "updated");
+
+    const calls = readFileSync(callsPath, "utf8");
+    assert.match(calls, /release edit v0\.1\.0/);
+    assert.match(calls, /--draft=false/);
+    assert.match(calls, /--prerelease=false/);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
