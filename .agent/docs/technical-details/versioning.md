@@ -35,9 +35,6 @@ Prepare:
 - The release prompt may update files and open a PR, but must not create git
   tags, GitHub Releases, or package publications.
 
-Publishing is deferred until a follow-up can publish reviewed changelog or
-release-note content instead of inventing notes at publish time.
-
 ## Installed metadata
 
 Every Sepo install carries `.agent/sepo-version.json`:
