@@ -1,0 +1,39 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "body": "## Goal\nImplement the requested change from the agent mention.\n\n## Original request\n> You’re right. This became large because I treated release as a **first-class public agent route**. Once `/release` existed, it pulled in route parsing, dispatch policy, approval behavior, issue creation/idempotency, route docs, access-policy docs, rubric route handling, tests, and then review fixes around all of that. That was over-scoped for the actual need.\r\n> \r\n> I would simplify this PR aggressively.\r\n> \r\n> Minimum viable shape:\r\n> \r\n> 1. **Do not add `/release` as a public route**\r\n>    \r\n>    * Remove route parsing and route docs changes from `.agent/src/triage.ts`, `.agent/src/access-policy.ts`, `.agent/docs/overview/quick-start.md`, `README.md`, etc.\r\n>    * No public-facing `@sepo-agent /release ...`.\r\n> 2. **Keep only technical versioning guidance**\r\n>    \r\n>    * Keep the useful part in `.agent/docs/technical-details/versioning.md`: `.agent/package.json` is canonical, tags are `vX.Y.Z`, release publish is manual/source-repo-only.\r\n> 3. **If we want automation, make it GitHub Actions-only**\r\n>    \r\n>    * Add a manual `workflow_dispatch` prepare workflow, gated to `self-evolving/repo`.\r\n>    * Optional `version` input:\r\n>      \r\n>      * provided: prepare that version.\r\n>      * omitted: ask the agent to determine the next version from `.agent/package.json`, recent changes, and versioning policy.\r\n>    * This can reuse `agent-implement.yml` with a release prompt, without making release a slash route.\r\n> 4. **Keep publish separate and manual**\r\n>    \r\n>    * A small `Agent / Release / Publish` workflow can stay if we want tag/release creation automated.\r\n>    * It should remain source-repo-gated and require explicit maintainer dispatch.\r\n> \r\n> So the simplified PR should probably be either:\r\n> \r\n> * **Smallest:** docs-only clarification that `.agent/package.json` is canonical and releases use tags.\r\n> * **Still useful:** docs + one source-repo-gated manual release workflow.\r\n> * **Avoid:** public `/release` route, route docs, access-policy special cases, label behavior, and broad test churn.\r\n> \r\n> I’d recommend replacing the current PR with the “still useful” version: technical docs + manual GitHub Actions prepare/publish flow, no public route.\r\n\r\n@sepo-agent /implement\n\n## Acceptance criteria\n- Implement the requested change.\n- Preserve existing behavior unless the request requires a change.\n- Update tests or validation as needed.\n\n---\n\nRequested via issue_comment at https://github.com/self-evolving/repo/pull/192\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBx3cWw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-193/codex-25618946516`\n- Pull request: https://github.com/self-evolving/repo/pull/194\n\nImplemented the simplified release path without adding a public `/release` route: added Actions-only release prepare/publish workflows, an internal release prompt, small CLI helpers for release issue reuse and publish validation, strict SemVer parsing, focused tests, and technical-only versioning docs. Verification passed with `env -u GITHUB_OUTPUT npm --prefix .agent test`, workflow YAML parsing, and `git diff --check`.",
+      "createdAt": "2026-05-10T03:45:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/193#issuecomment-4414364763",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-10T03:39:33Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 193,
+  "state": "OPEN",
+  "title": "Implement requested change",
+  "updatedAt": "2026-05-10T03:45:28Z",
+  "url": "https://github.com/self-evolving/repo/issues/193"
+}
