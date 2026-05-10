@@ -210,7 +210,7 @@ function normalizeAgentAction(value: string): AgentAction | null {
   if (normalized === "implement") return "implement";
   if (normalized === "review") return "review";
   if (normalized === "fix_pr") return "fix-pr";
-  if (normalized === "agent_self_approve" || normalized === "self_approve") return "agent-self-approve";
+  if (normalized === "agent_self_approve") return "agent-self-approve";
   return null;
 }
 

@@ -638,6 +638,12 @@ test("parsePlannerDecision reads planner JSON", () => {
     )?.nextAction,
     "agent-self-approve",
   );
+  assert.equal(
+    parsePlannerDecision(
+      '{"decision":"handoff","next_action":"self_approve","reason":"Legacy alias should not map."}',
+    )?.nextAction,
+    undefined,
+  );
   assert.deepEqual(
     parsePlannerDecision(
       '{"decision":"delegate_issue","reason":"Delegate.","child_stage":"Stage One","child_instructions":"Do one thing.","base_pr":"12"}',
