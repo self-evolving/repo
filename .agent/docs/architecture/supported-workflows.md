@@ -86,11 +86,13 @@ generated comments visible.
 
 Review synthesis can also make prompt-managed inline review comment updates:
 it may post a new inline comment, reply to an existing same-agent inline
-comment, or mark an older same-agent inline comment as outdated. Synthesis
-re-fetches PR inline comments before acting; replies and minimization require
-confirmed same-agent authorship and PR ownership. Reviewer lanes only suggest
-these actions; they do not mutate GitHub. This inline behavior is separate from
-the deterministic generated-comment cleanup controlled by
+comment, or resolve an older same-agent review thread when the synthesis
+confirms the issue has been addressed or superseded. Synthesis re-fetches PR
+inline comments and review threads before acting; replies require confirmed
+same-agent authorship and PR ownership, while resolution also requires an
+unresolved thread with `viewerCanResolve`. Reviewer lanes only suggest these
+actions; they do not mutate GitHub. This inline behavior is separate from the
+deterministic generated-comment cleanup controlled by
 `AGENT_COLLAPSE_OLD_REVIEWS`.
 
 ### Repository memory workflows
