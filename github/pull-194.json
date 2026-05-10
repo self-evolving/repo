@@ -6,24 +6,359 @@
   "baseRefName": "main",
   "body": "## Summary\n- Add source-repo-gated manual release prepare and publish workflows without adding a public `/release` route.\n- Add an internal release prompt plus small CLI helpers for release issue reuse, version parsing, and publish validation.\n- Keep release documentation scoped to technical versioning details and `.agent/package.json` as canonical.\n\n## Tests\n- `env -u GITHUB_OUTPUT npm --prefix .agent test`\n- `ruby -e 'require \"yaml\"; Dir[\".github/workflows/*.yml\"].sort.each { |file| YAML.load_file(file) }'`\n- `git diff --check`\n\nCloses #193\n",
   "closedAt": null,
-  "comments": [],
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABByFsDQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate \n\nWhen making edits be sure that not over implement features beyond the current scope https://github.com/self-evolving/repo/pull/192#issuecomment-4414355035",
+      "createdAt": "2026-05-10T06:14:42Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/194#issuecomment-4414598157",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABByF8jw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | review | PR #194 | 2 / 40 | Dispatched |\n\nReason: agent planner selected review: PR #194 is open with no review synthesis yet; the requester asked to orchestrate while preserving the simplification scope from PR #192, so an automated review is the appropriate next step before any branch edits.\n\n<!-- sepo-agent-handoff state:dispatched created:1778393784741 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU2MjE1OTA2MzI6b3JjaGVzdHJhdGU6MTk0OnJldmlldzoxOTQ6Mg -->",
+      "createdAt": "2026-05-10T06:16:25Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/194#issuecomment-4414602383",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABByGN_g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "The linked #192 guidance is explicit: no public `/release`, keep technical versioning docs, make automation Actions-only, and keep publish manual/source-repo-gated. The current PR’s diff follows that shape, so I’m checking the details against idempotency, delegation, structured inputs, docs, and scope rubrics rather than doing a broad review.## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 97 | PASS | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow | Validate delegated route authorization | pass | 8/8 | Release prepare is not exposed as a public slash route; it is a manual workflow gated to `self-evolving/repo` before dispatching implement automation, with `REQUESTED_BY` preserved in [`agent-release-prepare.yml`](https://github.com/self-evolving/repo/blob/39e20592bdedda85750373a35a64d42318b19d8e/.github/workflows/agent-release-prepare.yml#L19). |\n| coding_workflow | Prefer explicit structured inputs | pass | 7/7 | Prepare uses a separate optional `version` input, and publish uses separate typed inputs for `version`, `target_ref`, `draft`, `prerelease`, and `update_existing` in [`agent-release-publish.yml`](https://github.com/self-evolving/repo/blob/39e20592bdedda85750373a35a64d42318b19d8e/.github/workflows/agent-release-publish.yml#L5). |\n| coding_workflow | Make user-facing automation idempotent | pass | 7/7 | Release prepare looks up an existing open issue by stable title before creating one in [`prepare-release.ts`](https://github.com/self-evolving/repo/blob/39e20592bdedda85750373a35a64d42318b19d8e/.agent/src/cli/prepare-release.ts#L49), with reuse coverage in [`prepare-release-cli.test.ts`](https://github.com/self-evolving/repo/blob/39e20592bdedda85750373a35a64d42318b19d8e/.agent/src/__tests__/prepare-release-cli.test.ts#L20). |\n| coding_workflow | Reuse existing code | pass | 7/8 | The workflows reuse existing local actions for auth/runtime setup and dispatch through `dispatch-agent-implement.js`; the CLIs also reuse shared `gh`, `createIssue`, and `setOutput` helpers. |\n| coding_workflow | Make surgical changes | pass | 8/8 | The diff is limited to technical versioning docs, two manual release workflows, one release prompt, small release CLIs, and focused tests. It avoids the over-scoped public `/release` route called out in PR #192. |\n| coding_workflow | Read docs and linked context first | pass | 6/6 | The implementation follows issue #193 and the linked PR #192 simplification request: Actions-only prepare/publish, technical docs only, no public route. The release prompt also requires reading the target issue and versioning policy before edits. |\n| coding_workflow | Surface stateful failures | pass | 7/7 | Publish fails clearly on wrong repo, package-version mismatch, stale tag target, and existing release without `update_existing` in [`publish-release.ts`](https://github.com/self-evolving/repo/blob/39e20592bdedda85750373a35a64d42318b19d8e/.agent/src/cli/publish-release.ts#L42). |\n| coding_workflow | Keep docs in sync | pass | 7/7 | [`versioning.md`](https://github.com/self-evolving/repo/blob/39e20592bdedda85750373a35a64d42318b19d8e/.agent/docs/technical-details/versioning.md#L4) now documents `.agent/package.json` as canonical and describes the manual prepare/publish release flow. |\n| coding_style | Prefer simple implementations | pass | 6/7 | The chosen shape is straightforward and matches the requested “still useful” scope. Minor complexity remains in the helper CLIs, but it is focused on validation and GitHub output contracts. |\n\n## Notes\n\n- The most important rubric driver is scope: PR #194 removes the public route approach from #192 and implements the requested manual, source-repo-gated Actions flow.\n- The idempotency and stateful-failure rubrics are covered with focused CLI tests rather than broad route-policy churn.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No blocking or warning-level rubric findings found.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-10T06:18:08Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/194#issuecomment-4414606846",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABByHLHA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #194 replaces the over-scoped public `/release` route direction from PR #192 with the requested “still useful” shape.\n- It adds source-repo-gated manual release prepare and publish workflows for `self-evolving/repo`.\n- Release prepare creates or reuses a tracking issue, then delegates to the existing implement workflow with an internal release prompt.\n- Release publish validates `.agent/package.json`, tag target state, and GitHub Release creation/update inputs.\n\n## Review\nThe PR is correctly scoped and follows the linked #192/#193 simplification guidance. Two warning-level issues remain: one publish behavior bug and one misleading prepare failure path.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Existing-release updates drop false publish flags | WARNING | `update_existing=true` with `draft=false` or `prerelease=false` omits the explicit false flags needed by `gh release edit`, so the workflow can report success while leaving release state unchanged. |\n| Issue creation URL parse failures become misleading dispatch failures | WARNING | If `createIssue` returns a URL that does not end in digits, prepare emits an empty `issue_number` and the later dispatch step fails with a generic missing env error. |\n| Non-blocking diagnostics and coverage gaps remain | INFO | One reviewer noted `releaseUrl()` swallows all `gh release view` errors and that some edge-case tests are thin; these are useful follow-ups but less concrete than the two warnings above. |\n\n## Progress\n- The implementation matches the requested scope: no public `/release` route, technical versioning docs only, and manual source-repo-gated Actions.\n- Rubrics review passed and found no blocking or warning-level rubric issues.\n- Existing inline review comments were empty before posting.\n- Posted 2 inline comments: [`publish-release.ts:84`](https://github.com/self-evolving/repo/pull/194#discussion_r3214431464) and [`prepare-release.ts:90`](https://github.com/self-evolving/repo/pull/194#discussion_r3214431582).\n- No replies were added and no comments were minimized.\n\n## Issue Details\n\n<details>\n<summary>Existing-release updates drop false publish flags</summary>\n\n**Cause:** [`publish-release.ts`](https://github.com/self-evolving/repo/blob/39e20592bdedda85750373a35a64d42318b19d8e/.agent/src/cli/publish-release.ts#L80-L85) only appends `--draft` and `--prerelease` when the parsed values are true. For `gh release edit`, publishing a draft requires an explicit `--draft=false`, and clearing prerelease similarly needs an explicit false value.\n\n**Candidate solutions:** On the edit path, emit explicit `--draft=<bool>` and `--prerelease=<bool>` values, or fail unsupported false-state edits clearly. Add a focused regression test for updating an existing draft release with `draft=false`.\n\n</details>\n\n<details>\n<summary>Issue creation URL parse failures become misleading dispatch failures</summary>\n\n**Cause:** [`prepare-release.ts`](https://github.com/self-evolving/repo/blob/39e20592bdedda85750373a35a64d42318b19d8e/.agent/src/cli/prepare-release.ts#L88-L93) falls back to issue number `0` when the created issue URL cannot be parsed, then emits an empty `issue_number`.\n\n**Candidate solutions:** Fail immediately when the created issue URL cannot be parsed, logging the unexpected URL format. Add create-path coverage where `gh issue list` returns no reusable issue and `gh issue create` returns both valid and invalid URL shapes.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: the remaining findings require concrete branch changes and are safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Emit explicit false `draft` and `prerelease` values, or fail unsupported false-state edits, when updating an existing GitHub Release.\n- [ ] Fail clearly when release prepare cannot parse the created issue number, and add focused create-path coverage.",
+      "createdAt": "2026-05-10T06:25:10Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/194#issuecomment-4414622492",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABByHS0A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #194 | 3 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis recommends FIX_PR with MINOR_ISSUES for two concrete unresolved branch changes that are safe for automation.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Emit explicit false `draft` and `prerelease` values, or fail unsupported false-state edits, when updating an existing GitHub Release.\n- Fail clearly when release prepare cannot parse the created issue number, and add focused create-path coverage.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items. Keep the PR within the linked #192/#193 scope: no public `/release` route, no route/access-policy/docs expansion, and no broad test churn beyond focused regression coverage.\n\n<!-- sepo-agent-handoff state:dispatched created:1778394382255 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU2MjE2MjE2MjY6cmV2aWV3OjE5NDpmaXhfcHI6MTk0OjM -->",
+      "createdAt": "2026-05-10T06:26:22Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/194#issuecomment-4414624464",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABByHn7w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-193/codex-25618946516`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Updated existing GitHub Release edits to pass explicit `--draft=<bool>` and `--prerelease=<bool>` values, so `false` updates are not silently omitted.\n- Made release prepare fail before dispatch outputs when a newly created issue URL does not parse to an issue number.\n- Added focused coverage for valid create URLs, invalid create URLs, and existing-release false flag updates.\n\n<details><summary>Checks</summary>\n\n- `npm --prefix .agent run build`\n- `env -u GITHUB_OUTPUT node --test .agent/dist/__tests__/prepare-release-cli.test.js .agent/dist/__tests__/publish-release-cli.test.js`\n- `git diff --check`\n\n</details>",
+      "createdAt": "2026-05-10T06:29:52Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/194#issuecomment-4414629871",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABByHuRA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #194 | 4 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on the open PR and pushed the two requested code/test fixes, so one fresh review is warranted to verify the fixes and update the synthesis.\n\n<!-- sepo-agent-handoff state:dispatched created:1778394655426 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU2MjE3OTcyMDQ6Zml4X3ByOjE5NDpyZXZpZXc6MTk0OjQ -->",
+      "createdAt": "2026-05-10T06:30:55Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/194#issuecomment-4414631492",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABByH3hA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 98 | PASS | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow | Validate delegated route authorization | pass | 8/8 | `agent-release-prepare.yml` is `workflow_dispatch` only, gated to `self-evolving/repo`, and passes `REQUESTED_BY: ${{ github.actor }}` when delegating to `dispatch-agent-implement.js`; no public `/release` route is added. |\n| coding_workflow | Prefer explicit structured inputs | pass | 7/7 | Prepare exposes a single optional `version`; publish exposes separate `version`, `target_ref`, `draft`, `prerelease`, and `update_existing` inputs instead of encoding behavior in one string. |\n| coding_workflow | Make user-facing automation idempotent | pass | 7/7 | `prepare-release.ts` searches for an existing open issue by stable release title before creating a new one, with reuse coverage in `prepare-release-cli.test.ts`. |\n| coding_workflow | Reuse existing code | pass | 8/8 | The workflows reuse existing local auth/runtime setup actions and dispatch through existing implement automation; the CLIs reuse shared `gh`, `createIssue`, and `setOutput` helpers. |\n| coding_workflow | Make surgical changes | pass | 8/8 | The diff is limited to technical versioning docs, two manual release workflows, one internal prompt, small release CLIs, and focused tests; it avoids route parsing, route docs, access-policy special cases, and label churn called out in the linked #192 comment. |\n| coding_workflow | Read docs and linked context first | pass | 6/6 | The implementation matches issue #193 and the linked PR #192 guidance: no public `/release`, technical versioning docs only, Actions-only prepare/publish, and source-repo gating. |\n| coding_workflow | Surface stateful failures | pass | 7/7 | Publish fails clearly on wrong repo, package-version mismatch, stale tag target, existing release without `update_existing`, and now emits explicit false flags on release edits; prepare now fails clearly on unparseable created issue URLs. |\n| coding_workflow | Keep docs in sync | pass | 7/7 | `.agent/docs/technical-details/versioning.md` documents `.agent/package.json` as canonical and describes the manual prepare/publish release flow added by the PR. |\n| coding_style | Prefer simple implementations | pass | 6/7 | The solution is a small Actions-only flow plus focused CLIs/tests. Minor complexity is present in GitHub Release validation, but it is directly tied to preventing misleading release state. |\n\n## Notes\n\n- The main score driver is scope discipline: PR #194 implements the “still useful” shape from the linked #192 guidance without reintroducing a public route or route-policy surface area.\n- The earlier review warnings appear addressed in the current head diff: release edit false flags are explicit, and invalid created issue URLs fail before emitting misleading outputs.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No blocking or warning-level rubric findings found.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-10T06:32:22Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/194#issuecomment-4414633860",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABByIovQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #194 adds an Actions-only Sepo release flow for `self-evolving/repo`.\n- It replaces the earlier over-scoped public `/release` route direction with manual, source-repo-gated prepare and publish workflows.\n- Release prepare creates or reuses a tracking issue and delegates to existing implement automation with an internal release prompt.\n- Release publish validates the requested version, tag target, and GitHub Release create/update behavior against `.agent/package.json`.\n\n## Review\nThe current head addresses the two prior warning-level findings and remains within the requested #192/#193 scope. Reviewers agree there are no blocking or warning-level issues left; one reviewer noted optional diagnostic and test-polish follow-ups, but not merge-blocking branch work.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable issues | INFO | The earlier release edit false-flag bug and prepare URL-parse failure path are fixed, with focused tests. Remaining notes are optional follow-up polish. |\n\n## Progress\n- Prior warning on `gh release edit` dropping explicit false `draft` / `prerelease` values is fixed.\n- Prior warning on unparseable created issue URLs producing misleading dispatch failures is fixed.\n- Current rubrics review passes with no warning-level rubric findings.\n- No new inline comments were posted.\n- No replies were added and no comments were minimized.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: no unresolved actionable branch-change work remains for automation.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change action items remain.",
+      "createdAt": "2026-05-10T06:40:14Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/194#issuecomment-4414646461",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABByMu4w",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\nQuestion: it seems the release publish route doesn't do much? (I thought we'd have agent support to produce a release message etc but it seems not)...\n\nAlso can we actually add a changelog file to track all the function changes?  \n\nIn that case we might have agent support for drafting the release plus editing the changelog? ",
+      "createdAt": "2026-05-10T07:18:29Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/194#issuecomment-4414713571",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABByM9Jw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "You're reading it correctly: `Agent / Release / Publish` is intentionally thin right now. It is a maintainer-controlled publish step, not an agent drafting step. It checks repo/version/tag state and then creates or updates the GitHub Release; the generated notes file is currently just `Sepo vX.Y.Z`, so it does **not** produce meaningful release notes yet. See [`agent-release-publish.yml`](https://github.com/self-evolving/repo/blob/0ac43c1fc30c87592e9b44852502603bf5a4f9b4/.github/workflows/agent-release-publish.yml#L1-L73) and [`publish-release.ts`](https://github.com/self-evolving/repo/blob/0ac43c1fc30c87592e9b44852502603bf5a4f9b4/.agent/src/cli/publish-release.ts#L77-L98).\n\nThe agent-assisted part is currently `Agent / Release / Prepare`: it creates/reuses a release-prep issue, dispatches the normal implement workflow, and uses the release prompt to update release-related files and open a PR. That prompt already says to update \"release notes, docs, or checklist entries,\" but there is no actual changelog file in the repo for it to edit yet. See [`agent-release-prepare.yml`](https://github.com/self-evolving/repo/blob/0ac43c1fc30c87592e9b44852502603bf5a4f9b4/.github/workflows/agent-release-prepare.yml#L42-L62), [`prepare-release.ts`](https://github.com/self-evolving/repo/blob/0ac43c1fc30c87592e9b44852502603bf5a4f9b4/.agent/src/cli/prepare-release.ts#L28-L48), and [`agent-release.md`](https://github.com/self-evolving/repo/blob/0ac43c1fc30c87592e9b44852502603bf5a4f9b4/.github/prompts/agent-release.md#L6-L15).\n\nYes, I think adding a changelog is the right next increment. I would keep it small:\n\n1. Add root `CHANGELOG.md` with an `Unreleased` section and version sections.\n2. Update `.github/prompts/agent-release.md` so release prepare must draft the release message and edit `CHANGELOG.md`.\n3. Update `.agent/src/cli/prepare-release.ts` acceptance criteria so the tracking issue explicitly requires changelog updates.\n4. Optionally update publish so the GitHub Release notes come from the matching `CHANGELOG.md` version section instead of the current placeholder.\n5. Add focused tests around the publish note extraction only if we wire publish to changelog content.\n\nThat keeps the split clean: **prepare is agentic** and drafts/edits changelog content in a PR; **publish is manual** and only publishes the already-reviewed release notes after merge.\n\nIf approved, the follow-up implementation should be scoped to changelog + release prompt/publish note plumbing, without reintroducing a public `/release` route.",
+      "createdAt": "2026-05-10T07:20:31Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/194#issuecomment-4414717223",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABByPUaA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer\n\n\n1. Ok in that case I'd even advocate to remove publish in this pr, and then implement it (with the agent support) in a separate one.\n\n2. Further I think we should add changelog in conjunction with the release? -> when we prosper releases of  the repo it will update the changelog accordingly (by listing recent PRs and fixes and add line by line feature changes)?  \n\nDoes it make sense? Or we should separate changelog into a separate pr? ",
+      "createdAt": "2026-05-10T07:42:09Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/194#issuecomment-4414755944",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABByPeCQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, that makes sense.\n\nI’d recommend this split:\n\n1. **In this PR #194:** remove publish entirely.\n   - Drop `.github/workflows/agent-release-publish.yml`\n   - Drop `.agent/src/cli/publish-release.ts`\n   - Drop `.agent/src/__tests__/publish-release-cli.test.ts`\n   - Trim publish-specific docs from [`versioning.md`](https://github.com/self-evolving/repo/blob/0ac43c1fc30c87592e9b44852502603bf5a4f9b4/.agent/docs/technical-details/versioning.md#L38-L46)\n\n   Keep only the useful prepare side: manual source-repo-gated release preparation that creates/reuses an issue and dispatches agent implementation with [`agent-release.md`](https://github.com/self-evolving/repo/blob/0ac43c1fc30c87592e9b44852502603bf5a4f9b4/.github/prompts/agent-release.md#L1-L35).\n\n2. **In a follow-up PR:** add changelog + agent-assisted release drafting.\n   - Add root `CHANGELOG.md`\n   - Define a simple format, probably `Unreleased`, then `vX.Y.Z - YYYY-MM-DD`\n   - Update the release prompt so the agent reviews recent merged PRs/fixes since the previous tag and writes curated line-by-line entries\n   - Keep entries human-readable, not a raw dump of every commit\n   - Categories could be `Added`, `Changed`, `Fixed`, `Internal`\n\n3. **Later or same follow-up PR:** re-add publish only after it can consume the reviewed changelog/release notes.\n   - Publish should not invent notes at publish time.\n   - It should publish the already-reviewed changelog section for the version.\n\nSo: **yes to changelog as part of the release workflow**, but I’d separate it from this PR. This PR should become “release prepare only.” The next PR should be “release changelog + agent drafting,” and publish can come after that or inside that PR only if it stays small.",
+      "createdAt": "2026-05-10T07:43:37Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/194#issuecomment-4414758409",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABByQMHw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Update the release prompt so the agent reviews recent merged PRs/fixes since the previous tag and writes curated line-by-line entries\n> Keep entries human-readable, not a raw dump of every commit\n> Categories could be Added, Changed, Fixed, Internal\n> Later or same follow-up PR: re-add publish only after it can consume the reviewed changelog/release notes.\n> \n> Publish should not invent notes at publish time.\n> It should publish the already-reviewed changelog section for the version.\n> So: yes to changelog as part of the release workflow, but I’d separate it from this PR. This PR should become “release prepare only.” The next PR should be “release changelog + agent drafting,” and publish can come after that or inside that PR only if it stays small\n\n@sepo-agent /orchestrate launch fix pr agent first to simplify content in this pr and then review ",
+      "createdAt": "2026-05-10T07:50:24Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/194#issuecomment-4414770207",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABByQX2Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | fix-pr | PR #194 | 2 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: The newest human request explicitly asks to simplify PR #194 with a fix-pr pass before review, overriding the earlier NO_AUTOMATED_ACTION synthesis.\n\nTask for fix-pr:\nSimplify PR #194 so this PR is release-prepare only. Make only branch changes needed for that scope:\n- Remove publish from this PR: delete `.github/workflows/agent-release-publish.yml`, `.agent/src/cli/publish-release.ts`, and `.agent/src/__tests__/publish-release-cli.test.ts`.\n- Trim `.agent/docs/technical-details/versioning.md` so it documents `.agent/package.json` as canonical plus the manual source-repo-gated release prepare flow, but does not document a publish workflow in this PR. It may briefly state publish is deferred until it can consume reviewed changelog/release notes.\n- Keep the prepare workflow, prepare CLI, release prompt, version parser, and prepare-focused tests that are still needed for release prepare.\n- Do not implement changelog support, curated release note drafting, or publish-from-changelog in this PR; that belongs to a follow-up PR per the latest human guidance.\n- Preserve the existing scope constraints from PR #192/#193: no public `/release` route, no route/access-policy/docs expansion, and no broad test churn.\n- Run focused validation after edits, at minimum relevant `.agent` tests/build if needed, workflow YAML parsing, and `git diff --check`.\n\n<!-- sepo-agent-handoff state:dispatched created:1778399520779 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU2MjMzMjU3OTk6b3JjaGVzdHJhdGU6MTk0OmZpeF9wcjoxOTQ6Mg -->",
+      "createdAt": "2026-05-10T07:52:01Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/194#issuecomment-4414773209",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABByQydw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-193/codex-25618946516`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Removed the release publish workflow, CLI, and publish CLI tests so PR #194 is release-prepare only.\n- Trimmed versioning docs to describe `.agent/package.json` canonicality and the manual source-repo-gated prepare flow, with publish deferred until reviewed changelog/release notes exist.\n- Kept prepare behavior and prompt scoped to docs/checklist updates, without adding changelog drafting or publish-from-changelog support.\n\n<details><summary>Checks</summary>\n\n- `npm --prefix .agent run build`\n- `env -u GITHUB_OUTPUT node --test .agent/dist/__tests__/prepare-release-cli.test.js .agent/dist/__tests__/release-version.test.js`\n- `ruby -ryaml -e 'Dir[\".github/workflows/*.yml\"].sort.each { |file| YAML.load_file(file) }'`\n- `git diff --check`\n\n</details>",
+      "createdAt": "2026-05-10T07:55:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/194#issuecomment-4414780023",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABByQ32w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #194 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on the open PR after the requester explicitly asked to simplify PR #194 first and then review; a fresh review is warranted to verify the prepare-only scope and updated docs/tests.\n\n<!-- sepo-agent-handoff state:dispatched created:1778399799283 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU2MjMzNTYzMTM6Zml4X3ByOjE5NDpyZXZpZXc6MTk0OjM -->",
+      "createdAt": "2026-05-10T07:56:39Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/194#issuecomment-4414781403",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABByRCLA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 98 | PASS | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow | Validate delegated route authorization | pass | 8/8 | The PR avoids a public `/release` route entirely. `agent-release-prepare.yml` is `workflow_dispatch` only, hard-gated to `self-evolving/repo`, and preserves `REQUESTED_BY: ${{ github.actor }}` when delegating into existing implement automation. |\n| coding_workflow | Prefer explicit structured inputs | pass | 7/7 | The prepare workflow exposes a single optional `version` input instead of encoding release behavior in a slash command or free-form route string. |\n| coding_workflow | Make user-facing automation idempotent | pass | 7/7 | `prepare-release.ts` searches for an existing open release-prep issue by stable title before creating a new one, with focused reuse/create coverage in `prepare-release-cli.test.ts`. |\n| coding_workflow | Reuse existing code | pass | 8/8 | The workflow reuses existing auth/runtime setup actions and dispatches through `dispatch-agent-implement.js`; the CLI reuses shared `gh`, `createIssue`, and `setOutput` helpers. |\n| coding_workflow | Make surgical changes | pass | 8/8 | Current diff is limited to versioning docs, prepare workflow, release prompt, prepare CLI, version parser, and focused tests. Publish workflow/CLI/tests were removed after the latest human simplification request. |\n| coding_workflow | Read docs and linked context first | pass | 6/6 | The current shape follows issue #193 plus the later PR discussion: release prepare only in this PR, no public route, publish deferred until reviewed changelog/release notes exist. |\n| coding_workflow | Surface stateful failures | pass | 7/7 | Prepare fails clearly when required repo env is missing or a created issue URL cannot be parsed, avoiding misleading empty dispatch outputs; this path has regression coverage. |\n| coding_workflow | Keep docs in sync | pass | 7/7 | `versioning.md` documents `.agent/package.json` as canonical, the source-repo-gated prepare flow, and explicitly states publishing is deferred until reviewed changelog/release-note content exists. |\n| coding_style | Prefer simple implementations | pass | 6/7 | The implementation is small and direct. Minor complexity remains in the prepare helper and SemVer parser, but it is tied to validation/idempotency rather than broader architecture. |\n\n## Notes\n\n- The main rubric driver is scope discipline: the current PR is now “release prepare only,” matching the newest requester guidance.\n- Changelog drafting and publish-from-reviewed-notes are correctly deferred rather than partially implemented here.\n- I did not find a rubric-specific reason to request another fix-pr pass.\n\n## Findings\n\n- **INFO:** No blocking or warning-level rubric findings found.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-10T07:58:13Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/194#issuecomment-4414784044",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABByRo7w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #194 now adds a release-prepare-only flow for Sepo after the requester asked to remove publish from this PR.\n- It adds a source-repo-gated manual GitHub Actions workflow that creates or reuses a release preparation issue.\n- The workflow delegates to the existing implementation path with an internal release prompt, without exposing a public `/release` route.\n- It also adds strict release version parsing, focused prepare tests, and technical versioning docs while deferring changelog drafting and publish-from-reviewed-notes to a follow-up.\n\n## Review\nThe current head matches the latest human scope guidance and the reviewer outputs do not identify any unresolved blocking or warning-level branch issues. Remaining notes are optional or metadata-only.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable issues | INFO | Current Codex, Claude, and rubrics reviews agree the prepare-only implementation is sound. The stale PR description and optional extra test coverage are not required branch-change work. |\n\n## Progress\n- Publish workflow, publish CLI, and publish tests were removed by the latest fix-pr pass.\n- Versioning docs now describe `.agent/package.json` as canonical, the prepare-only workflow, and publish deferral.\n- Prior prepare URL-parse failure is fixed with focused coverage.\n- No new inline comments were posted.\n- Minimized 2 older same-agent inline comments as outdated: `publish-release.ts:84` and `prepare-release.ts:90`.\n- No replies were added.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: no unresolved actionable branch-change work remains for automation.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change action items remain.",
+      "createdAt": "2026-05-10T08:03:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/194#issuecomment-4414793967",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBySG1g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-193/codex-25618946516`. Requested by @lolipopshock.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Removed the deferred-publishing sentence from `.agent/docs/technical-details/versioning.md`.\n- Check passed: `git diff --check`.",
+      "createdAt": "2026-05-10T08:08:09Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/194#issuecomment-4414801622",
+      "viewerDidAuthor": true
+    }
+  ],
   "createdAt": "2026-05-10T03:45:25Z",
   "files": [
     {
       "path": ".agent/docs/technical-details/versioning.md",
-      "additions": 37,
+      "additions": 27,
       "deletions": 3,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/__tests__/prepare-release-cli.test.ts",
-      "additions": 68,
-      "deletions": 0,
-      "changeType": "ADDED"
-    },
-    {
-      "path": ".agent/src/__tests__/publish-release-cli.test.ts",
-      "additions": 73,
+      "additions": 164,
       "deletions": 0,
       "changeType": "ADDED"
     },
@@ -35,13 +370,7 @@
     },
     {
       "path": ".agent/src/cli/prepare-release.ts",
-      "additions": 100,
-      "deletions": 0,
-      "changeType": "ADDED"
-    },
-    {
-      "path": ".agent/src/cli/publish-release.ts",
-      "additions": 98,
+      "additions": 109,
       "deletions": 0,
       "changeType": "ADDED"
     },
@@ -62,12 +391,6 @@
       "additions": 62,
       "deletions": 0,
       "changeType": "ADDED"
-    },
-    {
-      "path": ".github/workflows/agent-release-publish.yml",
-      "additions": 73,
-      "deletions": 0,
-      "changeType": "ADDED"
     }
   ],
   "headRefName": "agent/implement-issue-193/codex-25618946516",
@@ -82,9 +405,68 @@
   "mergedAt": null,
   "number": 194,
   "reviewDecision": "",
-  "reviews": [],
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM79203v",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-10T06:24:11Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "39e20592bdedda85750373a35a64d42318b19d8e"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM79205S",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-10T06:24:17Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "39e20592bdedda85750373a35a64d42318b19d8e"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM793NKP",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /fix-pr can you remove the sentence of \"publishing is deferred ...\"",
+      "submittedAt": "2026-05-10T08:06:32Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "8a7293d05eadc17dad2504d9050f2105d16d0725"
+      }
+    }
+  ],
   "state": "OPEN",
   "title": "Add Actions-only Sepo release flow",
-  "updatedAt": "2026-05-10T03:45:27Z",
+  "updatedAt": "2026-05-10T08:08:09Z",
   "url": "https://github.com/self-evolving/repo/pull/194"
 }

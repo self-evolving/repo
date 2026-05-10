@@ -126,6 +126,43 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/180#issuecomment-4410768495",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBySEnQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> @sepo-agent /answer left comments in the review \n\n@sepo-agent /answer check again ",
+      "createdAt": "2026-05-10T08:07:48Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/180#issuecomment-4414801053",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABBySaGg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Checked again.\n\n- Keep `agent-self-approve` on `approve-reads`. The self-approval agent is only the judgment layer; it returns JSON. The privileged PR approval write is owned by deterministic resolver code in [`resolve-self-approve.ts`](https://github.com/self-evolving/repo/blob/e7d2724ff8e0615104db9c022a56fd5ebe0b9afc/.agent/src/cli/resolve-self-approve.ts), after current-head, provenance, and actor checks. Using `approve-all` would widen agent tool authority without being needed.\n\n- “Allow merging” should still map to a real GitHub `APPROVE` review when branch protection requires approvals. Sepo should not bypass that concept with a separate merge-allow signal. For non-approval, this PR records `REQUEST_CHANGES` as a self-approval conclusion/status, not a direct GitHub `REQUEST_CHANGES` review.\n\n- This PR does not wire handback to the orchestrator. That is intentionally the next slice from parent #170, and is implemented in PR #184: `REQUEST_CHANGES` hands to `fix-pr`; terminal `approved` / `blocked` / `failed` results hand back for parent reporting.\n\n- The workflow should leave a visible terminal signal. In this PR, approved runs leave the GitHub approval review body; non-approved/preflight stops post a status comment. The “always()/upsert/idempotent status” hardening is intentionally PR #186 operational polish.\n\nSo for PR #180 specifically, I do not see a required branch change from these comments. They are either intentional safety boundaries for this slice or covered by later stacked PRs (#184/#186).",
+      "createdAt": "2026-05-10T08:10:51Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/180#issuecomment-4414806554",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-09T00:03:08Z",
@@ -284,10 +321,25 @@
       "commit": {
         "oid": "b8d27c53f9e0610ebba395382909aa6cce15f431"
       }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM793KV_",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer left comments in the review ",
+      "submittedAt": "2026-05-10T08:04:22Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "e7d2724ff8e0615104db9c022a56fd5ebe0b9afc"
+      }
     }
   ],
   "state": "OPEN",
   "title": "Add opt-in self-approval core",
-  "updatedAt": "2026-05-09T00:29:21Z",
+  "updatedAt": "2026-05-10T08:10:51Z",
   "url": "https://github.com/self-evolving/repo/pull/180"
 }
