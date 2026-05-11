@@ -3,7 +3,8 @@
 //      NEXT_TARGET_NUMBER, AUTOMATION_CURRENT_ROUND, AUTOMATION_MAX_ROUNDS,
 //      GITHUB_REPOSITORY, DEFAULT_BRANCH, REQUESTED_BY, REQUEST_TEXT,
 //      SESSION_BUNDLE_MODE, SOURCE_RUN_ID, PLANNER_RESPONSE_FILE, TARGET_KIND,
-//      BASE_BRANCH, BASE_PR, AGENT_COLLAPSE_OLD_REVIEWS, AGENT_ALLOW_SELF_APPROVE
+//      BASE_BRANCH, BASE_PR, AGENT_COLLAPSE_OLD_REVIEWS, AGENT_ALLOW_SELF_APPROVE,
+//      AGENT_ALLOW_SELF_MERGE
 
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -872,6 +873,9 @@ const automationMode = normalizeAutomationMode(process.env.AUTOMATION_MODE || "d
 const allowSelfApprove = ["true", "1", "yes", "on"].includes(
   normalizeToken(process.env.AGENT_ALLOW_SELF_APPROVE || ""),
 );
+const allowSelfMerge = ["true", "1", "yes", "on"].includes(
+  normalizeToken(process.env.AGENT_ALLOW_SELF_MERGE || ""),
+);
 const collapseOldReviews = !["false", "0", "no", "off"].includes(
   (process.env.AGENT_COLLAPSE_OLD_REVIEWS || "").trim().toLowerCase(),
 );
@@ -1284,6 +1288,7 @@ function validateInitialOrchestrateCapabilities(): HandoffDecision | null {
     sourceConclusion,
     currentRound,
     allowSelfApprove,
+    allowSelfMerge,
     authorAssociation: sourceAssociationRaw,
     accessPolicy: accessPolicyRaw,
     isPublicRepo,
@@ -1304,6 +1309,7 @@ const routeDecision = authorizationStop || (normalizeToken(sourceAction) === "or
       currentRound,
       maxRounds,
       allowSelfApprove,
+      allowSelfMerge,
       sourceHandoffContext,
       plannerDecision: readPlannerDecision(),
     })
@@ -1318,6 +1324,7 @@ const routeDecision = authorizationStop || (normalizeToken(sourceAction) === "or
     currentRound,
     maxRounds,
     allowSelfApprove,
+    allowSelfMerge,
     sourceHandoffContext,
     plannerDecision: automationMode === "agent" ? readPlannerDecision() : null,
   }));
@@ -1493,6 +1500,11 @@ try {
     });
   } else if (decision.nextAction === "agent-self-approve") {
     dispatchWorkflow(repo, "agent-self-approve.yml", ref, {
+      ...commonInputs,
+      pr_number: decision.targetNumber,
+    });
+  } else if (decision.nextAction === "agent-self-merge") {
+    dispatchWorkflow(repo, "agent-self-merge.yml", ref, {
       ...commonInputs,
       pr_number: decision.targetNumber,
     });

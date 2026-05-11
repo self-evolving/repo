@@ -14,6 +14,7 @@ chain should stop or hand off to exactly one allowed next action.
 - Next target from source action, if any: `${ORCHESTRATOR_NEXT_TARGET_NUMBER}`
 - Source handoff context, if any: `${ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT}`
 - Self-approval enabled: `${ORCHESTRATOR_SELF_APPROVE_ENABLED}`
+- Self-merge enabled: `${ORCHESTRATOR_SELF_MERGE_ENABLED}`
 
 ## Runtime Policy
 
@@ -28,7 +29,10 @@ these policy rules:
 - `review` may hand off to `agent-self-approve` only for `SHIP` when
   self-approval is enabled; otherwise `SHIP` stops.
 - `agent-self-approve` may hand off to `fix-pr` only for `REQUEST_CHANGES`.
-  `APPROVED`, `BLOCKED`, and `FAILED` stop.
+  `APPROVED` may hand off to `agent-self-merge` only when self-merge is
+  enabled; otherwise it stops. `BLOCKED` and `FAILED` stop.
+- `agent-self-merge` is deterministic. It stops after `MERGED`,
+  `AUTO_MERGE_ENABLED`, `WAITING`, `BLOCKED`, or `FAILED`.
 - `fix-pr` may hand off to `review` only when fixes succeeded. When
   `fix-pr` reports `no_changes`, `failed`, or `verify_failed`, choose a
   visible stop/block path instead of asking for another automatic review.
@@ -51,7 +55,7 @@ rubrics. Then return exactly one JSON object and nothing else:
 ```json
 {
   "decision": "handoff | delegate_issue | stop | blocked",
-  "next_action": "implement | review | fix-pr | agent-self-approve",
+  "next_action": "implement | review | fix-pr | agent-self-approve | agent-self-merge",
   "reason": "Short explanation for logs and the handoff marker.",
   "handoff_context": "Actionable instructions for the next action, especially fix-pr.",
   "user_message": "Optional user-facing message to post when decision is blocked.",
@@ -105,3 +109,5 @@ Rules:
   constraints to preserve, and unrelated work to avoid.
 - When `agent-self-approve` returns `REQUEST_CHANGES`, hand off to `fix-pr`
   and preserve the source handoff context as the fix-pr task.
+- When `agent-self-approve` returns `APPROVED` and self-merge is enabled, hand
+  off to `agent-self-merge`. When self-merge is disabled, stop.

@@ -12,6 +12,7 @@
 | `agent-approve.yml` | approval comments | Resolves pending approvals, creates issues when needed, dispatches implementation | None |
 | `agent-orchestrator.yml` | `workflow_dispatch` | Explicit orchestration route that decides whether to dispatch the next action | None in `heuristics` mode; resolved-provider planner in `agent` mode |
 | `agent-self-approve.yml` | `workflow_dispatch` | Opt-in pull request self-approval gate after trusted current-head review synthesis | Auto |
+| `agent-self-merge.yml` | `workflow_dispatch` | Opt-in deterministic self-merge or auto-merge gate after current-head self-approval | None |
 | `agent-implement.yml` | `workflow_dispatch` | Implementation flow: branch, commit, draft PR; supports `base_branch` or `base_pr` for stacked PRs | Auto |
 | `agent-fix-pr.yml` | `workflow_dispatch`, `workflow_call` | PR fix flow: update existing PR branch, verify, push | Auto |
 | `agent-review.yml` | `workflow_dispatch`, `workflow_call` | Parallel Claude and Codex review with resolved-provider synthesis, captured reviewed-head provenance, plus a separate rubric review comment | Claude + Codex reviewers; configurable synthesis |
@@ -25,7 +26,8 @@
 `agent-orchestrator.yml` is started explicitly through `/orchestrate` or
 `agent/orchestrate`. On start, it inspects the current target state and
 dispatches one built-in action (`implement`, `review`, `fix-pr`, or
-`agent-self-approve`) when useful.
+`agent-self-approve`, and when separately enabled, `agent-self-merge`) when
+useful.
 That dispatch includes explicit orchestration context; only those orchestrator
 launched action runs hand back to `agent-orchestrator.yml` after post-processing.
 Direct `/implement`, `/review`, and `/fix-pr` runs remain one-shot.
@@ -62,12 +64,13 @@ Already-dispatched terminal reports are idempotent so reruns do not overwrite
 completed child state.
 
 Because `/orchestrate` can delegate into implementation, review, fix, and
-enabled self-approval workflows, initial user-launched orchestrate requests
+enabled self-approval/self-merge workflows, initial user-launched orchestrate requests
 validate the requester against the delegated route capability set up front.
 `agent-self-approve` is included in that check only when
-`AGENT_ALLOW_SELF_APPROVE=true`. Internal child and parent resume dispatches
-carry `requested_by` for audit and display, but they do not thread route
-authorization inputs through every child workflow.
+`AGENT_ALLOW_SELF_APPROVE=true`; `agent-self-merge` is included only when both
+`AGENT_ALLOW_SELF_APPROVE=true` and `AGENT_ALLOW_SELF_MERGE=true`. Internal
+child and parent resume dispatches carry `requested_by` for audit and display,
+but they do not thread route authorization inputs through every child workflow.
 
 Implementation dispatches default to the repository default branch. Callers can
 set `base_branch` to stack directly on another branch, or `base_pr` to stack on
@@ -234,6 +237,18 @@ to `fix-pr` with the approval agent's handoff context. Self-approval status
 comments are upserted by marker against comments authored by the authenticated
 Sepo actor, and result artifacts are retained for failed or blocked resolution
 paths where available.
+
+### `agent-self-merge.yml`
+
+Self-merge is disabled unless `AGENT_ALLOW_SELF_MERGE=true`. The workflow is
+deterministic: it confirms the target is an open pull request, the current head
+still has a Sepo self-approval review for that exact head, there are no
+blocking requested changes, and mergeability/check state is acceptable. Draft
+PRs are marked ready before the merge step. If checks are still pending but no
+failures are present and GitHub can accept auto-merge, it enables GitHub
+auto-merge. It merges immediately only when GitHub reports the PR is currently
+mergeable. The merge uses the PR's configured base branch, so stacked PRs are
+handled by the same path as default-branch PRs.
 
 ### `agent-approve.yml`
 

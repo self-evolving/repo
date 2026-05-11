@@ -998,6 +998,7 @@ test("execution workflows expose automation handoff inputs", () => {
   const fixPrWorkflow = readRepoFile(".github/workflows/agent-fix-pr.yml");
   const reviewWorkflow = readRepoFile(".github/workflows/agent-review.yml");
   const selfApprovalWorkflow = readRepoFile(".github/workflows/agent-self-approve.yml");
+  const selfMergeWorkflow = readRepoFile(".github/workflows/agent-self-merge.yml");
   const runSource = readRepoFile(".agent/src/run.ts");
   const handoffSource = readRepoFile(".agent/src/handoff.ts");
   const orchestrateHandoffCli = readRepoFile(".agent/src/cli/orchestrate-handoff.ts");
@@ -1030,7 +1031,7 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestratorWorkflow, /agent:\s*\$\{\{\s*steps\.provider\.outputs\.provider\s*\}\}/);
   assert.match(orchestratorWorkflow, /node \.agent\/dist\/cli\/orchestrate-handoff\.js/);
 
-  for (const workflow of [implementWorkflow, fixPrWorkflow, reviewWorkflow, selfApprovalWorkflow]) {
+  for (const workflow of [implementWorkflow, fixPrWorkflow, reviewWorkflow, selfApprovalWorkflow, selfMergeWorkflow]) {
     assert.match(workflow, /automation_mode:/);
     assert.match(workflow, /automation_current_round:/);
     assert.match(workflow, /automation_max_rounds:/);
@@ -1067,6 +1068,7 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestrateHandoffCli, /automationMode === "disabled" \? "heuristics" : automationMode/);
   assert.match(orchestrateHandoffCli, /orchestrator_context:\s*decision\.handoffContext/);
   assert.match(orchestrateHandoffCli, /agent-self-approve\.yml/);
+  assert.match(orchestrateHandoffCli, /agent-self-merge\.yml/);
   assert.match(handoffSource, /Task for fix-pr/);
   assert.match(orchestrateHandoffCli, /collapsePreviousHandoffComments/);
   assert.match(orchestrateHandoffCli, /manual orchestrate start on issue; dispatching implement/);
@@ -1076,11 +1078,13 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestratorPrompt, /"handoff_context"/);
   assert.match(orchestratorPrompt, /ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT/);
   assert.match(orchestratorPrompt, /ORCHESTRATOR_SELF_APPROVE_ENABLED/);
+  assert.match(orchestratorPrompt, /ORCHESTRATOR_SELF_MERGE_ENABLED/);
   assert.match(orchestratorPrompt, /"user_message"/);
   assert.match(orchestratorPrompt, /"clarification_request"/);
   assert.match(orchestratorPrompt, /prior child finished with an open, unmerged PR/);
   assert.match(runSource, /"ORCHESTRATOR_CONTEXT"/);
   assert.match(runSource, /"ORCHESTRATOR_SELF_APPROVE_ENABLED"/);
+  assert.match(runSource, /"ORCHESTRATOR_SELF_MERGE_ENABLED"/);
   assert.match(orchestratorDoc, /Implement --> Review: success \+ PR created/);
   assert.match(orchestratorDoc, /continues sequential child implementation work/);
   assert.match(orchestratorDoc, /workflow_dispatch/);
@@ -1185,11 +1189,12 @@ test("validateEnvelope catches invalid route", () => {
   assert.ok(errors.some((error) => error.includes("Invalid route")));
 });
 
-test("validateEnvelope accepts dispatch, action, self-approval, and rubrics routes", () => {
+test("validateEnvelope accepts dispatch, action, self-approval, self-merge, and rubrics routes", () => {
   for (const route of [
     "dispatch",
     "create-action",
     "agent-self-approve",
+    "agent-self-merge",
     "rubrics-review",
     "rubrics-initialization",
     "rubrics-update",

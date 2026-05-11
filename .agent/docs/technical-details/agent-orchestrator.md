@@ -30,7 +30,10 @@ stateDiagram-v2
     Review --> Stop: failed or unsupported verdict
 
     SelfApprove --> FixPR: REQUEST_CHANGES
-    SelfApprove --> Stop: approved / blocked / failed
+    SelfApprove --> SelfMerge: approved + AGENT_ALLOW_SELF_MERGE=true
+    SelfApprove --> Stop: approved + self-merge disabled
+    SelfApprove --> Stop: blocked / failed
+    SelfMerge --> Stop: merged / auto_merge_enabled / waiting / blocked / failed
 
     FixPR --> Review: success
     FixPR --> Stop: no_changes / failed / verify_failed / unsupported PR
@@ -53,8 +56,9 @@ When the route starts, the router dispatches `agent-orchestrator.yml` with:
 Each action workflow launched by `agent-orchestrator.yml` receives
 `orchestration_enabled: true`. Only runs with that explicit context hand back to
 the orchestrator after post-processing; direct `/implement`, `/review`, and
-`/fix-pr` runs, plus manual `agent-self-approve.yml` runs, keep the default
-`orchestration_enabled: false` and stop after their own workflow. For
+`/fix-pr` runs, plus manual `agent-self-approve.yml` and
+`agent-self-merge.yml` runs, keep the default `orchestration_enabled: false`
+and stop after their own workflow. For
 orchestrator-launched fix-pr runs, the completion status comment attributes the
 visible request mention to the configured agent handle (`AGENT_HANDLE`, default
 `@sepo-agent`) instead of re-tagging the original human requester.
@@ -94,9 +98,9 @@ GitHub's sub-issue REST API when that endpoint is available. If the API is
 unavailable or rejects the link, the marker/comment relation remains the durable
 fallback and child orchestration continues. The child issue then follows the
 normal bounded chain of `implement`, `review`, `fix-pr`, and, when enabled,
-`agent-self-approve` runs. The public route remains `/orchestrate`; the internal
+`agent-self-approve` and `agent-self-merge` runs. The public route remains `/orchestrate`; the internal
 command keeps child delegation separate from concrete follow-up actions such as
-`implement`, `review`, `fix-pr`, and `agent-self-approve`.
+`implement`, `review`, `fix-pr`, `agent-self-approve`, and `agent-self-merge`.
 
 When the meta-orchestrator continues sequential child implementation work after
 a prior child produced an open, unmerged PR, the planner should set `base_pr` to
@@ -134,10 +138,12 @@ question directly and the chain pauses without dispatching an `answer` route.
 Initial user-launched `/orchestrate` requests validate that the requester has
 access to the delegated route capability set before dispatching work. When
 `AGENT_ALLOW_SELF_APPROVE=true`, that set includes `agent-self-approve`; when it
-is disabled, self-approval is not part of the delegated capability check. This
-keeps authorization at the user boundary: child and parent resume dispatches
-preserve `requested_by` for traceability, but they do not need to thread
-requester association and route policy through every downstream workflow.
+is disabled, self-approval is not part of the delegated capability check. When
+both `AGENT_ALLOW_SELF_APPROVE=true` and `AGENT_ALLOW_SELF_MERGE=true`, the set
+also includes `agent-self-merge`. This keeps authorization at the user boundary:
+child and parent resume dispatches preserve `requested_by` for traceability, but
+they do not need to thread requester association and route policy through every
+downstream workflow.
 
 When an orchestrator dispatches `implement`, it forwards any planner-provided
 or explicit `base_branch` or `base_pr` input. `agent-implement.yml` then
