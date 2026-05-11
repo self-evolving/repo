@@ -195,20 +195,6 @@ jobs:
           ROUTE: skill
         run: node .agent/dist/cli/resolve-task-timeout.js
 
-      - name: Render update request
-        id: update_request
-        env:
-          SOURCE_KIND: ${{ steps.update_source.outputs.source_kind }}
-          SOURCE_REF: ${{ steps.update_source.outputs.source_ref }}
-          SOURCE_REPO: ${{ steps.update_source.outputs.source_repo }}
-          SOURCE_SHA: ${{ steps.update_source.outputs.source_sha }}
-          TARGET_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-          TARGET_REPOSITORY: ${{ github.repository }}
-          UPDATE_AGENT_MD: ${{ env.UPDATE_AGENT_MD }}
-          UPDATE_BRANCH_PREFIX: ${{ env.UPDATE_BRANCH_PREFIX }}
-          UPDATE_SKILLS: ${{ env.UPDATE_SKILLS }}
-        run: bash .agent/scripts/render-agent-update-request.sh
-
       - name: Run update agent
         id: agent
         timeout-minutes: ${{ fromJson(steps.task_timeout.outputs.minutes || '30') }}
@@ -229,7 +215,25 @@ jobs:
           rubrics_policy: ${{ vars.AGENT_RUBRICS_POLICY || '' }}
           rubrics_limit: ${{ vars.AGENT_RUBRICS_LIMIT || '10' }}
           session_policy: track-only
-          request_text: ${{ steps.update_request.outputs.request_text }}
+          request_text: |
+            Run a Sepo agent infrastructure update check for this repository.
+
+            Confirmed inputs:
+            - target repository: ${{ github.repository }}
+            - target default branch: ${{ github.event.repository.default_branch }}
+            - source agent repo/ref: ${{ steps.update_source.outputs.source_repo }}@${{ steps.update_source.outputs.source_ref }}
+            - source agent SHA: ${{ steps.update_source.outputs.source_sha }}
+            - source resolution: ${{ steps.update_source.outputs.source_kind }}
+            - update branch: use `${{ env.UPDATE_BRANCH_PREFIX }}<yyyymmdd>`
+            - update .skills directories: ${{ env.UPDATE_SKILLS }}
+            - update AGENT.md when agent-owned: ${{ env.UPDATE_AGENT_MD }}
+            - remove obsolete or legacy files: false
+            - post-merge workflows: document only
+
+            Open a pull request only when the update produces changes. If the target
+            is already current, leave no PR and report that no update was needed.
+            When a PR is opened, title and summarize it as:
+            `Update Sepo from <installed version/ref> to ${{ steps.update_source.outputs.source_ref }}/${{ steps.update_source.outputs.source_sha }}`.
           requested_by: ${{ github.actor }}
           source_kind: workflow_dispatch
           target_kind: repository
