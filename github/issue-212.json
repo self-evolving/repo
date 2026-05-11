@@ -1,0 +1,152 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "## Context\n\nThe current onboarding issue/comment is functional, but the user-facing copy is noisy and not focused on the actual remaining setup tasks.\n\nExample current output:\n\n- Issue title: `Sepo setup check`\n- Issue body includes test commands immediately.\n- Status comment includes:\n  - `GitHub auth resolved: oidc_broker`\n  - `Agent provider resolved: not configured`\n  - raw booleans for `OPENAI_API_KEY` / `CLAUDE_CODE_OAUTH_TOKEN`\n  - memory/rubrics branch checks\n  - a full built-in trigger labels inventory\n  - generic next steps\n\nThis is hard to scan. The built-in trigger label inventory is especially noisy and does not need to be shown in onboarding.\n\n## Goal\n\nImprove the onboarding setup issue UX while keeping the behavior idempotent.\n\nKeep the issue title:\n\n```text\nSepo setup check\n```\n\nBut make the setup issue/comment clearer:\n\n1. The issue body should be short and stable.\n2. The status comment should focus on:\n   - GitHub App/auth status\n   - model provider credentials\n   - memory/rubrics initialization\n   - remaining todos\n   - commands to test installation\n3. Remove the built-in trigger labels inventory from the onboarding comment.\n\nThe code should still ensure built-in labels exist; only remove that inventory from the user-facing status comment.\n\n## Suggested issue body\n\nUse a short body, for example:\n\n```md\nUse this issue to track Sepo setup for this repository.\n\nThe latest setup status is maintained in the comment below.\n```\n\n## Suggested status comment shape\n\nKeep the hidden marker:\n\n```html\n<!-- sepo-agent-onboarding-check -->\n```\n\nThen render something like:\n\n```md\n## Sepo setup status\n\n### Current status\n\n- [x] GitHub App/auth: Sepo GitHub App installed and resolved through OIDC broker\n- [ ] Model credentials: not configured\n  - Add one of:\n    - `OPENAI_API_KEY`\n    - `CLAUDE_CODE_OAUTH_TOKEN`\n  - Optional: configure `AGENT_DEFAULT_PROVIDER`\n- [ ] Memory: not initialized\n  - Run **Actions → Agent / Memory / Initialization**\n- [ ] Rubrics: not initialized\n  - Optional: run **Actions → Agent / Rubrics / Initialization**\n\n### Remaining setup\n\n- [ ] Configure one model provider credential\n- [ ] Initialize memory branch `agent/memory`\n- [ ] Optional: initialize rubrics branch `agent/rubrics`\n\n### Test Sepo\n\nAfter setup, try:\n\n```md\n@sepo-agent /answer Is Sepo configured correctly in this repository?\n```\n\nTry implementation:\n\n```md\n@sepo-agent /implement Create a small README update that verifies the agent can open a PR.\n```\n\nOn an open pull request:\n\n```md\n@sepo-agent /review\n```\n\nLast checked: <run url>\n```\n\n## Conditional rendering details\n\n### GitHub auth\n\nIf `authMode` is set, show a friendly line such as:\n\n```md\n- [x] GitHub App/auth: resolved via `oidc_broker`\n```\n\nIf it is missing, show a clear todo.\n\n### Model provider credentials\n\nIf neither provider credential is configured, show:\n\n```md\n- [ ] Model credentials: not configured\n  - Add one of `OPENAI_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` as a repository secret.\n```\n\nIf one is configured, show only the one that is set, for example:\n\n```md\n- [x] Model credentials: `OPENAI_API_KEY` configured\n```\n\nIf both are configured:\n\n```md\n- [x] Model credentials: `OPENAI_API_KEY` and `CLAUDE_CODE_OAUTH_TOKEN` configured\n```\n\nOptionally mention the resolved provider:\n\n```md\n- Agent provider: `openai` (`AGENT_DEFAULT_PROVIDER` or auto-resolution reason)\n```\n\n### Memory and rubrics\n\nIf the memory branch exists:\n\n```md\n- [x] Memory: initialized (`agent/memory`)\n```\n\nIf missing:\n\n```md\n- [ ] Memory: not initialized\n  - Run **Actions → Agent / Memory / Initialization**.\n```\n\nIf the rubrics branch exists:\n\n```md\n- [x] Rubrics: initialized (`agent/rubrics`)\n```\n\nIf missing:\n\n```md\n- [ ] Rubrics: not initialized\n  - Optional: run **Actions → Agent / Rubrics / Initialization**.\n```\n\n### Remaining setup\n\nOnly list incomplete items. For example:\n\n- missing provider credential\n- missing memory branch\n- optional missing rubrics branch\n\nIf everything important is ready, show a success message instead of a long todo list.\n\n### Test commands\n\nMove the `/answer`, `/implement`, and `/review` commands into the status comment under a `Test Sepo` section.\n\n## Files likely involved\n\n```text\n.agent/src/onboarding.ts\n.agent/src/__tests__/onboarding-check-cli.test.ts\n```\n\nPotentially docs if any tests/docs assert the old onboarding text.\n\n## Acceptance criteria\n\n- `Sepo setup check` issue title remains unchanged.\n- Onboarding still creates/reuses one setup issue.\n- Onboarding still posts/updates one marked status comment with `<!-- sepo-agent-onboarding-check -->`.\n- Built-in trigger labels are still ensured by code.\n- Built-in trigger label inventory is no longer shown in the onboarding comment.\n- Provider credential status is rendered in friendly, conditional language.\n- Memory/rubrics status is rendered in friendly, conditional language with action names to run when missing.\n- Test commands are included under a clear `Test Sepo` section.\n- Tests are updated to cover the new rendered copy.\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB6VMRg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Implemented the onboarding UX cleanup.\n\nChanged:\n- [`.agent/src/onboarding.ts`](.agent/src/onboarding.ts)\n  - Kept `Sepo setup check` title.\n  - Replaced issue body with short stable setup-tracking copy.\n  - Moved `/answer`, `/implement`, and `/review` examples into the marked status comment.\n  - Removed the built-in trigger label inventory from the user-facing comment.\n  - Kept built-in label creation unchanged.\n  - Added friendly conditional rendering for auth, model credentials, provider resolution, memory, rubrics, and remaining setup.\n\n- [`.agent/src/__tests__/onboarding-check-cli.test.ts`](.agent/src/__tests__/onboarding-check-cli.test.ts)\n  - Tests now inspect the actual generated issue/comment bodies.\n  - Covered short issue body, marked status comment, friendly provider/memory/rubrics copy, test commands, idempotent comment update, and absence of label inventory.\n\nVerification:\n- `node --test dist/__tests__/onboarding-check-cli.test.js` passed.\n- `npm test` passed: 515 tests.",
+      "createdAt": "2026-05-11T17:38:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/212#issuecomment-4423240774",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB6m1hQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer where did you implemented it? ",
+      "createdAt": "2026-05-11T18:17:58Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/212#issuecomment-4423529861",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB6nbxg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I implemented it in these files in the prior implementation workspace:\n\n- [`.agent/src/onboarding.ts`](.agent/src/onboarding.ts)  \n  Main onboarding renderer: short issue body, new status comment sections, conditional provider/memory/rubrics copy, removed visible trigger-label inventory while keeping label creation.\n\n- [`.agent/src/__tests__/onboarding-check-cli.test.ts`](.agent/src/__tests__/onboarding-check-cli.test.ts)  \n  Tests for the new issue body/comment text, idempotent marker comment update, continued label creation, and absence of the trigger-label inventory.\n\nImportant: this current `/answer` runner checkout is clean on `main`, and those files still show the old onboarding strings (`Try a basic answer run`, `Built-in trigger labels:`). So the previous implementation was not present in this current checkout/branch.",
+      "createdAt": "2026-05-11T18:19:20Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/212#issuecomment-4423539654",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB7ZJdQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent can you implement it with orchestrator ",
+      "createdAt": "2026-05-11T19:45:25Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/212#issuecomment-4424354165",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB7aAGQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I triaged this as a `implement` request.\n\nI’ll implement the onboarding UX cleanup through the implementation workflow, using the issue details as the spec.\n\nReply with:\n\n```text\n@sepo-agent /approve req-08032d\n```\n\nto start the implementation workflow.\n\n<!-- sepo-agent-request base64:eyJyb3V0ZSI6ImltcGxlbWVudCIsInNvdXJjZV9raW5kIjoiaXNzdWVfY29tbWVudCIsInRhcmdldF9raW5kIjoiaXNzdWUiLCJ0YXJnZXRfbnVtYmVyIjoyMTIsInRhcmdldF91cmwiOiJodHRwczovL2dpdGh1Yi5jb20vc2VsZi1ldm9sdmluZy9yZXBvL2lzc3Vlcy8yMTIiLCJ3b3JrZmxvdyI6ImFnZW50LWltcGxlbWVudC55bWwiLCJyZXF1ZXN0X2lkIjoicmVxLTA4MDMyZCIsInJlcXVlc3RfdGV4dCI6IkBzZXBvLWFnZW50IGNhbiB5b3UgaW1wbGVtZW50IGl0IHdpdGggb3JjaGVzdHJhdG9yICIsImlzc3VlX3RpdGxlIjoiSW1wbGVtZW50IG9uYm9hcmRpbmcgc2V0dXAgVVggY2xlYW51cCIsImlzc3VlX2JvZHkiOiIjIyBHb2FsXG5cbkltcGxlbWVudCBpc3N1ZSAjMjEyOiBpbXByb3ZlIHRoZSBTZXBvIG9uYm9hcmRpbmcgc2V0dXAgaXNzdWUgYW5kIHN0YXR1cyBjb21tZW50IFVYIHdoaWxlIGtlZXBpbmcgb25ib2FyZGluZyBpZGVtcG90ZW50LlxuXG4jIyBDb250ZXh0XG5cblRoZSByZXF1ZXN0ZXIgYXNrZWQ6IGBAc2Vwby1hZ2VudCBjYW4geW91IGltcGxlbWVudCBpdCB3aXRoIG9yY2hlc3RyYXRvcmAuXG5cbklzc3VlICMyMTIgYXNrcyB0byBrZWVwIHRoZSBzZXR1cCBpc3N1ZSB0aXRsZSBhcyBgU2VwbyBzZXR1cCBjaGVja2AsIHNob3J0ZW4gdGhlIGlzc3VlIGJvZHksIGFuZCBtYWtlIHRoZSBtYXJrZWQgb25ib2FyZGluZyBzdGF0dXMgY29tbWVudCBmb2N1c2VkIG9uIHNldHVwIHN0YXRlIGluc3RlYWQgb2Ygbm9pc3kgZGlhZ25vc3RpY3MuXG5cbkxpa2VseSBmaWxlczpcblxuLSBgLmFnZW50L3NyYy9vbmJvYXJkaW5nLnRzYFxuLSBgLmFnZW50L3NyYy9fX3Rlc3RzX18vb25ib2FyZGluZy1jaGVjay1jbGkudGVzdC50c2BcblxuIyMgQWNjZXB0YW5jZSBjcml0ZXJpYVxuXG4tIGBTZXBvIHNldHVwIGNoZWNrYCBpc3N1ZSB0aXRsZSByZW1haW5zIHVuY2hhbmdlZC5cbi0gT25ib2FyZGluZyBzdGlsbCBjcmVhdGVzIG9yIHJldXNlcyBvbmUgc2V0dXAgaXNzdWUuXG4tIE9uYm9hcmRpbmcgc3RpbGwgcG9zdHMgb3IgdXBkYXRlcyBvbmUgbWFya2VkIHN0YXR1cyBjb21tZW50IHdpdGggYDwhLS0gc2Vwby1hZ2VudC1vbmJvYXJkaW5nLWNoZWNrIC0tPmAuXG4tIEJ1aWx0LWluIHRyaWdnZXIgbGFiZWxzIGFyZSBzdGlsbCBlbnN1cmVkIGJ5IGNvZGUuXG4tIEJ1aWx0LWluIHRyaWdnZXIgbGFiZWwgaW52ZW50b3J5IGlzIG5vIGxvbmdlciBzaG93biBpbiB0aGUgb25ib2FyZGluZyBjb21tZW50LlxuLSBQcm92aWRlciBjcmVkZW50aWFsIHN0YXR1cyBpcyByZW5kZXJlZCBpbiBmcmllbmRseSwgY29uZGl0aW9uYWwgbGFuZ3VhZ2UuXG4tIE1lbW9yeSBhbmQgcnVicmljcyBzdGF0dXMgYXJlIHJlbmRlcmVkIGluIGZyaWVuZGx5LCBjb25kaXRpb25hbCBsYW5ndWFnZSB3aXRoIGFjdGlvbiBuYW1lcyB0byBydW4gd2hlbiBtaXNzaW5nLlxuLSBSZW1haW5pbmcgc2V0dXAgbGlzdHMgb25seSBpbmNvbXBsZXRlIGl0ZW1zLCBvciBhIHN1Y2Nlc3MgbWVzc2FnZSB3aGVuIHJlYWR5LlxuLSBgL2Fuc3dlcmAsIGAvaW1wbGVtZW50YCwgYW5kIGAvcmV2aWV3YCB0ZXN0IGNvbW1hbmRzIGFyZSBpbmNsdWRlZCB1bmRlciBhIGNsZWFyIGBUZXN0IFNlcG9gIHNlY3Rpb24uXG4tIFRlc3RzIGFyZSB1cGRhdGVkIHRvIGNvdmVyIHRoZSBuZXcgcmVuZGVyZWQgY29weS4ifQ -->\n\n| Approved by | Action | Tracking |\n|---|---|---|\n| @lolipopshock | `implement` via `agent-implement.yml` | [approval run](https://github.com/self-evolving/repo/actions/runs/25693329391) |\n\n<!-- sepo-agent-approved -->\n",
+      "createdAt": "2026-05-11T19:46:55Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/212#issuecomment-4424368153",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB7aIXQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /approve req-08032d",
+      "createdAt": "2026-05-11T19:47:05Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/212#issuecomment-4424370269",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB7dxdQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-212/codex-25693342251`\n- Pull request: https://github.com/self-evolving/repo/pull/215\n- Approval: https://github.com/self-evolving/repo/issues/212#issuecomment-4424370269\n\nUpdated onboarding setup to use a short stable issue body and a focused marked status comment with friendly auth, model credential, memory, rubrics, remaining setup, and test-command sections while keeping built-in label creation. Updated CLI coverage and install docs; verified with `npm run build`, `node --test dist/__tests__/onboarding-check-cli.test.js`, and `git diff --check`.",
+      "createdAt": "2026-05-11T19:52:03Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/212#issuecomment-4424429941",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-11T17:33:55Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 212,
+  "state": "OPEN",
+  "title": "Improve onboarding setup issue UX",
+  "updatedAt": "2026-05-11T19:52:03Z",
+  "url": "https://github.com/self-evolving/repo/issues/212"
+}

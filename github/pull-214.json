@@ -1,0 +1,477 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "agent/implement-issue-185/codex-25587257587",
+  "body": "## Summary\n- Add opt-in deterministic `agent-self-merge.yml` and resolver plumbing after current-head Sepo self-approval.\n- Merge or enable auto-merge into the PR's configured base with `--match-head-commit`, while preserving requested-change, check, and mergeability gates.\n- Mark draft PRs ready and re-fetch metadata before merge/auto-merge, and add marker-upserted self-merge statuses.\n- Update orchestrator routing, route authorization checks, docs, and focused regression coverage.\n\n## Verification\n- `npm run build`\n- `node --test dist/__tests__/self-merge.test.js dist/__tests__/resolve-self-merge-cli.test.js dist/__tests__/post-response-cli.test.js dist/__tests__/handoff.test.js dist/__tests__/orchestrate-handoff-cli.test.js dist/__tests__/orchestrator-preflight-cli.test.js dist/__tests__/sub-orchestration.test.js dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nCloses #213\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB6t6yQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #214 | 3 / 40 | Dispatched |\n\nReason: implementation succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1778524372937 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU2ODkwNzIzNjc6aW1wbGVtZW50OjIxMzpyZXZpZXc6MjE0OjM -->",
+      "createdAt": "2026-05-11T18:32:53Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/214#issuecomment-4423645897",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB6vVBw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 14 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | [`orchestrator-capabilities.ts`](https://github.com/self-evolving/repo/blob/4550602425944e445c08f8c1b2dd2ed2278498af/.agent/src/orchestrator-capabilities.ts) includes `agent-self-merge` in the initial `/orchestrate` capability set only when both self-approval and self-merge are enabled; orchestration/preflight tests cover this path. |\n| coding_workflow / generic | Keep privileged workflows on trusted runtime code | pass | 8/8 | [`agent-self-merge.yml`](https://github.com/self-evolving/repo/blob/4550602425944e445c08f8c1b2dd2ed2278498af/.github/workflows/agent-self-merge.yml) checks out `github.event.repository.default_branch` and runs deterministic resolver code from the trusted runtime checkout, while mutating only the target PR through GitHub APIs. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR extends existing GitHub helpers, marker-upsert posting, handoff, envelope, and sub-orchestration modules instead of embedding merge logic in workflow shell. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The new workflow uses explicit `pr_number`, requester, request text, session, round, mode, and orchestration inputs rather than overloading a command string. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Self-merge statuses use `SELF_MERGE_STATUS_MARKER` plus `upsertPrCommentByMarker`, so reruns update the trusted existing status comment. |\n| communication / generic | Keep status comments compact | pass | 6/6 | [`formatSelfMergeBody`](https://github.com/self-evolving/repo/blob/4550602425944e445c08f8c1b2dd2ed2278498af/.agent/src/self-merge.ts) emits a short status/conclusion table, one reason, optional run link, and marker. |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Blocked, waiting, failed, and auto-merge-enabled outcomes produce visible PR-thread status; orchestrator terminal paths remain visible through existing stop comments. |\n| coding_workflow / specific | Default follow-up orchestration to one-shot | pass | 8/8 | Manual `agent-self-merge.yml` defaults `orchestration_enabled` to `false`; only explicit orchestrator chains continue handoff. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are scoped to the requested self-merge route, orchestration plumbing, docs, and focused tests. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The resolver follows the simplified policy from issue #213: opt-in gate, current-head self-approval, no requested changes, check/mergeability handling, draft mark-ready, then merge or auto-merge into the PR’s configured base. |\n| coding_workflow / generic | Use default merge flow | pass | 7/7 | [`mergePullRequest`](https://github.com/self-evolving/repo/blob/4550602425944e445c08f8c1b2dd2ed2278498af/.agent/src/github.ts) uses `gh pr merge --merge` and `--merge --auto`; no squash path is introduced. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Docs were updated across actions, supported workflows, configuration, lifecycle, orchestrator details, and key concepts for `agent-self-merge` and `AGENT_ALLOW_SELF_MERGE`. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Metadata, mark-ready, merge, and auto-merge failures become explicit `failed` conclusions/reasons; marker upsert failures set a nonzero exit. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | Linked issue #213 required stacking on #186; live metadata shows PR #214 base branch equals PR #186 head branch `agent/implement-issue-185/codex-25587257587`. |\n\n## Notes\n\n- The implementation satisfies the requested simplified self-merge shape: no default-branch-only guard, draft PRs are marked ready, and final merge/auto-merge is bound with `--match-head-commit`.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-11T18:35:33Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/214#issuecomment-4423668999",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB600oA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #214 adds an opt-in deterministic `agent-self-merge` workflow after current-head Sepo self-approval.\n- It is the clean replacement requested by #213, stacked on #186, after #208 was identified as mis-stacked.\n- The intended behavior is to merge or enable auto-merge into the PR’s configured base while preserving opt-in gating, current-head self-approval, requested-change checks, check/mergeability handling, and `--match-head-commit`.\n- Docs, orchestration routing, authorization checks, marker status comments, and focused tests were updated with the new route.\n\n## Review\nThe core safety shape looks sound and the rubrics review passed. The remaining issues are minor but worth fixing because they affect state-model clarity and user-visible traceability.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Unproduced `waiting` self-merge state | WARNING | `SelfMergeConclusion` exposes `waiting` and docs/tests treat it as terminal, but `resolveSelfMerge` never returns it. This can drift from real runtime behavior. |\n| Merged path skips self-merge status comment | WARNING | `.agent/src/cli/resolve-self-merge.ts` suppresses marker-upserted status comments when the result is `merged`, unlike blocked, failed, or auto-merge outcomes. |\n\n## Progress\n- Linked context was reviewed: #213, parent #170, and the #208 stacking discussion.\n- Existing PR conversation had no prior inline review comments or review threads before synthesis.\n- Posted inline comments for both concrete changed-line findings: `.agent/src/self-merge.ts:3` and `.agent/src/cli/resolve-self-merge.ts:200`.\n- No inline replies were added, and no comments or threads were resolved or minimized.\n- Rubrics review reported PASS with no rubric-specific findings.\n\n## Issue Details\n\n<details>\n<summary>Unproduced `waiting` self-merge state</summary>\n\n**Cause:** [`SelfMergeConclusion`](https://github.com/self-evolving/repo/blob/4550602425944e445c08f8c1b2dd2ed2278498af/.agent/src/self-merge.ts#L3) includes `waiting`, and formatting/docs/tests account for it, but `resolveSelfMerge` only returns `merged`, `auto_merge_enabled`, `blocked`, or `failed`.\n\n**Candidate solutions:** Add the intended resolver path that emits `waiting` with focused coverage, or remove/document the reserved state consistently across code, docs, and tests.\n\n**Comments:** Raised by one reviewer as a minor implementation clarity issue; no reviewer found this to be a merge-safety blocker.\n</details>\n\n<details>\n<summary>Merged path skips self-merge status comment</summary>\n\n**Cause:** [`status_post`](https://github.com/self-evolving/repo/blob/4550602425944e445c08f8c1b2dd2ed2278498af/.agent/src/cli/resolve-self-merge.ts#L200) is set to `false` when `conclusion === \"merged\"`, so immediate success writes an artifact but no Sepo PR-thread status.\n\n**Candidate solutions:** Prefer posting the compact marker-upserted status for `merged` too, with CLI/workflow coverage. If the comment-free success path is intentional, document and test that policy explicitly.\n\n**Comments:** Reviewers differed slightly on framing: one treated this as an idempotent status gap, while another noted the merge event may be self-evident. Synthesis treats it as a minor traceability fix.\n</details>\n\n## Recommended Next Step\nFIX_PR: The unresolved warnings are small, concrete branch changes and are safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Align the `waiting` self-merge state with real resolver behavior across code, docs, and tests.\n- [ ] Make successful immediate self-merges post a marker-upserted status, or explicitly document and test the intentional skip.",
+      "createdAt": "2026-05-11T18:45:13Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/214#issuecomment-4423759008",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB609Jw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #214 | 4 / 40 | Dispatched |\n\nReason: review verdict is minor_issues; dispatching fix-pr\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Align the `waiting` self-merge state with real resolver behavior across code, docs, and tests.\n- Make successful immediate self-merges post a marker-upserted status, or explicitly document and test the intentional skip.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1778525127931 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU2ODk1MzU3NTI6cmV2aWV3OjIxNDpmaXhfcHI6MjE0OjQ -->",
+      "createdAt": "2026-05-11T18:45:28Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/214#issuecomment-4423761191",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB63bcQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-213/codex-25689072367`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Removed the unproduced `waiting` self-merge conclusion from code, orchestration docs, prompt policy, and focused tests so the state model matches resolver behavior.\n- Changed immediate `merged` self-merge results to set `status_post=true`, with CLI coverage asserting the merged result body includes the self-merge marker for marker-upserted status posting.\n- Verification: `npm run build`; `node --test dist/__tests__/self-merge.test.js dist/__tests__/resolve-self-merge-cli.test.js dist/__tests__/post-response-cli.test.js dist/__tests__/handoff.test.js dist/__tests__/orchestrate-handoff-cli.test.js dist/__tests__/orchestrator-preflight-cli.test.js dist/__tests__/sub-orchestration.test.js dist/__tests__/envelope.test.js`; `git diff --check`.",
+      "createdAt": "2026-05-11T18:49:36Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/214#issuecomment-4423801713",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB63juA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #214 | 5 / 40 | Dispatched |\n\nReason: PR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1778525389745 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU2OTAxODQ0OTA6Zml4X3ByOjIxNDpyZXZpZXc6MjE0OjU -->",
+      "createdAt": "2026-05-11T18:49:50Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/214#issuecomment-4423803832",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB63j7g",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \r\n\r\nI thought this should be way much more simplified than #208 ? But again it's a gigantic 1.6k lines of addition> ",
+      "createdAt": "2026-05-11T18:49:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/214#issuecomment-4423803886",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB64wVw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, this is a fair concern.\n\nPR #214 is simpler than #208 in **scope/stacking**, but not small in line count. Current diff is about `+1586/-30`, roughly:\n\n- `669` test lines\n- `735` runtime lines\n- `132` workflow lines\n- `42` docs lines\n- `8` prompt lines\n\nThe core behavior is mostly in [`self-merge.ts`](https://github.com/self-evolving/repo/blob/agent/implement-issue-213/codex-25689072367/.agent/src/self-merge.ts), [`resolve-self-merge.ts`](https://github.com/self-evolving/repo/blob/agent/implement-issue-213/codex-25689072367/.agent/src/cli/resolve-self-merge.ts), and [`github.ts`](https://github.com/self-evolving/repo/blob/agent/implement-issue-213/codex-25689072367/.agent/src/github.ts). The rest is route plumbing, workflow shell, docs, and regression coverage.\n\nCompared with #208, #214 does remove unrelated/mis-stacked scope like self-approval implementation, release prep, review synthesis, and extra workflow/prompt changes. But because #186 does not already contain self-merge, this PR still introduces the full deterministic merge route end-to-end.\n\nI would not cut safety checks or tests just to reduce the number. The better simplification would be to split this before merge:\n\n1. Resolver + GitHub helpers + focused self-merge tests.\n2. Workflow/CLI status posting.\n3. Orchestrator handoff/docs.\n\nThat would make review much easier while preserving the privileged-path safeguards.",
+      "createdAt": "2026-05-11T18:51:49Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/214#issuecomment-4423823447",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB65TyA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 14 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Initial `/orchestrate` capability checks include `agent-self-merge` only when both self-approval and self-merge are enabled, and tests cover denial messaging for missing self-merge access: [`orchestrator-capabilities.ts`](https://github.com/self-evolving/repo/blob/d183b4af05c1af79e3ea18fc9d4cbcab27ef4785/.agent/src/orchestrator-capabilities.ts#L55), [`orchestrate-handoff-cli.test.ts`](https://github.com/self-evolving/repo/blob/d183b4af05c1af79e3ea18fc9d4cbcab27ef4785/.agent/src/__tests__/orchestrate-handoff-cli.test.ts#L1162). |\n| coding_workflow / generic | Keep privileged workflows on trusted runtime code | pass | 8/8 | The privileged self-merge workflow checks out the repository default branch for runtime code before resolving auth and running deterministic CLI code: [`agent-self-merge.yml`](https://github.com/self-evolving/repo/blob/d183b4af05c1af79e3ea18fc9d4cbcab27ef4785/.github/workflows/agent-self-merge.yml#L53). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR extends existing `gh` helpers, marker comment upsert, handoff, envelope, and sub-orchestration paths instead of putting merge logic directly in workflow shell: [`github.ts`](https://github.com/self-evolving/repo/blob/d183b4af05c1af79e3ea18fc9d4cbcab27ef4785/.agent/src/github.ts#L324), [`post-response.ts`](https://github.com/self-evolving/repo/blob/d183b4af05c1af79e3ea18fc9d4cbcab27ef4785/.agent/src/cli/post-response.ts#L51). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | `agent-self-merge.yml` uses explicit `pr_number`, requester, request text, session, automation, and orchestration fields rather than overloading a command string: [`agent-self-merge.yml`](https://github.com/self-evolving/repo/blob/d183b4af05c1af79e3ea18fc9d4cbcab27ef4785/.github/workflows/agent-self-merge.yml#L5). |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Self-merge status comments use a stable marker and the existing trusted-author upsert path; focused tests cover updating the latest Sepo-authored self-merge marker comment: [`self-merge.ts`](https://github.com/self-evolving/repo/blob/d183b4af05c1af79e3ea18fc9d4cbcab27ef4785/.agent/src/self-merge.ts#L6), [`post-response-cli.test.ts`](https://github.com/self-evolving/repo/blob/d183b4af05c1af79e3ea18fc9d4cbcab27ef4785/.agent/src/__tests__/post-response-cli.test.ts#L169). |\n| communication / generic | Keep status comments compact | pass | 6/6 | `formatSelfMergeBody` emits a short status/conclusion table, one reason, optional run link, and marker: [`self-merge.ts`](https://github.com/self-evolving/repo/blob/d183b4af05c1af79e3ea18fc9d4cbcab27ef4785/.agent/src/self-merge.ts#L309). |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | The resolver always writes a body file and now always sets `status_post=true`, including immediate merged outcomes, so terminal self-merge results are visible: [`resolve-self-merge.ts`](https://github.com/self-evolving/repo/blob/d183b4af05c1af79e3ea18fc9d4cbcab27ef4785/.agent/src/cli/resolve-self-merge.ts#L192), [`resolve-self-merge.ts`](https://github.com/self-evolving/repo/blob/d183b4af05c1af79e3ea18fc9d4cbcab27ef4785/.agent/src/cli/resolve-self-merge.ts#L200). |\n| coding_workflow / specific | Default follow-up orchestration to one-shot | pass | 8/8 | Manual self-merge defaults `orchestration_enabled` to `false`; only explicit orchestrator chains hand back after completion: [`agent-self-merge.yml`](https://github.com/self-evolving/repo/blob/d183b4af05c1af79e3ea18fc9d4cbcab27ef4785/.github/workflows/agent-self-merge.yml#L29). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is scoped to the new self-merge route, handoff/preflight plumbing, docs, and focused tests. It is large at 1,586 additions, but the blast radius matches the workflow, CLI, docs, and regression coverage required for a privileged merge path. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The resolver encodes the simplified requested behavior from issue #213: opt-in flag, current-head self-approval, no requested changes, check/mergeability handling, draft mark-ready, then merge or auto-merge into the configured base: [`self-merge.ts`](https://github.com/self-evolving/repo/blob/d183b4af05c1af79e3ea18fc9d4cbcab27ef4785/.agent/src/self-merge.ts#L167). |\n| coding_workflow / generic | Use default merge flow | pass | 7/7 | Merge and auto-merge use `gh pr merge --merge` with `--match-head-commit`; no squash path is introduced: [`github.ts`](https://github.com/self-evolving/repo/blob/d183b4af05c1af79e3ea18fc9d4cbcab27ef4785/.agent/src/github.ts#L324), [`github.ts`](https://github.com/self-evolving/repo/blob/d183b4af05c1af79e3ea18fc9d4cbcab27ef4785/.agent/src/github.ts#L341). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Docs add `agent-self-merge`, `AGENT_ALLOW_SELF_MERGE`, orchestrator transitions, lifecycle notes, and supported workflow behavior: [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/d183b4af05c1af79e3ea18fc9d4cbcab27ef4785/.agent/docs/architecture/supported-workflows.md#L241), [`configuration-list.md`](https://github.com/self-evolving/repo/blob/d183b4af05c1af79e3ea18fc9d4cbcab27ef4785/.agent/docs/customization/configuration-list.md#L14). |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Metadata, mark-ready, merge, and auto-merge failures become explicit `failed` conclusions/reasons, and marker upsert failure makes `post-response` exit nonzero: [`resolve-self-merge.ts`](https://github.com/self-evolving/repo/blob/d183b4af05c1af79e3ea18fc9d4cbcab27ef4785/.agent/src/cli/resolve-self-merge.ts#L142), [`post-response.ts`](https://github.com/self-evolving/repo/blob/d183b4af05c1af79e3ea18fc9d4cbcab27ef4785/.agent/src/cli/post-response.ts#L69). |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | Linked issue #213 explicitly asked for a clean simplified self-merge PR stacked on #186, and live PR metadata shows PR #214 is based on `agent/implement-issue-185/codex-25587257587`, the #186 head branch. |\n\n## Notes\n\n- The main rubric drivers are positive: the implementation preserves the privileged-route safety model, uses default-branch runtime code, validates downstream orchestrator authorization, and keeps the merge operation deterministic.\n- The PR is still sizable, but the size is mostly the expected workflow/docs/test surface for adding a new privileged route. I do not see a rubric-specific reason to require another rewrite solely based on line count.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-11T18:52:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/214#issuecomment-4423832520",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB69oAA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #214 adds an opt-in deterministic `agent-self-merge` workflow after current-head Sepo self-approval.\n- It is the clean simplified self-merge implementation requested by #213 under parent #170, stacked on #186 after #208 was identified as mis-stacked.\n- The intended behavior is to merge or enable auto-merge into the PR’s configured base while preserving opt-in gating, current-head Sepo self-approval, requested-change/check/mergeability gates, and `--match-head-commit`.\n- The latest fix-pr pass resolved the prior state-model and status-posting warnings.\n\n## Review\nThe current head is close, and the core privileged-path shape still looks sound. Reviewers agree the prior warnings are fixed; one remaining low-risk edge case should be corrected so missing mergeability metadata blocks preflight instead of surfacing as a failed merge command.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Empty merge state can attempt auto-merge | WARNING | `canEnableAutoMerge` treats an empty `mergeStateStatus` as eligible, so missing/null metadata can invoke `gh pr merge --auto` and report `failed` rather than a clearer blocked preflight. |\n\n## Progress\n- Reviewed linked context: #213, parent #170, base PR #186, and the #208 stacking discussion.\n- Prior `waiting` state issue is fixed: `SelfMergeConclusion` no longer includes `waiting`.\n- Prior merged-status issue is fixed: immediate `merged` results now set `status_post` to `true`.\n- Resolved the two stale same-agent inline threads for those fixed prior issues.\n- Posted one new inline comment on `.agent/src/self-merge.ts:193` for the remaining empty merge-state edge case.\n- Rubrics review passed with no rubric-specific findings; Codex found no actionable issue, while Claude raised the warning synthesized here.\n\n## Issue Details\n\n<details>\n<summary>Empty merge state can attempt auto-merge</summary>\n\n**Cause:** [`canEnableAutoMerge`](https://github.com/self-evolving/repo/blob/d183b4af05c1af79e3ea18fc9d4cbcab27ef4785/.agent/src/self-merge.ts#L193) includes `\"\"` in the eligible merge-state allowlist. If `gh pr view` omits or nulls `mergeStateStatus` while checks are pending, the resolver can try `gh pr merge --auto` instead of stopping with an unknown merge-state block.\n\n**Candidate solutions:** Remove `\"\"` from the allowlist and add focused coverage showing missing merge state with pending checks returns `blocked`. If permissive behavior is intentional, handle/document it explicitly so the resulting status is not misleading.\n\n**Comments:** This is not a merge-safety hole because GitHub still enforces auto-merge eligibility and `--match-head-commit`; the concern is accurate preflight classification and user-visible failure semantics.\n</details>\n\n## Recommended Next Step\nFIX_PR: The remaining warning is a small, concrete resolver/test change that is safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Make empty or missing `mergeStateStatus` block self-merge preflight instead of enabling auto-merge, with focused regression coverage.",
+      "createdAt": "2026-05-11T19:00:30Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/214#issuecomment-4423903232",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB69x6Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #214 | 6 / 40 | Dispatched |\n\nReason: review verdict is minor_issues; dispatching fix-pr\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Make empty or missing `mergeStateStatus` block self-merge preflight instead of enabling auto-merge, with focused regression coverage.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1778526046717 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU2OTA0MTgyMDY6cmV2aWV3OjIxNDpmaXhfcHI6MjE0OjY -->",
+      "createdAt": "2026-05-11T19:00:47Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/214#issuecomment-4423905769",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB6_R8w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-213/codex-25689072367`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Removed empty `mergeStateStatus` from the self-merge auto-merge allowlist so missing mergeability metadata now blocks preflight instead of invoking `gh pr merge --auto`.\n- Added focused resolver and CLI regressions for pending checks with missing merge state; CLI coverage asserts no merge command is attempted.\n- Verification: `npm run build`; `node --test dist/__tests__/self-merge.test.js dist/__tests__/resolve-self-merge-cli.test.js`; `git diff --check`.",
+      "createdAt": "2026-05-11T19:03:12Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/214#issuecomment-4423930355",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB7AF2w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #214 | 7 / 40 | Dispatched |\n\nReason: PR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1778526271317 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU2OTA5OTQzMjg6Zml4X3ByOjIxNDpyZXZpZXc6MjE0Ojc -->",
+      "createdAt": "2026-05-11T19:04:31Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/214#issuecomment-4423943643",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB7BxCg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 14 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Initial `/orchestrate` includes `agent-self-merge` in delegated route checks only when self-approve and self-merge are enabled, with denial coverage: [`orchestrator-capabilities.ts`](https://github.com/self-evolving/repo/blob/e62175868891c038216e17d98f0aec33df94c059/.agent/src/orchestrator-capabilities.ts#L56), [`orchestrate-handoff-cli.test.ts`](https://github.com/self-evolving/repo/blob/e62175868891c038216e17d98f0aec33df94c059/.agent/src/__tests__/orchestrate-handoff-cli.test.ts#L1135). |\n| coding_workflow / generic | Keep privileged workflows on trusted runtime code | pass | 8/8 | The self-merge workflow checks out `github.event.repository.default_branch` before running local actions and deterministic resolver code: [`agent-self-merge.yml`](https://github.com/self-evolving/repo/blob/e62175868891c038216e17d98f0aec33df94c059/.github/workflows/agent-self-merge.yml#L53). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR extends existing `gh` helpers, marker upsert posting, handoff, and orchestrator preflight modules instead of embedding merge logic in workflow shell: [`github.ts`](https://github.com/self-evolving/repo/blob/e62175868891c038216e17d98f0aec33df94c059/.agent/src/github.ts#L324), [`post-response.ts`](https://github.com/self-evolving/repo/blob/e62175868891c038216e17d98f0aec33df94c059/.agent/src/cli/post-response.ts#L51). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | `agent-self-merge.yml` adds explicit workflow inputs for PR number, requester/request text, session, automation mode, rounds, and orchestration flag: [`agent-self-merge.yml`](https://github.com/self-evolving/repo/blob/e62175868891c038216e17d98f0aec33df94c059/.github/workflows/agent-self-merge.yml#L5). |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Self-merge status uses a stable marker and existing trusted-author marker upsert path, with test coverage for updating the latest Sepo-authored marker comment: [`self-merge.ts`](https://github.com/self-evolving/repo/blob/e62175868891c038216e17d98f0aec33df94c059/.agent/src/self-merge.ts#L6), [`post-response-cli.test.ts`](https://github.com/self-evolving/repo/blob/e62175868891c038216e17d98f0aec33df94c059/.agent/src/__tests__/post-response-cli.test.ts#L169). |\n| communication / generic | Keep status comments compact | pass | 6/6 | `formatSelfMergeBody` emits a concise status/conclusion table, reason, optional run link, and marker: [`self-merge.ts`](https://github.com/self-evolving/repo/blob/e62175868891c038216e17d98f0aec33df94c059/.agent/src/self-merge.ts#L309). |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Resolver always writes a body and sets `status_post=true`, including merged, blocked, failed, and auto-merge outcomes: [`resolve-self-merge.ts`](https://github.com/self-evolving/repo/blob/e62175868891c038216e17d98f0aec33df94c059/.agent/src/cli/resolve-self-merge.ts#L192). |\n| coding_workflow / specific | Default follow-up orchestration to one-shot | pass | 8/8 | Manual self-merge defaults `orchestration_enabled` to `false`; only explicit orchestrator chains hand back afterward: [`agent-self-merge.yml`](https://github.com/self-evolving/repo/blob/e62175868891c038216e17d98f0aec33df94c059/.github/workflows/agent-self-merge.yml#L31), [`agent-self-merge.yml`](https://github.com/self-evolving/repo/blob/e62175868891c038216e17d98f0aec33df94c059/.github/workflows/agent-self-merge.yml#L108). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is scoped to the new self-merge route, orchestration plumbing, docs, and focused tests. Current PR metadata shows it is stacked on #186’s branch `agent/implement-issue-185/codex-25587257587`. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The resolver implements the requested simplified policy directly: opt-in, open PR, current-head Sepo self-approval, no requested changes, status/mergeability gates, draft mark-ready, then merge or auto-merge: [`self-merge.ts`](https://github.com/self-evolving/repo/blob/e62175868891c038216e17d98f0aec33df94c059/.agent/src/self-merge.ts#L196). |\n| coding_workflow / generic | Use default merge flow | pass | 7/7 | Merge and auto-merge use `gh pr merge --merge` with `--match-head-commit`; no squash path is introduced: [`github.ts`](https://github.com/self-evolving/repo/blob/e62175868891c038216e17d98f0aec33df94c059/.agent/src/github.ts#L324), [`github.ts`](https://github.com/self-evolving/repo/blob/e62175868891c038216e17d98f0aec33df94c059/.agent/src/github.ts#L341). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Docs add `agent-self-merge`, `AGENT_ALLOW_SELF_MERGE`, orchestrator transitions, and self-merge behavior: [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/e62175868891c038216e17d98f0aec33df94c059/.agent/docs/architecture/supported-workflows.md#L15), [`configuration-list.md`](https://github.com/self-evolving/repo/blob/e62175868891c038216e17d98f0aec33df94c059/.agent/docs/customization/configuration-list.md#L14). |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Metadata, mark-ready, merge, and auto-merge failures become explicit failed conclusions/reasons; status upsert failures set a nonzero exit: [`resolve-self-merge.ts`](https://github.com/self-evolving/repo/blob/e62175868891c038216e17d98f0aec33df94c059/.agent/src/cli/resolve-self-merge.ts#L138), [`post-response.ts`](https://github.com/self-evolving/repo/blob/e62175868891c038216e17d98f0aec33df94c059/.agent/src/cli/post-response.ts#L66). |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | Linked issue #213 asks for a simplified self-merge PR stacked on #186 with these exact safeguards; live PR metadata shows #214’s base branch is #186’s head branch. |\n\n## Notes\n\n- The main score drivers are positive: the PR preserves delegated authorization, keeps privileged runtime code on the default branch, uses marker-upserted compact status comments, and binds merge/auto-merge to `--match-head-commit`.\n- The PR is still large, but the rubric-relevant scope is coherent: most of the size is workflow/docs/tests around a new privileged route, not unrelated feature drift.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-11T19:07:24Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/214#issuecomment-4423971082",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB7GlRA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #214 adds an opt-in deterministic `agent-self-merge` workflow after current-head Sepo self-approval.\n- It is the simplified self-merge implementation requested by #213 under parent #170, stacked on #186 after #208 was identified as mis-stacked.\n- The workflow verifies current-head Sepo self-approval, requested-change/check/mergeability gates, draft mark-ready handling, and then merges or enables auto-merge with `--match-head-commit`.\n- The latest fix-pr passes resolved the previously identified state-model, success-status, and empty-merge-state warnings.\n\n## Review\nThe current head is ready to ship. Codex found no actionable issues on the latest head, the rubrics review passed, and the stale Claude findings have been addressed by later fixes.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | Current review found no unresolved branch-change work. Prior inline findings are fixed and their same-agent threads are resolved. |\n\n## Progress\n- Reviewed the PR conversation, inline comments, review threads, linked issue #213, parent context #170, and reviewer outputs.\n- Prior `waiting` state issue is fixed: `SelfMergeConclusion` no longer includes `waiting`.\n- Prior merged-status issue is fixed: `status_post` is now always `true`.\n- Prior empty `mergeStateStatus` auto-merge issue is fixed: the empty state is no longer allowlisted and regression coverage exists.\n- Resolved the remaining stale same-agent inline thread for the empty merge-state issue.\n- Posted no new inline comments, added no replies, and minimized no comments in this synthesis pass.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved actionable review findings remain on the current PR head.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-11T19:15:22Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/214#issuecomment-4424049988",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-11T18:32:35Z",
+  "files": [
+    {
+      "path": ".agent/docs/actions/agent-actions.md",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/request-lifecycle.md",
+      "additions": 3,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 20,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/agent-orchestrator.md",
+      "additions": 15,
+      "deletions": 9,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/key-concepts.md",
+      "additions": 2,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 7,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/handoff.test.ts",
+      "additions": 72,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrate-handoff-cli.test.ts",
+      "additions": 82,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrator-preflight-cli.test.ts",
+      "additions": 42,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/post-response-cli.test.ts",
+      "additions": 55,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/resolve-self-merge-cli.test.ts",
+      "additions": 222,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/self-merge.test.ts",
+      "additions": 203,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/sub-orchestration.test.ts",
+      "additions": 16,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrate-handoff.ts",
+      "additions": 13,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrator-preflight.ts",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/post-response.ts",
+      "additions": 14,
+      "deletions": 8,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/resolve-self-merge.ts",
+      "additions": 202,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/envelope.ts",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/github.ts",
+      "additions": 135,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/handoff.ts",
+      "additions": 16,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/orchestrator-capabilities.ts",
+      "additions": 4,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/run.ts",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/self-merge.ts",
+      "additions": 336,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/sub-orchestration.ts",
+      "additions": 10,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-orchestrator.md",
+      "additions": 8,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-orchestrator.yml",
+      "additions": 3,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-self-merge.yml",
+      "additions": 129,
+      "deletions": 0,
+      "changeType": "ADDED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-213/codex-25689072367",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 214,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM7-TIrX",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-11T18:44:20Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "4550602425944e445c08f8c1b2dd2ed2278498af"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM7-TIrb",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-11T18:44:20Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "4550602425944e445c08f8c1b2dd2ed2278498af"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM7-TnqA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-11T18:59:51Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "d183b4af05c1af79e3ea18fc9d4cbcab27ef4785"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Add simplified self-merge after self-approval",
+  "updatedAt": "2026-05-11T19:15:22Z",
+  "url": "https://github.com/self-evolving/repo/pull/214"
+}

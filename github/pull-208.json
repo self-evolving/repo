@@ -6,7 +6,45 @@
   "baseRefName": "agent/implement-issue-185/codex-25587257587",
   "body": "## Summary\n- Simplify deterministic self-merge to mark draft PRs ready instead of blocking them.\n- Remove default-branch/stack-base lookup guardrails so GitHub merges into the PR's configured base.\n- Keep the core safeguards: opt-in self-merge, current-head Sepo self-approval, no requested changes, check/mergeability handling, and `--match-head-commit`.\n- Update focused tests and docs for the simplified behavior.\n\n## Verification\n- `npm run build`\n- `node --test dist/__tests__/self-merge.test.js dist/__tests__/resolve-self-merge-cli.test.js`\n- `git diff --check`\n\nCloses #206\n",
   "closedAt": null,
-  "comments": [],
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB59BCw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer it seems the merge base was not correct? I guess it messed up all the commit structure ",
+      "createdAt": "2026-05-11T16:51:08Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/208#issuecomment-4422844683",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB5-uPg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, that diagnosis looks right.\n\nPR #208 is configured with base branch `agent/implement-issue-185/codex-25587257587` (#186), but its head `agent/implement-issue-206/codex-25650868508` is not based on that branch’s current head.\n\nConcrete graph check:\n\n- #186 base head: `f3a76156`\n- #208 head: `9f046b0c`\n- merge-base between them: `1dd7fdf1` (`Merge pull request #169...`)\n- `f3a76156` is **not** an ancestor of `9f046b0c`\n\nThat explains the messy commit list: #208 pulls in unrelated mainline/parallel commits like #188, #194, and #199, plus a large recreated self-approval/self-merge stack. It is not a clean follow-up on the intended stack.\n\nI would not merge #208 as-is.\n\nRecommended cleanup:\n\n1. Close #208 or retarget/recreate it.\n2. Treat PR #202 as the canonical stack for this change.\n3. If more work is still needed, apply only the small simplification delta on top of PR #202’s branch, not on a new branch diverging from the old #186 merge-base.\n4. If #202 already contains the desired fix, close #208 as duplicate/mis-stacked.\n\nAlso worth noting: PR #202 already has commit `cc06ad2d` from the earlier fix-pr pass, which is the small 7-file simplification change. #208’s `9f046b0c` is much larger and structurally suspicious for exactly the reason you called out.",
+      "createdAt": "2026-05-11T16:53:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/208#issuecomment-4422872638",
+      "viewerDidAuthor": true
+    }
+  ],
   "createdAt": "2026-05-11T04:54:04Z",
   "files": [
     {
@@ -355,6 +393,6 @@
   "reviews": [],
   "state": "OPEN",
   "title": "Simplify self-merge draft and base handling",
-  "updatedAt": "2026-05-11T05:08:27Z",
+  "updatedAt": "2026-05-11T16:53:50Z",
   "url": "https://github.com/self-evolving/repo/pull/208"
 }
