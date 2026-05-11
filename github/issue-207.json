@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "I thought for a while of usage, given our rubrics and memory, the agent should be somewhat intelligent enough to avoid mistakes like this \n\nhttps://github.com/self-evolving/repo/pull/116#issuecomment-4417395434 ?\n\n@sepo-agent /answer \n\n1. Can you audit if the agent supplied with sufficient context / memory / rubrics for the implementation? \n2. How to further improve it? ",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB1C2cA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Short answer: the implementation had enough *project/PR context* for the original #27 task, but the agent was not sufficiently steered for the specific judgment in the linked thread. The failure was mostly a rubric-selection / preference-gap problem, not lack of raw GitHub context.\n\nWhat I found:\n\n- Memory was available and relevant. It includes rules like “keep workflows thin” and “move substantial GitHub/API logic into typed helpers/CLIs,” which actually biases the agent toward extracting YAML logic: [`agent/memory/MEMORY.md`](https://github.com/self-evolving/repo/blob/agent/memory/MEMORY.md).\n- Rubrics did contain useful implementation guidance: simple implementation, surgical changes, reuse existing code, idempotent automation: [`agent/rubrics/rubrics/coding`](https://github.com/self-evolving/repo/tree/agent/rubrics/rubrics/coding), [`agent/rubrics/rubrics/workflow`](https://github.com/self-evolving/repo/tree/agent/rubrics/rubrics/workflow).\n- But `/answer` currently filters selected rubrics to `communication` only: [`run-agent-task/action.yml#L265-L292`](https://github.com/self-evolving/repo/blob/19eb47406077cc1123128116d26c298b7fcfdc20/.github/actions/run-agent-task/action.yml#L265-L292). For this issue, that means no active route-applicable rubrics were selected. So an `/answer` giving implementation advice can miss coding/workflow rubrics that would have pushed harder toward “simpler, more surgical.”\n- The linked comment was an `/answer`, not an implementation diff. It reasoned from the immediate PR state and the “thin workflow” memory, then recommended moving more gate logic into scripts. That was plausible under existing memory, but not aligned with the later product preference: avoid one-off plumbing unless the abstraction is actually reusable.\n- The existing-update-PR point was not clearly covered by #27. #27 asked to create a PR when updates exist and avoid spam; “adopt/update an existing update PR” was a better product behavior, but it was not yet encoded as acceptance criteria, memory, or rubric.\n\nRecommended improvements:\n\n1. Change rubric selection for `/answer` on PR/code targets. Do not force `communication` only. Include `coding_workflow` rubrics when the target is a PR, code review thread, implementation question, or mentions files/workflows/scripts.\n\n2. Add a rubric for one-off automation plumbing, roughly:\n   > Prefer the simplest workflow shape that satisfies the task. Do not introduce workflow-specific renderers, helper scripts, or template indirection unless the behavior is reused, hard to express safely inline, or there is an existing generic abstraction.\n\n3. Add a memory/project convention:\n   > For repo-identity special cases, first prefer existing operator config or documented settings over hardcoded canonical-repo guards.\n\n4. Update `/answer` behavior for implementation advice: when suggesting a structural code change, it should label it as “recommendation/tradeoff,” check against simplicity/surgical-change rubrics, and avoid converting that suggestion into `/fix-pr` behavior unless the user explicitly agrees.\n\n5. For scheduled update PRs, encode the newly learned product expectation directly: pending update PRs should be adopted/updated rather than skipped forever. That is now separate product behavior and should live in the issue/implementation plan, not just in a comment thread.\n\nSo: the agent had enough context to make a defensible but suboptimal call. It did not have enough *normative steering* to prefer the simpler operator-configured approach over extra workflow-specific logic.",
+      "createdAt": "2026-05-11T04:54:05Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/207#issuecomment-4417697392",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-11T04:50:24Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 207,
+  "state": "OPEN",
+  "title": "Review: why is agent making mistakes",
+  "updatedAt": "2026-05-11T04:54:05Z",
+  "url": "https://github.com/self-evolving/repo/issues/207"
+}

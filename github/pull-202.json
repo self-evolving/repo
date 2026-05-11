@@ -226,8 +226,8 @@
       "body": "**Sepo did not produce code changes for this PR.**\n\n<!-- sepo-agent-fix-pr-status -->\n\nPlease add more context or restate the requested fixes, then try again.\n\n- No required branch-change work remains; working tree left unchanged.\n- Confirmed current head `daee1f9c` already includes the `--match-head-commit` self-merge guard and matching CLI test assertions.\n- Decision: optional warnings should not block marking the draft ready; they are product/strictness/coverage follow-ups, not correctness blockers.\n- Verification: `git status --porcelain=v1` clean; `git diff --check`.",
       "createdAt": "2026-05-10T20:13:15Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/202#issuecomment-4416239916",
       "viewerDidAuthor": true
@@ -348,6 +348,64 @@
       ],
       "url": "https://github.com/self-evolving/repo/pull/202#issuecomment-4417604887",
       "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB0-4Nw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-200/codex-25637330151`. Requested by @lolipopshock.\n\n<!-- sepo-agent-fix-pr-status -->\n\nContext compacted\nImplemented the follow-up fix on the existing PR branch.\n\n- Trusted same-repo `agent/` draft PRs can now pass self-merge preflight and are marked ready before merge or auto-merge.\n- Replaced the default-branch-only guard with default branch or open same-repo stacked PR base support.\n- Fork heads, untrusted drafts, and unknown non-default bases still block before mutation.\n- Preserved current-head self-approval, no requested changes, checks/mergeability, and `--match-head-commit` guards.\n- Updated focused resolver/CLI tests and docs.\n\nVerification passed:\n- `npm run build`\n- `node --test dist/__tests__/self-merge.test.js dist/__tests__/resolve-self-merge-cli.test.js`\n- `git diff --check`\n\nSuggested commit message: `Allow self-merge for trusted draft stacks`",
+      "createdAt": "2026-05-11T04:38:12Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/202#issuecomment-4417632311",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB1BFew",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> > You’re right. The current #202 policy is too conservative for how this repo actually works.\r\n> > The safety rule should not be “non-draft + default branch only.” It should be closer to:\r\n> > `current-head self-approval + checks/mergeability pass + no requested changes + approved head still matches -> merge into the PR’s configured base`\r\n> > That means two changes to #202’s design:\r\n> > \r\n> > 1. **Draft agent PRs should be eligible**\r\n> >    \r\n> >    * Agent-created PRs are commonly draft during automation.\r\n> >    * Once `agent-self-approve` has approved the exact current head and checks pass, draft status should not be a terminal blocker.\r\n> >    * The self-merge workflow can deterministically mark the PR ready before merging, but only for trusted agent PRs/branches.\r\n> > 2. **Stacked PRs should be mergeable into their base branch**\r\n> >    \r\n> >    * The current default-branch guard in [`self-merge.ts`](https://github.com/self-evolving/repo/blob/daee1f9c7fe9e671688b32d0f1d3cbbbf97e71ad/.agent/src/self-merge.ts#L254-L260) would block normal stacked agent PRs.\r\n> >    * For this repo, if [Add opt-in self-merge after self-approval #202](https://github.com/self-evolving/repo/pull/202) is based on [Polish self-approval status handling #186](https://github.com/self-evolving/repo/pull/186)’s branch, self-merge should be allowed to merge [Add opt-in self-merge after self-approval #202](https://github.com/self-evolving/repo/pull/202) into [Polish self-approval status handling #186](https://github.com/self-evolving/repo/pull/186)’s branch after the same approval/check/head guards pass.\r\n> >    * We still need to reject unsafe bases, such as fork bases or unknown branches, but not same-repo stacked agent bases.\r\n> > \r\n> > I’d revise #202 with a small follow-up fix:\r\n> > \r\n> > * Replace the draft hard block with “draft is allowed for trusted agent PRs; mark ready before merge.”\r\n> > * Replace the default-branch-only guard with “allow default branch or same-repo PR stack base.”\r\n> > * Keep the important guards: `AGENT_ALLOW_SELF_MERGE`, current-head self-approval, no requested changes, green/pending checks handling, mergeability, and `--match-head-commit`.\r\n> > \r\n> > So yes: your simpler model is the right product behavior. The implementation should support the repo’s actual workflow: agent draft PRs and stacked PRs are first-class, not exceptions.\r\n> \r\n\r\n@sepo-agent /implement \r\nI'd recommend further simplify the guardrails for now; let's start with simple implementations with the core function implemented first\r\n\r\n",
+      "createdAt": "2026-05-11T04:47:18Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/202#issuecomment-4417668475",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB1BNCg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Implementing this request — tracking in https://github.com/self-evolving/repo/issues/206.\n",
+      "createdAt": "2026-05-11T04:47:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/202#issuecomment-4417670410",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-10T19:28:34Z",
@@ -360,7 +418,7 @@
     },
     {
       "path": ".agent/docs/architecture/request-lifecycle.md",
-      "additions": 3,
+      "additions": 4,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
@@ -414,13 +472,13 @@
     },
     {
       "path": ".agent/src/__tests__/resolve-self-merge-cli.test.ts",
-      "additions": 155,
+      "additions": 236,
       "deletions": 0,
       "changeType": "ADDED"
     },
     {
       "path": ".agent/src/__tests__/self-merge.test.ts",
-      "additions": 175,
+      "additions": 202,
       "deletions": 0,
       "changeType": "ADDED"
     },
@@ -450,7 +508,7 @@
     },
     {
       "path": ".agent/src/cli/resolve-self-merge.ts",
-      "additions": 157,
+      "additions": 194,
       "deletions": 0,
       "changeType": "ADDED"
     },
@@ -462,7 +520,7 @@
     },
     {
       "path": ".agent/src/github.ts",
-      "additions": 133,
+      "additions": 184,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
@@ -486,7 +544,7 @@
     },
     {
       "path": ".agent/src/self-merge.ts",
-      "additions": 345,
+      "additions": 378,
       "deletions": 0,
       "changeType": "ADDED"
     },
@@ -546,6 +604,6 @@
   ],
   "state": "OPEN",
   "title": "Add opt-in self-merge after self-approval",
-  "updatedAt": "2026-05-11T04:30:57Z",
+  "updatedAt": "2026-05-11T04:47:48Z",
   "url": "https://github.com/self-evolving/repo/pull/202"
 }

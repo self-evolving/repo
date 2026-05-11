@@ -1,0 +1,39 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "body": "## Goal\nImplement the requested change from the agent mention.\n\n## Original request\n> > You’re right. The current #202 policy is too conservative for how this repo actually works.\r\n> > The safety rule should not be “non-draft + default branch only.” It should be closer to:\r\n> > `current-head self-approval + checks/mergeability pass + no requested changes + approved head still matches -> merge into the PR’s configured base`\r\n> > That means two changes to #202’s design:\r\n> > \r\n> > 1. **Draft agent PRs should be eligible**\r\n> >    \r\n> >    * Agent-created PRs are commonly draft during automation.\r\n> >    * Once `agent-self-approve` has approved the exact current head and checks pass, draft status should not be a terminal blocker.\r\n> >    * The self-merge workflow can deterministically mark the PR ready before merging, but only for trusted agent PRs/branches.\r\n> > 2. **Stacked PRs should be mergeable into their base branch**\r\n> >    \r\n> >    * The current default-branch guard in [`self-merge.ts`](https://github.com/self-evolving/repo/blob/daee1f9c7fe9e671688b32d0f1d3cbbbf97e71ad/.agent/src/self-merge.ts#L254-L260) would block normal stacked agent PRs.\r\n> >    * For this repo, if [Add opt-in self-merge after self-approval #202](https://github.com/self-evolving/repo/pull/202) is based on [Polish self-approval status handling #186](https://github.com/self-evolving/repo/pull/186)’s branch, self-merge should be allowed to merge [Add opt-in self-merge after self-approval #202](https://github.com/self-evolving/repo/pull/202) into [Polish self-approval status handling #186](https://github.com/self-evolving/repo/pull/186)’s branch after the same approval/check/head guards pass.\r\n> >    * We still need to reject unsafe bases, such as fork bases or unknown branches, but not same-repo stacked agent bases.\r\n> > \r\n> > I’d revise #202 with a small follow-up fix:\r\n> > \r\n> > * Replace the draft hard block with “draft is allowed for trusted agent PRs; mark ready before merge.”\r\n> > * Replace the default-branch-only guard with “allow default branch or same-repo PR stack base.”\r\n> > * Keep the important guards: `AGENT_ALLOW_SELF_MERGE`, current-head self-approval, no requested changes, green/pending checks handling, mergeability, and `--match-head-commit`.\r\n> > \r\n> > So yes: your simpler model is the right product behavior. The implementation should support the repo’s actual workflow: agent draft PRs and stacked PRs are first-class, not exceptions.\r\n> \r\n\r\n@sepo-agent /implement \r\nI'd recommend further simplify the guardrails for now; let's start with simple implementations with the core function implemented first\n\n## Acceptance criteria\n- Implement the requested change.\n- Preserve existing behavior unless the request requires a change.\n- Update tests or validation as needed.\n\n---\n\nRequested via issue_comment at https://github.com/self-evolving/repo/pull/202\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB1C3Cw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-206/codex-25650868508`\n- Pull request: https://github.com/self-evolving/repo/pull/208\n\nImplemented issue #206 by simplifying the self-merge resolver on top of the #202 self-merge stack: draft PRs are marked ready without trusted-agent-branch gating, non-default bases are no longer blocked or looked up, and self-merge now relies on the core current-head self-approval, requested-changes, checks, mergeability, and match-head guards. Verification passed with `npm run build`, focused self-merge tests, and `git diff --check`.",
+      "createdAt": "2026-05-11T04:54:07Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/206#issuecomment-4417697547",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-11T04:47:45Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 206,
+  "state": "OPEN",
+  "title": "Implement requested change",
+  "updatedAt": "2026-05-11T04:54:07Z",
+  "url": "https://github.com/self-evolving/repo/issues/206"
+}

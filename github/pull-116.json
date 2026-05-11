@@ -5,7 +5,7 @@
   },
   "baseRefName": "main",
   "body": "## Summary\n- Add `agent-update.yml` for near-biweekly Sepo infrastructure update checks using the existing `update-agent` skill.\n- Add a pre-runtime pending update PR guard to avoid duplicate `agent/update-agent-infra-*` PRs, with a manual `force` override.\n- Update docs, skill guidance, and focused workflow/script coverage.\n\n## Tests\n- `npm --prefix .agent run build`\n- `node --test dist/__tests__/pending-update-pr-gate-shell.test.js dist/__tests__/envelope.test.js` from `.agent`\n- `bash -n .agent/scripts/resolve-pending-update-pr.sh`\n- YAML parse for `agent-update.yml` and `test-scripts.yml`\n- `git diff --check`\n\nCloses #27\n",
-  "closedAt": null,
+  "closedAt": "2026-05-11T04:56:19Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABBDZrEA",
@@ -776,8 +776,8 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #116 adds a scheduled/manual Sepo update workflow for issue #27 under the broader #107 distribution/update workstream.\n- It runs near-biweekly by default, skips duplicate update PRs, supports `AGENT_AUTO_UPDATE=false`, and preserves manual `source_ref` overrides.\n- The latest release-flow updates align with #194: default installed-repo checks resolve the latest stable GitHub Release tag, while canonical source runs avoid downgrading `self-evolving/repo` from an older release.\n- The current head also includes structured no-release fallback handling, focused workflow/script tests, and matching docs/skill guidance.\n\n## Review\nThe current reviewer outputs converge on ship: Codex reports SHIP, rubrics pass, and Claude’s remaining notes are low-impact documentation/comment polish rather than required branch changes. Claude labeled two optional concerns as warnings, but also stated they are not required to ship, so they are not treated as automation action items.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | Prior required findings are fixed. Remaining reviewer notes are optional clarification/polish, not required branch-change work. |\n\n## Progress\n- Previous findings are fixed: task-timeout wiring, delimiter-safe outputs, gate assertion coverage, canonical-source guard, structured release lookup, and the manual override test assertion.\n- Current rubrics review is PASS, and Codex reports no unresolved blocking or warning-level issues.\n- Existing inline comments were re-fetched; no new inline comments were posted.\n- No replies or minimizations were made because same-authenticated-account verification was not available with enough certainty.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: no unresolved actionable branch-change work remains for automation.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
       "createdAt": "2026-05-10T19:54:23Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4416197940",
       "viewerDidAuthor": true
@@ -1153,19 +1153,49 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4417619481",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB1AMLA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #116 implements issue #27 under parent #107 by adding a default near-biweekly Sepo update workflow.\n- The workflow uses the existing `update-agent` skill, resolves the update source from stable releases by default, supports manual `source_ref` overrides, and falls back to `main` when no stable release exists.\n- It also adds `AGENT_AUTO_UPDATE=false` as the scheduled-run kill switch, while leaving manual dispatch available.\n- Duplicate update PR creation is avoided by a pending-PR gate; existing update PR adoption is now tracked separately in #203.\n\n## Review\nOverall judgment: the current PR is ready to ship. Claude’s stricter review flagged an open canonical-source thread and optional `release_url` cleanup; after re-fetching live review threads, the canonical-source concern is superseded by maintainer direction, while Codex and rubrics both report no required findings.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | Current required workflow, docs, guard, and test concerns are addressed. Remaining notes are optional or out of scope for this PR. |\n\n## Progress\n- Prior required items are fixed: timeout wiring, delimiter-safe gate outputs, negative scheduled-gate assertion, structured release lookup, and manual-override release-call coverage.\n- Current rubrics review is PASS; Codex review is SHIP with no BLOCKING or WARNING findings.\n- Resolved five stale/superseded same-agent inline review threads: `PRRT_kwDOSOhEMM5_LACJ`, `PRRT_kwDOSOhEMM5_LACK`, `PRRT_kwDOSOhEMM6A7K2Y`, `PRRT_kwDOSOhEMM6A7K8y`, and `PRRT_kwDOSOhEMM6A7OR7`.\n- No new inline comments were posted; no replies or minimizations were made. Human-authored threads were left untouched.\n- `gh pr checks` shows `check` passing on head `5e8ab3e89548161eabb6cefb12134207acce04a8`.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: No unresolved required branch-change work remains for this PR.\n\n## Final Verdict\n`SHIP`\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-11T04:43:59Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4417653804",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB1Dr6Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #116.\n\nno rubric changes\n\nI read PR #116 history, inline comments, reviews, linked issue #27, parent issue #107, collaborator signals, and existing active rubrics. The only human PR feedback was from `lolipopshock` with `CONTRIBUTOR` association, and there was no explicit trusted request to add/update rubrics. Bot/agent review comments were advisory only.\n\nThe potentially reusable themes were already covered by active rubrics such as `reuse-existing-code`, `simple-implementation`, and `idempotent-user-facing-automation`, so I left `/agent-rubrics` unchanged.\n",
+      "createdAt": "2026-05-11T04:57:40Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/116#issuecomment-4417711081",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-03T07:19:42Z",
   "files": [
     {
       "path": ".agent/docs/actions/agent-actions.md",
-      "additions": 13,
+      "additions": 15,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/docs/architecture/supported-workflows.md",
-      "additions": 13,
+      "additions": 16,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
@@ -1177,7 +1207,7 @@
     },
     {
       "path": ".agent/scripts/resolve-pending-update-pr.sh",
-      "additions": 116,
+      "additions": 120,
       "deletions": 0,
       "changeType": "ADDED"
     },
@@ -1189,13 +1219,13 @@
     },
     {
       "path": ".agent/src/__tests__/envelope.test.ts",
-      "additions": 26,
+      "additions": 39,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/__tests__/pending-update-pr-gate-shell.test.ts",
-      "additions": 110,
+      "additions": 116,
       "deletions": 0,
       "changeType": "ADDED"
     },
@@ -1213,7 +1243,7 @@
     },
     {
       "path": ".github/workflows/agent-update.yml",
-      "additions": 251,
+      "additions": 287,
       "deletions": 0,
       "changeType": "ADDED"
     },
@@ -1225,8 +1255,8 @@
     },
     {
       "path": ".skills/update-agent/SKILL.md",
-      "additions": 21,
-      "deletions": 3,
+      "additions": 37,
+      "deletions": 4,
       "changeType": "MODIFIED"
     },
     {
@@ -1257,7 +1287,7 @@
       "color": "d73a4a"
     }
   ],
-  "mergedAt": null,
+  "mergedAt": "2026-05-11T04:56:19Z",
   "number": 116,
   "reviewDecision": "",
   "reviews": [
@@ -1352,8 +1382,8 @@
       }
     }
   ],
-  "state": "OPEN",
+  "state": "MERGED",
   "title": "Add scheduled Sepo update checks",
-  "updatedAt": "2026-05-11T04:34:29Z",
+  "updatedAt": "2026-05-11T04:57:40Z",
   "url": "https://github.com/self-evolving/repo/pull/116"
 }

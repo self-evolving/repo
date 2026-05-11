@@ -266,6 +266,43 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/184#issuecomment-4416038617",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB1CSgw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer another way of prompting self-approval is based on something like this https://github.com/self-evolving/repo/pull/116#issuecomment-4417395434 -> asking investigative questions of the code implementations ",
+      "createdAt": "2026-05-11T04:51:53Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/184#issuecomment-4417688195",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB1Csfg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "This checkout is on a tree before the self-approval files landed, so I won’t pretend those local files exist here. The linked comment still gives enough of the intended prompting pattern to answer the design question.Yes. That is a better mental model for self-approval than “review synthesis said SHIP, so approve.”\n\nThe referenced comment is doing **investigative review**: it asks what the code is actually doing, whether that behavior matches the product flow, where the naming/structure is confusing, and what should become a follow-up instead of blocking the current PR. That maps well to self-approval.\n\nI’d shape self-approval as:\n\n```text\nYou are not deciding whether the prior review was enthusiastic.\nYou are independently investigating whether this PR is safe to approve.\n\nAsk and answer concrete questions about the implementation:\n- What behavior changed?\n- What invariant or product rule is this code trying to preserve?\n- Does the implementation match the issue/parent-plan scope?\n- What happens in edge cases and reruns?\n- Are writes, permissions, and privileged actions gated deterministically?\n- Are failures visible and recoverable?\n- Are tests covering the important behavior rather than just snapshots?\n- Is any awkwardness acceptable for this slice, or should it become a required fix?\n- What follow-up, if any, should be explicitly deferred?\n```\n\nThe output should still be structured and deterministic, for example:\n\n```json\n{\n  \"verdict\": \"APPROVE | REQUEST_CHANGES | BLOCKED\",\n  \"inspected_head_sha\": \"...\",\n  \"summary\": \"...\",\n  \"investigative_questions\": [\n    {\n      \"question\": \"...\",\n      \"answer\": \"...\",\n      \"evidence\": [\"file/path.ts:123\"],\n      \"risk\": \"none | low | medium | high\"\n    }\n  ],\n  \"required_changes\": [],\n  \"deferred_followups\": []\n}\n```\n\nKey rule: the model should **answer its own investigative questions from the code and PR context**. If it cannot answer a material question, it should not approve; it should return `BLOCKED` or `REQUEST_CHANGES`.\n\nSo self-approval becomes a second, higher-bar reviewer: less “LGTM” and more “I interrogated the implementation and here is why approval is safe.” That also produces better `fix-pr` handoff context when it rejects, because the failed questions become concrete action items.",
+      "createdAt": "2026-05-11T04:53:24Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/184#issuecomment-4417694846",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-09T00:42:41Z",
@@ -425,6 +462,6 @@
   ],
   "state": "OPEN",
   "title": "Add self-approval orchestrator handoffs",
-  "updatedAt": "2026-05-11T04:28:47Z",
+  "updatedAt": "2026-05-11T04:53:24Z",
   "url": "https://github.com/self-evolving/repo/pull/184"
 }

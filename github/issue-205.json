@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "@sepo-agent /answer \n\nas our memory branch is gradually increasing in size, I wonder how the current sessions uses such memories -> how much memory has been loaded in each of the context? does it impact performance ?",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB1AXlQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I checked the current implementation. Short answer: the growing `agent/memory` branch is **not loaded wholesale into every model context**.\n\nWhat happens today:\n\n- `run-agent-task` resolves a memory mode, then only clones `agent/memory` if reads are enabled: [`run-agent-task/action.yml#L229-L246`](https://github.com/self-evolving/repo/blob/main/.github/actions/run-agent-task/action.yml#L229-L246).\n- The clone is a shallow branch checkout into runner temp, not prompt injection: [`download-agent-memory/action.yml#L84-L88`](https://github.com/self-evolving/repo/blob/main/.github/actions/download-agent-memory/action.yml#L84-L88).\n- The prompt only injects `.github/prompts/_memory.md` when memory is available: [`run.ts#L176-L179`](https://github.com/self-evolving/repo/blob/main/.agent/src/run.ts#L176-L179). That file is currently ~2.9 KB, roughly hundreds of tokens, not MBs.\n- `_memory.md` tells the agent how to read memory selectively: `PROJECT.md`, `MEMORY.md`, relevant daily files, targeted `github/*.json`, or `memory/search.js`: [`_memory.md#L12-L16`](https://github.com/self-evolving/repo/blob/main/.github/prompts/_memory.md#L12-L16).\n\nCurrent local memory size from this run:\n\n| Area | Count / size |\n|---|---:|\n| Whole memory checkout | 228 files, ~3.5 MB file content / ~4.7 MB on disk |\n| `github/*.json` mirror | 204 files, ~3.47 MB |\n| `daily/*.md` | 15 files, ~10.8 KB |\n| `PROJECT.md` + `MEMORY.md` + `README.md` | ~8.5 KB |\n| Injected memory prompt fragment | 2,923 chars |\n\nSo the branch growth mostly affects **checkout size and ad hoc file/search reads**, not automatic context size.\n\nRecent run examples from Action logs:\n\n| Run | Memory mode | Rendered full prompt | Actual note |\n|---|---:|---:|---|\n| Implement, May 11 | enabled | 18,428 chars | session resumed; actual sent prompt used continuation path |\n| Review, May 10 | read-only for reviewer jobs | 23,588 chars | fresh review sessions |\n| Review synthesis, May 10 | enabled | 20,967 chars | fresh synthesis session |\n| Memory scan, May 11 | enabled | 11,642 chars | no persistent session |\n\nThose `prompt_length` values are total rendered prompt chars, not just memory. They include base prompt, route prompt, request metadata, rubrics when selected, and the small memory instructions. The code logs this at [`run.ts#L334-L339`](https://github.com/self-evolving/repo/blob/main/.agent/src/run.ts#L334-L339).\n\nOne important nuance: for resumed sessions, the runtime can send only a small continuation prompt instead of the full prompt. The adapter selects the continuation prompt when the session resume succeeds: [`acpx-adapter.ts#L246-L255`](https://github.com/self-evolving/repo/blob/main/.agent/src/acpx-adapter.ts#L246-L255), wired from [`run.ts#L518-L528`](https://github.com/self-evolving/repo/blob/main/.agent/src/run.ts#L518-L528).\n\nPerformance impact:\n\n- **Model context/per-token cost:** small by default. Only `_memory.md` is injected automatically.\n- **Runner I/O:** currently negligible at ~3.5 MB content. The shallow git pack is under 1 MB locally.\n- **Search:** `memory/search.js` walks the tree on demand with defaults of 5 files and 3 snippets, and skips files over 512 KB: [`memory-search.ts#L34-L36`](https://github.com/self-evolving/repo/blob/main/.agent/src/memory-search.ts#L34-L36), [`memory-search.ts#L193-L205`](https://github.com/self-evolving/repo/blob/main/.agent/src/memory-search.ts#L193-L205). A local search here took ~0.13s.\n- **Real risk:** an agent can still manually `cat` large JSON files, and those tool outputs do enter the session context. The prompt encourages targeted files/search, but there is no hard read budget yet.\n\nI would recommend adding lightweight observability next:\n\n1. Log memory checkout stats per run: file count, total bytes, `PROJECT.md`, `MEMORY.md`, `daily/`, `github/`.\n2. Log injected memory prompt bytes separately from full prompt length.\n3. Optionally add a `memory/summary` or `memory/stats` CLI so the agent can inspect size without dumping files.\n4. Longer term, consider retention/compaction for old `github/*.json`, since that is the dominant growth source.",
+      "createdAt": "2026-05-11T04:44:35Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/205#issuecomment-4417656725",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-11T04:38:23Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 205,
+  "state": "OPEN",
+  "title": "Review: how memory is used in recent PRs?",
+  "updatedAt": "2026-05-11T04:44:35Z",
+  "url": "https://github.com/self-evolving/repo/issues/205"
+}
