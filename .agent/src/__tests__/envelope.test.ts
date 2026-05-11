@@ -265,15 +265,28 @@ test("scheduled workflows evaluate skip gates before provider-dependent jobs", (
   assert.match(updateWorkflow, /"workflow_overrides":\{"agent-update\.yml":"disabled"\}/);
   assert.doesNotMatch(updateWorkflow, /Resolve canonical source guard/);
   assert.match(updateWorkflow, /Check pending update PR[\s\S]*if: steps\.schedule\.outputs\.skip != 'true'[\s\S]*resolve-pending-update-pr\.sh/);
+  assert.match(updateWorkflow, /IGNORE_EXISTING_UPDATE_PR:\s*\$\{\{ inputs\.force && 'true' \|\| 'false' \}\}/);
   assert.match(updateWorkflow, /update:\n\s+needs: gate\n\s+if: needs\.gate\.outputs\.skip != 'true'/);
+  assert.match(updateWorkflow, /existing_pr_branch: \$\{\{ steps\.pending\.outputs\.branch \}\}/);
+  assert.match(updateWorkflow, /ref: \$\{\{ github\.event\.repository\.default_branch \}\}/);
+  assert.doesNotMatch(updateWorkflow, /ref: \$\{\{ needs\.gate\.outputs\.existing_pr_branch/);
+  assert.match(updateWorkflow, /Resolve update target checkout[\s\S]*git worktree add -B "\$\{EXISTING_PR_BRANCH\}"/);
   assert.match(updateWorkflow, /Resolve update provider[\s\S]*Setup agent runtime/);
   assert.match(updateWorkflow, /source_ref:[\s\S]*default:\s*""/);
   assert.match(updateWorkflow, /UPDATE_SOURCE_REF:\s*\$\{\{\s*inputs\.source_ref \|\| ''\s*\}\}/);
   assert.match(updateWorkflow, /Resolve update source[\s\S]*resolve-update-source\.sh/);
   assert.match(updateWorkflow, /Write update source summary[\s\S]*Sepo update source:/);
   assert.doesNotMatch(updateWorkflow, /Render update request/);
+  assert.match(updateWorkflow, /runtime checkout path: \$\{\{ github\.workspace \}\}/);
+  assert.match(updateWorkflow, /update target path: \$\{\{ steps\.update_target\.outputs\.path \}\}/);
+  assert.match(updateWorkflow, /update target mode: \$\{\{ steps\.update_target\.outputs\.mode \}\}/);
   assert.match(updateWorkflow, /source agent repo\/ref: \$\{\{ steps\.update_source\.outputs\.source_repo \}\}@\$\{\{ steps\.update_source\.outputs\.source_ref \}\}/);
   assert.match(updateWorkflow, /source agent SHA: \$\{\{ steps\.update_source\.outputs\.source_sha \}\}/);
+  assert.match(updateWorkflow, /existing update PR number: \$\{\{ needs\.gate\.outputs\.existing_pr_number \|\| 'none' \}\}/);
+  assert.match(updateWorkflow, /existing update PR branch: \$\{\{ needs\.gate\.outputs\.existing_pr_branch \|\| 'none' \}\}/);
+  assert.match(updateWorkflow, /Runtime actions and scripts are loaded from the default-branch checkout/);
+  assert.match(updateWorkflow, /update that branch and PR in the update target path/);
+  assert.match(updateWorkflow, /do not check out the existing PR branch in[\s\S]*the runtime checkout path/);
   assert.match(updateWorkflow, /Update Sepo from <installed version\/ref> to \$\{\{ steps\.update_source\.outputs\.source_ref \}\}\/\$\{\{ steps\.update_source\.outputs\.source_sha \}\}/);
   assert.match(updateWorkflow, /Resolve task timeout[\s\S]*ROUTE: skill[\s\S]*resolve-task-timeout\.js/);
   assert.match(

@@ -24,17 +24,24 @@ Confirm these before editing:
 - whether post-merge workflows should be dispatched by you or only documented
 
 When invoked by Sepo's built-in `agent-update.yml` workflow, treat the workflow
-request as that confirmation: the target repository is the current checkout,
+request as that confirmation: the target repository is the current checkout or
+the explicit update target path named in the request,
 the workflow has already resolved `self-evolving/repo` to either the latest
 published stable release tag or an explicit manual `source_ref`, optional
 `.skills/` and `AGENT.md` updates default to no, obsolete-file removal defaults
 to no, and post-merge workflows should be documented only unless the request
 explicitly says otherwise. If no release exists yet, the workflow falls back to
 `main` and includes that fallback in the run summary. The workflow skips before
-invoking this skill when an `agent/update-agent-infra-*` PR is already open,
-unless the manual run uses `force=true`. Scheduled invocations are enabled by
-default and can be disabled with `AGENT_AUTO_UPDATE=false`; manual dispatch
-remains available.
+invoking this skill only when scheduling is disabled. When an
+`agent/update-agent-infra-*` PR is already open, the workflow keeps its runtime
+checkout on the default branch, prepares that branch as the update target, and
+includes the existing PR number, branch, target path, and runtime checkout path
+in the request text. Update that existing PR in the target path instead of
+opening a duplicate, and do not check out the existing PR branch in the runtime
+checkout path. A manual `force=true` run ignores the existing PR lookup and
+starts from the default branch. Scheduled invocations are enabled by default and
+can be disabled with `AGENT_AUTO_UPDATE=false`; manual dispatch remains
+available.
 
 Stop if the target repo, installed agent scaffold, or source revision is
 ambiguous.
@@ -75,6 +82,9 @@ target root `README.md` unless explicitly requested.
 - Merge agent-generated-output ignore rules into the target's existing
   `.gitignore` instead of replacing it: at least `.agent/dist/` and
   `.agent/node_modules/`.
+- When the request provides separate runtime checkout and update target paths,
+  keep runtime workflow code on the runtime checkout path and edit the target
+  branch only through the update target path.
 - Do not include secret values in commits, PR bodies, or comments.
 
 ## Workflow
@@ -85,7 +95,10 @@ target root `README.md` unless explicitly requested.
 
 2. Prepare source and target checkouts.
    - Clone/open the target repo and keep it separate from the source repo.
-   - Create the update branch from the target default branch.
+   - If the request names an update target path, use that path for target edits.
+   - If the request names an existing update PR branch without a separate target
+     path, continue from that branch and update the existing PR.
+   - Otherwise, create the update branch from the target default branch.
    - Check `git status --short`; stop if unrelated local changes would make the
      update ambiguous.
 
@@ -139,6 +152,8 @@ target root `README.md` unless explicitly requested.
      `.skills/<requested-skill>` and/or `AGENT.md`.
    - If the update produces no file changes, do not create a branch or PR;
      report that the target is already current.
+   - If the request names an existing update PR, push updates to that PR's
+     branch and report the existing PR URL instead of opening another PR.
    - PR title and body should clearly say
      `Update Sepo from <installed version/ref> to <resolved source ref/sha>`.
      The body should also include source repo/ref, target branch, changed path

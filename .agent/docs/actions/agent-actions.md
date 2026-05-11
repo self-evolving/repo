@@ -52,12 +52,14 @@ latest published stable Sepo release tag, calls the existing `update-agent`
 skill, and opens an update PR only when the target repository differs from that
 source. Manual dispatch can pass `source_ref` to test `main`, a branch, or a
 specific tag. If no release exists yet, the workflow falls back to `main` and
-records that fallback in the run summary. A pre-runtime pending-PR guard skips
-the run while an `agent/update-agent-infra-*` PR is already open. Set
-`AGENT_AUTO_UPDATE=false` to disable scheduled update checks while keeping
-manual dispatch available; the canonical `self-evolving/repo` source repository
-should use that setting instead of relying on a workflow-level repository
-special case.
+records that fallback in the run summary. A pre-runtime pending-PR resolver
+adopts an open same-repository `agent/update-agent-infra-*` PR by preparing its
+branch as the update target while keeping workflow runtime code on the default
+branch, then instructing the update skill to update that PR instead of opening a
+duplicate. Set `AGENT_AUTO_UPDATE=false` to disable scheduled update checks
+while keeping manual dispatch available; the canonical `self-evolving/repo`
+source repository should use that setting instead of relying on a workflow-level
+repository special case.
 
 ## Self-documenting pattern
 

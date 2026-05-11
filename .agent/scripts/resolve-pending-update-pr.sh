@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Pre-runtime guard for the scheduled Sepo update workflow. It keeps recurring
-# update checks from opening duplicate PRs while an earlier update PR is pending.
+# Pre-runtime resolver for the scheduled Sepo update workflow. It detects an
+# open update PR so recurring runs can update that PR instead of opening a
+# duplicate.
 
 DEFAULT_UPDATE_BRANCH_PREFIX="agent/update-agent-infra-"
 
@@ -57,20 +58,23 @@ emit_result() {
   local pr_url="${3:-}"
   local pr_number="${4:-}"
   local branch="${5:-}"
+  local found="${6:-false}"
 
   write_output "skip" "$skip"
   write_output "reason" "$reason"
   write_output "pr_url" "$pr_url"
   write_output "pr_number" "$pr_number"
   write_output "branch" "$branch"
+  write_output "found" "$found"
 
   jq -n \
     --argjson skip "$(json_bool "$skip")" \
+    --argjson found "$(json_bool "$found")" \
     --arg reason "$reason" \
     --arg prUrl "$pr_url" \
     --arg prNumber "$pr_number" \
     --arg branch "$branch" \
-    '{skip: $skip, reason: $reason, prUrl: $prUrl, prNumber: $prNumber, branch: $branch}'
+    '{skip: $skip, found: $found, reason: $reason, prUrl: $prUrl, prNumber: $prNumber, branch: $branch}'
 }
 
 main() {
@@ -85,7 +89,7 @@ main() {
     fail_config "UPDATE_BRANCH_PREFIX cannot be empty"
   fi
 
-  if is_true "${ALLOW_EXISTING_UPDATE_PR:-false}"; then
+  if is_true "${IGNORE_EXISTING_UPDATE_PR:-${ALLOW_EXISTING_UPDATE_PR:-false}}"; then
     emit_result "false" "pending update PR override enabled"
     return 0
   fi
@@ -110,7 +114,7 @@ main() {
   pr_url="$(printf '%s' "$match" | jq -r '.url // ""')"
   pr_number="$(printf '%s' "$match" | jq -r '(.number // "") | tostring')"
   branch="$(printf '%s' "$match" | jq -r '.headRefName // ""')"
-  emit_result "true" "pending update PR exists" "$pr_url" "$pr_number" "$branch"
+  emit_result "false" "existing update PR will be updated" "$pr_url" "$pr_number" "$branch" "true"
 }
 
 main "$@"
