@@ -62,3 +62,4 @@
 - Provider credentials belong in repo secrets; pass only fixed Sepo-needed secrets, not arbitrary repo secrets.
 - Agent-mode PR /orchestrate plans PR outcomes; dispatch only review/fix-pr, and planner-selected fix-pr needs concrete context.
 - Install-event bootstrap belongs in hosted App/backend code; repo-local onboarding remains the dispatched target workflow.
+- Privileged scheduled workflows should run repo-local actions/scripts from default branch; use adopted PR branches only as target worktrees.
