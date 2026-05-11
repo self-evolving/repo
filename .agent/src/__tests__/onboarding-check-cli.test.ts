@@ -24,6 +24,12 @@ function runOnboarding(tempDir: string, env: Record<string, string>) {
   });
 }
 
+function readCreatedIssueBody(log: string): string {
+  const match = log.match(/--body-file ([^ ]*sepo-onboarding-[a-f0-9]+\.md)/);
+  assert.ok(match, "expected onboarding issue body file in gh log");
+  return readFileSync(match[1], "utf8");
+}
+
 test("onboarding-check CLI creates labels, issue, and marker comment", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-onboarding-"));
 
@@ -84,6 +90,32 @@ exit 1
     assert.match(log, /^label create agent\/orchestrate --color fb8c00 --description Ask Sepo to run/m);
     assert.match(log, /^issue create --title Sepo setup check --body-file .+ --repo self-evolving\/repo$/m);
     assert.match(log, /^issue comment 77 --body <!-- sepo-agent-onboarding-check -->/m);
+    const issueBody = readCreatedIssueBody(log);
+    assert.equal(
+      issueBody,
+      `Use this issue to track Sepo setup for this repository.
+
+The latest setup status is maintained in the comment below.
+`,
+    );
+    assert.doesNotMatch(issueBody, /@sepo-agent/);
+    assert.match(log, /## Sepo setup status/);
+    assert.match(log, /### Current status/);
+    assert.match(log, /GitHub App\/auth: resolved via `oidc_broker`/);
+    assert.match(log, /Model credentials: `OPENAI_API_KEY` configured/);
+    assert.match(log, /Agent provider: `codex` \(OPENAI_API_KEY is configured\)/);
+    assert.match(log, /Memory: initialized \(`agent\/memory`\)/);
+    assert.match(log, /Rubrics: not initialized/);
+    assert.match(log, /Optional: run \*\*Actions > Agent \/ Rubrics \/ Initialization\*\*\./);
+    assert.match(log, /### Remaining setup/);
+    assert.match(log, /Optional: initialize rubrics branch `agent\/rubrics`\./);
+    assert.match(log, /### Test Sepo/);
+    assert.match(log, /@sepo-agent \/answer Is Sepo configured correctly in this repository\?/);
+    assert.match(log, /@sepo-agent \/implement Create a small README update that verifies the agent can open a PR\./);
+    assert.match(log, /@sepo-agent \/review/);
+    assert.match(log, /Last checked: https:\/\/github.com\/self-evolving\/repo\/actions\/runs\/1/);
+    assert.doesNotMatch(log, /Built-in trigger labels:/);
+    assert.doesNotMatch(log, /`agent\/fix-pr` ->/);
     assert.match(log, /agent\/fix-pr/);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
@@ -123,7 +155,7 @@ exit 1
     );
 
     const result = runOnboarding(tempDir, {
-      AUTH_MODE: "github_token",
+      AUTH_MODE: "",
       FAKE_GH_LOG: logPath,
       GITHUB_REPOSITORY: "self-evolving/repo",
     });
@@ -133,6 +165,13 @@ exit 1
     assert.doesNotMatch(log, /^issue create /m);
     assert.doesNotMatch(log, /^label create /m);
     assert.match(log, /^api -X PATCH repos\/self-evolving\/repo\/issues\/comments\/123 -f body=<!-- sepo-agent-onboarding-check -->/m);
+    assert.match(log, /GitHub App\/auth: not resolved/);
+    assert.match(log, /Model credentials: not configured/);
+    assert.match(log, /Add `OPENAI_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` as a repository secret\./);
+    assert.match(log, /Memory: not initialized/);
+    assert.match(log, /Run \*\*Actions > Agent \/ Memory \/ Initialization\*\*\./);
+    assert.match(log, /Configure one model provider credential\./);
+    assert.doesNotMatch(log, /Built-in trigger labels:/);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }

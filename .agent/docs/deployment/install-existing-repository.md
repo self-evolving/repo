@@ -41,13 +41,14 @@ After the files and secrets are in place:
 
 1. run `Agent / Onboarding / Check Setup` from GitHub Actions
 2. review the `Sepo setup check` issue that the workflow opens or updates
-3. run the copyable test command from that issue, or open another issue and mention `@sepo-agent`
+3. run a copyable test command from that issue's status comment, or open another issue and mention `@sepo-agent`
 4. wait for the `👀` reaction and the follow-up workflow run
 
 The onboarding workflow is safe to rerun. It creates the built-in trigger labels
 (`agent/answer`, `agent/implement`, `agent/create-action`, `agent/review`,
 `agent/fix-pr`, and `agent/orchestrate`) when they are missing, then updates the
-same setup issue comment with GitHub auth, provider, memory, and rubrics status.
+same setup issue comment with GitHub auth, provider credentials, memory, rubrics,
+remaining setup, and test commands.
 
 ## Memory Setup
 
