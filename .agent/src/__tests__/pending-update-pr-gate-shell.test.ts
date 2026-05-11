@@ -31,11 +31,11 @@ function runPendingGate(prsJson: string, extraEnv: Record<string, string> = {}) 
     cwd: process.cwd(),
     env: {
       ...process.env,
-      ALLOW_EXISTING_UPDATE_PR: "false",
       GH_TOKEN: "test-token",
       GITHUB_OUTPUT: outputFile,
       GITHUB_REPOSITORY: "self-evolving/repo",
       GH_STUB_RESPONSE: responseFile,
+      IGNORE_EXISTING_UPDATE_PR: "false",
       PATH: `${binDir}:${process.env.PATH || ""}`,
       UPDATE_BRANCH_PREFIX: "agent/update-agent-infra-",
       ...extraEnv,
@@ -47,7 +47,7 @@ function runPendingGate(prsJson: string, extraEnv: Record<string, string> = {}) 
   return { result, outputText, payload };
 }
 
-test("pending update PR gate skips same-repository update branches", () => {
+test("pending update PR gate adopts same-repository update branches", () => {
   const { result, outputText, payload } = runPendingGate(
     JSON.stringify([
       {
@@ -60,11 +60,13 @@ test("pending update PR gate skips same-repository update branches", () => {
   );
 
   assert.equal(result.status, 0, result.stderr);
-  assert.equal(payload.skip, true);
-  assert.equal(payload.reason, "pending update PR exists");
+  assert.equal(payload.skip, false);
+  assert.equal(payload.found, true);
+  assert.equal(payload.reason, "existing update PR will be updated");
   assert.equal(payload.prNumber, "123");
   assert.equal(payload.branch, "agent/update-agent-infra-20260503");
-  assert.match(outputText, /skip<<[\s\S]*true/);
+  assert.match(outputText, /skip<<[\s\S]*false/);
+  assert.match(outputText, /found<<[\s\S]*true/);
   assert.match(outputText, /pr_url<<[\s\S]*\/pull\/123/);
 });
 
@@ -88,6 +90,7 @@ test("pending update PR gate ignores unrelated and cross-repository PRs", () => 
 
   assert.equal(result.status, 0, result.stderr);
   assert.equal(payload.skip, false);
+  assert.equal(payload.found, false);
   assert.equal(payload.reason, "no pending update PR");
 });
 
@@ -101,10 +104,13 @@ test("pending update PR gate allows explicit force runs", () => {
         isCrossRepository: false,
       },
     ]),
-    { ALLOW_EXISTING_UPDATE_PR: "true" },
+    { IGNORE_EXISTING_UPDATE_PR: "true" },
   );
 
   assert.equal(result.status, 0, result.stderr);
   assert.equal(payload.skip, false);
+  assert.equal(payload.found, false);
   assert.equal(payload.reason, "pending update PR override enabled");
+  assert.equal(payload.prNumber, "");
+  assert.equal(payload.branch, "");
 });

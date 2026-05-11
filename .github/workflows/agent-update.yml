@@ -26,7 +26,7 @@ on:
         type: boolean
         default: false
       force:
-        description: "Run even when an open Sepo update PR already exists"
+        description: "Ignore an open Sepo update PR and start from the default branch"
         required: false
         type: boolean
         default: false
@@ -79,17 +79,15 @@ jobs:
         id: pending
         if: steps.schedule.outputs.skip != 'true'
         env:
-          ALLOW_EXISTING_UPDATE_PR: ${{ inputs.force && 'true' || 'false' }}
           GH_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          IGNORE_EXISTING_UPDATE_PR: ${{ inputs.force && 'true' || 'false' }}
           UPDATE_BRANCH_PREFIX: ${{ env.UPDATE_BRANCH_PREFIX }}
         run: bash .agent/scripts/resolve-pending-update-pr.sh
 
       - name: Resolve gate result
         id: result
         env:
-          PENDING_REASON: ${{ steps.pending.outputs.reason }}
-          PENDING_SKIP: ${{ steps.pending.outputs.skip }}
           SCHEDULE_REASON: ${{ steps.schedule.outputs.reason }}
           SCHEDULE_SKIP: ${{ steps.schedule.outputs.skip }}
         run: |
@@ -108,12 +106,9 @@ jobs:
           if [ "${SCHEDULE_SKIP}" = "true" ]; then
             write_output "skip" "true"
             write_output "reason" "${SCHEDULE_REASON}"
-          elif [ "${PENDING_SKIP}" = "true" ]; then
-            write_output "skip" "true"
-            write_output "reason" "${PENDING_REASON}"
           else
             write_output "skip" "false"
-            write_output "reason" "${PENDING_REASON:-${SCHEDULE_REASON}}"
+            write_output "reason" "${SCHEDULE_REASON}"
           fi
 
       - name: Write skipped summary
@@ -136,7 +131,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.repository.default_branch }}
+          ref: ${{ needs.gate.outputs.existing_pr_branch || github.event.repository.default_branch }}
           fetch-depth: 0
           persist-credentials: false
           token: ${{ github.token }}
@@ -224,14 +219,18 @@ jobs:
             - source agent repo/ref: ${{ steps.update_source.outputs.source_repo }}@${{ steps.update_source.outputs.source_ref }}
             - source agent SHA: ${{ steps.update_source.outputs.source_sha }}
             - source resolution: ${{ steps.update_source.outputs.source_kind }}
+            - existing update PR number: ${{ needs.gate.outputs.existing_pr_number || 'none' }}
+            - existing update PR branch: ${{ needs.gate.outputs.existing_pr_branch || 'none' }}
             - update branch: use `${{ env.UPDATE_BRANCH_PREFIX }}<yyyymmdd>`
             - update .skills directories: ${{ env.UPDATE_SKILLS }}
             - update AGENT.md when agent-owned: ${{ env.UPDATE_AGENT_MD }}
             - remove obsolete or legacy files: false
             - post-merge workflows: document only
 
-            Open a pull request only when the update produces changes. If the target
-            is already current, leave no PR and report that no update was needed.
+            If an existing update PR number and branch are not `none`, update that
+            branch and PR instead of opening a new PR. Otherwise, open a pull
+            request only when the update produces changes. If the target is already
+            current, leave no PR and report that no update was needed.
             When a PR is opened, title and summarize it as:
             `Update Sepo from <installed version/ref> to ${{ steps.update_source.outputs.source_ref }}/${{ steps.update_source.outputs.source_sha }}`.
           requested_by: ${{ github.actor }}
