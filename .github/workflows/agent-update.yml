@@ -75,37 +75,9 @@ jobs:
           schedule_policy: ${{ vars.AGENT_AUTO_UPDATE == 'false' && '{"workflow_overrides":{"agent-update.yml":"disabled"}}' || vars.AGENT_SCHEDULE_POLICY || '' }}
           workflow: agent-update.yml
 
-      - name: Resolve canonical source guard
-        id: canonical_source
-        if: steps.schedule.outputs.skip != 'true'
-        env:
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          UPDATE_SOURCE_REPO: ${{ env.UPDATE_SOURCE_REPO }}
-          UPDATE_SOURCE_REF: ${{ env.UPDATE_SOURCE_REF }}
-        run: |
-          set -euo pipefail
-          write_output() {
-            local name="$1"
-            local value="$2"
-            local delim="DELIM_${RANDOM}_${RANDOM}_$$"
-            {
-              printf '%s<<%s\n' "$name" "$delim"
-              printf '%s\n' "$value"
-              printf '%s\n' "$delim"
-            } >> "$GITHUB_OUTPUT"
-          }
-
-          if [ "${GITHUB_REPOSITORY}" = "${UPDATE_SOURCE_REPO}" ] && [ -z "${UPDATE_SOURCE_REF}" ]; then
-            write_output "skip" "true"
-            write_output "reason" "canonical source repo requires explicit source_ref"
-          else
-            write_output "skip" "false"
-            write_output "reason" ""
-          fi
-
       - name: Check pending update PR
         id: pending
-        if: steps.schedule.outputs.skip != 'true' && steps.canonical_source.outputs.skip != 'true'
+        if: steps.schedule.outputs.skip != 'true'
         env:
           ALLOW_EXISTING_UPDATE_PR: ${{ inputs.force && 'true' || 'false' }}
           GH_TOKEN: ${{ github.token }}
@@ -118,8 +90,6 @@ jobs:
         env:
           PENDING_REASON: ${{ steps.pending.outputs.reason }}
           PENDING_SKIP: ${{ steps.pending.outputs.skip }}
-          CANONICAL_REASON: ${{ steps.canonical_source.outputs.reason }}
-          CANONICAL_SKIP: ${{ steps.canonical_source.outputs.skip }}
           SCHEDULE_REASON: ${{ steps.schedule.outputs.reason }}
           SCHEDULE_SKIP: ${{ steps.schedule.outputs.skip }}
         run: |
@@ -138,9 +108,6 @@ jobs:
           if [ "${SCHEDULE_SKIP}" = "true" ]; then
             write_output "skip" "true"
             write_output "reason" "${SCHEDULE_REASON}"
-          elif [ "${CANONICAL_SKIP}" = "true" ]; then
-            write_output "skip" "true"
-            write_output "reason" "${CANONICAL_REASON}"
           elif [ "${PENDING_SKIP}" = "true" ]; then
             write_output "skip" "true"
             write_output "reason" "${PENDING_REASON}"
@@ -228,6 +195,20 @@ jobs:
           ROUTE: skill
         run: node .agent/dist/cli/resolve-task-timeout.js
 
+      - name: Render update request
+        id: update_request
+        env:
+          SOURCE_KIND: ${{ steps.update_source.outputs.source_kind }}
+          SOURCE_REF: ${{ steps.update_source.outputs.source_ref }}
+          SOURCE_REPO: ${{ steps.update_source.outputs.source_repo }}
+          SOURCE_SHA: ${{ steps.update_source.outputs.source_sha }}
+          TARGET_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          TARGET_REPOSITORY: ${{ github.repository }}
+          UPDATE_AGENT_MD: ${{ env.UPDATE_AGENT_MD }}
+          UPDATE_BRANCH_PREFIX: ${{ env.UPDATE_BRANCH_PREFIX }}
+          UPDATE_SKILLS: ${{ env.UPDATE_SKILLS }}
+        run: bash .agent/scripts/render-agent-update-request.sh
+
       - name: Run update agent
         id: agent
         timeout-minutes: ${{ fromJson(steps.task_timeout.outputs.minutes || '30') }}
@@ -248,25 +229,7 @@ jobs:
           rubrics_policy: ${{ vars.AGENT_RUBRICS_POLICY || '' }}
           rubrics_limit: ${{ vars.AGENT_RUBRICS_LIMIT || '10' }}
           session_policy: track-only
-          request_text: |
-            Run a Sepo agent infrastructure update check for this repository.
-
-            Confirmed inputs:
-            - target repository: ${{ github.repository }}
-            - target default branch: ${{ github.event.repository.default_branch }}
-            - source agent repo/ref: ${{ steps.update_source.outputs.source_repo }}@${{ steps.update_source.outputs.source_ref }}
-            - source agent SHA: ${{ steps.update_source.outputs.source_sha }}
-            - source resolution: ${{ steps.update_source.outputs.source_kind }}
-            - update branch: use `${{ env.UPDATE_BRANCH_PREFIX }}<yyyymmdd>`
-            - update .skills directories: ${{ env.UPDATE_SKILLS }}
-            - update AGENT.md when agent-owned: ${{ env.UPDATE_AGENT_MD }}
-            - remove obsolete or legacy files: false
-            - post-merge workflows: document only
-
-            Open a pull request only when the update produces changes. If the target
-            is already current, leave no PR and report that no update was needed.
-            When a PR is opened, title and summarize it as:
-            `Update Sepo from <installed version/ref> to ${{ steps.update_source.outputs.source_ref }}/${{ steps.update_source.outputs.source_sha }}`.
+          request_text: ${{ steps.update_request.outputs.request_text }}
           requested_by: ${{ github.actor }}
           source_kind: workflow_dispatch
           target_kind: repository

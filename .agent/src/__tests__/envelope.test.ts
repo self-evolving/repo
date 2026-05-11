@@ -263,18 +263,20 @@ test("scheduled workflows evaluate skip gates before provider-dependent jobs", (
   assert.match(updateWorkflow, /gate:\n[\s\S]*Resolve scheduled activity gate/);
   assert.match(updateWorkflow, /vars\.AGENT_AUTO_UPDATE == 'false'/);
   assert.match(updateWorkflow, /"workflow_overrides":\{"agent-update\.yml":"disabled"\}/);
-  assert.match(updateWorkflow, /Resolve canonical source guard[\s\S]*canonical source repo requires explicit source_ref/);
-  assert.match(updateWorkflow, /Check pending update PR[\s\S]*steps\.canonical_source\.outputs\.skip != 'true'[\s\S]*resolve-pending-update-pr\.sh/);
-  assert.match(updateWorkflow, /CANONICAL_SKIP: \$\{\{ steps\.canonical_source\.outputs\.skip \}\}/);
+  assert.doesNotMatch(updateWorkflow, /Resolve canonical source guard/);
+  assert.match(updateWorkflow, /Check pending update PR[\s\S]*if: steps\.schedule\.outputs\.skip != 'true'[\s\S]*resolve-pending-update-pr\.sh/);
   assert.match(updateWorkflow, /update:\n\s+needs: gate\n\s+if: needs\.gate\.outputs\.skip != 'true'/);
   assert.match(updateWorkflow, /Resolve update provider[\s\S]*Setup agent runtime/);
   assert.match(updateWorkflow, /source_ref:[\s\S]*default:\s*""/);
   assert.match(updateWorkflow, /UPDATE_SOURCE_REF:\s*\$\{\{\s*inputs\.source_ref \|\| ''\s*\}\}/);
   assert.match(updateWorkflow, /Resolve update source[\s\S]*resolve-update-source\.sh/);
   assert.match(updateWorkflow, /Write update source summary[\s\S]*Sepo update source:/);
-  assert.match(updateWorkflow, /source agent repo\/ref: \$\{\{ steps\.update_source\.outputs\.source_repo \}\}@\$\{\{ steps\.update_source\.outputs\.source_ref \}\}/);
-  assert.match(updateWorkflow, /source agent SHA: \$\{\{ steps\.update_source\.outputs\.source_sha \}\}/);
-  assert.match(updateWorkflow, /Update Sepo from <installed version\/ref> to \$\{\{ steps\.update_source\.outputs\.source_ref \}\}\/\$\{\{ steps\.update_source\.outputs\.source_sha \}\}/);
+  assert.match(updateWorkflow, /Render update request[\s\S]*render-agent-update-request\.sh/);
+  assert.match(updateWorkflow, /request_text: \$\{\{ steps\.update_request\.outputs\.request_text \}\}/);
+  const updatePrompt = readRepoFile(".github/prompts/agent-update.md");
+  assert.match(updatePrompt, /source agent repo\/ref: \{\{SOURCE_REPO\}\}@\{\{SOURCE_REF\}\}/);
+  assert.match(updatePrompt, /source agent SHA: \{\{SOURCE_SHA\}\}/);
+  assert.match(updatePrompt, /Update Sepo from <installed version\/ref> to \{\{SOURCE_REF\}\}\/\{\{SOURCE_SHA\}\}/);
   assert.match(updateWorkflow, /Resolve task timeout[\s\S]*ROUTE: skill[\s\S]*resolve-task-timeout\.js/);
   assert.match(
     updateWorkflow,
