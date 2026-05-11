@@ -61,6 +61,50 @@ test("agent mode validates planner handoff against policy", () => {
   );
 });
 
+test("agent mode allows planner-selected self-approval for SHIP reviews when enabled", () => {
+  const decision = decideHandoff({
+    automationMode: "agent",
+    sourceAction: "review",
+    sourceConclusion: "SHIP",
+    targetNumber: "99",
+    currentRound: 2,
+    maxRounds: 5,
+    allowSelfApprove: true,
+    plannerDecision: {
+      decision: "handoff",
+      nextAction: "agent-self-approve",
+      reason: "Review shipped and self-approval is enabled.",
+    },
+  });
+
+  assert.equal(decision.decision, "dispatch");
+  assert.equal(decision.nextAction, "agent-self-approve");
+  assert.equal(decision.targetNumber, "99");
+  assert.match(decision.reason, /agent planner selected agent-self-approve/);
+});
+
+test("agent mode allows planner-selected self-merge after self-approval when enabled", () => {
+  const decision = decideHandoff({
+    automationMode: "agent",
+    sourceAction: "agent-self-approve",
+    sourceConclusion: "approved",
+    targetNumber: "99",
+    currentRound: 3,
+    maxRounds: 5,
+    allowSelfMerge: true,
+    plannerDecision: {
+      decision: "handoff",
+      nextAction: "agent-self-merge",
+      reason: "Self-approval completed and self-merge is enabled.",
+    },
+  });
+
+  assert.equal(decision.decision, "dispatch");
+  assert.equal(decision.nextAction, "agent-self-merge");
+  assert.equal(decision.targetNumber, "99");
+  assert.match(decision.reason, /agent planner selected agent-self-merge/);
+});
+
 test("agent mode supports issue-level child issue delegation", () => {
   const decision = decideHandoff({
     automationMode: "agent",
@@ -110,101 +154,6 @@ test("agent mode supports issue-level orchestrate handoff to implement", () => {
   assert.equal(decision.nextRound, 2);
   assert.match(decision.reason, /agent planner selected implement/);
   assert.equal(decision.baseBranch, "feature-base");
-});
-
-test("agent mode supports PR-level orchestrate handoff to review or fix-pr", () => {
-  const review = decideHandoff({
-    automationMode: "agent",
-    sourceAction: "orchestrate",
-    sourceConclusion: "requested",
-    targetKind: "pull_request",
-    targetNumber: "66",
-    currentRound: 1,
-    maxRounds: 5,
-    plannerDecision: {
-      decision: "handoff",
-      nextAction: "review",
-      reason: "The request asks for review before any edits.",
-    },
-  });
-  assert.equal(review.decision, "dispatch");
-  assert.equal(review.nextAction, "review");
-  assert.equal(review.targetNumber, "66");
-  assert.match(review.reason, /agent planner selected review/);
-
-  const fix = decideHandoff({
-    automationMode: "agent",
-    sourceAction: "orchestrate",
-    sourceConclusion: "requested",
-    targetKind: "pull_request",
-    targetNumber: "66",
-    currentRound: 1,
-    maxRounds: 5,
-    plannerDecision: {
-      decision: "handoff",
-      nextAction: "fix-pr",
-      reason: "The request explicitly asks to fix the PR.",
-      handoffContext: "Fix the merge conflict only.",
-    },
-  });
-  assert.equal(fix.decision, "dispatch");
-  assert.equal(fix.nextAction, "fix-pr");
-  assert.equal(fix.targetNumber, "66");
-  assert.equal(fix.handoffContext, "Fix the merge conflict only.");
-  assert.match(fix.reason, /agent planner selected fix-pr/);
-});
-
-test("agent mode rejects invalid PR-level orchestrate handoffs", () => {
-  const implement = decideHandoff({
-    automationMode: "agent",
-    sourceAction: "orchestrate",
-    sourceConclusion: "requested",
-    targetKind: "pull_request",
-    targetNumber: "66",
-    currentRound: 1,
-    maxRounds: 5,
-    plannerDecision: {
-      decision: "handoff",
-      nextAction: "implement",
-      reason: "Try to implement from a PR.",
-    },
-  });
-  assert.equal(implement.decision, "stop");
-  assert.match(implement.reason, /only for issue targets/);
-
-  const mixedAnswer = decideHandoff({
-    automationMode: "agent",
-    sourceAction: "orchestrate",
-    sourceConclusion: "requested",
-    targetKind: "pull_request",
-    targetNumber: "66",
-    currentRound: 1,
-    maxRounds: 5,
-    plannerDecision: {
-      decision: "answer",
-      nextAction: "review",
-      reason: "Answer and review.",
-    },
-  });
-  assert.equal(mixedAnswer.decision, "stop");
-  assert.match(mixedAnswer.reason, /answer must not set next_action/);
-
-  const fixWithoutContext = decideHandoff({
-    automationMode: "agent",
-    sourceAction: "orchestrate",
-    sourceConclusion: "requested",
-    targetKind: "pull_request",
-    targetNumber: "66",
-    currentRound: 1,
-    maxRounds: 5,
-    plannerDecision: {
-      decision: "handoff",
-      nextAction: "fix-pr",
-      reason: "Fix the PR.",
-    },
-  });
-  assert.equal(fixWithoutContext.decision, "stop");
-  assert.match(fixWithoutContext.reason, /without handoff_context/);
 });
 
 test("agent mode rejects invalid child issue delegation", () => {
@@ -452,6 +401,21 @@ test("review verdicts dispatch fix-pr or stop", () => {
 
   assert.equal(ship.decision, "stop");
   assert.match(ship.reason, /SHIP/);
+
+  const selfApprove = decideHandoff({
+    automationMode: "heuristics",
+    sourceAction: "review",
+    sourceConclusion: "SHIP",
+    targetNumber: "99",
+    currentRound: 2,
+    maxRounds: 5,
+    allowSelfApprove: true,
+  });
+
+  assert.equal(selfApprove.decision, "dispatch");
+  assert.equal(selfApprove.nextAction, "agent-self-approve");
+  assert.equal(selfApprove.targetNumber, "99");
+  assert.match(selfApprove.reason, /dispatching agent-self-approve/);
 });
 
 test("review fix-pr handoffs preserve derived source context", () => {
@@ -468,6 +432,84 @@ test("review fix-pr handoffs preserve derived source context", () => {
   assert.equal(decision.decision, "dispatch");
   assert.equal(decision.nextAction, "fix-pr");
   assert.equal(decision.handoffContext, "Fix only the failing fallback test.");
+});
+
+test("self-approval request changes dispatches fix-pr with handoff context", () => {
+  const decision = decideHandoff({
+    automationMode: "heuristics",
+    sourceAction: "agent-self-approve",
+    sourceConclusion: "REQUEST_CHANGES",
+    sourceHandoffContext: "Tighten the resolver preflight and add tests.",
+    targetNumber: "99",
+    currentRound: 3,
+    maxRounds: 5,
+  });
+
+  assert.equal(decision.decision, "dispatch");
+  assert.equal(decision.nextAction, "fix-pr");
+  assert.equal(decision.targetNumber, "99");
+  assert.equal(decision.handoffContext, "Tighten the resolver preflight and add tests.");
+});
+
+test("self-approval terminal conclusions stop", () => {
+  for (const conclusion of ["approved", "blocked", "failed"]) {
+    const decision = decideHandoff({
+      automationMode: "heuristics",
+      sourceAction: "agent-self-approve",
+      sourceConclusion: conclusion,
+      targetNumber: "99",
+      currentRound: 3,
+      maxRounds: 5,
+    });
+
+    assert.equal(decision.decision, "stop");
+    assert.equal(decision.nextAction, undefined);
+    assert.match(decision.reason, new RegExp(`agent-self-approve concluded ${conclusion}`));
+  }
+});
+
+test("self-approval approved dispatches self-merge only when enabled", () => {
+  const disabled = decideHandoff({
+    automationMode: "heuristics",
+    sourceAction: "agent-self-approve",
+    sourceConclusion: "approved",
+    targetNumber: "99",
+    currentRound: 3,
+    maxRounds: 5,
+  });
+  assert.equal(disabled.decision, "stop");
+  assert.equal(disabled.nextAction, undefined);
+
+  const enabled = decideHandoff({
+    automationMode: "heuristics",
+    sourceAction: "agent-self-approve",
+    sourceConclusion: "approved",
+    targetNumber: "99",
+    currentRound: 3,
+    maxRounds: 5,
+    allowSelfMerge: true,
+  });
+  assert.equal(enabled.decision, "dispatch");
+  assert.equal(enabled.nextAction, "agent-self-merge");
+  assert.equal(enabled.targetNumber, "99");
+  assert.match(enabled.reason, /dispatching agent-self-merge/);
+});
+
+test("self-merge terminal conclusions stop", () => {
+  for (const conclusion of ["merged", "auto_merge_enabled", "waiting", "blocked", "failed"]) {
+    const decision = decideHandoff({
+      automationMode: "heuristics",
+      sourceAction: "agent-self-merge",
+      sourceConclusion: conclusion,
+      targetNumber: "99",
+      currentRound: 4,
+      maxRounds: 5,
+    });
+
+    assert.equal(decision.decision, "stop");
+    assert.equal(decision.nextAction, undefined);
+    assert.match(decision.reason, new RegExp(`agent-self-merge concluded ${conclusion}`));
+  }
 });
 
 test("fix-pr success dispatches review until the round budget is exhausted", () => {
@@ -656,6 +698,24 @@ test("parsePlannerDecision reads planner JSON", () => {
     )?.handoffContext,
     "camel case works",
   );
+  assert.equal(
+    parsePlannerDecision(
+      '{"decision":"handoff","next_action":"agent-self-approve","reason":"Ship review can proceed to self-approval."}',
+    )?.nextAction,
+    "agent-self-approve",
+  );
+  assert.equal(
+    parsePlannerDecision(
+      '{"decision":"handoff","next_action":"self_approve","reason":"Legacy alias should not map."}',
+    )?.nextAction,
+    undefined,
+  );
+  assert.equal(
+    parsePlannerDecision(
+      '{"decision":"handoff","next_action":"agent-self-merge","reason":"Self-approval can proceed to merge."}',
+    )?.nextAction,
+    "agent-self-merge",
+  );
   assert.deepEqual(
     parsePlannerDecision(
       '{"decision":"delegate_issue","reason":"Delegate.","child_stage":"Stage One","child_instructions":"Do one thing.","base_pr":"12"}',
@@ -670,17 +730,7 @@ test("parsePlannerDecision reads planner JSON", () => {
     },
   );
   assert.equal(parsePlannerDecision("not json"), null);
-  assert.equal(parsePlannerDecision('{"decision":"deploy","reason":"Ship it."}'), null);
   assert.equal(parsePlannerDecision('{"decision":"handoff","next_action":"deploy"}')?.nextAction, undefined);
-  assert.deepEqual(
-    parsePlannerDecision('{"decision":"answer","reason":"The user asked a question.","user_message":"Use /review for a full pass."}'),
-    {
-      decision: "answer",
-      nextAction: undefined,
-      reason: "The user asked a question.",
-      userMessage: "Use /review for a full pass.",
-    },
-  );
 });
 
 test("review fix-pr context extracts unchecked review synthesis action items", () => {

@@ -43,8 +43,12 @@ Current route-level `acpx` permission modes:
 | `dispatch` | `approve-all` | classification may gather repo and issue context |
 | `answer` | `approve-all` | may gather context before replying |
 | `orchestrator` | `approve-all` | planner may gather target and repository context before choosing the next route |
+| `agent-self-approve` | `approve-reads` | final approval judgment may inspect PR/repo context, but deterministic resolver code owns approval submission |
 | `implement` | `approve-all` | needs full file system access |
 | `fix-pr` | `approve-all` | needs full file system access |
 | `review` | `approve-all` | reviewers and synthesis may gather PR and repo context |
 
-Dedicated memory and rubric maintenance workflows use the same runtime but are documented with their storage systems rather than the user-request lifecycle. The workflow-level GitHub token still has write scope for all jobs. Narrowing that token per job is tracked separately. The `acpx` permission modes restrict agent tool use but not direct `gh` CLI calls.
+Dedicated memory and rubric maintenance workflows use the same runtime but are documented with their storage systems rather than the user-request lifecycle. Workflow-level GitHub token scopes are set by each workflow or job and remain separate from route-level `acpx` modes. The self-approval workflow keeps the inspection agent on the read-scoped `github.token`; deterministic resolver code uses the resolved Sepo auth token for approval submission.
+`agent-self-merge.yml` is fully deterministic and does not run an `acpx` agent;
+its resolver uses the resolved Sepo auth token only after current-head
+self-approval, review-state, and check-state safeguards pass.

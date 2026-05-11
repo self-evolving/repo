@@ -11,9 +11,11 @@
 | `agent-router.yml` | `workflow_call` | Full portal for context extraction, auth gating, mention detection, dispatch triage, routing, approval requests, and response posting | Configurable |
 | `agent-approve.yml` | approval comments | Resolves pending approvals, creates issues when needed, dispatches implementation | None |
 | `agent-orchestrator.yml` | `workflow_dispatch` | Explicit orchestration route that decides whether to dispatch the next action | None in `heuristics` mode; resolved-provider planner in `agent` mode |
+| `agent-self-approve.yml` | `workflow_dispatch` | Opt-in pull request self-approval gate after trusted current-head review synthesis | Auto |
+| `agent-self-merge.yml` | `workflow_dispatch` | Opt-in deterministic self-merge or auto-merge gate after current-head self-approval | None |
 | `agent-implement.yml` | `workflow_dispatch` | Implementation flow: branch, commit, draft PR; supports `base_branch` or `base_pr` for stacked PRs | Auto |
 | `agent-fix-pr.yml` | `workflow_dispatch`, `workflow_call` | PR fix flow: update existing PR branch, verify, push | Auto |
-| `agent-review.yml` | `workflow_dispatch`, `workflow_call` | Parallel Claude and Codex review with resolved-provider synthesis, plus a separate rubric review comment | Claude + Codex reviewers; configurable synthesis |
+| `agent-review.yml` | `workflow_dispatch`, `workflow_call` | Parallel Claude and Codex review with resolved-provider synthesis, captured reviewed-head provenance, plus a separate rubric review comment | Claude + Codex reviewers; configurable synthesis |
 | `agent-branch-cleanup.yml` | `pull_request_target.closed` | Event-driven cleanup of merged agent-created branches after retargeting open stacked PRs. Excludes the shared `agent/memory` and `agent/rubrics` branches. | None |
 | `agent-close-stale-issues.yml` | `schedule` (daily), `workflow_dispatch` | Closes open `agent` issues that have had no activity for 30 days by default | None |
 | `agent-daily-summary.yml` | `schedule` (daily), `workflow_dispatch` | Generates a concise repository activity summary and posts it as a Discussion | Auto |
@@ -23,27 +25,26 @@
 
 `agent-orchestrator.yml` is started explicitly through `/orchestrate` or
 `agent/orchestrate`. On start, it inspects the current target state and
-dispatches one built-in action (`implement`, `review`, or `fix-pr`) when useful.
+dispatches one built-in action (`implement`, `review`, `fix-pr`, or
+`agent-self-approve`, and when separately enabled, `agent-self-merge`) when
+useful.
 That dispatch includes explicit orchestration context; only those orchestrator
 launched action runs hand back to `agent-orchestrator.yml` after post-processing.
 Direct `/implement`, `/review`, and `/fix-pr` runs remain one-shot.
-Explicit `/orchestrate` starts on pull requests remain deterministic in
-`heuristics` mode. In `agent` mode, issue-level and pull-request-level
-`/orchestrate` starts may use the planner. For small self-contained issue work,
-the planner can return a normal handoff to `implement` on the current issue. For
-PR work, the planner can choose review-first, fix-the-PR, answer-only, or stop
-behavior; runtime policy validates that PR starts dispatch only `review` or
-`fix-pr` workflows. For meta-orchestration, the planner can return an internal
-`delegate_issue` command instead of adding a new public route. That command
-creates or reuses a child issue with parent/stage metadata, dispatches the child
-issue through the normal `/orchestrate` flow in heuristic mode, and keeps the
-parent/child relationship in GitHub issue state rather than session identity.
-When `delegate_issue` names an existing user-authored issue, the orchestrator
-adopts it by writing the trusted child marker in an agent-authored issue comment
-and recording the parent/child link on the parent issue. The dispatcher also
-best-effort adds the child as a GitHub sub-issue of the parent when the
-repository supports that REST API; trusted markers remain the fallback relation
-if the API is unavailable.
+Explicit `/orchestrate` starts on pull requests are deterministic in both
+`heuristics` and `agent` modes. Issue-level `/orchestrate` starts in `agent`
+mode may use the planner. For small self-contained issue work, the planner can
+return a normal handoff to `implement` on the current issue. For
+meta-orchestration, the planner can return an internal `delegate_issue` command
+instead of adding a new public route. That command creates or reuses a child
+issue with parent/stage metadata, dispatches the child issue through the normal
+`/orchestrate` flow in heuristic mode, and keeps the parent/child relationship
+in GitHub issue state rather than session identity. When `delegate_issue` names
+an existing user-authored issue, the orchestrator adopts it by writing the
+trusted child marker in an agent-authored issue comment and recording the
+parent/child link on the parent issue. The dispatcher also best-effort adds the
+child as a GitHub sub-issue of the parent when the repository supports that REST
+API; trusted markers remain the fallback relation if the API is unavailable.
 
 Planner-based selection is also used for action-originated handoff runs. The planner can include a
 `handoff_context` string for the next action; `fix-pr` receives it as explicit
@@ -62,11 +63,14 @@ and only then marks the trusted child marker as `done`, `blocked`, or `failed`.
 Already-dispatched terminal reports are idempotent so reruns do not overwrite
 completed child state.
 
-Because `/orchestrate` can delegate into implementation, review, and fix
-workflows, initial user-launched orchestrate requests validate the requester
-against the delegated route capability set up front. Internal child and parent
-resume dispatches carry `requested_by` for audit and display, but they do not
-thread route authorization inputs through every child workflow.
+Because `/orchestrate` can delegate into implementation, review, fix, and
+enabled self-approval/self-merge workflows, initial user-launched orchestrate requests
+validate the requester against the delegated route capability set up front.
+`agent-self-approve` is included in that check only when
+`AGENT_ALLOW_SELF_APPROVE=true`; `agent-self-merge` is included only when both
+`AGENT_ALLOW_SELF_APPROVE=true` and `AGENT_ALLOW_SELF_MERGE=true`. Internal
+child and parent resume dispatches carry `requested_by` for audit and display,
+but they do not thread route authorization inputs through every child workflow.
 
 Implementation dispatches default to the repository default branch. Callers can
 set `base_branch` to stack directly on another branch, or `base_pr` to stack on
@@ -84,19 +88,19 @@ generated status prominent while leaving older generated comments expandable.
 Set `AGENT_COLLAPSE_OLD_REVIEWS=false` to skip this cleanup and leave prior
 generated comments visible.
 
+Review runs also attempt to capture the pull request head before reviewer lanes
+start. The synthesis comment includes a hidden reviewed-head marker only if the
+pull request still points at that same head before posting. If capture,
+comparison, or prepare metadata setup cannot read PR metadata, synthesis still
+posts without the hidden marker.
+
 Review synthesis can also make prompt-managed inline review comment updates:
 it may post a new inline comment, reply to an existing same-agent inline
-comment, or clean up older same-agent inline feedback by synthesis-agent
-judgment. Synthesis re-fetches PR inline comments and review threads before
-cleanup. It resolves an older same-agent review thread only when the thread
-belongs to the PR, is unresolved, `viewerCanResolve` is true, every thread
-comment is from the same authenticated agent account, and the issue is
-addressed or superseded. It marks an older same-agent inline comment as
-outdated only when the comment is superseded and there is no appropriate
-resolvable review-thread path. When authorship, PR ownership, supersession, or
-resolution confidence is uncertain, synthesis does nothing. Reviewer lanes only
-suggest these actions; they do not mutate GitHub. This inline behavior is
-separate from the deterministic generated-comment cleanup controlled by
+comment, or mark an older same-agent inline comment as outdated. Synthesis
+re-fetches PR inline comments before acting; replies and minimization require
+confirmed same-agent authorship and PR ownership. Reviewer lanes only suggest
+these actions; they do not mutate GitHub. This inline behavior is separate from
+the deterministic generated-comment cleanup controlled by
 `AGENT_COLLAPSE_OLD_REVIEWS`.
 
 ### Repository memory workflows
@@ -212,6 +216,39 @@ If `AGENT_STATUS_LABEL_ENABLED=true`, accepted non-unsupported issue and pull re
 Label triggers authorize the label applier rather than the issue or pull request author. Personal-repository owners map to `OWNER`; visible organization members map to `MEMBER`; repository collaborators with label permission map to `COLLABORATOR`.
 
 Skill names are normalized to lowercase, so `agent/s/Release-Notes` resolves to `.skills/release-notes/SKILL.md`. Skill directories should use lowercase names to match consistently across case-sensitive filesystems.
+
+### `agent-self-approve.yml`
+
+Self-approval is disabled unless `AGENT_ALLOW_SELF_APPROVE=true`. The manual
+workflow accepts a pull request number, confirms the target is an open PR, and
+requires the latest trusted review synthesis from the authenticated Sepo actor
+to be `SHIP` for the current reviewed-head marker before it runs an approval
+agent. The agent runs with read-approved permissions and returns structured JSON
+with a verdict, reason, optional follow-up context, and `inspected_head_sha`.
+
+Deterministic resolver code is the only part that can submit the GitHub
+approval. It rereads the current PR head, rechecks trusted current-head review
+provenance, verifies the approval actor differs from the pull request author,
+parses the agent verdict, and approves only when the expected, current, and
+inspected head SHAs match. Non-approval outcomes post a compact PR status
+comment. In orchestrated chains, `SHIP` review synthesis can hand off to
+`agent-self-approve`, and a self-approval `REQUEST_CHANGES` result can hand off
+to `fix-pr` with the approval agent's handoff context. Self-approval status
+comments are upserted by marker against comments authored by the authenticated
+Sepo actor, and result artifacts are retained for failed or blocked resolution
+paths where available.
+
+### `agent-self-merge.yml`
+
+Self-merge is disabled unless `AGENT_ALLOW_SELF_MERGE=true`. The workflow is
+deterministic: it confirms the target is an open pull request, the current head
+still has a Sepo self-approval review for that exact head, there are no
+blocking requested changes, and mergeability/check state is acceptable. Draft
+PRs are marked ready before the merge step. If checks are still pending but no
+failures are present and GitHub can accept auto-merge, it enables GitHub
+auto-merge. It merges immediately only when GitHub reports the PR is currently
+mergeable. The merge uses the PR's configured base branch, so stacked PRs are
+handled by the same path as default-branch PRs.
 
 ### `agent-approve.yml`
 

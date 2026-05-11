@@ -56,6 +56,17 @@ export function postPrComment(prNumber: number, body: string, repo?: string): vo
   gh(args);
 }
 
+export function updateIssueComment(repo: string, commentId: string | number, body: string): void {
+  gh([
+    "api",
+    "--method",
+    "PATCH",
+    `repos/${repo}/issues/comments/${commentId}`,
+    "-f",
+    `body=${body}`,
+  ]);
+}
+
 // --- Labels ---
 
 export interface EnsureLabelOptions {
@@ -143,6 +154,63 @@ export interface PrMeta {
   state: string;
 }
 
+export interface IssueCommentRecord {
+  id: string;
+  body: string;
+  authorLogin: string;
+  createdAt: string;
+}
+
+export interface PrStatusCheckRecord {
+  name: string;
+  status: string;
+  conclusion: string;
+  state: string;
+}
+
+export interface PrMergeMeta {
+  headOid: string;
+  isDraft: boolean;
+  state: string;
+  mergeStateStatus: string;
+  mergeable: string;
+  reviewDecision: string;
+  autoMergeRequestExists: boolean;
+  statusChecks: PrStatusCheckRecord[];
+}
+
+export interface PrReviewRecord {
+  id: string;
+  body: string;
+  state: string;
+  authorLogin: string;
+  commitId: string;
+  submittedAt: string;
+}
+
+function extractLogin(value: unknown): string {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return "";
+  const login = (value as Record<string, unknown>).login;
+  return typeof login === "string" ? login.trim() : "";
+}
+
+function authorLoginFromRecord(record: Record<string, unknown>): string {
+  return extractLogin(record.author) || extractLogin(record.user);
+}
+
+function normalizeActorLogin(value: string): string {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/^app\//i, "")
+    .replace(/\[bot\]$/i, "");
+}
+
+function createdAtMs(value: string): number {
+  const parsed = Date.parse(String(value || ""));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 export function fetchPrMeta(prNumber: number, repo?: string): PrMeta {
   const args = ["pr", "view", String(prNumber), "--json", "headRefName,headRefOid,isCrossRepository,state"];
   if (repo) args.push("--repo", repo);
@@ -153,6 +221,193 @@ export function fetchPrMeta(prNumber: number, repo?: string): PrMeta {
     isCrossRepository: Boolean(data.isCrossRepository),
     state: String(data.state ?? ""),
   };
+}
+
+function normalizePrStatusCheckRecord(value: unknown): PrStatusCheckRecord | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  return {
+    name: String(record.name ?? record.context ?? record.workflowName ?? ""),
+    status: String(record.status ?? ""),
+    conclusion: String(record.conclusion ?? ""),
+    state: String(record.state ?? ""),
+  };
+}
+
+export function fetchPrMergeMeta(prNumber: number, repo?: string): PrMergeMeta {
+  const args = [
+    "pr",
+    "view",
+    String(prNumber),
+    "--json",
+    "headRefOid,isDraft,state,mergeStateStatus,mergeable,reviewDecision,statusCheckRollup,autoMergeRequest",
+  ];
+  if (repo) args.push("--repo", repo);
+  const data = JSON.parse(gh(args)) as Record<string, unknown>;
+  const statusCheckRollup = Array.isArray(data.statusCheckRollup) ? data.statusCheckRollup : [];
+  return {
+    headOid: String(data.headRefOid ?? ""),
+    isDraft: Boolean(data.isDraft),
+    state: String(data.state ?? ""),
+    mergeStateStatus: String(data.mergeStateStatus ?? ""),
+    mergeable: String(data.mergeable ?? ""),
+    reviewDecision: String(data.reviewDecision ?? ""),
+    autoMergeRequestExists: Boolean(data.autoMergeRequest),
+    statusChecks: statusCheckRollup
+      .map(normalizePrStatusCheckRecord)
+      .filter((check): check is PrStatusCheckRecord => Boolean(check)),
+  };
+}
+
+export function fetchAuthenticatedActorLogin(): string {
+  const raw = gh([
+    "api",
+    "graphql",
+    "-f",
+    "query=query ViewerLogin { viewer { login } }",
+  ]).trim();
+  const parsed = JSON.parse(raw || "{}") as {
+    data?: { viewer?: { login?: unknown } | null } | null;
+    viewer?: { login?: unknown } | null;
+  };
+  return String(parsed.data?.viewer?.login || parsed.viewer?.login || "").trim();
+}
+
+export function fetchPrAuthorLogin(prNumber: number, repo?: string): string {
+  const args = ["pr", "view", String(prNumber), "--json", "author"];
+  if (repo) args.push("--repo", repo);
+  const data = JSON.parse(gh(args)) as Record<string, unknown>;
+  return authorLoginFromRecord(data);
+}
+
+function normalizePrReviewRecord(value: unknown): PrReviewRecord | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  return {
+    id: String(record.id || ""),
+    body: String(record.body || ""),
+    state: String(record.state || ""),
+    authorLogin: authorLoginFromRecord(record),
+    commitId: String(record.commit_id ?? record.commitId ?? ""),
+    submittedAt: String(record.submitted_at ?? record.submittedAt ?? ""),
+  };
+}
+
+export function fetchPrReviewRecords(prNumber: number, repo: string): PrReviewRecord[] {
+  const raw = gh([
+    "api",
+    "--paginate",
+    "--slurp",
+    `repos/${repo}/pulls/${prNumber}/reviews`,
+  ]).trim();
+  if (!raw) return [];
+
+  const parsed = JSON.parse(raw) as unknown;
+  const pages = Array.isArray(parsed) ? parsed : [parsed];
+  const reviews: PrReviewRecord[] = [];
+  for (const page of pages) {
+    const entries = Array.isArray(page) ? page : [page];
+    for (const entry of entries) {
+      const review = normalizePrReviewRecord(entry);
+      if (review) reviews.push(review);
+    }
+  }
+  return reviews;
+}
+
+function requireMatchHeadCommit(matchHeadCommit: string): string {
+  const trimmed = String(matchHeadCommit || "").trim();
+  if (!trimmed) throw new Error("match head commit is required");
+  return trimmed;
+}
+
+export function mergePullRequest(prNumber: number, repo: string, matchHeadCommit: string): void {
+  gh([
+    "pr",
+    "merge",
+    String(prNumber),
+    "--repo",
+    repo,
+    "--merge",
+    "--match-head-commit",
+    requireMatchHeadCommit(matchHeadCommit),
+  ]);
+}
+
+export function markPullRequestReady(prNumber: number, repo: string): void {
+  gh(["pr", "ready", String(prNumber), "--repo", repo]);
+}
+
+export function enablePullRequestAutoMerge(prNumber: number, repo: string, matchHeadCommit: string): void {
+  gh([
+    "pr",
+    "merge",
+    String(prNumber),
+    "--repo",
+    repo,
+    "--merge",
+    "--auto",
+    "--match-head-commit",
+    requireMatchHeadCommit(matchHeadCommit),
+  ]);
+}
+
+function normalizeIssueCommentRecord(value: unknown): IssueCommentRecord | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  return {
+    id: String(record.id || ""),
+    body: String(record.body || ""),
+    authorLogin: authorLoginFromRecord(record),
+    createdAt: String(record.created_at ?? record.createdAt ?? ""),
+  };
+}
+
+export function fetchIssueCommentRecords(issueNumber: number, repo: string): IssueCommentRecord[] {
+  const raw = gh([
+    "api",
+    "--paginate",
+    "--slurp",
+    `repos/${repo}/issues/${issueNumber}/comments`,
+  ]).trim();
+  if (!raw) return [];
+
+  const parsed = JSON.parse(raw) as unknown;
+  const pages = Array.isArray(parsed) ? parsed : [parsed];
+  const comments: IssueCommentRecord[] = [];
+  for (const page of pages) {
+    const entries = Array.isArray(page) ? page : [page];
+    for (const entry of entries) {
+      const comment = normalizeIssueCommentRecord(entry);
+      if (comment) comments.push(comment);
+    }
+  }
+  return comments;
+}
+
+export function upsertPrCommentByMarker(
+  prNumber: number,
+  repo: string,
+  marker: string,
+  body: string,
+): "created" | "updated" {
+  const trustedActor = normalizeActorLogin(fetchAuthenticatedActorLogin());
+  const existing = fetchIssueCommentRecords(prNumber, repo)
+    .filter((comment) => (
+      comment.id &&
+      comment.body.includes(marker) &&
+      trustedActor &&
+      normalizeActorLogin(comment.authorLogin) === trustedActor
+    ))
+    .sort((left, right) => createdAtMs(left.createdAt) - createdAtMs(right.createdAt));
+  const latest = existing[existing.length - 1];
+  if (latest) {
+    updateIssueComment(repo, latest.id, body);
+    return "updated";
+  }
+
+  postPrComment(prNumber, body, repo);
+  return "created";
 }
 
 export function findExistingPr(headBranch: string, repo?: string): string | null {
