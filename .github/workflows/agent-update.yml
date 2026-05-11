@@ -131,10 +131,41 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ needs.gate.outputs.existing_pr_branch || github.event.repository.default_branch }}
+          ref: ${{ github.event.repository.default_branch }}
           fetch-depth: 0
           persist-credentials: false
           token: ${{ github.token }}
+
+      - name: Resolve update target checkout
+        id: update_target
+        env:
+          EXISTING_PR_BRANCH: ${{ needs.gate.outputs.existing_pr_branch }}
+          GITHUB_TOKEN: ${{ github.token }}
+          TARGET_WORKTREE: ${{ runner.temp }}/agent-update-target
+        run: |
+          set -euo pipefail
+          write_output() {
+            local name="$1"
+            local value="$2"
+            local delim="DELIM_${RANDOM}_${RANDOM}_$$"
+            {
+              printf '%s<<%s\n' "$name" "$delim"
+              printf '%s\n' "$value"
+              printf '%s\n' "$delim"
+            } >> "$GITHUB_OUTPUT"
+          }
+
+          if [ -n "${EXISTING_PR_BRANCH}" ]; then
+            auth_header="$(printf 'x-access-token:%s' "${GITHUB_TOKEN}" | base64 | tr -d '\n')"
+            git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${auth_header}" \
+              fetch --no-tags origin "refs/heads/${EXISTING_PR_BRANCH}:refs/remotes/origin/${EXISTING_PR_BRANCH}"
+            git worktree add -B "${EXISTING_PR_BRANCH}" "${TARGET_WORKTREE}" "origin/${EXISTING_PR_BRANCH}"
+            write_output "path" "${TARGET_WORKTREE}"
+            write_output "mode" "existing-pr-worktree"
+          else
+            write_output "path" "${GITHUB_WORKSPACE}"
+            write_output "mode" "runtime-checkout"
+          fi
 
       - name: Resolve GitHub auth
         id: auth
@@ -216,6 +247,9 @@ jobs:
             Confirmed inputs:
             - target repository: ${{ github.repository }}
             - target default branch: ${{ github.event.repository.default_branch }}
+            - runtime checkout path: ${{ github.workspace }}
+            - update target path: ${{ steps.update_target.outputs.path }}
+            - update target mode: ${{ steps.update_target.outputs.mode }}
             - source agent repo/ref: ${{ steps.update_source.outputs.source_repo }}@${{ steps.update_source.outputs.source_ref }}
             - source agent SHA: ${{ steps.update_source.outputs.source_sha }}
             - source resolution: ${{ steps.update_source.outputs.source_kind }}
@@ -227,10 +261,13 @@ jobs:
             - remove obsolete or legacy files: false
             - post-merge workflows: document only
 
-            If an existing update PR number and branch are not `none`, update that
-            branch and PR instead of opening a new PR. Otherwise, open a pull
-            request only when the update produces changes. If the target is already
-            current, leave no PR and report that no update was needed.
+            Runtime actions and scripts are loaded from the default-branch checkout
+            at the runtime checkout path. If an existing update PR number and branch
+            are not `none`, update that branch and PR in the update target path
+            instead of opening a new PR; do not check out the existing PR branch in
+            the runtime checkout path. Otherwise, open a pull request only when the
+            update produces changes. If the target is already current, leave no PR
+            and report that no update was needed.
             When a PR is opened, title and summarize it as:
             `Update Sepo from <installed version/ref> to ${{ steps.update_source.outputs.source_ref }}/${{ steps.update_source.outputs.source_sha }}`.
           requested_by: ${{ github.actor }}
