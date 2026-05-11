@@ -201,6 +201,43 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/186#issuecomment-4411020335",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB07S1A",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer why do we need this PR? \r\n\r\nWhat are the new critical functions not implemented in the previous ones?",
+      "createdAt": "2026-05-11T04:20:01Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/186#issuecomment-4417573588",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB07pvw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "We need this PR because the prior stacked PRs made self-approval *possible*, but this one makes it operationally safe and readable when it fails or reruns.\n\nBefore #186, the stack had the core approval flow and orchestration, but it was missing the planned “operational polish” from #170/#185:\n\n- Idempotent status comments: [`upsertPrCommentByMarker`](https://github.com/self-evolving/repo/blob/9a515285a7d60eaaee315ca74bcce6d38b9a503a/.agent/src/github.ts#L253-L276) updates the latest Sepo-authored self-approval marker comment instead of creating duplicates.\n- Comment ownership protection: the upsert filters to the authenticated Sepo actor, including normalized `app/` and `[bot]` forms, so user-authored marker comments are ignored.\n- Safe posting path: [`post-response.ts`](https://github.com/self-evolving/repo/blob/9a515285a7d60eaaee315ca74bcce6d38b9a503a/.agent/src/cli/post-response.ts#L48-L97) detects self-approval status bodies and uses the marker upsert path; if upsert fails, it does **not** fall back to creating another duplicate PR comment.\n- Visible blocked preflight statuses: [`prepare-self-approve.ts`](https://github.com/self-evolving/repo/blob/9a515285a7d60eaaee315ca74bcce6d38b9a503a/.agent/src/cli/prepare-self-approve.ts#L29-L107) now writes a status body when metadata, actor, target, or provenance checks block the run.\n- Visible resolver failure statuses: [`resolve-self-approve.ts`](https://github.com/self-evolving/repo/blob/9a515285a7d60eaaee315ca74bcce6d38b9a503a/.agent/src/cli/resolve-self-approve.ts#L123-L162) now reports metadata read failure, parser failure, and approval API failure as `failed` instead of leaving the user to infer it from logs.\n- Clearer status formatting: [`formatSelfApprovalBody`](https://github.com/self-evolving/repo/blob/9a515285a7d60eaaee315ca74bcce6d38b9a503a/.agent/src/self-approval.ts#L340-L374) distinguishes `Blocked`, `Failed`, and `Changes requested`.\n- Workflow durability: [`agent-self-approve.yml`](https://github.com/self-evolving/repo/blob/9a515285a7d60eaaee315ca74bcce6d38b9a503a/.github/workflows/agent-self-approve.yml#L78-L194) uses `always()` where needed and uploads result artifacts, so failure paths still produce useful status/debug output.\n\nSo the critical functions not implemented in the previous PRs are mainly around **idempotency, failure visibility, trusted marker upsert, and artifact retention**. The previous PRs handled the “can Sepo self-approve?” path; this PR handles “can humans understand and trust what happened when that path blocks, fails, or reruns?”\n\nOne thing this PR does **not** add is automatic merge after self-approval. That is a separate privilege boundary and was later identified as a follow-up self-merge slice, not part of #186’s operational-polish scope.",
+      "createdAt": "2026-05-11T04:22:03Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/186#issuecomment-4417579455",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-09T01:17:07Z",
@@ -312,6 +349,6 @@
   ],
   "state": "OPEN",
   "title": "Polish self-approval status handling",
-  "updatedAt": "2026-05-09T01:50:16Z",
+  "updatedAt": "2026-05-11T04:28:39Z",
   "url": "https://github.com/self-evolving/repo/pull/186"
 }

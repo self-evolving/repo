@@ -1,0 +1,190 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "agent/implement-issue-27/codex-25272756852",
+  "body": "## Summary\n- Change the pending update PR resolver to adopt matching same-repo `agent/update-agent-infra-*` PRs instead of skipping the update run.\n- Check out the existing update PR branch when present and pass PR number/branch context into the `update-agent` request.\n- Update the update-agent skill guidance, docs, and focused workflow/script tests for the adoption flow.\n\n## Tests\n- `npm --prefix .agent run build`\n- `bash -n .agent/scripts/resolve-pending-update-pr.sh .agent/scripts/resolve-update-source.sh`\n- YAML parse for `agent-update.yml` and `test-scripts.yml`\n- `git diff --check`\n- `node --test dist/__tests__/pending-update-pr-gate-shell.test.js dist/__tests__/envelope.test.js` from `.agent`\n\nStacked on #116.\n\nCloses #203\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB07zXg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review",
+      "createdAt": "2026-05-11T04:22:55Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/204#issuecomment-4417581918",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB08Ntw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #204 cites “Stacked on #116” and closes #203; #203’s request asks to detect an existing update PR, expose its number/branch, run against that branch, and instruct `update-agent` to update it. The diff implements that exact flow. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The change keeps the existing `resolve-pending-update-pr.sh`, `agent-update.yml`, `run-agent-task`, `resolve-agent-provider`, `setup-agent-runtime`, `resolve-task-timeout`, and `update-agent` skill flow rather than adding a new workflow or bespoke agent path. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates `.agent/docs/actions/agent-actions.md`, `.agent/docs/architecture/supported-workflows.md`, `.skills/update-agent/SKILL.md`, and `README.md` to describe existing update PR adoption instead of skip-only behavior. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The resolver emits separate `pr_number`, `branch`, `pr_url`, and `found` outputs; the workflow maps those to `existing_pr_number` and `existing_pr_branch` and passes them explicitly in the update-agent request text. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Matching same-repository `agent/update-agent-infra-*` PRs are reused by checking out the existing branch and telling the skill to update that PR, preventing repeated duplicate update PRs on reruns. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is limited to the pending update PR resolver, the update workflow wiring, focused tests, and directly related documentation/skill guidance. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation is a small change to the existing shell resolver and workflow outputs; it keeps the request text inline and avoids adding the previously questioned one-off template renderer. |\n\n## Notes\n\n- The strongest score drivers are that the PR directly implements the linked #203 flow and keeps the solution inside the existing scheduled update architecture.\n- Focused coverage is present: the resolver test now asserts same-repo update branches produce `skip=false`, `found=true`, and branch/PR metadata; envelope tests assert checkout and request-text wiring.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No selected-rubric failures found in the current PR diff.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-11T04:25:07Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/204#issuecomment-4417588663",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB09POg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #204 is a stacked follow-up to #116 and closes #203.\n- It changes the scheduled Sepo update flow so an open same-repo `agent/update-agent-infra-*` PR is adopted instead of causing the update run to skip.\n- The resolver now emits existing PR metadata, the update job checks out the matching branch, and the `update-agent` request tells the agent to update the existing PR instead of opening a duplicate.\n- Docs, skill guidance, and focused workflow/script tests were updated for the new adoption behavior.\n\n## Review\nThe adoption goal is correct and matches the linked request, but the current implementation introduces a privileged workflow trust-boundary issue. One reviewer marked this as blocking; the other code review and rubrics review considered the flow ready with only optional INFO notes, so the meaningful disagreement is specifically around whether same-repo prefix matching is enough provenance for checkout-and-execute behavior.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Existing-PR adoption can execute branch-supplied workflow code | BLOCKING | The update job checks out a branch selected only by same-repo status and `agent/update-agent-infra-*` prefix before running local actions/scripts with write permissions and secrets. The workflow should verify the adopted PR/branch is trusted or keep runtime code on the default branch while using the existing PR branch only as the target worktree. |\n\n## Progress\n- The PR implements the product flow requested in #203: detect existing update PR, expose PR number/branch, run against that branch, and instruct `update-agent` to update the existing PR.\n- The rubrics review passed and confirmed the docs/tests are in sync with the intended adoption flow.\n- Claude’s review found no blocking functional issues and only optional INFO cleanup notes.\n- Existing inline comments and review threads were empty before synthesis; one new inline comment was posted at `.github/workflows/agent-update.yml:134`.\n- No replies, minimizations, or thread resolutions were performed.\n\n## Issue Details\n\n<details>\n<summary>Existing-PR adoption can execute branch-supplied workflow code</summary>\n\n**Cause:** The new checkout ref in [`agent-update.yml`](https://github.com/self-evolving/repo/blob/1c1e6a7e8e749339c1f94b263e6a8d1e0e3b5197/.github/workflows/agent-update.yml#L134) uses `needs.gate.outputs.existing_pr_branch` when the resolver finds a same-repo branch with the update prefix. After that checkout, subsequent local actions and scripts are loaded from that branch while the scheduled update job has write-oriented auth and secrets available.\n\n**Candidate solutions:** Fail closed unless the matched PR/branch is verified as Sepo-created/trusted, with focused negative coverage for untrusted same-repo prefix matches. Alternatively, keep the workflow runtime checkout on the default branch and use the adopted PR branch only as the target worktree/branch that receives update changes.\n\n**Comments:** This is the central reviewer disagreement: Claude and the rubrics review treated same-repo adoption as acceptable, while Codex flagged the branch-supplied workflow execution path as a blocker.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: The unresolved issue is a concrete workflow trust-boundary fix with a clear branch-change path and focused regression coverage.\n\n## Final Verdict\n`NEEDS_REWORK`\n\n## Action Items\n- [ ] Fix existing update PR adoption so privileged workflow actions/scripts are not executed from a branch selected only by same-repo `agent/update-agent-infra-*` prefix.\n- [ ] Add focused regression coverage for the chosen trust-boundary behavior.",
+      "createdAt": "2026-05-11T04:30:34Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/204#issuecomment-4417605434",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB09hMA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \r\n\r\nExisting-PR adoption can execute branch-supplied workflow code\r\n\r\n> Cause: The new checkout ref in [agent-update.yml](https://github.com/self-evolving/repo/blob/1c1e6a7e8e749339c1f94b263e6a8d1e0e3b5197/.github/workflows/agent-update.yml#L134) uses needs.gate.outputs.existing_pr_branch when the resolver finds a same-repo branch with the update prefix. After that checkout, subsequent local actions and scripts are loaded from that branch while the scheduled update job has write-oriented auth and secrets available.\r\n> \r\n> Candidate solutions: Fail closed unless the matched PR/branch is verified as Sepo-created/trusted, with focused negative coverage for untrusted same-repo prefix matches. Alternatively, keep the workflow runtime checkout on the default branch and use the adopted PR branch only as the target worktree/branch that receives update changes.\r\n\r\n\r\nWhat's this?\r\n",
+      "createdAt": "2026-05-11T04:31:55Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/204#issuecomment-4417610032",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB0936Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "This is a security/trust-boundary review finding on PR #204.\n\nPR #204 changes the update flow so that when an open same-repo `agent/update-agent-infra-*` PR exists, the scheduled update workflow adopts that branch instead of skipping. The risky part is this checkout change:\n\n[`agent-update.yml`: checkout `existing_pr_branch || default_branch`](https://github.com/self-evolving/repo/blob/1c1e6a7e8e749339c1f94b263e6a8d1e0e3b5197/.github/workflows/agent-update.yml#L134)\n\nWhy that matters:\n\n1. The resolver trusts “same repo + branch name prefix” as enough to adopt a branch.\n2. The workflow then checks out that adopted branch.\n3. After checkout, repo-local actions and scripts like `.github/actions/...` and `.agent/scripts/...` are loaded from the checked-out branch.\n4. The scheduled update job has write-oriented auth and agent/provider secrets available.\n5. So a malicious or compromised same-repo branch named `agent/update-agent-infra-*` could alter those local scripts/actions and get executed by the privileged scheduled workflow.\n\nSo this is not saying “existing PR adoption is wrong.” It is saying the current implementation adopts the branch too early and then runs workflow runtime code from that branch.\n\nThe safer fixes are:\n\n- Keep the workflow/runtime checkout on the trusted default branch, and use the existing PR branch only as the target branch/worktree that receives update changes.\n- Or fail closed unless the existing PR is verified as Sepo-created/trusted, then add a negative test proving an untrusted same-repo prefix branch is not adopted.\n\nI’d prefer the first fix: default-branch runtime checkout, adopted branch only as the update target. It preserves the product behavior without expanding the privileged code execution surface.",
+      "createdAt": "2026-05-11T04:33:27Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/204#issuecomment-4417615849",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-11T04:20:33Z",
+  "files": [
+    {
+      "path": ".agent/docs/actions/agent-actions.md",
+      "additions": 7,
+      "deletions": 6,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 7,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/scripts/resolve-pending-update-pr.sh",
+      "additions": 9,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 6,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/pending-update-pr-gate-shell.test.ts",
+      "additions": 12,
+      "deletions": 6,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-update.yml",
+      "additions": 10,
+      "deletions": 11,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".skills/update-agent/SKILL.md",
+      "additions": 12,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": "README.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-203/codex-25649928046",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 204,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM799elh",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-11T04:30:00Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "1c1e6a7e8e749339c1f94b263e6a8d1e0e3b5197"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Update existing Sepo update PRs",
+  "updatedAt": "2026-05-11T04:33:27Z",
+  "url": "https://github.com/self-evolving/repo/pull/204"
+}

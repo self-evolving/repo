@@ -274,6 +274,58 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/180#issuecomment-4416030062",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB0616w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I don’t see the actual nit in this request. Please leave it inline or describe the specific change you want.\n\nIf it is a small branch edit, use `/fix-pr` after adding the comment; if it is just a design question, reply here and I’ll answer it.",
+      "createdAt": "2026-05-11T04:17:43Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/180#issuecomment-4417566187",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB08DNA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer https://github.com/self-evolving/repo/pull/180#discussion_r3216322838",
+      "createdAt": "2026-05-11T04:24:17Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/180#issuecomment-4417585972",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB08Svg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "We still need this because the verdict is **LLM output**, not a typed API contract.\n\nThe prompt asks for exact values, but the resolver is the privileged path that may submit a GitHub `APPROVE` review, so it should defensively parse and validate instead of assuming the agent obeyed. If the response is malformed or uses an unknown verdict, `parseSelfApprovalDecision` returns `null`, and resolution fails instead of approving.\n\nThe normalization here is intentionally narrow:\n\n- accepts expected forms like `APPROVE`\n- tolerates harmless variants like `approved` / `changes_requested`\n- rejects anything outside the allowlist\n\nSo this is not trusting arbitrary agent text; it is a small compatibility layer before deterministic checks.\n\nThat said, I’d be fine making it stricter if you prefer: only accept exact `APPROVE`, `REQUEST_CHANGES`, and `BLOCKED`. I would not remove the parser/validation step entirely.",
+      "createdAt": "2026-05-11T04:25:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/180#issuecomment-4417589950",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-09T00:03:08Z",
@@ -447,10 +499,32 @@
       "commit": {
         "oid": "e7d2724ff8e0615104db9c022a56fd5ebe0b9afc"
       }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM799VQe",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer have a small nit ",
+      "submittedAt": "2026-05-11T04:16:46Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "e7d2724ff8e0615104db9c022a56fd5ebe0b9afc"
+      }
     }
   ],
   "state": "OPEN",
   "title": "Add opt-in self-approval core",
-  "updatedAt": "2026-05-10T18:33:24Z",
+  "updatedAt": "2026-05-11T04:28:54Z",
   "url": "https://github.com/self-evolving/repo/pull/180"
 }
