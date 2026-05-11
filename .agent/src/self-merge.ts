@@ -1,6 +1,6 @@
 import { type PrReviewRecord, type PrStatusCheckRecord } from "./github.js";
 
-export type SelfMergeConclusion = "merged" | "auto_merge_enabled" | "waiting" | "blocked" | "failed";
+export type SelfMergeConclusion = "merged" | "auto_merge_enabled" | "blocked" | "failed";
 export type SelfMergeNextStep = "merge" | "enable_auto_merge" | "none";
 
 export const SELF_MERGE_STATUS_MARKER = "<!-- sepo-agent-self-merge -->";
@@ -316,11 +316,9 @@ export function formatSelfMergeBody(input: {
     ? "Merged"
     : conclusion === "auto_merge_enabled"
       ? "Auto-merge enabled"
-      : conclusion === "waiting"
-        ? "Waiting"
-        : conclusion === "failed"
-          ? "Failed"
-          : "Blocked";
+      : conclusion === "failed"
+        ? "Failed"
+        : "Blocked";
   const lines = [
     "Sepo self-merge completed.",
     "",

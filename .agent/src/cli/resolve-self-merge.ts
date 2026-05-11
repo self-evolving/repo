@@ -197,6 +197,6 @@ const bodyFile = writeBodyFile(formatSelfMergeBody({
 setOutput("conclusion", result.conclusion);
 setOutput("merged", String(result.conclusion === "merged"));
 setOutput("auto_merge_enabled", String(result.conclusion === "auto_merge_enabled"));
-setOutput("status_post", String(result.conclusion !== "merged"));
+setOutput("status_post", "true");
 setOutput("reason", result.reason);
 setOutput("body_file", bodyFile);

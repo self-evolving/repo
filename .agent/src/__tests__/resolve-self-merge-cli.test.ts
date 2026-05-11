@@ -114,7 +114,8 @@ test("resolve-self-merge merges immediately when preflight passes", () => {
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.outputs.get("conclusion"), "merged");
     assert.equal(result.outputs.get("merged"), "true");
-    assert.equal(result.outputs.get("status_post"), "false");
+    assert.equal(result.outputs.get("status_post"), "true");
+    assert.match(readFileSync(result.outputs.get("body_file") || "", "utf8"), /<!-- sepo-agent-self-merge -->/);
     assert.match(result.log, /^pr merge 42 --repo self-evolving\/repo --merge --match-head-commit abc123$/m);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
@@ -176,7 +177,7 @@ test("resolve-self-merge merges into the configured PR base", () => {
 
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.outputs.get("conclusion"), "merged");
-    assert.equal(result.outputs.get("status_post"), "false");
+    assert.equal(result.outputs.get("status_post"), "true");
     assert.doesNotMatch(result.log, /^pr list /m);
     assert.match(result.log, /^pr merge 42 --repo self-evolving\/repo --merge --match-head-commit abc123$/m);
   } finally {

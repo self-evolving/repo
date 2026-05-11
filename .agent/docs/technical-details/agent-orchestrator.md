@@ -33,7 +33,7 @@ stateDiagram-v2
     SelfApprove --> SelfMerge: approved + AGENT_ALLOW_SELF_MERGE=true
     SelfApprove --> Stop: approved + self-merge disabled
     SelfApprove --> Stop: blocked / failed
-    SelfMerge --> Stop: merged / auto_merge_enabled / waiting / blocked / failed
+    SelfMerge --> Stop: merged / auto_merge_enabled / blocked / failed
 
     FixPR --> Review: success
     FixPR --> Stop: no_changes / failed / verify_failed / unsupported PR

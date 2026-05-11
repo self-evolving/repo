@@ -496,7 +496,7 @@ test("self-approval approved dispatches self-merge only when enabled", () => {
 });
 
 test("self-merge terminal conclusions stop", () => {
-  for (const conclusion of ["merged", "auto_merge_enabled", "waiting", "blocked", "failed"]) {
+  for (const conclusion of ["merged", "auto_merge_enabled", "blocked", "failed"]) {
     const decision = decideHandoff({
       automationMode: "heuristics",
       sourceAction: "agent-self-merge",

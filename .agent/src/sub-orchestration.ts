@@ -193,7 +193,6 @@ const SELF_MERGE_TERMINAL_STATES: Record<string, SubOrchestratorState> = {
   blocked: "blocked",
   failed: "failed",
   merged: "done",
-  waiting: "blocked",
 };
 
 export function resultStateFromTerminal(input: {

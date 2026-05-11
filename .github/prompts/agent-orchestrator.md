@@ -32,7 +32,7 @@ these policy rules:
   `APPROVED` may hand off to `agent-self-merge` only when self-merge is
   enabled; otherwise it stops. `BLOCKED` and `FAILED` stop.
 - `agent-self-merge` is deterministic. It stops after `MERGED`,
-  `AUTO_MERGE_ENABLED`, `WAITING`, `BLOCKED`, or `FAILED`.
+  `AUTO_MERGE_ENABLED`, `BLOCKED`, or `FAILED`.
 - `fix-pr` may hand off to `review` only when fixes succeeded. When
   `fix-pr` reports `no_changes`, `failed`, or `verify_failed`, choose a
   visible stop/block path instead of asking for another automatic review.
