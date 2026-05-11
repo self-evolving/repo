@@ -241,17 +241,17 @@ paths where available.
 ### `agent-self-merge.yml`
 
 Self-merge is disabled unless `AGENT_ALLOW_SELF_MERGE=true`. The workflow is
-deterministic: it confirms the target is an open non-draft pull request, the
-base is the repository default branch, the current head still has a Sepo
-self-approval review for that exact head, there are no blocking requested
-changes, and mergeability/check state is acceptable. If checks are still
-pending but no failures are present and GitHub can accept auto-merge, it enables
-GitHub auto-merge. It merges immediately only when GitHub reports the PR is
-currently mergeable.
+deterministic: it confirms the target is an open pull request, the current head
+still has a Sepo self-approval review for that exact head, there are no
+blocking requested changes, and mergeability/check state is acceptable. Trusted
+same-repository agent draft PRs are marked ready before the merge step. If
+checks are still pending but no failures are present and GitHub can accept
+auto-merge, it enables GitHub auto-merge. It merges immediately only when
+GitHub reports the PR is currently mergeable.
 
-For stacked safety, v1 does not merge PRs whose base is not the default branch.
-Those runs upsert a visible self-merge status comment that says Sepo is waiting
-on the base PR instead of merging into an unmerged parent branch.
+Self-merge can merge into the repository default branch or into an open
+same-repository stacked PR base branch. Unknown non-default bases and forked
+heads are blocked before merge.
 
 ### `agent-approve.yml`
 

@@ -23,8 +23,11 @@ export interface SelfMergeResolveInput {
   allowSelfMerge: boolean;
   targetKind: string;
   prState: string;
+  isCrossRepository: boolean;
   isDraft: boolean;
+  isTrustedAgentPr: boolean;
   baseRefName: string;
+  baseIsAllowedStack: boolean;
   defaultBranch: string;
   currentHeadSha: string;
   reviewDecision: string;
@@ -38,6 +41,7 @@ export interface SelfMergeResolveInput {
 export interface SelfMergeResolveResult {
   conclusion: SelfMergeConclusion;
   nextStep: SelfMergeNextStep;
+  markReady: boolean;
   reason: string;
 }
 
@@ -195,10 +199,13 @@ function canEnableAutoMerge(input: SelfMergeResolveInput): boolean {
 }
 
 export function resolveSelfMerge(input: SelfMergeResolveInput): SelfMergeResolveResult {
+  let markReady = false;
+
   if (!input.allowSelfMerge) {
     return {
       conclusion: "blocked",
       nextStep: "none",
+      markReady: false,
       reason: "AGENT_ALLOW_SELF_MERGE is not enabled",
     };
   }
@@ -207,6 +214,7 @@ export function resolveSelfMerge(input: SelfMergeResolveInput): SelfMergeResolve
     return {
       conclusion: "blocked",
       nextStep: "none",
+      markReady: false,
       reason: "self-merge is only supported for pull requests",
     };
   }
@@ -215,6 +223,7 @@ export function resolveSelfMerge(input: SelfMergeResolveInput): SelfMergeResolve
     return {
       conclusion: "failed",
       nextStep: "none",
+      markReady: false,
       reason: "could not resolve repository default branch for self-merge",
     };
   }
@@ -223,22 +232,37 @@ export function resolveSelfMerge(input: SelfMergeResolveInput): SelfMergeResolve
     return {
       conclusion: "blocked",
       nextStep: "none",
+      markReady: false,
       reason: `pull request is ${String(input.prState || "not open").toLowerCase()}`,
     };
   }
 
-  if (input.isDraft) {
+  if (input.isCrossRepository) {
     return {
       conclusion: "blocked",
       nextStep: "none",
-      reason: "pull request is a draft",
+      markReady: false,
+      reason: "pull request head is from a fork",
     };
+  }
+
+  if (input.isDraft) {
+    if (!input.isTrustedAgentPr) {
+      return {
+        conclusion: "blocked",
+        nextStep: "none",
+        markReady: false,
+        reason: "draft pull request is not from a trusted agent branch",
+      };
+    }
+    markReady = true;
   }
 
   if (!input.currentHeadSha.trim()) {
     return {
       conclusion: "failed",
       nextStep: "none",
+      markReady: false,
       reason: "could not resolve pull request head SHA for self-merge",
     };
   }
@@ -247,15 +271,17 @@ export function resolveSelfMerge(input: SelfMergeResolveInput): SelfMergeResolve
     return {
       conclusion: "blocked",
       nextStep: "none",
+      markReady: false,
       reason: input.approval.reason || "missing current-head self-approval",
     };
   }
 
-  if (input.baseRefName.trim() !== input.defaultBranch.trim()) {
+  if (input.baseRefName.trim() !== input.defaultBranch.trim() && !input.baseIsAllowedStack) {
     return {
-      conclusion: "waiting",
+      conclusion: "blocked",
       nextStep: "none",
-      reason: `pull request base ${input.baseRefName || "unknown"} is not the default branch ${input.defaultBranch}; waiting on the base PR before self-merge`,
+      markReady: false,
+      reason: `pull request base ${input.baseRefName || "unknown"} is neither the default branch ${input.defaultBranch} nor an open same-repo stack base`,
     };
   }
 
@@ -263,6 +289,7 @@ export function resolveSelfMerge(input: SelfMergeResolveInput): SelfMergeResolve
     return {
       conclusion: "blocked",
       nextStep: "none",
+      markReady: false,
       reason: "pull request has blocking requested changes",
     };
   }
@@ -272,6 +299,7 @@ export function resolveSelfMerge(input: SelfMergeResolveInput): SelfMergeResolve
     return {
       conclusion: "blocked",
       nextStep: "none",
+      markReady: false,
       reason: `status checks are failing: ${formatCheckNames(checks.failedNames)}`,
     };
   }
@@ -281,6 +309,7 @@ export function resolveSelfMerge(input: SelfMergeResolveInput): SelfMergeResolve
       return {
         conclusion: "auto_merge_enabled",
         nextStep: "none",
+        markReady,
         reason: "GitHub auto-merge is already enabled while checks are pending",
       };
     }
@@ -288,12 +317,14 @@ export function resolveSelfMerge(input: SelfMergeResolveInput): SelfMergeResolve
       return {
         conclusion: "auto_merge_enabled",
         nextStep: "enable_auto_merge",
+        markReady,
         reason: `status checks are pending: ${formatCheckNames(checks.pendingNames)}; enabling GitHub auto-merge`,
       };
     }
     return {
       conclusion: "blocked",
       nextStep: "none",
+      markReady: false,
       reason: `pull request is not eligible for auto-merge while checks are pending (merge state: ${input.mergeStateStatus || "unknown"})`,
     };
   }
@@ -302,6 +333,7 @@ export function resolveSelfMerge(input: SelfMergeResolveInput): SelfMergeResolve
     return {
       conclusion: "merged",
       nextStep: "merge",
+      markReady,
       reason: "pull request is approved, current, and mergeable",
     };
   }
@@ -309,6 +341,7 @@ export function resolveSelfMerge(input: SelfMergeResolveInput): SelfMergeResolve
   return {
     conclusion: "blocked",
     nextStep: "none",
+    markReady: false,
     reason: `pull request is not currently mergeable (merge state: ${input.mergeStateStatus || "unknown"})`,
   };
 }

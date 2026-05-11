@@ -170,7 +170,9 @@ export interface PrStatusCheckRecord {
 
 export interface PrMergeMeta {
   baseRefName: string;
+  headRefName: string;
   headOid: string;
+  isCrossRepository: boolean;
   isDraft: boolean;
   state: string;
   mergeStateStatus: string;
@@ -178,6 +180,12 @@ export interface PrMergeMeta {
   reviewDecision: string;
   autoMergeRequestExists: boolean;
   statusChecks: PrStatusCheckRecord[];
+}
+
+export interface PrStackBaseRecord {
+  number: number;
+  headRefName: string;
+  isCrossRepository: boolean;
 }
 
 export interface PrReviewRecord {
@@ -241,14 +249,16 @@ export function fetchPrMergeMeta(prNumber: number, repo?: string): PrMergeMeta {
     "view",
     String(prNumber),
     "--json",
-    "baseRefName,headRefOid,isDraft,state,mergeStateStatus,mergeable,reviewDecision,statusCheckRollup,autoMergeRequest",
+    "baseRefName,headRefName,headRefOid,isCrossRepository,isDraft,state,mergeStateStatus,mergeable,reviewDecision,statusCheckRollup,autoMergeRequest",
   ];
   if (repo) args.push("--repo", repo);
   const data = JSON.parse(gh(args)) as Record<string, unknown>;
   const statusCheckRollup = Array.isArray(data.statusCheckRollup) ? data.statusCheckRollup : [];
   return {
     baseRefName: String(data.baseRefName ?? ""),
+    headRefName: String(data.headRefName ?? ""),
     headOid: String(data.headRefOid ?? ""),
+    isCrossRepository: Boolean(data.isCrossRepository),
     isDraft: Boolean(data.isDraft),
     state: String(data.state ?? ""),
     mergeStateStatus: String(data.mergeStateStatus ?? ""),
@@ -259,6 +269,43 @@ export function fetchPrMergeMeta(prNumber: number, repo?: string): PrMergeMeta {
       .map(normalizePrStatusCheckRecord)
       .filter((check): check is PrStatusCheckRecord => Boolean(check)),
   };
+}
+
+function normalizePrStackBaseRecord(value: unknown): PrStackBaseRecord | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  return {
+    number: Number(record.number || 0),
+    headRefName: String(record.headRefName ?? ""),
+    isCrossRepository: Boolean(record.isCrossRepository),
+  };
+}
+
+export function fetchOpenSameRepoPrForHeadBranch(headRefName: string, repo: string): PrStackBaseRecord | null {
+  const branch = String(headRefName || "").trim();
+  if (!branch) return null;
+  const raw = gh([
+    "pr",
+    "list",
+    "--repo",
+    repo,
+    "--state",
+    "open",
+    "--head",
+    branch,
+    "--json",
+    "number,headRefName,isCrossRepository",
+  ]).trim();
+  if (!raw) return null;
+  const parsed = JSON.parse(raw) as unknown;
+  const records = Array.isArray(parsed) ? parsed : [parsed];
+  for (const record of records) {
+    const pr = normalizePrStackBaseRecord(record);
+    if (pr && pr.number > 0 && pr.headRefName === branch && !pr.isCrossRepository) {
+      return pr;
+    }
+  }
+  return null;
 }
 
 export function fetchAuthenticatedActorLogin(): string {
@@ -334,6 +381,10 @@ export function mergePullRequest(prNumber: number, repo: string, matchHeadCommit
     "--match-head-commit",
     requireMatchHeadCommit(matchHeadCommit),
   ]);
+}
+
+export function markPullRequestReady(prNumber: number, repo: string): void {
+  gh(["pr", "ready", String(prNumber), "--repo", repo]);
 }
 
 export function enablePullRequestAutoMerge(prNumber: number, repo: string, matchHeadCommit: string): void {

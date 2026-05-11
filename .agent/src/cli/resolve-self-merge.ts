@@ -9,8 +9,10 @@ import { join } from "node:path";
 import {
   enablePullRequestAutoMerge,
   fetchAuthenticatedActorLogin,
+  fetchOpenSameRepoPrForHeadBranch,
   fetchPrMergeMeta,
   fetchPrReviewRecords,
+  markPullRequestReady,
   mergePullRequest,
 } from "../github.js";
 import { setOutput } from "../output.js";
@@ -48,6 +50,10 @@ function errorText(err: unknown): string {
     .join("\n") || String(err);
 }
 
+function isTrustedAgentBranch(headRefName: string, isCrossRepository: boolean): boolean {
+  return !isCrossRepository && String(headRefName || "").trim().startsWith("agent/");
+}
+
 const repo = process.env.GITHUB_REPOSITORY || "";
 const prNumber = Number(process.env.TARGET_NUMBER || process.env.PR_NUMBER || "");
 const targetKind = process.env.TARGET_KIND || "pull_request";
@@ -61,8 +67,11 @@ if (!allowSelfMerge || String(targetKind || "").trim().toLowerCase().replace(/[\
     allowSelfMerge,
     targetKind,
     prState: "",
+    isCrossRepository: false,
     isDraft: false,
+    isTrustedAgentPr: false,
     baseRefName: "",
+    baseIsAllowedStack: false,
     defaultBranch,
     currentHeadSha: "",
     reviewDecision: "",
@@ -95,13 +104,25 @@ if (!allowSelfMerge || String(targetKind || "").trim().toLowerCase().replace(/[\
     if (approval.approved) {
       verifiedHeadSha = approval.approvedHeadSha || meta.headOid;
     }
+    const baseIsDefault = meta.baseRefName.trim() === defaultBranch.trim();
+    let baseIsAllowedStack = false;
+    if (!baseIsDefault) {
+      try {
+        baseIsAllowedStack = Boolean(fetchOpenSameRepoPrForHeadBranch(meta.baseRefName, repo));
+      } catch {
+        baseIsAllowedStack = false;
+      }
+    }
 
     result = resolveSelfMerge({
       allowSelfMerge,
       targetKind,
       prState: meta.state,
+      isCrossRepository: meta.isCrossRepository,
       isDraft: meta.isDraft,
+      isTrustedAgentPr: isTrustedAgentBranch(meta.headRefName, meta.isCrossRepository),
       baseRefName: meta.baseRefName,
+      baseIsAllowedStack,
       defaultBranch,
       currentHeadSha: meta.headOid,
       reviewDecision: meta.reviewDecision,
@@ -115,7 +136,21 @@ if (!allowSelfMerge || String(targetKind || "").trim().toLowerCase().replace(/[\
     result = {
       conclusion: "failed",
       nextStep: "none",
+      markReady: false,
       reason: "could not read pull request metadata during self-merge preflight",
+    };
+  }
+}
+
+if (result.markReady) {
+  try {
+    markPullRequestReady(prNumber, repo);
+  } catch (err: unknown) {
+    result = {
+      conclusion: "failed",
+      nextStep: "none",
+      markReady: false,
+      reason: `mark ready failed: ${errorText(err) || "unknown error"}`,
     };
   }
 }
@@ -128,6 +163,7 @@ if (result.nextStep === "merge") {
     result = {
       conclusion: "failed",
       nextStep: "none",
+      markReady: false,
       reason: `merge failed: ${errorText(err) || "unknown error"}`,
     };
   }
@@ -139,6 +175,7 @@ if (result.nextStep === "merge") {
     result = {
       conclusion: "failed",
       nextStep: "none",
+      markReady: false,
       reason: `auto-merge enable failed: ${errorText(err) || "unknown error"}`,
     };
   }

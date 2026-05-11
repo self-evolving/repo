@@ -18,8 +18,11 @@ const baseInput = {
   allowSelfMerge: true,
   targetKind: "pull_request",
   prState: "OPEN",
+  isCrossRepository: false,
   isDraft: false,
+  isTrustedAgentPr: false,
   baseRefName: "main",
+  baseIsAllowedStack: false,
   defaultBranch: "main",
   currentHeadSha: "abc123",
   reviewDecision: "APPROVED",
@@ -93,9 +96,10 @@ test("summarizeStatusChecks separates pending and failing checks", () => {
   assert.deepEqual(summary.failedNames, ["lint"]);
 });
 
-test("resolveSelfMerge blocks disabled, draft, stale, requested-changes, and failed-check states", () => {
+test("resolveSelfMerge blocks disabled, untrusted draft, stale, requested-changes, and failed-check states", () => {
   assert.match(resolveSelfMerge({ ...baseInput, allowSelfMerge: false }).reason, /AGENT_ALLOW_SELF_MERGE/);
-  assert.match(resolveSelfMerge({ ...baseInput, isDraft: true }).reason, /draft/);
+  assert.match(resolveSelfMerge({ ...baseInput, isCrossRepository: true }).reason, /fork/);
+  assert.match(resolveSelfMerge({ ...baseInput, isDraft: true }).reason, /trusted agent branch/);
   assert.match(
     resolveSelfMerge({
       ...baseInput,
@@ -113,15 +117,38 @@ test("resolveSelfMerge blocks disabled, draft, stale, requested-changes, and fai
   );
 });
 
-test("resolveSelfMerge waits on stacked bases before merging", () => {
+test("resolveSelfMerge marks trusted draft agent PRs ready before merging", () => {
+  const result = resolveSelfMerge({
+    ...baseInput,
+    isDraft: true,
+    isTrustedAgentPr: true,
+  });
+
+  assert.equal(result.conclusion, "merged");
+  assert.equal(result.nextStep, "merge");
+  assert.equal(result.markReady, true);
+});
+
+test("resolveSelfMerge allows open same-repo stack bases", () => {
   const result = resolveSelfMerge({
     ...baseInput,
     baseRefName: "agent/parent",
+    baseIsAllowedStack: true,
   });
 
-  assert.equal(result.conclusion, "waiting");
+  assert.equal(result.conclusion, "merged");
+  assert.equal(result.nextStep, "merge");
+});
+
+test("resolveSelfMerge blocks unknown non-default bases", () => {
+  const result = resolveSelfMerge({
+    ...baseInput,
+    baseRefName: "feature/unknown",
+  });
+
+  assert.equal(result.conclusion, "blocked");
   assert.equal(result.nextStep, "none");
-  assert.match(result.reason, /not the default branch main/);
+  assert.match(result.reason, /open same-repo stack base/);
 });
 
 test("resolveSelfMerge chooses immediate merge only when GitHub reports mergeable", () => {
