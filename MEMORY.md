@@ -58,6 +58,6 @@
 - Failure-report v1 should diagnose locally and require approval before central Discussion posting by default.
 - Packaged workflows default AGENT_AUTOMATION_MODE to agent; project labels default apply on but dry-run guards writes.
 - Installation registries belong to Sepo/App-owner automation; installed repos must not enumerate other installs.
-- Prompt-managed inline review actions: reviewer lanes suggest only; synthesis re-fetches and only replies/minimizes same-agent PR comments.
+- Prompt-managed inline reviews: reviewer lanes suggest only; synthesis re-fetches and chooses reply/resolve/minimize/no-op under same-agent guards.
 - Provider credentials belong in repo secrets; pass only fixed Sepo-needed secrets, not arbitrary repo secrets.
 - Agent-mode PR /orchestrate plans PR outcomes; dispatch only review/fix-pr, and planner-selected fix-pr needs concrete context.
