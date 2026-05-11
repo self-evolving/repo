@@ -143,6 +143,26 @@ test("resolve-self-merge enables auto-merge when checks are pending", () => {
   }
 });
 
+test("resolve-self-merge blocks auto-merge when merge state is missing", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-self-merge-cli-"));
+  try {
+    writeFakeGh(tempDir);
+
+    const result = runResolveSelfMerge(tempDir, {
+      FAKE_MERGE_STATE: "",
+      FAKE_MERGEABLE: "UNKNOWN",
+      FAKE_STATUS_CHECK_ROLLUP: '[{"name":"check","status":"IN_PROGRESS","conclusion":""}]',
+    });
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.outputs.get("conclusion"), "blocked");
+    assert.match(result.outputs.get("reason") || "", /merge state: unknown/);
+    assert.doesNotMatch(result.log, /^pr merge /m);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("resolve-self-merge marks draft PRs ready before merging", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-self-merge-cli-"));
   try {

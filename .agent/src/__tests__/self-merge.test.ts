@@ -178,6 +178,16 @@ test("resolveSelfMerge enables auto-merge while checks are pending", () => {
   });
   assert.equal(alreadyEnabled.conclusion, "auto_merge_enabled");
   assert.equal(alreadyEnabled.nextStep, "none");
+
+  const missingMergeState = resolveSelfMerge({
+    ...baseInput,
+    mergeStateStatus: "",
+    mergeable: "UNKNOWN",
+    statusChecks: [{ name: "check", status: "IN_PROGRESS", conclusion: "", state: "" }],
+  });
+  assert.equal(missingMergeState.conclusion, "blocked");
+  assert.equal(missingMergeState.nextStep, "none");
+  assert.match(missingMergeState.reason, /merge state: unknown/);
 });
 
 test("formatSelfMergeBody includes visible status and marker", () => {

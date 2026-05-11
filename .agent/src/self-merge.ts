@@ -190,7 +190,7 @@ function canEnableAutoMerge(input: SelfMergeResolveInput): boolean {
   const mergeable = normalizeToken(input.mergeable);
   if (mergeable === "conflicting" || mergeable === "false") return false;
   if (mergeState === "dirty" || mergeState === "draft" || mergeState === "behind") return false;
-  return ["blocked", "clean", "has_hooks", "unknown", "unstable", ""].includes(mergeState);
+  return ["blocked", "clean", "has_hooks", "unknown", "unstable"].includes(mergeState);
 }
 
 export function resolveSelfMerge(input: SelfMergeResolveInput): SelfMergeResolveResult {
