@@ -63,3 +63,5 @@
 - Agent-mode PR /orchestrate plans PR outcomes; dispatch only review/fix-pr, and planner-selected fix-pr needs concrete context.
 - Install-event bootstrap belongs in hosted App/backend code; repo-local onboarding remains the dispatched target workflow.
 - Privileged scheduled workflows should run repo-local actions/scripts from default branch; use adopted PR branches only as target worktrees.
+- Release publish/changelog support is deferred; release prepare is the agentic PR step and publish should use reviewed notes.
+- Scheduled update checks adopt existing same-repo agent/update-agent-infra-* PRs instead of opening duplicates.
