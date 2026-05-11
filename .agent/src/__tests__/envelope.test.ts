@@ -227,8 +227,10 @@ test("single-agent workflows resolve provider before runtime setup", () => {
   const routerWorkflow = readRepoFile(".github/workflows/agent-router.yml");
   const implementWorkflow = readRepoFile(".github/workflows/agent-implement.yml");
   const fixPrWorkflow = readRepoFile(".github/workflows/agent-fix-pr.yml");
+  const updateWorkflow = readRepoFile(".github/workflows/agent-update.yml");
   const reviewWorkflow = readRepoFile(".github/workflows/agent-review.yml");
   const autonomousWorkflows = [
+    updateWorkflow,
     readRepoFile(".github/workflows/agent-daily-summary.yml"),
     readRepoFile(".github/workflows/agent-memory-bootstrap.yml"),
     readRepoFile(".github/workflows/agent-memory-pr-closed.yml"),
@@ -286,6 +288,7 @@ test("scheduled workflows evaluate skip gates before provider-dependent jobs", (
   const dailySummaryWorkflow = readRepoFile(".github/workflows/agent-daily-summary.yml");
   const memoryScanWorkflow = readRepoFile(".github/workflows/agent-memory-scan.yml");
   const memorySyncWorkflow = readRepoFile(".github/workflows/agent-memory-sync.yml");
+  const updateWorkflow = readRepoFile(".github/workflows/agent-update.yml");
   const gateAction = readRepoFile(".github/actions/scheduled-activity-gate/action.yml");
 
   assert.match(gateAction, /\.agent\/scripts\/resolve-scheduled-activity-gate\.sh/);
@@ -300,6 +303,41 @@ test("scheduled workflows evaluate skip gates before provider-dependent jobs", (
   assert.match(memorySyncWorkflow, /gate:\n[\s\S]*Resolve scheduled activity gate/);
   assert.match(memorySyncWorkflow, /sync:\n\s+needs: gate\n\s+if: needs\.gate\.outputs\.skip != 'true'/);
   assert.doesNotMatch(memorySyncWorkflow, /if: steps\.gate\.outputs\.skip != 'true'/);
+
+  assert.match(updateWorkflow, /gate:\n[\s\S]*Resolve scheduled activity gate/);
+  assert.match(updateWorkflow, /vars\.AGENT_AUTO_UPDATE == 'false'/);
+  assert.match(updateWorkflow, /"workflow_overrides":\{"agent-update\.yml":"disabled"\}/);
+  assert.doesNotMatch(updateWorkflow, /Resolve canonical source guard/);
+  assert.match(updateWorkflow, /Check pending update PR[\s\S]*if: steps\.schedule\.outputs\.skip != 'true'[\s\S]*resolve-pending-update-pr\.sh/);
+  assert.match(updateWorkflow, /IGNORE_EXISTING_UPDATE_PR:\s*\$\{\{ inputs\.force && 'true' \|\| 'false' \}\}/);
+  assert.match(updateWorkflow, /update:\n\s+needs: gate\n\s+if: needs\.gate\.outputs\.skip != 'true'/);
+  assert.match(updateWorkflow, /existing_pr_branch: \$\{\{ steps\.pending\.outputs\.branch \}\}/);
+  assert.match(updateWorkflow, /ref: \$\{\{ github\.event\.repository\.default_branch \}\}/);
+  assert.doesNotMatch(updateWorkflow, /ref: \$\{\{ needs\.gate\.outputs\.existing_pr_branch/);
+  assert.match(updateWorkflow, /Resolve update target checkout[\s\S]*git worktree add -B "\$\{EXISTING_PR_BRANCH\}"/);
+  assert.match(updateWorkflow, /Resolve update provider[\s\S]*Setup agent runtime/);
+  assert.match(updateWorkflow, /source_ref:[\s\S]*default:\s*""/);
+  assert.match(updateWorkflow, /UPDATE_SOURCE_REF:\s*\$\{\{\s*inputs\.source_ref \|\| ''\s*\}\}/);
+  assert.match(updateWorkflow, /Resolve update source[\s\S]*resolve-update-source\.sh/);
+  assert.match(updateWorkflow, /Write update source summary[\s\S]*Sepo update source:/);
+  assert.doesNotMatch(updateWorkflow, /Render update request/);
+  assert.match(updateWorkflow, /runtime checkout path: \$\{\{ github\.workspace \}\}/);
+  assert.match(updateWorkflow, /update target path: \$\{\{ steps\.update_target\.outputs\.path \}\}/);
+  assert.match(updateWorkflow, /update target mode: \$\{\{ steps\.update_target\.outputs\.mode \}\}/);
+  assert.match(updateWorkflow, /source agent repo\/ref: \$\{\{ steps\.update_source\.outputs\.source_repo \}\}@\$\{\{ steps\.update_source\.outputs\.source_ref \}\}/);
+  assert.match(updateWorkflow, /source agent SHA: \$\{\{ steps\.update_source\.outputs\.source_sha \}\}/);
+  assert.match(updateWorkflow, /existing update PR number: \$\{\{ needs\.gate\.outputs\.existing_pr_number \|\| 'none' \}\}/);
+  assert.match(updateWorkflow, /existing update PR branch: \$\{\{ needs\.gate\.outputs\.existing_pr_branch \|\| 'none' \}\}/);
+  assert.match(updateWorkflow, /Runtime actions and scripts are loaded from the default-branch checkout/);
+  assert.match(updateWorkflow, /update that branch and PR in the update target path/);
+  assert.match(updateWorkflow, /do not check out the existing PR branch in[\s\S]*the runtime checkout path/);
+  assert.match(updateWorkflow, /Update Sepo from <installed version\/ref> to \$\{\{ steps\.update_source\.outputs\.source_ref \}\}\/\$\{\{ steps\.update_source\.outputs\.source_sha \}\}/);
+  assert.match(updateWorkflow, /Resolve task timeout[\s\S]*ROUTE: skill[\s\S]*resolve-task-timeout\.js/);
+  assert.match(
+    updateWorkflow,
+    /Run update agent\n\s+id: agent\n\s+timeout-minutes: \$\{\{ fromJson\(steps\.task_timeout\.outputs\.minutes \|\| '30'\) \}\}/,
+  );
+  assert.doesNotMatch(updateWorkflow, /if: steps\.gate\.outputs\.skip != 'true'/);
 
   assert.match(dailySummaryWorkflow, /pre_gate:\n[\s\S]*Resolve scheduled disabled gate/);
   assert.match(dailySummaryWorkflow, /signals:\n\s+needs: pre_gate\n\s+if: needs\.pre_gate\.outputs\.skip != 'true'/);
@@ -853,6 +891,7 @@ test("workflow docs record the minimal metadata contract and developer notes", (
   assert.match(configurationList, /AGENT_SESSION_BUNDLE_MODE/);
   assert.match(configurationList, /AGENT_AUTOMATION_MODE/);
   assert.match(configurationList, /AGENT_AUTOMATION_MAX_ROUNDS/);
+  assert.match(configurationList, /AGENT_AUTO_UPDATE/);
   assert.match(configurationList, /AGENT_STATUS_LABEL_ENABLED/);
 
   assert.match(existingRepoInstall, /open a normal PR in the target repository/i);

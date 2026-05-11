@@ -18,6 +18,7 @@
 | `agent-close-stale-issues.yml` | `schedule` (daily), `workflow_dispatch` | Closes open `agent` issues that have had no activity for 30 days by default | None |
 | `agent-daily-summary.yml` | `schedule` (daily), `workflow_dispatch` | Generates a concise repository activity summary and posts it as a Discussion | Auto |
 | `agent-project-manager.yml` | `schedule` (every 6h), `workflow_dispatch` | Opt-in agent-driven triage for open issues and PRs, with dry-run summaries and optional priority/effort label updates | Auto |
+| `agent-update.yml` | `schedule` (1st and 15th), `workflow_dispatch` | Checks for Sepo agent infrastructure updates and opens a PR only when updates are available | Auto |
 | `agent-onboarding.yml` | `workflow_dispatch` | First-run setup check that creates built-in trigger labels and opens or updates a setup issue | None |
 | `test-scripts.yml` | `pull_request`, `workflow_dispatch` | CI for helper tests, YAML parsing, and shell syntax | None |
 
@@ -148,6 +149,21 @@ activity signals or resolving an agent provider. If discussions are disabled, or
 the configured summary discussion category does not exist, the workflow skips
 signal collection and summary generation instead of spending runtime only to
 fail while posting.
+
+`agent-update.yml` runs near-biweekly because GitHub cron does not support a
+native every-14-days cadence. It resolves its source to the latest published
+stable Sepo release tag before invoking the existing `update-agent` skill.
+Manual dispatch can pass `source_ref` to test `main`, a branch, or a specific
+tag. If no release exists yet, it falls back to `main` and records that fallback
+in the run summary. The workflow skips when `AGENT_AUTO_UPDATE=false` or
+`AGENT_SCHEDULE_POLICY` disables it. When a same-repository
+`agent/update-agent-infra-*` PR is already open, the workflow keeps the runtime
+checkout on the default branch, prepares the existing PR branch as the update
+target, and asks the update skill to update that PR instead of opening a
+duplicate. A manual `force=true` run ignores the existing PR lookup and starts
+from the default branch. The canonical `self-evolving/repo` source repository
+should set `AGENT_AUTO_UPDATE=false` when scheduled self-updates are not wanted;
+manual dispatch remains available for explicit source ref testing.
 
 Single-agent routes, autonomous agent workflows, and the review synthesis step resolve their provider before installing provider CLIs. Explicit provider choices from `AGENT_DEFAULT_PROVIDER` or a route-specific override are authoritative: the workflows select that provider even when the matching repository secret is absent, so self-hosted runners can rely on local Codex or Claude authentication. When the provider is `auto`, detection uses configured provider secrets and prefers Codex when both `OPENAI_API_KEY` and `CLAUDE_CODE_OAUTH_TOKEN` are present. Route-specific overrides are available by editing the relevant workflow's `resolve-agent-provider` step inline. Portal and skill jobs use non-fatal early resolution before non-agent response paths, then require a provider only immediately before invoking an agent.
 
