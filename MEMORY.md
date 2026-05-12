@@ -19,7 +19,7 @@
 - Public repos default-allow CONTRIBUTOR due GitHub association visibility limits; use AGENT_ACCESS_POLICY to tighten access.
 - Planning/procedure-only asks stay on /answer; provide a concrete plan and request approval before coding.
 - Keep .agent/dist/ and .agent/node_modules/ ignored; they are generated outputs, not repository source.
-- Explicit /orchestrate owns bounded follow-up chains; direct /implement, /review, and /fix-pr stay one-shot by default.
+- Orchestrate owns bounded follow-up chains; explicit /orchestrate and dispatch-triaged issue/PR starts may enter it.
 - Context-gathering planner agents may use approve-all in non-interactive workflows; keep writes in deterministic, tested CLIs.
 - Project management is a signal layer: score/label/summarize backlog; execution dispatch belongs to orchestrators.
 - checkout-pr must preserve built .agent/dist runtime; use conflict-specific checkout, not blanket dist deletion.
