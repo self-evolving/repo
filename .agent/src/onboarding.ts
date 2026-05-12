@@ -65,14 +65,18 @@ function findExistingOnboardingIssue(repo: string): ExistingIssue | null {
 }
 
 function createOnboardingIssue(opts: OnboardingOptions): number {
-  const bodyFile = join(opts.runnerTemp, `sepo-onboarding-${randomBytes(8).toString("hex")}.md`);
-  writeFileSync(bodyFile, issueBody(), "utf8");
+  const bodyFile = writeOnboardingIssueBody(opts);
   const issueUrl = createIssue({ title: ONBOARDING_TITLE, bodyFile, repo: opts.repo });
   const match = issueUrl.match(/(\d+)$/);
   if (!match) {
     throw new Error(`Could not parse issue number from ${issueUrl}`);
   }
   return Number.parseInt(match[1], 10);
+}
+
+function updateOnboardingIssueBody(opts: OnboardingOptions, issueNumber: number): void {
+  const bodyFile = writeOnboardingIssueBody(opts);
+  gh(["issue", "edit", String(issueNumber), "--repo", opts.repo, "--body-file", bodyFile]);
 }
 
 function findOnboardingComment(repo: string, issueNumber: number): ExistingComment | null {
@@ -100,6 +104,12 @@ function issueBody(): string {
 
 The latest setup status is maintained in the comment below.
 `;
+}
+
+function writeOnboardingIssueBody(opts: OnboardingOptions): string {
+  const bodyFile = join(opts.runnerTemp, `sepo-onboarding-${randomBytes(8).toString("hex")}.md`);
+  writeFileSync(bodyFile, issueBody(), "utf8");
+  return bodyFile;
 }
 
 function authStatusBody(authMode: string): string {
@@ -238,6 +248,9 @@ export function runOnboardingCheck(opts: OnboardingOptions): number {
   const rubricsReady = branchExists(opts.repo, opts.rubricsRef);
   const existingIssue = findExistingOnboardingIssue(opts.repo);
   const issueNumber = existingIssue?.number ?? createOnboardingIssue(opts);
+  if (existingIssue) {
+    updateOnboardingIssueBody(opts, issueNumber);
+  }
   const body = checklistBody(opts, memoryReady, rubricsReady);
   const existingComment = findOnboardingComment(opts.repo, issueNumber);
 

@@ -6,6 +6,10 @@ import { test } from "node:test";
 import { strict as assert } from "node:assert";
 
 const repoRoot = resolve(__dirname, "../../..");
+const expectedSetupIssueBody = `Use this issue to track Sepo setup for this repository.
+
+The latest setup status is maintained in the comment below.
+`;
 
 function writeFakeGh(tempDir: string, body: string): void {
   writeFileSync(join(tempDir, "gh"), body, { encoding: "utf8", mode: 0o755 });
@@ -24,10 +28,12 @@ function runOnboarding(tempDir: string, env: Record<string, string>) {
   });
 }
 
-function readCreatedIssueBody(log: string): string {
-  const match = log.match(/--body-file ([^ ]*sepo-onboarding-[a-f0-9]+\.md)/);
+function readOnboardingIssueBody(log: string, commandPattern: RegExp): string {
+  const match = log.match(commandPattern);
   assert.ok(match, "expected onboarding issue body file in gh log");
-  return readFileSync(match[1], "utf8");
+  const bodyFile = match[1];
+  assert.ok(bodyFile, "expected onboarding issue body file path in gh log");
+  return readFileSync(bodyFile, "utf8");
 }
 
 test("onboarding-check CLI creates labels, issue, and marker comment", () => {
@@ -90,14 +96,11 @@ exit 1
     assert.match(log, /^label create agent\/orchestrate --color fb8c00 --description Ask Sepo to run/m);
     assert.match(log, /^issue create --title Sepo setup check --body-file .+ --repo self-evolving\/repo$/m);
     assert.match(log, /^issue comment 77 --body <!-- sepo-agent-onboarding-check -->/m);
-    const issueBody = readCreatedIssueBody(log);
-    assert.equal(
-      issueBody,
-      `Use this issue to track Sepo setup for this repository.
-
-The latest setup status is maintained in the comment below.
-`,
+    const issueBody = readOnboardingIssueBody(
+      log,
+      /^issue create --title Sepo setup check --body-file ([^ ]*sepo-onboarding-[a-f0-9]+\.md) --repo self-evolving\/repo$/m,
     );
+    assert.equal(issueBody, expectedSetupIssueBody);
     assert.doesNotMatch(issueBody, /@sepo-agent/);
     assert.match(log, /## Sepo setup status/);
     assert.match(log, /### Current status/);
@@ -146,6 +149,9 @@ if [ "$1" = "api" ] && [[ "$2" == repos/*/issues/5/comments ]]; then
   printf '[{"id":123,"body":"<!-- sepo-agent-onboarding-check --> old"}]'
   exit 0
 fi
+if [ "$1" = "issue" ] && [ "$2" = "edit" ]; then
+  exit 0
+fi
 if [ "$1" = "api" ] && [ "$2" = "-X" ] && [ "$3" = "PATCH" ]; then
   exit 0
 fi
@@ -164,6 +170,13 @@ exit 1
     const log = readFileSync(logPath, "utf8");
     assert.doesNotMatch(log, /^issue create /m);
     assert.doesNotMatch(log, /^label create /m);
+    assert.match(log, /^issue edit 5 --repo self-evolving\/repo --body-file .+$/m);
+    const updatedIssueBody = readOnboardingIssueBody(
+      log,
+      /^issue edit 5 --repo self-evolving\/repo --body-file ([^ ]*sepo-onboarding-[a-f0-9]+\.md)$/m,
+    );
+    assert.equal(updatedIssueBody, expectedSetupIssueBody);
+    assert.doesNotMatch(updatedIssueBody, /@sepo-agent/);
     assert.match(log, /^api -X PATCH repos\/self-evolving\/repo\/issues\/comments\/123 -f body=<!-- sepo-agent-onboarding-check -->/m);
     assert.match(log, /GitHub App\/auth: not resolved/);
     assert.match(log, /Model credentials: not configured/);
