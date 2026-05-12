@@ -23,22 +23,24 @@
 | `test-scripts.yml` | `pull_request`, `workflow_dispatch` | CI for helper tests, YAML parsing, and shell syntax | None |
 
 `agent-orchestrator.yml` is started explicitly through `/orchestrate` or
-`agent/orchestrate`. On start, it inspects the current target state and
+`agent/orchestrate`. Dispatch triage can also select `orchestrate` for issue and
+pull request requests that ask for orchestration, follow-up automation, or
+bounded multi-step agent work. On start, it inspects the current target state and
 dispatches one built-in action (`implement`, `review`, or `fix-pr`) when useful.
 That dispatch includes explicit orchestration context; only those orchestrator
 launched action runs hand back to `agent-orchestrator.yml` after post-processing.
-Direct `/implement`, `/review`, and `/fix-pr` runs remain one-shot.
-Explicit `/orchestrate` starts on pull requests remain deterministic in
-`heuristics` mode. In `agent` mode, issue-level and pull-request-level
-`/orchestrate` starts may use the planner. For small self-contained issue work,
-the planner can return a normal handoff to `implement` on the current issue. For
-PR work, the planner can choose review-first, fix-the-PR, answer-only, or stop
-behavior; runtime policy validates that PR starts dispatch only `review` or
-`fix-pr` workflows. For meta-orchestration, the planner can return an internal
-`delegate_issue` command instead of adding a new public route. That command
-creates or reuses a child issue with parent/stage metadata, dispatches the child
-issue through the normal `/orchestrate` flow in heuristic mode, and keeps the
-parent/child relationship in GitHub issue state rather than session identity.
+Direct `/implement`, `/review`, and `/fix-pr` runs remain one-shot. Pull request
+orchestrate starts remain deterministic in `heuristics` mode. In `agent` mode,
+issue-level and pull-request-level orchestrate starts may use the planner. For
+small self-contained issue work, the planner can return a normal handoff to
+`implement` on the current issue. For PR work, the planner can choose
+review-first, fix-the-PR, answer-only, or stop behavior; runtime policy validates
+that PR starts dispatch only `review` or `fix-pr` workflows. For
+meta-orchestration, the planner can return an internal `delegate_issue` command
+instead of adding a new public route. That command creates or reuses a child
+issue with parent/stage metadata, dispatches the child issue through the normal
+`/orchestrate` flow in heuristic mode, and keeps the parent/child relationship
+in GitHub issue state rather than session identity.
 When `delegate_issue` names an existing user-authored issue, the orchestrator
 adopts it by writing the trusted child marker in an agent-authored issue comment
 and recording the parent/child link on the parent issue. The dispatcher also
