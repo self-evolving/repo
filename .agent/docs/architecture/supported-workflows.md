@@ -200,6 +200,9 @@ Explicit routes are:
 - `@sepo-agent /skill <name>`
 
 Explicit routes skip dispatch triage and resolve locally, but still go through the same route policy checks afterward.
+The built-in route catalog in `.agent/src/routes.ts` is the source of truth for
+slash commands, trigger labels, dispatch prompt options, and target-kind
+constraints.
 
 Mention-based skill requests normalize the skill name to lowercase and run `.skills/<name>/SKILL.md` inline through the same `skill` route used by `agent/s/<skill>` labels.
 

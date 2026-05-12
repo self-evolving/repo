@@ -2,6 +2,8 @@
 // receives. Agents use this identity block plus self-serve tool calls
 // (gh, git, local file reads) to gather the context they need.
 
+import { buildDispatchPromptVars } from "./routes.js";
+
 export interface RuntimeEnvelope {
   schema_version: number;
   repo_slug: string;
@@ -196,5 +198,6 @@ export function envelopeToPromptVars(envelope: RuntimeEnvelope): Record<string, 
     WORKFLOW: envelope.workflow,
     LANE: envelope.lane,
     THREAD_KEY: envelope.thread_key,
+    ...buildDispatchPromptVars(),
   };
 }

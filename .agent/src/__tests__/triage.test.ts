@@ -12,6 +12,16 @@ import {
   buildRequestedRouteDecision,
   resolveRequestedLabel,
 } from "../triage.js";
+import { BUILT_IN_TRIGGER_LABELS } from "../trigger-labels.js";
+import {
+  getDispatchRouteIds,
+  getExplicitRouteCommandIds,
+  getLabelRouteDefinitions,
+  renderDispatchRouteList,
+  renderDispatchRouteRules,
+  renderDispatchRouteUnion,
+  triggerLabelForRoute,
+} from "../routes.js";
 import {
   getAllowedAssociationsForRoute,
   isAssociationAllowedForRoute,
@@ -24,11 +34,25 @@ function readRepoFile(relativePath: string): string {
   return readFileSync(resolve(repoRoot, relativePath), "utf8");
 }
 
+function renderDispatchPrompt(template: string): string {
+  return template
+    .replace("${DISPATCH_ROUTE_LIST}", renderDispatchRouteList())
+    .replace("${DISPATCH_ROUTE_UNION}", renderDispatchRouteUnion())
+    .replace("${DISPATCH_ROUTE_RULES}", renderDispatchRouteRules());
+}
+
 // --- normalizeDispatch ---
 
-test("dispatch prompt enumerates every supported dispatch route", () => {
-  const prompt = readRepoFile(".github/prompts/agent-dispatch.md");
-  const supportedRoutes = [...ROUTES].sort();
+test("dispatch prompt renders every supported dispatch route from the catalog", () => {
+  const template = readRepoFile(".github/prompts/agent-dispatch.md");
+  assert.match(template, /\$\{DISPATCH_ROUTE_LIST\}/);
+  assert.match(template, /\$\{DISPATCH_ROUTE_UNION\}/);
+  assert.match(template, /\$\{DISPATCH_ROUTE_RULES\}/);
+
+  const prompt = renderDispatchPrompt(template);
+  assert.doesNotMatch(prompt, /\$\{DISPATCH_ROUTE_/);
+  const supportedRoutes = getDispatchRouteIds().sort();
+  assert.deepEqual([...ROUTES].sort(), supportedRoutes);
 
   const bulletRoutes = Array.from(
     prompt.matchAll(/^- `([^`]+)`: /gm),
@@ -44,6 +68,33 @@ test("dispatch prompt enumerates every supported dispatch route", () => {
     .sort();
   assert.deepEqual(unionRoutes, supportedRoutes);
   assert.match(prompt, /Use `orchestrate` when/);
+});
+
+test("explicit slash commands mirror the route catalog", () => {
+  for (const route of getExplicitRouteCommandIds()) {
+    assert.equal(
+      extractRequestedRoute(`@sepo-agent /${route} please handle this`, "@sepo-agent"),
+      route,
+    );
+  }
+});
+
+test("built-in trigger labels mirror the route catalog", () => {
+  const expectedLabels = getLabelRouteDefinitions().map((definition) => ({
+    name: triggerLabelForRoute(definition.id),
+    route: definition.id,
+    description: definition.label?.description || "",
+    color: definition.label?.color || "",
+  }));
+
+  assert.deepEqual(BUILT_IN_TRIGGER_LABELS, expectedLabels);
+
+  for (const definition of getLabelRouteDefinitions()) {
+    assert.deepEqual(resolveRequestedLabel(triggerLabelForRoute(definition.id)), {
+      route: definition.id,
+      skill: "",
+    });
+  }
 });
 
 test("normalizeDispatch reads raw JSON", () => {

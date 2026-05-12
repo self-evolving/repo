@@ -12,6 +12,7 @@ import {
   SCHEMA_VERSION,
   validateEnvelope,
 } from "../envelope.js";
+import { buildDispatchPromptVars } from "../routes.js";
 
 const repoRoot = path.resolve(__dirname, "../../..");
 
@@ -1235,6 +1236,7 @@ test("envelopeToPromptVars exposes the prompt contract", () => {
     WORKFLOW: "",
     LANE: "default",
     THREAD_KEY: "self-evolving/repo:pull_request:42:review:default",
+    ...buildDispatchPromptVars(),
   });
 });
 
