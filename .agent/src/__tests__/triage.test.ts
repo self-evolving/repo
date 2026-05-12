@@ -1,7 +1,10 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
 
 import {
+  ROUTES,
   normalizeDispatch,
   applyDispatchPolicy,
   extractRequestedRoute,
@@ -15,7 +18,33 @@ import {
   parseAccessPolicy,
 } from "../access-policy.js";
 
+const repoRoot = resolve(__dirname, "../../..");
+
+function readRepoFile(relativePath: string): string {
+  return readFileSync(resolve(repoRoot, relativePath), "utf8");
+}
+
 // --- normalizeDispatch ---
+
+test("dispatch prompt enumerates every supported dispatch route", () => {
+  const prompt = readRepoFile(".github/prompts/agent-dispatch.md");
+  const supportedRoutes = [...ROUTES].sort();
+
+  const bulletRoutes = Array.from(
+    prompt.matchAll(/^- `([^`]+)`: /gm),
+    ([, route]) => route,
+  ).sort();
+  assert.deepEqual(bulletRoutes, supportedRoutes);
+
+  const unionMatch = prompt.match(/"route": "([^"]+)"/);
+  assert.ok(unionMatch, "dispatch prompt should document the route JSON union");
+  const unionRoutes = unionMatch[1]
+    .split("|")
+    .map((route) => route.trim())
+    .sort();
+  assert.deepEqual(unionRoutes, supportedRoutes);
+  assert.match(prompt, /Use `orchestrate` when/);
+});
 
 test("normalizeDispatch reads raw JSON", () => {
   const d = normalizeDispatch(
