@@ -8,16 +8,17 @@ import {
   getAllowedAssociationsForRoute,
   isAssociationAllowedForRoute,
 } from "./access-policy.js";
+import {
+  LABEL_ROUTE_PREFIX,
+  LABEL_SKILL_PREFIX,
+  getAgentRouteDefinition,
+  getDispatchRouteIds,
+  getExplicitRouteCommandIds,
+  getRouteForTriggerLabel,
+  isRouteSupportedForTargetKind,
+} from "./routes.js";
 
-export const ROUTES = new Set([
-  "answer",
-  "implement",
-  "fix-pr",
-  "review",
-  "orchestrate",
-  "create-action",
-  "unsupported",
-]);
+export const ROUTES = new Set(getDispatchRouteIds());
 
 export interface DispatchDecision {
   route: string;
@@ -28,9 +29,8 @@ export interface DispatchDecision {
   issueBody: string;
 }
 
-const EXPLICIT_ROUTE_COMMANDS = ["answer", "implement", "fix-pr", "review", "orchestrate", "create-action"] as const;
-const LABEL_ROUTE_PREFIX = "agent/";
-const LABEL_SKILL_PREFIX = "agent/s/";
+const EXPLICIT_ROUTE_COMMANDS = getExplicitRouteCommandIds();
+const EXPLICIT_ROUTE_COMMAND_SET = new Set(EXPLICIT_ROUTE_COMMANDS);
 const VALID_SKILL_LABEL = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 
 export interface RequestedLabelDecision {
@@ -93,112 +93,33 @@ export function extractRequestedRouteDecision(body: string, mention: string): Re
  */
 export function buildRequestedRouteDecision(route: string, requestText: string): DispatchDecision {
   const normalizedRoute = String(route || "").trim().toLowerCase();
-  if (
-    normalizedRoute !== "skill" &&
-    !EXPLICIT_ROUTE_COMMANDS.includes(normalizedRoute as (typeof EXPLICIT_ROUTE_COMMANDS)[number])
-  ) {
+  const routeDefinition = getAgentRouteDefinition(normalizedRoute);
+  if (normalizedRoute !== "skill" && !EXPLICIT_ROUTE_COMMAND_SET.has(normalizedRoute)) {
     throw new Error(`Unsupported explicit route: ${normalizedRoute || "missing"}`);
   }
 
-  if (normalizedRoute === "implement") {
-    const originalRequest = String(requestText || "").trim() || "No request text provided.";
-    return {
-      route: "implement",
-      // Explicit /implement is itself the approval, so the portal skips the
-      // approval gate and dispatches agent-implement directly. The gate still
-      // applies to triaged implement decisions (see applyDispatchPolicy).
-      needsApproval: false,
-      confidence: "high",
-      summary: "I’ll start implementing this request.",
-      issueTitle: "Implement requested change",
-      issueBody: [
-        "## Goal",
-        "Implement the requested change from the agent mention.",
-        "",
-        "## Original request",
-        originalRequest,
-        "",
-        "## Acceptance criteria",
-        "- Implement the requested change.",
-        "- Preserve existing behavior unless the request requires a change.",
-        "- Update tests or validation as needed.",
-      ].join("\n"),
-    };
+  if (!routeDefinition) {
+    throw new Error(`Unsupported explicit route: ${normalizedRoute || "missing"}`);
   }
 
-  if (normalizedRoute === "create-action") {
-    const originalRequest = String(requestText || "").trim() || "No request text provided.";
+  if (routeDefinition.issueTemplate) {
     return {
-      route: "create-action",
+      route: routeDefinition.id,
+      // Explicit slash commands are themselves the approval, so the portal
+      // skips the approval gate. The gate still applies to triaged decisions.
       needsApproval: false,
       confidence: "high",
-      summary: "I’ll create a pull request for a scheduled agent workflow.",
-      issueTitle: "Create scheduled agent workflow",
-      issueBody: [
-        "## Goal",
-        "Create a scheduled GitHub Actions workflow from the agent mention.",
-        "",
-        "## Original request",
-        originalRequest,
-        "",
-        "## Acceptance criteria",
-        "- Add or update one standalone workflow under `.github/workflows/`.",
-        "- Use native GitHub Actions triggers for schedule/manual runs.",
-        "- Include an expiration guard before running the agent task.",
-        "- Preserve activation through normal PR review and merge.",
-      ].join("\n"),
-    };
-  }
-
-  if (normalizedRoute === "fix-pr") {
-    return {
-      route: "fix-pr",
-      needsApproval: false,
-      confidence: "high",
-      summary: "I’ll start a PR fix pass.",
-      issueTitle: "",
-      issueBody: "",
-    };
-  }
-
-  if (normalizedRoute === "review") {
-    return {
-      route: "review",
-      needsApproval: false,
-      confidence: "high",
-      summary: "I’ll start a review pass.",
-      issueTitle: "",
-      issueBody: "",
-    };
-  }
-
-  if (normalizedRoute === "orchestrate") {
-    return {
-      route: "orchestrate",
-      needsApproval: false,
-      confidence: "high",
-      summary: "I’ll start orchestration for this target.",
-      issueTitle: "",
-      issueBody: "",
-    };
-  }
-
-  if (normalizedRoute === "skill") {
-    return {
-      route: "skill",
-      needsApproval: false,
-      confidence: "high",
-      summary: "I’ll run the requested skill.",
-      issueTitle: "",
-      issueBody: "",
+      summary: routeDefinition.explicitSummary || "",
+      issueTitle: routeDefinition.issueTemplate.title,
+      issueBody: routeDefinition.issueTemplate.body(requestText),
     };
   }
 
   return {
-    route: "answer",
+    route: routeDefinition.id,
     needsApproval: false,
     confidence: "high",
-    summary: "I’ll answer inline.",
+    summary: routeDefinition.explicitSummary || "",
     issueTitle: "",
     issueBody: "",
   };
@@ -218,23 +139,9 @@ export function resolveRequestedLabel(labelName: string): RequestedLabelDecision
     return null;
   }
 
-  if (normalized === "agent/answer") {
-    return { route: "answer", skill: "" };
-  }
-  if (normalized === "agent/implement") {
-    return { route: "implement", skill: "" };
-  }
-  if (normalized === "agent/fix-pr") {
-    return { route: "fix-pr", skill: "" };
-  }
-  if (normalized === "agent/review") {
-    return { route: "review", skill: "" };
-  }
-  if (normalized === "agent/orchestrate") {
-    return { route: "orchestrate", skill: "" };
-  }
-  if (normalized === "agent/create-action") {
-    return { route: "create-action", skill: "" };
+  const labelRoute = getRouteForTriggerLabel(normalized);
+  if (labelRoute) {
+    return { route: labelRoute.id, skill: "" };
   }
   if (normalized.startsWith(LABEL_SKILL_PREFIX)) {
     const skill = raw.slice(LABEL_SKILL_PREFIX.length).trim().toLowerCase();
@@ -290,6 +197,7 @@ export function applyDispatchPolicy(
   isExplicit = false,
 ): DispatchDecision {
   const normalized = { ...decision };
+  const routeDefinition = getAgentRouteDefinition(normalized.route);
 
   if (
     String(authorAssociation || "").trim() &&
@@ -315,86 +223,28 @@ export function applyDispatchPolicy(
     };
   }
 
-  if (normalized.route === "implement") {
-    // Triaged implement always requires approval as a false-positive guard;
-    // explicit /implement (slash command or agent/implement label) skips the
-    // gate because the user already stated the intent.
+  if (routeDefinition && !isRouteSupportedForTargetKind(routeDefinition, targetKind)) {
+    return {
+      ...normalized,
+      route: "unsupported",
+      needsApproval: false,
+      summary: routeDefinition.targetUnsupportedSummary || "This route is not supported for the current target.",
+      issueTitle: "",
+      issueBody: "",
+    };
+  }
+
+  if (routeDefinition?.approval === "triaged") {
+    // Triaged routes require approval as a false-positive guard; explicit
+    // slash commands or labels skip the gate because the user already stated
+    // the intent.
     normalized.needsApproval = !isExplicit;
-    return normalized;
-  }
-
-  if (normalized.route === "create-action") {
-    normalized.needsApproval = !isExplicit;
-    if (!normalized.issueTitle) {
-      normalized.issueTitle = "Create scheduled agent workflow";
+    if (!normalized.issueTitle && routeDefinition.fallbackIssueTitle) {
+      normalized.issueTitle = routeDefinition.fallbackIssueTitle;
     }
-    if (!normalized.issueBody) {
-      normalized.issueBody = "Create a scheduled GitHub Actions workflow for the requested automation.";
+    if (!normalized.issueBody && routeDefinition.fallbackIssueBody) {
+      normalized.issueBody = routeDefinition.fallbackIssueBody;
     }
-    return normalized;
-  }
-
-  if (normalized.route === "fix-pr") {
-    if (targetKind !== "pull_request") {
-      return {
-        ...normalized,
-        route: "unsupported",
-        needsApproval: false,
-        summary:
-          "PR fix requests are only supported from pull requests right now.",
-        issueTitle: "",
-        issueBody: "",
-      };
-    }
-
-    normalized.needsApproval = false;
-    normalized.issueTitle = "";
-    normalized.issueBody = "";
-    return normalized;
-  }
-
-  if (normalized.route === "review") {
-    if (targetKind !== "pull_request") {
-      return {
-        ...normalized,
-        route: "unsupported",
-        needsApproval: false,
-        summary:
-          "Review requests are only supported from pull requests right now.",
-        issueTitle: "",
-        issueBody: "",
-      };
-    }
-
-    normalized.needsApproval = false;
-    normalized.issueTitle = "";
-    normalized.issueBody = "";
-    return normalized;
-  }
-
-  if (normalized.route === "orchestrate") {
-    if (targetKind !== "issue" && targetKind !== "pull_request") {
-      return {
-        ...normalized,
-        route: "unsupported",
-        needsApproval: false,
-        summary:
-          "Orchestration requests are currently supported on issues and pull requests only.",
-        issueTitle: "",
-        issueBody: "",
-      };
-    }
-
-    normalized.needsApproval = false;
-    normalized.issueTitle = "";
-    normalized.issueBody = "";
-    return normalized;
-  }
-
-  if (normalized.route === "skill") {
-    normalized.needsApproval = false;
-    normalized.issueTitle = "";
-    normalized.issueBody = "";
     return normalized;
   }
 
