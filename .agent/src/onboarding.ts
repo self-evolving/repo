@@ -30,10 +30,6 @@ interface ExistingComment {
   body: string;
 }
 
-function check(condition: boolean): string {
-  return condition ? "[x]" : "[ ]";
-}
-
 function apiPath(repo: string, suffix: string): string {
   return `repos/${repo}/${suffix}`;
 }
@@ -69,14 +65,18 @@ function findExistingOnboardingIssue(repo: string): ExistingIssue | null {
 }
 
 function createOnboardingIssue(opts: OnboardingOptions): number {
-  const bodyFile = join(opts.runnerTemp, `sepo-onboarding-${randomBytes(8).toString("hex")}.md`);
-  writeFileSync(bodyFile, issueBody(), "utf8");
+  const bodyFile = writeOnboardingIssueBody(opts);
   const issueUrl = createIssue({ title: ONBOARDING_TITLE, bodyFile, repo: opts.repo });
   const match = issueUrl.match(/(\d+)$/);
   if (!match) {
     throw new Error(`Could not parse issue number from ${issueUrl}`);
   }
   return Number.parseInt(match[1], 10);
+}
+
+function updateOnboardingIssueBody(opts: OnboardingOptions, issueNumber: number): void {
+  const bodyFile = writeOnboardingIssueBody(opts);
+  gh(["issue", "edit", String(issueNumber), "--repo", opts.repo, "--body-file", bodyFile]);
 }
 
 function findOnboardingComment(repo: string, issueNumber: number): ExistingComment | null {
@@ -100,58 +100,135 @@ function updateIssueComment(repo: string, commentId: number, body: string): void
 }
 
 function issueBody(): string {
-  return `Use this issue to verify that Sepo is installed and ready in this repository.
+  return `Use this issue to track Sepo setup for this repository.
 
-Try a basic answer run:
+The latest setup status is maintained in the comment below.
+`;
+}
+
+function writeOnboardingIssueBody(opts: OnboardingOptions): string {
+  const bodyFile = join(opts.runnerTemp, `sepo-onboarding-${randomBytes(8).toString("hex")}.md`);
+  writeFileSync(bodyFile, issueBody(), "utf8");
+  return bodyFile;
+}
+
+function authStatusBody(authMode: string): string {
+  const resolvedMode = authMode.trim();
+  if (resolvedMode) {
+    return `- [x] GitHub App/auth: resolved via \`${resolvedMode}\``;
+  }
+
+  return [
+    "- [ ] GitHub App/auth: not resolved",
+    "  - Install the Sepo GitHub App or configure a supported auth path.",
+  ].join("\n");
+}
+
+function credentialNames(opts: OnboardingOptions): string[] {
+  const names: string[] = [];
+  if (opts.openaiConfigured) names.push("`OPENAI_API_KEY`");
+  if (opts.claudeConfigured) names.push("`CLAUDE_CODE_OAUTH_TOKEN`");
+  return names;
+}
+
+function andList(items: string[]): string {
+  if (items.length <= 1) return items[0] || "";
+  return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+}
+
+function providerDetailBody(opts: OnboardingOptions): string[] {
+  const provider = opts.provider.trim();
+  if (!provider) return [];
+
+  const reason = opts.providerReason.trim();
+  return [`  - Agent provider: \`${provider}\`${reason ? ` (${reason})` : ""}`];
+}
+
+function modelStatusBody(opts: OnboardingOptions): string {
+  const names = credentialNames(opts);
+  if (names.length === 0) {
+    return [
+      "- [ ] Model credentials: not configured",
+      "  - Add `OPENAI_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` as a repository secret.",
+      "  - Optional: configure `AGENT_DEFAULT_PROVIDER`.",
+      ...providerDetailBody(opts),
+    ].join("\n");
+  }
+
+  return [
+    `- [x] Model credentials: ${andList(names)} configured`,
+    ...providerDetailBody(opts),
+  ].join("\n");
+}
+
+function branchStatusBody(label: string, ref: string, ready: boolean, actionName: string, optional = false): string {
+  if (ready) {
+    return `- [x] ${label}: initialized (\`${ref}\`)`;
+  }
+
+  const prefix = optional ? "Optional: run" : "Run";
+  return [
+    `- [ ] ${label}: not initialized`,
+    `  - ${prefix} **Actions > ${actionName}**.`,
+  ].join("\n");
+}
+
+function remainingSetupBody(opts: OnboardingOptions, memoryReady: boolean, rubricsReady: boolean): string {
+  const items: string[] = [];
+  if (!opts.authMode.trim()) {
+    items.push("Resolve GitHub App/auth.");
+  }
+  if (credentialNames(opts).length === 0) {
+    items.push("Configure one model provider credential.");
+  }
+  if (!memoryReady) {
+    items.push(`Initialize memory branch \`${opts.memoryRef}\`.`);
+  }
+  if (!rubricsReady) {
+    items.push(`Optional: initialize rubrics branch \`${opts.rubricsRef}\`.`);
+  }
+
+  if (items.length === 0) {
+    return "- [x] Required setup is complete.";
+  }
+
+  return items.map((item) => `- [ ] ${item}`).join("\n");
+}
+
+function checklistBody(opts: OnboardingOptions, memoryReady: boolean, rubricsReady: boolean): string {
+  return `${COMMENT_MARKER}
+## Sepo setup status
+
+### Current status
+
+${authStatusBody(opts.authMode)}
+${modelStatusBody(opts)}
+${branchStatusBody("Memory", opts.memoryRef, memoryReady, "Agent / Memory / Initialization")}
+${branchStatusBody("Rubrics", opts.rubricsRef, rubricsReady, "Agent / Rubrics / Initialization", true)}
+
+### Remaining setup
+
+${remainingSetupBody(opts, memoryReady, rubricsReady)}
+
+### Test Sepo
+
+After setup, try:
 
 \`\`\`md
 @sepo-agent /answer Is Sepo configured correctly in this repository?
 \`\`\`
 
-Try implementation after setup:
+Try implementation:
 
 \`\`\`md
 @sepo-agent /implement Create a small README update that verifies the agent can open a PR.
 \`\`\`
 
-Try PR review on an open pull request:
+On an open pull request:
 
 \`\`\`md
 @sepo-agent /review
 \`\`\`
-`;
-}
-
-function checklistBody(opts: OnboardingOptions, memoryReady: boolean, rubricsReady: boolean): string {
-  const providerConfigured = Boolean(opts.provider);
-  const labelLines = BUILT_IN_TRIGGER_LABELS
-    .map((label) => `- \`${label.name}\` -> \`${label.route}\``)
-    .join("\n");
-  const providerDetails = providerConfigured
-    ? `${opts.provider} (${opts.providerReason || "configured"})`
-    : "not configured";
-
-  return `${COMMENT_MARKER}
-## Sepo setup status
-
-- ${check(Boolean(opts.authMode))} GitHub auth resolved: ${opts.authMode || "not resolved"}
-- ${check(providerConfigured)} Agent provider resolved: ${providerDetails}
-- ${check(opts.openaiConfigured)} \`OPENAI_API_KEY\` configured
-- ${check(opts.claudeConfigured)} \`CLAUDE_CODE_OAUTH_TOKEN\` configured
-- ${check(memoryReady)} Memory branch exists: \`${opts.memoryRef}\`
-- ${check(rubricsReady)} Rubrics branch exists: \`${opts.rubricsRef}\`
-- [x] Built-in trigger labels ensured
-
-Built-in trigger labels:
-
-${labelLines}
-
-Next steps:
-
-1. Install the Sepo GitHub App or configure another auth path if GitHub auth used only the workflow token.
-2. Configure at least one provider credential before running agent-backed routes.
-3. Run \`Agent / Memory / Initialization\` if \`${opts.memoryRef}\` is missing.
-4. Run \`Agent / Rubrics / Initialization\` if \`${opts.rubricsRef}\` is missing and you want team rubrics.
 
 Last checked: ${opts.runUrl || "GitHub Actions"}
 `;
@@ -171,6 +248,9 @@ export function runOnboardingCheck(opts: OnboardingOptions): number {
   const rubricsReady = branchExists(opts.repo, opts.rubricsRef);
   const existingIssue = findExistingOnboardingIssue(opts.repo);
   const issueNumber = existingIssue?.number ?? createOnboardingIssue(opts);
+  if (existingIssue) {
+    updateOnboardingIssueBody(opts, issueNumber);
+  }
   const body = checklistBody(opts, memoryReady, rubricsReady);
   const existingComment = findOnboardingComment(opts.repo, issueNumber);
 
