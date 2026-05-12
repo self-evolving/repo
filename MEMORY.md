@@ -65,3 +65,4 @@
 - Privileged scheduled workflows should run repo-local actions/scripts from default branch; use adopted PR branches only as target worktrees.
 - Release publish/changelog support is deferred; release prepare is the agentic PR step and publish should use reviewed notes.
 - Scheduled update checks adopt existing same-repo agent/update-agent-infra-* PRs instead of opening duplicates.
+- Onboarding setup checks use a short issue body and focused marked status comment; do not show trigger-label inventory.
