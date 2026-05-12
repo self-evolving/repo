@@ -313,6 +313,43 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/172#issuecomment-4410734910",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCDFQzg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \r\n\r\nif our goal is ultimately to have agents self merge PRs, does it matter to track the review head SHAs? ",
+      "createdAt": "2026-05-12T16:00:57Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/172#issuecomment-4432416974",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCDF6-w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes. For self-merge, tracking reviewed head SHAs matters even more.\n\nThe core safety rule should be:\n\n`reviewed head == approved head == current head at merge time`\n\nWithout that, an agent could:\n\n- review commit `A`\n- PR changes to commit `B`\n- self-approve or merge `B` using an old `SHIP` review from `A`\n\nFor self-approval, the reviewed-head marker proves “SHIP applied to this exact commit.” For self-merge, the merge resolver should do the same kind of deterministic recheck immediately before merging:\n\n1. latest trusted review synthesis is `SHIP`\n2. synthesis has reviewed-head SHA `H`\n3. any self-approval, if required, inspected/approved SHA `H`\n4. current PR head is still `H`\n5. only then submit approval or merge\n\nSo the reviewed-head SHA is not just bookkeeping. It is the provenance anchor that prevents stale-review approval/merge races. It is not sufficient by itself, but it is one of the required inputs for safe self-merge.",
+      "createdAt": "2026-05-12T16:02:13Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/172#issuecomment-4432427771",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-08T23:05:49Z",
@@ -475,6 +512,6 @@
   ],
   "state": "OPEN",
   "title": "Add reviewed-head provenance to review synthesis",
-  "updatedAt": "2026-05-10T07:48:52Z",
+  "updatedAt": "2026-05-12T16:02:14Z",
   "url": "https://github.com/self-evolving/repo/pull/172"
 }

@@ -3,7 +3,7 @@
     "is_bot": true,
     "login": "app/sepo-agent-app"
   },
-  "baseRefName": "agent/implement-issue-218/codex-25717454859",
+  "baseRefName": "main",
   "body": "## Summary\n- Add a shared route catalog for dispatch routes, slash commands, trigger labels, target constraints, and approval behavior.\n- Render dispatch prompt route lists, JSON unions, and route rules from catalog-backed prompt vars.\n- Refactor triage and trigger-label code to use the catalog, with docs and drift coverage.\n\n## Tests\n- `cd .agent && npm run build`\n- `cd .agent && node --test dist/__tests__/triage.test.js dist/__tests__/envelope.test.js dist/__tests__/onboarding-check-cli.test.js dist/__tests__/resolve-dispatch-cli.test.js`\n- `git diff --check`\n\nCloses #220\n",
   "closedAt": null,
   "comments": [
@@ -50,6 +50,43 @@
       "minimizedReason": "",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/221#issuecomment-4428199955",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCDDd2A",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \r\n\r\nLet's make it minimal? \r\n1. I think the metadata like `dispatchDescription`, `dispatchVisible` should be defined and reused from the action yaml file as much as possible?  \r\n2. can the \"dispatchDescription\" be reused with \"promptRuleLines\"?\r\n\r\n```\r\nid: \"fix-pr\",\r\n    dispatchVisible: true,\r\n    dispatchDescription: \"start the PR-fix workflow immediately\",\r\n    promptRuleOrder: 20,\r\n    promptRuleLines: [\r\n      \"- Use `fix-pr` when the user is explicitly asking the agent to update an existing PR to address review feedback or requested changes.\",\r\n    ],\r\n    promptTargetRule: true,\r\n    targetKinds: [\"pull_request\"],\r\n    targetUnsupportedSummary:\r\n      \"PR fix requests are only supported from pull requests right now.\",\r\n    explicitCommand: true,\r\n    explicitSummary: \"I’ll start a PR fix pass.\",\r\n    label: {\r\n      description: \"Ask Sepo to push fixes to a pull request branch\",\r\n      color: \"d1242f\",\r\n    },\r\n    approval: \"never\",\r\n  },\r\n  ```",
+      "createdAt": "2026-05-12T15:57:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/221#issuecomment-4432387544",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCDGIDg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, I agree with the minimal direction, with one caveat.\n\n1. I would **not make workflow YAML the runtime source of truth** for route semantics. The workflow YAML owns executable wiring and inputs, e.g. `agent-fix-pr.yml`; the catalog owns triage semantics, labels, target constraints, explicit command behavior, and approval policy. Parsing workflow YAML to infer `dispatchVisible` / `dispatchDescription` would couple routing to GitHub Actions shape and still would not cover non-workflow routes like `unsupported`.\n\n   Minimal improvement: keep `.agent/src/routes.ts` as the route metadata source, but avoid duplicating anything that is purely workflow-owned. Optionally add a `workflow: \"agent-fix-pr.yml\"` field and a drift test that the workflow exists.\n\n2. I would **not reuse `dispatchDescription` directly as `promptRuleLines`**. They describe different things:\n   - `dispatchDescription`: what happens after selecting the route, used in the route list.\n   - prompt rule: when the model should choose that route.\n\n   For example, `start the PR-fix workflow immediately` does not tell the model “choose this when the user asks to address PR review feedback.”\n\nA smaller shape I’d suggest:\n\n```ts\n{\n  id: \"fix-pr\",\n  dispatchDescription: \"start the PR-fix workflow immediately\",\n  promptWhen:\n    \"the user is explicitly asking the agent to update an existing PR to address review feedback or requested changes\",\n  targetKinds: [\"pull_request\"],\n  explicitCommand: true,\n  approval: \"never\",\n}\n```\n\nThen render:\n\n```ts\n- `fix-pr`: start the PR-fix workflow immediately; only valid for `pull_request`\n- Use `fix-pr` when the user is explicitly asking ...\n```\n\nSo yes: make it more minimal, but I’d derive prompt lines from a dedicated `promptWhen` field, not from `dispatchDescription`.",
+      "createdAt": "2026-05-12T16:02:36Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/221#issuecomment-4432431118",
       "viewerDidAuthor": true
     }
   ],
@@ -131,6 +168,6 @@
   "reviews": [],
   "state": "OPEN",
   "title": "Add shared route catalog for agent routing",
-  "updatedAt": "2026-05-12T07:17:12Z",
+  "updatedAt": "2026-05-12T16:02:36Z",
   "url": "https://github.com/self-evolving/repo/pull/221"
 }
