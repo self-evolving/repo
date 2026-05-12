@@ -1,0 +1,136 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "agent/implement-issue-218/codex-25717454859",
+  "body": "## Summary\n- Add a shared route catalog for dispatch routes, slash commands, trigger labels, target constraints, and approval behavior.\n- Render dispatch prompt route lists, JSON unions, and route rules from catalog-backed prompt vars.\n- Refactor triage and trigger-label code to use the catalog, with docs and drift coverage.\n\n## Tests\n- `cd .agent && npm run build`\n- `cd .agent && node --test dist/__tests__/triage.test.js dist/__tests__/envelope.test.js dist/__tests__/onboarding-check-cli.test.js dist/__tests__/resolve-dispatch-cli.test.js`\n- `git diff --check`\n\nCloses #220\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB-_2Xw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #221 | 3 / 40 | Dispatched |\n\nReason: implementation succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1778569629489 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU3MTg0MzMyNTI6aW1wbGVtZW50OjIyMDpyZXZpZXc6MjIxOjM -->",
+      "createdAt": "2026-05-12T07:07:10Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/221#issuecomment-4428133983",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB_At0A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 5 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #221 closes child #220, which explicitly links parent #217 and base PR #219; the implementation matches the parent request for a durable route catalog after the immediate prompt fix in #218/#219. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The diff moves duplicated route knowledge into `.agent/src/routes.ts` and refactors existing `triage.ts`, `trigger-labels.ts`, prompt vars, and tests to consume it instead of adding parallel logic. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The route catalog uses structured fields such as `targetKinds`, `approval`, `explicitCommand`, `label`, `issueTemplate`, and prompt rendering metadata rather than encoding route behavior in free-form strings. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates `.agent/docs/architecture/supported-workflows.md`, `.agent/docs/overview/quick-start.md`, and `.agent/docs/technical-details/developer-notes.md` to document the catalog as the route source of truth and include `orchestrate`. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are scoped to route catalog source, triage/label consumers, dispatch prompt rendering, focused tests, and directly relevant docs; no unrelated workflow dispatcher refactor is introduced. |\n\n## Notes\n\n- The strongest rubric alignment is the new shared catalog: it directly addresses #220’s goal to prevent drift across prompt options, explicit slash commands, trigger labels, target constraints, and approval behavior.\n- Focused tests were added for prompt rendering, `ROUTES` drift, explicit slash commands, and built-in labels; the PR body reports `npm run build`, focused node tests, and `git diff --check`.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-12T07:09:12Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/221#issuecomment-4428148176",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB_D4Ew",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #221 completes the durable follow-up from parent #217 via child #220. It adds `.agent/src/routes.ts` as the shared source of truth for dispatch routes, slash commands, trigger labels, target constraints, approval behavior, prompt rendering, and issue templates. It refactors triage, trigger-label generation, and dispatch prompt vars to consume that catalog while preserving existing route behavior. It also updates focused drift tests and the relevant docs.\n\n## Review\nThe reviewers agreed this is scoped, behavior-preserving, and ready to ship. Claude noted a few INFO-level cleanup observations, but no reviewer found blocking or warning issues.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable issues | INFO | Reviewers found no BLOCKING or WARNING issues. Remaining observations are optional cleanup or harmless schema/prompt-var polish. |\n\n## Progress\n- Codex review verified `npm ci`, `npm run build`, and focused node tests against head `5d8706e484c082376bd8df986ad5b1f8d574400b`.\n- Rubrics review passed and confirmed the PR satisfies the shared-route-catalog task, reuse/docs/surgical-change expectations, and structured catalog design.\n- Existing PR conversation contains no unresolved review findings for this PR.\n- Existing inline comments and review threads were empty; no new inline comments, replies, minimizations, or thread resolutions were needed.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: no unresolved actionable branch-change work remains.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch changes.",
+      "createdAt": "2026-05-12T07:17:12Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/221#issuecomment-4428199955",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-12T07:06:51Z",
+  "files": [
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 3,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/overview/quick-start.md",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/developer-notes.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/triage.test.ts",
+      "additions": 54,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/envelope.ts",
+      "additions": 3,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/routes.ts",
+      "additions": 321,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/triage.ts",
+      "additions": 46,
+      "deletions": 196,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/trigger-labels.ts",
+      "additions": 10,
+      "deletions": 38,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-dispatch.md",
+      "additions": 3,
+      "deletions": 18,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-220/codex-25718433252",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 221,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "OPEN",
+  "title": "Add shared route catalog for agent routing",
+  "updatedAt": "2026-05-12T07:17:12Z",
+  "url": "https://github.com/self-evolving/repo/pull/221"
+}

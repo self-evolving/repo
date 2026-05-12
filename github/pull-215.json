@@ -5,7 +5,7 @@
   },
   "baseRefName": "main",
   "body": "## Summary\n- Shorten the `Sepo setup check` issue body and move test commands into the marked status comment.\n- Render friendly conditional setup status for auth, model credentials, memory, rubrics, and remaining todos.\n- Keep built-in label creation while removing the visible trigger label inventory from onboarding comments.\n- Update onboarding CLI tests and install docs for the new copy.\n\n## Verification\n- `npm run build`\n- `node --test dist/__tests__/onboarding-check-cli.test.js`\n- `git diff --check`\n\nCloses #212\n",
-  "closedAt": null,
+  "closedAt": "2026-05-12T06:01:22Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABB9Ossg",
@@ -44,8 +44,8 @@
       "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| communication/generic | Keep status comments compact | pass | 6/6 | Status comment is structured into `Current status`, `Remaining setup`, and `Test Sepo`, and removes the visible trigger-label inventory: [onboarding.ts](https://github.com/self-evolving/repo/blob/7cc778f83267bf7e4bdbf6b848a522af7a2a9ffa/.agent/src/onboarding.ts#L188). |\n| coding_workflow/generic | Make user-facing automation idempotent | pass | 7/7 | Existing setup issue/comment lookup and marker-based update path are preserved; tests cover update instead of duplicate creation: [onboarding.ts](https://github.com/self-evolving/repo/blob/7cc778f83267bf7e4bdbf6b848a522af7a2a9ffa/.agent/src/onboarding.ts#L239), [test](https://github.com/self-evolving/repo/blob/7cc778f83267bf7e4bdbf6b848a522af7a2a9ffa/.agent/src/__tests__/onboarding-check-cli.test.ts#L125). |\n| coding_workflow/generic | Keep docs in sync | pass | 7/7 | Install docs now describe test commands in the status comment and the expanded setup status fields: [install-existing-repository.md](https://github.com/self-evolving/repo/blob/7cc778f83267bf7e4bdbf6b848a522af7a2a9ffa/.agent/docs/deployment/install-existing-repository.md#L42). |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | The change stays inside the existing onboarding CLI module, keeps the same GitHub helpers and `BUILT_IN_TRIGGER_LABELS` loop: [onboarding.ts](https://github.com/self-evolving/repo/blob/7cc778f83267bf7e4bdbf6b848a522af7a2a9ffa/.agent/src/onboarding.ts#L227). |\n| coding_workflow/generic | Read docs and linked context first | pass | 6/6 | PR closes #212 and implements its requested issue body, status sections, label-inventory removal, and conditional credential/memory/rubrics rendering. |\n| coding_workflow/generic | Make surgical changes | pass | 8/8 | Diff is limited to onboarding source, focused CLI tests, and the matching install doc; no unrelated workflow or runtime refactor. |\n| coding_style/generic | Prefer simple implementations | pass | 7/7 | Rendering is split into small local helpers for auth, credentials, branches, and remaining setup without new configuration or architecture: [onboarding.ts](https://github.com/self-evolving/repo/blob/7cc778f83267bf7e4bdbf6b848a522af7a2a9ffa/.agent/src/onboarding.ts#L105). |\n\n## Notes\n\n- The strongest score drivers are that the PR directly matches issue #212’s UX acceptance criteria while preserving idempotent setup issue/comment behavior.\n- Verified locally: `npm --prefix .agent run build`, `git diff --check origin/main...HEAD`, and `env GITHUB_OUTPUT=/tmp/sepo-onboarding-test-output node --test .agent/dist/__tests__/onboarding-check-cli.test.js`.\n\n## Findings\n\n- **INFO:** No rubric-specific follow-up needed.\n\n## Final Rubric Verdict\n\nPASS",
       "createdAt": "2026-05-12T00:37:48Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/215#issuecomment-4426289572",
       "viewerDidAuthor": true
@@ -59,8 +59,8 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #215 implements issue #212’s onboarding UX cleanup for the `Sepo setup check` flow. It shortens the setup issue body, moves test commands into the marked status comment, removes the visible trigger-label inventory, and adds friendlier conditional status for auth, model credentials, memory, rubrics, and remaining setup. It also updates focused CLI tests and the install documentation to match the new user-facing copy. The linked issue emphasizes keeping onboarding idempotent while improving the issue/comment experience.\n\n## Review\nThe PR is well scoped and matches most of the requested UX, but one idempotency gap remains for repositories that already have a setup issue. Existing setup issues keep the old noisy body because reruns update only the marker comment.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Existing setup issues keep the old body on rerun | BLOCKING | The new short `issueBody()` is only used when creating a setup issue. Reused setup issues keep their old body, so existing installs can still show the removed test commands and noisy copy. |\n\n## Progress\n- Rubrics review passed and found no rubric-specific follow-up needed.\n- Reviewer suggestions about `andList([])` and extra all-complete coverage are lower-risk optional cleanup, not required branch-change work for this synthesis.\n- Posted one inline comment on `.agent/src/onboarding.ts` line 99 covering the stale existing-issue body issue.\n- No existing inline comments or review threads needed replies, minimization, or resolution.\n\n## Issue Details\n<details>\n<summary>Existing setup issues keep the old body on rerun</summary>\n\n**Cause:** `issueBody()` now returns the short stable copy, but `runOnboardingCheck` only calls `createOnboardingIssue(opts)` when no setup issue exists. On the reused-issue path, the code updates only the marked status comment, leaving old setup issue bodies unchanged.\n\n**Candidate solutions:** Add an issue-body update path for existing `Sepo setup check` issues, using `issueBody()` during reruns. Extend the existing marker-comment update test to assert that the reused issue body is patched without creating a duplicate issue.\n\n**Comments:** One reviewer treated this as acceptable or likely intentional, while another marked it blocking. The synthesis sides with blocking because issue #212 explicitly asks for a short stable issue body while preserving idempotent reuse.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: Update the rerun path to patch existing setup issue bodies and add focused regression coverage; this is a concrete branch change suitable for automation.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Update existing `Sepo setup check` issue bodies to `issueBody()` during onboarding reruns and cover that reused-issue path in tests.",
       "createdAt": "2026-05-12T00:43:10Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/215#issuecomment-4426310299",
       "viewerDidAuthor": true
@@ -107,6 +107,116 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/215#issuecomment-4426383318",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB-S4kA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review",
+      "createdAt": "2026-05-12T04:41:59Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/215#issuecomment-4427397264",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB-TYFA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| communication/generic | Keep status comments compact | pass | 6/6 | Status comment now uses `Current status`, `Remaining setup`, and `Test Sepo`, and removes visible trigger-label inventory in `.agent/src/onboarding.ts`. |\n| coding_workflow/generic | Make user-facing automation idempotent | pass | 7/7 | Existing setup issue reuse is preserved, existing issue bodies are now patched via `issue edit`, and the marked comment is updated instead of duplicated. |\n| coding_workflow/generic | Keep docs in sync | pass | 7/7 | `.agent/docs/deployment/install-existing-repository.md` now says test commands live in the status comment and lists the expanded status fields. |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | The change stays in the existing onboarding module and keeps existing helpers such as `ensureLabel`, `createIssue`, `postIssueComment`, and `BUILT_IN_TRIGGER_LABELS`. |\n| coding_workflow/generic | Read docs and linked context first | pass | 6/6 | PR closes #212 and implements its requested short issue body, focused status comment, conditional setup rendering, and label inventory removal. |\n| coding_workflow/generic | Make surgical changes | pass | 8/8 | Diff is limited to onboarding source, focused onboarding CLI tests, and the matching install doc. |\n| coding_style/generic | Prefer simple implementations | pass | 7/7 | Rendering is handled with small local helpers for auth, credentials, branch status, and remaining setup without new configuration or broader architecture. |\n\n## Notes\n\n- The current PR head addresses the prior idempotency gap: reused `Sepo setup check` issues now get their body rewritten to the stable short body before the marker comment is updated.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-12T04:44:01Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/215#issuecomment-4427405332",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB-U0ug",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #215 implements issue #212’s onboarding UX cleanup for the `Sepo setup check` flow. It shortens the setup issue body, moves test commands into the marked status comment, removes the visible trigger-label inventory, and adds conditional status for auth, model credentials, memory, rubrics, and remaining setup. It keeps onboarding idempotent by reusing the setup issue and marker comment. The latest fix also updates existing setup issue bodies on rerun.\n\n## Review\nThe current PR head addresses the prior blocking idempotency gap. All reviewers now agree the required issue #212 behavior is covered; remaining notes are optional INFO-level cleanup or coverage nits.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | The stale existing-issue body finding is fixed with `issue edit` on reruns and regression coverage. Optional notes about `andList([])` and all-complete coverage do not require branch changes. |\n\n## Progress\n- Prior blocking stale-body finding is acknowledged and fixed in the current head.\n- Rubrics review passed with no required follow-up.\n- Resolved the older same-agent inline thread on `.agent/src/onboarding.ts` line 103 after confirming the fix is present.\n- No new inline comments were posted.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: No unresolved actionable branch-change work remains.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change action items remain.",
+      "createdAt": "2026-05-12T04:49:41Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/215#issuecomment-4427429050",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB-dbTw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \r\n\r\nAnalyzing the code -- can you tell me what the text looks like for different cases?",
+      "createdAt": "2026-05-12T05:22:53Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/215#issuecomment-4427569999",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB-eAAg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Based on PR head `5d03dbd`, the setup issue body is always:\n\n```md\nUse this issue to track Sepo setup for this repository.\n\nThe latest setup status is maintained in the comment below.\n```\n\nThe status comment always has this shape, with conditional lines inside `Current status` and `Remaining setup`:\n\n```md\n<!-- sepo-agent-onboarding-check -->\n## Sepo setup status\n\n### Current status\n\n...\n\n### Remaining setup\n\n...\n\n### Test Sepo\n\nAfter setup, try:\n\n```md\n@sepo-agent /answer Is Sepo configured correctly in this repository?\n```\n\nTry implementation:\n\n```md\n@sepo-agent /implement Create a small README update that verifies the agent can open a PR.\n```\n\nOn an open pull request:\n\n```md\n@sepo-agent /review\n```\n\nLast checked: <run url or GitHub Actions>\n```\n\nConditional text:\n\n- Auth resolved:\n\n```md\n- [x] GitHub App/auth: resolved via `oidc_broker`\n```\n\n- Auth missing:\n\n```md\n- [ ] GitHub App/auth: not resolved\n  - Install the Sepo GitHub App or configure a supported auth path.\n```\n\n- No model credentials:\n\n```md\n- [ ] Model credentials: not configured\n  - Add `OPENAI_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` as a repository secret.\n  - Optional: configure `AGENT_DEFAULT_PROVIDER`.\n```\n\n- OpenAI only:\n\n```md\n- [x] Model credentials: `OPENAI_API_KEY` configured\n```\n\n- Claude only:\n\n```md\n- [x] Model credentials: `CLAUDE_CODE_OAUTH_TOKEN` configured\n```\n\n- Both:\n\n```md\n- [x] Model credentials: `OPENAI_API_KEY` and `CLAUDE_CODE_OAUTH_TOKEN` configured\n```\n\n- If provider is resolved, it adds a nested line:\n\n```md\n  - Agent provider: `codex` (OPENAI_API_KEY is configured)\n```\n\n- Memory ready/missing:\n\n```md\n- [x] Memory: initialized (`agent/memory`)\n```\n\n```md\n- [ ] Memory: not initialized\n  - Run **Actions > Agent / Memory / Initialization**.\n```\n\n- Rubrics ready/missing:\n\n```md\n- [x] Rubrics: initialized (`agent/rubrics`)\n```\n\n```md\n- [ ] Rubrics: not initialized\n  - Optional: run **Actions > Agent / Rubrics / Initialization**.\n```\n\n`Remaining setup` only lists incomplete items:\n\n```md\n- [ ] Resolve GitHub App/auth.\n- [ ] Configure one model provider credential.\n- [ ] Initialize memory branch `agent/memory`.\n- [ ] Optional: initialize rubrics branch `agent/rubrics`.\n```\n\nIf nothing is missing:\n\n```md\n- [x] Required setup is complete.\n```\n\nSource: [`onboarding.ts`](https://github.com/self-evolving/repo/blob/5d03dbd39dafe3893a95765a8ba45812f48d782b/.agent/src/onboarding.ts#L102-L234).",
+      "createdAt": "2026-05-12T05:25:00Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/215#issuecomment-4427579394",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB-o5Fw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #215.\n\nno rubric changes\n\nI inspected PR #215, linked issue #212, PR comments/reviews, existing rubrics, and maintainer signals. The reusable lessons from the PR are already covered by active rubrics like compact user-facing status comments, idempotent user-facing automation, docs in sync, surgical changes, and read linked context first.\n\nI did not add a new rubric because the substantive review feedback was bot-authored, and the human comments from `lolipopshock` were `CONTRIBUTOR`-associated task requests rather than explicit durable rubric guidance.\n",
+      "createdAt": "2026-05-12T06:03:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/215#issuecomment-4427757847",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-11T19:51:59Z",
@@ -139,7 +249,7 @@
       "color": "0e8a16"
     }
   ],
-  "mergedAt": null,
+  "mergedAt": "2026-05-12T06:01:22Z",
   "number": 215,
   "reviewDecision": "",
   "reviews": [
@@ -159,8 +269,8 @@
       }
     }
   ],
-  "state": "OPEN",
+  "state": "MERGED",
   "title": "Improve onboarding setup status UX",
-  "updatedAt": "2026-05-12T01:01:05Z",
+  "updatedAt": "2026-05-12T06:03:47Z",
   "url": "https://github.com/self-evolving/repo/pull/215"
 }

@@ -1,0 +1,144 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "@sepo-agent /answer \n\nAlso in general, can our triage dynamically include other routes when we build them as well?",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB-eXMg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Short answer: **not in the dispatch prompt right now**.\n\n`orchestrate` is supported elsewhere: explicit `/orchestrate` is recognized in the triage code, validated by policy, tested, and routed by `agent-router.yml`. But the model-facing dispatch prompt only lists `answer`, `implement`, `fix-pr`, `review`, `create-action`, and `unsupported`, so free-form triage is not currently instructed to choose `orchestrate`.\n\nRelevant files:\n\n- Dispatch prompt omits `orchestrate`: https://github.com/self-evolving/repo/blob/2e52123e13a5fd266af3ff4eeb90f1d2bc4b4e27/.github/prompts/agent-dispatch.md#L10-L23\n- Route validator includes `orchestrate`: https://github.com/self-evolving/repo/blob/2e52123e13a5fd266af3ff4eeb90f1d2bc4b4e27/.agent/src/triage.ts#L12-L20\n- Explicit slash commands include `/orchestrate`: https://github.com/self-evolving/repo/blob/2e52123e13a5fd266af3ff4eeb90f1d2bc4b4e27/.agent/src/triage.ts#L31-L31\n- Router has an `orchestrate` job: https://github.com/self-evolving/repo/blob/2e52123e13a5fd266af3ff4eeb90f1d2bc4b4e27/.github/workflows/agent-router.yml#L655-L700\n\nFor dynamic route inclusion: **yes, we can make that happen, but it is not currently dynamic**. Route knowledge is duplicated across the prompt, `ROUTES`, explicit command parsing, label mapping, dispatch policy, tests, docs, and workflow jobs.\n\nImplementation approach I’d recommend:\n\n1. Add a central route registry, probably under `.agent/src/routes.ts`, containing route id, prompt description, target-kind constraints, approval behavior, explicit command/label support, and whether it should appear in model triage.\n2. Generate or inject the dispatch prompt route list from that registry.\n3. Refactor `triage.ts` to validate routes and explicit commands from the same registry.\n4. Keep workflow dispatch explicit unless we add a generic route dispatcher, because GitHub Actions job graphs are mostly static.\n5. Add tests that fail if the dispatch prompt, route validator, explicit routes, and label routes drift again.\n\nSo the immediate fix would be to add `orchestrate` to `agent-dispatch.md`; the more durable fix is a shared route catalog that renders the triage options dynamically.",
+      "createdAt": "2026-05-12T05:26:19Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/217#issuecomment-4427585330",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB-vh7A",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate \n\nCan we launch two stacked PRs? \n\nSo the immediate fix would be to add orchestrate to agent-dispatch.md; the more durable fix is a shared route catalog that renders the triage options dynamically.",
+      "createdAt": "2026-05-12T06:23:35Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/217#issuecomment-4427866604",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB-wWPw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is starting a focused child task for this orchestration.\n\n| Child task | Focus | Parent issue | Status |\n| --- | --- | --- | --- |\n| #218 | immediate-dispatch-prompt-fix | #217 | Running |\n\nI'll report back here when the child task finishes.\n\n<!-- sepo-sub-orchestrator-child parent:217 stage:immediate-dispatch-prompt-fix child:218 -->",
+      "createdAt": "2026-05-12T06:25:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/217#issuecomment-4427879999",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB-4Sfg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Child task completed.\n\n| Child task | PR | Outcome | Parent round | Next step |\n| --- | --- | --- | --- | --- |\n| #218 | #219 | Ready to ship | 2 / 40 | Resuming parent orchestration |\n\nSummary: review verdict is SHIP\n\n<!-- sepo-sub-orchestrator-report child:218 resume:dispatched -->",
+      "createdAt": "2026-05-12T06:48:43Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/217#issuecomment-4428010110",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB-43pg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is starting a focused child task for this orchestration.\n\n| Child task | Focus | Parent issue | Status |\n| --- | --- | --- | --- |\n| #220 | shared-route-catalog | #217 | Running |\n\nI'll report back here when the child task finishes.\n\n<!-- sepo-sub-orchestrator-child parent:217 stage:shared-route-catalog child:220 -->",
+      "createdAt": "2026-05-12T06:50:20Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/217#issuecomment-4428019622",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB_D-LQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Child task completed.\n\n| Child task | PR | Outcome | Parent round | Next step |\n| --- | --- | --- | --- | --- |\n| #220 | #221 | Ready to ship | 3 / 40 | Resuming parent orchestration |\n\nSummary: review verdict is SHIP\n\n<!-- sepo-sub-orchestrator-report child:220 resume:dispatched -->",
+      "createdAt": "2026-05-12T07:17:28Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/217#issuecomment-4428201517",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB_EdEg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo orchestration stopped after `orchestrate` concluded `done`.\n\n- Source action: `orchestrate`\n- Source conclusion: `done`\n- Target: `issue #217`\n- Round: `3/40`\n- Reason: agent planner stop: Child #220 completed PR #221 with review verdict SHIP and Recommended Next Step NO_AUTOMATED_ACTION. Parent #217 requested two stacked PRs; #219 and #221 are both ready to ship, so no further automated action is warranted.\n- Source run ID: `25719138219`\n\nNo follow-up workflow was dispatched. Inspect the source action status comment and workflow logs before retrying or continuing manually.\n\n<!-- sepo-agent-orchestrate-stop -->",
+      "createdAt": "2026-05-12T07:18:42Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/217#issuecomment-4428209426",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-12T05:23:59Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 217,
+  "state": "OPEN",
+  "title": "Is the orchestrate route in the triage prompt?",
+  "updatedAt": "2026-05-12T07:18:43Z",
+  "url": "https://github.com/self-evolving/repo/issues/217"
+}

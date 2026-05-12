@@ -1,0 +1,191 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Add `orchestrate` to the dispatch prompt route list, JSON union, and rule text for issue/PR targets.\n- Add a prompt consistency test comparing dispatch prompt enumerations to supported dispatch routes.\n- Keep the shared route catalog work scoped to the follow-up stacked PR.\n\n## Tests\n- `cd .agent && npm run build && node --test dist/__tests__/triage.test.js`\n- `git diff --check`\n\nCloses #218\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB-x4eg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #219 | 3 / 40 | Dispatched |\n\nReason: implementation succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1778567425782 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU3MTc0NTQ4NTk6aW1wbGVtZW50OjIxODpyZXZpZXc6MjE5OjM -->",
+      "createdAt": "2026-05-12T06:30:26Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/219#issuecomment-4427905146",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB-yYdw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Validate delegated route authorization | pass | 8/8 | Adding `orchestrate` to dispatch is backed by existing downstream capability checks: `.agent/src/orchestrator-capabilities.ts` validates initial `/orchestrate` against delegated `implement`, `review`, and `fix-pr` policy, and `.agent/src/__tests__/orchestrate-handoff-cli.test.ts` covers denial before dispatch. |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | The new test imports existing `ROUTES` from `.agent/src/triage.ts` instead of duplicating a route list. |\n| coding_workflow/generic | Read docs and linked context first | pass | 6/6 | PR #219 closes #218, whose body explicitly scopes this child PR to the immediate dispatch prompt fix and defers the shared route catalog to the stacked follow-up. The diff matches that scope. |\n| coding_workflow/generic | Keep docs in sync | pass | 7/7 | `.github/prompts/agent-dispatch.md` updates the route list, JSON union, selection rule, and target-kind guard for `orchestrate`. |\n| coding_workflow/generic | Make surgical changes | pass | 8/8 | The PR touches only `.github/prompts/agent-dispatch.md` and a focused prompt consistency test in `.agent/src/__tests__/triage.test.ts`. |\n| coding_style/generic | Prefer simple implementations | pass | 7/7 | The implementation is the minimal immediate fix requested: add `orchestrate` to the prompt and add one consistency test. |\n| coding_workflow/generic | Keep docs in sync / drift coverage | pass | 7/7 | The new test compares prompt bullet routes and the documented JSON union against `ROUTES`, reducing future prompt/runtime drift. |\n\n## Notes\n\n- The strongest score drivers are that the PR follows the parent/child phasing exactly: immediate prompt fix now, shared route catalog deferred.\n- I did not penalize the PR for not implementing the shared route catalog because #218 explicitly says not to implement it in this child.\n- No rubric-specific follow-up needed for this PR.\n\n## Findings\n\n- **INFO:** The shared route catalog remains the appropriate follow-up stacked PR, but this PR’s focused scope satisfies the selected rubrics.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-12T06:32:00Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/219#issuecomment-4427913335",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB-0fvg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #219 closes #218, the immediate child task from parent #217.\n- The PR adds `orchestrate` to the model-facing dispatch prompt route list, JSON union, and routing rules so free-form triage can select orchestration for issue and PR targets.\n- It also adds a focused consistency test comparing the prompt’s route enumerations against `ROUTES`.\n- The broader shared route catalog is intentionally deferred to the next stacked PR.\n\n## Review\nThe implementation is small, aligned with the parent issue, and has useful drift coverage. One user-facing docs gap remains: the main workflow/action docs still describe orchestration as explicit `/orchestrate` or label-based only.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Document dispatch-triaged orchestration | WARNING | The PR creates a new free-form dispatch entry path for `orchestrate`, but the main docs still describe orchestrator startup as explicit `/orchestrate` or `agent/orchestrate` only. |\n| Optional prompt-test cleanup | INFO | One reviewer noted the hardcoded `assert.match(prompt, /Use \\`orchestrate\\` when/)` is redundant with the route enumeration checks and mildly phrase-fragile. |\n\n## Progress\n- Rubrics review passed and confirmed the PR matches the scoped #218 task.\n- Existing PR discussion already acknowledges the shared route catalog as the follow-up stacked PR.\n- Existing inline comments and review threads were empty before synthesis.\n- Posted one new inline comment on `.github/prompts/agent-dispatch.md` line 15 for the docs-sync issue.\n- No inline replies, thread resolutions, or minimizations were needed.\n\n## Issue Details\n\n<details>\n<summary>Document dispatch-triaged orchestration</summary>\n\n**Cause:** The prompt change makes `orchestrate` selectable by dispatch triage, but [`agent-actions.md`](https://github.com/self-evolving/repo/blob/9d811570d7bdf407dbe1c9b860c6c8cd6eb42cf9/.agent/docs/actions/agent-actions.md#L11-L18) and [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/9d811570d7bdf407dbe1c9b860c6c8cd6eb42cf9/.agent/docs/architecture/supported-workflows.md#L25-L33) still frame orchestrator startup as explicit `/orchestrate` or `agent/orchestrate`.\n\n**Candidate solutions:** Update those docs to mention that dispatch triage may now select `orchestrate` for explicit orchestration, follow-up automation, or bounded multi-step agent workflow requests on issues and PRs.\n\n**Comments:** The rubrics reviewer treated the prompt update itself as docs coverage, while another reviewer flagged the broader docs gap. Synthesis agrees this is a required docs-sync follow-up because the behavior is user-facing.\n\n</details>\n\n<details>\n<summary>Optional prompt-test cleanup</summary>\n\n**Cause:** The new test already checks both prompt route enumerations against `ROUTES`; the extra phrase match pins one exact rule wording.\n\n**Candidate solutions:** Leave it as-is, remove the phrase-specific assertion, or replace it with a route-agnostic guard that the regex found route entries before comparing arrays.\n\n**Comments:** This is not required for merge.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: the unresolved docs-sync issue is a concrete, low-risk branch change suitable for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Update the matching agent action/workflow docs to mention dispatch-triaged `orchestrate` starts for issue and PR targets.",
+      "createdAt": "2026-05-12T06:38:06Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/219#issuecomment-4427947966",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB-0l0w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #219 | 4 / 40 | Dispatched |\n\nReason: review verdict is minor_issues; dispatching fix-pr\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Update the matching agent action/workflow docs to mention dispatch-triaged `orchestrate` starts for issue and PR targets.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1778567899471 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU3MTc2Mjc1NjY6cmV2aWV3OjIxOTpmaXhfcHI6MjE5OjQ -->",
+      "createdAt": "2026-05-12T06:38:19Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/219#issuecomment-4427949523",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB-1TYw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-218/codex-25717454859`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Updated `.agent/docs/actions/agent-actions.md` to list dispatch-triaged issue/PR requests as an `orchestrate` entry path.\n- Updated `.agent/docs/architecture/supported-workflows.md` to describe dispatch-triaged `orchestrate` starts for issue and pull request targets.\n- Check: `git diff --check`.",
+      "createdAt": "2026-05-12T06:40:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/219#issuecomment-4427961187",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB-1YLw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #219 | 5 / 40 | Dispatched |\n\nReason: PR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1778568045091 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU3MTc5Mzc0OTg6Zml4X3ByOjIxOTpyZXZpZXc6MjE5OjU -->",
+      "createdAt": "2026-05-12T06:40:45Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/219#issuecomment-4427962415",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB-2E4w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 6 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Validate delegated route authorization | pass | 8/8 | The PR only exposes existing `orchestrate` support through dispatch triage. Existing policy still validates route access in `.agent/src/triage.ts`, and initial orchestrator delegation is guarded by `.agent/src/orchestrator-capabilities.ts` with regression coverage for downstream route denial. |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | The new prompt consistency test imports existing `ROUTES` from `.agent/src/triage.ts` instead of introducing a second route catalog. |\n| coding_workflow/generic | Read docs and linked context first | pass | 6/6 | Issue #218 explicitly scoped this child PR to the immediate prompt fix and deferred the shared route catalog to a second stacked PR. The diff matches that scope. |\n| coding_workflow/generic | Keep docs in sync | pass | 7/7 | The current head updates `.github/prompts/agent-dispatch.md`, `.agent/docs/actions/agent-actions.md`, and `.agent/docs/architecture/supported-workflows.md` to describe dispatch-triaged `orchestrate` starts. |\n| coding_workflow/generic | Make surgical changes | pass | 8/8 | The PR touches only the dispatch prompt, two directly related docs pages, and one focused triage test. No unrelated workflow or runtime refactor is included. |\n| coding_style/generic | Prefer simple implementations | pass | 7/7 | The implementation is the smallest immediate fix: add `orchestrate` to prompt enumerations/rules and add drift coverage. The durable shared route catalog is intentionally left for the follow-up PR. |\n\n## Notes\n\n- The main score driver is that PR #219 now satisfies both halves of the immediate task: dispatch prompt coverage plus user-facing docs coverage.\n- I did not penalize the PR for not implementing the shared route catalog because #218 explicitly says to leave that for the second stacked PR.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** The shared route catalog remains the expected follow-up stacked PR, but it is outside this PR’s scoped rubric evaluation.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-12T06:42:44Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/219#issuecomment-4427973859",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABB-4NNA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #219 closes #218, the immediate child task from parent #217. It adds `orchestrate` to the dispatch prompt route list, JSON union, and routing rules so free-form triage can choose orchestration for issue and PR targets. It also adds prompt drift coverage against `ROUTES`. The broader shared route catalog remains intentionally deferred to the next stacked PR.\n\n## Review\nThe current head is complete for the scoped task. Reviewers found no blocking or warning issues after the docs-sync fix landed.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable issues | INFO | The prior docs-sync warning has been addressed in the branch; remaining notes are optional or out of scope for this PR. |\n\n## Progress\n- PR discussion and #218 confirm this PR is only the immediate prompt fix; the shared route catalog is a follow-up.\n- The earlier docs-sync finding was fixed by updates to `agent-actions.md` and `supported-workflows.md`.\n- Resolved the stale same-agent inline thread `PRRT_kwDOSOhEMM6BUHPK` after re-fetching and confirming it was addressed.\n- No new inline comments, replies, or minimizations were posted.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: no unresolved actionable branch-change work remains.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch changes.",
+      "createdAt": "2026-05-12T06:48:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/219#issuecomment-4428008756",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-12T06:30:09Z",
+  "files": [
+    {
+      "path": ".agent/docs/actions/agent-actions.md",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 15,
+      "deletions": 13,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/triage.test.ts",
+      "additions": 29,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-dispatch.md",
+      "additions": 4,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-218/codex-25717454859",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 219,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM7-frzi",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-12T06:37:20Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "9d811570d7bdf407dbe1c9b860c6c8cd6eb42cf9"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Add orchestrate to dispatch prompt triage",
+  "updatedAt": "2026-05-12T06:48:29Z",
+  "url": "https://github.com/self-evolving/repo/pull/219"
+}
