@@ -214,7 +214,9 @@ Explicit routes are:
 
 Explicit routes skip dispatch triage and resolve locally, but still go through the same route policy checks afterward.
 
-Mention-based skill requests normalize the skill name to lowercase and run `.skills/<name>/SKILL.md` inline through the same `skill` route used by `agent/s/<skill>` labels.
+Mention-based skill requests normalize the skill name to lowercase and run
+`<skill_root>/<name>/SKILL.md` inline through the same `skill` route used by
+`agent/s/<skill>` labels. The default `skill_root` is `.skills`.
 
 ### `agent-label.yml`
 
@@ -236,13 +238,24 @@ created per skill as needed.
 
 After a label-triggered request is accepted by the router, `agent-label.yml` removes the triggering `agent/*` label so label-based runs behave like one-shot queue entries, including policy-denied requests that resolve to `unsupported`.
 
-Built-in labels map directly to the existing routes. `agent/s/<skill>` runs `.skills/<skill>/SKILL.md` inline; if the skill file is missing, the runner posts a visible fallback comment instead of silently skipping the label.
+Built-in labels map directly to the existing routes. `agent/s/<skill>` runs
+`<skill_root>/<skill>/SKILL.md` inline; if the skill file is missing, the
+runner posts a visible fallback comment instead of silently skipping the label.
+
+Skills can also include an optional `skill-setup.yaml` manifest next to
+`SKILL.md`. The manifest is Sepo's v1 extension setup protocol: versioned YAML
+with shell `steps` that run after the skill exists and before the agent task
+starts. Setup failures post a visible response and stop the skill run. See
+[Repository skills](../customization/skills.md) for the schema, examples, and
+trust boundary.
 
 If `AGENT_STATUS_LABEL_ENABLED=true`, accepted non-unsupported issue and pull request requests also get the fixed `agent` status label. This status label is separate from the `agent/*` trigger labels and does not select a route.
 
 Label triggers authorize the label applier rather than the issue or pull request author. Personal-repository owners map to `OWNER`; visible organization members map to `MEMBER`; repository collaborators with label permission map to `COLLABORATOR`.
 
-Skill names are normalized to lowercase, so `agent/s/Release-Notes` resolves to `.skills/release-notes/SKILL.md`. Skill directories should use lowercase names to match consistently across case-sensitive filesystems.
+Skill names are normalized to lowercase, so `agent/s/Release-Notes` resolves to
+`.skills/release-notes/SKILL.md` by default. Skill directories should use
+lowercase names to match consistently across case-sensitive filesystems.
 
 ### `agent-self-approve.yml`
 

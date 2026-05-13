@@ -90,6 +90,7 @@ Understanding the system:
 Customizing and operating:
 
 - [Configuration list](.agent/docs/customization/configuration-list.md)
+- [Repository skills](.agent/docs/customization/skills.md)
 - [Repository memory](.agent/docs/architecture/memory.md)
 - [User/team rubrics](.agent/docs/architecture/rubrics.md)
 

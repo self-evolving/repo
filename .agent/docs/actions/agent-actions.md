@@ -12,7 +12,7 @@ Agent actions are route-level behaviors exposed by the `.agent` backend. They ar
 | Self approve | `agent-self-approve` | `.github/prompts/agent-self-approve.md` | opt-in PR approval gate in `agent-self-approve.yml`; deterministic code submits approval only after current-head checks pass |
 | Self merge | `agent-self-merge` | deterministic resolver | opt-in PR merge gate in `agent-self-merge.yml`; deterministic code merges only after current-head self-approval, checks, mergeability, and requested-change guards pass |
 | Create action | `create-action` | `.github/prompts/agent-create-action.md` | implementation PR that adds or updates a standalone scheduled workflow under `.github/workflows/` |
-| Skill | `skill` | `.skills/<name>/SKILL.md` | inline skill route through `agent-router.yml` |
+| Skill | `skill` | `.skills/<name>/SKILL.md` plus optional `skill-setup.yaml` | inline skill route through `agent-router.yml` |
 | Dispatch | `dispatch` | `.github/prompts/agent-dispatch.md` | route triage inside `agent-router.yml` |
 
 The orchestrator is now a top-level route. Users start orchestration explicitly with `/orchestrate` or `agent/orchestrate`; dispatch triage can also select `orchestrate` for issue and pull request requests that ask for orchestration, follow-up automation, or bounded multi-step agent work. `agent-orchestrator.yml` chooses follow-up work from current target state. Workflows launched by the orchestrator carry explicit orchestration context and hand back after post-processing, so the bounded `implement -> review -> fix-pr -> review` loop can continue until a stop condition. Direct `/implement`, `/review`, and `/fix-pr` runs do not carry that context and stay one-shot. In `heuristics` mode, PR orchestrate starts use deterministic status routing. In `agent` mode, issue and PR orchestrate starts invoke the planner. For small self-contained issue work, the planner can hand off directly to `implement` on the current issue. For PR work, the planner can choose `review`, `fix-pr`, `answer`, or stop/block; runtime policy validates that PR starts dispatch only `review` or `fix-pr`. For meta-orchestration, child work uses the internal `delegate_issue` decision to create, reuse, or adopt a child issue that then runs the normal `/orchestrate` flow. `delegate_issue` is not a public route and is not part of `AgentAction`. Planner handoffs can carry `handoff_context`; `fix-pr` receives that context as explicit initial steering for the automated fix pass.
@@ -26,7 +26,7 @@ neither input is set, implementations branch from the repository default branch.
 Agent actions share the same runtime shape:
 
 1. A trigger enters a workflow and converges on `agent-router.yml` or a route-specific workflow.
-2. The route chooses a prompt name or skill name.
+2. The route chooses a prompt name or skill name. Skill routes resolve the configured skill root and run optional setup before agent execution.
 3. `.github/actions/run-agent-task` builds a runtime envelope with route, target, source, request, lane, and session-policy metadata.
 4. The runtime prepends `.github/prompts/_base.md` to the selected prompt, substitutes prompt variables, and runs the selected `acpx` agent.
 5. Post-processing steps parse the response, post comments, create branches, create PRs, or update the existing PR branch depending on the route.

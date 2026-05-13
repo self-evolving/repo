@@ -573,6 +573,10 @@ test("agent router supports label-triggered route and skill overrides", () => {
   assert.match(runnerWorkflow, /label_name:/);
   assert.match(runnerWorkflow, /requested_skill:/);
   assert.match(runnerWorkflow, /needs\.portal\.outputs\.route == 'skill'/);
+  assert.match(runnerWorkflow, /skill_root:/);
+  assert.match(runnerWorkflow, /node \.agent\/dist\/cli\/resolve-skill\.js/);
+  assert.match(runnerWorkflow, /node \.agent\/dist\/cli\/run-skill-setup\.js/);
+  assert.match(runnerWorkflow, /SKILL_SETUP_TRUSTED_REF:\s*\$\{\{\s*github\.event_name != 'pull_request'\s*\}\}/);
   assert.match(runnerWorkflow, /workflow_call:[\s\S]*outputs:[\s\S]*should_respond:/);
   assert.doesNotMatch(runnerWorkflow, /clear-trigger-label:/);
   assert.match(runnerWorkflow, /vars\.AGENT_RUNS_ON/);
@@ -806,6 +810,7 @@ test("shared run-agent-task action exists and requires explicit prompt/skill/lan
   assert.doesNotMatch(sessionPolicyBlock, /default:/);
   assert.match(action, /PROMPT_NAME/);
   assert.match(action, /SKILL_NAME/);
+  assert.match(action, /SKILL_ROOT/);
   assert.match(action, /LANE/);
   assert.match(action, /SESSION_POLICY/);
   assert.match(action, /\.agent\/dist\/run\.js/);
@@ -1013,7 +1018,7 @@ test("workflow docs record the minimal metadata contract and developer notes", (
   assert.match(developerNotes, /## Testing/);
   assert.match(developerNotes, /cd \.agent[\s\S]*npm test/);
   assert.match(developerNotes, /## Known limitations/);
-  assert.match(developerNotes, /`skill_root`/);
+  assert.match(developerNotes, /`skill-setup\.yaml`/);
   assert.match(developerNotes, /\/skill/);
   assert.match(developerNotes, /lazy blockquote/);
   assert.match(developerNotes, /lightweight post-agent check/);
