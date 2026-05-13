@@ -11,6 +11,7 @@
 | `agent-router.yml` | `workflow_call` | Full portal for context extraction, auth gating, mention detection, dispatch triage, routing, approval requests, and response posting | Configurable |
 | `agent-approve.yml` | approval comments | Resolves pending approvals, creates issues when needed, dispatches implementation | None |
 | `agent-orchestrator.yml` | `workflow_dispatch` | Explicit orchestration route that decides whether to dispatch the next action | None in `heuristics` mode; resolved-provider planner in `agent` mode |
+| `agent-self-approve.yml` | `workflow_dispatch` | Opt-in pull request self-approval gate after trusted current-head review synthesis | Auto |
 | `agent-implement.yml` | `workflow_dispatch` | Implementation flow: branch, commit, draft PR; supports `base_branch` or `base_pr` for stacked PRs | Auto |
 | `agent-fix-pr.yml` | `workflow_dispatch`, `workflow_call` | PR fix flow: update existing PR branch, verify, push | Auto |
 | `agent-review.yml` | `workflow_dispatch`, `workflow_call` | Parallel Claude and Codex review with resolved-provider synthesis, captured reviewed-head provenance, plus a separate rubric review comment | Claude + Codex reviewers; configurable synthesis |
@@ -23,7 +24,8 @@
 
 `agent-orchestrator.yml` is started explicitly through `/orchestrate` or
 `agent/orchestrate`. On start, it inspects the current target state and
-dispatches one built-in action (`implement`, `review`, or `fix-pr`) when useful.
+dispatches one built-in action (`implement`, `review`, `fix-pr`, or
+`agent-self-approve`) when useful.
 That dispatch includes explicit orchestration context; only those orchestrator
 launched action runs hand back to `agent-orchestrator.yml` after post-processing.
 Direct `/implement`, `/review`, and `/fix-pr` runs remain one-shot.
@@ -59,11 +61,13 @@ and only then marks the trusted child marker as `done`, `blocked`, or `failed`.
 Already-dispatched terminal reports are idempotent so reruns do not overwrite
 completed child state.
 
-Because `/orchestrate` can delegate into implementation, review, and fix
-workflows, initial user-launched orchestrate requests validate the requester
-against the delegated route capability set up front. Internal child and parent
-resume dispatches carry `requested_by` for audit and display, but they do not
-thread route authorization inputs through every child workflow.
+Because `/orchestrate` can delegate into implementation, review, fix, and
+enabled self-approval workflows, initial user-launched orchestrate requests
+validate the requester against the delegated route capability set up front.
+`agent-self-approve` is included in that check only when
+`AGENT_ALLOW_SELF_APPROVE=true`. Internal child and parent resume dispatches
+carry `requested_by` for audit and display, but they do not thread route
+authorization inputs through every child workflow.
 
 Implementation dispatches default to the repository default branch. Callers can
 set `base_branch` to stack directly on another branch, or `base_pr` to stack on
@@ -209,6 +213,27 @@ If `AGENT_STATUS_LABEL_ENABLED=true`, accepted non-unsupported issue and pull re
 Label triggers authorize the label applier rather than the issue or pull request author. Personal-repository owners map to `OWNER`; visible organization members map to `MEMBER`; repository collaborators with label permission map to `COLLABORATOR`.
 
 Skill names are normalized to lowercase, so `agent/s/Release-Notes` resolves to `.skills/release-notes/SKILL.md`. Skill directories should use lowercase names to match consistently across case-sensitive filesystems.
+
+### `agent-self-approve.yml`
+
+Self-approval is disabled unless `AGENT_ALLOW_SELF_APPROVE=true`. The manual
+workflow accepts a pull request number, confirms the target is an open PR, and
+requires the latest trusted review synthesis from the authenticated Sepo actor
+to be `SHIP` for the current reviewed-head marker before it runs an approval
+agent. The agent runs with read-approved permissions and returns structured JSON
+with a verdict, reason, optional follow-up context, and `inspected_head_sha`.
+
+Deterministic resolver code is the only part that can submit the GitHub
+approval. It rereads the current PR head, rechecks trusted current-head review
+provenance, verifies the approval actor differs from the pull request author,
+parses the agent verdict, and approves only when the expected, current, and
+inspected head SHAs match. Non-approval outcomes post a compact PR status
+comment. In orchestrated chains, `SHIP` review synthesis can hand off to
+`agent-self-approve`, and a self-approval `REQUEST_CHANGES` result can hand off
+to `fix-pr` with the approval agent's handoff context. Self-approval status
+comments are upserted by marker against comments authored by the authenticated
+Sepo actor, and result artifacts are retained for failed or blocked resolution
+paths where available.
 
 ### `agent-approve.yml`
 

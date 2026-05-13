@@ -160,8 +160,9 @@ test("all execution workflows use the shared run-agent-task action", () => {
   const implementWorkflow = readRepoFile(".github/workflows/agent-implement.yml");
   const reviewWorkflow = readRepoFile(".github/workflows/agent-review.yml");
   const fixPrWorkflow = readRepoFile(".github/workflows/agent-fix-pr.yml");
+  const selfApprovalWorkflow = readRepoFile(".github/workflows/agent-self-approve.yml");
 
-  for (const workflow of [implementWorkflow, reviewWorkflow, fixPrWorkflow]) {
+  for (const workflow of [implementWorkflow, reviewWorkflow, fixPrWorkflow, selfApprovalWorkflow]) {
     assert.match(workflow, /uses: \.\/\.github\/actions\/run-agent-task/);
     assert.doesNotMatch(workflow, /\.github\/scripts\/lib\/agent\/run-codex\.sh/);
   }
@@ -228,6 +229,7 @@ test("single-agent workflows resolve provider before runtime setup", () => {
   const implementWorkflow = readRepoFile(".github/workflows/agent-implement.yml");
   const fixPrWorkflow = readRepoFile(".github/workflows/agent-fix-pr.yml");
   const reviewWorkflow = readRepoFile(".github/workflows/agent-review.yml");
+  const selfApprovalWorkflow = readRepoFile(".github/workflows/agent-self-approve.yml");
   const autonomousWorkflows = [
     readRepoFile(".github/workflows/agent-daily-summary.yml"),
     readRepoFile(".github/workflows/agent-memory-bootstrap.yml"),
@@ -257,7 +259,7 @@ test("single-agent workflows resolve provider before runtime setup", () => {
   assert.match(routerWorkflow, /agent:\s*\$\{\{\s*steps\.skill_provider\.outputs\.provider\s*\}\}/);
   assert.match(routerWorkflow, /agent:\s*\$\{\{\s*steps\.provider\.outputs\.provider\s*\}\}/);
 
-  for (const workflow of [implementWorkflow, fixPrWorkflow, ...autonomousWorkflows]) {
+  for (const workflow of [implementWorkflow, fixPrWorkflow, selfApprovalWorkflow, ...autonomousWorkflows]) {
     assert.match(workflow, /uses: \.\/\.github\/actions\/resolve-agent-provider/);
     assert.match(workflow, /default_provider:\s*\$\{\{\s*vars\.AGENT_DEFAULT_PROVIDER \|\|/);
     assert.match(workflow, /install_codex:\s*\$\{\{\s*steps\.provider\.outputs\.install_codex\s*\}\}/);
@@ -398,6 +400,39 @@ test("review workflow captures reviewed head as best-effort prepare output", () 
     postCommentStep.env.REVIEWED_HEAD_SHA,
     "${{ needs.prepare.outputs.reviewed_head_sha }}",
   );
+});
+
+test("self-approval workflow stays opt-in and read-only until deterministic resolution", () => {
+  const workflowText = readRepoFile(".github/workflows/agent-self-approve.yml");
+  const workflow = parseYaml(workflowText) as unknown;
+  assert.ok(isRecord(workflow), "self-approval workflow should parse as a YAML object");
+  assert.ok(isRecord(workflow.jobs), "self-approval workflow should define jobs");
+  const job = workflow.jobs["self-approve"];
+  assert.ok(isRecord(job), "self-approval workflow should define self-approve job");
+  assert.ok(Array.isArray(job.steps), "self-approval job should define steps");
+  assert.match(workflowText, /permissions:\s*\n\s+actions:\s*read/);
+
+  const runStep = job.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Run self-approval agent",
+  );
+  assert.ok(runStep, "self-approval workflow should run the agent");
+  assert.ok(isRecord(runStep.with), "self-approval run step should define inputs");
+  assert.equal(runStep.with.permission_mode, "approve-reads");
+  assert.equal(runStep.with.route, "agent-self-approve");
+  assert.equal(runStep.with.github_token, "${{ github.token }}");
+  assert.match(workflowText, /AGENT_ALLOW_SELF_APPROVE:\s*\$\{\{\s*vars\.AGENT_ALLOW_SELF_APPROVE \|\| 'false'\s*\}\}/);
+  assert.match(workflowText, /node \.agent\/dist\/cli\/prepare-self-approve\.js/);
+  assert.match(workflowText, /node \.agent\/dist\/cli\/resolve-self-approve\.js/);
+  assert.match(workflowText, /Post self-approval stop[\s\S]*always\(\)[\s\S]*steps\.prepare\.outcome == 'success'[\s\S]*steps\.prepare\.outputs\.should_run != 'true'[\s\S]*steps\.prepare\.outputs\.body_file != ''/);
+  assert.match(workflowText, /Resolve self-approval result[\s\S]*always\(\)/);
+  assert.match(workflowText, /Post self-approval status[\s\S]*always\(\)[\s\S]*steps\.result\.outcome == 'failure'/);
+  assert.match(workflowText, /actions\/upload-artifact@v4/);
+  assert.match(workflowText, /agent-self-approve-result-\$\{\{ inputs\.pr_number \}\}/);
+  assert.match(workflowText, /if-no-files-found:\s*ignore/);
+  assert.doesNotMatch(workflowText, /steps\.result\.outputs\.conclusion == 'request_changes'/);
+  assert.match(workflowText, /steps\.result\.outcome == 'success' &&\s+inputs\.orchestration_enabled == 'true'/);
+  assert.match(workflowText, /node \.agent\/dist\/cli\/dispatch-agent-orchestrator\.js/);
 });
 
 test("review synthesis uses a shared reviews directory contract", () => {
@@ -601,6 +636,7 @@ test("session bundle persistence is configurable through workflow inputs and AGE
   const implementWorkflow = readRepoFile(".github/workflows/agent-implement.yml");
   const fixPrWorkflow = readRepoFile(".github/workflows/agent-fix-pr.yml");
   const reviewWorkflow = readRepoFile(".github/workflows/agent-review.yml");
+  const selfApprovalWorkflow = readRepoFile(".github/workflows/agent-self-approve.yml");
 
   assert.match(routerWorkflow, /session_bundle_mode:/);
   assert.match(routerWorkflow, /AGENT_SESSION_BUNDLE_MODE/);
@@ -615,6 +651,8 @@ test("session bundle persistence is configurable through workflow inputs and AGE
   assert.match(fixPrWorkflow, /vars\.AGENT_SESSION_BUNDLE_MODE/);
   assert.match(reviewWorkflow, /session_bundle_mode:[\s\S]*default:\s*""/);
   assert.match(reviewWorkflow, /vars\.AGENT_SESSION_BUNDLE_MODE/);
+  assert.match(selfApprovalWorkflow, /session_bundle_mode:[\s\S]*default:\s*""/);
+  assert.match(selfApprovalWorkflow, /vars\.AGENT_SESSION_BUNDLE_MODE/);
 });
 
 test("workflows use granular CLI helpers for post-processing", () => {
@@ -779,6 +817,7 @@ test("workflows declare explicit session policies", () => {
   const fixPrWorkflow = readRepoFile(".github/workflows/agent-fix-pr.yml");
   const implementWorkflow = readRepoFile(".github/workflows/agent-implement.yml");
   const reviewWorkflow = readRepoFile(".github/workflows/agent-review.yml");
+  const selfApprovalWorkflow = readRepoFile(".github/workflows/agent-self-approve.yml");
 
   assert.match(runnerWorkflow, /prompt:\s*dispatch[\s\S]*session_policy:\s*none/);
   assert.match(runnerWorkflow, /prompt:\s*answer[\s\S]*session_policy:\s*resume-best-effort/);
@@ -788,6 +827,7 @@ test("workflows declare explicit session policies", () => {
   assert.match(reviewWorkflow, /prompt:\s*review[\s\S]*session_policy:\s*track-only/);
   assert.match(reviewWorkflow, /agent-rubrics-review\.yml/);
   assert.match(reviewWorkflow, /prompt:\s*review-synthesize[\s\S]*session_policy:\s*track-only/);
+  assert.match(selfApprovalWorkflow, /prompt:\s*agent-self-approve[\s\S]*session_policy:\s*track-only/);
 });
 
 test("review workflow declares distinct lanes for reviewer jobs and synthesis", () => {
@@ -957,6 +997,7 @@ test("execution workflows expose automation handoff inputs", () => {
   const implementWorkflow = readRepoFile(".github/workflows/agent-implement.yml");
   const fixPrWorkflow = readRepoFile(".github/workflows/agent-fix-pr.yml");
   const reviewWorkflow = readRepoFile(".github/workflows/agent-review.yml");
+  const selfApprovalWorkflow = readRepoFile(".github/workflows/agent-self-approve.yml");
   const runSource = readRepoFile(".agent/src/run.ts");
   const handoffSource = readRepoFile(".agent/src/handoff.ts");
   const orchestrateHandoffCli = readRepoFile(".agent/src/cli/orchestrate-handoff.ts");
@@ -989,7 +1030,7 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestratorWorkflow, /agent:\s*\$\{\{\s*steps\.provider\.outputs\.provider\s*\}\}/);
   assert.match(orchestratorWorkflow, /node \.agent\/dist\/cli\/orchestrate-handoff\.js/);
 
-  for (const workflow of [implementWorkflow, fixPrWorkflow, reviewWorkflow]) {
+  for (const workflow of [implementWorkflow, fixPrWorkflow, reviewWorkflow, selfApprovalWorkflow]) {
     assert.match(workflow, /automation_mode:/);
     assert.match(workflow, /automation_current_round:/);
     assert.match(workflow, /automation_max_rounds:/);
@@ -1025,6 +1066,7 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestrateHandoffCli, /orchestration_enabled:\s*"true"/);
   assert.match(orchestrateHandoffCli, /automationMode === "disabled" \? "heuristics" : automationMode/);
   assert.match(orchestrateHandoffCli, /orchestrator_context:\s*decision\.handoffContext/);
+  assert.match(orchestrateHandoffCli, /agent-self-approve\.yml/);
   assert.match(handoffSource, /Task for fix-pr/);
   assert.match(orchestrateHandoffCli, /collapsePreviousHandoffComments/);
   assert.match(orchestrateHandoffCli, /manual orchestrate start on issue; dispatching implement/);
@@ -1033,10 +1075,12 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(fixPrPrompt, /\$\{ORCHESTRATOR_CONTEXT\}/);
   assert.match(orchestratorPrompt, /"handoff_context"/);
   assert.match(orchestratorPrompt, /ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT/);
+  assert.match(orchestratorPrompt, /ORCHESTRATOR_SELF_APPROVE_ENABLED/);
   assert.match(orchestratorPrompt, /"user_message"/);
   assert.match(orchestratorPrompt, /"clarification_request"/);
   assert.match(orchestratorPrompt, /prior child finished with an open, unmerged PR/);
   assert.match(runSource, /"ORCHESTRATOR_CONTEXT"/);
+  assert.match(runSource, /"ORCHESTRATOR_SELF_APPROVE_ENABLED"/);
   assert.match(orchestratorDoc, /Implement --> Review: success \+ PR created/);
   assert.match(orchestratorDoc, /continues sequential child implementation work/);
   assert.match(orchestratorDoc, /workflow_dispatch/);
@@ -1141,10 +1185,11 @@ test("validateEnvelope catches invalid route", () => {
   assert.ok(errors.some((error) => error.includes("Invalid route")));
 });
 
-test("validateEnvelope accepts dispatch, action, and rubrics as first-class routes", () => {
+test("validateEnvelope accepts dispatch, action, self-approval, and rubrics routes", () => {
   for (const route of [
     "dispatch",
     "create-action",
+    "agent-self-approve",
     "rubrics-review",
     "rubrics-initialization",
     "rubrics-update",
