@@ -64,10 +64,10 @@ Actions YAML and does not support dynamic `uses:` steps.
 
 Adding `skill-setup.yaml` is the repository owner's opt-in to execute setup code
 inside the GitHub Actions runner with the skill route's permissions. Sepo
-refuses to run setup manifests on raw `pull_request` event checkouts so
-unreviewed PR heads cannot supply executable setup. Run setup-backed skills from
-trusted default-branch contexts such as an issue, discussion, issue comment, or
-the `agent/s/<name>` label flow.
+refuses to run setup manifests on PR checkout refs so unreviewed PR heads cannot
+supply executable setup. Run setup-backed skills from trusted default-branch
+contexts such as an issue, discussion, issue comment, or the `agent/s/<name>`
+label flow.
 
 ## Examples
 

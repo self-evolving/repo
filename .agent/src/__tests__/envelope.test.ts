@@ -576,7 +576,7 @@ test("agent router supports label-triggered route and skill overrides", () => {
   assert.match(runnerWorkflow, /skill_root:/);
   assert.match(runnerWorkflow, /node \.agent\/dist\/cli\/resolve-skill\.js/);
   assert.match(runnerWorkflow, /node \.agent\/dist\/cli\/run-skill-setup\.js/);
-  assert.match(runnerWorkflow, /SKILL_SETUP_TRUSTED_REF:\s*\$\{\{\s*github\.event_name != 'pull_request'\s*\}\}/);
+  assert.match(runnerWorkflow, /SKILL_SETUP_TRUSTED_REF:\s*\$\{\{\s*!startsWith\(github\.ref,\s*'refs\/pull\/'\)\s*\}\}/);
   assert.match(runnerWorkflow, /workflow_call:[\s\S]*outputs:[\s\S]*should_respond:/);
   assert.doesNotMatch(runnerWorkflow, /clear-trigger-label:/);
   assert.match(runnerWorkflow, /vars\.AGENT_RUNS_ON/);
@@ -595,6 +595,23 @@ test("agent router supports label-triggered route and skill overrides", () => {
   assert.match(labelWorkflow, /vars\.AGENT_RUNS_ON/);
   assert.match(entrypointWorkflow, /vars\.AGENT_RUNS_ON/);
   assert.match(approveWorkflow, /vars\.AGENT_RUNS_ON/);
+});
+
+test("skill setup trust guard covers PR review checkout contexts", () => {
+  const runnerWorkflow = readRepoFile(".github/workflows/agent-router.yml");
+  const entrypointWorkflow = readRepoFile(".github/workflows/agent-entrypoint.yml");
+
+  assert.match(entrypointWorkflow, /pull_request:\s+types: \[opened, edited\]/);
+  assert.match(entrypointWorkflow, /pull_request_review_comment:\s+types: \[created, edited\]/);
+  assert.match(entrypointWorkflow, /pull_request_review:\s+types: \[submitted\]/);
+  assert.match(
+    runnerWorkflow,
+    /SKILL_SETUP_TRUSTED_REF:\s*\$\{\{\s*!startsWith\(github\.ref,\s*'refs\/pull\/'\)\s*\}\}/,
+  );
+  assert.doesNotMatch(
+    runnerWorkflow,
+    /SKILL_SETUP_TRUSTED_REF:\s*\$\{\{\s*github\.event_name != 'pull_request'\s*\}\}/,
+  );
 });
 
 test("agent status label is opt-in and fixed to the AGENT_STATUS_LABEL_ENABLED variable", () => {

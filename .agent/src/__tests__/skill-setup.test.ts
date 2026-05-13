@@ -123,7 +123,7 @@ test("runSkillSetup refuses setup manifests from untrusted refs", () => {
     );
     assert.throws(
       () => runSkillSetup({ repoRoot: repo, skillName: "demo", trustedRef: false }),
-      /Refusing to run .*pull_request checkout/,
+      /Refusing to run .*untrusted PR checkout/,
     );
   } finally {
     rmSync(repo, { recursive: true, force: true });

@@ -260,7 +260,7 @@ export function runSkillSetup(input: {
   }
   if (input.trustedRef === false) {
     throw new Error(
-      `Refusing to run ${skill.setupPath} from an untrusted pull_request checkout`,
+      `Refusing to run ${skill.setupPath} from an untrusted PR checkout`,
     );
   }
 
