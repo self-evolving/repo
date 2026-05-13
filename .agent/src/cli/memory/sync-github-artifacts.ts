@@ -513,6 +513,7 @@ export function runSyncGithubArtifactsCli(
     setOutput("commit_count", "0");
     setOutput("changed_files", String(changed));
     setOutput("migrated_files", String(initResult.migratedFiles.length));
+    setOutput("removed_legacy_files", String(initResult.removedLegacyFiles.length));
     setOutput("last_activity_at", lastActivityAt);
     setOutput("issue_cursor", issueCursor);
     setOutput("pull_cursor", pullCursor);
@@ -531,6 +532,7 @@ export function runSyncGithubArtifactsCli(
           commitCount: 0,
           changedFiles: changed,
           migratedFiles: initResult.migratedFiles.length,
+          removedLegacyFiles: initResult.removedLegacyFiles.length,
           cursors: {
             issues: issueCursor,
             pulls: pullCursor,

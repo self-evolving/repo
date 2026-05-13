@@ -201,6 +201,7 @@ export function runMemoryBootstrapBranchCli(
           committed,
           createdFiles: initResult.createdFiles.map((file) => file.replace(`${worktreeDir}/`, "")),
           migratedFiles: initResult.migratedFiles.map((file) => file.replace(`${worktreeDir}/`, "")),
+          removedLegacyFiles: initResult.removedLegacyFiles.map((file) => file.replace(`${worktreeDir}/`, "")),
           nextStep: `git push ${args.remote} ${args.branch}`,
         },
         null,

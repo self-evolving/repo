@@ -89,6 +89,7 @@ export function runMemoryInitCli(
         memoryDir: rootDir,
         createdFiles: result.createdFiles,
         migratedFiles: result.migratedFiles,
+        removedLegacyFiles: result.removedLegacyFiles,
       },
       null,
       2,

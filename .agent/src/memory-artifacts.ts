@@ -38,9 +38,15 @@ export const MEMORY_README = [
 export interface EnsureMemoryStructureResult {
   createdFiles: string[];
   migratedFiles: string[];
+  removedLegacyFiles: string[];
 }
 
 const LEGACY_ARTIFACT_RE = /^(?:issue|pull|discussion)-[0-9]+\.json$/;
+
+interface LegacyGithubArtifactMigrationResult {
+  migratedFiles: string[];
+  removedLegacyFiles: string[];
+}
 
 function ensureDirectory(path: string): void {
   mkdirSync(path, { recursive: true });
@@ -88,11 +94,12 @@ function readArtifactRepoSlug(path: string): string | null {
   }
 }
 
-function migrateLegacyGithubArtifacts(rootDir: string, repoSlug: string): string[] {
+function migrateLegacyGithubArtifacts(rootDir: string, repoSlug: string): LegacyGithubArtifactMigrationResult {
   const githubDir = join(rootDir, GITHUB_DIR);
-  if (!existsSync(githubDir)) return [];
+  if (!existsSync(githubDir)) return { migratedFiles: [], removedLegacyFiles: [] };
 
   const migratedFiles: string[] = [];
+  const removedLegacyFiles: string[] = [];
   for (const entry of readdirSync(githubDir, { withFileTypes: true })) {
     if (!entry.isFile() || !LEGACY_ARTIFACT_RE.test(entry.name)) continue;
 
@@ -103,12 +110,13 @@ function migrateLegacyGithubArtifacts(rootDir: string, repoSlug: string): string
 
     if (existsSync(target)) {
       unlinkSync(source);
+      removedLegacyFiles.push(source);
     } else {
       renameSync(source, target);
       migratedFiles.push(target);
     }
   }
-  return migratedFiles;
+  return { migratedFiles, removedLegacyFiles };
 }
 
 /**
@@ -130,7 +138,12 @@ export function ensureMemoryStructure(rootDir: string, repoSlug: string): Ensure
   ensureFile(join(rootDir, "MEMORY.md"), "", createdFiles);
   ensureFile(join(rootDir, "README.md"), MEMORY_README, createdFiles);
 
-  return { createdFiles, migratedFiles: migrateLegacyGithubArtifacts(rootDir, repoSlug) };
+  const migration = migrateLegacyGithubArtifacts(rootDir, repoSlug);
+  return {
+    createdFiles,
+    migratedFiles: migration.migratedFiles,
+    removedLegacyFiles: migration.removedLegacyFiles,
+  };
 }
 
 // Repo-aware layout: each repository gets its own namespace under github/.
