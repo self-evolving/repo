@@ -10,6 +10,7 @@ import {
   extractRequestedRoute,
   extractRequestedRouteDecision,
   buildRequestedRouteDecision,
+  normalizeImplementIssueMetadata,
   resolveRequestedLabel,
 } from "../triage.js";
 import {
@@ -174,21 +175,42 @@ test("buildRequestedRouteDecision builds deterministic implement metadata withou
   // Explicit /implement is self-approval; the approval gate only applies to
   // triaged implement decisions.
   assert.equal(d.needsApproval, false);
-  assert.equal(d.issueTitle, "Implement add a regression test for approval routing");
+  assert.equal(d.issueTitle, "Implement requested change");
   assert.match(d.issueBody, /Original request/);
 });
 
-test("buildRequestedRouteDecision falls back to generic implement title without command detail", () => {
+test("buildRequestedRouteDecision falls back to generic implement title without generated metadata", () => {
   const d = buildRequestedRouteDecision("implement", "@sepo-agent /implement");
   assert.equal(d.issueTitle, "Implement requested change");
 });
 
-test("buildRequestedRouteDecision derives implement title from PR command detail", () => {
+test("buildRequestedRouteDecision uses generated implement issue metadata", () => {
   const d = buildRequestedRouteDecision(
     "implement",
-    "Please handle this.\n\n@sepo-agent /implement: add retry handling for webhook dispatch",
+    "Earlier prose mentions /implement add the wrong title.\n\n@sepo-agent /implement",
+    {
+      issueTitle: "Fix webhook dispatch retry handling",
+      issueBody: "## Goal\nFix webhook dispatch retry handling.\n\n## Acceptance criteria\n- Add regression coverage.",
+    },
   );
-  assert.equal(d.issueTitle, "Implement add retry handling for webhook dispatch");
+  assert.equal(d.issueTitle, "Fix webhook dispatch retry handling");
+  assert.doesNotMatch(d.issueTitle, /wrong title/);
+  assert.match(d.issueBody, /webhook dispatch retry/);
+});
+
+test("normalizeImplementIssueMetadata reads generated JSON metadata", () => {
+  const metadata = normalizeImplementIssueMetadata(
+    '```json\n{"issue_title":"Fix PR tracking issue titles","issue_body":"## Goal\\nGenerate title from context."}\n```',
+  );
+  assert.equal(metadata.issueTitle, "Fix PR tracking issue titles");
+  assert.match(metadata.issueBody, /Generate title from context/);
+});
+
+test("normalizeImplementIssueMetadata rejects malformed generated metadata", () => {
+  assert.throws(
+    () => normalizeImplementIssueMetadata('{"issue_title":"Missing body"}'),
+    /missing issue_body/,
+  );
 });
 
 test("buildRequestedRouteDecision builds deterministic review metadata", () => {

@@ -534,14 +534,30 @@ test("agent router bypasses dispatch triage for explicit mention slash routes", 
   const runnerWorkflow = readRepoFile(".github/workflows/agent-router.yml");
   const extractContext = readRepoFile(".agent/src/cli/extract-context.ts");
   const resolveDispatch = readRepoFile(".agent/src/cli/resolve-dispatch.ts");
+  const implementMetadataPrompt = readRepoFile(".github/prompts/agent-implement-metadata.md");
 
   assert.match(extractContext, /setOutput\("requested_route", requestedRoute\)/);
   assert.match(
     runnerWorkflow,
     /steps\.context\.outputs\.should_respond == 'true'[\s\S]*steps\.context\.outputs\.requested_route == ''/,
   );
+  assert.match(
+    runnerWorkflow,
+    /- name: Resolve explicit route authorization[\s\S]*steps\.context\.outputs\.requested_route != ''[\s\S]*id:\s*explicit_dispatch[\s\S]*node \.agent\/dist\/cli\/resolve-dispatch\.js/,
+  );
+  assert.match(
+    runnerWorkflow,
+    /- name: Generate implement issue metadata[\s\S]*steps\.explicit_dispatch\.outputs\.route == 'implement'[\s\S]*steps\.context\.outputs\.target_kind != 'issue'[\s\S]*continue-on-error:\s*true[\s\S]*prompt:\s*agent-implement-metadata/,
+  );
+  assert.match(
+    runnerWorkflow,
+    /RESPONSE_FILE:\s*\$\{\{\s*steps\.triage\.outputs\.response_file \|\| steps\.implement_metadata\.outputs\.response_file\s*\}\}/,
+  );
   assert.match(runnerWorkflow, /REQUESTED_ROUTE:\s*\$\{\{\s*steps\.context\.outputs\.requested_route\s*\}\}/);
   assert.match(resolveDispatch, /buildRequestedRouteDecision/);
+  assert.match(resolveDispatch, /normalizeImplementIssueMetadata/);
+  assert.match(implementMetadataPrompt, /Do not derive the title by copying the literal text after `\/implement`/);
+  assert.match(implementMetadataPrompt, /Ignore earlier prose mentions of `\/implement`/);
 });
 
 test("agent router supports label-triggered route and skill overrides", () => {
