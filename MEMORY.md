@@ -70,3 +70,4 @@
 - Before merging stacked PRs, verify the intended base head is an ancestor of the PR head; close/recreate mis-stacked branches.
 - Self-approval/self-merge requires trusted SHIP reviewed-head provenance matching the current PR head.
 - Self-approval must block if the initiating requester or approval token actor matches the PR author.
+- Self-merge should favor a simple core path: mark drafts ready, merge into configured base, rely on current-head approval/check guards.
