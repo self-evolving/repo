@@ -182,6 +182,12 @@ function isRoundLimitStopReason(reason: string): boolean {
     reason.includes("maximum rounds");
 }
 
+const SELF_APPROVAL_TERMINAL_STATES: Record<string, SubOrchestratorState> = {
+  approved: "done",
+  blocked: "blocked",
+  failed: "failed",
+};
+
 export function resultStateFromTerminal(input: {
   sourceAction: string;
   sourceConclusion: string;
@@ -191,6 +197,9 @@ export function resultStateFromTerminal(input: {
   const conclusion = input.sourceConclusion.trim().toLowerCase().replace(/[\s-]+/g, "_");
   const reason = input.reason.trim().toLowerCase();
   if (action === "review" && conclusion === "ship") return "done";
+  if (action === "agent_self_approve" && SELF_APPROVAL_TERMINAL_STATES[conclusion]) {
+    return SELF_APPROVAL_TERMINAL_STATES[conclusion];
+  }
   if (
     reason.startsWith("agent planner blocked:") ||
     isAuthorizationStopReason(reason) ||

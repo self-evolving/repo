@@ -9,7 +9,7 @@ Agent actions are route-level behaviors exposed by the `.agent` backend. They ar
 | Fix PR | `fix-pr` | `.github/prompts/agent-fix-pr.md` | PR-only dispatch to `agent-fix-pr.yml` |
 | Review | `review` | `.github/prompts/review.md` and `.github/prompts/review-synthesize.md` | parallel review jobs plus synthesis in `agent-review.yml` |
 | Orchestrate | `orchestrate` | `.github/prompts/agent-orchestrator.md` | explicit `/orchestrate` or `agent/orchestrate` dispatches `agent-orchestrator.yml`, which selects the next action based on current target state |
-| Self approve | `agent-self-approve` | `.github/prompts/agent-self-approve.md` | manual opt-in PR approval gate in `agent-self-approve.yml`; deterministic code submits approval only after current-head checks pass |
+| Self approve | `agent-self-approve` | `.github/prompts/agent-self-approve.md` | opt-in PR approval gate in `agent-self-approve.yml`; deterministic code submits approval only after current-head checks pass |
 | Create action | `create-action` | `.github/prompts/agent-create-action.md` | implementation PR that adds or updates a standalone scheduled workflow under `.github/workflows/` |
 | Skill | `skill` | `.skills/<name>/SKILL.md` | inline skill route through `agent-router.yml` |
 | Dispatch | `dispatch` | `.github/prompts/agent-dispatch.md` | route triage inside `agent-router.yml` |

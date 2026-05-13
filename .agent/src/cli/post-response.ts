@@ -5,11 +5,13 @@
 //      AGENT_COLLAPSE_OLD_REVIEWS
 
 import { readFileSync } from "node:fs";
+import { upsertPrCommentByMarker } from "../github.js";
 import { postResponse } from "../respond.js";
 import {
   collapsePreviousRubricsReviews,
   isRubricsReviewBody,
 } from "../review-summary-minimize.js";
+import { SELF_APPROVAL_STATUS_MARKER } from "../self-approval.js";
 import { formatSessionRestoreNotice } from "../session-bundle.js";
 
 const bodyFile = process.env.BODY_FILE || "";
@@ -43,7 +45,31 @@ if (continuityNote) {
   body = `> ${continuityNote}\n\n${body}`;
 }
 
+let posted = false;
+let selfApprovalUpsertFailed = false;
 if (
+  responseKind === "pr_comment" &&
+  repo &&
+  targetNumber > 0 &&
+  body.includes(SELF_APPROVAL_STATUS_MARKER)
+) {
+  try {
+    const action = upsertPrCommentByMarker(targetNumber, repo, SELF_APPROVAL_STATUS_MARKER, body);
+    console.log(`${action === "updated" ? "Updated" : "Created"} self-approval status comment.`);
+    posted = true;
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(
+      `Failed to upsert self-approval status comment for ${repo}#${targetNumber}: ${message}`,
+    );
+    selfApprovalUpsertFailed = true;
+    process.exitCode = 1;
+  }
+}
+
+if (
+  !posted &&
+  !selfApprovalUpsertFailed &&
   responseKind === "pr_comment" &&
   repo &&
   targetNumber > 0 &&
@@ -63,7 +89,9 @@ if (
   }
 }
 
-postResponse(
-  { responseKind, targetNumber, reviewCommentId, discussionNodeId, replyToId, repo },
-  body,
-);
+if (!posted && !selfApprovalUpsertFailed) {
+  postResponse(
+    { responseKind, targetNumber, reviewCommentId, discussionNodeId, replyToId, repo },
+    body,
+  );
+}

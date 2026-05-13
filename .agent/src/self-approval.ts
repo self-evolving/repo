@@ -7,6 +7,8 @@ import {
 
 export type SelfApprovalVerdict = "approve" | "request_changes" | "blocked";
 
+export const SELF_APPROVAL_STATUS_MARKER = "<!-- sepo-agent-self-approval -->";
+
 export interface SelfApprovalDecision {
   verdict: SelfApprovalVerdict;
   reason: string;
@@ -342,8 +344,16 @@ export function formatSelfApprovalBody(input: {
   approved?: boolean;
   runUrl?: string;
 }): string {
-  const status = input.approved ? "Approved" : "Not approved";
   const conclusion = input.conclusion || "unknown";
+  const status = input.approved
+    ? "Approved"
+    : conclusion === "blocked"
+      ? "Blocked"
+      : conclusion === "failed"
+        ? "Failed"
+        : conclusion === "request_changes"
+          ? "Changes requested"
+          : "Not approved";
   const lines = [
     "Sepo self-approval completed.",
     "",
@@ -360,6 +370,6 @@ export function formatSelfApprovalBody(input: {
   if (input.runUrl) {
     lines.push("", `Run: ${input.runUrl}`);
   }
-  lines.push("", "<!-- sepo-agent-self-approval -->");
+  lines.push("", SELF_APPROVAL_STATUS_MARKER);
   return lines.join("\n");
 }
