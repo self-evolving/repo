@@ -473,6 +473,24 @@ test("self-approval workflow stays opt-in and read-only until deterministic reso
   assert.match(workflowText, /node \.agent\/dist\/cli\/dispatch-agent-orchestrator\.js/);
 });
 
+test("self-merge workflow stays opt-in and deterministic", () => {
+  const workflowText = readRepoFile(".github/workflows/agent-self-merge.yml");
+  const workflow = parseYaml(workflowText) as unknown;
+  assert.ok(isRecord(workflow), "self-merge workflow should parse as a YAML object");
+  assert.ok(isRecord(workflow.jobs), "self-merge workflow should define jobs");
+  const job = workflow.jobs["self-merge"];
+  assert.ok(isRecord(job), "self-merge workflow should define self-merge job");
+  assert.ok(Array.isArray(job.steps), "self-merge job should define steps");
+  assert.match(workflowText, /permissions:\s*\n\s+actions:\s*read[\s\S]*contents:\s*write[\s\S]*pull-requests:\s*write/);
+  assert.match(workflowText, /ref:\s*\$\{\{\s*github\.event\.repository\.default_branch\s*\}\}/);
+  assert.match(workflowText, /AGENT_ALLOW_SELF_MERGE:\s*\$\{\{\s*vars\.AGENT_ALLOW_SELF_MERGE \|\| 'false'\s*\}\}/);
+  assert.match(workflowText, /node \.agent\/dist\/cli\/resolve-self-merge\.js/);
+  assert.doesNotMatch(workflowText, /uses: \.\/\.github\/actions\/run-agent-task/);
+  assert.match(workflowText, /Post self-merge status[\s\S]*steps\.result\.outputs\.status_post == 'true'/);
+  assert.match(workflowText, /agent-self-merge-result-\$\{\{ inputs\.pr_number \}\}/);
+  assert.match(workflowText, /SOURCE_ACTION:\s*agent-self-merge/);
+});
+
 test("review synthesis uses a shared reviews directory contract", () => {
   const reviewWorkflow = readRepoFile(".github/workflows/agent-review.yml");
   const reviewPrompt = readRepoFile(".github/prompts/review.md");
@@ -1129,6 +1147,7 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestrateHandoffCli, /automationMode === "disabled" \? "heuristics" : automationMode/);
   assert.match(orchestrateHandoffCli, /orchestrator_context:\s*decision\.handoffContext/);
   assert.match(orchestrateHandoffCli, /agent-self-approve\.yml/);
+  assert.match(orchestrateHandoffCli, /agent-self-merge\.yml/);
   assert.match(handoffSource, /Task for fix-pr/);
   assert.match(orchestrateHandoffCli, /collapsePreviousHandoffComments/);
   assert.match(orchestrateHandoffCli, /manual orchestrate start on issue; dispatching implement/);
@@ -1138,11 +1157,13 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestratorPrompt, /"handoff_context"/);
   assert.match(orchestratorPrompt, /ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT/);
   assert.match(orchestratorPrompt, /ORCHESTRATOR_SELF_APPROVE_ENABLED/);
+  assert.match(orchestratorPrompt, /ORCHESTRATOR_SELF_MERGE_ENABLED/);
   assert.match(orchestratorPrompt, /"user_message"/);
   assert.match(orchestratorPrompt, /"clarification_request"/);
   assert.match(orchestratorPrompt, /prior child finished with an open, unmerged PR/);
   assert.match(runSource, /"ORCHESTRATOR_CONTEXT"/);
   assert.match(runSource, /"ORCHESTRATOR_SELF_APPROVE_ENABLED"/);
+  assert.match(runSource, /"ORCHESTRATOR_SELF_MERGE_ENABLED"/);
   assert.match(orchestratorDoc, /Implement --> Review: success \+ PR created/);
   assert.match(orchestratorDoc, /continues sequential child implementation work/);
   assert.match(orchestratorDoc, /workflow_dispatch/);
@@ -1252,6 +1273,7 @@ test("validateEnvelope accepts dispatch, action, self-approval, and rubrics rout
     "dispatch",
     "create-action",
     "agent-self-approve",
+    "agent-self-merge",
     "rubrics-review",
     "rubrics-initialization",
     "rubrics-update",

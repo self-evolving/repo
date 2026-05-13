@@ -90,6 +90,18 @@ test("terminal helpers resolve closing issue references and result states", () =
     "failed",
   );
   assert.equal(
+    resultStateFromTerminal({ sourceAction: "agent-self-merge", sourceConclusion: "merged", reason: "" }),
+    "done",
+  );
+  assert.equal(
+    resultStateFromTerminal({ sourceAction: "agent-self-merge", sourceConclusion: "auto_merge_enabled", reason: "" }),
+    "done",
+  );
+  assert.equal(
+    resultStateFromTerminal({ sourceAction: "agent-self-merge", sourceConclusion: "blocked", reason: "" }),
+    "blocked",
+  );
+  assert.equal(
     resultStateFromTerminal({
       sourceAction: "review",
       sourceConclusion: "failed",

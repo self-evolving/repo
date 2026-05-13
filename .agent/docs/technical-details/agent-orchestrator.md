@@ -30,7 +30,9 @@ stateDiagram-v2
     Review --> Stop: failed or unsupported verdict
 
     SelfApprove --> FixPR: REQUEST_CHANGES
-    SelfApprove --> Stop: approved / blocked / failed
+    SelfApprove --> SelfMerge: approved + AGENT_ALLOW_SELF_MERGE=true
+    SelfApprove --> Stop: approved + self-merge disabled / blocked / failed
+    SelfMerge --> Stop: merged / auto_merge_enabled / blocked / failed
 
     FixPR --> Review: success
     FixPR --> Stop: no_changes / failed / verify_failed / unsupported PR
@@ -53,8 +55,9 @@ When the route starts, the router dispatches `agent-orchestrator.yml` with:
 Each action workflow launched by `agent-orchestrator.yml` receives
 `orchestration_enabled: true`. Only runs with that explicit context hand back to
 the orchestrator after post-processing; direct `/implement`, `/review`, and
-`/fix-pr` runs, plus manual `agent-self-approve.yml` runs, keep the default
-`orchestration_enabled: false` and stop after their own workflow. For
+`/fix-pr` runs, plus manual `agent-self-approve.yml` and
+`agent-self-merge.yml` runs, keep the default `orchestration_enabled: false`
+and stop after their own workflow. For
 orchestrator-launched fix-pr runs, the completion status comment attributes the
 visible request mention to the configured agent handle (`AGENT_HANDLE`, default
 `@sepo-agent`) instead of re-tagging the original human requester.
@@ -101,9 +104,10 @@ GitHub's sub-issue REST API when that endpoint is available. If the API is
 unavailable or rejects the link, the marker/comment relation remains the durable
 fallback and child orchestration continues. The child issue then follows the
 normal bounded chain of `implement`, `review`, `fix-pr`, and, when enabled,
-`agent-self-approve` runs. The public route remains `/orchestrate`; the internal
-command keeps child delegation separate from concrete follow-up actions such as
-`implement`, `review`, `fix-pr`, and `agent-self-approve`.
+`agent-self-approve` and `agent-self-merge` runs. The public route remains
+`/orchestrate`; the internal command keeps child delegation separate from
+concrete follow-up actions such as `implement`, `review`, `fix-pr`,
+`agent-self-approve`, and `agent-self-merge`.
 
 When the meta-orchestrator continues sequential child implementation work after
 a prior child produced an open, unmerged PR, the planner should set `base_pr` to
@@ -140,11 +144,13 @@ question directly and the chain pauses without dispatching an `answer` route.
 
 Initial user-launched `/orchestrate` requests validate that the requester has
 access to the delegated route capability set before dispatching work. When
-`AGENT_ALLOW_SELF_APPROVE=true`, that set includes `agent-self-approve`; when it
-is disabled, self-approval is not part of the delegated capability check. This
-keeps authorization at the user boundary: child and parent resume dispatches
-preserve `requested_by` for traceability, but they do not need to thread
-requester association and route policy through every downstream workflow.
+`AGENT_ALLOW_SELF_APPROVE=true`, that set includes `agent-self-approve`; when
+both `AGENT_ALLOW_SELF_APPROVE=true` and `AGENT_ALLOW_SELF_MERGE=true`, it also
+includes `agent-self-merge`. Disabled self-approval or self-merge routes are not
+part of the delegated capability check. This keeps authorization at the user
+boundary: child and parent resume dispatches preserve `requested_by` for
+traceability, but they do not need to thread requester association and route
+policy through every downstream workflow.
 
 When an orchestrator dispatches `implement`, it forwards any planner-provided
 or explicit `base_branch` or `base_pr` input. `agent-implement.yml` then
@@ -160,7 +166,7 @@ envelopes use the planner path when enabled.
 
 In `heuristics` mode, action-originated handoff decisions still use the fixed transition policy and round budget checks.
 
-Review-originated `fix-pr` handoffs carry explicit task context when available. The review dispatcher derives it from the latest review synthesis action items, and heuristic mode falls back to a conservative instruction to address only unresolved review synthesis action items while ignoring optional INFO notes and metadata-only polish. Manual PR `/orchestrate` starts with a `CHANGES_REQUESTED` review decision use separate context that tells `fix-pr` to address the latest unresolved requested-change review comments instead of the review-synthesis fallback. Self-approval `REQUEST_CHANGES` handoffs preserve the approval agent's handoff context as the `fix-pr` task.
+Review-originated `fix-pr` handoffs carry explicit task context when available. The review dispatcher derives it from the latest review synthesis action items, and heuristic mode falls back to a conservative instruction to address only unresolved review synthesis action items while ignoring optional INFO notes and metadata-only polish. Manual PR `/orchestrate` starts with a `CHANGES_REQUESTED` review decision use separate context that tells `fix-pr` to address the latest unresolved requested-change review comments instead of the review-synthesis fallback. Self-approval `REQUEST_CHANGES` handoffs preserve the approval agent's handoff context as the `fix-pr` task. Self-approval `APPROVED` handoffs dispatch `agent-self-merge` only when `AGENT_ALLOW_SELF_MERGE=true`.
 
 In `agent` mode, the orchestrator first runs a scoped planner prompt through the same resolved-provider runtime used by other agent actions. The planner has its own `orchestrator` route and `planner` lane, so session continuation is separate from implement, review, and fix-pr sessions. The planner runs with `approve-all` tool permission so it can gather current GitHub and repository context in non-interactive workflows. It still receives read-only repository memory, selected read-only rubrics, the handoff envelope, any source handoff context, and original request, and returns JSON describing whether to stop, block, delegate a child issue, or hand off. For blocked decisions, the planner may return `user_message` or `clarification_request` to ask for missing context in the visible stop comment. For handoffs, the planner may also return `handoff_context`: explicit, action-oriented instructions for the next workflow. When the next action is `fix-pr`, the dispatcher passes that context into `agent-fix-pr.yml`, and the fix-pr prompt treats it as the selected task and constraints for the automated fix pass. The workflow uses the runtime preflight CLI to skip this planner when the max-round budget is already exhausted or the initial requester lacks delegated-route capability, and the runtime still validates planner JSON against the fixed transition policy, the issue-only direct-implement rule, and max-round budget before dispatching anything.
 
