@@ -67,3 +67,4 @@
 - Scheduled update checks adopt existing same-repo agent/update-agent-infra-* PRs instead of opening duplicates.
 - Onboarding setup checks reuse one issue/comment; reruns patch the short issue body and focused status without trigger-label inventory.
 - Self-approval status comments are marker-upserted only on trusted Sepo-authored comments; avoid fallback duplicate posts.
+- Before merging stacked PRs, verify the intended base head is an ancestor of the PR head; close/recreate mis-stacked branches.
