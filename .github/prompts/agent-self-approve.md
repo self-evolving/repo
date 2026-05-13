@@ -35,11 +35,11 @@ Functionality:
 - What behavior changed? Does the implementation match the issue/parent-plan scope?
 - Is the change aligned with the repo's goal? Is the current implementation the right way to solve the problem?
 
-Code Quality: 
-- Does it contain "patched" code? Can you think of other cleaner or more idiomatic ways for implementing the function? 
+Code Quality:
+- Does it contain "patched" code? Can you think of other cleaner or more idiomatic ways for implementing the function?
 - Is any awkwardness acceptable for this slice, or should it become a required fix?
 
-Maintaince and Bug Handling:
+Maintenance and Bug Handling:
 - What happens in edge cases and reruns?
 - Are the likely long-term maintenance and safety costs acceptable?
 
