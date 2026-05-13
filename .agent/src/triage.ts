@@ -16,6 +16,7 @@ export const ROUTES = new Set([
   "review",
   "orchestrate",
   "create-action",
+  "publish-failure-report",
   "unsupported",
 ]);
 
@@ -28,7 +29,15 @@ export interface DispatchDecision {
   issueBody: string;
 }
 
-const EXPLICIT_ROUTE_COMMANDS = ["answer", "implement", "fix-pr", "review", "orchestrate", "create-action"] as const;
+const EXPLICIT_ROUTE_COMMANDS = [
+  "answer",
+  "implement",
+  "fix-pr",
+  "review",
+  "orchestrate",
+  "create-action",
+  "publish-failure-report",
+] as const;
 const LABEL_ROUTE_PREFIX = "agent/";
 const LABEL_SKILL_PREFIX = "agent/s/";
 const VALID_SKILL_LABEL = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
@@ -189,6 +198,17 @@ export function buildRequestedRouteDecision(route: string, requestText: string):
       needsApproval: false,
       confidence: "high",
       summary: "I’ll run the requested skill.",
+      issueTitle: "",
+      issueBody: "",
+    };
+  }
+
+  if (normalizedRoute === "publish-failure-report") {
+    return {
+      route: "publish-failure-report",
+      needsApproval: false,
+      confidence: "high",
+      summary: "I’ll publish the approved pending failure report.",
       issueTitle: "",
       issueBody: "",
     };
@@ -392,6 +412,13 @@ export function applyDispatchPolicy(
   }
 
   if (normalized.route === "skill") {
+    normalized.needsApproval = false;
+    normalized.issueTitle = "";
+    normalized.issueBody = "";
+    return normalized;
+  }
+
+  if (normalized.route === "publish-failure-report") {
     normalized.needsApproval = false;
     normalized.issueTitle = "";
     normalized.issueBody = "";

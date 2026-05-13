@@ -12,6 +12,7 @@ Agent actions are route-level behaviors exposed by the `.agent` backend. They ar
 | Self approve | `agent-self-approve` | `.github/prompts/agent-self-approve.md` | opt-in PR approval gate in `agent-self-approve.yml`; deterministic code submits approval only after current-head checks pass |
 | Self merge | `agent-self-merge` | deterministic resolver | opt-in PR merge gate in `agent-self-merge.yml`; deterministic code merges only after current-head self-approval, checks, mergeability, and requested-change guards pass |
 | Create action | `create-action` | `.github/prompts/agent-create-action.md` | implementation PR that adds or updates a standalone scheduled workflow under `.github/workflows/` |
+| Publish failure report | `publish-failure-report` | pending failure diagnosis artifact | explicit `/publish-failure-report` dispatches `agent-publish-failure-report.yml`, rechecks route authorization, and publishes the approved pending report |
 | Skill | `skill` | `.skills/<name>/SKILL.md` | inline skill route through `agent-router.yml` |
 | Dispatch | `dispatch` | `.github/prompts/agent-dispatch.md` | route triage inside `agent-router.yml` |
 
@@ -23,13 +24,23 @@ neither input is set, implementations branch from the repository default branch.
 
 ## Consumption model
 
-Agent actions share the same runtime shape:
+Agent-backed actions share the same runtime shape:
 
 1. A trigger enters a workflow and converges on `agent-router.yml` or a route-specific workflow.
 2. The route chooses a prompt name or skill name.
 3. `.github/actions/run-agent-task` builds a runtime envelope with route, target, source, request, lane, and session-policy metadata.
 4. The runtime prepends `.github/prompts/_base.md` to the selected prompt, substitutes prompt variables, and runs the selected `acpx` agent.
-5. Post-processing steps parse the response, post comments, create branches, create PRs, or update the existing PR branch depending on the route.
+5. If the agent exits nonzero, the shared action writes a local failure diagnosis summary and artifact before rethrowing the exit code.
+6. Post-processing steps parse the response, post comments, create branches, create PRs, or update the existing PR branch depending on the route.
+
+Deterministic utility routes can bypass `acpx` when no model work is needed.
+`publish-failure-report` is one of those routes: it reads a pending diagnosis
+artifact, validates the requester against `AGENT_ACCESS_POLICY` again, and then
+uses the shared Discussion helper to create or comment on the central report.
+When launched from a routed comment, it posts a compact completion reply with
+the publication status and the Discussion URL or failure reason. Published
+reports reuse the central Discussion by fingerprint and skip duplicate
+occurrence comments for the same failed run attempt.
 
 The shared base prompt defines the common metadata and context-gathering contract. Route prompts should focus on route-specific behavior and should not duplicate the base metadata header.
 
