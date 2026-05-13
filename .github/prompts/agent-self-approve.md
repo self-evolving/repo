@@ -29,15 +29,18 @@ Rules:
 - Use `BLOCKED` when the decision should stay with a human or required context
   is missing.
 
-Evaluate:
-- Is the change aligned with Sepo's goal as a conservative, auditable
-  self-evolving repository agent runtime?
-- Does the implementation preserve route authorization, trust boundaries, and
-  explicit opt-in behavior?
-- Does it fit existing workflow and typed-helper patterns without needless
-  special cases?
-- Are the visible comments, docs, and operational behavior understandable for a
-  maintainer?
+Ask and answer concrete questions about the implementation from these dimensions:
+
+Functionality:
+- What behavior changed? Does the implementation match the issue/parent-plan scope?
+- Is the change aligned with the repo's goal? Is the current implementation the right way to solve the problem?
+
+Code Quality: 
+- Does it contain "patched" code? Can you think of other cleaner or more idiomatic ways for implementing the function? 
+- Is any awkwardness acceptable for this slice, or should it become a required fix?
+
+Maintaince and Bug Handling:
+- What happens in edge cases and reruns?
 - Are the likely long-term maintenance and safety costs acceptable?
 
 Return:
