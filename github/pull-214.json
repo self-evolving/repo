@@ -3,7 +3,7 @@
     "is_bot": true,
     "login": "app/sepo-agent-app"
   },
-  "baseRefName": "agent/implement-issue-185/codex-25587257587",
+  "baseRefName": "main",
   "body": "## Summary\n- Add opt-in deterministic `agent-self-merge.yml` and resolver plumbing after current-head Sepo self-approval.\n- Merge or enable auto-merge into the PR's configured base with `--match-head-commit`, while preserving requested-change, check, and mergeability gates.\n- Mark draft PRs ready and re-fetch metadata before merge/auto-merge, and add marker-upserted self-merge statuses.\n- Update orchestrator routing, route authorization checks, docs, and focused regression coverage.\n\n## Verification\n- `npm run build`\n- `node --test dist/__tests__/self-merge.test.js dist/__tests__/resolve-self-merge-cli.test.js dist/__tests__/post-response-cli.test.js dist/__tests__/handoff.test.js dist/__tests__/orchestrate-handoff-cli.test.js dist/__tests__/orchestrator-preflight-cli.test.js dist/__tests__/sub-orchestration.test.js dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nCloses #213\n",
   "closedAt": null,
   "comments": [
@@ -244,73 +244,121 @@
   "files": [
     {
       "path": ".agent/docs/actions/agent-actions.md",
-      "additions": 1,
+      "additions": 2,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/docs/architecture/request-lifecycle.md",
-      "additions": 3,
-      "deletions": 0,
+      "additions": 5,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/rubrics.md",
+      "additions": 1,
+      "deletions": 1,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/docs/architecture/supported-workflows.md",
-      "additions": 20,
-      "deletions": 5,
+      "additions": 53,
+      "deletions": 7,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/docs/customization/configuration-list.md",
-      "additions": 1,
+      "additions": 2,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/docs/technical-details/agent-orchestrator.md",
-      "additions": 15,
-      "deletions": 9,
+      "additions": 28,
+      "deletions": 15,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/docs/technical-details/key-concepts.md",
-      "additions": 2,
+      "additions": 3,
       "deletions": 1,
       "changeType": "MODIFIED"
     },
     {
+      "path": ".agent/src/__tests__/capture-pr-head-cli.test.ts",
+      "additions": 46,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
       "path": ".agent/src/__tests__/envelope.test.ts",
-      "additions": 7,
-      "deletions": 2,
+      "additions": 103,
+      "deletions": 8,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/__tests__/handoff.test.ts",
-      "additions": 72,
+      "additions": 155,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/__tests__/orchestrate-handoff-cli.test.ts",
-      "additions": 82,
+      "additions": 231,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/__tests__/orchestrator-preflight-cli.test.ts",
-      "additions": 42,
+      "additions": 71,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/post-comment-cli.test.ts",
+      "additions": 107,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/__tests__/post-response-cli.test.ts",
-      "additions": 55,
+      "additions": 224,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
+      "path": ".agent/src/__tests__/prepare-self-approve-cli.test.ts",
+      "additions": 140,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/resolve-self-approve-cli.test.ts",
+      "additions": 240,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
       "path": ".agent/src/__tests__/resolve-self-merge-cli.test.ts",
       "additions": 222,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/response.test.ts",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/review-synthesis.test.ts",
+      "additions": 42,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/self-approval.test.ts",
+      "additions": 312,
       "deletions": 0,
       "changeType": "ADDED"
     },
@@ -322,27 +370,51 @@
     },
     {
       "path": ".agent/src/__tests__/sub-orchestration.test.ts",
-      "additions": 16,
+      "additions": 28,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
+      "path": ".agent/src/cli/capture-pr-head.ts",
+      "additions": 33,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
       "path": ".agent/src/cli/orchestrate-handoff.ts",
-      "additions": 13,
+      "additions": 24,
       "deletions": 1,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/cli/orchestrator-preflight.ts",
-      "additions": 3,
+      "additions": 8,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/post-comment.ts",
+      "additions": 17,
       "deletions": 1,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/cli/post-response.ts",
-      "additions": 14,
-      "deletions": 8,
+      "additions": 38,
+      "deletions": 4,
       "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/prepare-self-approve.ts",
+      "additions": 109,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/resolve-self-approve.ts",
+      "additions": 177,
+      "deletions": 0,
+      "changeType": "ADDED"
     },
     {
       "path": ".agent/src/cli/resolve-self-merge.ts",
@@ -352,33 +424,51 @@
     },
     {
       "path": ".agent/src/envelope.ts",
-      "additions": 1,
+      "additions": 2,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/github.ts",
-      "additions": 135,
+      "additions": 255,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/handoff.ts",
-      "additions": 16,
+      "additions": 50,
       "deletions": 1,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/orchestrator-capabilities.ts",
-      "additions": 4,
+      "additions": 9,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/response.ts",
+      "additions": 5,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/review-synthesis.ts",
+      "additions": 20,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/run.ts",
-      "additions": 1,
+      "additions": 4,
       "deletions": 0,
       "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/self-approval.ts",
+      "additions": 375,
+      "deletions": 0,
+      "changeType": "ADDED"
     },
     {
       "path": ".agent/src/self-merge.ts",
@@ -388,21 +478,57 @@
     },
     {
       "path": ".agent/src/sub-orchestration.ts",
-      "additions": 10,
+      "additions": 19,
       "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/run-agent-task/action.yml",
+      "additions": 1,
+      "deletions": 1,
       "changeType": "MODIFIED"
     },
     {
       "path": ".github/prompts/agent-orchestrator.md",
-      "additions": 8,
-      "deletions": 2,
+      "additions": 18,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-self-approve.md",
+      "additions": 52,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/prompts/rubrics-initialization.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/rubrics-update.md",
+      "additions": 1,
+      "deletions": 1,
       "changeType": "MODIFIED"
     },
     {
       "path": ".github/workflows/agent-orchestrator.yml",
-      "additions": 3,
+      "additions": 6,
       "deletions": 0,
       "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-review.yml",
+      "additions": 44,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-self-approve.yml",
+      "additions": 219,
+      "deletions": 0,
+      "changeType": "ADDED"
     },
     {
       "path": ".github/workflows/agent-self-merge.yml",
@@ -472,6 +598,6 @@
   ],
   "state": "OPEN",
   "title": "Add simplified self-merge after self-approval",
-  "updatedAt": "2026-05-11T19:15:22Z",
+  "updatedAt": "2026-05-13T04:11:29Z",
   "url": "https://github.com/self-evolving/repo/pull/214"
 }

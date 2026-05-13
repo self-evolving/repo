@@ -1,0 +1,54 @@
+{
+  "number": 223,
+  "title": "how to support auto research in sepo?",
+  "url": "https://github.com/self-evolving/repo/discussions/223",
+  "body": "@sepo-agent /answer\r\n\r\nCheck https://github.com/karpathy/autoresearch -- it's basically an iterative refinement framework with agents. \r\n\r\nI think after adding #180 and #208 , coupled with the our orchestrator and sub-orchestrator support, the repo implements the key elements for supporting optimizing the long-form iterative refinement task defined in `autoresearch`. Can you review the current code and autoresearch code (not necessarily the low-level implementation details but the algorithmic ideas behind) and plan accordingly? ",
+  "createdAt": "2026-05-13T03:41:52Z",
+  "updatedAt": "2026-05-13T04:10:44Z",
+  "author": {
+    "login": "lolipopshock"
+  },
+  "category": {
+    "name": "Ideas"
+  },
+  "comments": {
+    "nodes": [
+      {
+        "id": "DC_kwDOSOhEMM4BAd3I",
+        "body": "I reviewed both sides. My take: Sepo is close, but it does **not yet support `autoresearch` as a first-class loop**. The missing piece is not more agent capability; it is a deterministic experiment/result state machine.\n\n`autoresearch`’s core algorithm is:\n\n1. constrain the editable surface to one/few files;\n2. run a fixed-budget experiment;\n3. extract one objective metric;\n4. keep the change only if the metric improves;\n5. otherwise discard/revert;\n6. repeat indefinitely or until an external budget stops it.\n\nThat is visible in `autoresearch`’s design: one editable file and fixed evaluator in [`README.md`](https://github.com/karpathy/autoresearch/blob/228791fb499afffb54b46200aca536f79142f117/README.md#L11-L17), fixed five-minute metric-based training in [`README.md`](https://github.com/karpathy/autoresearch/blob/228791fb499afffb54b46200aca536f79142f117/README.md#L61-L65), and the explicit keep/discard loop in [`program.md`](https://github.com/karpathy/autoresearch/blob/228791fb499afffb54b46200aca536f79142f117/program.md#L90-L112).\n\nSepo already has most orchestration primitives:\n\n- bounded `implement -> review -> fix-pr -> review` handoff on `main`: [`handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L409-L616)\n- planner-backed `/orchestrate` with runtime validation and max rounds: [`agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/technical-details/agent-orchestrator.md#L3-L12)\n- sub-orchestrators for splitting long work into child issues: [`agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/technical-details/agent-orchestrator.md#L86-L127)\n- stacked child work via `base_pr`: [`agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/technical-details/agent-orchestrator.md#L103-L147)\n\nThe self-approval/self-merge stack adds the missing “accept and close the loop” mechanics, but note the current branch state: #180 is merged into the stacked self-approval branch, not flattened into `main`; #208 was closed as mis-stacked; the cleaned simplified self-merge version is #214. In that stack, approval and merge routing look like this: [`handoff.ts`](https://github.com/self-evolving/repo/blob/agent/implement-issue-213/codex-25689072367/.agent/src/handoff.ts#L462-L513). The deterministic merge resolver checks current-head Sepo approval, checks, mergeability, and then merges or enables auto-merge: [`self-merge.ts`](https://github.com/self-evolving/repo/blob/agent/implement-issue-213/codex-25689072367/.agent/src/self-merge.ts#L196-L307), [`resolve-self-merge.ts`](https://github.com/self-evolving/repo/blob/agent/implement-issue-213/codex-25689072367/.agent/src/cli/resolve-self-merge.ts#L56-L202).\n\nRecommended plan:\n\n1. Land/settle the self-approval + simplified self-merge stack first. The auto-research loop depends on `review SHIP -> self-approve -> self-merge` being reliable.\n\n2. Add a `ResearchSpec` parser and status model, probably in `.agent/src/research.ts`. The spec should live in the issue body or a repo file and include: editable paths, command, timeout, metric extraction rule, optimize direction, baseline score, best score, max iterations, and optional resource labels.\n\n3. Add a deterministic result resolver CLI. This should parse run logs/artifacts, extract the metric, compare against the stored best score, and emit conclusions like `improved`, `regressed`, `crashed`, `inconclusive`, `budget_exhausted`. Do not let the LLM decide whether the metric improved.\n\n4. Add a new experiment action, likely `agent-research-experiment.yml`, with a matching prompt. This is the `autoresearch` equivalent of “modify `train.py`, run `uv run train.py`, record result.” It should use explicit structured outputs and keep workflow glue thin, following existing Sepo patterns.\n\n5. Extend orchestrator transitions with a new action type, probably `research-experiment`:\n   - `/orchestrate` on a research issue -> `research-experiment`\n   - `research-experiment: improved` -> `review`\n   - `review: SHIP` -> `agent-self-approve`\n   - `agent-self-approve: approved` -> `agent-self-merge`\n   - `agent-self-merge: merged/auto_merge_enabled` -> next `research-experiment`\n   - `research-experiment: regressed/crashed` -> next `research-experiment` with handoff context summarizing what failed\n   - budget exhausted or repeated inconclusive results -> visible stop\n\n6. Add a durable experiment ledger. For v1, I would use marker-upserted issue comments plus workflow artifacts, not memory. Memory is slow-changing project context; experiment metrics are run state. The ledger should mirror `results.tsv`: commit/PR, metric, memory/resource summary, status, description.\n\n7. Add focused tests around: spec parsing, metric extraction, improvement comparison, crash handling, handoff routing, dedupe markers, max-round/budget stops, and self-merge continuation.\n\nI would implement this as a new stacked slice after #214, not by overloading `implement` or `review`. The key product boundary is: agents propose experiment changes, deterministic code measures and accepts/rejects, and the existing review/self-approval/self-merge path handles code-quality and merge safety.\n\nIf this direction sounds right, approve a first implementation slice for `ResearchSpec + metric resolver + docs` before wiring the full workflow loop.",
+        "createdAt": "2026-05-13T03:45:47Z",
+        "url": "https://github.com/self-evolving/repo/discussions/223#discussioncomment-16899528",
+        "author": {
+          "login": "sepo-agent-app"
+        },
+        "replies": {
+          "nodes": [],
+          "pageInfo": {
+            "hasNextPage": false,
+            "endCursor": null
+          }
+        }
+      },
+      {
+        "id": "DC_kwDOSOhEMM4BAd4z",
+        "body": "@sepo-agent /answer \r\n\r\nI think a more fundamental issue is this: \r\n\r\n> Extend orchestrator transitions with a new action type, probably research-experiment:\r\n> \r\n> /orchestrate on a research issue -> research-experiment\r\n> research-experiment: improved -> review\r\n> review: SHIP -> agent-self-approve\r\n> agent-self-approve: approved -> agent-self-merge\r\n> agent-self-merge: merged/auto_merge_enabled -> next research-experiment\r\n> research-experiment: regressed/crashed -> next research-experiment with handoff context summarizing what failed\r\n> budget exhausted or repeated inconclusive results -> visible stop\r\n\r\nI think the key challenge is to support a structured way for running (computational) experiment? \r\n\r\n1. Right now we have a code self-evolving loop: adding more features, review , fix-pr, self-approve . Issue is the main way of tracking this. \r\n2. Also we need to have an experiment self-evolving loop, and there are some key design challenges:\r\n    - Where to manage the experiments?  Perhaps We can use discussion (with threads) to track experiments: \r\n        - One discussion page denotes one collection of experiments \r\n        - In each comment, it will write down the experiment setup, and it will update the results when it finishes \r\n        - And later when it finishes, it will comment in the thread about the summary of this current step and plan for the next steps \r\n        - Question: how to handle parallel exploration? \r\n    - What is the code infrastructure to run experiments and ?  \r\n        - Shall we consider using slurm?\r\n            - in that sense, it definitely needs a local runner that can connect to slurm?  also is https://github.com/celerity/slurmactiond related? \r\n            - moreover, what is the proper way to handle long-running jobs? the first simplest thing is to babysit all the experiment runs and then stop the action runs. But that only works for a limited time? \r\n        - Where to save experiment files? Saving in a different branch? Or saving using git-ref logs? Or saving using huggingface datasets?",
+        "createdAt": "2026-05-13T04:10:43Z",
+        "url": "https://github.com/self-evolving/repo/discussions/223#discussioncomment-16899635",
+        "author": {
+          "login": "lolipopshock"
+        },
+        "replies": {
+          "nodes": [],
+          "pageInfo": {
+            "hasNextPage": false,
+            "endCursor": null
+          }
+        }
+      }
+    ],
+    "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": null
+    }
+  }
+}

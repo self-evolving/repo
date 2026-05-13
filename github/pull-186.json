@@ -5,7 +5,7 @@
   },
   "baseRefName": "agent/implement-issue-183/codex-25586306639",
   "body": "## Summary\n- Upsert self-approval status comments by marker, limited to comments authored by the authenticated Sepo actor.\n- Surface clearer blocked/failed self-approval statuses for preflight, parser, metadata, and approval API failure paths.\n- Run self-approval status and artifact steps with `always()` where appropriate and retain resolver artifacts when available.\n- Add regressions for duplicate/untrusted marker comments and resolver failure visibility.\n\n## Verification\n- `npm run build`\n- `node --test dist/__tests__/self-approval.test.js dist/__tests__/resolve-self-approve-cli.test.js dist/__tests__/post-response-cli.test.js dist/__tests__/envelope.test.js`\n- `node --test dist/__tests__/prepare-self-approve-cli.test.js`\n- `git diff --check`\n\nCloses #185\n",
-  "closedAt": null,
+  "closedAt": "2026-05-13T03:29:30Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABBumPDg",
@@ -238,6 +238,58 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/186#issuecomment-4417579455",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCHRyXw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer also do we always post self-approve message? ",
+      "createdAt": "2026-05-13T03:11:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/186#issuecomment-4436816479",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCHSVJQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "No, we do **not** always post a separate self-approval PR comment.\n\nCurrent behavior in #186 is:\n\n- **Preflight blocks**: yes, post/update a self-approval status comment.\n  Example: disabled flag, non-PR target, closed PR, missing metadata, actor/provenance check failure.\n\n- **Approval agent runs and approval succeeds**: no separate status comment is posted.\n  The self-approval message is used as the **GitHub approval review body** when `APPROVE` is submitted.\n\n- **Approval agent runs but does not approve**: yes, post/update a self-approval status comment.\n  This covers `REQUEST_CHANGES`, `BLOCKED`, parser failure, metadata failure, and approval API failure.\n\n- **Workflow/setup fails before `prepare-self-approve` produces a body**: no self-approval status comment from the stop path. This was intentional to avoid generic duplicate comments.\n\nAlso, when a self-approval status comment is posted, #186 makes it an **upsert**, not a fresh comment every time. It updates the latest trusted Sepo-authored marker comment and ignores user-authored marker comments.",
+      "createdAt": "2026-05-13T03:13:07Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/186#issuecomment-4436825381",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCHXDGA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #186.\n\nno rubric changes\n\nI reviewed PR #186, linked issues #185/#170, contributor signals, and existing rubrics. The durable themes from the PR are already covered by active rubrics: idempotent user-facing automation, visible stateful failures, compact status comments, docs sync, and accepted workflow stops.\n\nThe only human comments from `lolipopshock` were behavior questions, with `author_association: CONTRIBUTOR`; there was no trusted explicit request to add or update a rubric. Bot/agent review feedback was useful implementation evidence but not a user/team preference source under the rubric-learning rules.\n",
+      "createdAt": "2026-05-13T03:30:51Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/186#issuecomment-4436902680",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-09T01:17:07Z",
@@ -312,7 +364,7 @@
       "color": "0e8a16"
     }
   ],
-  "mergedAt": null,
+  "mergedAt": "2026-05-13T03:29:30Z",
   "number": 186,
   "reviewDecision": "",
   "reviews": [
@@ -347,8 +399,8 @@
       }
     }
   ],
-  "state": "OPEN",
+  "state": "MERGED",
   "title": "Polish self-approval status handling",
-  "updatedAt": "2026-05-11T04:28:39Z",
+  "updatedAt": "2026-05-13T03:30:52Z",
   "url": "https://github.com/self-evolving/repo/pull/186"
 }

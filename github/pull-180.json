@@ -5,7 +5,7 @@
   },
   "baseRefName": "agent/implement-issue-171/codex-25583716962",
   "body": "## Summary\n- Add the `agent-self-approve` route, prompt, and manual workflow gated by `AGENT_ALLOW_SELF_APPROVE`.\n- Add self-approval parsing, trusted review provenance checks, PR open/current-head safeguards, and deterministic approval submission.\n- Update docs and focused coverage for parser behavior, disabled/non-PR/closed stops, stale heads, and approval submission safeguards.\n\n## Verification\n- `npm run build`\n- `node --test dist/__tests__/self-approval.test.js dist/__tests__/prepare-self-approve-cli.test.js dist/__tests__/resolve-self-approve-cli.test.js dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nCloses #175\n",
-  "closedAt": null,
+  "closedAt": "2026-05-13T03:29:59Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABBuWfrA",
@@ -106,8 +106,8 @@
       "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 94 | PASS | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Scope matches parent #170 / child #175: this PR adds the manual self-approval core while leaving orchestration integration and status upsert for later slices. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Reuses existing route runtime/action patterns, `post-response.js`, review-synthesis helpers, response JSON extraction, and typed GitHub helpers rather than embedding workflow-only logic. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | [`agent-self-approve.yml`](https://github.com/self-evolving/repo/blob/e7d2724ff8e0615104db9c022a56fd5ebe0b9afc/.github/workflows/agent-self-approve.yml) uses separate `pr_number`, `requested_by`, `request_text`, and `session_bundle_mode` inputs; the prompt requires structured JSON with `verdict`, `reason`, `handoff_context`, and `inspected_head_sha`. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates route/action docs, workflow architecture docs, config docs, key concepts, and rubric prompt route lists for `agent-self-approve` and `AGENT_ALLOW_SELF_APPROVE`. |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | [`prepare-self-approve.ts`](https://github.com/self-evolving/repo/blob/e7d2724ff8e0615104db9c022a56fd5ebe0b9afc/.agent/src/cli/prepare-self-approve.ts) writes a compact stop body for disabled, non-PR, closed, same-author, or missing-provenance states; the workflow posts it through `post-response.js`. |\n| communication / generic | Keep status comments compact | pass | 6/6 | [`formatSelfApprovalBody`](https://github.com/self-evolving/repo/blob/e7d2724ff8e0615104db9c022a56fd5ebe0b9afc/.agent/src/self-approval.ts) produces a short status/conclusion table, reason, optional follow-up context, run URL, and stable marker. |\n| coding_workflow / generic | Surface stateful failures | partial | 6/7 | Resolver failures for metadata reads, actor checks, provenance reads, malformed agent output, stale heads, and approval submission are surfaced in outputs/status bodies. Workflow-level failures before the resolver still lack `always()` style reporting, which #170 reserves for the operational polish slice. |\n| coding_workflow / generic | Make user-facing automation idempotent | partial | 4/7 | Status bodies include `<!-- sepo-agent-self-approval -->`, but this PR still posts through `post-response.js` without marker-based lookup/update. The docs explicitly defer status-comment upsert to a later slice. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation keeps the agent read-only and moves approval decisions into small deterministic helpers/CLIs with focused tests, without adding orchestration behavior or broader failure plumbing in this slice. |\n\n## Notes\n\n- The post-fix head addresses the earlier blocking approval-authority risk: `evaluateSelfApprovalActor` normalizes actor logins and blocks approval when the approval actor matches the PR author, and both prepare/resolve paths call it before approval can proceed.\n- The requested success-path coverage was added: `prepare-self-approve` now has a trusted current-head `SHIP` test asserting `should_run=true` and `head_sha`.\n- Remaining rubric gaps are aligned with the staged plan in #170: idempotent status upsert and broader workflow failure visibility are intentionally PR 4 work, not part of this core slice.\n\n## Findings\n\n- **WARNING:** Self-approval status comments are not idempotent yet. Reruns can create another marked PR comment instead of updating the existing Sepo-authored marker comment. This is documented as deferred operational polish, so it is not blocking for this PR’s scoped slice.\n- **INFO:** Resolver-level failures are visible, but failures before the resolver step, such as provider/runtime/agent step failures, still depend on later workflow polish for guaranteed visible status.\n\n## Final Rubric Verdict\n\nPASS",
       "createdAt": "2026-05-09T00:23:55Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/180#issuecomment-4410747531",
       "viewerDidAuthor": true
@@ -121,8 +121,8 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #180 implements the `self-approval-core` slice from issue #175, under the staged self-approval plan in parent issue #170.\n- It adds the opt-in `AGENT_ALLOW_SELF_APPROVE` gate, manual `agent-self-approve` workflow, route prompt, structured verdict parsing, deterministic resolver logic, docs, and focused tests.\n- The scoped safety model is PR-only, open-state checked, current-head checked, trusted `SHIP` review provenance, read-only agent inspection, and deterministic approval submission.\n- Orchestration integration, marker-based status upsert, and broader workflow failure visibility remain intentionally deferred to later planned slices.\n\n## Review\nThe current head resolves the prior blocking approval-authority issue and the missing prepare success-path coverage. Reviewers agree there are no remaining blocking or warning-level branch changes required for this scoped PR.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable issues | INFO | The remaining notes are deferred operational polish or non-blocking follow-ups, not required branch changes for this self-approval core slice. |\n\n## Progress\n- The previous BLOCKING finding is fixed: same approval actor vs PR author is now normalized and blocked in both prepare and resolve paths.\n- The previous WARNING is fixed: `prepare-self-approve` now has success-path CLI coverage for `should_run=true` and `head_sha`.\n- Rubrics review passes overall and records status-comment upsert plus broader workflow failure visibility as planned later-slice work from #170.\n- Minimized one outdated same-agent inline comment on `.github/workflows/agent-self-approve.yml` line 137; no new inline comments or replies were posted.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: No unresolved required branch changes remain for this PR’s scoped self-approval core work.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change action items.",
       "createdAt": "2026-05-09T00:29:21Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/180#issuecomment-4410768495",
       "viewerDidAuthor": true
@@ -326,6 +326,79 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/180#issuecomment-4417589950",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCHQ20Q",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review Check the latest wording change in 593b097",
+      "createdAt": "2026-05-13T03:08:34Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/180#issuecomment-4436801233",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCHRYGg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 86 | PARTIAL | 4 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Commit `593b097` changes only `.github/prompts/agent-self-approve.md`, replacing the evaluation-question wording without touching unrelated code or workflow behavior. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #180 links child issue #175 and parent plan #170; the wording still targets the PR 2 self-approval-core slice and asks whether the implementation matches issue/parent-plan scope. |\n| coding_workflow / generic | Prefer agent-derived decisions | partial | 5/7 | The prompt keeps the decision in the self-approval agent’s judgment layer, but the new wording drops the prior explicit checks for route authorization, trust boundaries, opt-in behavior, docs, and operational comments. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The change is a prompt-only clarification and does not introduce new config, workflow branches, or implementation complexity. |\n\n## Notes\n\n- The latest commit is mostly acceptable, but the wording quality should be cleaned up before relying on it as a high-stakes approval prompt.\n- Smallest useful follow-up: fix `Maintaince` to `Maintenance`, remove trailing spaces after `Code Quality:`, and restore explicit mention of authorization/trust-boundary/opt-in checks under the new dimensions.\n\n## Findings\n\n- **WARNING:** The new prompt weakens the explicit safety checklist for self-approval. The removed wording directly asked the agent to evaluate route authorization, trust boundaries, explicit opt-in behavior, visible comments, docs, and operational behavior; the replacement only says “automation safety expectations” earlier and then asks broader questions. For a privileged approval gate, keep those explicit safety dimensions in `.github/prompts/agent-self-approve.md`.\n- **INFO:** There is a typo in the new heading: `Maintaince and Bug Handling:` should be `Maintenance and Bug Handling:`.\n\n## Final Rubric Verdict\n\nPARTIAL",
+      "createdAt": "2026-05-13T03:10:19Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/180#issuecomment-4436809754",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCHTRgA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #180 implements the self-approval core slice from issue #175, which is part of the staged plan in parent issue #170.\n- The PR adds the opt-in `AGENT_ALLOW_SELF_APPROVE` gate, `agent-self-approve` prompt/workflow shell, structured verdict parsing, deterministic approval resolution, docs, and focused tests.\n- The latest requested review focuses on commit `593b097`, which changes only `.github/prompts/agent-self-approve.md`.\n- That wording change needs cleanup before the PR can return to ship-ready status.\n\n## Review\nThe core implementation had already resolved the previous approval-actor and prepare-output coverage findings, but the latest prompt wording commit introduced one verification failure and weakened the self-approval safety checklist. These are concrete, prompt-only branch changes suitable for a fix-pr pass.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Trailing whitespace breaks diff check | BLOCKING | `.github/prompts/agent-self-approve.md` lines 38-39 contain trailing spaces, and `git diff --check` fails on commit `593b097`. |\n| Self-approval safety criteria were weakened | WARNING | The new prompt wording drops the prior explicit checks for route authorization, trust boundaries, opt-in behavior, and maintainer-facing operational behavior. |\n| Prompt wording has quality nits | WARNING | The new `Code Quality` question conflicts with “not a duplicate low-level code review,” and `Maintaince` should be `Maintenance`. |\n\n## Progress\n- The earlier approval-author blocker is already fixed by deterministic approval-actor vs PR-author checks.\n- The earlier missing `prepare-self-approve` success-path coverage is already fixed.\n- Parent #170 intentionally keeps orchestration handoff, status upsert, and self-merge behavior in later stacked slices, so those are not required branch changes for PR #180.\n- Posted inline comments on `.github/prompts/agent-self-approve.md` lines 36 and 38; no replies, minimizations, or thread resolutions were made.\n\n## Issue Details\n<details>\n<summary>Trailing whitespace breaks diff check</summary>\n\n**Cause:** The latest prompt wording commit leaves trailing whitespace on `Code Quality:` and the following bullet. `git show --check 593b09769cb9bd50f01e374e56cd223f06efa641` reports both lines.\n\n**Candidate solutions:** Remove the trailing spaces and rerun `git diff --check`.\n\n**Comments:** Codex marked this blocking because the PR verification contract includes `git diff --check`.\n\n</details>\n\n<details>\n<summary>Self-approval safety criteria were weakened</summary>\n\n**Cause:** The previous prompt explicitly asked whether the implementation preserves route authorization, trust boundaries, and explicit opt-in behavior. The new dimensions only ask broader functionality/product-fit questions, which is weaker for a privileged approval gate.\n\n**Candidate solutions:** Restore explicit safety criteria, either as a dedicated safety dimension or as concrete bullets under Functionality. Include route authorization, trust boundaries, opt-in behavior, and visible maintainer-facing docs/operational behavior.\n\n**Comments:** Claude and the rubrics review both flagged this. Codex focused on the whitespace/typo issues, but there is no substantive reviewer disagreement on the safety regression.\n\n</details>\n\n<details>\n<summary>Prompt wording has quality nits</summary>\n\n**Cause:** The prompt says this is not a duplicate low-level review, then asks whether the code is “patched” and whether there are cleaner implementation choices. The heading `Maintaince and Bug Handling` also has a typo.\n\n**Candidate solutions:** Rephrase the quality question toward established workflow/helper patterns and safety-relevant maintainability, then fix `Maintaince` to `Maintenance`.\n\n**Comments:** Reviewers differed on severity for the typo alone, but the wording cleanup is small and belongs in the same prompt-only fix.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: The remaining work is a small, concrete edit to `.github/prompts/agent-self-approve.md` and is safe for automated correction.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Remove trailing whitespace from `.github/prompts/agent-self-approve.md` lines 38-39 so `git diff --check` passes.\n- [ ] Restore explicit self-approval safety checks for route authorization, trust boundaries, opt-in behavior, and maintainer-facing operational behavior.\n- [ ] Fix `Maintaince` to `Maintenance` and reword the low-level code-quality question so it does not contradict the prompt scope.",
+      "createdAt": "2026-05-13T03:16:17Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/180#issuecomment-4436840832",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCHXQVQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #180.\n\nno rubric changes\n\nI read PR #180’s metadata, issue comments, review comments, reviews, linked issue #175, parent issue #170, maintainer trust signals, and existing rubrics. The durable themes from the thread are already covered by active rubrics, and the remaining human comments were questions/nits from an author marked `CONTRIBUTOR`, without a trusted maintainer endorsement requiring a new reusable rubric.\n\nRubrics worktree is clean; no files changed.\n",
+      "createdAt": "2026-05-13T03:31:37Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/180#issuecomment-4436906069",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-09T00:03:08Z",
@@ -350,14 +423,20 @@
     },
     {
       "path": ".agent/docs/architecture/supported-workflows.md",
-      "additions": 18,
-      "deletions": 0,
+      "additions": 31,
+      "deletions": 6,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/docs/customization/configuration-list.md",
       "additions": 1,
       "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/agent-orchestrator.md",
+      "additions": 22,
+      "deletions": 15,
       "changeType": "MODIFIED"
     },
     {
@@ -368,8 +447,32 @@
     },
     {
       "path": ".agent/src/__tests__/envelope.test.ts",
-      "additions": 35,
-      "deletions": 3,
+      "additions": 49,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/handoff.test.ts",
+      "additions": 83,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrate-handoff-cli.test.ts",
+      "additions": 149,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrator-preflight-cli.test.ts",
+      "additions": 29,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/post-response-cli.test.ts",
+      "additions": 169,
+      "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
@@ -380,19 +483,43 @@
     },
     {
       "path": ".agent/src/__tests__/resolve-self-approve-cli.test.ts",
-      "additions": 146,
+      "additions": 240,
       "deletions": 0,
       "changeType": "ADDED"
     },
     {
       "path": ".agent/src/__tests__/self-approval.test.ts",
-      "additions": 295,
+      "additions": 312,
       "deletions": 0,
       "changeType": "ADDED"
     },
     {
+      "path": ".agent/src/__tests__/sub-orchestration.test.ts",
+      "additions": 12,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrate-handoff.ts",
+      "additions": 12,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrator-preflight.ts",
+      "additions": 6,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/post-response.ts",
+      "additions": 32,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
       "path": ".agent/src/cli/prepare-self-approve.ts",
-      "additions": 86,
+      "additions": 109,
       "deletions": 0,
       "changeType": "ADDED"
     },
@@ -410,21 +537,39 @@
     },
     {
       "path": ".agent/src/github.ts",
-      "additions": 71,
+      "additions": 120,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
+      "path": ".agent/src/handoff.ts",
+      "additions": 35,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/orchestrator-capabilities.ts",
+      "additions": 5,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
       "path": ".agent/src/run.ts",
-      "additions": 2,
+      "additions": 3,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/self-approval.ts",
-      "additions": 365,
+      "additions": 375,
       "deletions": 0,
       "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/sub-orchestration.ts",
+      "additions": 9,
+      "deletions": 0,
+      "changeType": "MODIFIED"
     },
     {
       "path": ".github/actions/run-agent-task/action.yml",
@@ -433,8 +578,14 @@
       "changeType": "MODIFIED"
     },
     {
+      "path": ".github/prompts/agent-orchestrator.md",
+      "additions": 12,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
       "path": ".github/prompts/agent-self-approve.md",
-      "additions": 52,
+      "additions": 55,
       "deletions": 0,
       "changeType": "ADDED"
     },
@@ -451,8 +602,20 @@
       "changeType": "MODIFIED"
     },
     {
+      "path": ".github/workflows/agent-orchestrator.yml",
+      "additions": 3,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-review.yml",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
       "path": ".github/workflows/agent-self-approve.yml",
-      "additions": 156,
+      "additions": 219,
       "deletions": 0,
       "changeType": "ADDED"
     }
@@ -466,7 +629,7 @@
       "color": "0e8a16"
     }
   ],
-  "mergedAt": null,
+  "mergedAt": "2026-05-13T03:29:59Z",
   "number": 180,
   "reviewDecision": "",
   "reviews": [
@@ -521,10 +684,40 @@
       "commit": {
         "oid": "e7d2724ff8e0615104db9c022a56fd5ebe0b9afc"
       }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM7-_Hbx",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-13T03:15:15Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "593b09769cb9bd50f01e374e56cd223f06efa641"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM7-_Him",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-13T03:15:23Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "593b09769cb9bd50f01e374e56cd223f06efa641"
+      }
     }
   ],
-  "state": "OPEN",
+  "state": "MERGED",
   "title": "Add opt-in self-approval core",
-  "updatedAt": "2026-05-11T04:28:54Z",
+  "updatedAt": "2026-05-13T03:31:38Z",
   "url": "https://github.com/self-evolving/repo/pull/180"
 }

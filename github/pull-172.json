@@ -256,8 +256,8 @@
       "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Uses existing typed helpers and flows: `fetchPrMeta`, `setOutput`, `formatReviewComment`, and review synthesis marker helpers instead of embedding metadata logic in workflow shell. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates `.agent/docs/architecture/supported-workflows.md` for reviewed-head capture, conditional marker stamping, and no-marker fallback. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Adds a dedicated `head_sha` output from `capture-pr-head.ts` and passes it as `REVIEWED_HEAD_SHA`; no overloaded string command/input is introduced. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Capture failures warn with `Reviewed head capture skipped` and emit an empty output; posting warns and omits provenance when the PR head changed or metadata cannot be read. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR matches issue #171’s PR 1 slice from parent #170: review provenance only, leaving self-approval route, resolver, orchestrator transitions, approval submission, and status-upsert polish for later slices. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is limited to review provenance plumbing, workflow DAG adjustments, focused tests, and one docs update. It does not expand into later self-approval work. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Implementation is direct: one small capture CLI, a hidden marker builder/parser, conditional head comparison before posting, and focused workflow output handoff. |\n\n## Notes\n\n- The PR satisfies the applicable rubrics cleanly: it stays inside the #170/#171 review-provenance slice, reuses existing `.agent/src` helpers, documents the behavior, and adds focused regression coverage.\n- The latest diff addresses earlier workflow coupling concerns by keeping reviewer execution non-cancelled on prepare failure and removing the unused `rubrics-review` dependency.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** Several selected rubrics are not scored because this PR does not implement delegated route authorization, follow-up orchestration policy, preview/dry-run behavior, merge flow, onboarding/status upserts, or documentation inventory changes.\n\n## Final Rubric Verdict\n\nPASS",
       "createdAt": "2026-05-08T23:42:35Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/172#issuecomment-4410616351",
       "viewerDidAuthor": true
@@ -271,8 +271,8 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #172 implements the review-provenance slice from parent issue #170 via child issue #171.\n- It captures the PR head before review lanes run, conditionally stamps synthesis comments only when that head is still current, and adds marker helpers, focused tests, and docs.\n- Follow-up fixes addressed the earlier test, workflow fallback, DAG coupling, and marker-prefix parser concerns.\n- The current head `adbb1dc7680384ed98e709c9f4ca201f1ec9bf89` stays scoped to provenance infrastructure and leaves self-approval authority for later slices.\n\n## Review\nThe current reviewer outputs converge on SHIP: no BLOCKING or WARNING findings remain. Only optional low-risk test polish was noted, and it does not require automation for this PR.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues | INFO | Current reviewers found no blocking or warning findings on the latest head. Optional coverage ideas remain, but they are not required for this provenance slice. |\n\n## Progress\n- Current GitHub `check` is passing.\n- Rubrics review scores 100/PASS and confirms the PR stays within the #170/#171 review-provenance scope.\n- Marked five resolved same-agent inline comments as outdated: [r3211828318](https://github.com/self-evolving/repo/pull/172#discussion_r3211828318), [r3211828320](https://github.com/self-evolving/repo/pull/172#discussion_r3211828320), [r3211858709](https://github.com/self-evolving/repo/pull/172#discussion_r3211858709), [r3211858710](https://github.com/self-evolving/repo/pull/172#discussion_r3211858710), and [r3211881145](https://github.com/self-evolving/repo/pull/172#discussion_r3211881145).\n- No new inline comments or replies were added.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved actionable branch-change work remains.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch changes.",
       "createdAt": "2026-05-08T23:45:58Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/172#issuecomment-4410626931",
       "viewerDidAuthor": true
@@ -350,13 +350,79 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/172#issuecomment-4432427771",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCHaI8w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 77 | FAIL | 11 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Make surgical changes | fail | 0/8 | Issue #171 explicitly says PR #172 should not add the self-approval route/workflow/core resolver or orchestrator transitions, but the live diff adds 45 files/2,792 insertions including `agent-self-approve.yml`, `self-approval.ts`, resolver/preflight CLIs, prompts, docs, and orchestrator wiring. |\n| coding_workflow / generic | Read docs and linked context first | fail | 1/6 | Parent #170 planned PR #1 as review provenance only and later PRs for self-approval core/orchestrator/polish; child #171 repeats that scope. The current PR includes those later slices anyway. |\n| coding_style / generic | Prefer simple implementations | partial | 3/7 | The reviewed-head implementation is direct, but the PR now combines provenance, self-approval workflow, resolver, orchestration, status upsert, docs, and broad tests in one branch, which is not the simple slice requested. |\n| coding_workflow / generic | Reuse existing code | pass | 7/8 | The implementation generally reuses typed helpers and modules: `fetchPrMeta`, `fetchIssueCommentRecords`, `upsertPrCommentByMarker`, `formatReviewComment`, and review synthesis helpers rather than embedding most logic in workflow shell. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Docs are updated across supported workflows, request lifecycle, configuration, action list, key concepts, and orchestrator behavior to describe reviewed-head and self-approval behavior. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Adds dedicated structured outputs/envs such as `reviewed_head_sha`, `REVIEWED_HEAD_SHA`, `SELF_APPROVE_EXPECTED_HEAD_SHA`, `EXPECTED_HEAD_SHA`, and parsed JSON verdict fields instead of overloading a single command string. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Review capture degrades visibly; self-approval preflight/resolution emits blocked/failed reasons and status bodies for missing metadata, stale heads, missing provenance, invalid agent JSON, and approval submission failure. |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | `orchestrator-capabilities.ts` includes `agent-self-approve` in delegated route capability checks only when self-approval is enabled, preserving downstream authorization context. |\n| coding_workflow / generic | Keep privileged workflows on trusted runtime code | pass | 8/8 | `agent-self-approve.yml` checks out `github.event.repository.default_branch` with `persist-credentials: false`, runs the agent with `approve-reads`, and leaves approval submission to deterministic resolver code. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Self-approval status comments use `SELF_APPROVAL_STATUS_MARKER` and `upsertPrCommentByMarker`, filtered to the authenticated Sepo actor, rather than creating duplicate status comments. |\n| communication / generic | Keep status comments compact | pass | 6/6 | `formatSelfApprovalBody` renders a short status/conclusion table plus reason, optional follow-up context, run URL, and hidden marker. |\n\n## Notes\n\n- The decisive issue is scope: the live PR no longer matches the child task. It implements substantial parts of the later #170 slices inside PR #172, despite #171 explicitly reserving them for separate stacked PRs.\n- The privileged-path implementation does satisfy several safety rubrics once considered on its own: trusted runtime checkout, read-only approval-agent execution, deterministic approval resolver, current-head provenance checks, idempotent status upsert, and delegated route authorization are all present.\n- Smallest useful follow-up: split or retarget this branch so PR #172 contains only the reviewed-head provenance changes requested by #171, and move the self-approval core/orchestrator/status work back into the later stacked PRs.\n\n## Findings\n\n- **BLOCKING:** Violates the `surgical-changes` must rubric. Child issue #171 says this PR should not add self-approval route/workflow/core resolver, orchestrator transitions, approval submission, or operational polish, but the live diff includes all of those categories.\n- **WARNING:** The PR description is now stale relative to the live diff; it describes review provenance, while the file list includes self-approval workflow and resolver behavior.\n\n## Final Rubric Verdict\n\nFAIL",
+      "createdAt": "2026-05-13T03:39:35Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/172#issuecomment-4436953331",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCHfaog",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #172 is linked to child issue #171, which is the review-provenance slice of parent issue #170.\n- The intended slice captures the reviewed PR head, stamps trusted review synthesis comments only when the head is unchanged, and adds marker parsing/tests/docs.\n- The live PR now also includes later self-approval workflow, resolver, orchestrator, prompt, status, docs, and test work that #171 explicitly excluded.\n- Because self-approval is a privileged approval path, the expanded diff also introduces a requester authorization gap that must be fixed before merge.\n\n## Review\nThis PR is not merge-ready. Reviewers disagreed on whether the expanded self-approval stack should be accepted here, but the linked child issue and current code show two blocking problems: scope drift and a self-approval requester bypass.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Self-approval does not block PR-author requesters | BLOCKING | The resolver checks only that the Sepo approval token actor differs from the PR author. A PR author who can trigger `workflow_dispatch` or an orchestrated handoff can still cause the Sepo app/PAT actor to approve their own PR. |\n| PR exceeds #171 provenance-only scope | BLOCKING | Issue #171 explicitly excludes self-approval route/workflow/resolver/orchestrator/status work, but the live diff includes those later slices. This violates the requested split and the surgical-change rubric. |\n| PR metadata is stale for the live diff | WARNING | The PR title/body still describe reviewed-head provenance only, while reviewers are now being asked to evaluate a broader privileged workflow. |\n\n## Progress\n- Prior provenance-thread issues are addressed on the current head, and I resolved five older same-agent inline threads covering prepare fallback, envelope tests, rubrics-review coupling, and marker regex drift.\n- Posted one new inline comment for the requester/PR-author self-approval bypass: https://github.com/self-evolving/repo/pull/172#discussion_r3231371600\n- No inline replies were added and no comments were minimized.\n- The existing PR conversation already explains why reviewed-head SHA provenance matters for self-approval and self-merge; that rationale still stands.\n\n## Issue Details\n<details>\n<summary>Self-approval does not block PR-author requesters</summary>\n\n**Cause:** `resolve-self-approve.ts` calls `evaluateSelfApprovalActor` with the authenticated approval actor and PR author, but it does not pass or check the initiating requester. In orchestrated runs, the authenticated actor can be Sepo while the original `requested_by` human is the PR author.\n\n**Candidate solutions:** Pass trusted requester context into preflight/resolution, using `GITHUB_ACTOR` for manual workflow runs and the orchestrator’s preserved original requester for handoffs. Block approval when either normalized requester or approval token actor matches the PR author, and add focused tests.\n\n**Comments:** Claude judged the self-approval architecture sound overall, but Codex flagged this specific requester/auth boundary. The code evidence supports treating it as blocking.\n\n</details>\n\n<details>\n<summary>PR exceeds #171 provenance-only scope</summary>\n\n**Cause:** #171 says not to add the self-approval route/workflow/core resolver, orchestrator transitions, approval submission, or status-upsert polish. The current PR adds files including `.github/workflows/agent-self-approve.yml`, `.agent/src/self-approval.ts`, `prepare-self-approve.ts`, `resolve-self-approve.ts`, `agent-self-approve.md`, and orchestration wiring/tests.\n\n**Candidate solutions:** Restore PR #172 to the provenance-only diff, or retarget/split the self-approval changes back into the later stacked PRs from #170.\n\n**Comments:** Reviewers disagreed on scope: one review treated provenance and self-approval as naturally coupled, while the rubrics review and Codex review applied the explicit #170/#171 split.\n\n</details>\n\n<details>\n<summary>PR metadata is stale for the live diff</summary>\n\n**Cause:** The title/body still describe only reviewed-head provenance and `Closes #171`, but the live file list includes full self-approval behavior.\n\n**Candidate solutions:** If maintainers intentionally want #172 to become the integration PR, update the title/body and linked issue context before further review. If the PR is restored to #171 scope, this warning goes away.\n\n**Comments:** This is secondary to the scope blocker and should not drive automation by itself.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the requester authorization guard and scope restoration are concrete branch changes suitable for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Block self-approval when the initiating requester or approval token actor matches the PR author, using trusted requester context and tests.\n- [ ] Restore PR #172 to the #171 provenance-only slice, or split/retarget the self-approval workflow/resolver/orchestrator changes into the later stack.",
+      "createdAt": "2026-05-13T03:51:05Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/172#issuecomment-4437039778",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-08T23:05:49Z",
   "files": [
     {
+      "path": ".agent/docs/actions/agent-actions.md",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/request-lifecycle.md",
+      "additions": 2,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/rubrics.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
       "path": ".agent/docs/architecture/supported-workflows.md",
-      "additions": 7,
+      "additions": 38,
+      "deletions": 7,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/agent-orchestrator.md",
+      "additions": 22,
+      "deletions": 15,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/key-concepts.md",
+      "additions": 2,
       "deletions": 1,
       "changeType": "MODIFIED"
     },
@@ -368,8 +434,26 @@
     },
     {
       "path": ".agent/src/__tests__/envelope.test.ts",
-      "additions": 49,
-      "deletions": 4,
+      "additions": 98,
+      "deletions": 8,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/handoff.test.ts",
+      "additions": 83,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrate-handoff-cli.test.ts",
+      "additions": 149,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrator-preflight-cli.test.ts",
+      "additions": 29,
+      "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
@@ -377,6 +461,24 @@
       "additions": 107,
       "deletions": 0,
       "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/post-response-cli.test.ts",
+      "additions": 169,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/prepare-self-approve-cli.test.ts",
+      "additions": 140,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/resolve-self-approve-cli.test.ts",
+      "additions": 240,
+      "deletions": 0,
+      "changeType": "ADDED"
     },
     {
       "path": ".agent/src/__tests__/response.test.ts",
@@ -391,14 +493,80 @@
       "changeType": "ADDED"
     },
     {
+      "path": ".agent/src/__tests__/self-approval.test.ts",
+      "additions": 312,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/sub-orchestration.test.ts",
+      "additions": 12,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
       "path": ".agent/src/cli/capture-pr-head.ts",
       "additions": 33,
       "deletions": 0,
       "changeType": "ADDED"
     },
     {
+      "path": ".agent/src/cli/orchestrate-handoff.ts",
+      "additions": 12,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrator-preflight.ts",
+      "additions": 6,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
       "path": ".agent/src/cli/post-comment.ts",
       "additions": 17,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/post-response.ts",
+      "additions": 32,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/prepare-self-approve.ts",
+      "additions": 109,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/resolve-self-approve.ts",
+      "additions": 177,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/envelope.ts",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/github.ts",
+      "additions": 120,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/handoff.ts",
+      "additions": 35,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/orchestrator-capabilities.ts",
+      "additions": 5,
       "deletions": 1,
       "changeType": "MODIFIED"
     },
@@ -415,8 +583,74 @@
       "changeType": "MODIFIED"
     },
     {
+      "path": ".agent/src/run.ts",
+      "additions": 3,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/self-approval.ts",
+      "additions": 375,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/sub-orchestration.ts",
+      "additions": 9,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/run-agent-task/action.yml",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-orchestrator.md",
+      "additions": 12,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-self-approve.md",
+      "additions": 55,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/prompts/rubrics-initialization.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/rubrics-update.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-orchestrator.yml",
+      "additions": 3,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
       "path": ".github/workflows/agent-review.yml",
-      "additions": 43,
+      "additions": 44,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-self-approve.yml",
+      "additions": 219,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "additions": 1,
       "deletions": 1,
       "changeType": "MODIFIED"
     }
@@ -508,10 +742,25 @@
       "commit": {
         "oid": "61d9fd8919fdc552fb82e3fb82541b83c800abb2"
       }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM7-_pEB",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-13T03:50:02Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "889dd5f7134fdd7eb20d6625d57f1c880496bfa5"
+      }
     }
   ],
   "state": "OPEN",
   "title": "Add reviewed-head provenance to review synthesis",
-  "updatedAt": "2026-05-12T16:02:14Z",
+  "updatedAt": "2026-05-13T03:51:16Z",
   "url": "https://github.com/self-evolving/repo/pull/172"
 }

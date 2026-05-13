@@ -1,0 +1,43 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "## Problem\n\nThe self-approval guard currently verifies that the authenticated approval actor is distinct from the pull request author, but it does not also verify that the initiating requester is distinct from the pull request author.\n\nThat leaves a policy gap for orchestrated or manually dispatched self-approval runs:\n\n1. A human opens a PR.\n2. The same human requests Sepo self-approval, directly or through an orchestrator handoff.\n3. The workflow submits approval using the Sepo app/PAT actor.\n4. The current same-author guard passes because the approval token actor differs from the PR author, even though the requesting human authored the PR.\n\nFor a privileged self-approval gate, the requester should also be treated as part of the approval authority boundary.\n\n## Desired behavior\n\nBlock self-approval when either of these normalized logins matches the PR author:\n\n- the authenticated approval token actor, or\n- the trusted initiating requester.\n\n## Suggested implementation\n\n- Preserve trusted requester context through self-approval:\n  - direct/manual `agent-self-approve.yml` runs should use `github.actor` when `requested_by` is not provided;\n  - orchestrator handoffs should continue forwarding the original `requested_by` value.\n- Pass the requester into self-approval preflight/resolution.\n- Extend the actor guard so it blocks when `requested_by` matches the PR author, with a clear status reason.\n- Add focused tests for:\n  - requester equals PR author -> blocked;\n  - approval actor equals PR author -> blocked;\n  - requester and approval actor both distinct from PR author -> existing approval path remains allowed.\n\n## Notes\n\nThis is a small follow-up to the self-approval safety boundary. The existing architecture still keeps the agent read-only and performs deterministic approval submission; this issue tightens who is allowed to initiate that deterministic approval.\n",
+  "closedAt": null,
+  "comments": [],
+  "createdAt": "2026-05-13T04:00:08Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDIDhw",
+      "name": "bug",
+      "description": "Something isn't working",
+      "color": "d73a4a"
+    },
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    },
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChVB4QQ",
+      "name": "priority/p1",
+      "description": "Project management: high priority",
+      "color": "d93f0b"
+    },
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChVB5Dg",
+      "name": "effort/low",
+      "description": "Project management: low effort",
+      "color": "c2e0c6"
+    }
+  ],
+  "number": 224,
+  "state": "OPEN",
+  "title": "Block self-approval when requester authored the PR",
+  "updatedAt": "2026-05-13T04:00:08Z",
+  "url": "https://github.com/self-evolving/repo/issues/224"
+}
