@@ -174,8 +174,21 @@ test("buildRequestedRouteDecision builds deterministic implement metadata withou
   // Explicit /implement is self-approval; the approval gate only applies to
   // triaged implement decisions.
   assert.equal(d.needsApproval, false);
-  assert.equal(d.issueTitle, "Implement requested change");
+  assert.equal(d.issueTitle, "Implement add a regression test for approval routing");
   assert.match(d.issueBody, /Original request/);
+});
+
+test("buildRequestedRouteDecision falls back to generic implement title without command detail", () => {
+  const d = buildRequestedRouteDecision("implement", "@sepo-agent /implement");
+  assert.equal(d.issueTitle, "Implement requested change");
+});
+
+test("buildRequestedRouteDecision derives implement title from PR command detail", () => {
+  const d = buildRequestedRouteDecision(
+    "implement",
+    "Please handle this.\n\n@sepo-agent /implement: add retry handling for webhook dispatch",
+  );
+  assert.equal(d.issueTitle, "Implement add retry handling for webhook dispatch");
 });
 
 test("buildRequestedRouteDecision builds deterministic review metadata", () => {

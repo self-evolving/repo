@@ -32,6 +32,7 @@ const EXPLICIT_ROUTE_COMMANDS = ["answer", "implement", "fix-pr", "review", "orc
 const LABEL_ROUTE_PREFIX = "agent/";
 const LABEL_SKILL_PREFIX = "agent/s/";
 const VALID_SKILL_LABEL = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+const DEFAULT_IMPLEMENT_ISSUE_TITLE = "Implement requested change";
 
 export interface RequestedLabelDecision {
   route: string;
@@ -41,6 +42,28 @@ export interface RequestedLabelDecision {
 export interface RequestedRouteDecision {
   route: string;
   skill: string;
+}
+
+function explicitRouteRequestDetail(route: string, requestText: string): string {
+  const sanitized = stripNonLiveMentions(String(requestText || ""));
+  const routeDetailRegex = new RegExp(
+    String.raw`(?:^|[\s(])/${escapeRegex(route)}(?=$|[\s.,;:!?)\]}])([\s\S]*)`,
+    "im",
+  );
+  const match = sanitized.match(routeDetailRegex);
+  if (!match) {
+    return "";
+  }
+
+  return match[1]
+    .replace(/^[\s.,;:!?)\]}-]+/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function explicitImplementIssueTitle(requestText: string): string {
+  const detail = explicitRouteRequestDetail("implement", requestText);
+  return detail ? `Implement ${detail}` : DEFAULT_IMPLEMENT_ISSUE_TITLE;
 }
 
 /**
@@ -110,7 +133,7 @@ export function buildRequestedRouteDecision(route: string, requestText: string):
       needsApproval: false,
       confidence: "high",
       summary: "I’ll start implementing this request.",
-      issueTitle: "Implement requested change",
+      issueTitle: explicitImplementIssueTitle(originalRequest),
       issueBody: [
         "## Goal",
         "Implement the requested change from the agent mention.",

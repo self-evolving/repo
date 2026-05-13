@@ -210,6 +210,7 @@ Explicit routes are:
 - `@sepo-agent /skill <name>`
 
 Explicit routes skip dispatch triage and resolve locally, but still go through the same route policy checks afterward.
+When an explicit `/implement` request on a pull request or discussion creates a tracking issue, the issue title is derived from the text after `/implement`; if the command has no detail, it falls back to `Implement requested change`.
 
 Mention-based skill requests normalize the skill name to lowercase and run `.skills/<name>/SKILL.md` inline through the same `skill` route used by `agent/s/<skill>` labels.
 
