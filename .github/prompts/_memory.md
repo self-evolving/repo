@@ -6,13 +6,14 @@ Layout:
 - `${MEMORY_DIR}/PROJECT.md` — slow-changing project context: goals, constraints, open questions
 - `${MEMORY_DIR}/MEMORY.md` — durable learned conventions and lessons
 - `${MEMORY_DIR}/daily/YYYY-MM-DD.md` — append-only daily bullets
-- `${MEMORY_DIR}/github/*.json` — a deterministic mirror of repo history (`issue-*.json`, `pull-*.json`, `discussion-*.json`)
+- `${MEMORY_DIR}/github/<owner>/<repo>/*.json` — a deterministic mirror of repo history (`issue-*.json`, `pull-*.json`, `discussion-*.json`)
 - These are the seeded anchor files, not an exhaustive schema; the memory tree may also contain additional agent-created notes when that helps organize durable context.
 
 Reading memory:
-- Treat `${MEMORY_DIR}` as the memory root. Pull context in this order: `PROJECT.md`, `MEMORY.md`, relevant `daily/YYYY-MM-DD.md` files, then `github/*.json` artifacts or `memory/search.js` results.
+- Treat `${MEMORY_DIR}` as the memory root. Pull context in this order: `PROJECT.md`, `MEMORY.md`, relevant `daily/YYYY-MM-DD.md` files, then `github/<owner>/<repo>/*.json` artifacts or `memory/search.js` results.
 - `daily/` is date-partitioned. Read the newest files first when you need recent activity or recent curation context.
-- `github/` is a flat, type-prefixed mirror. When you know the target number, go straight to the likely file: `github/issue-<n>.json`, `github/pull-<n>.json`, `github/discussion-<n>.json`, or related linked artifact numbers.
+- `github/` is a repo-namespaced, type-prefixed mirror. When you know the target repository and number, go straight to the likely file: `github/<owner>/<repo>/issue-<n>.json`, `github/<owner>/<repo>/pull-<n>.json`, `github/<owner>/<repo>/discussion-<n>.json`, or related linked artifact numbers.
+- Cite mirrored artifacts in notes with backlink-style paths such as `[[github/<owner>/<repo>/issue-<n>.json]]`.
 - Use `node .agent/dist/cli/memory/search.js --dir "${MEMORY_DIR}" "<query>"` for broader lookup across both markdown and JSON when the right file is not obvious.
 
 Writing memory:

@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -24,35 +24,62 @@ test("ensureMemoryStructure seeds README.md, PROJECT.md, MEMORY.md, and top-leve
   assert.equal(readFileSync(join(root, "MEMORY.md"), "utf8"), "");
   assert.ok(existsSync(join(root, "daily")));
   assert.ok(existsSync(join(root, "github")));
+  assert.ok(existsSync(join(root, "github", "owner", "repo")));
   assert.ok(existsSync(join(root, "daily", ".gitkeep")));
   assert.ok(existsSync(join(root, "github", ".gitkeep")));
+  assert.ok(existsSync(join(root, "github", "owner", "repo", ".gitkeep")));
   assert.ok(first.createdFiles.length >= 4);
 
-  // No per-type subdirectories — the flat layout encodes the type in the
-  // filename (issue-<n>.json, pull-<n>.json, etc).
-  assert.equal(existsSync(join(root, "github", "issues")), false);
-  assert.equal(existsSync(join(root, "github", "pulls")), false);
-  assert.equal(existsSync(join(root, "github", "discussions")), false);
-  assert.equal(existsSync(join(root, "github", "commits")), false);
+  // No per-type subdirectories — the repo namespace encodes ownership and the
+  // filename encodes the kind (issue-<n>.json, pull-<n>.json, etc).
+  assert.equal(existsSync(join(root, "github", "owner", "repo", "issues")), false);
+  assert.equal(existsSync(join(root, "github", "owner", "repo", "pulls")), false);
+  assert.equal(existsSync(join(root, "github", "owner", "repo", "discussions")), false);
+  assert.equal(existsSync(join(root, "github", "owner", "repo", "commits")), false);
 
   const second = ensureMemoryStructure(root, "owner/repo");
   assert.deepEqual(second.createdFiles, []);
+  assert.deepEqual(second.migratedFiles, []);
 });
 
-test("artifact paths are flat and type-prefixed", () => {
-  assert.equal(issueArtifactPath("/m", 5), "/m/github/issue-5.json");
-  assert.equal(pullRequestArtifactPath("/m", 7), "/m/github/pull-7.json");
-  assert.equal(discussionArtifactPath("/m", 42), "/m/github/discussion-42.json");
+test("artifact paths include the repository namespace and type-prefixed filename", () => {
+  assert.equal(issueArtifactPath("/m", "owner/repo", 5), "/m/github/owner/repo/issue-5.json");
+  assert.equal(pullRequestArtifactPath("/m", "owner/repo", 7), "/m/github/owner/repo/pull-7.json");
+  assert.equal(discussionArtifactPath("/m", "owner/repo", 42), "/m/github/owner/repo/discussion-42.json");
 });
 
 test("issue, pull, and discussion numbers never collide even if they share a counter", () => {
   // Same number, different kind — these must live in separate files.
   const paths = [
-    issueArtifactPath("/m", 42),
-    pullRequestArtifactPath("/m", 42),
-    discussionArtifactPath("/m", 42),
+    issueArtifactPath("/m", "owner/repo", 42),
+    pullRequestArtifactPath("/m", "owner/repo", 42),
+    discussionArtifactPath("/m", "owner/repo", 42),
   ];
   assert.equal(new Set(paths).size, 3);
+});
+
+test("ensureMemoryStructure migrates legacy flat github artifacts", () => {
+  const root = mkdtempSync(join(tmpdir(), "mem-artifacts-migrate-"));
+  mkdirSync(join(root, "github"), { recursive: true });
+  writeFileSync(
+    join(root, "github", "issue-5.json"),
+    JSON.stringify({ number: 5, url: "https://github.com/source/project/issues/5" }, null, 2) + "\n",
+  );
+  writeFileSync(
+    join(root, "github", "pull-7.json"),
+    JSON.stringify({ number: 7 }, null, 2) + "\n",
+  );
+
+  const result = ensureMemoryStructure(root, "owner/repo");
+
+  assert.equal(existsSync(join(root, "github", "issue-5.json")), false);
+  assert.equal(existsSync(join(root, "github", "pull-7.json")), false);
+  assert.ok(existsSync(join(root, "github", "source", "project", "issue-5.json")));
+  assert.ok(existsSync(join(root, "github", "owner", "repo", "pull-7.json")));
+  assert.deepEqual(result.migratedFiles.sort(), [
+    join(root, "github", "owner", "repo", "pull-7.json"),
+    join(root, "github", "source", "project", "issue-5.json"),
+  ].sort());
 });
 
 test("writeFileIfChanged only writes when content differs", () => {

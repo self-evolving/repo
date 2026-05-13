@@ -4,9 +4,9 @@ This is a scheduled maintenance run of repository memory. No specific user reque
 
 Instructions:
 1. Read recent activity. The sync workflow mirrors history under `${MEMORY_DIR}/github/`:
-   - `${MEMORY_DIR}/github/issue-*.json`
-   - `${MEMORY_DIR}/github/pull-*.json`
-   - `${MEMORY_DIR}/github/discussion-*.json`
+   - `${MEMORY_DIR}/github/<owner>/<repo>/issue-*.json`
+   - `${MEMORY_DIR}/github/<owner>/<repo>/pull-*.json`
+   - `${MEMORY_DIR}/github/<owner>/<repo>/discussion-*.json`
    For broader queries, use `node .agent/dist/cli/memory/search.js --dir "${MEMORY_DIR}" "<query>"`.
    If a mirrored issue/PR/discussion references parent issues, related PRs, or existing memory notes, read that linked context too before curating memory.
 2. Read recent daily logs: `${MEMORY_DIR}/daily/*.md` (focus on the last ~7 days).

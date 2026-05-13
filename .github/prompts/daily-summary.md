@@ -6,7 +6,7 @@ The request text includes the summary date, lookback window, and the absolute pa
 
 Read these signals first:
 - `github-sync.json` — sync counts and cursor metadata
-- `memory/github/*.json` — recently updated issues, pull requests, and discussions mirrored by the existing memory-sync code
+- `memory/github/<owner>/<repo>/*.json` — recently updated issues, pull requests, and discussions mirrored by the existing memory-sync code
 
 Instructions:
 1. If a signal file is missing or empty, treat that signal as unavailable.

@@ -5,6 +5,7 @@ import {
   MEMORY_SYNC_STATE_REF,
   MEMORY_SYNC_STATE_SCHEMA_VERSION,
   createMemorySyncState,
+  memorySyncStateForRepo,
   normalizeMemorySyncState,
   updateMemorySyncState,
 } from "../memory-sync-state.js";
@@ -55,4 +56,14 @@ test("normalizeMemorySyncState fills in missing cursor fields", () => {
   assert.equal(state!.last_activity_at, "");
   assert.equal(state!.cursors.issues, "x");
   assert.equal(state!.cursors.pulls, "");
+});
+
+test("memorySyncStateForRepo ignores copied state from another repository", () => {
+  const state = updateMemorySyncState(createMemorySyncState("source/repo"), {
+    last_sync_at: "2026-04-23T00:00:00Z",
+    cursors: { issues: "2026-04-22T00:00:00Z" },
+  });
+
+  assert.equal(memorySyncStateForRepo(state, "owner/repo"), null);
+  assert.equal(memorySyncStateForRepo(state, "source/repo"), state);
 });

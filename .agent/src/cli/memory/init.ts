@@ -88,6 +88,7 @@ export function runMemoryInitCli(
         repo: args.repo,
         memoryDir: rootDir,
         createdFiles: result.createdFiles,
+        migratedFiles: result.migratedFiles,
       },
       null,
       2,

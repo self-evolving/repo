@@ -127,6 +127,14 @@ export function normalizeMemorySyncState(raw: unknown): MemorySyncState | null {
   };
 }
 
+export function memorySyncStateForRepo(
+  state: MemorySyncState | null,
+  repoSlug: string,
+): MemorySyncState | null {
+  if (!state) return null;
+  return state.repo_slug === repoSlug ? state : null;
+}
+
 export function fetchMemorySyncState(
   cwd: string,
   opts?: PushOptions,

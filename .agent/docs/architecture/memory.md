@@ -11,22 +11,24 @@ Memory is separate from [user/team rubrics](./rubrics.md). Memory captures agent
 | `PROJECT.md` | Slow-changing project context: goals, constraints, open questions |
 | `MEMORY.md` | Durable learned conventions and lessons the agent should carry forward |
 | `daily/YYYY-MM-DD.md` | Append-only daily bullets composed by the agent |
-| `github/{issue,pull,discussion}-<id>.json` | Deterministic mirror of repo history, written by `agent-memory-sync.yml` |
+| `github/<owner>/<repo>/{issue,pull,discussion}-<id>.json` | Deterministic mirror of repo history, written by `agent-memory-sync.yml` |
 
 These are the seeded anchor files, not an exhaustive schema; the memory tree may also contain additional agent-created notes when that helps organize durable context.
 
-Markdown where humans curate (PROJECT / MEMORY / daily); raw `gh --json` output where the mirror just dumps. The flat `github/` layout uses a `<type>-<id>.json` filename so issue #42, PR #42, and discussion #42 never collide — GitHub shares the issue/PR counter, and discussions use their own.
+Markdown where humans curate (PROJECT / MEMORY / daily); raw `gh --json` output where the mirror just dumps. The `github/` layout is repo-namespaced so copied memory branches can retain old repo history while new syncs write into the current repo's namespace. Each namespace uses a `<type>-<id>.json` filename so issue #42, PR #42, and discussion #42 never collide — GitHub shares the issue/PR counter, and discussions use their own.
+
+Notes can cite mirrored artifacts with backlink-style paths, for example `[[github/self-evolving/repo/issue-238.json]]`.
 
 The mirror preserves exactly what `gh` returns so the agent can query with `jq`:
 
 ```bash
-jq '.comments[].body' "$MEMORY_DIR/github/issue-209.json"
-jq 'select(.state == "MERGED") | .title' "$MEMORY_DIR/github/pull-"*.json
+jq '.comments[].body' "$MEMORY_DIR/github/self-evolving/repo/issue-209.json"
+jq 'select(.state == "MERGED") | .title' "$MEMORY_DIR/github/self-evolving/repo/pull-"*.json
 ```
 
 `memory/search.js` already handles `.json` files, so tokenized text search still works on field values.
 
-Sync cursors for the mirror live in a separate ref, `refs/agent-memory-state/sync`, so cursor updates don't pollute the memory branch's commit history. This follows the same ref-backed state pattern used by session continuity thread state: operational cursor state stays off the human-facing memory branch.
+Sync cursors for the mirror live in a separate ref, `refs/agent-memory-state/sync`, so cursor updates don't pollute the memory branch's commit history. This follows the same ref-backed state pattern used by session continuity thread state: operational cursor state stays off the human-facing memory branch. The state records `repo_slug`; if a copied branch carries state for another repository, the read/write CLIs ignore it and start a fresh cursor for the current repo.
 
 ## Memory CLIs
 
@@ -70,7 +72,7 @@ File impact is intentionally narrow:
 
 - `add`, `replace`, and `remove` change exactly one file: `$MEMORY_DIR/MEMORY.md` or `$MEMORY_DIR/PROJECT.md`.
 - `daily-append` changes exactly one dated log: `$MEMORY_DIR/daily/YYYY-MM-DD.md`, creating it first when missing.
-- `memory/update.js` never mutates `github/*.json`; those files only change during the deterministic mirror sync.
+- `memory/update.js` never mutates `github/<owner>/<repo>/*.json`; those files only change during the deterministic mirror sync.
 - Agents may also edit repo-local memory files directly when they need a shape the CLI does not cover; the CLI is the safe default for simple bullet updates.
 
 ### `update.js` outcomes
@@ -92,7 +94,7 @@ Non-LLM support CLIs used by the scheduled workflows:
 | CLI | Purpose |
 |---|---|
 | `memory/bootstrap-branch.js` | Local helper that creates or updates a local `agent/memory` branch and seeds the memory tree |
-| `memory/sync-github-artifacts.js` | Mirrors issues, PRs, and discussions into `github/*.json` |
+| `memory/sync-github-artifacts.js` | Mirrors issues, PRs, and discussions into `github/<owner>/<repo>/*.json` |
 | `memory/read-sync-state.js` / `memory/write-sync-state.js` | Read and write cursors stored at `refs/agent-memory-state/sync` |
 | `memory/resolve-policy.js` | Internal to `run-agent-task`; resolves the effective memory mode per run |
 

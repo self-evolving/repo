@@ -453,7 +453,7 @@ export function runSyncGithubArtifactsCli(
   const [owner, repoName] = args.repo.split("/", 2) as [string, string];
 
   try {
-    ensureMemoryStructure(args.dir, args.repo);
+    const initResult = ensureMemoryStructure(args.dir, args.repo);
 
     // Issues + PRs come from one REST endpoint; the `pull_request` marker
     // distinguishes them.
@@ -476,7 +476,7 @@ export function runSyncGithubArtifactsCli(
       const data = ghJson<{ updatedAt?: string }>([
         "issue", "view", String(item.number), "--repo", args.repo, "--json", ISSUE_FIELDS,
       ]);
-      if (writeArtifact(issueArtifactPath(args.dir, item.number), data)) changed += 1;
+      if (writeArtifact(issueArtifactPath(args.dir, args.repo, item.number), data)) changed += 1;
       issueCursor = maxIso(issueCursor, item.updated_at || data.updatedAt);
       lastActivityAt = maxIso(lastActivityAt, item.updated_at || data.updatedAt);
     }
@@ -485,7 +485,7 @@ export function runSyncGithubArtifactsCli(
       const data = ghJson<{ updatedAt?: string }>([
         "pr", "view", String(item.number), "--repo", args.repo, "--json", PR_FIELDS,
       ]);
-      if (writeArtifact(pullRequestArtifactPath(args.dir, item.number), data)) changed += 1;
+      if (writeArtifact(pullRequestArtifactPath(args.dir, args.repo, item.number), data)) changed += 1;
       pullCursor = maxIso(pullCursor, item.updated_at || data.updatedAt);
       lastActivityAt = maxIso(lastActivityAt, item.updated_at || data.updatedAt);
     }
@@ -497,7 +497,7 @@ export function runSyncGithubArtifactsCli(
 
     for (const node of discussionNodes) {
       const detail = fetchDiscussionDetail(client, owner, repoName, node.number);
-      if (writeArtifact(discussionArtifactPath(args.dir, node.number), detail)) changed += 1;
+      if (writeArtifact(discussionArtifactPath(args.dir, args.repo, node.number), detail)) changed += 1;
       discussionCursor = maxIso(discussionCursor, node.updatedAt);
       lastActivityAt = maxIso(lastActivityAt, node.updatedAt);
     }
@@ -512,6 +512,7 @@ export function runSyncGithubArtifactsCli(
     setOutput("discussion_count", String(discussionNodes.length));
     setOutput("commit_count", "0");
     setOutput("changed_files", String(changed));
+    setOutput("migrated_files", String(initResult.migratedFiles.length));
     setOutput("last_activity_at", lastActivityAt);
     setOutput("issue_cursor", issueCursor);
     setOutput("pull_cursor", pullCursor);
@@ -529,6 +530,7 @@ export function runSyncGithubArtifactsCli(
           discussionCount: discussionNodes.length,
           commitCount: 0,
           changedFiles: changed,
+          migratedFiles: initResult.migratedFiles.length,
           cursors: {
             issues: issueCursor,
             pulls: pullCursor,

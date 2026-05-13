@@ -21,9 +21,9 @@ function makeTree(): string {
     join(root, "daily", "2026-04-01.md"),
     "# Daily log for 2026-04-01\n\n## Activity\n- merged PR #209 introducing memory sync cursors\n- discussed rubric scope for #51\n",
   );
-  mkdirSync(join(root, "github"), { recursive: true });
+  mkdirSync(join(root, "github", "self-evolving", "repo"), { recursive: true });
   writeFileSync(
-    join(root, "github", "pull-209.json"),
+    join(root, "github", "self-evolving", "repo", "pull-209.json"),
     JSON.stringify({
       number: 209,
       title: "Add agent memory search",
@@ -68,20 +68,20 @@ test("searchMemory respects --limit", () => {
 test("searchMemory prefers exact phrase and path matches in the JSON mirror", () => {
   const root = makeTree();
   const results = searchMemory("pull 209", { rootDir: root, limit: 5 });
-  assert.equal(results[0]!.path, "github/pull-209.json");
+  assert.equal(results[0]!.path, "github/self-evolving/repo/pull-209.json");
 });
 
 test("searchMemory keeps path-only matches even when content does not contain the query", () => {
   const root = mkdtempSync(join(tmpdir(), "mem-search-"));
-  mkdirSync(join(root, "github"), { recursive: true });
+  mkdirSync(join(root, "github", "self-evolving", "repo"), { recursive: true });
   writeFileSync(
-    join(root, "github", "pull-209.json"),
+    join(root, "github", "self-evolving", "repo", "pull-209.json"),
     JSON.stringify({ number: 209, kind: "pr" }, null, 2) + "\n",
   );
 
   const results = searchMemory("pull", { rootDir: root, limit: 5 });
   assert.equal(results.length, 1);
-  assert.equal(results[0]!.path, "github/pull-209.json");
+  assert.equal(results[0]!.path, "github/self-evolving/repo/pull-209.json");
   assert.equal(results[0]!.snippets[0]!.lineNumber, 0);
   assert.match(results[0]!.snippets[0]!.text, /number|matched by filename/);
 });

@@ -1,11 +1,11 @@
 // Memory branch layout helpers.
 //
 // The agent writes prose into PROJECT.md / MEMORY.md / daily/ through the
-// memory-update CLI. The deterministic sync mirror under github/ is dumped
-// as raw `gh --json` output — one JSON file per item, flat layout, type
-// encoded in the filename. No custom markdown rendering.
+// memory-update CLI. The deterministic sync mirror under github/<owner>/<repo>/
+// is dumped as raw `gh --json` output — one JSON file per item, type encoded
+// in the filename. No custom markdown rendering.
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 export const GITHUB_DIR = "github";
@@ -21,7 +21,8 @@ export const MEMORY_README = [
   "- `PROJECT.md` holds slow-changing project context: goals, constraints, and open questions.",
   "- `MEMORY.md` holds durable conventions and lessons the agent should carry forward.",
   "- `daily/YYYY-MM-DD.md` holds append-only daily activity bullets.",
-  "- `github/*.json` mirrors repository issues, pull requests, and discussions for lookup.",
+  "- `github/<owner>/<repo>/*.json` mirrors repository issues, pull requests, and discussions for lookup.",
+  "- Mirrored artifacts can be cited in notes as backlink-style paths, for example `[[github/<owner>/<repo>/issue-1.json]]`.",
   "",
   "These files are the starting structure. Agents may add other notes when that keeps durable context easier to use.",
   "",
@@ -36,7 +37,10 @@ export const MEMORY_README = [
 
 export interface EnsureMemoryStructureResult {
   createdFiles: string[];
+  migratedFiles: string[];
 }
+
+const LEGACY_ARTIFACT_RE = /^(?:issue|pull|discussion)-[0-9]+\.json$/;
 
 function ensureDirectory(path: string): void {
   mkdirSync(path, { recursive: true });
@@ -49,39 +53,105 @@ function ensureFile(path: string, content: string, createdFiles: string[]): void
   createdFiles.push(path);
 }
 
+function splitRepoSlug(repoSlug: string): [string, string] {
+  const parts = repoSlug.split("/");
+  if (
+    parts.length !== 2
+    || !parts[0]
+    || !parts[1]
+    || parts.some((part) => part === "." || part === ".." || part.includes("\\"))
+  ) {
+    throw new Error(`Invalid repository slug: ${repoSlug || "empty"}`);
+  }
+  return [parts[0], parts[1]];
+}
+
+function githubRepoSlugFromUrl(value: unknown): string | null {
+  if (typeof value !== "string" || !value) return null;
+  const match = /^https:\/\/github\.com\/([^/\s]+)\/([^/\s?#]+)(?:[/?#]|$)/i.exec(value);
+  if (!match) return null;
+  const slug = `${match[1]}/${match[2]}`;
+  try {
+    splitRepoSlug(slug);
+  } catch {
+    return null;
+  }
+  return slug;
+}
+
+function readArtifactRepoSlug(path: string): string | null {
+  try {
+    const record = JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
+    return githubRepoSlugFromUrl(record.url);
+  } catch {
+    return null;
+  }
+}
+
+function migrateLegacyGithubArtifacts(rootDir: string, repoSlug: string): string[] {
+  const githubDir = join(rootDir, GITHUB_DIR);
+  if (!existsSync(githubDir)) return [];
+
+  const migratedFiles: string[] = [];
+  for (const entry of readdirSync(githubDir, { withFileTypes: true })) {
+    if (!entry.isFile() || !LEGACY_ARTIFACT_RE.test(entry.name)) continue;
+
+    const source = join(githubDir, entry.name);
+    const targetRepoSlug = readArtifactRepoSlug(source) || repoSlug;
+    const target = join(githubArtifactDir(rootDir, targetRepoSlug), entry.name);
+    ensureDirectory(dirname(target));
+
+    if (existsSync(target)) {
+      unlinkSync(source);
+    } else {
+      renameSync(source, target);
+      migratedFiles.push(target);
+    }
+  }
+  return migratedFiles;
+}
+
 /**
  * Creates the memory branch layout and seeds README.md, PROJECT.md, and
  * MEMORY.md if missing. Idempotent.
  */
 export function ensureMemoryStructure(rootDir: string, repoSlug: string): EnsureMemoryStructureResult {
   const createdFiles: string[] = [];
+  splitRepoSlug(repoSlug);
 
   ensureDirectory(join(rootDir, DAILY_DIR));
   ensureDirectory(join(rootDir, GITHUB_DIR));
+  ensureDirectory(githubArtifactDir(rootDir, repoSlug));
   ensureFile(join(rootDir, DAILY_DIR, ".gitkeep"), "", createdFiles);
   ensureFile(join(rootDir, GITHUB_DIR, ".gitkeep"), "", createdFiles);
+  ensureFile(join(githubArtifactDir(rootDir, repoSlug), ".gitkeep"), "", createdFiles);
 
   ensureFile(join(rootDir, "PROJECT.md"), "", createdFiles);
   ensureFile(join(rootDir, "MEMORY.md"), "", createdFiles);
   ensureFile(join(rootDir, "README.md"), MEMORY_README, createdFiles);
 
-  return { createdFiles };
+  return { createdFiles, migratedFiles: migrateLegacyGithubArtifacts(rootDir, repoSlug) };
 }
 
-// Flat layout: type is encoded in the filename. No subdirectories, no
-// collision between issue #209 and PR #209 (GitHub shares the counter)
-// or between discussion #42 and issue #42 (separate counters).
+// Repo-aware layout: each repository gets its own namespace under github/.
+// Type is encoded in the filename, so issue #209, PR #209, and discussion #209
+// never collide inside the same repo namespace.
 
-export function issueArtifactPath(rootDir: string, number: number): string {
-  return join(rootDir, GITHUB_DIR, `issue-${number}.json`);
+export function githubArtifactDir(rootDir: string, repoSlug: string): string {
+  const [owner, repo] = splitRepoSlug(repoSlug);
+  return join(rootDir, GITHUB_DIR, owner, repo);
 }
 
-export function pullRequestArtifactPath(rootDir: string, number: number): string {
-  return join(rootDir, GITHUB_DIR, `pull-${number}.json`);
+export function issueArtifactPath(rootDir: string, repoSlug: string, number: number): string {
+  return join(githubArtifactDir(rootDir, repoSlug), `issue-${number}.json`);
 }
 
-export function discussionArtifactPath(rootDir: string, number: number): string {
-  return join(rootDir, GITHUB_DIR, `discussion-${number}.json`);
+export function pullRequestArtifactPath(rootDir: string, repoSlug: string, number: number): string {
+  return join(githubArtifactDir(rootDir, repoSlug), `pull-${number}.json`);
+}
+
+export function discussionArtifactPath(rootDir: string, repoSlug: string, number: number): string {
+  return join(githubArtifactDir(rootDir, repoSlug), `discussion-${number}.json`);
 }
 
 /**
