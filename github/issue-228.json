@@ -1,0 +1,99 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "When we add /implement route inside a PR, it will create a new PR titled as \"implement requested change\", which is not informative. \n\n@sepo-agent /answer can you fix it? ",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCH097g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes. The root cause is the explicit `/implement` path hard-codes `issueTitle: \"Implement requested change\"` in [`buildRequestedRouteDecision`](https://github.com/self-evolving/repo/blob/main/.agent/src/triage.ts#L103-L123). When `/implement` is used on a PR, [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L589-L616) creates a tracking issue from that metadata, and the later implementation PR inherits weak context.\n\nFix plan:\n- Derive the tracking issue title from the explicit `/implement` request text, e.g. `/implement add retry handling` -> `Implement add retry handling`.\n- Keep the existing generic fallback only when the request has no usable text.\n- Preserve the 70-character cap already enforced by [`create-issue.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/create-issue.ts#L13-L28).\n- Add regression coverage in [`triage.test.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/triage.test.ts#L168-L181) for PR-style explicit `/implement` metadata.\n\nBecause this request came through `/answer`, I’m staying in answer-only mode and not editing files in this run. Trigger `/implement` on this issue and I can make the code change.",
+      "createdAt": "2026-05-13T04:47:06Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/228#issuecomment-4437392878",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCH246g",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate fix it? ",
+      "createdAt": "2026-05-13T04:53:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/228#issuecomment-4437424362",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCH3SPg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | implement | Issue #228 | 2 / 40 | Dispatched |\n\nReason: agent planner selected implement: Issue #228 is a small, self-contained code/test change on the current issue; the user explicitly asked /orchestrate to fix it after an answer-only diagnosis.\n\n<!-- sepo-agent-handoff state:dispatched created:1778648060415 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU3NzkxMDQwNTk6b3JjaGVzdHJhdGU6MjI4OmltcGxlbWVudDoyMjg6Mg -->",
+      "createdAt": "2026-05-13T04:54:20Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/228#issuecomment-4437430846",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCH40-w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-228/codex-25779146548`\n- Pull request: https://github.com/self-evolving/repo/pull/232\n\nUpdated explicit `/implement` routing so tracking issues created from PR/discussion requests use the text after `/implement` for their issue title, while preserving the generic fallback. Added regression coverage and docs; verified with `npm --prefix .agent run build && node --test .agent/dist/__tests__/triage.test.js`.",
+      "createdAt": "2026-05-13T04:59:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/228#issuecomment-4437456123",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-13T04:45:10Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 228,
+  "state": "OPEN",
+  "title": "Better issue name for implement route inside a PR",
+  "updatedAt": "2026-05-13T04:59:02Z",
+  "url": "https://github.com/self-evolving/repo/issues/228"
+}

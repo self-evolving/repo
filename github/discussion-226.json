@@ -1,0 +1,38 @@
+{
+  "number": 226,
+  "title": "Orchestrator subtasks running in parallel",
+  "url": "https://github.com/self-evolving/repo/discussions/226",
+  "body": "Right now the orchestrator dispatched tasks can only run in sequence. How about enabling the orchestrator running tasks in parallel (related to the best of n execution in #225 ). What are the technical challenges for enabling that? \r\n\r\n@sepo-agent /answer",
+  "createdAt": "2026-05-13T04:43:26Z",
+  "updatedAt": "2026-05-13T04:45:58Z",
+  "author": {
+    "login": "lolipopshock"
+  },
+  "category": {
+    "name": "Ideas"
+  },
+  "comments": {
+    "nodes": [
+      {
+        "id": "DC_kwDOSOhEMM4BAd9E",
+        "body": "Yes, it is feasible, but it is more than changing a loop from sequential to parallel. The current orchestrator is deliberately built around a **single next action** invariant.\n\nConcrete places where that shows up:\n\n- The planner prompt says to “hand off to exactly one allowed next action” and returns one JSON object with one `decision` / `next_action` / `delegate_issue`: [.github/prompts/agent-orchestrator.md](https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-orchestrator.md#L3).\n- Runtime types encode one `HandoffDecision`, one `nextAction`, one target, and one optional child issue: [.agent/src/handoff.ts](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L22).\n- The dispatcher creates one dedupe marker, then dispatches exactly one workflow: review, implement, fix-pr, or child orchestrator: [.agent/src/cli/orchestrate-handoff.ts](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L1452) and [.agent/src/cli/orchestrate-handoff.ts](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L1530).\n- The docs explicitly model sequential child work and tell the planner to set `base_pr` to the prior child PR when continuing after an unmerged child PR: [.agent/docs/technical-details/agent-orchestrator.md](https://github.com/self-evolving/repo/blob/main/.agent/docs/technical-details/agent-orchestrator.md#L103).\n\nMain technical challenges:\n\n1. **Fan-out/fan-in state**\n   Today a child reports terminal state and immediately resumes the parent orchestrator: [.agent/src/cli/orchestrate-handoff.ts](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L987). Parallel subtasks need a batch state: `batch_id`, `lane_id`, expected children, terminal children, result summaries, and an aggregation state. Without that, the first child to finish could incorrectly resume the parent before the others complete.\n\n2. **Dedupe markers need a parallel shape**\n   Current handoff dedupe is one source run plus one next action plus one target plus one round: [.agent/src/handoff.ts](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L273). Parallel dispatch needs idempotency per lane and per batch, including stale-pending recovery. Otherwise reruns could either duplicate only some lanes or suppress lanes that still need dispatch.\n\n3. **Existing workflow concurrency serializes common targets**\n   `agent-implement.yml` has `concurrency.group: agent-implement-${{ inputs.issue_number }}`: [.github/workflows/agent-implement.yml](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-implement.yml#L123). `agent-fix-pr.yml` similarly serializes by PR number: [.github/workflows/agent-fix-pr.yml](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-fix-pr.yml#L107). So “best of n on the same issue” will not actually run in parallel unless we either create separate child issues, add a variant/lane dimension to concurrency, or add a dedicated variant workflow.\n\n4. **Branch and PR strategy**\n   Sequential orchestration can stack by passing `base_pr`; implementation resolves that to a same-repo PR head branch: [.agent/src/implementation-base.ts](https://github.com/self-evolving/repo/blob/main/.agent/src/implementation-base.ts#L73). Parallel work should usually avoid stacking unless there is a declared dependency. Independent lanes should branch from the same base, create separate PRs, then an aggregator chooses or combines. Parallel `fix-pr` on the same PR branch is much harder because both lanes would push to the same ref; the current fix-pr path uses expected-head / lease-style safeguards for a single writer: [.github/workflows/agent-fix-pr.yml](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-fix-pr.yml#L236).\n\n5. **Aggregation policy**\n   For best-of-n, the system needs a final evaluator: compare variant PRs, test status, diff size, review output, user constraints, and maybe close losing PRs. The review workflow already has a useful pattern: parallel reviewer lanes upload artifacts, then a single synthesize job consumes them and performs the write-side result: [.github/workflows/agent-review.yml](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-review.yml#L82) and [.github/workflows/agent-review.yml](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-review.yml#L203). Parallel orchestration should copy that fan-in pattern.\n\n6. **Round budget and cost controls**\n   `AGENT_AUTOMATION_MAX_ROUNDS` currently caps a chain length, not total spawned work: [.agent/docs/technical-details/agent-orchestrator.md](https://github.com/self-evolving/repo/blob/main/.agent/docs/technical-details/agent-orchestrator.md#L12). Parallel mode needs separate limits like max lanes, max active children, max total workflow minutes, and maybe max aggregate model spend.\n\n7. **Trust, recovery, and visible status**\n   Sub-orchestrator state is stored in trusted GitHub-visible markers: [.agent/src/sub-orchestration.ts](https://github.com/self-evolving/repo/blob/main/.agent/src/sub-orchestration.ts#L46). Parallel mode needs marker schema upgrades that preserve the same trust model while making batch progress understandable to users.\n\nRecommended path:\n\n1. Add an explicit orchestration mode, probably `parallel` or `best_of_n`, rather than changing default sequential behavior.\n2. Extend planner output to support a `fanout` array with lane IDs, task instructions, base policy, and dependency metadata.\n3. Add batch/child marker support: parent records all expected children before dispatching.\n4. Dispatch independent child issues or variant workflows with unique lane IDs.\n5. Change terminal child reporting so it updates batch state and only resumes the parent when all required lanes are terminal.\n6. Add an aggregator route/job that selects the best result, summarizes tradeoffs, and decides whether to continue, merge/stack, close losers, or ask a human.\n7. Keep same-PR `fix-pr` parallelism out of v1; start with independent implementation variants on separate child issues/PRs.\n\nSo the hardest part is not raw GitHub Actions parallelism. The hard part is preserving Sepo’s current safety properties: idempotent reruns, trusted markers, bounded automation, branch isolation, and a clear parent-visible final decision.",
+        "createdAt": "2026-05-13T04:45:58Z",
+        "url": "https://github.com/self-evolving/repo/discussions/226#discussioncomment-16899908",
+        "author": {
+          "login": "sepo-agent-app"
+        },
+        "replies": {
+          "nodes": [],
+          "pageInfo": {
+            "hasNextPage": false,
+            "endCursor": null
+          }
+        }
+      }
+    ],
+    "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": null
+    }
+  }
+}

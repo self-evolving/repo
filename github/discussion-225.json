@@ -1,0 +1,38 @@
+{
+  "number": 225,
+  "title": "Sub-mode for orchestrator",
+  "url": "https://github.com/self-evolving/repo/discussions/225",
+  "body": "1. For example, right now our orchestrator already has two modes? (but we intelligent it figure out given the route)\r\n    - Meta orchestrator mode: by default can be used to breakdown the task and then sequentially implement the tasks\r\n    - Task level orchestrator: it will create an issue, implement it, and then make an PR, etc. \r\n2. A more general design is to have the orchestrator take an optional argument and it can load the other modes of orchestration\r\n    - For example, best-of-n sampling, saying that the agents can implement different variants in parallel and there will be a final best aggregator choosing one based on each of the variant \r\n    - There could be one similar to the idea autoresearch (refer to #223 ) that supports iterative refinement \r\n    - Perhaps also looping \r\n\r\n@sepo-agent /answer what do you think?\r\n",
+  "createdAt": "2026-05-13T04:40:27Z",
+  "updatedAt": "2026-05-13T04:45:37Z",
+  "author": {
+    "login": "lolipopshock"
+  },
+  "category": {
+    "name": "Ideas"
+  },
+  "comments": {
+    "nodes": [
+      {
+        "id": "DC_kwDOSOhEMM4BAd9C",
+        "body": "I agree with the direction. I would frame this as **orchestration strategy**, not as another value of the existing `AGENT_AUTOMATION_MODE`.\n\nToday `AGENT_AUTOMATION_MODE` means “who decides the next handoff”: `heuristics` vs `agent` ([docs](https://github.com/self-evolving/repo/blob/main/.agent/docs/technical-details/agent-orchestrator.md#L5-L12), [code](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L3-L7)). The “meta orchestrator vs task-level orchestrator” distinction is currently inferred by planner output: `delegate_issue` for child/meta work, or `handoff -> implement/review/fix-pr` for normal task work ([prompt](https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-orchestrator.md#L30-L40), [runtime validation](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L496-L577)).\n\nSo I would add a separate optional field, something like:\n\n```text\n/orchestrate --strategy sequential\n/orchestrate --strategy meta-sequential\n/orchestrate --strategy best-of-n --n 4\n/orchestrate --strategy research-loop\n```\n\nInternally this should probably become a typed `orchestration_strategy` input to `agent-orchestrator.yml`, not just prompt text. The workflow already has the right envelope shape for adding this kind of input ([workflow inputs](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-orchestrator.yml#L5-L72)), and handoffs already preserve structured context like `source_handoff_context`, `base_branch`, and `base_pr` ([dispatch envelope](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/dispatch-agent-orchestrator.ts#L59-L78)).\n\nThe design I would use:\n\n- Keep `AGENT_AUTOMATION_MODE = heuristics | agent` as the planner backend.\n- Add `orchestration_strategy = sequential | meta-sequential | best-of-n | research-loop | loop`.\n- Each strategy defines:\n  - allowed planner decisions;\n  - state schema;\n  - resume/reducer behavior;\n  - concurrency limits;\n  - budget/stop rules;\n  - how child work is represented in GitHub.\n\nFor example:\n\n- `sequential`: current default bounded `implement -> review -> fix-pr -> review`.\n- `meta-sequential`: current `delegate_issue` child issue model, with optional stacking via `base_pr` ([docs](https://github.com/self-evolving/repo/blob/main/.agent/docs/technical-details/agent-orchestrator.md#L86-L107)).\n- `best-of-n`: create N independent child issues/branches, run them in parallel, then a deterministic aggregator/reviewer picks one candidate to promote.\n- `research-loop`: use the experiment object from #223: run trial, parse metric, update ledger, replan next trial.\n- `loop`: a generic bounded recurrence over a strategy-specific state object.\n\nThe important part: **parallel and iterative strategies need reducers, not just more planner freedom**. `best-of-n` needs a deterministic “variant result -> winner” reducer. `research-loop` needs deterministic metric parsing and best-score comparison. The LLM can propose next variants, but code should own winner selection, budget exhaustion, dedupe, and state transitions.\n\nImplementation plan I would recommend:\n\n1. Add `orchestration_strategy` parsing to the router/orchestrator workflow inputs.\n2. Add a small strategy registry, initially mapping `sequential` to today’s behavior.\n3. Move the current planner contract behind the default `sequential` strategy.\n4. Add `meta-sequential` as an explicit alias for today’s `delegate_issue` behavior.\n5. Add state markers for strategy metadata so resumes know which strategy they are continuing.\n6. Implement `best-of-n` next, because it mostly extends existing child issue/sub-orchestrator machinery.\n7. Implement `research-loop` after the experiment state/runner work from #223 exists.\n\nI would not start by making the orchestrator prompt “smarter” and asking it to infer all of this from prose. The runtime already validates planner output against a small policy surface ([handoff validation](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L603-L615)); strategy selection should extend that policy surface explicitly.\n\nMy suggested first PR would be: **add `orchestration_strategy` with `sequential` as the default and `meta-sequential` as an explicit alias/documented mode, without changing behavior yet**. That gives us the stable API before adding `best-of-n` or `research-loop`.",
+        "createdAt": "2026-05-13T04:45:36Z",
+        "url": "https://github.com/self-evolving/repo/discussions/225#discussioncomment-16899906",
+        "author": {
+          "login": "sepo-agent-app"
+        },
+        "replies": {
+          "nodes": [],
+          "pageInfo": {
+            "hasNextPage": false,
+            "endCursor": null
+          }
+        }
+      }
+    ],
+    "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": null
+    }
+  }
+}

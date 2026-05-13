@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "1. For example, claude code may support enterprise version (api key based)? \n2. Also codex support other variants like azure api key etc? \n\nCan you do a proper search and then\n1. list all the different environment setup support for claude code / codex apps \n2. we can try update the https://github.com/self-evolving/repo/blob/main/.github/actions/resolve-agent-provider/resolve-provider.sh script ?\n\n@sepo-agent /answer ",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCH6Rag",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I checked #233 and did not find a linked parent/tracking issue or comments.\n\nFor this `/answer` run I’m staying in plan-only mode. Short version: yes, Sepo should support more credential shapes, but updating only [`resolve-provider.sh`](https://github.com/self-evolving/repo/blob/main/.github/actions/resolve-agent-provider/resolve-provider.sh#L39-L45) is not enough. The workflow also needs to pass those secrets into the runtime via [`resolve-agent-provider/action.yml`](https://github.com/self-evolving/repo/blob/main/.github/actions/resolve-agent-provider/action.yml#L16-L23), [`run-agent-task/action.yml`](https://github.com/self-evolving/repo/blob/main/.github/actions/run-agent-task/action.yml#L294-L302), and [`run.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/run.ts#L256-L273).\n\n**Current Sepo Behavior**\n\n- Auto-detects Codex only from `OPENAI_API_KEY`.\n- Auto-detects Claude only from `CLAUDE_CODE_OAUTH_TOKEN`.\n- Explicit `AGENT_DEFAULT_PROVIDER=codex|claude` already works without matching repo secrets, mainly for self-hosted runners with local auth.\n- Runtime only forwards `OPENAI_API_KEY` and `CLAUDE_CODE_OAUTH_TOKEN` to the agent process.\n\n**Claude Code Supported Auth/Env Setups**\n\nBased on current official Claude Code docs:\n\n- Claude.ai subscription auth: `/login` for Pro, Max, Team, Enterprise.\n- CI subscription auth: `CLAUDE_CODE_OAUTH_TOKEN`, generated via `claude setup-token`.\n- Direct Anthropic API key: `ANTHROPIC_API_KEY`.\n- Bearer/proxy auth: `ANTHROPIC_AUTH_TOKEN`.\n- Dynamic credentials: `apiKeyHelper` plus optional `CLAUDE_CODE_API_KEY_HELPER_TTL_MS`.\n- Enterprise/team managed settings: managed `settings.json`/policy layers, including server-managed and OS/MDM/file-based managed settings.\n- Amazon Bedrock: `CLAUDE_CODE_USE_BEDROCK=1`, `AWS_REGION`, AWS SDK credential chain or `AWS_BEARER_TOKEN_BEDROCK`.\n- Claude Platform on AWS: `CLAUDE_CODE_USE_ANTHROPIC_AWS=1`, `ANTHROPIC_AWS_WORKSPACE_ID`, `AWS_REGION`, plus AWS credentials or `ANTHROPIC_AWS_API_KEY`.\n- Google Vertex AI: `CLAUDE_CODE_USE_VERTEX=1`, `CLOUD_ML_REGION`, `ANTHROPIC_VERTEX_PROJECT_ID`, plus ADC / `GOOGLE_APPLICATION_CREDENTIALS`.\n- Microsoft Foundry/Azure: `CLAUDE_CODE_USE_FOUNDRY=1`, `ANTHROPIC_FOUNDRY_RESOURCE` or `ANTHROPIC_FOUNDRY_BASE_URL`, plus `ANTHROPIC_FOUNDRY_API_KEY` or Azure default credentials.\n- LLM gateways/proxies: `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN` or `ANTHROPIC_API_KEY`, optional `ANTHROPIC_CUSTOM_HEADERS`, gateway model discovery flags.\n\nSources: [Claude auth](https://code.claude.com/docs/en/authentication), [Claude env vars](https://code.claude.com/docs/en/env-vars), [Bedrock](https://code.claude.com/docs/en/amazon-bedrock), [Claude Platform on AWS](https://code.claude.com/docs/en/claude-platform-on-aws), [Vertex](https://code.claude.com/docs/en/google-vertex-ai), [Foundry](https://code.claude.com/docs/en/microsoft-foundry), [LLM gateway](https://code.claude.com/docs/en/llm-gateway).\n\n**Codex Supported Auth/Env Setups**\n\nBased on current official Codex docs:\n\n- ChatGPT account auth: `codex login`, including Plus, Pro, Business, Edu, Enterprise plans.\n- CI/API-key auth: official non-interactive docs now call out `CODEX_API_KEY` for `codex exec`; Sepo currently uses `OPENAI_API_KEY`, so I would support both for compatibility.\n- Codex GitHub Action: uses an `openai-api-key` input backed by a secret such as `OPENAI_API_KEY`.\n- Custom/OpenAI-compatible providers: `~/.codex/config.toml` or project `.codex/config.toml` with `[model_providers.<id>]`, `base_url`, `env_key`, `wire_api`, headers, or command-backed auth.\n- Azure OpenAI: Codex supports an Azure provider config using `env_key = \"AZURE_OPENAI_API_KEY\"`, Azure base URL, `api-version` query param, and `wire_api = \"responses\"`. Important: `AZURE_OPENAI_API_KEY` alone is not enough; Codex still needs provider config.\n- Built-in Amazon Bedrock provider: `model_provider = \"amazon-bedrock\"` plus AWS profile/region/credential chain.\n- Data residency / proxy: `openai_base_url` for the built-in OpenAI provider, or a custom provider for gateways.\n- Local OSS mode: Ollama / LM Studio via `--oss` and config.\n\nSources: [Codex non-interactive auth](https://developers.openai.com/codex/noninteractive), [Codex config/custom providers](https://developers.openai.com/codex/config-advanced), [Codex GitHub Action](https://developers.openai.com/codex/github-action), [Codex repo README](https://github.com/openai/codex).\n\n**Recommended Implementation**\n\n1. Keep provider choices as `auto|codex|claude`; do not split into `claude-bedrock`, `codex-azure`, etc. Those are credential/config variants of the same CLI providers.\n2. Add fixed, explicit inputs to `resolve-agent-provider` for known readiness signals:\n   - Codex: `codex_api_key`, `openai_api_key`, `azure_openai_api_key`.\n   - Claude: `claude_oauth_token`, `anthropic_api_key`, `anthropic_auth_token`, `anthropic_aws_api_key`, `aws_bearer_token_bedrock`, `anthropic_foundry_api_key`, plus provider activation/config vars where needed.\n3. Update `resolve-provider.sh` so `auto` considers these additional signals, while keeping Codex-first behavior when both are configured.\n4. Update `run-agent-task` and `run.ts` to forward the same fixed env vars to `acpx`.\n5. Update workflow call sites to wire repo secrets explicitly. Do not pass arbitrary secrets wholesale.\n6. Update docs and onboarding output so setup no longer says only `OPENAI_API_KEY` / `CLAUDE_CODE_OAUTH_TOKEN`.\n7. Add resolver tests for:\n   - `CODEX_API_KEY` / `OPENAI_API_KEY`\n   - `AZURE_OPENAI_API_KEY` with Codex\n   - `ANTHROPIC_API_KEY`\n   - `ANTHROPIC_AUTH_TOKEN`\n   - `CLAUDE_CODE_OAUTH_TOKEN`\n   - Bedrock / Foundry / AWS workspace API-key cases\n   - deterministic Codex-first tie behavior\n\nOne design question before coding: should Sepo only detect/pass these env vars and assume provider-specific config already exists, or should Sepo also generate `.codex/config.toml` / Claude settings for cases like Azure OpenAI and gateways? My recommendation for the first PR is detection + fixed env forwarding + docs, leaving config generation for a separate issue because it has more policy/security surface.",
+      "createdAt": "2026-05-13T05:03:31Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/233#issuecomment-4437479786",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-13T04:59:46Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 233,
+  "state": "OPEN",
+  "title": "More flexible api key setups for codex and claude",
+  "updatedAt": "2026-05-13T05:03:31Z",
+  "url": "https://github.com/self-evolving/repo/issues/233"
+}

@@ -1,0 +1,38 @@
+{
+  "number": 230,
+  "title": "Can one sepo be the meta orchestrator for multiple repos?",
+  "url": "https://github.com/self-evolving/repo/discussions/230",
+  "body": "1. Technical issue: how to connect one sepo to multiple github repos? \r\n2. Why is it useful? coordinate multiple coding tasks. \r\n3. Also when we have github project support, a github project can be linked to multiple repos? \r\n\r\n@sepo-agent /answer ",
+  "createdAt": "2026-05-13T04:52:30Z",
+  "updatedAt": "2026-05-13T04:55:11Z",
+  "author": {
+    "login": "lolipopshock"
+  },
+  "category": {
+    "name": "Ideas"
+  },
+  "comments": {
+    "nodes": [
+      {
+        "id": "DC_kwDOSOhEMM4BAd-F",
+        "body": "Short answer: **yes as a product direction, but not as a single built-in mode yet**. Today Sepo is intentionally repository-scoped: triggers run in the current repo, workflows use `${{ github.repository }}`, memory/rubrics live on repo-owned branches, and orchestrator handoffs dispatch same-repo workflows.\n\nEvidence in the current code/docs:\n\n- Sepo is described as a repo-native agent that runs in GitHub Actions and keeps context in repository-owned branches: [`README.md#L3-L5`](https://github.com/self-evolving/repo/blob/main/README.md#L3-L5), [`README.md#L58-L74`](https://github.com/self-evolving/repo/blob/main/README.md#L58-L74).\n- Installing into another repo currently means copying `.agent/` and `.github/` into that target repo and bootstrapping that repo’s own memory: [`.agent/docs/deployment/install-existing-repository.md#L5-L18`](https://github.com/self-evolving/repo/blob/main/.agent/docs/deployment/install-existing-repository.md#L5-L18), [`.agent/docs/deployment/install-existing-repository.md#L53-L67`](https://github.com/self-evolving/repo/blob/main/.agent/docs/deployment/install-existing-repository.md#L53-L67).\n- The current orchestrator dispatches built-in next actions for the current issue/PR chain: [`.agent/docs/technical-details/agent-orchestrator.md#L44-L60`](https://github.com/self-evolving/repo/blob/main/.agent/docs/technical-details/agent-orchestrator.md#L44-L60).\n- Dispatch CLIs read `GITHUB_REPOSITORY` and dispatch workflows in that repo: [`.agent/src/cli/dispatch-agent-orchestrator.ts#L45-L60`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/dispatch-agent-orchestrator.ts#L45-L60), [`.agent/src/cli/dispatch-agent-implement.ts#L10-L29`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/dispatch-agent-implement.ts#L10-L29).\n- Thread state already includes `owner/repo` in the key format, which is a useful primitive for multi-repo orchestration: [`.agent/src/thread-state.ts#L239-L257`](https://github.com/self-evolving/repo/blob/main/.agent/src/thread-state.ts#L239-L257).\n\nRecommended architecture: **hub-and-spoke Sepo**.\n\n1. Pick one “hub” repo where the meta-orchestrator lives.\n2. Install the same GitHub App on every target repo, or use a self-managed App/PAT with access to those repos. The existing auth model already supports GitHub App, hosted OIDC broker, PAT, and fallback token paths: [`.agent/docs/deployment/setup-guide.md#L5-L22`](https://github.com/self-evolving/repo/blob/main/.agent/docs/deployment/setup-guide.md#L5-L22).\n3. Keep target repos repo-local: each target should have Sepo workflows, memory, and rubrics. The hub should dispatch target repo workflows rather than directly editing every repo from one checkout.\n4. Add a small registry in the hub, for example `.agent/orchestration/repos.yml`, listing allowed repos, default branches, labels/project mappings, and permitted routes.\n5. Extend dispatch/handoff code to carry `target_repo` separately from the hub repo, then call `POST /repos/{owner}/{repo}/actions/workflows/{workflow}/dispatches` for the selected target repo. The helper already supports dispatching to an arbitrary repo string internally: [`.agent/src/github.ts#L318-L370`](https://github.com/self-evolving/repo/blob/main/.agent/src/github.ts#L318-L370).\n6. Add cross-repo parent/child state: parent issue/project item in the hub, child issues/PRs in target repos, with durable markers linking `hub issue -> target repo issue/PR -> result`.\n7. Make authorization explicit: only configured repos/routes can be orchestrated, and requester permissions should be checked against the target repo before dispatch.\n\nWhy this is useful:\n\n- Coordinating frontend/backend/infrastructure changes without forcing a monorepo.\n- Creating dependency-aware work plans: e.g. API contract PR first, SDK update second, app integration third.\n- Running review/fix loops per repo while the hub tracks overall progress.\n- Keeping per-repo secrets, Actions permissions, memory, and audit logs local to each codebase.\n- Letting a central project board represent product work while implementation stays in the right repository.\n\nOn GitHub Projects: **yes, a GitHub Project can span multiple repositories**. GitHub docs say Projects can include issues and PRs from any organization, and can add items from a selected repository; Projects can also be linked to repositories owned by the same user/org. See GitHub’s docs on adding items to projects and linking projects to repositories:\n- https://docs.github.com/en/issues/planning-and-tracking-with-projects/managing-items-in-your-project/adding-items-to-your-project\n- https://docs.github.com/en/issues/planning-and-tracking-with-projects/learning-about-projects/best-practices-for-projects\n- `gh project link` also links a project to a repository or team: https://cli.github.com/manual/gh_project_link\n\nImportant current limitation: Sepo’s current `agent-project-manager.yml` is **not GitHub Projects v2 sync yet**. It is repo-scoped and label-first: it assesses open issues/PRs and applies `priority/*` and `effort/*` labels, not Project fields/items. See [`.github/workflows/agent-project-manager.yml#L161-L203`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-project-manager.yml#L161-L203) and [`.github/prompts/project-manager.md#L41-L52`](https://github.com/self-evolving/repo/blob/main/.github/prompts/project-manager.md#L41-L52).\n\nSuggested execution plan before coding:\n\n1. Add a design doc for “multi-repo orchestration” covering hub/spoke model, auth, state markers, and GitHub Project integration.\n2. Add repo registry config and validation.\n3. Extend dispatch inputs with `target_repo`, while preserving same-repo defaults.\n4. Add target-repo permission checks and tests.\n5. Add cross-repo child issue/PR markers.\n6. Add GitHub Projects v2 support as a signal layer first: read project items, map item repo/issue/PR, update status/priority fields.\n7. Then let `/orchestrate` choose work across repos from a hub issue or project item.\n\nI would treat this as a larger feature, not a small patch: first implement **cross-repo workflow dispatch + state tracking**, then add **GitHub Projects v2 as the planning surface**.",
+        "createdAt": "2026-05-13T04:55:11Z",
+        "url": "https://github.com/self-evolving/repo/discussions/230#discussioncomment-16899973",
+        "author": {
+          "login": "sepo-agent-app"
+        },
+        "replies": {
+          "nodes": [],
+          "pageInfo": {
+            "hasNextPage": false,
+            "endCursor": null
+          }
+        }
+      }
+    ],
+    "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": null
+    }
+  }
+}

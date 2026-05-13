@@ -1,0 +1,100 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "1. It cannot directly launch a new PR inside an existing PR (inside PR, it cannot be dispatched to implement) \n2. Inside discussion, it cannot dispatch implement ",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCH0Cfg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer can you double check ",
+      "createdAt": "2026-05-13T04:44:31Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/227#issuecomment-4437377662",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCH1HDQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Double checked current `main`.\n\n- **Discussion `/implement` is supported.** Discussion and discussion-comment events are routed, non-issue targets create a tracking issue, then dispatch `agent-implement.yml`, and the router posts a link-back to the original discussion. See [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L589-L645) and discussion context mapping in [`context.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/context.ts#L219-L230).\n- **PR `/implement` is also supported for dispatch**, including PR comments/review comments, because PR surfaces map to `target_kind: pull_request` and follow the same “create tracking issue then dispatch implement” path. See [`context.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/context.ts#L162-L202).\n\nNuance: **it does not automatically create a stacked PR on top of the current PR.** `agent-implement.yml` supports `base_pr`, but the router’s explicit `/implement` path does not pass the current PR as `BASE_PR`; it dispatches with only the created/current issue number and defaults the implementation base later. So the real remaining gap is: “`/implement` from a PR should optionally/automatically stack on that PR,” not “PR/discussion cannot dispatch implement.”\n\nI also ran the relevant build/tests locally: `cd .agent && npm run build && node --test ...` passed, `133/133`.",
+      "createdAt": "2026-05-13T04:47:33Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/227#issuecomment-4437395213",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCH3BzQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer sure but I meant using orchestrator to launch the current main? ",
+      "createdAt": "2026-05-13T04:53:30Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/227#issuecomment-4437426637",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCH3hAA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, if you mean “have the orchestrator start work from the current default branch/main,” that is how the orchestration path is wired.\n\nCurrent behavior:\n\n- `/orchestrate` dispatches `agent-orchestrator.yml` on `github.event.repository.default_branch`, not on a PR head. See the router dispatch setup: [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L682-L701).\n- The orchestrator workflow itself checks out the default branch: [`agent-orchestrator.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-orchestrator.yml#L70-L74).\n- If orchestration dispatches `implement`, it passes through `base_branch` / `base_pr` only when provided; otherwise `agent-implement.yml` resolves the implementation base to the default branch/main. See [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L1547-L1555) and [`agent-implement.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-implement.yml#L171-L179).\n\nImportant limitation: manual `/orchestrate` only launches `implement` from **issues**. On **PRs**, manual orchestration currently chooses `review` or `fix-pr`, not `implement`: [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L1269-L1309). Discussions are not valid orchestrator targets today.\n\nSo the corrected read is:\n\n- **Issue + `/orchestrate`**: yes, can launch implementation from current main.\n- **PR + `/orchestrate`**: no, it routes to review/fix-pr, not a new implement PR from main.\n- **Discussion + `/orchestrate`**: unsupported today.\n- **PR/discussion + explicit `/implement`**: creates a tracking issue and dispatches implement, defaulting to main unless a base is explicitly passed.",
+      "createdAt": "2026-05-13T04:55:10Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/227#issuecomment-4437434624",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-13T04:44:24Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 227,
+  "state": "OPEN",
+  "title": "Orchestrator small bugs:",
+  "updatedAt": "2026-05-13T04:55:10Z",
+  "url": "https://github.com/self-evolving/repo/issues/227"
+}

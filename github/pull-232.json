@@ -1,0 +1,376 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Derive explicit `/implement` tracking issue titles from the command detail.\n- Keep `Implement requested change` as the fallback when no detail is provided.\n- Document the behavior and add triage regression coverage.\n\n## Tests\n- `npm --prefix .agent run build && node --test .agent/dist/__tests__/triage.test.js`\n\nCloses #228\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCH5Fdg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #232 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: Implementation succeeded and opened PR #232 for issue #228; the next useful automated step is review before any further fixes or human merge decision.\n\n<!-- sepo-agent-handoff state:dispatched created:1778648389894 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU3NzkxNDY1NDg6aW1wbGVtZW50OjIyODpyZXZpZXc6MjMyOjM -->",
+      "createdAt": "2026-05-13T04:59:50Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4437460342",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCH5huw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 87 | PASS | 6 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | PR updates `.agent/docs/architecture/supported-workflows.md` to document derived `/implement` tracking issue titles and the fallback. |\n| coding_workflow / generic | Reuse existing code | partial | 6/8 | New parsing reuses `stripNonLiveMentions` and `escapeRegex` from `.agent/src/mentions.ts`, but it scans for any `/implement` occurrence instead of extending the existing mention-anchored explicit route parsing path. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR closes #228 and implements the exact plan discussed there: derive title from `/implement` detail, keep fallback, add triage coverage, and update docs. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is limited to `.agent/src/triage.ts`, focused triage tests, and one docs sentence. No unrelated refactor or broad formatting churn. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The change adds two small helpers, a constant, and focused tests without introducing new workflow settings or heavy abstractions. |\n| coding_workflow / generic | Prefer explicit structured inputs | partial | 5/7 | The behavior is encoded in route metadata without adding ambiguous workflow inputs, but command-detail extraction remains an implicit free-text scan rather than a structured value captured alongside the validated explicit route command. |\n\n## Notes\n\n- Strongest rubric alignment: the PR is compact, documented, and covered by focused triage regression tests for both derived titles and the no-detail fallback.\n- Main rubric-specific concern: the new detail parser is not anchored to the live `@sepo-agent /implement` command that selected the route. A request body containing an earlier unmentioned `/implement` before the real agent command could produce a misleading tracking issue title.\n- Smallest useful follow-up: derive the detail from the same mention-anchored explicit route match used by `extractRequestedRouteDecision`, or add a regression test proving unrelated `/implement` text is ignored.\n\n## Findings\n\n- **WARNING:** The implementation partially satisfies the structured-input/reuse rubrics, but `explicitRouteRequestDetail(\"implement\", requestText)` matches the first live-text `/implement` token whether or not it belongs to the agent mention. That can violate the intended “text after `/implement` request” contract for bodies like `I mentioned /implement earlier. @sepo-agent /implement add retry handling`, where the title could be derived from the wrong occurrence.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-13T05:01:09Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4437467579",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCH54kg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \r\n\r\n```\r\nWhen an explicit `/implement` request on a pull request or discussion creates a tracking issue, the issue title is derived from the text after `/implement\r\n``` \r\n\r\nThis is not what i meant. The agent should generate a proper title for the issue given the description and the context. ",
+      "createdAt": "2026-05-13T05:02:17Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4437473426",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCH6h_A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "You’re right. PR #232 implements the wrong behavior.\n\nCurrent architecture explains why: explicit routes skip dispatch triage in [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L201-L241), then [`resolve-dispatch.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/resolve-dispatch.ts#L35-L55) uses deterministic metadata from [`buildRequestedRouteDecision`](https://github.com/self-evolving/repo/blob/main/.agent/src/triage.ts#L94-L126). The tracking issue is then created from that `issue_title` in [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L589-L598).\n\nThe fix should not copy text after `/implement`. It should add a lightweight title/body generation step for explicit `/implement` on PRs/discussions, using the original mention plus target context, while still treating the slash command as explicit approval to run `agent-implement`.\n\nConcrete revision plan:\n\n1. Revert the command-tail title extraction in PR #232.\n2. Add or reuse an agent prompt that generates only tracking issue metadata: concise title under 70 chars and structured issue body.\n3. Run that metadata generation when `requested_route == implement` and the target is not already an issue.\n4. Keep `needsApproval: false` for explicit `/implement`.\n5. Keep `Implement requested change` only as an error/fallback path.\n6. Add tests proving `/implement please fix this` does not literally become the title, and that PR/discussion context drives the generated metadata.\n\nSo the intended behavior is: `/implement` selects the route; the agent still synthesizes the issue title from the request and surrounding context.",
+      "createdAt": "2026-05-13T05:04:16Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4437484028",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCH65Iw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> You’re right. PR #232 implements the wrong behavior.\r\n> \r\n> Current architecture explains why: explicit routes skip dispatch triage in [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L201-L241), then [`resolve-dispatch.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/resolve-dispatch.ts#L35-L55) uses deterministic metadata from [`buildRequestedRouteDecision`](https://github.com/self-evolving/repo/blob/main/.agent/src/triage.ts#L94-L126). The tracking issue is then created from that `issue_title` in [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L589-L598).\r\n> \r\n> The fix should not copy text after `/implement`. It should add a lightweight title/body generation step for explicit `/implement` on PRs/discussions, using the original mention plus target context, while still treating the slash command as explicit approval to run `agent-implement`.\r\n> \r\n> Concrete revision plan:\r\n> \r\n> 1. Revert the command-tail title extraction in PR [Derive implement issue titles from command text #232](https://github.com/self-evolving/repo/pull/232).\r\n> 2. Add or reuse an agent prompt that generates only tracking issue metadata: concise title under 70 chars and structured issue body.\r\n> 3. Run that metadata generation when `requested_route == implement` and the target is not already an issue.\r\n> 4. Keep `needsApproval: false` for explicit `/implement`.\r\n> 5. Keep `Implement requested change` only as an error/fallback path.\r\n> 6. Add tests proving `/implement please fix this` does not literally become the title, and that PR/discussion context drives the generated metadata.\r\n> \r\n> So the intended behavior is: `/implement` selects the route; the agent still synthesizes the issue title from the request and surrounding context.\r\n\r\n@sepo-agent /implement ",
+      "createdAt": "2026-05-13T05:05:21Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4437489955",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCH7F2A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Implementing this request — tracking in https://github.com/self-evolving/repo/issues/234.\n",
+      "createdAt": "2026-05-13T05:05:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4437493208",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCH7xww",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 4a18637a35667ffa16e68bf3ba50897f371b31a4 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #232 tries to fix issue #228, where explicit `/implement` requests from PR contexts create tracking issues with the unhelpful fallback title `Implement requested change`. The branch changes `.agent/src/triage.ts` so the title is built from text after `/implement`, adds triage tests for that behavior, and documents the new rule. The PR conversation later clarified that this is not the desired behavior: `/implement` should select the route, while Sepo should generate a proper tracking issue title from the request and surrounding context. The current branch therefore codifies the wrong product behavior even though it is small and well-tested.\n\n## Review\nThe PR needs rework before merge. The independent reviews overlap on a parser flaw, but the current PR discussion adds a more fundamental blocker: literal command-tail title extraction is not what the requester intended.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Command-tail titles implement the wrong behavior | BLOCKING | [`triage.ts#L136`](https://github.com/self-evolving/repo/blob/4a18637a35667ffa16e68bf3ba50897f371b31a4/.agent/src/triage.ts#L136), the tests, and [`supported-workflows.md#L213`](https://github.com/self-evolving/repo/blob/4a18637a35667ffa16e68bf3ba50897f371b31a4/.agent/docs/architecture/supported-workflows.md#L213) now make the issue title come from text after `/implement`. The requester clarified that Sepo should synthesize a proper title from the description and context instead. |\n| Command detail parsing is not tied to the live mention | WARNING | [`explicitRouteRequestDetail`](https://github.com/self-evolving/repo/blob/4a18637a35667ffa16e68bf3ba50897f371b31a4/.agent/src/triage.ts#L47) scans for the first bare `/implement` in the sanitized request, not the validated `@sepo-agent /implement` command. If any command-detail extraction remains, prose that mentions `/implement` before the actual command can drive the wrong metadata. |\n\n## Progress\n- Issue #228 and the original answer-only diagnosis identified the weak fallback title and proposed deriving a title from command text.\n- The requester clarified in PR #232 that command-tail copying is not the intended behavior; the agent response acknowledged that the PR implements the wrong behavior and outlined a generation-based revision plan.\n- Rubrics review passed overall but flagged the same mention-anchoring concern as a partial reuse/structured-input gap.\n- No new inline comments, replies, minimizations, or thread resolutions were performed: there are no existing inline comments/threads, and the core product mismatch plus parser concern are already covered in the PR discussion.\n\n## Issue Details\n\n<details>\n<summary>Command-tail titles implement the wrong behavior</summary>\n\n**Cause:** The implementation keeps explicit `/implement` deterministic by deriving `issueTitle` from `originalRequest` text after the slash command. That locks in the behavior the requester rejected: `/implement please fix this` can become the tracking issue title instead of using the PR/discussion context to generate a concise task title.\n\n**Candidate solutions:** Replace command-tail title derivation with a lightweight metadata generation step for explicit `/implement` on PRs/discussions. Keep `/implement` as explicit route approval, preserve the generic fallback only for generation failure or missing usable metadata, and update tests/docs to assert generated context-derived metadata rather than literal command text.\n\n**Comments:** Claude treated the first-occurrence parser issue as non-blocking under the earlier inferred design, while Codex and rubrics flagged it more strongly. After the requester clarification, the command-tail design itself is the blocker.\n\n</details>\n\n<details>\n<summary>Command detail parsing is not tied to the live mention</summary>\n\n**Cause:** `extractRequestedRouteDecision` validates `@sepo-agent /implement`, but `explicitRouteRequestDetail` re-scans the full request for any `/implement`. A body like `The /implement path is weak. @sepo-agent /implement add retry handling` can extract from the prose occurrence instead of the live command.\n\n**Candidate solutions:** Prefer removing this parser as part of the generation-based fix. If any command detail remains an input, derive it from the same mention-qualified match used for route selection and add a regression where an earlier bare `/implement` is ignored.\n\n**Comments:** This issue is likely subsumed by replacing literal command-tail extraction, but it should stay guarded if the revised implementation still parses command text.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: The requester has clarified the intended behavior, and the remaining work is a concrete branch change that an automated fix-pr pass can safely apply with tests and docs.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Replace literal text-after-`/implement` title derivation with context-derived issue metadata generation for explicit `/implement` tracking issues, while preserving explicit route approval and the generic fallback path.\n- [ ] Update tests and documentation so they assert generated context-based titles and guard against earlier prose `/implement` mentions driving metadata.",
+      "createdAt": "2026-05-13T05:07:44Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4437504451",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCH8JYA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #232 | 4 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis for open PR #232 ended NEEDS_REWORK with Recommended Next Step FIX_PR; the remaining work is concrete branch changes within the round budget.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Replace literal text-after-`/implement` title derivation with context-derived issue metadata generation for explicit `/implement` tracking issues, while preserving explicit route approval and the generic fallback path.\n- Update tests and documentation so they assert generated context-based titles and guard against earlier prose `/implement` mentions driving metadata.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1778648927927 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU3NzkzMjIzMTE6cmV2aWV3OjIzMjpmaXhfcHI6MjMyOjQ -->",
+      "createdAt": "2026-05-13T05:08:48Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4437510496",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCH-5xg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-228/codex-25779146548`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Replaced literal `/implement` command-tail issue titles with an authorized metadata-generation path for non-issue explicit implement requests.\n- Added a metadata-only prompt and parser fallback so generated title/body wins, while invalid or unavailable metadata falls back to `Implement requested change`.\n- Updated tests and docs to cover context-derived metadata and earlier prose `/implement` mentions.\n- Verified with `npm --prefix .agent run build && node --test .agent/dist/__tests__/triage.test.js .agent/dist/__tests__/resolve-dispatch-cli.test.js .agent/dist/__tests__/envelope.test.js` and `git diff --check`.",
+      "createdAt": "2026-05-13T05:17:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4437555654",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCH_Ppw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #232 | 5 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on open PR #232 after the NEEDS_REWORK review; one automated review pass is warranted to verify the generated metadata implementation, tests, and docs before stopping for human merge decision.\n\n<!-- sepo-agent-handoff state:dispatched created:1778649476972 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU3Nzk2MDcwNjc6Zml4X3ByOjIzMjpyZXZpZXc6MjMyOjU -->",
+      "createdAt": "2026-05-13T05:17:57Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4437561255",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCIAWeg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | The metadata-generation handoff is gated behind `Resolve explicit route authorization`, then runs only when `steps.explicit_dispatch.outputs.route == 'implement'` and the target is non-issue. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The change reuses `run-agent-task`, `resolve-agent-provider`, `resolve-dispatch`, `buildRequestedRouteDecision`, and the existing prompt/rendering path instead of adding separate workflow glue. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | `.agent/docs/architecture/request-lifecycle.md` and `.agent/docs/architecture/supported-workflows.md` now document generated explicit `/implement` issue metadata and fallback behavior. |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | The revised behavior uses a metadata-only agent prompt to synthesize the tracking issue title/body from request and target context, not a new repo setting or command-tail heuristic. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The prompt returns explicit `issue_title` and `issue_body` JSON fields, and `normalizeImplementIssueMetadata` validates both before `resolve-dispatch` uses them. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The current PR head reflects the linked #228 context plus the later PR clarification that command-tail copying was wrong; it updates implementation, tests, prompt, and docs accordingly. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is limited to router dispatch flow, triage/dispatch parsing, focused tests, one new prompt, and matching docs. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation adds a small metadata parser/fallback and one prompt-driven workflow step without introducing broader configuration or new subsystems. |\n\n## Notes\n\n- The most important improvement since the earlier review is that PR #232 no longer derives titles from literal text after `/implement`; it now asks a metadata-only agent prompt to infer title/body from the request and PR/discussion context.\n- The fallback path is explicit: invalid generated metadata logs a fallback message in `resolve-dispatch`, and missing metadata falls back to `Implement requested change`.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** I found no rubric-specific blocker on the current PR head. The prior concern about command-tail titles appears addressed by the new prompt and structured metadata parser.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-13T05:21:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4437579386",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCIDhZg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 1ecc20fd206ef3f57f1babcffdbbdd189a640839 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #232 addresses issue #228, where explicit `/implement` requests from PR/discussion contexts created tracking issues with the generic title `Implement requested change`.\n- The earlier implementation copied text after `/implement`, but the requester clarified that Sepo should synthesize a proper title from request and target context.\n- The current PR head replaces command-tail extraction with a metadata-only agent prompt, validates generated `issue_title`/`issue_body`, falls back safely, and updates tests/docs.\n- Review now centers on tightening the new metadata step’s runtime boundary rather than the product behavior.\n\n## Review\nThe main product blocker from the previous synthesis appears fixed. One minor trust-boundary issue remains: the metadata-only prompt runs with write-capable agent permissions.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Metadata generator uses write-capable permissions | WARNING | The new [`Generate implement issue metadata`](https://github.com/self-evolving/repo/blob/1ecc20fd206ef3f57f1babcffdbbdd189a640839/.github/workflows/agent-router.yml#L251-L267) step runs with `permission_mode: approve-all`, though it only needs to inspect context and return JSON. Use `approve-reads` to reduce prompt-injection blast radius. |\n| Metadata/workflow polish is optional | INFO | Claude noted redundant explicit-route resolution for non-implement routes and missing parser-side title-length enforcement. These are non-blocking because the current behavior works and `create-issue.ts` still truncates titles downstream. |\n\n## Progress\n- The prior command-tail title behavior has been replaced with context-derived metadata generation.\n- Tests and docs were updated for generated metadata, invalid metadata fallback, and earlier prose `/implement` mentions.\n- Rubrics review passed the current head with no rubric-specific blocker.\n- Posted one new inline comment on `.github/workflows/agent-router.yml:266`; no replies, minimizations, or thread resolutions were performed.\n\n## Issue Details\n\n<details>\n<summary>Metadata generator uses write-capable permissions</summary>\n\n**Cause:** The metadata prompt is explicitly read-and-return-JSON work, but it receives `permission_mode: approve-all` plus the resolved GitHub token during the portal stage.\n\n**Candidate solutions:** Change this step to `permission_mode: approve-reads`, and update any workflow contract test that asserts the metadata step wiring.\n\n**Comments:** Codex flagged this as the strongest remaining issue and I posted it inline. Claude and rubrics did not treat it as a blocker, so this is a MINOR_ISSUES finding rather than NEEDS_REWORK.\n\n</details>\n\n<details>\n<summary>Metadata/workflow polish is optional</summary>\n\n**Cause:** `explicit_dispatch` runs for all explicit routes even though the new metadata path only needs it for explicit `implement`, and `normalizeImplementIssueMetadata` trusts the prompt’s under-70-character title contract.\n\n**Candidate solutions:** Optionally scope `explicit_dispatch` to implement-only, and either enforce the title length in `normalizeImplementIssueMetadata` or leave truncation centralized in `create-issue.ts`.\n\n**Comments:** These are cleanup notes, not required branch changes for this PR.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: The remaining warning is a concrete, low-risk workflow change suitable for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Change the implement metadata generation step from `permission_mode: approve-all` to `approve-reads`, with any matching workflow test update.",
+      "createdAt": "2026-05-13T05:28:18Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4437631334",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCID3yw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #232 | 6 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis for open PR #232 concluded MINOR_ISSUES with Recommended Next Step FIX_PR; the remaining item is a concrete low-risk workflow permission change.\n\nTask for fix-pr:\nAddress only the latest review synthesis action item:\n- Change the implement metadata generation step from `permission_mode: approve-all` to `approve-reads`, with any matching workflow test update.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by that action item.\n\n<!-- sepo-agent-handoff state:dispatched created:1778650145618 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU3Nzk5MDc5NDA6cmV2aWV3OjIzMjpmaXhfcHI6MjMyOjY -->",
+      "createdAt": "2026-05-13T05:29:05Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4437637067",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCIEoag",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-228/codex-25779146548`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Changed the explicit implement metadata generator to run with `permission_mode: approve-reads`.\n- Updated the workflow contract test to assert the read-only permission mode for that step.\n- Verified with `npm --prefix .agent run build && node --test .agent/dist/__tests__/envelope.test.js` and `git diff --check`.",
+      "createdAt": "2026-05-13T05:30:59Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4437649514",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCIFEFw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #232 | 7 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on open PR #232 after addressing the latest MINOR_ISSUES action item; one automated review pass is warranted to verify the permission-mode fix before stopping for human merge decision.\n\n<!-- sepo-agent-handoff state:dispatched created:1778650317507 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU3ODAyOTYyMjk6Zml4X3ByOjIzMjpyZXZpZXc6MjMyOjc -->",
+      "createdAt": "2026-05-13T05:31:57Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4437656599",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCIFiNg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | [`agent-router.yml`](https://github.com/self-evolving/repo/blob/959a47c8240c51260714dcdee3071f743c95e892/.github/workflows/agent-router.yml) resolves explicit route authorization before metadata generation, and the metadata step only runs after `explicit_dispatch.outputs.route == 'implement'`. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Reuses `run-agent-task`, `resolve-dispatch`, `buildRequestedRouteDecision`, and existing prompt/response-file plumbing instead of adding a separate dispatch path. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates [`request-lifecycle.md`](https://github.com/self-evolving/repo/blob/959a47c8240c51260714dcdee3071f743c95e892/.agent/docs/architecture/request-lifecycle.md) and [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/959a47c8240c51260714dcdee3071f743c95e892/.agent/docs/architecture/supported-workflows.md) for explicit `/implement` metadata generation and fallback behavior. |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | Adds [`agent-implement-metadata.md`](https://github.com/self-evolving/repo/blob/959a47c8240c51260714dcdee3071f743c95e892/.github/prompts/agent-implement-metadata.md) so the agent synthesizes context-derived title/body metadata rather than copying command text or adding a new setting. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The prompt requires JSON `issue_title` and `issue_body`, and [`normalizeImplementIssueMetadata`](https://github.com/self-evolving/repo/blob/959a47c8240c51260714dcdee3071f743c95e892/.agent/src/triage.ts) validates both before dispatch metadata is used. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Invalid metadata is not silently treated as clean success: [`resolve-dispatch.ts`](https://github.com/self-evolving/repo/blob/959a47c8240c51260714dcdee3071f743c95e892/.agent/src/cli/resolve-dispatch.ts) logs fallback use, with regression coverage in [`resolve-dispatch-cli.test.ts`](https://github.com/self-evolving/repo/blob/959a47c8240c51260714dcdee3071f743c95e892/.agent/src/__tests__/resolve-dispatch-cli.test.ts). |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | Current head reflects issue #228 plus the PR clarification rejecting literal command-tail titles; tests and docs now assert context-derived metadata. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are limited to router dispatch flow, triage/dispatch metadata handling, focused tests, one prompt, and matching docs. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation adds a small prompt, parser, fallback, and workflow step without broader configuration or new subsystems. |\n\n## Notes\n\n- The current PR head addresses the main rubric risk from earlier revisions: `/implement` selects the route, while issue metadata is generated from request and target context.\n- The latest permission fix also satisfies the trust-boundary concern by running metadata generation with `permission_mode: approve-reads`.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** I found no rubric-specific blocker or warning on the current PR head.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-13T05:33:09Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4437664310",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCIIkEA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 959a47c8240c51260714dcdee3071f743c95e892 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #232 addresses #228, where explicit `/implement` requests from PR or discussion contexts created tracking issues with the generic title `Implement requested change`. The original branch copied command text into the title, but the requester clarified that Sepo should synthesize proper metadata from the request and target context. The current head now adds a metadata-only prompt, validates generated `issue_title`/`issue_body`, preserves explicit route approval, falls back safely, and updates tests/docs. The latest fix also changed the metadata step to read-only agent permissions.\n\n## Review\nThe current PR head looks shippable. Codex and rubrics found no current blockers or warnings; Claude raised optional cleanup around parser-side title length and style, but downstream issue creation already enforces the title cap and the style note is not required for correctness.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable issues | INFO | The prior product mismatch and `approve-all` trust-boundary warning are addressed on `959a47c8240c51260714dcdee3071f743c95e892`. Remaining reviewer notes are optional polish, not required branch changes. |\n\n## Progress\n- Issue #228 and the PR discussion clarified that `/implement` selects the route, while tracking issue metadata should be generated from request and target context.\n- Current head wires the metadata prompt through authorized explicit dispatch, uses `permission_mode: approve-reads`, validates/falls back in dispatch resolution, and updates docs/tests.\n- The earlier inline thread about `approve-all` was resolved after re-fetching and verifying it was same-agent, viewer-resolvable, and fixed by the current head.\n- No new inline comments, replies, or minimizations were posted.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: No unresolved required branch changes remain, so the next useful step is human merge/release judgment.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch changes remain.",
+      "createdAt": "2026-05-13T05:42:12Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4437713936",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-13T04:58:59Z",
+  "files": [
+    {
+      "path": ".agent/docs/architecture/request-lifecycle.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 16,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/resolve-dispatch-cli.test.ts",
+      "additions": 92,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/triage.test.ts",
+      "additions": 35,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/resolve-dispatch.ts",
+      "additions": 13,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/triage.ts",
+      "additions": 59,
+      "deletions": 14,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-implement-metadata.md",
+      "additions": 29,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/workflows/agent-router.yml",
+      "additions": 55,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-228/codex-25779146548",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 232,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM7_BeQY",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-13T05:27:23Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "1ecc20fd206ef3f57f1babcffdbbdd189a640839"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Derive implement issue titles from command text",
+  "updatedAt": "2026-05-13T05:42:12Z",
+  "url": "https://github.com/self-evolving/repo/pull/232"
+}

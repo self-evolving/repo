@@ -5,7 +5,7 @@
   },
   "baseRefName": "main",
   "body": "## Summary\n- Add opt-in deterministic `agent-self-merge.yml` and resolver plumbing after current-head Sepo self-approval.\n- Merge or enable auto-merge into the PR's configured base with `--match-head-commit`, while preserving requested-change, check, and mergeability gates.\n- Mark draft PRs ready and re-fetch metadata before merge/auto-merge, and add marker-upserted self-merge statuses.\n- Update orchestrator routing, route authorization checks, docs, and focused regression coverage.\n\n## Verification\n- `npm run build`\n- `node --test dist/__tests__/self-merge.test.js dist/__tests__/resolve-self-merge-cli.test.js dist/__tests__/post-response-cli.test.js dist/__tests__/handoff.test.js dist/__tests__/orchestrate-handoff-cli.test.js dist/__tests__/orchestrator-preflight-cli.test.js dist/__tests__/sub-orchestration.test.js dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nCloses #213\n",
-  "closedAt": null,
+  "closedAt": "2026-05-13T04:49:27Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABB6t6yQ",
@@ -237,6 +237,43 @@
       "minimizedReason": "",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/214#issuecomment-4424049988",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCHo2-A",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer\r\n\r\nI don't understand: this is the \"simplified\" version of the self-merge, but it's larger than the #202 ?",
+      "createdAt": "2026-05-13T04:12:14Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/214#issuecomment-4437194488",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCHpYyw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I checked the current PR metadata: #214 is **not actually larger than #202** by GitHub’s file totals right now:\n\n- #202: `+4420/-51`\n- #214: `+4374/-51`\n\nBut your point still stands: it is not meaningfully smaller. The reason is that #214 is currently diffing against `main`, so the PR includes the whole prerequisite self-approval stack too: `self-approval.ts`, `agent-self-approve.yml`, self-approval tests, review plumbing, etc. That makes it look almost the same size as #202.\n\n“simplified” here means the **self-merge policy** is simpler than #202, not that the full PR diff is much smaller:\n\n- no default-branch-only merge restriction\n- no stack-base lookup guardrail\n- draft PRs are marked ready instead of blocked\n- merge goes to the PR’s configured base with `--match-head-commit`\n\nThe smaller delta is only visible if #214 is reviewed as a stacked PR on the self-approval base (#186). Against `main`, GitHub shows the whole stack again, so the simplification is hidden by prerequisite code.\n\nI agree this is confusing. The cleanest review shape would be either retarget #214 back onto the intended stacked base, or split/land the self-approval base first so this PR shows only the self-merge simplification.",
+      "createdAt": "2026-05-13T04:14:12Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/214#issuecomment-4437203147",
       "viewerDidAuthor": true
     }
   ],
@@ -596,8 +633,8 @@
       }
     }
   ],
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Add simplified self-merge after self-approval",
-  "updatedAt": "2026-05-13T04:11:29Z",
+  "updatedAt": "2026-05-13T04:49:27Z",
   "url": "https://github.com/self-evolving/repo/pull/214"
 }
