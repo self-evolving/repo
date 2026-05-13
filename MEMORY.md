@@ -66,3 +66,4 @@
 - Release prepare is the agentic PR step; publishing/tagging stays source-repo gated and should use reviewed changelog notes.
 - Scheduled update checks adopt existing same-repo agent/update-agent-infra-* PRs instead of opening duplicates.
 - Onboarding setup checks reuse one issue/comment; reruns patch the short issue body and focused status without trigger-label inventory.
+- Self-approval status comments are marker-upserted only on trusted Sepo-authored comments; avoid fallback duplicate posts.
