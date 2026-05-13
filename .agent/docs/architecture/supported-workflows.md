@@ -19,30 +19,36 @@
 | `agent-close-stale-issues.yml` | `schedule` (daily), `workflow_dispatch` | Closes open `agent` issues that have had no activity for 30 days by default | None |
 | `agent-daily-summary.yml` | `schedule` (daily), `workflow_dispatch` | Generates a concise repository activity summary and posts it as a Discussion | Auto |
 | `agent-project-manager.yml` | `schedule` (every 6h), `workflow_dispatch` | Opt-in agent-driven triage for open issues and PRs, with dry-run summaries and optional priority/effort label updates | Auto |
+| `agent-update.yml` | `schedule` (1st and 15th), `workflow_dispatch` | Checks for Sepo agent infrastructure updates and opens a PR only when updates are available | Auto |
 | `agent-onboarding.yml` | `workflow_dispatch` | First-run setup check that creates built-in trigger labels and opens or updates a setup issue | None |
 | `test-scripts.yml` | `pull_request`, `workflow_dispatch` | CI for helper tests, YAML parsing, and shell syntax | None |
 
 `agent-orchestrator.yml` is started explicitly through `/orchestrate` or
-`agent/orchestrate`. On start, it inspects the current target state and
+`agent/orchestrate`. Dispatch triage can also select `orchestrate` for issue and
+pull request requests that ask for orchestration, follow-up automation, or
+bounded multi-step agent work. On start, it inspects the current target state and
 dispatches one built-in action (`implement`, `review`, `fix-pr`, or
 `agent-self-approve`) when useful.
 That dispatch includes explicit orchestration context; only those orchestrator
 launched action runs hand back to `agent-orchestrator.yml` after post-processing.
-Direct `/implement`, `/review`, and `/fix-pr` runs remain one-shot.
-Explicit `/orchestrate` starts on pull requests are deterministic in both
-`heuristics` and `agent` modes. Issue-level `/orchestrate` starts in `agent`
-mode may use the planner. For small self-contained issue work, the planner can
-return a normal handoff to `implement` on the current issue. For
+Direct `/implement`, `/review`, and `/fix-pr` runs remain one-shot. Pull request
+orchestrate starts remain deterministic in `heuristics` mode. In `agent` mode,
+issue-level and pull-request-level orchestrate starts may use the planner. For
+small self-contained issue work, the planner can return a normal handoff to
+`implement` on the current issue. For PR work, the planner can choose
+review-first, fix-the-PR, answer-only, or stop behavior; runtime policy validates
+that PR starts dispatch only `review` or `fix-pr` workflows. For
 meta-orchestration, the planner can return an internal `delegate_issue` command
 instead of adding a new public route. That command creates or reuses a child
 issue with parent/stage metadata, dispatches the child issue through the normal
 `/orchestrate` flow in heuristic mode, and keeps the parent/child relationship
-in GitHub issue state rather than session identity. When `delegate_issue` names
-an existing user-authored issue, the orchestrator adopts it by writing the
-trusted child marker in an agent-authored issue comment and recording the
-parent/child link on the parent issue. The dispatcher also best-effort adds the
-child as a GitHub sub-issue of the parent when the repository supports that REST
-API; trusted markers remain the fallback relation if the API is unavailable.
+in GitHub issue state rather than session identity.
+When `delegate_issue` names an existing user-authored issue, the orchestrator
+adopts it by writing the trusted child marker in an agent-authored issue comment
+and recording the parent/child link on the parent issue. The dispatcher also
+best-effort adds the child as a GitHub sub-issue of the parent when the
+repository supports that REST API; trusted markers remain the fallback relation
+if the API is unavailable.
 
 Planner-based selection is also used for action-originated handoff runs. The planner can include a
 `handoff_context` string for the next action; `fix-pr` receives it as explicit
@@ -93,11 +99,17 @@ posts without the hidden marker.
 
 Review synthesis can also make prompt-managed inline review comment updates:
 it may post a new inline comment, reply to an existing same-agent inline
-comment, or mark an older same-agent inline comment as outdated. Synthesis
-re-fetches PR inline comments before acting; replies and minimization require
-confirmed same-agent authorship and PR ownership. Reviewer lanes only suggest
-these actions; they do not mutate GitHub. This inline behavior is separate from
-the deterministic generated-comment cleanup controlled by
+comment, or clean up older same-agent inline feedback by synthesis-agent
+judgment. Synthesis re-fetches PR inline comments and review threads before
+cleanup. It resolves an older same-agent review thread only when the thread
+belongs to the PR, is unresolved, `viewerCanResolve` is true, every thread
+comment is from the same authenticated agent account, and the issue is
+addressed or superseded. It marks an older same-agent inline comment as
+outdated only when the comment is superseded and there is no appropriate
+resolvable review-thread path. When authorship, PR ownership, supersession, or
+resolution confidence is uncertain, synthesis does nothing. Reviewer lanes only
+suggest these actions; they do not mutate GitHub. This inline behavior is
+separate from the deterministic generated-comment cleanup controlled by
 `AGENT_COLLAPSE_OLD_REVIEWS`.
 
 ### Repository memory workflows
@@ -149,6 +161,21 @@ activity signals or resolving an agent provider. If discussions are disabled, or
 the configured summary discussion category does not exist, the workflow skips
 signal collection and summary generation instead of spending runtime only to
 fail while posting.
+
+`agent-update.yml` runs near-biweekly because GitHub cron does not support a
+native every-14-days cadence. It resolves its source to the latest published
+stable Sepo release tag before invoking the existing `update-agent` skill.
+Manual dispatch can pass `source_ref` to test `main`, a branch, or a specific
+tag. If no release exists yet, it falls back to `main` and records that fallback
+in the run summary. The workflow skips when `AGENT_AUTO_UPDATE=false` or
+`AGENT_SCHEDULE_POLICY` disables it. When a same-repository
+`agent/update-agent-infra-*` PR is already open, the workflow keeps the runtime
+checkout on the default branch, prepares the existing PR branch as the update
+target, and asks the update skill to update that PR instead of opening a
+duplicate. A manual `force=true` run ignores the existing PR lookup and starts
+from the default branch. The canonical `self-evolving/repo` source repository
+should set `AGENT_AUTO_UPDATE=false` when scheduled self-updates are not wanted;
+manual dispatch remains available for explicit source ref testing.
 
 Single-agent routes, autonomous agent workflows, and the review synthesis step resolve their provider before installing provider CLIs. Explicit provider choices from `AGENT_DEFAULT_PROVIDER` or a route-specific override are authoritative: the workflows select that provider even when the matching repository secret is absent, so self-hosted runners can rely on local Codex or Claude authentication. When the provider is `auto`, detection uses configured provider secrets and prefers Codex when both `OPENAI_API_KEY` and `CLAUDE_CODE_OAUTH_TOKEN` are present. Route-specific overrides are available by editing the relevant workflow's `resolve-agent-provider` step inline. Portal and skill jobs use non-fatal early resolution before non-agent response paths, then require a provider only immediately before invoking an agent.
 

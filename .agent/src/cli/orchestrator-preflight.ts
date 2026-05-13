@@ -35,10 +35,11 @@ const authorizationStopReason = initialOrchestrateCapabilityStopReason({
   accessPolicy: process.env.ACCESS_POLICY || "",
   isPublicRepo: String(process.env.REPOSITORY_PRIVATE || "").trim().toLowerCase() === "false",
 });
+const initialOrchestrate = sourceAction === "orchestrate";
 const plannerEnabled = !authorizationStopReason &&
   automationMode === "agent" &&
   currentRound < maxRounds &&
-  (sourceAction !== "orchestrate" || targetKind === "issue");
+  (!initialOrchestrate || targetKind === "issue" || targetKind === "pull_request");
 
 setOutput("automation_mode", automationMode);
 setOutput("current_round", String(currentRound));

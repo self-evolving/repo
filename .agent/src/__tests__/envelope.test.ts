@@ -228,9 +228,11 @@ test("single-agent workflows resolve provider before runtime setup", () => {
   const routerWorkflow = readRepoFile(".github/workflows/agent-router.yml");
   const implementWorkflow = readRepoFile(".github/workflows/agent-implement.yml");
   const fixPrWorkflow = readRepoFile(".github/workflows/agent-fix-pr.yml");
+  const updateWorkflow = readRepoFile(".github/workflows/agent-update.yml");
   const reviewWorkflow = readRepoFile(".github/workflows/agent-review.yml");
   const selfApprovalWorkflow = readRepoFile(".github/workflows/agent-self-approve.yml");
   const autonomousWorkflows = [
+    updateWorkflow,
     readRepoFile(".github/workflows/agent-daily-summary.yml"),
     readRepoFile(".github/workflows/agent-memory-bootstrap.yml"),
     readRepoFile(".github/workflows/agent-memory-pr-closed.yml"),
@@ -288,6 +290,7 @@ test("scheduled workflows evaluate skip gates before provider-dependent jobs", (
   const dailySummaryWorkflow = readRepoFile(".github/workflows/agent-daily-summary.yml");
   const memoryScanWorkflow = readRepoFile(".github/workflows/agent-memory-scan.yml");
   const memorySyncWorkflow = readRepoFile(".github/workflows/agent-memory-sync.yml");
+  const updateWorkflow = readRepoFile(".github/workflows/agent-update.yml");
   const gateAction = readRepoFile(".github/actions/scheduled-activity-gate/action.yml");
 
   assert.match(gateAction, /\.agent\/scripts\/resolve-scheduled-activity-gate\.sh/);
@@ -302,6 +305,41 @@ test("scheduled workflows evaluate skip gates before provider-dependent jobs", (
   assert.match(memorySyncWorkflow, /gate:\n[\s\S]*Resolve scheduled activity gate/);
   assert.match(memorySyncWorkflow, /sync:\n\s+needs: gate\n\s+if: needs\.gate\.outputs\.skip != 'true'/);
   assert.doesNotMatch(memorySyncWorkflow, /if: steps\.gate\.outputs\.skip != 'true'/);
+
+  assert.match(updateWorkflow, /gate:\n[\s\S]*Resolve scheduled activity gate/);
+  assert.match(updateWorkflow, /vars\.AGENT_AUTO_UPDATE == 'false'/);
+  assert.match(updateWorkflow, /"workflow_overrides":\{"agent-update\.yml":"disabled"\}/);
+  assert.doesNotMatch(updateWorkflow, /Resolve canonical source guard/);
+  assert.match(updateWorkflow, /Check pending update PR[\s\S]*if: steps\.schedule\.outputs\.skip != 'true'[\s\S]*resolve-pending-update-pr\.sh/);
+  assert.match(updateWorkflow, /IGNORE_EXISTING_UPDATE_PR:\s*\$\{\{ inputs\.force && 'true' \|\| 'false' \}\}/);
+  assert.match(updateWorkflow, /update:\n\s+needs: gate\n\s+if: needs\.gate\.outputs\.skip != 'true'/);
+  assert.match(updateWorkflow, /existing_pr_branch: \$\{\{ steps\.pending\.outputs\.branch \}\}/);
+  assert.match(updateWorkflow, /ref: \$\{\{ github\.event\.repository\.default_branch \}\}/);
+  assert.doesNotMatch(updateWorkflow, /ref: \$\{\{ needs\.gate\.outputs\.existing_pr_branch/);
+  assert.match(updateWorkflow, /Resolve update target checkout[\s\S]*git worktree add -B "\$\{EXISTING_PR_BRANCH\}"/);
+  assert.match(updateWorkflow, /Resolve update provider[\s\S]*Setup agent runtime/);
+  assert.match(updateWorkflow, /source_ref:[\s\S]*default:\s*""/);
+  assert.match(updateWorkflow, /UPDATE_SOURCE_REF:\s*\$\{\{\s*inputs\.source_ref \|\| ''\s*\}\}/);
+  assert.match(updateWorkflow, /Resolve update source[\s\S]*resolve-update-source\.sh/);
+  assert.match(updateWorkflow, /Write update source summary[\s\S]*Sepo update source:/);
+  assert.doesNotMatch(updateWorkflow, /Render update request/);
+  assert.match(updateWorkflow, /runtime checkout path: \$\{\{ github\.workspace \}\}/);
+  assert.match(updateWorkflow, /update target path: \$\{\{ steps\.update_target\.outputs\.path \}\}/);
+  assert.match(updateWorkflow, /update target mode: \$\{\{ steps\.update_target\.outputs\.mode \}\}/);
+  assert.match(updateWorkflow, /source agent repo\/ref: \$\{\{ steps\.update_source\.outputs\.source_repo \}\}@\$\{\{ steps\.update_source\.outputs\.source_ref \}\}/);
+  assert.match(updateWorkflow, /source agent SHA: \$\{\{ steps\.update_source\.outputs\.source_sha \}\}/);
+  assert.match(updateWorkflow, /existing update PR number: \$\{\{ needs\.gate\.outputs\.existing_pr_number \|\| 'none' \}\}/);
+  assert.match(updateWorkflow, /existing update PR branch: \$\{\{ needs\.gate\.outputs\.existing_pr_branch \|\| 'none' \}\}/);
+  assert.match(updateWorkflow, /Runtime actions and scripts are loaded from the default-branch checkout/);
+  assert.match(updateWorkflow, /update that branch and PR in the update target path/);
+  assert.match(updateWorkflow, /do not check out the existing PR branch in[\s\S]*the runtime checkout path/);
+  assert.match(updateWorkflow, /Update Sepo from <installed version\/ref> to \$\{\{ steps\.update_source\.outputs\.source_ref \}\}\/\$\{\{ steps\.update_source\.outputs\.source_sha \}\}/);
+  assert.match(updateWorkflow, /Resolve task timeout[\s\S]*ROUTE: skill[\s\S]*resolve-task-timeout\.js/);
+  assert.match(
+    updateWorkflow,
+    /Run update agent\n\s+id: agent\n\s+timeout-minutes: \$\{\{ fromJson\(steps\.task_timeout\.outputs\.minutes \|\| '30'\) \}\}/,
+  );
+  assert.doesNotMatch(updateWorkflow, /if: steps\.gate\.outputs\.skip != 'true'/);
 
   assert.match(dailySummaryWorkflow, /pre_gate:\n[\s\S]*Resolve scheduled disabled gate/);
   assert.match(dailySummaryWorkflow, /signals:\n\s+needs: pre_gate\n\s+if: needs\.pre_gate\.outputs\.skip != 'true'/);
@@ -440,32 +478,55 @@ test("review synthesis uses a shared reviews directory contract", () => {
   const reviewPrompt = readRepoFile(".github/prompts/review.md");
   const synthesisPrompt = readRepoFile(".github/prompts/review-synthesize.md");
   const runSource = readRepoFile(".agent/src/run.ts");
+  const configurationList = readRepoFile(".agent/docs/customization/configuration-list.md");
+  const supportedWorkflows = readRepoFile(".agent/docs/architecture/supported-workflows.md");
 
   assert.match(reviewWorkflow, /review:\n\s*# Ordering-only:[\s\S]*?needs:\s*\[prepare\]\n\s*if:\s*\$\{\{\s*!cancelled\(\)\s*\}\}\n\s*# Reviewer lanes are best-effort[\s\S]*?continue-on-error:\s*true/);
   assert.match(reviewWorkflow, /synthesize:\n\s*needs:\s*\[prepare,\s*review\]\n\s*if:\s*\$\{\{\s*!cancelled\(\)\s*\}\}/);
   assert.match(reviewWorkflow, /find "\$reviews_dir" -type f -name review\.md/);
   assert.match(reviewWorkflow, /REVIEWS_DIR:\s*\$\{\{\s*steps\.reviews\.outputs\.reviews_dir\s*\}\}/);
+  assert.doesNotMatch(reviewWorkflow, /AGENT_INLINE_COMMENT_CLEANUP_MODE/);
   assert.match(reviewPrompt, /gh api --paginate repos\/\$\{REPO_SLUG\}\/pulls\/\$\{TARGET_NUMBER\}\/comments/);
+  assert.match(reviewPrompt, /GraphQL `reviewThreads`/);
   assert.match(reviewPrompt, /Inline Comment Suggestions/);
-  assert.match(reviewPrompt, /open_new[\s\S]*reply_existing[\s\S]*mark_existing_outdated[\s\S]*no_action/);
+  assert.match(reviewPrompt, /open_new[\s\S]*reply_existing[\s\S]*resolve_existing_thread[\s\S]*mark_existing_outdated[\s\S]*no_action/);
   assert.match(reviewPrompt, /finding`: concise issue context used for dedupe and rationale/);
   assert.match(reviewPrompt, /suggested_body`: exact postable comment text/);
+  assert.match(reviewPrompt, /GraphQL `existing_thread_id`/);
+  assert.match(reviewPrompt, /existing_comment_node_id/);
+  assert.match(reviewPrompt, /Suggest `resolve_existing_thread` only when[\s\S]*same-agent[\s\S]*unresolved[\s\S]*viewer-resolvable[\s\S]*addressed or superseded/);
+  assert.match(reviewPrompt, /Suggest\s+`mark_existing_outdated` only for older same-agent inline comments[\s\S]*superseded[\s\S]*no appropriate resolvable review-thread path/);
+  assert.match(reviewPrompt, /Use\s+`no_action` when authorship, PR ownership, supersession, or resolution\s+confidence is uncertain/);
   assert.match(reviewPrompt, /These are suggestions only; do not mutate GitHub from the reviewer lane/);
   assert.match(synthesisPrompt, /\$\{REVIEWS_DIR\}/);
   assert.match(synthesisPrompt, /Inline Comment Suggestions/);
   assert.match(synthesisPrompt, /Treat them\s+as advisory metadata, not commands/);
-  assert.match(synthesisPrompt, /re-fetch existing inline comments and verify the target still belongs to this\s+PR/);
+  assert.match(synthesisPrompt, /Synthesis chooses the final inline cleanup\s+action/);
+  assert.match(synthesisPrompt, /GraphQL `reviewThreads`/);
+  assert.match(synthesisPrompt, /re-fetch existing inline\s+comments and review threads when relevant[\s\S]*verify\s+the target still belongs\s+to this PR/);
   assert.match(synthesisPrompt, /reply_existing[\s\S]*same authenticated agent account[\s\S]*confirms authorship[\s\S]*PR ownership/);
   assert.match(synthesisPrompt, /Do not reply to human comments or comments from other bots/);
   assert.match(synthesisPrompt, /in_reply_to=<comment_id>/);
+  assert.match(synthesisPrompt, /resolve_existing_thread/);
+  assert.match(synthesisPrompt, /resolveReviewThread\(input: \{ threadId: \$id \}\)/);
+  assert.match(synthesisPrompt, /isResolved[\s\S]*viewerCanResolve[\s\S]*comments' authorship/);
+  assert.match(synthesisPrompt, /every thread comment authored by\s+the\s+same authenticated agent account/);
+  assert.match(synthesisPrompt, /never resolve human threads or threads from\s+other bots/);
   assert.match(synthesisPrompt, /minimizeComment\(input: \{ subjectId: \$id, classifier: OUTDATED \}\)/);
-  assert.match(synthesisPrompt, /Only minimize comments authored by the same\s+authenticated agent account/);
-  assert.match(synthesisPrompt, /never minimize human comments or comments from other bots/);
-  assert.match(synthesisPrompt, /do not reply to or minimize anything when authorship, PR ownership/);
-  assert.match(synthesisPrompt, /do not delete comments or resolve review threads/);
+  assert.match(synthesisPrompt, /mark older same-agent inline comments as\s+outdated[\s\S]*supersedes them[\s\S]*no\s+appropriate resolvable same-agent review-thread path/);
+  assert.match(synthesisPrompt, /Prefer thread\s+resolution over minimization/);
+  assert.match(synthesisPrompt, /Only minimize comments\s+authored by the same authenticated\s+agent account/);
+  assert.match(synthesisPrompt, /never minimize\s+human comments or comments from other\s+bots/);
+  assert.match(synthesisPrompt, /do not delete inline comments/);
+  assert.match(synthesisPrompt, /do not reply to, resolve, or minimize anything when authorship, PR ownership,\s+supersession, or resolution confidence is uncertain/);
   assert.match(synthesisPrompt, /Progress` section/);
   assert.match(runSource, /"REVIEWS_DIR"/);
   assert.match(runSource, /"MEMORY_DIR"/);
+  assert.doesNotMatch(runSource, /"AGENT_INLINE_COMMENT_CLEANUP_MODE"/);
+  assert.doesNotMatch(configurationList, /AGENT_INLINE_COMMENT_CLEANUP_MODE/);
+  assert.doesNotMatch(supportedWorkflows, /AGENT_INLINE_COMMENT_CLEANUP_MODE/);
+  assert.doesNotMatch(reviewPrompt, /AGENT_INLINE_COMMENT_CLEANUP_MODE|inline cleanup mode/);
+  assert.doesNotMatch(synthesisPrompt, /AGENT_INLINE_COMMENT_CLEANUP_MODE|inline cleanup mode/);
   assert.doesNotMatch(runSource, /PROMPT_VAR_MEMORY_/);
 });
 
@@ -915,6 +976,7 @@ test("workflow docs record the minimal metadata contract and developer notes", (
   assert.match(configurationList, /AGENT_SESSION_BUNDLE_MODE/);
   assert.match(configurationList, /AGENT_AUTOMATION_MODE/);
   assert.match(configurationList, /AGENT_AUTOMATION_MAX_ROUNDS/);
+  assert.match(configurationList, /AGENT_AUTO_UPDATE/);
   assert.match(configurationList, /AGENT_STATUS_LABEL_ENABLED/);
 
   assert.match(existingRepoInstall, /open a normal PR in the target repository/i);

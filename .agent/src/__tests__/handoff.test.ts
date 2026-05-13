@@ -134,6 +134,101 @@ test("agent mode supports issue-level orchestrate handoff to implement", () => {
   assert.equal(decision.baseBranch, "feature-base");
 });
 
+test("agent mode supports PR-level orchestrate handoff to review or fix-pr", () => {
+  const review = decideHandoff({
+    automationMode: "agent",
+    sourceAction: "orchestrate",
+    sourceConclusion: "requested",
+    targetKind: "pull_request",
+    targetNumber: "66",
+    currentRound: 1,
+    maxRounds: 5,
+    plannerDecision: {
+      decision: "handoff",
+      nextAction: "review",
+      reason: "The request asks for review before any edits.",
+    },
+  });
+  assert.equal(review.decision, "dispatch");
+  assert.equal(review.nextAction, "review");
+  assert.equal(review.targetNumber, "66");
+  assert.match(review.reason, /agent planner selected review/);
+
+  const fix = decideHandoff({
+    automationMode: "agent",
+    sourceAction: "orchestrate",
+    sourceConclusion: "requested",
+    targetKind: "pull_request",
+    targetNumber: "66",
+    currentRound: 1,
+    maxRounds: 5,
+    plannerDecision: {
+      decision: "handoff",
+      nextAction: "fix-pr",
+      reason: "The request explicitly asks to fix the PR.",
+      handoffContext: "Fix the merge conflict only.",
+    },
+  });
+  assert.equal(fix.decision, "dispatch");
+  assert.equal(fix.nextAction, "fix-pr");
+  assert.equal(fix.targetNumber, "66");
+  assert.equal(fix.handoffContext, "Fix the merge conflict only.");
+  assert.match(fix.reason, /agent planner selected fix-pr/);
+});
+
+test("agent mode rejects invalid PR-level orchestrate handoffs", () => {
+  const implement = decideHandoff({
+    automationMode: "agent",
+    sourceAction: "orchestrate",
+    sourceConclusion: "requested",
+    targetKind: "pull_request",
+    targetNumber: "66",
+    currentRound: 1,
+    maxRounds: 5,
+    plannerDecision: {
+      decision: "handoff",
+      nextAction: "implement",
+      reason: "Try to implement from a PR.",
+    },
+  });
+  assert.equal(implement.decision, "stop");
+  assert.match(implement.reason, /only for issue targets/);
+
+  const mixedAnswer = decideHandoff({
+    automationMode: "agent",
+    sourceAction: "orchestrate",
+    sourceConclusion: "requested",
+    targetKind: "pull_request",
+    targetNumber: "66",
+    currentRound: 1,
+    maxRounds: 5,
+    plannerDecision: {
+      decision: "answer",
+      nextAction: "review",
+      reason: "Answer and review.",
+    },
+  });
+  assert.equal(mixedAnswer.decision, "stop");
+  assert.match(mixedAnswer.reason, /answer must not set next_action/);
+
+  const fixWithoutContext = decideHandoff({
+    automationMode: "agent",
+    sourceAction: "orchestrate",
+    sourceConclusion: "requested",
+    targetKind: "pull_request",
+    targetNumber: "66",
+    currentRound: 1,
+    maxRounds: 5,
+    plannerDecision: {
+      decision: "handoff",
+      nextAction: "fix-pr",
+      reason: "Fix the PR.",
+    },
+  });
+  assert.equal(fixWithoutContext.decision, "stop");
+  assert.match(fixWithoutContext.reason, /without handoff_context/);
+});
+
 test("agent mode rejects invalid child issue delegation", () => {
   const wrongTarget = decideHandoff({
     automationMode: "agent",
@@ -658,7 +753,17 @@ test("parsePlannerDecision reads planner JSON", () => {
     },
   );
   assert.equal(parsePlannerDecision("not json"), null);
+  assert.equal(parsePlannerDecision('{"decision":"deploy","reason":"Ship it."}'), null);
   assert.equal(parsePlannerDecision('{"decision":"handoff","next_action":"deploy"}')?.nextAction, undefined);
+  assert.deepEqual(
+    parsePlannerDecision('{"decision":"answer","reason":"The user asked a question.","user_message":"Use /review for a full pass."}'),
+    {
+      decision: "answer",
+      nextAction: undefined,
+      reason: "The user asked a question.",
+      userMessage: "Use /review for a full pass.",
+    },
+  );
 });
 
 test("review fix-pr context extracts unchecked review synthesis action items", () => {

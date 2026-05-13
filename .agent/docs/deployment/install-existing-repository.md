@@ -26,18 +26,6 @@ Also merge these generated-output rules into the target repository's existing `.
 
 The workflows build `.agent/dist/` on GitHub-hosted runners. Keeping generated runtime outputs ignored prevents them from being committed accidentally.
 
-## Sepo version metadata
-
-Keep `.agent/sepo-version.json` with the copied `.agent/` tree. It records the
-installed Sepo version, source repository/ref, optional exact source SHA,
-install source kind, and optional installed-file hash. See [Sepo versioning](../technical-details/versioning.md)
-for the schema and SemVer policy.
-
-For release installs, prefer a release tag in `source_ref` such as `v0.1.0` and
-record the exact source commit in `source_sha`. For moving-branch development
-installs, `source_ref` may be `main` or `develop` and `source_sha` may stay
-`null` until install/update tooling records the exact checkout SHA.
-
 ## Repository configuration
 
 At minimum, configure:
@@ -53,13 +41,14 @@ After the files and secrets are in place:
 
 1. run `Agent / Onboarding / Check Setup` from GitHub Actions
 2. review the `Sepo setup check` issue that the workflow opens or updates
-3. run the copyable test command from that issue, or open another issue and mention `@sepo-agent`
+3. run a copyable test command from that issue's status comment, or open another issue and mention `@sepo-agent`
 4. wait for the `👀` reaction and the follow-up workflow run
 
 The onboarding workflow is safe to rerun. It creates the built-in trigger labels
 (`agent/answer`, `agent/implement`, `agent/create-action`, `agent/review`,
 `agent/fix-pr`, and `agent/orchestrate`) when they are missing, then updates the
-same setup issue comment with GitHub auth, provider, memory, and rubrics status.
+same setup issue comment with GitHub auth, provider credentials, memory, rubrics,
+remaining setup, and test commands.
 
 ## Memory Setup
 

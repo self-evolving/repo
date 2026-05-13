@@ -1112,10 +1112,42 @@ function formatPlannerClarificationComment(decision: HandoffDecision): string | 
   return lines.join("\n");
 }
 
+function formatPlannerAnswerComment(decision: HandoffDecision): string | null {
+  if (decision.plannerDecisionKind !== "answer") {
+    return null;
+  }
+
+  const message = String(decision.userMessage || "").trim();
+  if (!message) return null;
+
+  const lines = [
+    "Sepo answered this orchestration request.",
+    "",
+    message,
+    "",
+    `- Source action: \`${sourceAction || "unknown"}\``,
+    `- Source conclusion: \`${sourceConclusion || "unknown"}\``,
+    `- Target: \`${sourceTargetKind || "unknown"} #${targetNumber || "unknown"}\``,
+    `- Round: \`${currentRound}/${maxRounds}\``,
+    `- Reason: ${decision.reason}`,
+  ];
+
+  if (sourceRunId) {
+    lines.push(`- Source run ID: \`${sourceRunId}\``);
+  }
+
+  lines.push("", ORCHESTRATE_STOP_MARKER);
+  return lines.join("\n");
+}
+
 function formatOrchestrateStopComment(decision: HandoffDecision): string {
   const clarificationComment = formatPlannerClarificationComment(decision);
   if (clarificationComment) {
     return clarificationComment;
+  }
+  const answerComment = formatPlannerAnswerComment(decision);
+  if (answerComment) {
+    return answerComment;
   }
 
   const lines = [
@@ -1171,7 +1203,7 @@ function createOrchestrateStopComment(decision: HandoffDecision): void {
 }
 
 function commentOnInitialOrchestrateStop(decision: HandoffDecision): void {
-  if (formatPlannerClarificationComment(decision)) {
+  if (formatPlannerClarificationComment(decision) || formatPlannerAnswerComment(decision)) {
     return;
   }
   if (
@@ -1185,7 +1217,7 @@ function commentOnInitialOrchestrateStop(decision: HandoffDecision): void {
 }
 
 function commentOnPlannerClarificationStop(decision: HandoffDecision): void {
-  if (!formatPlannerClarificationComment(decision)) {
+  if (!formatPlannerClarificationComment(decision) && !formatPlannerAnswerComment(decision)) {
     return;
   }
   createOrchestrateStopComment(decision);
@@ -1216,7 +1248,7 @@ function commentOnTerminalMetaOrchestratorStop(decision: HandoffDecision): void 
   if (decision.decision !== "stop") {
     return;
   }
-  if (formatPlannerClarificationComment(decision)) {
+  if (formatPlannerClarificationComment(decision) || formatPlannerAnswerComment(decision)) {
     return;
   }
   if (
@@ -1278,6 +1310,33 @@ function decideManualOrchestration(): HandoffDecision {
   return { decision: "stop", reason: `unsupported target kind ${sourceTargetKind || "missing"}`, nextRound };
 }
 
+function decidePlannerOrchestration(): HandoffDecision {
+  const nextRound = currentRound + 1;
+  const normalizedKind = normalizeToken(sourceTargetKind);
+  if (normalizedKind === "pull_request") {
+    const status = readPrStatus(repo, targetNumber);
+    if (!status) {
+      return { decision: "stop", reason: "could not read pull request status", nextRound };
+    }
+    if (status.state !== "OPEN") {
+      return { decision: "stop", reason: `pull request is ${status.state.toLowerCase()}`, nextRound };
+    }
+  }
+  return decideHandoff({
+    automationMode,
+    sourceAction,
+    sourceConclusion,
+    targetKind: sourceTargetKind,
+    targetNumber,
+    nextTargetNumber: process.env.NEXT_TARGET_NUMBER || "",
+    currentRound,
+    maxRounds,
+    allowSelfApprove,
+    sourceHandoffContext,
+    plannerDecision: readPlannerDecision(),
+  });
+}
+
 function validateInitialOrchestrateCapabilities(): HandoffDecision | null {
   const reason = initialOrchestrateCapabilityStopReason({
     sourceAction,
@@ -1293,20 +1352,9 @@ function validateInitialOrchestrateCapabilities(): HandoffDecision | null {
 
 const authorizationStop = validateInitialOrchestrateCapabilities();
 const routeDecision = authorizationStop || (normalizeToken(sourceAction) === "orchestrate"
-  ? automationMode === "agent" && normalizeToken(sourceTargetKind) === "issue"
-    ? decideHandoff({
-      automationMode,
-      sourceAction,
-      sourceConclusion,
-      targetKind: sourceTargetKind,
-      targetNumber,
-      nextTargetNumber: process.env.NEXT_TARGET_NUMBER || "",
-      currentRound,
-      maxRounds,
-      allowSelfApprove,
-      sourceHandoffContext,
-      plannerDecision: readPlannerDecision(),
-    })
+  ? automationMode === "agent" &&
+      ["issue", "pull_request"].includes(normalizeToken(sourceTargetKind))
+    ? decidePlannerOrchestration()
     : decideManualOrchestration()
   : decideHandoff({
     automationMode,
