@@ -10,8 +10,8 @@ Sepo turns a repository into a **self-evolving repository**: a codebase that can
 
 ### Start from this template
 
-1. Create a new repository with **Use this template**. Forking is supported, but forks often have Issues and/or Actions disabled by default; template-created repos usually avoid those fork-specific defaults.
-2. Install the [Sepo GitHub App](https://github.com/apps/sepo-agent-app/installations/select_target). For first-time setup, choose **Only select repositories** and select the repository you are setting up. **All repositories** is supported, but it grants broader access and can trigger bootstrap checks across many repositories.
+1. Create a new repository with **Use this template**. 
+2. Install the [Sepo GitHub App](https://github.com/apps/sepo-agent-app/installations/select_target). For first-time setup, select only the repositories you are setting up. 
    - Alternatively, you can use [your own GitHub App](.agent/docs/deployment/using-your-own-github-app.md) when you want a self-managed app identity.
    - See the [setup guide](.agent/docs/deployment/setup-guide.md) for all auth options and trade-offs.
 3. Before onboarding, confirm the repository is ready:
