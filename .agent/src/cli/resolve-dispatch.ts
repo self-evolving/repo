@@ -9,6 +9,7 @@ import { readFileSync } from "node:fs";
 import { type AccessPolicy, parseAccessPolicy } from "../access-policy.js";
 import { setOutput } from "../output.js";
 import {
+  type DispatchDecision,
   normalizeDispatch,
   applyDispatchPolicy,
   buildRequestedRouteDecision,
@@ -32,11 +33,40 @@ function loadAccessPolicy(): AccessPolicy | null {
   }
 }
 
+function mergeGeneratedIssueMetadata(decision: DispatchDecision, rawResponse: string): DispatchDecision {
+  const raw = rawResponse.trim();
+  if (!raw || (decision.route !== "implement" && decision.route !== "create-action")) {
+    return decision;
+  }
+
+  try {
+    const generated = normalizeDispatch(raw);
+    if (generated.route !== decision.route) {
+      console.warn(
+        `Ignoring generated issue metadata for route ${generated.route || "missing"} while resolving ${decision.route}`,
+      );
+      return decision;
+    }
+
+    return {
+      ...decision,
+      confidence: generated.confidence || decision.confidence,
+      summary: generated.summary || decision.summary,
+      issueTitle: generated.issueTitle || decision.issueTitle,
+      issueBody: generated.issueBody || decision.issueBody,
+    };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(`Ignoring generated issue metadata: ${msg}`);
+    return decision;
+  }
+}
+
 function emitDecision(accessPolicy: AccessPolicy): void {
   try {
     const isExplicit = Boolean(requestedRoute);
     const decision = isExplicit
-      ? buildRequestedRouteDecision(requestedRoute, requestText)
+      ? mergeGeneratedIssueMetadata(buildRequestedRouteDecision(requestedRoute, requestText), raw)
       : normalizeDispatch(raw);
     const result = applyDispatchPolicy(
       decision,

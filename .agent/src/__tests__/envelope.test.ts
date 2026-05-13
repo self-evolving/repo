@@ -530,7 +530,7 @@ test("review synthesis uses a shared reviews directory contract", () => {
   assert.doesNotMatch(runSource, /PROMPT_VAR_MEMORY_/);
 });
 
-test("agent router bypasses dispatch triage for explicit mention slash routes", () => {
+test("agent router bypasses route-selection triage for explicit mention slash routes", () => {
   const runnerWorkflow = readRepoFile(".github/workflows/agent-router.yml");
   const extractContext = readRepoFile(".agent/src/cli/extract-context.ts");
   const resolveDispatch = readRepoFile(".agent/src/cli/resolve-dispatch.ts");
@@ -540,8 +540,17 @@ test("agent router bypasses dispatch triage for explicit mention slash routes", 
     runnerWorkflow,
     /steps\.context\.outputs\.should_respond == 'true'[\s\S]*steps\.context\.outputs\.requested_route == ''/,
   );
+  assert.match(
+    runnerWorkflow,
+    /- name: Generate explicit implement issue metadata[\s\S]*steps\.context\.outputs\.requested_route == 'implement'[\s\S]*steps\.context\.outputs\.target_kind != 'issue'[\s\S]*prompt:\s*agent-implement-metadata/,
+  );
+  assert.match(
+    runnerWorkflow,
+    /RESPONSE_FILE:\s*\$\{\{\s*steps\.triage\.outputs\.response_file \|\| steps\.implement_metadata\.outputs\.response_file\s*\}\}/,
+  );
   assert.match(runnerWorkflow, /REQUESTED_ROUTE:\s*\$\{\{\s*steps\.context\.outputs\.requested_route\s*\}\}/);
   assert.match(resolveDispatch, /buildRequestedRouteDecision/);
+  assert.match(resolveDispatch, /mergeGeneratedIssueMetadata/);
 });
 
 test("agent router supports label-triggered route and skill overrides", () => {
@@ -663,6 +672,11 @@ test("agent router dispatches agent-implement directly for explicit implement re
 
   // Runtime must be bootstrapped before any node .agent/dist/* calls.
   assert.match(implementJob, /uses:\s*\.\/\.github\/actions\/setup-agent-runtime/);
+
+  // Explicit PR/discussion /implement runs get generated tracking issue
+  // metadata before this job creates the issue; route choice stays explicit.
+  assert.match(runnerWorkflow, /Generate explicit implement issue metadata/);
+  assert.match(runnerWorkflow, /prompt:\s*agent-implement-metadata/);
 
   // Tracking-issue creation + dispatch delegate to CLI helpers in the
   // TS backend rather than inline shell.

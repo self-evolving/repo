@@ -209,7 +209,7 @@ Explicit routes are:
 - `@sepo-agent /orchestrate`
 - `@sepo-agent /skill <name>`
 
-Explicit routes skip dispatch triage and resolve locally, but still go through the same route policy checks afterward.
+Explicit routes skip route-selection dispatch triage and resolve locally, but still go through the same route policy checks afterward. For explicit `/implement` requests on pull requests or discussions, the router runs a metadata-only agent pass to generate the tracking issue title and body from the request and target context; the generated response cannot change the explicit route, and the generic `Implement requested change` title remains only a fallback when metadata generation is unavailable.
 
 Mention-based skill requests normalize the skill name to lowercase and run `.skills/<name>/SKILL.md` inline through the same `skill` route used by `agent/s/<skill>` labels.
 
