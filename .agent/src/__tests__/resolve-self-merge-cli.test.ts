@@ -26,6 +26,7 @@ if [ "$1" = "pr" ] && [ "$2" = "view" ]; then
     view_count="$(cat "$view_count_file")"
   fi
   printf '%s\\n' "$((view_count + 1))" > "$view_count_file"
+  auto_merge_request="\${FAKE_AUTO_MERGE_REQUEST-null}"
   is_draft="\${FAKE_IS_DRAFT-false}"
   merge_state="\${FAKE_MERGE_STATE-CLEAN}"
   mergeable="\${FAKE_MERGEABLE-MERGEABLE}"
@@ -34,13 +35,14 @@ if [ "$1" = "pr" ] && [ "$2" = "view" ]; then
     merge_state="\${FAKE_AFTER_READY_MERGE_STATE-CLEAN}"
     mergeable="\${FAKE_AFTER_READY_MERGEABLE-MERGEABLE}"
   fi
-  printf '{"headRefOid":"abc123","isDraft":%s,"state":"%s","mergeStateStatus":"%s","mergeable":"%s","reviewDecision":"%s","statusCheckRollup":%s,"autoMergeRequest":null}\\n' \
+  printf '{"headRefOid":"abc123","isDraft":%s,"state":"%s","mergeStateStatus":"%s","mergeable":"%s","reviewDecision":"%s","statusCheckRollup":%s,"autoMergeRequest":%s}\\n' \
     "$is_draft" \
     "\${FAKE_PR_STATE-OPEN}" \
     "$merge_state" \
     "$mergeable" \
     "\${FAKE_REVIEW_DECISION-APPROVED}" \
-    "\${FAKE_STATUS_CHECK_ROLLUP-[]}"
+    "\${FAKE_STATUS_CHECK_ROLLUP-[]}" \
+    "$auto_merge_request"
   exit 0
 fi
 if [ "$1" = "api" ] && [ "$2" = "graphql" ]; then
@@ -147,6 +149,28 @@ test("resolve-self-merge blocks auto-merge when merge state is missing", () => {
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.outputs.get("conclusion"), "blocked");
     assert.match(result.outputs.get("reason") || "", /merge state: unknown/);
+    assert.doesNotMatch(result.log, /^pr merge /m);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("resolve-self-merge blocks existing auto-merge when merge state is ineligible", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-self-merge-cli-"));
+  try {
+    writeFakeGh(tempDir);
+
+    const result = runResolveSelfMerge(tempDir, {
+      FAKE_AUTO_MERGE_REQUEST: "{}",
+      FAKE_MERGE_STATE: "DIRTY",
+      FAKE_MERGEABLE: "MERGEABLE",
+      FAKE_STATUS_CHECK_ROLLUP: '[{"name":"check","status":"IN_PROGRESS","conclusion":""}]',
+    });
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.outputs.get("conclusion"), "blocked");
+    assert.equal(result.outputs.get("auto_merge_enabled"), "false");
+    assert.match(result.outputs.get("reason") || "", /not eligible for auto-merge/);
     assert.doesNotMatch(result.log, /^pr merge /m);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });

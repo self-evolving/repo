@@ -265,7 +265,8 @@ export function resolveSelfMerge(input: SelfMergeResolveInput): SelfMergeResolve
   }
 
   if (checks.pending > 0) {
-    if (input.autoMergeRequestExists) {
+    const autoMergeEligible = canEnableAutoMerge(input);
+    if (input.autoMergeRequestExists && autoMergeEligible) {
       return {
         conclusion: "auto_merge_enabled",
         nextStep: "none",
@@ -273,7 +274,7 @@ export function resolveSelfMerge(input: SelfMergeResolveInput): SelfMergeResolve
         reason: "GitHub auto-merge is already enabled while checks are pending",
       };
     }
-    if (canEnableAutoMerge(input)) {
+    if (autoMergeEligible) {
       return {
         conclusion: "auto_merge_enabled",
         nextStep: "enable_auto_merge",

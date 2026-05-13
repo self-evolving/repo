@@ -168,6 +168,17 @@ test("resolveSelfMerge enables auto-merge while checks are pending", () => {
   assert.equal(alreadyEnabled.conclusion, "auto_merge_enabled");
   assert.equal(alreadyEnabled.nextStep, "none");
 
+  const ineligibleAlreadyEnabled = resolveSelfMerge({
+    ...baseInput,
+    autoMergeRequestExists: true,
+    mergeStateStatus: "DIRTY",
+    mergeable: "MERGEABLE",
+    statusChecks: [{ name: "check", status: "IN_PROGRESS", conclusion: "", state: "" }],
+  });
+  assert.equal(ineligibleAlreadyEnabled.conclusion, "blocked");
+  assert.equal(ineligibleAlreadyEnabled.nextStep, "none");
+  assert.match(ineligibleAlreadyEnabled.reason, /not eligible for auto-merge/);
+
   const missingMergeState = resolveSelfMerge({
     ...baseInput,
     mergeStateStatus: "",
