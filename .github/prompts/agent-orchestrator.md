@@ -13,6 +13,7 @@ chain should stop or hand off to exactly one allowed next action.
 - Current target: `${TARGET_KIND} #${TARGET_NUMBER}`
 - Next target from source action, if any: `${ORCHESTRATOR_NEXT_TARGET_NUMBER}`
 - Source handoff context, if any: `${ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT}`
+- Self-approval enabled: `${ORCHESTRATOR_SELF_APPROVE_ENABLED}`
 
 ## Runtime Policy
 
@@ -24,6 +25,10 @@ these policy rules:
   produced a pull request target.
 - `review` may hand off to `fix-pr` only for `MINOR_ISSUES`,
   `NEEDS_REWORK`, or `CHANGES_REQUESTED`.
+- `review` may hand off to `agent-self-approve` only for `SHIP` when
+  self-approval is enabled; otherwise `SHIP` stops.
+- `agent-self-approve` may hand off to `fix-pr` only for `REQUEST_CHANGES`.
+  `APPROVED`, `BLOCKED`, and `FAILED` stop.
 - `fix-pr` may hand off to `review` only when fixes succeeded. When
   `fix-pr` reports `no_changes`, `failed`, or `verify_failed`, choose a
   visible stop/block path instead of asking for another automatic review.
@@ -39,7 +44,8 @@ these policy rules:
   the user clearly wants branch changes or PR fixes. Use `answer`, `stop`, or
   `blocked` when no follow-up workflow should run.
 - Duplicate handoffs are skipped by the orchestrator marker dedupe logic.
-- You may always choose to stop when another automatic action is not useful.
+- You may choose to stop when another automatic action is not useful, except
+  that enabled self-approval should receive a `SHIP` review handoff.
 
 ## Instructions
 
@@ -50,7 +56,7 @@ rubrics. Then return exactly one JSON object and nothing else:
 ```json
 {
   "decision": "handoff | delegate_issue | answer | stop | blocked",
-  "next_action": "implement | review | fix-pr",
+  "next_action": "implement | review | fix-pr | agent-self-approve",
   "reason": "Short explanation for logs and the handoff marker.",
   "handoff_context": "Actionable instructions for the next action, especially fix-pr.",
   "user_message": "Optional user-facing message to post when decision is answer or blocked.",
@@ -66,7 +72,8 @@ rubrics. Then return exactly one JSON object and nothing else:
 Rules:
 - If the latest review synthesis includes a `Recommended Next Step`, treat it
   as the primary automation signal: hand off on `FIX_PR`, stop on
-  `HUMAN_DECISION` or `NO_AUTOMATED_ACTION` unless newer human input overrides it.
+  `HUMAN_DECISION` or `NO_AUTOMATED_ACTION` unless newer human input overrides
+  it or self-approval is enabled for a `SHIP` review.
 - Use `handoff` only when one more automatic action is clearly warranted.
 - For issue-level `orchestrate`, prefer `handoff` with `next_action:
   "implement"` when the requested work fits in the current issue. Use
@@ -107,3 +114,5 @@ Rules:
   it is required: preserve any non-empty source handoff context, or make the
   task concrete by summarizing the exact review findings to address,
   constraints to preserve, and unrelated work to avoid.
+- When `agent-self-approve` returns `REQUEST_CHANGES`, hand off to `fix-pr`
+  and preserve the source handoff context as the fix-pr task.

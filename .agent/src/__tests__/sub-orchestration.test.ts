@@ -78,6 +78,18 @@ test("terminal helpers resolve closing issue references and result states", () =
   assert.equal(extractClosingIssueNumber("No linked issue"), null);
   assert.equal(resultStateFromTerminal({ sourceAction: "review", sourceConclusion: "SHIP", reason: "" }), "done");
   assert.equal(
+    resultStateFromTerminal({ sourceAction: "agent-self-approve", sourceConclusion: "approved", reason: "" }),
+    "done",
+  );
+  assert.equal(
+    resultStateFromTerminal({ sourceAction: "agent-self-approve", sourceConclusion: "blocked", reason: "" }),
+    "blocked",
+  );
+  assert.equal(
+    resultStateFromTerminal({ sourceAction: "agent-self-approve", sourceConclusion: "failed", reason: "" }),
+    "failed",
+  );
+  assert.equal(
     resultStateFromTerminal({
       sourceAction: "review",
       sourceConclusion: "failed",

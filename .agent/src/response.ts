@@ -1,6 +1,7 @@
 // Agent response parsing and status determination.
 
 import {
+  buildReviewSynthesisHeadMarker,
   buildReviewSynthesisMarker,
   REVIEW_SYNTHESIS_HEADING,
 } from "./review-synthesis.js";
@@ -138,14 +139,16 @@ export function formatReviewComment(data: {
   synthesisBody: string;
   requestedBy?: string;
   approvalCommentUrl?: string;
+  reviewedHeadSha?: string;
 }): string {
   const lines = [
     REVIEW_SYNTHESIS_HEADING,
     "",
     buildReviewSynthesisMarker(),
-    "",
-    "> Dual-agent review by **Claude** and **Codex**.",
   ];
+  const headMarker = buildReviewSynthesisHeadMarker(data.reviewedHeadSha || "");
+  if (headMarker) lines.push(headMarker);
+  lines.push("", "> Dual-agent review by **Claude** and **Codex**.");
   if (data.requestedBy) lines.push(`> Requested by @${data.requestedBy}.`);
   if (data.approvalCommentUrl) lines.push(`> Approval comment: ${data.approvalCommentUrl}`);
   lines.push("", data.synthesisBody);
