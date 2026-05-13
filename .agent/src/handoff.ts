@@ -1,6 +1,6 @@
 import { extractJsonObject } from "./response.js";
 
-export type AgentAction = "implement" | "review" | "fix-pr" | "agent-self-approve";
+export type AgentAction = "implement" | "review" | "fix-pr" | "agent-self-approve" | "agent-self-merge";
 export type HandoffDecisionKind = "dispatch" | "delegate_issue" | "stop" | "skip";
 export type AutomationMode = "disabled" | "heuristics" | "agent";
 export type HandoffMarkerState = "pending" | "dispatched" | "failed";
@@ -17,6 +17,7 @@ export interface HandoffInput {
   currentRound: number;
   maxRounds: number;
   allowSelfApprove?: boolean;
+  allowSelfMerge?: boolean;
   plannerDecision?: PlannerDecision | null;
 }
 
@@ -218,6 +219,7 @@ function normalizeAgentAction(value: string): AgentAction | null {
   if (normalized === "review") return "review";
   if (normalized === "fix_pr") return "fix-pr";
   if (normalized === "agent_self_approve") return "agent-self-approve";
+  if (normalized === "agent_self_merge") return "agent-self-merge";
   return null;
 }
 
@@ -493,7 +495,20 @@ function decideHeuristicHandoff(input: HandoffInput): HandoffDecision {
         handoffContext: resolveSelfApprovalFixPrHandoffContext(input),
       };
     }
+    if (conclusion === "approved" && input.allowSelfMerge) {
+      return {
+        decision: "dispatch",
+        nextAction: "agent-self-merge",
+        targetNumber: nextTarget,
+        reason: "agent-self-approve concluded approved; dispatching agent-self-merge",
+        nextRound,
+      };
+    }
     return { decision: "stop", reason: `agent-self-approve concluded ${conclusion}`, nextRound };
+  }
+
+  if (sourceAction === "agent_self_merge") {
+    return { decision: "stop", reason: `agent-self-merge concluded ${conclusion}`, nextRound };
   }
 
   return { decision: "stop", reason: `unsupported source action ${input.sourceAction}`, nextRound };

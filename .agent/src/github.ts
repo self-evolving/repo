@@ -161,6 +161,33 @@ export interface IssueCommentRecord {
   createdAt: string;
 }
 
+export interface PrStatusCheckRecord {
+  name: string;
+  status: string;
+  conclusion: string;
+  state: string;
+}
+
+export interface PrMergeMeta {
+  headOid: string;
+  isDraft: boolean;
+  state: string;
+  mergeStateStatus: string;
+  mergeable: string;
+  reviewDecision: string;
+  autoMergeRequestExists: boolean;
+  statusChecks: PrStatusCheckRecord[];
+}
+
+export interface PrReviewRecord {
+  id: string;
+  body: string;
+  state: string;
+  authorLogin: string;
+  commitId: string;
+  submittedAt: string;
+}
+
 function extractLogin(value: unknown): string {
   if (!value || typeof value !== "object" || Array.isArray(value)) return "";
   const login = (value as Record<string, unknown>).login;
@@ -196,6 +223,42 @@ export function fetchPrMeta(prNumber: number, repo?: string): PrMeta {
   };
 }
 
+function normalizePrStatusCheckRecord(value: unknown): PrStatusCheckRecord | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  return {
+    name: String(record.name ?? record.context ?? record.workflowName ?? ""),
+    status: String(record.status ?? ""),
+    conclusion: String(record.conclusion ?? ""),
+    state: String(record.state ?? ""),
+  };
+}
+
+export function fetchPrMergeMeta(prNumber: number, repo?: string): PrMergeMeta {
+  const args = [
+    "pr",
+    "view",
+    String(prNumber),
+    "--json",
+    "headRefOid,isDraft,state,mergeStateStatus,mergeable,reviewDecision,statusCheckRollup,autoMergeRequest",
+  ];
+  if (repo) args.push("--repo", repo);
+  const data = JSON.parse(gh(args)) as Record<string, unknown>;
+  const statusCheckRollup = Array.isArray(data.statusCheckRollup) ? data.statusCheckRollup : [];
+  return {
+    headOid: String(data.headRefOid ?? ""),
+    isDraft: Boolean(data.isDraft),
+    state: String(data.state ?? ""),
+    mergeStateStatus: String(data.mergeStateStatus ?? ""),
+    mergeable: String(data.mergeable ?? ""),
+    reviewDecision: String(data.reviewDecision ?? ""),
+    autoMergeRequestExists: Boolean(data.autoMergeRequest),
+    statusChecks: statusCheckRollup
+      .map(normalizePrStatusCheckRecord)
+      .filter((check): check is PrStatusCheckRecord => Boolean(check)),
+  };
+}
+
 export function fetchAuthenticatedActorLogin(): string {
   const raw = gh([
     "api",
@@ -215,6 +278,78 @@ export function fetchPrAuthorLogin(prNumber: number, repo?: string): string {
   if (repo) args.push("--repo", repo);
   const data = JSON.parse(gh(args)) as Record<string, unknown>;
   return authorLoginFromRecord(data);
+}
+
+function normalizePrReviewRecord(value: unknown): PrReviewRecord | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  return {
+    id: String(record.id || ""),
+    body: String(record.body || ""),
+    state: String(record.state || ""),
+    authorLogin: authorLoginFromRecord(record),
+    commitId: String(record.commit_id ?? record.commitId ?? ""),
+    submittedAt: String(record.submitted_at ?? record.submittedAt ?? ""),
+  };
+}
+
+export function fetchPrReviewRecords(prNumber: number, repo: string): PrReviewRecord[] {
+  const raw = gh([
+    "api",
+    "--paginate",
+    "--slurp",
+    `repos/${repo}/pulls/${prNumber}/reviews`,
+  ]).trim();
+  if (!raw) return [];
+
+  const parsed = JSON.parse(raw) as unknown;
+  const pages = Array.isArray(parsed) ? parsed : [parsed];
+  const reviews: PrReviewRecord[] = [];
+  for (const page of pages) {
+    const entries = Array.isArray(page) ? page : [page];
+    for (const entry of entries) {
+      const review = normalizePrReviewRecord(entry);
+      if (review) reviews.push(review);
+    }
+  }
+  return reviews;
+}
+
+function requireMatchHeadCommit(matchHeadCommit: string): string {
+  const trimmed = String(matchHeadCommit || "").trim();
+  if (!trimmed) throw new Error("match head commit is required");
+  return trimmed;
+}
+
+export function markPullRequestReady(prNumber: number, repo: string): void {
+  gh(["pr", "ready", String(prNumber), "--repo", repo]);
+}
+
+export function mergePullRequest(prNumber: number, repo: string, matchHeadCommit: string): void {
+  gh([
+    "pr",
+    "merge",
+    String(prNumber),
+    "--repo",
+    repo,
+    "--merge",
+    "--match-head-commit",
+    requireMatchHeadCommit(matchHeadCommit),
+  ]);
+}
+
+export function enablePullRequestAutoMerge(prNumber: number, repo: string, matchHeadCommit: string): void {
+  gh([
+    "pr",
+    "merge",
+    String(prNumber),
+    "--repo",
+    repo,
+    "--merge",
+    "--auto",
+    "--match-head-commit",
+    requireMatchHeadCommit(matchHeadCommit),
+  ]);
 }
 
 function normalizeIssueCommentRecord(value: unknown): IssueCommentRecord | null {

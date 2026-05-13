@@ -183,6 +183,7 @@ exit 1
         AUTOMATION_MAX_ROUNDS: "5",
         ACCESS_POLICY: "",
         AUTHOR_ASSOCIATION: "MEMBER",
+        AGENT_ALLOW_SELF_MERGE: "false",
         BASE_BRANCH: "",
         BASE_PR: "",
         REPOSITORY_PRIVATE: "true",
@@ -1107,6 +1108,48 @@ test("self-approval request changes respects the round budget", () => {
   assert.equal(run.dispatchPayload, null);
 });
 
+test("self-approval approved dispatches self-merge when enabled", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "agent-self-approve",
+    SOURCE_CONCLUSION: "approved",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "128",
+    AUTOMATION_CURRENT_ROUND: "3",
+    AUTOMATION_MAX_ROUNDS: "5",
+    AGENT_ALLOW_SELF_MERGE: "true",
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "dispatch");
+  assert.equal(run.outputs.get("next_action"), "agent-self-merge");
+  assert.equal(run.outputs.get("target_number"), "128");
+  assert.match(run.outputs.get("reason") || "", /dispatching agent-self-merge/);
+  assert.match(run.ghLog, /actions\/workflows\/agent-self-merge\.yml\/dispatches/);
+  assert.match(run.ghLog, /\| agent-self-approve \| agent-self-merge \| PR #128 \| 4 \/ 5 \| Dispatched \|/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.pr_number, "128");
+  assert.equal(inputs.orchestration_enabled, "true");
+  assert.equal(inputs.automation_current_round, "4");
+});
+
+test("self-approval approved keeps current stop behavior when self-merge is disabled", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "agent-self-approve",
+    SOURCE_CONCLUSION: "approved",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "128",
+    AUTOMATION_CURRENT_ROUND: "3",
+    AUTOMATION_MAX_ROUNDS: "5",
+    AGENT_ALLOW_SELF_MERGE: "false",
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.equal(run.outputs.get("reason"), "agent-self-approve concluded approved");
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-self-merge\.yml\/dispatches/);
+  assert.equal(run.dispatchPayload, null);
+});
+
 test("terminal self-approval child reports approval to parent", () => {
   const childBody = "<!-- sepo-sub-orchestrator parent:76 stage:stage-1 state:running parent_round:2 -->";
   const run = runOrchestrateHandoff({
@@ -1206,6 +1249,45 @@ test("initial orchestrate checks self-approval route access only when enabled", 
   assert.equal(
     enabled.outputs.get("reason"),
     "orchestrate requests require agent-self-approve access; agent-self-approve currently requires MEMBER access.",
+  );
+  assert.doesNotMatch(enabled.ghLog, /actions\/workflows\/agent-implement\.yml\/dispatches/);
+});
+
+test("initial orchestrate checks self-merge route access only when enabled", () => {
+  const accessPolicy = JSON.stringify({
+    route_overrides: {
+      "agent-self-merge": ["MEMBER"],
+    },
+  });
+  const disabled = runOrchestrateHandoff({
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "20",
+    AUTHOR_ASSOCIATION: "CONTRIBUTOR",
+    REPOSITORY_PRIVATE: "false",
+    ACCESS_POLICY: accessPolicy,
+    AGENT_ALLOW_SELF_APPROVE: "true",
+    AGENT_ALLOW_SELF_MERGE: "false",
+  });
+
+  assert.equal(disabled.status, 0, disabled.stderr || disabled.stdout);
+  assert.equal(disabled.outputs.get("decision"), "dispatch");
+  assert.equal(disabled.outputs.get("next_action"), "implement");
+
+  const enabled = runOrchestrateHandoff({
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "20",
+    AUTHOR_ASSOCIATION: "CONTRIBUTOR",
+    REPOSITORY_PRIVATE: "false",
+    ACCESS_POLICY: accessPolicy,
+    AGENT_ALLOW_SELF_APPROVE: "true",
+    AGENT_ALLOW_SELF_MERGE: "true",
+  });
+
+  assert.equal(enabled.status, 0, enabled.stderr || enabled.stdout);
+  assert.equal(enabled.outputs.get("decision"), "stop");
+  assert.equal(
+    enabled.outputs.get("reason"),
+    "orchestrate requests require agent-self-merge access; agent-self-merge currently requires MEMBER access.",
   );
   assert.doesNotMatch(enabled.ghLog, /actions\/workflows\/agent-implement\.yml\/dispatches/);
 });

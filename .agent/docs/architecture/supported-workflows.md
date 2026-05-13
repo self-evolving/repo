@@ -12,6 +12,7 @@
 | `agent-approve.yml` | approval comments | Resolves pending approvals, creates issues when needed, dispatches implementation | None |
 | `agent-orchestrator.yml` | `workflow_dispatch` | Explicit orchestration route that decides whether to dispatch the next action | None in `heuristics` mode; resolved-provider planner in `agent` mode |
 | `agent-self-approve.yml` | `workflow_dispatch` | Opt-in pull request self-approval gate after trusted current-head review synthesis | Auto |
+| `agent-self-merge.yml` | `workflow_dispatch` | Opt-in deterministic merge gate after current-head Sepo self-approval | None |
 | `agent-implement.yml` | `workflow_dispatch` | Implementation flow: branch, commit, draft PR; supports `base_branch` or `base_pr` for stacked PRs | Auto |
 | `agent-fix-pr.yml` | `workflow_dispatch`, `workflow_call` | PR fix flow: update existing PR branch, verify, push | Auto |
 | `agent-review.yml` | `workflow_dispatch`, `workflow_call` | Parallel Claude and Codex review with resolved-provider synthesis, captured reviewed-head provenance, plus a separate rubric review comment | Claude + Codex reviewers; configurable synthesis |
@@ -27,8 +28,8 @@
 `agent/orchestrate`. Dispatch triage can also select `orchestrate` for issue and
 pull request requests that ask for orchestration, follow-up automation, or
 bounded multi-step agent work. On start, it inspects the current target state and
-dispatches one built-in action (`implement`, `review`, `fix-pr`, or
-`agent-self-approve`) when useful.
+dispatches one built-in action (`implement`, `review`, `fix-pr`,
+`agent-self-approve`, or `agent-self-merge`) when useful.
 That dispatch includes explicit orchestration context; only those orchestrator
 launched action runs hand back to `agent-orchestrator.yml` after post-processing.
 Direct `/implement`, `/review`, and `/fix-pr` runs remain one-shot. Pull request
@@ -67,13 +68,15 @@ and only then marks the trusted child marker as `done`, `blocked`, or `failed`.
 Already-dispatched terminal reports are idempotent so reruns do not overwrite
 completed child state.
 
-Because `/orchestrate` can delegate into implementation, review, fix, and
-enabled self-approval workflows, initial user-launched orchestrate requests
-validate the requester against the delegated route capability set up front.
-`agent-self-approve` is included in that check only when
-`AGENT_ALLOW_SELF_APPROVE=true`. Internal child and parent resume dispatches
-carry `requested_by` for audit and display, but they do not thread route
-authorization inputs through every child workflow.
+Because `/orchestrate` can delegate into implementation, review, fix, enabled
+self-approval workflows, and enabled self-merge workflows, initial
+user-launched orchestrate requests validate the requester against the delegated
+route capability set up front. `agent-self-approve` is included in that check
+only when `AGENT_ALLOW_SELF_APPROVE=true`; `agent-self-merge` is included only
+when both `AGENT_ALLOW_SELF_APPROVE=true` and `AGENT_ALLOW_SELF_MERGE=true`.
+Internal child and parent resume dispatches carry `requested_by` for audit and
+display, but they do not thread route authorization inputs through every child
+workflow.
 
 Implementation dispatches default to the repository default branch. Callers can
 set `base_branch` to stack directly on another branch, or `base_pr` to stack on
@@ -261,6 +264,22 @@ to `fix-pr` with the approval agent's handoff context. Self-approval status
 comments are upserted by marker against comments authored by the authenticated
 Sepo actor, and result artifacts are retained for failed or blocked resolution
 paths where available.
+
+### `agent-self-merge.yml`
+
+Self-merge is disabled unless `AGENT_ALLOW_SELF_MERGE=true`. The workflow is
+deterministic: it reads the current PR metadata, requires a trusted Sepo
+self-approval review for the current head SHA, blocks requested-changes and
+failed-check states, marks draft PRs ready, then merges into the PR's configured
+base when GitHub reports it mergeable. If checks are still pending and GitHub
+reports an eligible merge state, it enables GitHub auto-merge instead.
+
+The final merge and auto-merge commands use `--match-head-commit` with the
+approved head SHA, so a push after preflight cannot merge an unapproved head.
+Self-merge status comments are marker-upserted against comments authored by the
+authenticated Sepo actor. In orchestrated chains, an `agent-self-approve`
+`APPROVED` result can hand off to `agent-self-merge` only when self-merge is
+also enabled.
 
 ### `agent-approve.yml`
 

@@ -12,6 +12,7 @@ import {
   isRubricsReviewBody,
 } from "../review-summary-minimize.js";
 import { SELF_APPROVAL_STATUS_MARKER } from "../self-approval.js";
+import { SELF_MERGE_STATUS_MARKER } from "../self-merge.js";
 import { formatSessionRestoreNotice } from "../session-bundle.js";
 
 const bodyFile = process.env.BODY_FILE || "";
@@ -46,30 +47,35 @@ if (continuityNote) {
 }
 
 let posted = false;
-let selfApprovalUpsertFailed = false;
+let markerUpsertFailed = false;
+const markerUpsert = body.includes(SELF_APPROVAL_STATUS_MARKER)
+  ? { marker: SELF_APPROVAL_STATUS_MARKER, label: "self-approval" }
+  : body.includes(SELF_MERGE_STATUS_MARKER)
+    ? { marker: SELF_MERGE_STATUS_MARKER, label: "self-merge" }
+    : null;
 if (
   responseKind === "pr_comment" &&
   repo &&
   targetNumber > 0 &&
-  body.includes(SELF_APPROVAL_STATUS_MARKER)
+  markerUpsert
 ) {
   try {
-    const action = upsertPrCommentByMarker(targetNumber, repo, SELF_APPROVAL_STATUS_MARKER, body);
-    console.log(`${action === "updated" ? "Updated" : "Created"} self-approval status comment.`);
+    const action = upsertPrCommentByMarker(targetNumber, repo, markerUpsert.marker, body);
+    console.log(`${action === "updated" ? "Updated" : "Created"} ${markerUpsert.label} status comment.`);
     posted = true;
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(
-      `Failed to upsert self-approval status comment for ${repo}#${targetNumber}: ${message}`,
+      `Failed to upsert ${markerUpsert.label} status comment for ${repo}#${targetNumber}: ${message}`,
     );
-    selfApprovalUpsertFailed = true;
+    markerUpsertFailed = true;
     process.exitCode = 1;
   }
 }
 
 if (
   !posted &&
-  !selfApprovalUpsertFailed &&
+  !markerUpsertFailed &&
   responseKind === "pr_comment" &&
   repo &&
   targetNumber > 0 &&
@@ -89,7 +95,7 @@ if (
   }
 }
 
-if (!posted && !selfApprovalUpsertFailed) {
+if (!posted && !markerUpsertFailed) {
   postResponse(
     { responseKind, targetNumber, reviewCommentId, discussionNodeId, replyToId, repo },
     body,

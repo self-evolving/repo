@@ -188,6 +188,13 @@ const SELF_APPROVAL_TERMINAL_STATES: Record<string, SubOrchestratorState> = {
   failed: "failed",
 };
 
+const SELF_MERGE_TERMINAL_STATES: Record<string, SubOrchestratorState> = {
+  auto_merge_enabled: "done",
+  blocked: "blocked",
+  failed: "failed",
+  merged: "done",
+};
+
 export function resultStateFromTerminal(input: {
   sourceAction: string;
   sourceConclusion: string;
@@ -199,6 +206,9 @@ export function resultStateFromTerminal(input: {
   if (action === "review" && conclusion === "ship") return "done";
   if (action === "agent_self_approve" && SELF_APPROVAL_TERMINAL_STATES[conclusion]) {
     return SELF_APPROVAL_TERMINAL_STATES[conclusion];
+  }
+  if (action === "agent_self_merge" && SELF_MERGE_TERMINAL_STATES[conclusion]) {
+    return SELF_MERGE_TERMINAL_STATES[conclusion];
   }
   if (
     reason.startsWith("agent planner blocked:") ||
