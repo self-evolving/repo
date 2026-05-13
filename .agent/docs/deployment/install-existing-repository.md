@@ -30,7 +30,9 @@ The workflows build `.agent/dist/` on GitHub-hosted runners. Keeping generated r
 
 At minimum, configure:
 
-- GitHub Actions enabled for the repository
+- Issues enabled in `Settings > General > Features > Issues`
+- GitHub Actions enabled in `Settings > Actions > General`
+- the Sepo GitHub App installed on the selected repository
 - `OPENAI_API_KEY` and/or `CLAUDE_CODE_OAUTH_TOKEN` as repository secrets
 
 See [Setup guide](setup-guide.md) for the auth options and trade-offs.

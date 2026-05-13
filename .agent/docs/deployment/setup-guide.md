@@ -41,6 +41,11 @@ In `.github/actions/resolve-github-auth`, the hosted app path:
 
 This path is built in and works without extra repository configuration beyond standard workflow permissions and model-provider secrets.
 
+For first-time setup, install the Sepo GitHub App with **Only select repositories**
+and select the repository you are onboarding. **All repositories** is supported,
+but it grants broader access and can trigger bootstrap checks across many
+repositories, so it is not the recommended first install path.
+
 ## Bring your own GitHub App
 
 If you want a fully self-managed setup, configure:
