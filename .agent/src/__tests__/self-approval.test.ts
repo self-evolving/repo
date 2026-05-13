@@ -4,6 +4,7 @@ import { strict as assert } from "node:assert";
 import {
   evaluateSelfApprovalActor,
   evaluateSelfApprovalProvenance,
+  formatSelfApprovalBody,
   parseSelfApprovalDecision,
   resolveSelfApproval,
 } from "../self-approval.js";
@@ -42,6 +43,22 @@ test("parseSelfApprovalDecision rejects malformed or unsupported decisions", () 
   assert.equal(parseSelfApprovalDecision("no json"), null);
   assert.equal(parseSelfApprovalDecision('{"verdict":"MAYBE","reason":"unsure"}'), null);
   assert.equal(parseSelfApprovalDecision("[1,2,3]"), null);
+});
+
+test("formatSelfApprovalBody surfaces blocked and failed conclusions visibly", () => {
+  const blocked = formatSelfApprovalBody({
+    conclusion: "blocked",
+    reason: "missing trusted review synthesis",
+  });
+  assert.match(blocked, /\| Blocked \| `blocked` \|/);
+  assert.match(blocked, /<!-- sepo-agent-self-approval -->/);
+
+  const failed = formatSelfApprovalBody({
+    conclusion: "failed",
+    reason: "approval submission failed: unavailable",
+  });
+  assert.match(failed, /\| Failed \| `failed` \|/);
+  assert.match(failed, /approval submission failed/);
 });
 
 test("resolveSelfApproval blocks when opt-in flag is disabled", () => {
