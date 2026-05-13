@@ -22,6 +22,80 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/233#issuecomment-4437479786",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCN5DiQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\nalso how do we set models and reasoning effort in the current repo? ",
+      "createdAt": "2026-05-13T17:41:27Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/233#issuecomment-4443751305",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCN5_fw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Currently Sepo separates three things:\n\n1. **Provider selection**: `codex` vs `claude`\n2. **Reasoning effort**: `medium`, `high`, `xhigh`, `max`, etc.\n3. **Actual model ID**: mostly left to the underlying Codex/Claude CLI config\n\nProvider is configurable today via repo variable `AGENT_DEFAULT_PROVIDER`, documented in [`configuration-list.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/customization/configuration-list.md#L7-L10). Valid values are:\n\n```text\nauto\ncodex\nclaude\n```\n\n`auto` detects configured secrets and prefers Codex when both are present. Route-specific provider overrides are possible by editing the relevant workflow’s `resolve-agent-provider` step, per [`configuration-list.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/customization/configuration-list.md#L34).\n\nReasoning effort is wired through [`run-agent-task`](https://github.com/self-evolving/repo/blob/main/.github/actions/run-agent-task/action.yml#L19-L26) as the `reasoning_effort` input. The runtime then maps that into:\n\n- `MODEL_REASONING_EFFORT`\n- `CLAUDE_CODE_EFFORT_LEVEL`\n- Codex persistent-session `thought_level`\n\nSee [`run.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/run.ts#L256-L273), [`run.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/run.ts#L521-L531), and [`acpx-adapter.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/acpx-adapter.ts#L285-L291).\n\nCurrent hardcoded reasoning values include:\n\n- `/answer`: `high` in [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L320-L344)\n- `/implement`: effectively `xhigh`, via the `run-agent-task` default; the workflow also has `MODEL_REASONING_EFFORT: xhigh` in [`agent-implement.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-implement.yml#L130-L134)\n- `/fix-pr`: effectively `xhigh`, similarly in [`agent-fix-pr.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-fix-pr.yml#L111-L187)\n- review matrix: Claude uses `max`, Codex uses `xhigh` in [`agent-review.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-review.yml#L138-L148)\n- review synthesis: `max` for Claude, `xhigh` for Codex in [`agent-review.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-review.yml#L320-L326)\n- project/daily/memory tasks are mostly `medium`; orchestrator/rubrics/skill paths are mostly `high`\n\nActual **model ID** is not centrally configurable in Sepo today. There is no repo variable like `AGENT_MODEL`, `CODEX_MODEL`, or `CLAUDE_MODEL`. Sepo invokes `acpx` with the selected agent and effort; model choice comes from the underlying Codex/Claude CLI defaults or local runner config.\n\nSo today, to change models you would use provider-native config on the runner, for example Codex/Claude config files or env vars supported by those CLIs. To make this reproducible in GitHub-hosted Actions, we should add first-class Sepo config such as:\n\n```text\nAGENT_CODEX_MODEL\nAGENT_CLAUDE_MODEL\nAGENT_REASONING_EFFORT_DEFAULT\nAGENT_REASONING_EFFORT_BY_ROUTE\n```\n\nand then plumb those through `run-agent-task` / `run.ts` / `acpx-adapter.ts`, similar to how reasoning effort is already handled.",
+      "createdAt": "2026-05-13T17:43:40Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/233#issuecomment-4443766655",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCOKysA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\nBut also can we set via repo environment variables (so this avoids us manually setting things)? ",
+      "createdAt": "2026-05-13T18:20:37Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/233#issuecomment-4444041904",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCOLcog",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, but not fully today.\n\nGitHub repo variables only affect a workflow when the workflow explicitly reads `vars.NAME`. Current Sepo already does that for things like `AGENT_DEFAULT_PROVIDER`, `AGENT_RUNS_ON`, memory/rubrics refs, timeout policy, etc. See [`configuration-list.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/customization/configuration-list.md#L3-L32).\n\nFor **models and reasoning effort**, current state is:\n\n- Provider can be set with repo variable `AGENT_DEFAULT_PROVIDER=auto|codex|claude`.\n- Reasoning effort is mostly hardcoded in workflow YAML, for example `/answer` uses `high` in [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L320-L344).\n- The shared action supports a `reasoning_effort` input with default `xhigh` in [`run-agent-task/action.yml`](https://github.com/self-evolving/repo/blob/main/.github/actions/run-agent-task/action.yml#L19-L26).\n- The runtime forwards that into `MODEL_REASONING_EFFORT` / `CLAUDE_CODE_EFFORT_LEVEL` in [`run.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/run.ts#L256-L274).\n- There is no current repo variable for model ID, like `AGENT_CODEX_MODEL` or `AGENT_CLAUDE_MODEL`.\n\nSo the answer is:\n\n- **Reasoning effort can be repo-variable controlled with a small workflow change.**\n- **Model ID needs a small runtime/action change, because Sepo currently does not pass a model setting through centrally.**\n\nA practical first pass would be:\n\n```yaml\nreasoning_effort: ${{ vars.AGENT_REASONING_EFFORT_ANSWER || 'high' }}\n```\n\nand similar route-specific vars:\n\n```text\nAGENT_REASONING_EFFORT_DEFAULT=xhigh\nAGENT_REASONING_EFFORT_ANSWER=high\nAGENT_REASONING_EFFORT_DISPATCH=medium\nAGENT_REASONING_EFFORT_IMPLEMENT=xhigh\nAGENT_REASONING_EFFORT_FIX_PR=xhigh\nAGENT_REASONING_EFFORT_ORCHESTRATOR=high\nAGENT_REASONING_EFFORT_REVIEW_CODEX=xhigh\nAGENT_REASONING_EFFORT_REVIEW_CLAUDE=max\n```\n\nFor models, I’d add explicit repo vars/secrets support rather than relying on manual runner config:\n\n```text\nAGENT_CODEX_MODEL=...\nAGENT_CLAUDE_MODEL=...\nAGENT_CODEX_MODEL_PROVIDER=...\nAGENT_CLAUDE_MODEL_PROVIDER=...\n```\n\nThen plumb those through:\n\n1. `.github/actions/run-agent-task/action.yml` inputs\n2. workflow `with:` blocks using `vars.AGENT_CODEX_MODEL`, `vars.AGENT_CLAUDE_MODEL`, etc.\n3. `.agent/src/run.ts` shared env construction\n4. `.agent/src/acpx-adapter.ts` provider/session setup, if `acpx` requires model setting commands rather than env-only config\n5. docs/tests\n\nI’d probably prefer a JSON policy long-term to avoid too many vars:\n\n```json\n{\n  \"default\": { \"reasoning_effort\": \"xhigh\" },\n  \"routes\": {\n    \"answer\": { \"reasoning_effort\": \"high\" },\n    \"dispatch\": { \"reasoning_effort\": \"medium\" }\n  },\n  \"providers\": {\n    \"codex\": { \"model\": \"...\" },\n    \"claude\": { \"model\": \"...\" }\n  }\n}\n```\n\nBut for a first implementation, route-specific repo variables are simpler and easier to audit in Actions.",
+      "createdAt": "2026-05-13T18:22:11Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/233#issuecomment-4444052642",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-13T04:59:46Z",
@@ -36,6 +110,6 @@
   "number": 233,
   "state": "OPEN",
   "title": "More flexible api key setups for codex and claude",
-  "updatedAt": "2026-05-13T05:03:31Z",
+  "updatedAt": "2026-05-13T18:22:11Z",
   "url": "https://github.com/self-evolving/repo/issues/233"
 }

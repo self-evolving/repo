@@ -281,6 +281,43 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4437713936",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCN4fwQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \r\n\r\ncan you compare it with #236 ",
+      "createdAt": "2026-05-13T17:40:06Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4443742145",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCN5RfQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes. Compared against #236, current #232 is the stronger version.\n\nBoth PRs now aim at the right product behavior: explicit `/implement` still selects the route, while a metadata-only agent pass generates the tracking issue title/body from PR or discussion context.\n\nKey differences:\n\n| Area | #232 | #236 | Better |\n| --- | --- | --- | --- |\n| Access policy before metadata generation | Resolves explicit route authorization first, then runs metadata only if route is authorized `implement` | Runs metadata generation based on raw `requested_route == implement` before dispatch policy resolution | **#232** |\n| Metadata agent permissions | Uses `permission_mode: approve-reads` | Uses `permission_mode: approve-all` | **#232** |\n| Metadata schema | Prompt returns only `issue_title` and `issue_body`; parser validates those fields | Prompt returns a full dispatch-shaped object including `route`, `needs_approval`, `summary`, `confidence` | **#232**, narrower contract |\n| Route safety | Generated metadata cannot change the route by shape | Generated response is normalized as dispatch output, then route mismatch is ignored | #236 has a guard, but #232 avoids the risk earlier |\n| Fallback behavior | Invalid/missing generated metadata falls back to generic implement metadata | Invalid/mismatched generated metadata falls back too | Tie |\n| Docs/tests coverage | Broader: request lifecycle docs, supported workflows docs, triage tests, resolve-dispatch tests, workflow contract test | Good but narrower; lacks request-lifecycle update and uses approve-all in workflow test | **#232** |\n\nThe biggest concern in #236 is this line in its workflow diff: the metadata generation step uses `permission_mode: approve-all`. Since that prompt only needs to read context and emit JSON, #232’s `approve-reads` is the safer design.\n\nI would merge or continue with #232, not #236. #236 is conceptually aligned, but it looks like an earlier/parallel implementation that missed the later hardening done on #232.",
+      "createdAt": "2026-05-13T17:41:59Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4443754877",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-13T04:58:59Z",
@@ -371,6 +408,6 @@
   ],
   "state": "OPEN",
   "title": "Derive implement issue titles from command text",
-  "updatedAt": "2026-05-13T05:42:12Z",
+  "updatedAt": "2026-05-13T17:42:00Z",
   "url": "https://github.com/self-evolving/repo/pull/232"
 }

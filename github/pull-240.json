@@ -1,0 +1,362 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Namespace memory GitHub mirrors under `github/<owner>/<repo>/...` and pass repo slugs through sync writes.\n- Migrate legacy flat artifacts, preserving the original repo namespace from artifact URLs when available.\n- Ignore copied sync cursor state from other repositories and update prompts/docs/tests for backlink-style artifact paths.\n\n## Tests\n- `npm --prefix .agent test`\n- `npm --prefix .agent run build && node --test .agent/dist/__tests__/memory-artifacts.test.js`\n\nCloses #238\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCOQBJQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #240 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: Implementation succeeded and produced open PR #240 for issue #238, so the next useful automated action is a review of that PR.\n\n<!-- sepo-agent-handoff state:dispatched created:1778697119780 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU4MTgyNTMyNTY6aW1wbGVtZW50OjIzODpyZXZpZXc6MjQwOjM -->",
+      "createdAt": "2026-05-13T18:32:00Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/240#issuecomment-4444127525",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCORObA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 6 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR directly implements issue #238’s approved plan: repo-namespaced artifacts, backlink references, legacy migration, and copied sync-state handling. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Reuses existing memory helpers and CLIs: `ensureMemoryStructure`, artifact path helpers, and sync-state utilities are extended instead of adding workflow glue. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates architecture docs and agent prompts from flat `github/*.json` paths to `github/<owner>/<repo>/*.json`, including backlink examples. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Scope is limited to memory artifact layout, sync-state filtering, related prompts/docs, and focused tests. No unrelated workflow or runtime refactor is present. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Uses a small repo-slug path helper, a flat-file migration loop, and existing `repo_slug` state rather than introducing new configuration or storage layers. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Copied sync-state risk is addressed by ignoring state whose `repo_slug` differs from the current repo, with regression coverage for mismatch handling. |\n\n## Notes\n\n- The implementation matches the core request in #238: artifacts now resolve under `github/<owner>/<repo>/...`, legacy flat files are migrated, and notes/prompts document backlink-style artifact paths.\n- Evidence: [`memory-artifacts.ts`](https://github.com/self-evolving/repo/blob/13d491b702b3ef78e602613d349bb23137806fa4/.agent/src/memory-artifacts.ts#L91-L124), [`sync-github-artifacts.ts`](https://github.com/self-evolving/repo/blob/13d491b702b3ef78e602613d349bb23137806fa4/.agent/src/cli/memory/sync-github-artifacts.ts#L456-L515), [`read-sync-state.ts`](https://github.com/self-evolving/repo/blob/13d491b702b3ef78e602613d349bb23137806fa4/.agent/src/cli/memory/read-sync-state.ts#L13-L24), and [`memory.md`](https://github.com/self-evolving/repo/blob/13d491b702b3ef78e602613d349bb23137806fa4/.agent/docs/architecture/memory.md#L14-L26).\n- Focused verification passed: `node --test .agent/dist/__tests__/memory-artifacts.test.js .agent/dist/__tests__/memory-search.test.js .agent/dist/__tests__/memory-sync-state.test.js`.\n\n## Findings\n\n- **INFO:** No rubric-specific follow-up needed.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-13T18:34:45Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/240#issuecomment-4444147308",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCOT1aA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 13d491b702b3ef78e602613d349bb23137806fa4 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #240 implements issue #238 by moving memory GitHub mirror artifacts from a flat `github/*.json` layout to `github/<owner>/<repo>/*.json`.\n- It updates the artifact path helpers, sync CLI writes, memory bootstrap/init outputs, docs, and prompts to use the repo-namespaced layout.\n- It also migrates legacy flat artifacts and ignores copied sync cursor state when the stored `repo_slug` does not match the current repository.\n- This addresses the branch-copy scenario where memory artifacts and sync state from one repository could pollute another repository.\n\n## Review\nThe implementation matches the approved plan and most reviewers found it shippable, but one concrete migration edge case remains worth fixing. The concern is minor and localized, so it is suitable for an automated fix-pr pass.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Migration conflict handling is silent | WARNING | When a namespaced target already exists, the migration deletes the legacy flat artifact without reporting that deletion or covering the branch with a test. This can make migration output undercount touched files and hides conflict/duplicate handling from operators. |\n\n## Progress\n- Read the linked issue #238 and confirmed this PR follows the approved direction.\n- Existing PR discussion has a passing rubrics review and no prior inline review comments or review threads before this synthesis.\n- Reviewer disagreement: Codex and rubrics review reported no follow-up needed; Claude flagged minor warnings.\n- Posted one inline comment on `.agent/src/memory-artifacts.ts:105`: https://github.com/self-evolving/repo/pull/240#discussion_r3236640870\n- No comments were minimized, no replies were added, and no threads were resolved.\n\n## Issue Details\n<details>\n<summary>Migration conflict handling is silent</summary>\n\n**Cause:** In [`migrateLegacyGithubArtifacts`](https://github.com/self-evolving/repo/blob/13d491b702b3ef78e602613d349bb23137806fa4/.agent/src/memory-artifacts.ts#L104-L108), the `existsSync(target)` branch calls `unlinkSync(source)` but returns only renamed destinations in `migratedFiles`.\n\n**Candidate solutions:** Track duplicate removals or conflicts separately in the migration result and expose that in CLI output, or compare/preserve conflicting content before deleting. Add a focused unit test where both `github/issue-5.json` and `github/owner/repo/issue-5.json` already exist.\n\n**Comments:** This is not a broad design problem; repo namespacing, copied-state filtering, docs, and main migration behavior are already covered. The remaining risk is migration observability and regression coverage for the duplicate-target branch.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the remaining issue is a small, concrete branch change with a clear test target.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Make duplicate-target legacy migration handling observable and add a focused regression test.",
+      "createdAt": "2026-05-13T18:40:17Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/240#issuecomment-4444190056",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCOUR2w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #240 | 4 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis verdict is MINOR_ISSUES with Recommended Next Step FIX_PR; the remaining item is concrete, localized, and safe for an automated PR fix.\n\nTask for fix-pr:\nAddress only the latest review synthesis action item: make duplicate-target legacy migration handling observable and add a focused regression test. Specifically, update duplicate-target legacy migration handling in `.agent/src/memory-artifacts.ts` so when a legacy flat artifact is removed because the namespaced target already exists, that handling is reflected in the migration result or CLI-visible output rather than silently undercounting touched files. Add a focused regression test covering both `github/issue-5.json` and `github/owner/repo/issue-5.json` already existing. Preserve existing repo namespacing, sync-state filtering, docs/prompts, and unrelated behavior. Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits.\n\n<!-- sepo-agent-handoff state:dispatched created:1778697675673 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU4MTg2NzMyNjU6cmV2aWV3OjI0MDpmaXhfcHI6MjQwOjQ -->",
+      "createdAt": "2026-05-13T18:41:16Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/240#issuecomment-4444197339",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCOWFkg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-238/codex-25818253256`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Recorded duplicate-target legacy artifact deletions as `removedLegacyFiles` instead of silently dropping them.\n- Surfaced the new removal count in memory sync CLI output via `removed_legacy_files` and JSON summaries.\n- Added a focused regression test for `github/issue-5.json` being removed when `github/owner/repo/issue-5.json` already exists.\n- Verified with `npm --prefix .agent run build`, targeted `node --test ...`, and `git diff --check`.",
+      "createdAt": "2026-05-13T18:45:15Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/240#issuecomment-4444226962",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCOWcTQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #240 | 5 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on open PR #240 after addressing the prior MINOR_ISSUES synthesis item, so a fresh review should verify the updated head before stopping.\n\n<!-- sepo-agent-handoff state:dispatched created:1778697968089 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU4MTkxNDA2Mzg6Zml4X3ByOjI0MDpyZXZpZXc6MjQwOjU -->",
+      "createdAt": "2026-05-13T18:46:08Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/240#issuecomment-4444232781",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCOXRaw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 6 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #240 implements the approved plan from issue #238: repo-namespaced memory artifacts, backlink-style references, legacy migration, and copied sync-state handling. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Extends existing memory helpers and CLIs instead of adding workflow glue: `.agent/src/memory-artifacts.ts`, `sync-github-artifacts.ts`, `read-sync-state.ts`, and `write-sync-state.ts`. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates `.agent/docs/architecture/memory.md`, install docs, and memory prompts from `github/*.json` to `github/<owner>/<repo>/*.json`, including backlink examples. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is limited to memory artifact layout, sync-state filtering, relevant docs/prompts, and focused tests. No unrelated route or workflow refactor is present. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Uses a small repo-slug path helper, legacy flat-file migration, and existing `repo_slug` cursor state rather than introducing a new storage layer or config switch. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | The fix-pr update makes duplicate-target legacy removals observable via `removedLegacyFiles`, `removed_legacy_files`, JSON summaries, and a regression test covering the conflict case. |\n\n## Notes\n\n- The current PR head `291eef4de5d1f3f0fdb92d73615acfd746bb98a3` addresses the earlier review warning about silent duplicate-target migration handling.\n- The linked issue #238 had no broader parent/tracking issue; it contained a focused proposal plus an approved answer plan, and the PR matches that plan.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific blocking or warning findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-13T18:48:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/240#issuecomment-4444246379",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCOZ9fw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 291eef4de5d1f3f0fdb92d73615acfd746bb98a3 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #240 implements issue #238 by changing memory GitHub mirrors from flat `github/*.json` files to repo-namespaced `github/<owner>/<repo>/*.json` artifacts.\n- It migrates legacy flat artifacts, preserves old repo history when memory branches are copied, and filters copied sync-state when `repo_slug` differs from the current repository.\n- It updates the relevant docs, prompts, CLIs, and tests so agents use backlink-style artifact paths like `[[github/self-evolving/repo/issue-238.json]]`.\n- A prior review warning about duplicate-target migration handling was addressed by the latest fix-pr update.\n\n## Review\nThe current head is shippable. Codex and the rubrics review found no blocking or warning findings, and the one earlier concrete migration warning is now fixed and covered by regression testing.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable issues | INFO | Latest head addresses the prior duplicate-target migration warning; remaining slug-validation negative tests mentioned by one reviewer are optional hardening, not required branch work. |\n\n## Progress\n- Confirmed issue #238 has no broader parent/tracking issue and PR #240 follows the approved plan.\n- The previous duplicate-target warning is fixed: [`removedLegacyFiles`](https://github.com/self-evolving/repo/blob/291eef4de5d1f3f0fdb92d73615acfd746bb98a3/.agent/src/memory-artifacts.ts#L111-L114) is reported and the duplicate case is tested in [`memory-artifacts.test.ts`](https://github.com/self-evolving/repo/blob/291eef4de5d1f3f0fdb92d73615acfd746bb98a3/.agent/src/__tests__/memory-artifacts.test.ts#L87-L105).\n- Reviewer disagreement: Claude’s duplicate-target warning was based on the earlier state and is now superseded; Codex and rubrics review both consider the current head ready.\n- Resolved one same-agent inline review thread for the fixed duplicate-target migration issue: `PRRT_kwDOSOhEMM6B2yih`.\n- No new inline comments were posted, no replies were added, and no comments were minimized.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved required branch changes remain.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch changes.",
+      "createdAt": "2026-05-13T18:53:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/240#issuecomment-4444290431",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCObVzA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Migrate legacy flat artifacts, preserving the original repo namespace from artifact URLs when available.\r\n\r\nDoes it do the migration in the code automatically? What's the mechanism? \r\n\r\n@sepo-agent /answer",
+      "createdAt": "2026-05-13T18:56:31Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/240#issuecomment-4444313036",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCOcbWA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes. It’s automatic in the memory code paths, not a manual agent step.\n\nMechanism:\n\n- `ensureMemoryStructure(rootDir, repoSlug)` now runs the migration whenever memory is initialized/ensured. It creates `github/<owner>/<repo>/`, then scans only legacy flat files matching `github/{issue,pull,discussion}-<n>.json`. See [`memory-artifacts.ts`](https://github.com/self-evolving/repo/blob/291eef4de5d1f3f0fdb92d73615acfd746bb98a3/.agent/src/memory-artifacts.ts#L97-L146).\n- For each legacy artifact, it parses the JSON `url` field. If that URL is a GitHub URL, it derives the original namespace from it, e.g. `https://github.com/source/project/issues/5` becomes `github/source/project/issue-5.json`. If the URL is missing/invalid, it falls back to the current repo slug passed into the CLI. See [`readArtifactRepoSlug`](https://github.com/self-evolving/repo/blob/291eef4de5d1f3f0fdb92d73615acfd746bb98a3/.agent/src/memory-artifacts.ts#L75-L95).\n- If the target namespaced file does not exist, it `renameSync`s the flat file into place. If the target already exists, it removes the duplicate flat legacy file and reports it as `removedLegacyFiles`, so that case is observable. See [`memory-artifacts.ts`](https://github.com/self-evolving/repo/blob/291eef4de5d1f3f0fdb92d73615acfd746bb98a3/.agent/src/memory-artifacts.ts#L111-L119).\n- The sync CLI calls this before syncing and then writes all new artifacts directly to repo-namespaced paths using `args.repo`. See [`sync-github-artifacts.ts`](https://github.com/self-evolving/repo/blob/291eef4de5d1f3f0fdb92d73615acfd746bb98a3/.agent/src/cli/memory/sync-github-artifacts.ts#L456-L500).\n- The migration result is surfaced in CLI output as `migratedFiles` / `removedLegacyFiles`, and in sync outputs as `migrated_files` / `removed_legacy_files`. See [`sync-github-artifacts.ts`](https://github.com/self-evolving/repo/blob/291eef4de5d1f3f0fdb92d73615acfd746bb98a3/.agent/src/cli/memory/sync-github-artifacts.ts#L509-L535).\n\nSo after this lands, the next memory init/bootstrap/sync path will migrate existing flat artifact JSON files automatically. It does not rewrite arbitrary existing markdown notes that may mention old `github/issue-*.json` paths; the automatic part is the artifact file migration and future artifact writes.",
+      "createdAt": "2026-05-13T18:59:05Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/240#issuecomment-4444330840",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCOefOw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Yes. It’s automatic in the memory code paths, not a manual agent step.\r\n> \r\n> Mechanism:\r\n> \r\n> * `ensureMemoryStructure(rootDir, repoSlug)` now runs the migration whenever memory is initialized/ensured. It creates `github/<owner>/<repo>/`, then scans only legacy flat files matching `github/{issue,pull,discussion}-<n>.json`. See [`memory-artifacts.ts`](https://github.com/self-evolving/repo/blob/291eef4de5d1f3f0fdb92d73615acfd746bb98a3/.agent/src/memory-artifacts.ts#L97-L146).\r\n> * For each legacy artifact, it parses the JSON `url` field. If that URL is a GitHub URL, it derives the original namespace from it, e.g. `https://github.com/source/project/issues/5` becomes `github/source/project/issue-5.json`. If the URL is missing/invalid, it falls back to the current repo slug passed into the CLI. See [`readArtifactRepoSlug`](https://github.com/self-evolving/repo/blob/291eef4de5d1f3f0fdb92d73615acfd746bb98a3/.agent/src/memory-artifacts.ts#L75-L95).\r\n> * If the target namespaced file does not exist, it `renameSync`s the flat file into place. If the target already exists, it removes the duplicate flat legacy file and reports it as `removedLegacyFiles`, so that case is observable. See [`memory-artifacts.ts`](https://github.com/self-evolving/repo/blob/291eef4de5d1f3f0fdb92d73615acfd746bb98a3/.agent/src/memory-artifacts.ts#L111-L119).\r\n> * The sync CLI calls this before syncing and then writes all new artifacts directly to repo-namespaced paths using `args.repo`. See [`sync-github-artifacts.ts`](https://github.com/self-evolving/repo/blob/291eef4de5d1f3f0fdb92d73615acfd746bb98a3/.agent/src/cli/memory/sync-github-artifacts.ts#L456-L500).\r\n> * The migration result is surfaced in CLI output as `migratedFiles` / `removedLegacyFiles`, and in sync outputs as `migrated_files` / `removed_legacy_files`. See [`sync-github-artifacts.ts`](https://github.com/self-evolving/repo/blob/291eef4de5d1f3f0fdb92d73615acfd746bb98a3/.agent/src/cli/memory/sync-github-artifacts.ts#L509-L535).\r\n> \r\n> So after this lands, the next memory init/bootstrap/sync path will migrate existing flat artifact JSON files automatically. It does not rewrite arbitrary existing markdown notes that may mention old `github/issue-*.json` paths; the automatic part is the artifact file migration and future artifact writes.\r\n\r\nCan we not having this -> I don't think there are a lot of users for this now. So we just need to focus on supporting on the new layouts, and add a note in the doc that for previous adopter please consider migrate the memory layout themsleves?  @sepo-agent /answer ",
+      "createdAt": "2026-05-13T19:03:23Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/240#issuecomment-4444364603",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCOfFhw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, I think that’s a reasonable simplification.\n\nGiven this is still early, I’d change the PR to **support only the new repo-namespaced layout going forward** and avoid automatic legacy artifact mutation. That means:\n\n- Keep the new path helpers:\n  - `github/<owner>/<repo>/issue-<n>.json`\n  - `github/<owner>/<repo>/pull-<n>.json`\n  - `github/<owner>/<repo>/discussion-<n>.json`\n- Keep sync writing new artifacts through the current `repoSlug`.\n- Remove the automatic flat-file migration logic from `ensureMemoryStructure`.\n- Remove `migratedFiles` / `removedLegacyFiles` outputs and the migration-specific tests.\n- Add a docs note for previous adopters: if they already have `github/issue-*.json`, `github/pull-*.json`, or `github/discussion-*.json`, they should manually move those files under `github/<owner>/<repo>/` or delete stale copied artifacts.\n\nOne caveat worth documenting: until old flat artifacts are moved or removed, tools like memory search may still see them because they search the memory tree recursively. So the doc should say previous adopters should clean/migrate flat artifacts themselves to avoid mixed old/new repo context.\n\nI’d still keep the sync-state repo-slug guard, though. That is not really “legacy artifact migration”; it prevents a copied memory branch from reusing another repo’s sync cursor and accidentally skipping the first sync for the new repo.",
+      "createdAt": "2026-05-13T19:04:41Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/240#issuecomment-4444374407",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCOvCoA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Yes, I think that’s a reasonable simplification.\n> \n> Given this is still early, I’d change the PR to **support only the new repo-namespaced layout going forward** and avoid automatic legacy artifact mutation. That means:\n> \n> - Keep the new path helpers:\n>   - `github/<owner>/<repo>/issue-<n>.json`\n>   - `github/<owner>/<repo>/pull-<n>.json`\n>   - `github/<owner>/<repo>/discussion-<n>.json`\n> - Keep sync writing new artifacts through the current `repoSlug`.\n> - Remove the automatic flat-file migration logic from `ensureMemoryStructure`.\n> - Remove `migratedFiles` / `removedLegacyFiles` outputs and the migration-specific tests.\n> - Add a docs note for previous adopters: if they already have `github/issue-*.json`, `github/pull-*.json`, or `github/discussion-*.json`, they should manually move those files under `github/<owner>/<repo>/` or delete stale copied artifacts.\n> \n> One caveat worth documenting: until old flat artifacts are moved or removed, tools like memory search may still see them because they search the memory tree recursively. So the doc should say previous adopters should clean/migrate flat artifacts themselves to avoid mixed old/new repo context.\n> \n> I’d still keep the sync-state repo-slug guard, though. That is not really “legacy artifact migration”; it prevents a copied memory branch from reusing another repo’s sync cursor and accidentally skipping the first sync for the new repo.\n\n@sepo-agent /fix-pr",
+      "createdAt": "2026-05-13T19:41:53Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/240#issuecomment-4444635808",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCOwfQw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-238/codex-25818253256`. Requested by @lolipopshock.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Removed automatic flat GitHub artifact migration from `ensureMemoryStructure`.\n- Removed `migratedFiles` / `removedLegacyFiles` CLI outputs and migration-specific tests.\n- Kept repo-namespaced artifact paths, current `repoSlug` sync writes, and sync-state repo-slug guard behavior.\n- Added architecture docs guidance for previous adopters to manually move or delete flat artifacts because recursive memory search can still find them.\n- Verified with `npm --prefix .agent run build`, targeted `node --test ...`, and `git diff --check`.",
+      "createdAt": "2026-05-13T19:45:21Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/240#issuecomment-4444659523",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-13T18:31:00Z",
+  "files": [
+    {
+      "path": ".agent/docs/architecture/memory.md",
+      "additions": 11,
+      "deletions": 7,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/deployment/install-existing-repository.md",
+      "additions": 3,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/memory-artifacts.test.ts",
+      "additions": 15,
+      "deletions": 13,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/memory-search.test.ts",
+      "additions": 6,
+      "deletions": 6,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/memory-sync-state.test.ts",
+      "additions": 11,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/memory/read-sync-state.ts",
+      "additions": 4,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/memory/sync-github-artifacts.ts",
+      "additions": 3,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/memory/write-sync-state.ts",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/memory-artifacts.ts",
+      "additions": 35,
+      "deletions": 13,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/memory-sync-state.ts",
+      "additions": 8,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/_memory.md",
+      "additions": 4,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/daily-summary.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/memory-scan.md",
+      "additions": 3,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-238/codex-25818253256",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 240,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM7_XzXl",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-13T18:39:40Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "13d491b702b3ef78e602613d349bb23137806fa4"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Namespace memory GitHub artifacts by repo",
+  "updatedAt": "2026-05-13T19:45:21Z",
+  "url": "https://github.com/self-evolving/repo/pull/240"
+}

@@ -1,0 +1,99 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "1. right now in the memory folder, we just assume to save one github project (so the it contains a flat github folder with issues discussions etc) and when quoting it in the memory notes, it will just use a simple id to quote. \n2. consider a case when other repos wants to duplicate and copy all the branches -- how can this be properly addressed? \n\nProposal: \n1. folder structure: github/org/repo/issue-1.json \n2. use backlink style in the note `[[github/org/repo/issue-1.json]]`. \n\n@sepo-agent /answer  \n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCOK2Yg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I agree with the proposed direction. The current layout is intentionally flat, so copying `agent/memory` across repos can mix old repo artifacts with new repo artifacts. Namespacing GitHub mirrors by repo solves that cleanly:\n\n`github/<owner>/<repo>/<type>-<number>.json`\n\nExample note reference:\n\n```md\n[[github/self-evolving/repo/issue-238.json]]\n```\n\n**Current state**\n\n- Artifact path helpers hard-code the flat layout in [`memory-artifacts.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/memory-artifacts.ts#L71-L84).\n- The sync CLI writes issues, PRs, and discussions through those helpers in [`sync-github-artifacts.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/memory/sync-github-artifacts.ts#L475-L500).\n- Agent memory instructions still tell agents to read `github/*.json` and direct-link `github/issue-<n>.json` in [`_memory.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/_memory.md#L9-L16).\n- Docs describe the flat mirror in [`memory.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/memory.md#L14-L27).\n- Tests currently assert the flat paths in [`memory-artifacts.test.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/memory-artifacts.test.ts#L42-L45).\n\n**Recommended implementation**\n\n1. Change the artifact helpers to be repo-aware:\n   - `issueArtifactPath(rootDir, repoSlug, number)` -> `github/<owner>/<repo>/issue-<n>.json`\n   - same for PRs and discussions.\n   - Keep paths relative to the memory root so backlink notes can quote the same string.\n\n2. Update `sync-github-artifacts.js` to pass the current `args.repo` into the path helpers. This makes a copied memory branch preserve old repo history while new syncs write into the new repo namespace.\n\n3. Add a compatibility migration for existing flat mirrors:\n   - On `ensureMemoryStructure(rootDir, repoSlug)`, create `github/<owner>/<repo>/`.\n   - If flat files like `github/issue-123.json` exist, move them into `github/<current-owner>/<current-repo>/issue-123.json` when the destination does not already exist.\n   - Avoid leaving duplicate flat files, because `memory/search.js` recursively searches the tree already and duplicate artifacts would pollute results.\n\n4. Update the prompts and docs:\n   - `_memory.md`, `memory-scan.md`, and `daily-summary.md` should refer to `github/<owner>/<repo>/*.json`.\n   - Tell agents to cite mirrored artifacts using `[[github/<owner>/<repo>/<artifact>.json]]`.\n   - I would treat `[[...]]` as an agent/human backlink convention, not rely on GitHub Markdown rendering to make it clickable.\n\n5. Also guard the sync cursor state for copied repos:\n   - `memory-sync-state` stores `repo_slug` today, but `read-sync-state` does not reject a state whose slug differs from the current repo.\n   - If someone copies all refs, a new repo could inherit an old `last_sync_at`. The fix is to ignore/reset sync state when `state.repo_slug !== current repo`, or namespace the sync-state ref by repo.\n   - This is adjacent but important for the exact branch-copy scenario.\n\n6. Update tests:\n   - Replace flat-path assertions with namespaced path assertions.\n   - Add migration coverage from `github/issue-5.json` to `github/owner/repo/issue-5.json`.\n   - Add sync-state mismatch coverage so copied state does not suppress initial sync for the new repo.\n   - Add/update search tests to confirm nested `github/owner/repo/pull-209.json` still ranks correctly.\n\nNo clarification blockers from my side. Please approve this direction before I implement it.",
+      "createdAt": "2026-05-13T18:20:45Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/238#issuecomment-4444042850",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCOLDXA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate ",
+      "createdAt": "2026-05-13T18:21:12Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/238#issuecomment-4444046172",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCOMBVA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | implement | Issue #238 | 2 / 40 | Dispatched |\n\nReason: agent planner selected implement: Issue #238 has an approved, self-contained implementation direction after the prior /answer plan; implement it directly on the current issue rather than creating a child issue.\n\n<!-- sepo-agent-handoff state:dispatched created:1778696619172 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU4MTgxMzE0MDM6b3JjaGVzdHJhdGU6MjM4OmltcGxlbWVudDoyMzg6Mg -->",
+      "createdAt": "2026-05-13T18:23:39Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/238#issuecomment-4444062036",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCOPkzg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-238/codex-25818253256`\n- Pull request: https://github.com/self-evolving/repo/pull/240\n\nUpdated repository memory GitHub mirrors to use `github/<owner>/<repo>/...` paths, added legacy flat-artifact migration and repo-slug sync-state filtering for copied branches, and synced the docs/prompts/tests. Verification: `npm --prefix .agent test`, then `npm --prefix .agent run build && node --test .agent/dist/__tests__/memory-artifacts.test.js` after the final README seed tweak.",
+      "createdAt": "2026-05-13T18:31:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/238#issuecomment-4444120270",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-13T18:17:50Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 238,
+  "state": "OPEN",
+  "title": "Update memory github folder to include the repo name",
+  "updatedAt": "2026-05-13T18:31:04Z",
+  "url": "https://github.com/self-evolving/repo/issues/238"
+}
