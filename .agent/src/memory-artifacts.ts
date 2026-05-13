@@ -5,7 +5,7 @@
 // is dumped as raw `gh --json` output — one JSON file per item, type encoded
 // in the filename. No custom markdown rendering.
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 export const GITHUB_DIR = "github";
@@ -37,15 +37,6 @@ export const MEMORY_README = [
 
 export interface EnsureMemoryStructureResult {
   createdFiles: string[];
-  migratedFiles: string[];
-  removedLegacyFiles: string[];
-}
-
-const LEGACY_ARTIFACT_RE = /^(?:issue|pull|discussion)-[0-9]+\.json$/;
-
-interface LegacyGithubArtifactMigrationResult {
-  migratedFiles: string[];
-  removedLegacyFiles: string[];
 }
 
 function ensureDirectory(path: string): void {
@@ -72,53 +63,6 @@ function splitRepoSlug(repoSlug: string): [string, string] {
   return [parts[0], parts[1]];
 }
 
-function githubRepoSlugFromUrl(value: unknown): string | null {
-  if (typeof value !== "string" || !value) return null;
-  const match = /^https:\/\/github\.com\/([^/\s]+)\/([^/\s?#]+)(?:[/?#]|$)/i.exec(value);
-  if (!match) return null;
-  const slug = `${match[1]}/${match[2]}`;
-  try {
-    splitRepoSlug(slug);
-  } catch {
-    return null;
-  }
-  return slug;
-}
-
-function readArtifactRepoSlug(path: string): string | null {
-  try {
-    const record = JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
-    return githubRepoSlugFromUrl(record.url);
-  } catch {
-    return null;
-  }
-}
-
-function migrateLegacyGithubArtifacts(rootDir: string, repoSlug: string): LegacyGithubArtifactMigrationResult {
-  const githubDir = join(rootDir, GITHUB_DIR);
-  if (!existsSync(githubDir)) return { migratedFiles: [], removedLegacyFiles: [] };
-
-  const migratedFiles: string[] = [];
-  const removedLegacyFiles: string[] = [];
-  for (const entry of readdirSync(githubDir, { withFileTypes: true })) {
-    if (!entry.isFile() || !LEGACY_ARTIFACT_RE.test(entry.name)) continue;
-
-    const source = join(githubDir, entry.name);
-    const targetRepoSlug = readArtifactRepoSlug(source) || repoSlug;
-    const target = join(githubArtifactDir(rootDir, targetRepoSlug), entry.name);
-    ensureDirectory(dirname(target));
-
-    if (existsSync(target)) {
-      unlinkSync(source);
-      removedLegacyFiles.push(source);
-    } else {
-      renameSync(source, target);
-      migratedFiles.push(target);
-    }
-  }
-  return { migratedFiles, removedLegacyFiles };
-}
-
 /**
  * Creates the memory branch layout and seeds README.md, PROJECT.md, and
  * MEMORY.md if missing. Idempotent.
@@ -138,12 +82,7 @@ export function ensureMemoryStructure(rootDir: string, repoSlug: string): Ensure
   ensureFile(join(rootDir, "MEMORY.md"), "", createdFiles);
   ensureFile(join(rootDir, "README.md"), MEMORY_README, createdFiles);
 
-  const migration = migrateLegacyGithubArtifacts(rootDir, repoSlug);
-  return {
-    createdFiles,
-    migratedFiles: migration.migratedFiles,
-    removedLegacyFiles: migration.removedLegacyFiles,
-  };
+  return { createdFiles };
 }
 
 // Repo-aware layout: each repository gets its own namespace under github/.

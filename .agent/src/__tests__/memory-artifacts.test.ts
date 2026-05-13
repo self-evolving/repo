@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -39,8 +39,6 @@ test("ensureMemoryStructure seeds README.md, PROJECT.md, MEMORY.md, and top-leve
 
   const second = ensureMemoryStructure(root, "owner/repo");
   assert.deepEqual(second.createdFiles, []);
-  assert.deepEqual(second.migratedFiles, []);
-  assert.deepEqual(second.removedLegacyFiles, []);
 });
 
 test("artifact paths include the repository namespace and type-prefixed filename", () => {
@@ -57,52 +55,6 @@ test("issue, pull, and discussion numbers never collide even if they share a cou
     discussionArtifactPath("/m", "owner/repo", 42),
   ];
   assert.equal(new Set(paths).size, 3);
-});
-
-test("ensureMemoryStructure migrates legacy flat github artifacts", () => {
-  const root = mkdtempSync(join(tmpdir(), "mem-artifacts-migrate-"));
-  mkdirSync(join(root, "github"), { recursive: true });
-  writeFileSync(
-    join(root, "github", "issue-5.json"),
-    JSON.stringify({ number: 5, url: "https://github.com/source/project/issues/5" }, null, 2) + "\n",
-  );
-  writeFileSync(
-    join(root, "github", "pull-7.json"),
-    JSON.stringify({ number: 7 }, null, 2) + "\n",
-  );
-
-  const result = ensureMemoryStructure(root, "owner/repo");
-
-  assert.equal(existsSync(join(root, "github", "issue-5.json")), false);
-  assert.equal(existsSync(join(root, "github", "pull-7.json")), false);
-  assert.ok(existsSync(join(root, "github", "source", "project", "issue-5.json")));
-  assert.ok(existsSync(join(root, "github", "owner", "repo", "pull-7.json")));
-  assert.deepEqual(result.migratedFiles.sort(), [
-    join(root, "github", "owner", "repo", "pull-7.json"),
-    join(root, "github", "source", "project", "issue-5.json"),
-  ].sort());
-  assert.deepEqual(result.removedLegacyFiles, []);
-});
-
-test("ensureMemoryStructure reports duplicate-target legacy artifact removals", () => {
-  const root = mkdtempSync(join(tmpdir(), "mem-artifacts-duplicate-"));
-  const legacyPath = join(root, "github", "issue-5.json");
-  const targetPath = join(root, "github", "owner", "repo", "issue-5.json");
-  const targetContent = JSON.stringify({ number: 5, url: "https://github.com/owner/repo/issues/5" }, null, 2) + "\n";
-
-  mkdirSync(join(root, "github", "owner", "repo"), { recursive: true });
-  writeFileSync(
-    legacyPath,
-    JSON.stringify({ number: 5, url: "https://github.com/owner/repo/issues/5", stale: true }, null, 2) + "\n",
-  );
-  writeFileSync(targetPath, targetContent);
-
-  const result = ensureMemoryStructure(root, "owner/repo");
-
-  assert.equal(existsSync(legacyPath), false);
-  assert.equal(readFileSync(targetPath, "utf8"), targetContent);
-  assert.deepEqual(result.migratedFiles, []);
-  assert.deepEqual(result.removedLegacyFiles, [legacyPath]);
 });
 
 test("writeFileIfChanged only writes when content differs", () => {

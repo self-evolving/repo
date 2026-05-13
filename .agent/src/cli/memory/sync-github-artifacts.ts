@@ -453,7 +453,7 @@ export function runSyncGithubArtifactsCli(
   const [owner, repoName] = args.repo.split("/", 2) as [string, string];
 
   try {
-    const initResult = ensureMemoryStructure(args.dir, args.repo);
+    ensureMemoryStructure(args.dir, args.repo);
 
     // Issues + PRs come from one REST endpoint; the `pull_request` marker
     // distinguishes them.
@@ -512,8 +512,6 @@ export function runSyncGithubArtifactsCli(
     setOutput("discussion_count", String(discussionNodes.length));
     setOutput("commit_count", "0");
     setOutput("changed_files", String(changed));
-    setOutput("migrated_files", String(initResult.migratedFiles.length));
-    setOutput("removed_legacy_files", String(initResult.removedLegacyFiles.length));
     setOutput("last_activity_at", lastActivityAt);
     setOutput("issue_cursor", issueCursor);
     setOutput("pull_cursor", pullCursor);
@@ -531,8 +529,6 @@ export function runSyncGithubArtifactsCli(
           discussionCount: discussionNodes.length,
           commitCount: 0,
           changedFiles: changed,
-          migratedFiles: initResult.migratedFiles.length,
-          removedLegacyFiles: initResult.removedLegacyFiles.length,
           cursors: {
             issues: issueCursor,
             pulls: pullCursor,

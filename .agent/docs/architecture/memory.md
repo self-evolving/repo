@@ -19,6 +19,8 @@ Markdown where humans curate (PROJECT / MEMORY / daily); raw `gh --json` output 
 
 Notes can cite mirrored artifacts with backlink-style paths, for example `[[github/self-evolving/repo/issue-238.json]]`.
 
+Previous adopters with flat artifacts such as `github/issue-*.json`, `github/pull-*.json`, or `github/discussion-*.json` should manually move active artifacts under the matching `github/<owner>/<repo>/` namespace or delete stale copied artifacts. Sepo does not automatically mutate the legacy flat layout, and `memory/search.js` searches recursively, so leftover flat artifacts can still appear in search results and mix old and new repository context.
+
 The mirror preserves exactly what `gh` returns so the agent can query with `jq`:
 
 ```bash
