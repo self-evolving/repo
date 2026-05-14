@@ -1013,6 +1013,8 @@ test("workflow docs record the minimal metadata contract and developer notes", (
   assert.match(developerNotes, /## Testing/);
   assert.match(developerNotes, /cd \.agent[\s\S]*npm test/);
   assert.match(developerNotes, /## Known limitations/);
+  assert.match(developerNotes, /hosted Sepo App path only works/);
+  assert.match(developerNotes, /selected-repository installation/);
   assert.match(developerNotes, /`skill_root`/);
   assert.match(developerNotes, /\/skill/);
   assert.match(developerNotes, /lazy blockquote/);

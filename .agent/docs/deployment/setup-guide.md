@@ -49,6 +49,9 @@ and select the repository you are onboarding. **All repositories** is supported,
 but it grants broader access and can trigger bootstrap checks across many
 repositories, so it is not the recommended first install path.
 
+See [Developer notes](../technical-details/developer-notes.md#known-limitations)
+for the hosted app installation limitation.
+
 ## Bring your own GitHub App
 
 If you want a fully self-managed setup, configure:

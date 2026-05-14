@@ -3,15 +3,12 @@
 ## Start from the template
 
 1. Create a new repository with **Use this template**. Forking is supported, but forks often have Issues and/or Actions disabled by default; template-created repos usually avoid those fork-specific defaults.
-2. Install the [Sepo GitHub App](https://github.com/apps/sepo-agent-app/installations/select_target). For first-time setup, choose **Only select repositories** and select the repository you are setting up. **All repositories** is supported, but it grants broader access and can trigger bootstrap checks across many repositories.
-3. Choose a GitHub authentication path:
-   - Use the built-in hosted app/OIDC path for the simplest setup. Do not set `AGENT_APP_ID` / `AGENT_APP_PRIVATE_KEY` for this path; those secrets are only for a self-managed app.
-   - Use [your own GitHub App](../deployment/using-your-own-github-app.md) when you want a self-managed app identity.
-   - See the [setup guide](../deployment/setup-guide.md) for all auth options and trade-offs.
+2. Install the [Sepo GitHub App](https://github.com/apps/sepo-agent-app/installations/select_target). For first-time setup, choose **Only select repositories** and select the repository you are setting up.
+3. Use the hosted Sepo App path unless your organization requires a self-managed GitHub App. See the [setup guide](../deployment/setup-guide.md) for details.
 4. Before onboarding, confirm the repository is ready:
    - **Issues** are enabled in `Settings > General > Features > Issues`.
    - **Actions** are enabled in `Settings > Actions > General`.
-   - The Sepo GitHub App is installed on this selected repository.
+   - The Sepo GitHub App is installed for this repository.
    - At least one model-provider credential is configured as a repository secret: `OPENAI_API_KEY` for Codex-backed runs or `CLAUDE_CODE_OAUTH_TOKEN` for Claude-backed runs.
 5. Run `Agent / Onboarding / Check Setup` from GitHub Actions. It creates the built-in `agent/*` trigger labels if they are missing and opens or updates a `Sepo setup check` issue with configuration status and copyable test commands.
 6. Open an issue and mention `@sepo-agent` in the issue body or a comment. After a short delay, the workflow should add an eyes reaction and then post a response.
