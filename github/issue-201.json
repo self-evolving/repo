@@ -59,6 +59,101 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/201#issuecomment-4416142680",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCPbdFg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Yes, that trust model makes sense: if Sepo is installed in a user’s repo, repo-owned skill setup is comparable to repo-owned workflows. I would frame it as “the repository opts into executable skill setup,” not as Sepo centrally trusting arbitrary third-party code.\n\n@sepo-agent /answer exactly . So what sepo should do is to \n1. Define this format and protocol \n2. Add one or two exemplar implantations (I think we can also link to external repos).\n3. And then add it in the documentation for how people can implement it and this can be considered as the extension system. \n\n",
+      "createdAt": "2026-05-13T21:31:33Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/201#issuecomment-4445363478",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCPb8YA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes. I’d make this the `/skill` v1 extension protocol.\n\nConcretely, Sepo should define a repo-local skill package shape:\n\n```text\n.skills/<name>/\n  SKILL.md\n  skill-setup.yaml     # optional\n  README.md            # optional docs/example\n```\n\n`SKILL.md` remains the agent-facing instruction file. `skill-setup.yaml` becomes the executable setup contract for tools the skill needs. Its presence is the repo’s opt-in.\n\nA minimal v1 protocol could be:\n\n```yaml\nversion: 1\nsteps:\n  - name: Install deep research CLI\n    run: npm install -g ...\n```\n\nI’d keep v1 intentionally small: `version`, `steps[].name`, `steps[].run`, optional `steps[].shell`, optional `env`, and maybe `timeout_minutes`. That is enough for examples like installing a CLI, cloning a helper repo, adding a tool to `PATH`, or preparing local config.\n\nImplementation shape:\n1. Extend the existing skill job in [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L380-L506) to check for `.skills/<name>/skill-setup.yaml` after `SKILL.md` exists and before `Run skill`.\n2. Add a typed CLI, probably `.agent/src/cli/run-skill-setup.ts`, to parse and execute the setup file.\n3. Keep skill prompt loading where it already is in [`run.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/run.ts#L132-L154).\n4. Add docs under something like `.agent/docs/architecture/skills.md` or `.agent/docs/customization/skills.md`, and link it from README near the current `/skill` mention docs: [`README.md`](https://github.com/self-evolving/repo/blob/main/README.md#L35-L40).\n5. Add one or two examples:\n   - a small repo-local example, such as a `release-notes` or `repo-research` skill;\n   - a deep research example that links to an external tool/repo like `collaborative-deep-research/agent-papers-cli`.\n\nI agree this should be documented as Sepo’s extension system: repo owners add skills, optionally add setup, and Sepo gives them a stable route/protocol to run those extensions inside their own GitHub Actions trust boundary.",
+      "createdAt": "2026-05-13T21:32:53Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/201#issuecomment-4445371488",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCPeBQA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate ",
+      "createdAt": "2026-05-13T21:38:31Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/201#issuecomment-4445405504",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCPej3g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | implement | Issue #201 | 2 / 40 | Dispatched |\n\nReason: agent planner selected implement: Issue #201 has clear approval to turn the prior design into the /skill v1 extension protocol; the work is self-contained enough to implement directly on the issue.\n\n<!-- sepo-agent-handoff state:dispatched created:1778708396701 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU4Mjc5MzQ2Mjg6b3JjaGVzdHJhdGU6MjAxOmltcGxlbWVudDoyMDE6Mg -->",
+      "createdAt": "2026-05-13T21:39:57Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/201#issuecomment-4445414366",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCPjHHw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-201/codex-25827995570`\n- Pull request: https://github.com/self-evolving/repo/pull/241\n\nImplemented the /skill v1 extension protocol with typed skill path resolution, optional skill-setup.yaml validation/execution, workflow wiring for setup failure comments and skill_root propagation, plus documentation and examples. Verified with npm --prefix .agent test.",
+      "createdAt": "2026-05-13T21:52:36Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/201#issuecomment-4445488927",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-10T19:19:52Z",
@@ -73,6 +168,6 @@
   "number": 201,
   "state": "OPEN",
   "title": "Augment the skill route",
-  "updatedAt": "2026-05-10T19:27:22Z",
+  "updatedAt": "2026-05-13T21:52:36Z",
   "url": "https://github.com/self-evolving/repo/issues/201"
 }
