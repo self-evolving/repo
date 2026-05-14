@@ -6,7 +6,7 @@ There are two main customization points: how GitHub authentication is resolved, 
 
 | Path | Best when | What you configure |
 |---|---|---|
-| Official Sepo-hosted app via OIDC broker | You want the easiest default setup | standard workflow permissions plus your model-provider secrets |
+| Official Sepo-hosted app via OIDC broker | You want the easiest default setup | standard workflow permissions, selected-repository Sepo GitHub App installation, and your model-provider secrets |
 | Bring your own GitHub App | You want the supported self-managed path | `AGENT_APP_ID` + `AGENT_APP_PRIVATE_KEY` |
 | Fine-grained PAT | App installation is blocked or you need a debugging escape hatch | `AGENT_PAT` |
 | Fallback workflow token | Emergency or lowest-friction fallback | no extra secret; uses `github.token` |
@@ -39,7 +39,18 @@ In `.github/actions/resolve-github-auth`, the hosted app path:
 - exchanges it with the official Sepo broker
 - receives a short-lived GitHub App installation token
 
-This path is built in and works without extra repository configuration beyond standard workflow permissions and model-provider secrets.
+This path is built in. It requires standard workflow permissions, the Sepo GitHub
+App installed on the selected repository, and at least one model-provider secret.
+Hosted users do not need repo-local `AGENT_APP_ID` / `AGENT_APP_PRIVATE_KEY`
+secrets; those are only for the self-managed app path.
+
+For first-time setup, install the Sepo GitHub App with **Only select repositories**
+and select the repository you are onboarding. **All repositories** is supported,
+but it grants broader access and can trigger bootstrap checks across many
+repositories, so it is not the recommended first install path.
+
+See [Developer notes](../technical-details/developer-notes.md#known-limitations)
+for the hosted app installation limitation.
 
 ## Bring your own GitHub App
 

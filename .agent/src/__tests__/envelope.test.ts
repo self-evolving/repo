@@ -1013,6 +1013,8 @@ test("workflow docs record the minimal metadata contract and developer notes", (
   assert.match(developerNotes, /## Testing/);
   assert.match(developerNotes, /cd \.agent[\s\S]*npm test/);
   assert.match(developerNotes, /## Known limitations/);
+  assert.match(developerNotes, /hosted Sepo App path only works/);
+  assert.match(developerNotes, /selected-repository installation/);
   assert.match(developerNotes, /`skill_root`/);
   assert.match(developerNotes, /\/skill/);
   assert.match(developerNotes, /lazy blockquote/);
@@ -1193,7 +1195,12 @@ test("workflow docs cover hosted auth and self-hosting paths", () => {
   );
 
   assert.match(setupGuide, /Official Sepo-hosted app/);
-  assert.match(setupGuide, /works without\s+extra repository configuration/);
+  assert.match(setupGuide, /selected-repository Sepo GitHub App installation/);
+  assert.match(setupGuide, /App installed on the selected repository/);
+  assert.match(
+    setupGuide,
+    /do not need repo-local `AGENT_APP_ID` \/ `AGENT_APP_PRIVATE_KEY`\s+secrets/,
+  );
   assert.doesNotMatch(setupGuide, /AGENT_OIDC_EXCHANGE_URL/);
   assert.doesNotMatch(setupGuide, /AGENT_OIDC_AUDIENCE/);
   assert.match(setupGuide, /Bring your own GitHub App/);

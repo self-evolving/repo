@@ -10,13 +10,13 @@ Sepo turns a repository into a **self-evolving repository**: a codebase that can
 
 ### Start from this template
 
-1. Fork this repository or use it as a template.
-2. Install the [Sepo GitHub App](https://github.com/apps/sepo-agent-app/installations/select_target) and ensure GitHub Actions is enabled for your repository.
-   - Alternatively, you can use [your own GitHub App](.agent/docs/deployment/using-your-own-github-app.md) when you want a self-managed app identity.
-   - See the [setup guide](.agent/docs/deployment/setup-guide.md) for all auth options and trade-offs.
-3. Add at least one model-provider credential as a repository secret:
-   - `OPENAI_API_KEY` for Codex-backed runs.
-   - `CLAUDE_CODE_OAUTH_TOKEN` for Claude-backed runs.
+1. Create a new repository with **Use this template**.
+2. Install the [Sepo GitHub App](https://github.com/apps/sepo-agent-app/installations/select_target). For first-time setup, select only the repository you are setting up.
+3. Before onboarding, confirm the repository is ready:
+   - **Issues** are enabled in `Settings > General > Features > Issues`.
+   - **Actions** are enabled in `Settings > Actions > General`.
+   - The Sepo GitHub App is installed for this repository.
+   - At least one model-provider credential is configured as a repository secret: `OPENAI_API_KEY` for Codex-backed runs or `CLAUDE_CODE_OAUTH_TOKEN` for Claude-backed runs.
 4. Run `Agent / Onboarding / Check Setup` from GitHub Actions. It creates the built-in `agent/*` trigger labels if they are missing and opens or updates a `Sepo setup check` issue with configuration status and copyable test commands.
 5. Open an issue and mention `@sepo-agent` in the issue body or a comment. After a short delay, the workflow should add an eyes reaction and then post a response.
 
