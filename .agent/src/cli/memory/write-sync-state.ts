@@ -5,6 +5,7 @@ import { configureBotIdentity } from "../../git.js";
 import {
   createMemorySyncState,
   fetchMemorySyncState,
+  memorySyncStateForRepo,
   updateMemorySyncState,
   writeMemorySyncState,
   type PushOptions,
@@ -35,7 +36,8 @@ if (!repoSlug) {
 } else {
   configureBotIdentity(cwd);
 
-  const existing = fetchMemorySyncState(cwd, options) || createMemorySyncState(repoSlug);
+  const existing = memorySyncStateForRepo(fetchMemorySyncState(cwd, options), repoSlug)
+    || createMemorySyncState(repoSlug);
   const next = updateMemorySyncState(existing, {
     last_sync_at: lastSyncAt,
     last_activity_at: lastActivityAt || existing.last_activity_at || lastSyncAt,

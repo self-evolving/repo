@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // CLI: read the ref-backed memory sync state and emit cursors as step outputs.
 
-import { fetchMemorySyncState, type PushOptions } from "../../memory-sync-state.js";
+import { fetchMemorySyncState, memorySyncStateForRepo, type PushOptions } from "../../memory-sync-state.js";
 import { setOutput } from "../../output.js";
 
 function buildOptions(): PushOptions {
@@ -11,7 +11,9 @@ function buildOptions(): PushOptions {
 }
 
 const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
-const state = fetchMemorySyncState(cwd, buildOptions());
+const repoSlug = process.env.REPO_SLUG || process.env.GITHUB_REPOSITORY || "";
+const fetched = fetchMemorySyncState(cwd, buildOptions());
+const state = repoSlug ? memorySyncStateForRepo(fetched, repoSlug) : fetched;
 
 setOutput("found", state ? "true" : "false");
 setOutput("last_sync_at", state?.last_sync_at || "");

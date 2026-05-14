@@ -62,11 +62,11 @@ That workflow:
 
 - rejects the run if `agent/memory` already exists, so it stays a one-time initializer
 - creates `agent/memory` on the runner when it does not exist yet
-- seeds `PROJECT.md`, `MEMORY.md`, plus `.gitkeep` placeholders in `daily/` and `github/`
+- seeds `PROJECT.md`, `MEMORY.md`, plus `.gitkeep` placeholders in `daily/`, `github/`, and `github/<owner>/<repo>/`
 - commits and pushes the bootstrap branch without requiring a local checkout
 - runs the initial GitHub artifact sync and recent-activity curation inline after the bootstrap commit
 
-The workflow reuses the same branch to populate `github/*.json`, then runs the agentic memory curation pass on top of that seeded state.
+The workflow reuses the same branch to populate `github/<owner>/<repo>/*.json`, then runs the agentic memory curation pass on top of that seeded state.
 
 <details>
   <summary>Alternative: local memory bootstrap</summary>
@@ -80,7 +80,7 @@ git push origin agent/memory</code></pre>
   <ul>
     <li>creates or updates a local <code>agent/memory</code> branch without changing your current checkout</li>
     <li>reuses <code>origin/agent/memory</code> when it already exists locally as a remote-tracking branch, otherwise seeds a fresh branch</li>
-    <li>seeds <code>PROJECT.md</code> and <code>MEMORY.md</code>, plus <code>.gitkeep</code> placeholders in <code>daily/</code> and <code>github/</code></li>
+    <li>seeds <code>PROJECT.md</code> and <code>MEMORY.md</code>, plus <code>.gitkeep</code> placeholders in <code>daily/</code>, <code>github/</code>, and <code>github/&lt;owner&gt;/&lt;repo&gt;/</code></li>
     <li>commits the initialization locally when the branch needs it</li>
   </ul>
   <p>If you skip this step, the GitHub Actions workflows above can bootstrap the branch for you.</p>
