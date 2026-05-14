@@ -73,3 +73,4 @@
 - Self-merge should favor a simple core path: mark drafts ready, merge into configured base, rely on current-head approval/check guards.
 - When self-approval is enabled, review SHIP dispatches agent-self-approve; REQUEST_CHANGES returns to fix-pr, other conclusions stop.
 - Keep entry docs reader-first; put setup trade-offs, auth internals, and limitations in setup/technical docs.
+- Memory GitHub mirrors live under github/<owner>/<repo>/; old flat artifacts are manual cleanup, not auto-migrated.
