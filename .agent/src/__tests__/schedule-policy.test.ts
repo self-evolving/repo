@@ -27,6 +27,19 @@ test("parseSchedulePolicy accepts workflow overrides", () => {
   assert.equal(policy.workflowOverrides["agent-daily-summary.yml"], "disabled");
 });
 
+test("parseSchedulePolicy keeps daily summary disabled for unrelated policies", () => {
+  const policy = parseSchedulePolicy(
+    '{"workflow_overrides":{"agent-update.yml":"always_run"}}',
+  );
+  assert.equal(getScheduleModeForWorkflow(policy, "agent-daily-summary.yml"), "disabled");
+  assert.equal(getScheduleModeForWorkflow(policy, "agent-update.yml"), "always_run");
+
+  const enabled = parseSchedulePolicy(
+    '{"workflow_overrides":{"agent-daily-summary.yml":"skip_no_updates"}}',
+  );
+  assert.equal(getScheduleModeForWorkflow(enabled, "agent-daily-summary.yml"), "skip_no_updates");
+});
+
 test("parseSchedulePolicy normalizes workflow keys", () => {
   const policy = parseSchedulePolicy('{"workflow_overrides":{"AGENT-MEMORY-SCAN.YML":"disabled"}}');
   assert.equal(policy.workflowOverrides["agent-memory-scan.yml"], "disabled");

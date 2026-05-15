@@ -153,6 +153,17 @@ test("resolveScheduledActivityGate disables scheduled daily summary by default",
   assert.equal(manual.reason, "non-scheduled run");
 });
 
+test("resolveScheduledActivityGate disables scheduled daily summary for unrelated policy", () => {
+  const scheduled = resolveScheduledActivityGate({
+    eventName: "schedule",
+    schedulePolicy: '{"workflow_overrides":{"agent-update.yml":"always_run"}}',
+    workflow: "agent-daily-summary.yml",
+  });
+  assert.equal(scheduled.skip, true);
+  assert.equal(scheduled.mode, "disabled");
+  assert.equal(scheduled.reason, "schedule policy disabled workflow");
+});
+
 test("resolveScheduledActivityGate runs when skip_no_updates lacks detector config", () => {
   const result = resolveScheduledActivityGate({
     eventName: "schedule",
@@ -191,6 +202,15 @@ test("scheduled-activity-gate shell script matches core gate modes", () => {
       {
         GITHUB_EVENT_NAME: "schedule",
         AGENT_SCHEDULE_POLICY: "",
+        WORKFLOW_FILENAME: "agent-daily-summary.yml",
+      },
+      { skip: true, mode: "disabled", reason: "schedule policy disabled workflow" },
+    ],
+    [
+      "daily summary unrelated policy disabled",
+      {
+        GITHUB_EVENT_NAME: "schedule",
+        AGENT_SCHEDULE_POLICY: '{"workflow_overrides":{"agent-update.yml":"always_run"}}',
         WORKFLOW_FILENAME: "agent-daily-summary.yml",
       },
       { skip: true, mode: "disabled", reason: "schedule policy disabled workflow" },

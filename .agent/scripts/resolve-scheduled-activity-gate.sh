@@ -120,6 +120,8 @@ resolve_mode() {
 
   if [ -n "$override_mode" ]; then
     printf '%s' "$override_mode"
+  elif [ "$workflow" = "agent-daily-summary.yml" ]; then
+    printf 'disabled'
   else
     printf '%s' "$default_mode"
   fi
