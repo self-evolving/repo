@@ -14,6 +14,7 @@ export const SCHEDULE_MODES = ["always_run", "skip_no_updates", "disabled"] as c
 export type ScheduleMode = typeof SCHEDULE_MODES[number];
 export const DEFAULT_SCHEDULE_MODE: ScheduleMode = "skip_no_updates";
 export const DEFAULT_SCHEDULE_WORKFLOW_OVERRIDES: Record<string, ScheduleMode> = {
+  "agent-daily-summary.yml": "disabled",
   "agent-memory-sync.yml": "always_run",
 };
 

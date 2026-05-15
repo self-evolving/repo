@@ -18,7 +18,7 @@
 | `agent-review.yml` | `workflow_dispatch`, `workflow_call` | Parallel Claude and Codex review with resolved-provider synthesis, captured reviewed-head provenance, plus a separate rubric review comment | Claude + Codex reviewers; configurable synthesis |
 | `agent-branch-cleanup.yml` | `pull_request_target.closed` | Event-driven cleanup of merged agent-created branches after retargeting open stacked PRs. Excludes the shared `agent/memory` and `agent/rubrics` branches. | None |
 | `agent-close-stale-issues.yml` | `schedule` (daily), `workflow_dispatch` | Closes open `agent` issues that have had no activity for 30 days by default | None |
-| `agent-daily-summary.yml` | `schedule` (daily), `workflow_dispatch` | Generates a concise repository activity summary and posts it as a Discussion | Auto |
+| `agent-daily-summary.yml` | `schedule` (daily, disabled by default), `workflow_dispatch` | Generates a concise repository activity summary and posts it as a Discussion | Auto |
 | `agent-project-manager.yml` | `schedule` (every 6h), `workflow_dispatch` | Opt-in agent-driven triage for open issues and PRs, with dry-run summaries and optional priority/effort label updates | Auto |
 | `agent-update.yml` | `schedule` (1st and 15th), `workflow_dispatch` | Checks for Sepo agent infrastructure updates and opens a PR only when updates are available | Auto |
 | `agent-onboarding.yml` | `workflow_dispatch` | First-run setup check that creates built-in trigger labels and opens or updates a setup issue | None |
@@ -163,7 +163,9 @@ it leaves only the Actions step summary.
 activity signals or resolving an agent provider. If discussions are disabled, or
 the configured summary discussion category does not exist, the workflow skips
 signal collection and summary generation instead of spending runtime only to
-fail while posting.
+fail while posting. Cron-triggered daily summaries are disabled by default;
+manual `workflow_dispatch` remains available, and repositories can enable the
+cron with an `AGENT_SCHEDULE_POLICY` workflow override.
 
 `agent-update.yml` runs near-biweekly because GitHub cron does not support a
 native every-14-days cadence. It resolves its source to the latest published

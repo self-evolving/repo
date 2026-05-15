@@ -59,7 +59,7 @@ if (!repo || !ref || !sourceAction || !targetNumber) {
 dispatchWorkflow(repo, "agent-orchestrator.yml", ref, {
   automation_mode: effectiveAutomationMode,
   automation_current_round: process.env.AUTOMATION_CURRENT_ROUND || "1",
-  automation_max_rounds: process.env.AUTOMATION_MAX_ROUNDS || "5",
+  automation_max_rounds: process.env.AUTOMATION_MAX_ROUNDS || "12",
   source_action: sourceAction,
   source_conclusion: sourceConclusion,
   source_run_id: process.env.SOURCE_RUN_ID || process.env.GITHUB_RUN_ID || "",

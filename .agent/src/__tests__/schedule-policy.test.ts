@@ -14,6 +14,7 @@ test("parseSchedulePolicy falls back to skip_no_updates when unset", () => {
   assert.equal(policy.defaultMode, DEFAULT_SCHEDULE_MODE);
   assert.equal(DEFAULT_SCHEDULE_MODE, "skip_no_updates");
   assert.deepEqual(policy.workflowOverrides, DEFAULT_SCHEDULE_WORKFLOW_OVERRIDES);
+  assert.equal(policy.workflowOverrides["agent-daily-summary.yml"], "disabled");
   assert.equal(policy.workflowOverrides["agent-memory-sync.yml"], "always_run");
 });
 
