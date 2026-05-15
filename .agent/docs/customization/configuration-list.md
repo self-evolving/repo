@@ -9,7 +9,7 @@
 | `AGENT_DEFAULT_PROVIDER` | Default provider for single-agent runs and review synthesis: `auto`, `codex`, or `claude`. Explicit `codex` / `claude` choices are honored even without matching repository secrets, allowing self-hosted runners to use local provider authentication. `auto` chooses the first configured provider secret, preferring Codex when both secrets are present. |
 | `AGENT_SESSION_BUNDLE_MODE` | Default session-bundle behavior: `auto`, `always`, or `never`. For the trade-offs behind this setting, see [Session continuity](../technical-details/session-continuity.md). |
 | `AGENT_AUTOMATION_MODE` | Orchestrator decision mode. Defaults to `agent` for planner-backed orchestration validated by runtime policy. Set to `heuristics` for deterministic status-based routing with lower model cost. Compatibility alias: `true` = `heuristics`; explicit `false` or legacy `disabled` values fall back to `heuristics` for explicit `/orchestrate` chains. See [Agent orchestrator](../technical-details/agent-orchestrator.md). |
-| `AGENT_AUTOMATION_MAX_ROUNDS` | Maximum number of explicit orchestration handoff rounds. Defaults to `5`. |
+| `AGENT_AUTOMATION_MAX_ROUNDS` | Maximum number of explicit orchestration handoff rounds. Defaults to `12`. |
 | `AGENT_ALLOW_SELF_APPROVE` | Opt-in gate for `agent-self-approve.yml`. Defaults to `false`; when enabled, the workflow can approve only an open pull request whose current head matches a trusted `SHIP` review synthesis and the self-approval agent's inspected head. |
 | `AGENT_ALLOW_SELF_MERGE` | Opt-in gate for `agent-self-merge.yml`. Defaults to `false`; when enabled with self-approval, trusted current-head self-approved PRs can be marked ready and merged into their configured base with `--match-head-commit`. |
 | `AGENT_COLLAPSE_OLD_REVIEWS` | Generated comment cleanup toggle. Defaults to enabled; set to `false` to leave older AI review synthesis, rubrics review, `fix-pr` status, and orchestrator handoff comments visible instead of minimizing them as outdated. |
@@ -25,7 +25,7 @@
 | `AGENT_TASK_TIMEOUT_POLICY` | JSON policy for GitHub Actions step timeouts on agent tasks. Defaults to `{"default_minutes":30}` and accepts route overrides, for example `{"default_minutes":30,"route_overrides":{"implement":60,"review":45}}`. Values must be 1-360 minutes. |
 | `AGENT_MEMORY_POLICY` | JSON policy controlling which routes can read or write repository memory. See [Repository memory](../architecture/memory.md). |
 | `AGENT_MEMORY_REF` | Default branch name used when workflows mount repository memory. Defaults to `agent/memory`. |
-| `AGENT_SCHEDULE_POLICY` | JSON policy controlling scheduled workflow runs. See [Repository memory](../architecture/memory.md#scheduled-workflow-policy-agent_schedule_policy). |
+| `AGENT_SCHEDULE_POLICY` | JSON policy controlling scheduled workflow runs. By default, scheduled daily summaries are disabled while manual dispatch remains available. See [Repository memory](../architecture/memory.md#scheduled-workflow-policy-agent_schedule_policy). |
 | `AGENT_RUBRICS_POLICY` | JSON policy controlling which routes can read or write user/team rubrics. Defaults to read-only. See [User/team rubrics](../architecture/rubrics.md). |
 | `AGENT_RUBRICS_REF` | Default branch name used when workflows mount user/team rubrics. Defaults to `agent/rubrics`. |
 | `AGENT_RUBRICS_LIMIT` | Maximum selected rubrics injected into an agent prompt. Defaults to `10`. |

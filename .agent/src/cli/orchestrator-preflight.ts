@@ -23,7 +23,7 @@ function envFlagEnabled(value: string): boolean {
 
 const automationMode = normalizeAutomationMode(process.env.AUTOMATION_MODE || "disabled");
 const currentRound = positiveInt(process.env.AUTOMATION_CURRENT_ROUND || "", 1);
-const maxRounds = positiveInt(process.env.AUTOMATION_MAX_ROUNDS || "", 5);
+const maxRounds = positiveInt(process.env.AUTOMATION_MAX_ROUNDS || "", 12);
 const sourceAction = String(process.env.SOURCE_ACTION || "").trim().toLowerCase();
 const sourceConclusion = String(process.env.SOURCE_CONCLUSION || "unknown").trim().toLowerCase();
 const targetKind = String(process.env.TARGET_KIND || "").trim().toLowerCase();

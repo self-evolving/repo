@@ -9,7 +9,7 @@ Configure `AGENT_AUTOMATION_MODE` to choose how orchestrator handoffs are decide
 | `heuristics` | Deterministic built-in state machine. |
 | `agent` | Planner-assisted orchestration, validated by runtime policy. |
 
-Set `AGENT_AUTOMATION_MAX_ROUNDS` to cap the chain length.
+Set `AGENT_AUTOMATION_MAX_ROUNDS` to cap the chain length. The default cap is 12 rounds.
 
 ## Current heuristics state machine
 

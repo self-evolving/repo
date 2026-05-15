@@ -83,6 +83,14 @@ test("preflight keeps planner enabled for authorized issue meta-orchestration", 
   assert.equal(run.outputs.get("authorization_stop"), "false");
 });
 
+test("preflight defaults automation max rounds to 12", () => {
+  const run = runPreflight({ AUTOMATION_MAX_ROUNDS: "" });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("max_rounds"), "12");
+  assert.equal(run.outputs.get("planner_enabled"), "true");
+});
+
 test("preflight checks self-approval delegated access only when enabled", () => {
   const accessPolicy = JSON.stringify({
     route_overrides: {

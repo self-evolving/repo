@@ -17,7 +17,7 @@ function parseGithubOutput(path: string): Map<string, string> {
   return outputs;
 }
 
-function runOrchestrateHandoff(env: Record<string, string>): {
+function runOrchestrateHandoff(env: Record<string, string | undefined>): {
   status: number | null;
   stderr: string;
   stdout: string;
@@ -162,35 +162,43 @@ exit 1
       { encoding: "utf8", mode: 0o755 },
     );
 
+    const childEnv: NodeJS.ProcessEnv = {
+      ...process.env,
+      PATH: `${tempDir}:${process.env.PATH || ""}`,
+      GITHUB_OUTPUT: outputPath,
+      GH_TOKEN: "fake-token",
+      GITHUB_REPOSITORY: "self-evolving/repo",
+      DEFAULT_BRANCH: "main",
+      SOURCE_ACTION: "orchestrate",
+      SOURCE_CONCLUSION: "requested",
+      SOURCE_RUN_ID: "12345",
+      TARGET_KIND: "issue",
+      TARGET_NUMBER: "20",
+      REQUESTED_BY: "lolipopshock",
+      REQUEST_TEXT: "@sepo-agent /orchestrate",
+      AUTOMATION_MODE: "heuristics",
+      AUTOMATION_CURRENT_ROUND: "1",
+      AUTOMATION_MAX_ROUNDS: "5",
+      ACCESS_POLICY: "",
+      AUTHOR_ASSOCIATION: "MEMBER",
+      AGENT_ALLOW_SELF_MERGE: "false",
+      BASE_BRANCH: "",
+      BASE_PR: "",
+      REPOSITORY_PRIVATE: "true",
+      FAKE_GH_LOG: ghLogPath,
+      FAKE_DISPATCH_PAYLOAD: dispatchPayloadPath,
+    };
+    for (const [key, value] of Object.entries(runEnv)) {
+      if (value === undefined) {
+        delete childEnv[key];
+      } else {
+        childEnv[key] = value;
+      }
+    }
+
     const result = spawnSync("node", [".agent/dist/cli/orchestrate-handoff.js"], {
       cwd: repoRoot,
-      env: {
-        ...process.env,
-        PATH: `${tempDir}:${process.env.PATH || ""}`,
-        GITHUB_OUTPUT: outputPath,
-        GH_TOKEN: "fake-token",
-        GITHUB_REPOSITORY: "self-evolving/repo",
-        DEFAULT_BRANCH: "main",
-        SOURCE_ACTION: "orchestrate",
-        SOURCE_CONCLUSION: "requested",
-        SOURCE_RUN_ID: "12345",
-        TARGET_KIND: "issue",
-        TARGET_NUMBER: "20",
-        REQUESTED_BY: "lolipopshock",
-        REQUEST_TEXT: "@sepo-agent /orchestrate",
-        AUTOMATION_MODE: "heuristics",
-        AUTOMATION_CURRENT_ROUND: "1",
-        AUTOMATION_MAX_ROUNDS: "5",
-        ACCESS_POLICY: "",
-        AUTHOR_ASSOCIATION: "MEMBER",
-        AGENT_ALLOW_SELF_MERGE: "false",
-        BASE_BRANCH: "",
-        BASE_PR: "",
-        REPOSITORY_PRIVATE: "true",
-        FAKE_GH_LOG: ghLogPath,
-        FAKE_DISPATCH_PAYLOAD: dispatchPayloadPath,
-        ...runEnv,
-      },
+      env: childEnv,
       encoding: "utf8",
     });
 
@@ -281,6 +289,21 @@ test("manual orchestrate dispatches implement for issue targets", () => {
   assert.equal(run.outputs.get("next_action"), "implement");
   assert.match(run.ghLog, /actions\/workflows\/agent-implement\.yml\/dispatches/);
   assert.equal((run.dispatchPayload?.inputs as Record<string, string>).base_pr, "12");
+});
+
+test("manual orchestrate defaults automation max rounds to 12 when env is absent", () => {
+  const run = runOrchestrateHandoff({
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "20",
+    AUTOMATION_MAX_ROUNDS: undefined,
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "dispatch");
+  assert.equal(run.outputs.get("next_action"), "implement");
+  assert.match(run.ghLog, /\| orchestrate \| implement \| Issue #20 \| 2 \/ 12 \| Dispatched \|/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.automation_max_rounds, "12");
 });
 
 test("agent orchestrate dispatches implement directly for self-contained issue targets", () => {

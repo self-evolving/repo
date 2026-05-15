@@ -19,7 +19,7 @@ const basePr = process.env.BASE_PR || "";
 const implementationRoute = process.env.IMPLEMENTATION_ROUTE || "implement";
 const implementationPrompt = process.env.IMPLEMENTATION_PROMPT || implementationRoute;
 const automationMode = process.env.AUTOMATION_MODE || "disabled";
-const automationMaxRounds = process.env.AUTOMATION_MAX_ROUNDS || "5";
+const automationMaxRounds = process.env.AUTOMATION_MAX_ROUNDS || "12";
 
 if (!repo || !ref || !issueNumber) {
   console.error("Missing required env: GITHUB_REPOSITORY, DEFAULT_BRANCH, ISSUE_NUMBER");
