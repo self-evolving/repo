@@ -74,3 +74,5 @@
 - When self-approval is enabled, review SHIP dispatches agent-self-approve; REQUEST_CHANGES returns to fix-pr, other conclusions stop.
 - Keep entry docs reader-first; put setup trade-offs, auth internals, and limitations in setup/technical docs.
 - Memory GitHub mirrors live under github/<owner>/<repo>/; old flat artifacts are manual cleanup, not auto-migrated.
+- Scheduled daily summaries are disabled by default; enable agent-daily-summary.yml only via explicit schedule-policy override.
+- Default orchestration max rounds is 12 across workflows and CLI fallbacks.
