@@ -1,0 +1,329 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Disable scheduled daily summaries by default while preserving manual dispatch\n- Increase default orchestration max rounds from 5 to 12 across workflows and CLI fallbacks\n- Update docs and focused regression coverage for the new defaults\n\n## Verification\n- `npm run build`\n- `node --test dist/__tests__/schedule-policy.test.js dist/__tests__/scheduled-activity.test.js dist/__tests__/dispatch-agent-implement-cli.test.js dist/__tests__/dispatch-agent-orchestrator-cli.test.js dist/__tests__/orchestrator-preflight-cli.test.js`\n- `node --test dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nCloses #243\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCfAiKg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #244 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: Implementation for issue #243 succeeded and opened PR #244; the next useful automated step is review of that PR before any human merge decision.\n\n<!-- sepo-agent-handoff state:dispatched created:1778864521100 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU5MzAyNDE5NDE6aW1wbGVtZW50OjI0MzpyZXZpZXc6MjQ0OjM -->",
+      "createdAt": "2026-05-15T17:02:01Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/244#issuecomment-4461699626",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCfBKdQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | PR changes only orchestration round defaults; it does not weaken requester/access-policy fields. Existing preflight delegated-access checks remain covered in `orchestrator-preflight-cli.test.ts`, with an added default-round assertion. |\n| coding_workflow / specific | Default follow-up orchestration to one-shot | pass | 8/8 | Raising `automation_max_rounds` from 5 to 12 changes the cap only; the diff does not alter planner/heuristic continuation policy or make non-orchestrated follow-ups auto-continue. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Daily-summary scheduling is implemented through existing `AGENT_SCHEDULE_POLICY` defaults and the existing shell gate, not a new scheduling path. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Docs updated in `README.md`, `.agent/docs/architecture/memory.md`, `.agent/docs/architecture/supported-workflows.md`, `.agent/docs/customization/configuration-list.md`, and `.agent/docs/technical-details/agent-orchestrator.md`. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Existing `automation_max_rounds` structured workflow/CLI input is preserved; only the default changes from `\"5\"` to `\"12\"`. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR matches linked issue #243’s two requested defaults and the prior `/answer` implementation plan. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is limited to the requested defaults, focused docs, and regression tests. No unrelated refactor is present. |\n| communication / generic | Write audience-first documentation | pass | 7/7 | README keeps the scheduled jobs section task-oriented and simply states daily summary cron is disabled by default while manual dispatch remains available. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | Docs changes update behavioral defaults without adding file-inventory tables. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Implementation is direct constant/default updates plus focused tests; no new abstraction or setting was introduced. |\n\n## Notes\n\n- The strongest rubric fit is good: the PR uses the existing schedule policy and orchestration input surfaces, updates matching documentation, and adds focused tests for both changed defaults.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-15T17:03:41Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/244#issuecomment-4461709941",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCfE6_g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: b8860718fb59f0fc06b98b47c4c2acbb134aa45a -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\nPR #244 addresses issue #243 by disabling scheduled daily summaries by default while keeping manual dispatch available, and by raising default orchestration handoff rounds from 5 to 12. It updates workflow defaults, TypeScript CLI fallbacks, docs, and focused tests. The orchestration-round change looks consistently applied. The daily-summary default is incomplete for repositories that already set any custom `AGENT_SCHEDULE_POLICY`.\n\n## Review\n\nOverall, this needs rework before merge because a non-empty unrelated schedule policy can still re-enable the daily summary cron. The remaining test-coverage gap is lower risk but easy to fix alongside the blocking schedule-policy change.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Custom schedule policies can re-enable daily summaries | BLOCKING | The PR disables `agent-daily-summary.yml` only when `AGENT_SCHEDULE_POLICY` is empty; with any non-empty policy that omits that workflow, both gates fall back to `default_mode` and can run scheduled summaries. This conflicts with issue #243 and the updated docs that say the cron is disabled by default and enabled via a workflow override. |\n| `orchestrate-handoff` fallback default lacks direct regression coverage | WARNING | The changed `orchestrate-handoff.ts` fallback from 5 to 12 has no new no-env test, while related dispatch/preflight fallbacks do. This is low risk because workflows pass the input explicitly, but the coverage is asymmetric. |\n\n## Progress\n\n- PR #244 already updates the 12-round default across workflows, dispatch CLIs, docs, and focused tests.\n- Empty-policy daily-summary behavior and manual dispatch behavior are now tested.\n- Rubrics review passed with no rubric-specific findings.\n- Existing inline comments and review threads were empty before synthesis.\n- Posted one inline comment for the blocking schedule-policy issue on `.agent/scripts/resolve-scheduled-activity-gate.sh` line 75.\n\n## Issue Details\n\n<details>\n<summary>Custom schedule policies can re-enable daily summaries</summary>\n\n**Cause:** In the TypeScript parser, non-empty policies initialize `workflowOverrides` as `{}` instead of preserving defaults, so `agent-daily-summary.yml` falls back to `defaultMode`: https://github.com/self-evolving/repo/blob/b8860718fb59f0fc06b98b47c4c2acbb134aa45a/.agent/src/schedule-policy.ts#L57-L60. The shell gate mirrors this by returning `$default_mode` when no matching override is present: https://github.com/self-evolving/repo/blob/b8860718fb59f0fc06b98b47c4c2acbb134aa45a/.agent/scripts/resolve-scheduled-activity-gate.sh#L121-L124.\n\n**Candidate solutions:** Keep `agent-daily-summary.yml` disabled unless `workflow_overrides[\"agent-daily-summary.yml\"]` explicitly opts into `skip_no_updates` or `always_run`. Mirror the behavior in both the TypeScript parser and shell pre-runtime gate, and add TS plus shell tests for a non-empty policy that only mentions another workflow.\n\n**Comments:** One reviewer considered the asymmetry acceptable operator-control behavior, but the synthesis treats it as blocking because the issue request and docs describe disabled-by-default behavior with explicit workflow-override enablement.\n\n</details>\n\n<details>\n<summary>`orchestrate-handoff` fallback default lacks direct regression coverage</summary>\n\n**Cause:** `orchestrate-handoff.ts` changed its fallback to 12, but existing `orchestrate-handoff-cli.test.ts` cases set `AUTOMATION_MAX_ROUNDS` explicitly rather than covering the omitted-env fallback.\n\n**Candidate solutions:** Add a focused CLI test that omits or clears `AUTOMATION_MAX_ROUNDS` and asserts the dispatched handoff payload uses `12`.\n\n**Comments:** This is lower risk because `agent-orchestrator.yml` passes the defaulted workflow input, but direct fallback coverage would match the rest of the PR.\n\n</details>\n\n## Recommended Next Step\n\n`FIX_PR`: The blocking behavior and missing regression coverage are concrete branch changes that are safe for an automated fix-pr pass.\n\n## Final Verdict\n\nNEEDS_REWORK\n\n## Action Items\n\n- [ ] Keep `agent-daily-summary.yml` disabled for scheduled runs unless `AGENT_SCHEDULE_POLICY.workflow_overrides[\"agent-daily-summary.yml\"]` explicitly enables it, in both TypeScript and shell gates.\n- [ ] Add TypeScript and shell regression tests for a non-empty unrelated `AGENT_SCHEDULE_POLICY` that omits `agent-daily-summary.yml`.\n- [ ] Add a focused no-env fallback regression test for `orchestrate-handoff.ts` defaulting `AUTOMATION_MAX_ROUNDS` to `12`.",
+      "createdAt": "2026-05-15T17:12:46Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/244#issuecomment-4461771518",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCfFT3w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #244 | 4 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis for open PR #244 recommends FIX_PR with NEEDS_REWORK; the remaining items are concrete branch changes within the round budget.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Keep `agent-daily-summary.yml` disabled for scheduled runs unless `AGENT_SCHEDULE_POLICY.workflow_overrides[\"agent-daily-summary.yml\"]` explicitly enables it, in both TypeScript and shell gates.\n- Add TypeScript and shell regression tests for a non-empty unrelated `AGENT_SCHEDULE_POLICY` that omits `agent-daily-summary.yml`.\n- Add a focused no-env fallback regression test for `orchestrate-handoff.ts` defaulting `AUTOMATION_MAX_ROUNDS` to `12`.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1778865227811 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU5MzA2MTgzNTc6cmV2aWV3OjI0NDpmaXhfcHI6MjQ0OjQ -->",
+      "createdAt": "2026-05-15T17:13:48Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/244#issuecomment-4461777887",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCfG7sQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-243/codex-25930241941`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Kept scheduled `agent-daily-summary.yml` disabled unless its workflow override explicitly enables it, in both TypeScript and shell gate paths.\n- Added regressions for unrelated non-empty `AGENT_SCHEDULE_POLICY` values and the no-env `AUTOMATION_MAX_ROUNDS` fallback of `12`.\n- Verification: `npm run build`; `node --test dist/__tests__/schedule-policy.test.js dist/__tests__/scheduled-activity.test.js dist/__tests__/orchestrate-handoff-cli.test.js`; `git diff --check`.",
+      "createdAt": "2026-05-15T17:18:25Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/244#issuecomment-4461804465",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCfHaRg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #244 | 5 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on open PR #244 after a NEEDS_REWORK review; the updated head should receive a focused automated review before stopping or human merge consideration.\n\n<!-- sepo-agent-handoff state:dispatched created:1778865578394 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU5MzExNDI0NDk6Zml4X3ByOjI0NDpyZXZpZXc6MjQ0OjU -->",
+      "createdAt": "2026-05-15T17:19:38Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/244#issuecomment-4461812294",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCfH3NA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | PR changes schedule defaults and orchestration round caps only. It does not remove requester/access-policy propagation or downstream route checks; `orchestrator-preflight-cli.test.ts` keeps delegated-access coverage and adds default-round coverage. |\n| coding_workflow / specific | Default follow-up orchestration to one-shot | pass | 8/8 | Raising the max round cap from 5 to 12 does not alter planner/heuristic continuation policy or make later user-launched follow-ups auto-continue outside explicit orchestration. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Daily-summary behavior is implemented through existing `AGENT_SCHEDULE_POLICY`, `schedule-policy.ts`, and `resolve-scheduled-activity-gate.sh` paths instead of adding a parallel scheduler. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | PR updates `README.md`, `.agent/docs/architecture/memory.md`, `.agent/docs/architecture/supported-workflows.md`, `.agent/docs/customization/configuration-list.md`, and `.agent/docs/technical-details/agent-orchestrator.md` for the new defaults. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Existing structured `automation_max_rounds` workflow/CLI input is preserved; the PR changes only default values and keeps `AGENT_SCHEDULE_POLICY.workflow_overrides` as the explicit schedule control. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | Linked issue #243 requested exactly two defaults: disable daily summaries by default and increase default orchestrate rounds from 5 to 12; the PR and docs follow that scoped plan. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is limited to requested defaults, matching docs, and focused regression tests. No broad refactor or unrelated cleanup is present. |\n| communication / generic | Write audience-first documentation | pass | 7/7 | README keeps scheduled jobs reader-facing and states daily summary cron is disabled by default while manual dispatch remains available, without front-loading internal mechanics. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | Documentation changes describe behavior and configuration defaults; they do not add per-file inventory tables. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation is direct default updates plus small tests, including the follow-up fix to keep `agent-daily-summary.yml` disabled for unrelated non-empty schedule policies. |\n\n## Notes\n\n- The current PR head addresses the earlier review synthesis blocker: both TypeScript and shell schedule gates keep `agent-daily-summary.yml` disabled unless explicitly enabled, even when `AGENT_SCHEDULE_POLICY` contains unrelated overrides.\n- Test coverage is focused on the changed contracts: default schedule policy, shell gate parity, CLI fallback defaults, dispatch payloads, and orchestrator preflight.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-15T17:20:55Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/244#issuecomment-4461819700",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCfJvbw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 7601bf24d9acf9a42cf1c66f2d2328fa49447ce3 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #244 implements issue #243 by disabling scheduled daily summaries by default while keeping manual dispatch available. It also raises the default orchestration max rounds from 5 to 12 across workflows and CLI fallbacks. The PR updates docs and focused regression tests for both behavior changes. A prior blocker around custom `AGENT_SCHEDULE_POLICY` values has been fixed on the current head.\n\n## Review\nThe synthesized reviews agree the current PR head is ready to ship. The earlier schedule-policy blocker is resolved, coverage is now focused on the changed defaults, and rubrics review passed.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues | INFO | Current reviewer outputs found no blocking or warning findings on the updated head. |\n\n## Progress\n- Prior blocker fixed: unrelated non-empty `AGENT_SCHEDULE_POLICY` values no longer re-enable `agent-daily-summary.yml`.\n- Regression coverage was added for schedule-policy defaults, shell/TypeScript parity, and the `AUTOMATION_MAX_ROUNDS=12` fallback.\n- Rubrics review passed with no rubric-specific follow-up.\n- Resolved existing same-agent inline thread `PRRT_kwDOSOhEMM6CbRO9`; no new inline comments were posted.\n- One reviewer noted a pre-existing memory-sync custom-policy asymmetry as INFO; it predates this PR and is out of scope.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: No unresolved actionable work remains for automation.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change action items remain.",
+      "createdAt": "2026-05-15T17:26:09Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/244#issuecomment-4461850479",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-15T17:01:08Z",
+  "files": [
+    {
+      "path": ".agent/docs/architecture/memory.md",
+      "additions": 3,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 4,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/agent-orchestrator.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/scripts/resolve-scheduled-activity-gate.sh",
+      "additions": 5,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/dispatch-agent-implement-cli.test.ts",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/dispatch-agent-orchestrator-cli.test.ts",
+      "additions": 52,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrate-handoff-cli.test.ts",
+      "additions": 51,
+      "deletions": 28,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrator-preflight-cli.test.ts",
+      "additions": 8,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/schedule-policy.test.ts",
+      "additions": 14,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/scheduled-activity.test.ts",
+      "additions": 54,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/dispatch-agent-implement.ts",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/dispatch-agent-orchestrator.ts",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrate-handoff.ts",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrator-preflight.ts",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/schedule-policy.ts",
+      "additions": 5,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-approve.yml",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-entrypoint.yml",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-fix-pr.yml",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-implement.yml",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-label.yml",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-orchestrator.yml",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-review.yml",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-router.yml",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-self-approve.yml",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-self-merge.yml",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": "README.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-243/codex-25930241941",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 244,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAEwTWQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-15T17:11:39Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "b8860718fb59f0fc06b98b47c4c2acbb134aa45a"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Update agent schedule and orchestration defaults",
+  "updatedAt": "2026-05-15T17:26:09Z",
+  "url": "https://github.com/self-evolving/repo/pull/244"
+}

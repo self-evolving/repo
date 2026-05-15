@@ -1,0 +1,121 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "1. make daily summary disabled by default \n2. increase default orchestrate run from 5 to 12 ",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCe5N7Q",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer ",
+      "createdAt": "2026-05-15T16:42:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/243#issuecomment-4461579757",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCe6EMQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "This is supported and looks like a small defaults-only change.\n\nCurrent places to change:\n\n- Daily summary scheduling is gated by `AGENT_SCHEDULE_POLICY`. The unset default is `skip_no_updates` in [`schedule-policy.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/schedule-policy.ts#L15-L18), and [`agent-daily-summary.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-daily-summary.yml#L44-L50) consumes that policy. Best implementation: add a default workflow override for `agent-daily-summary.yml: disabled`, so cron is off by default while manual `workflow_dispatch` still works.\n- Orchestrate rounds default to `5` in workflow inputs/fallbacks, for example [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L67-L70), [`agent-entrypoint.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-entrypoint.yml#L56-L57), and [`agent-orchestrator.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-orchestrator.yml#L69-L72). There are also TypeScript fallback defaults in [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L870), [`orchestrator-preflight.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrator-preflight.ts#L24-L26), [`dispatch-agent-implement.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/dispatch-agent-implement.ts#L21-L22), and [`dispatch-agent-orchestrator.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/dispatch-agent-orchestrator.ts#L59-L63).\n\nImplementation plan:\n\n1. Add `\"agent-daily-summary.yml\": \"disabled\"` to the default schedule workflow overrides.\n2. Change default orchestration max rounds from `5` to `12` across workflow inputs, vars fallbacks, and TypeScript fallback paths.\n3. Update docs in [`configuration-list.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/customization/configuration-list.md#L11-L12) and scheduled workflow docs to reflect the new defaults.\n4. Update tests that assert the old defaults, especially schedule-policy/scheduled-activity tests and orchestrator round-budget expectations.\n5. Run the `.agent` test suite.\n\nReply with `/implement` and I can make the PR.",
+      "createdAt": "2026-05-15T16:44:24Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/243#issuecomment-4461593649",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCe9FnA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate ",
+      "createdAt": "2026-05-15T16:52:43Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/243#issuecomment-4461643164",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCe9l4A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | implement | Issue #243 | 2 / 40 | Dispatched |\n\nReason: agent planner selected implement: Issue #243 is a small, self-contained defaults change with no parent/tracking issue references; the prior /answer confirmed the implementation path, and the requester followed up with /orchestrate.\n\n<!-- sepo-agent-handoff state:dispatched created:1778864039491 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU5MzAxODUwODI6b3JjaGVzdHJhdGU6MjQzOmltcGxlbWVudDoyNDM6Mg -->",
+      "createdAt": "2026-05-15T16:53:59Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/243#issuecomment-4461651424",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCfAP9g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-243/codex-25930241941`\n- Pull request: https://github.com/self-evolving/repo/pull/244\n\nDisabled scheduled daily summaries by default via the shared schedule policy and pre-runtime gate, raised the default orchestration max rounds from 5 to 12 across workflows and CLI fallbacks, updated docs, and verified with build, focused tests, envelope tests, and git diff checks.",
+      "createdAt": "2026-05-15T17:01:12Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/243#issuecomment-4461694966",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-15T16:41:52Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 243,
+  "state": "OPEN",
+  "title": "Change default values",
+  "updatedAt": "2026-05-15T17:01:12Z",
+  "url": "https://github.com/self-evolving/repo/issues/243"
+}
