@@ -543,7 +543,7 @@ test("agent router bypasses dispatch triage for explicit mention slash routes", 
   );
   assert.match(
     runnerWorkflow,
-    /- name: Resolve explicit route authorization[\s\S]*steps\.context\.outputs\.requested_route != ''[\s\S]*id:\s*explicit_dispatch[\s\S]*node \.agent\/dist\/cli\/resolve-dispatch\.js/,
+    /- name: Resolve explicit route authorization[\s\S]*steps\.context\.outputs\.requested_route == 'implement'[\s\S]*steps\.context\.outputs\.target_kind != 'issue'[\s\S]*id:\s*explicit_dispatch[\s\S]*node \.agent\/dist\/cli\/resolve-dispatch\.js/,
   );
   assert.match(
     runnerWorkflow,
