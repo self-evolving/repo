@@ -54,6 +54,7 @@ import {
   buildContinuationPrompt,
   selectContinuationPromptForResume,
 } from "./prompt-continuation.js";
+import { resolveSkillPackage } from "./skills.js";
 
 // --- Logging ---
 
@@ -132,7 +133,7 @@ const PROMPT_TEMPLATES: Record<string, string> = {
 /**
  * Resolves the prompt template path from multiple sources:
  * 1. PROMPT_NAME env var → look up in PROMPT_TEMPLATES or .github/prompts/<name>.md
- * 2. SKILL_NAME env var → .skills/<name>/SKILL.md
+ * 2. SKILL_NAME env var → <skill_root>/<name>/SKILL.md
  * 3. Fall back to route-based lookup in PROMPT_TEMPLATES
  */
 function resolveTemplatePath(route: string, repoRoot: string): string | null {
@@ -151,9 +152,13 @@ function resolveTemplatePath(route: string, repoRoot: string): string | null {
   }
 
   if (skillName) {
-    // Named skill: .skills/<name>/SKILL.md
-    const p = join(repoRoot, ".skills", skillName, "SKILL.md");
-    if (existsSync(p)) return p;
+    const skill = resolveSkillPackage({
+      repoRoot,
+      skillRoot: process.env.SKILL_ROOT,
+      skillName,
+    });
+    const p = skill.skillFile;
+    if (skill.skillExists) return p;
     return null;
   }
 

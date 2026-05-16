@@ -1,0 +1,37 @@
+name: Run Skill Setup
+description: Run the optional setup.sh hook for a repository skill.
+
+inputs:
+  skill:
+    description: "User-defined skill name"
+    required: true
+  skill_root:
+    description: "Root directory for user-defined skills"
+    required: false
+    default: ".skills"
+  trusted_ref:
+    description: "Whether setup is loaded from a trusted checkout"
+    required: true
+
+outputs:
+  setup_exists:
+    description: "Whether the skill has a setup.sh script"
+    value: ${{ steps.setup.outputs.setup_exists }}
+  setup_ran:
+    description: "Whether setup.sh ran"
+    value: ${{ steps.setup.outputs.setup_ran }}
+  setup_path:
+    description: "Repository-relative setup.sh path"
+    value: ${{ steps.setup.outputs.setup_path }}
+
+runs:
+  using: composite
+  steps:
+    - name: Run skill setup
+      id: setup
+      shell: bash
+      env:
+        SKILL_NAME: ${{ inputs.skill }}
+        SKILL_ROOT: ${{ inputs.skill_root }}
+        SKILL_SETUP_TRUSTED_REF: ${{ inputs.trusted_ref }}
+      run: node .agent/dist/cli/run-skill-setup.js
