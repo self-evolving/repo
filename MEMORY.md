@@ -76,4 +76,4 @@
 - Memory GitHub mirrors live under github/<owner>/<repo>/; old flat artifacts are manual cleanup, not auto-migrated.
 - Scheduled daily summaries are disabled by default; enable agent-daily-summary.yml only via explicit schedule-policy override.
 - Default orchestration max rounds is 12 across workflows and CLI fallbacks.
-- Explicit non-issue /implement creates tracking metadata from context after auth; metadata generation is read-only.
+- Explicit non-issue /implement creates tracking metadata from context after auth; metadata uses approve-all.
