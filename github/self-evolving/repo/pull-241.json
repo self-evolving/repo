@@ -126,6 +126,169 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/241#issuecomment-4445627285",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABChjlcw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \r\n\r\nI don't get it \r\n\r\n```\r\n const result = spawn(step.shell, shellArgs(step.shell, step.run), {\r\n      cwd: repoRoot,\r\n      env: {\r\n        ...baseEnv,\r\n        ...manifest.env,\r\n        ...step.env,\r\n        SKILL_NAME: skill.skillName,\r\n        SKILL_ROOT: skill.skillRoot,\r\n        SKILL_DIR: skill.skillDir,\r\n      },\r\n      stdio: \"inherit\",\r\n      timeout: step.timeoutMinutes * 60_000,\r\n      maxBuffer: 10 * 1024 * 1024,\r\n    });\r\n    if (result.error || result.status !== 0 || result.signal) {\r\n```\r\nwhy it's a bash to run the skill setup? \r\n\r\nI thought it could be just an additional action step to run that? ",
+      "createdAt": "2026-05-15T22:57:52Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/241#issuecomment-4464371059",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABChkGaA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "You’re right in spirit: it **is** an additional GitHub Actions step.\n\nIn this PR the static Actions step is:\n\n[`Run skill setup`](https://github.com/self-evolving/repo/blob/0d188a0ea041923b57657ebbf2ee045e80820de2/.github/workflows/agent-router.yml#L445-L453)\n\nThat step runs:\n\n```yaml\nrun: node .agent/dist/cli/run-skill-setup.js\n```\n\nThe Node CLI then reads the selected skill’s `skill-setup.yaml`, validates it, checks the PR trust boundary, and executes each manifest `steps[].run` command. The `bash` in the snippet is just the default interpreter for those setup commands, similar to how GitHub Actions `run:` defaults to a shell:\n\n[`steps[].shell` defaults to `bash`](https://github.com/self-evolving/repo/blob/0d188a0ea041923b57657ebbf2ee045e80820de2/.agent/src/skills.ts#L215-L224)\n\nSo the layering is:\n\n```text\nGitHub Actions step\n  -> Sepo CLI validates/resolves skill setup\n    -> shell runs each repo-defined setup command\n```\n\nThe reason it is not modeled as arbitrary extra Actions YAML from the skill file is that `skill-setup.yaml` is intentionally **not GitHub Actions YAML**. Docs say it supports `run`, `env`, `shell`, and timeout, but not dynamic `uses:` steps:\n\nhttps://github.com/self-evolving/repo/blob/0d188a0ea041923b57657ebbf2ee045e80820de2/.agent/docs/customization/skills.md#L59-L61\n\nThat keeps the extension protocol small and lets Sepo do things Actions YAML alone would make awkward:\n\n- resolve `skill_root` and `.skills/<name>` consistently;\n- no-op cleanly when no setup file exists;\n- validate the schema before running commands;\n- block setup from PR checkout refs before any repo-provided setup command runs;\n- post a controlled setup failure response before skipping the agent run.\n\nCould this be wrapped as a composite action for readability? Yes. But internally it would still need a runner process that reads the per-skill manifest and executes its `run` commands. The important distinction is: **the workflow has one fixed setup step; the skill manifest defines the dynamic commands that step executes.**",
+      "createdAt": "2026-05-15T23:00:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/241#issuecomment-4464379496",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABChkekQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> The reason it is not modeled as arbitrary extra Actions YAML from the skill file is that `skill-setup.yaml` is intentionally **not GitHub Actions YAML**. Docs say it supports `run`, `env`, `shell`, and timeout, but not dynamic `uses:` steps:\r\n> \r\n> https://github.com/self-evolving/repo/blob/0d188a0ea041923b57657ebbf2ee045e80820de2/.agent/docs/customization/skills.md#L59-L61\r\n> \r\n> That keeps the extension protocol small and lets Sepo do things Actions YAML alone would make awkward:\r\n> \r\n> * resolve `skill_root` and `.skills/<name>` consistently;\r\n> * no-op cleanly when no setup file exists;\r\n> * validate the schema before running commands;\r\n> * block setup from PR checkout refs before any repo-provided setup command runs;\r\n> * post a controlled setup failure response before skipping the agent run.\r\n> \r\n> Could this be wrapped as a composite action for readability? Yes. But internally it would still need a runner process that reads the per-skill manifest and executes its `run` commands. The important distinction is: **the workflow has one fixed setup step; the skill manifest defines the dynamic commands that step executes.**\r\n\r\n@sepo-agent /answer \r\n\r\nlet's say we want this to be configured as an additional github workflow step -> is that possible? is that going to be a cleaner implementation?",
+      "createdAt": "2026-05-15T23:01:26Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/241#issuecomment-4464385681",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABChk6WQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, but it depends what “additional GitHub workflow step” means.\n\nIf you mean a **fixed step in `agent-router.yml`**, then yes. That is possible, and for one hardcoded setup it is simpler:\n\n```yaml\n- name: Setup deep research skill\n  if: needs.portal.outputs.skill == 'deep-research' && !startsWith(github.ref, 'refs/pull/')\n  run: python -m pip install agent-papers-cli\n```\n\nThat would be clean for a repo that only has one or two known skills and is comfortable editing the workflow directly.\n\nBut if you mean “each skill can ship some setup YAML, and Sepo turns that into real GitHub Actions steps dynamically,” then no, not cleanly. GitHub Actions builds the job graph from the workflow file before the job runs. The workflow cannot read `.skills/<name>/skill-setup.yaml` at runtime and inject new first-class Actions steps into the same job. Also, reusable workflow callers cannot insert arbitrary steps into the middle of the called `agent-router.yml` skill job.\n\nSo the tradeoff is:\n\n- **Static workflow step:** simpler, more native Actions UI, but every skill setup requires editing `.github/workflows/agent-router.yml`, adding conditionals, and duplicating trust/failure handling.\n- **Current manifest runner:** one fixed workflow step, then Sepo loads the selected skill’s setup dynamically, validates it, applies the PR-ref guard, handles missing setup as no-op, and blocks the agent run on failure.\n\nCurrent PR shape is here: [`Resolve skill package` then `Run skill setup`](https://github.com/self-evolving/repo/blob/0d188a0ea041923b57657ebbf2ee045e80820de2/.github/workflows/agent-router.yml#L419-L453), with validation/execution in [`skills.ts`](https://github.com/self-evolving/repo/blob/0d188a0ea041923b57657ebbf2ee045e80820de2/.agent/src/skills.ts#L193-L293).\n\nMy take: a static workflow step is cleaner for a specific repo-local customization; the manifest runner is cleaner for Sepo’s general `/skill` extension protocol.\n\nOne possible polish: wrap `node .agent/dist/cli/run-skill-setup.js` in a local composite action like `./.github/actions/run-skill-setup`. That would make the workflow read more like an Actions-native step, while keeping the typed parser/trust logic in `.agent/src`.",
+      "createdAt": "2026-05-15T23:03:11Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/241#issuecomment-4464392793",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABChoz9Q",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "No i meant for the sepo run skill route -- https://github.com/self-evolving/repo/blob/0d188a0ea041923b57657ebbf2ee045e80820de2/.github/workflows/agent-router.yml --- having something like this?\r\n\r\n```\r\n- name: Run skill setup\r\n      id: skill_setup\r\n      if: steps.check-skill.outputs.exists == 'true'\r\n      continue-on-error: true\r\n      run: <resolved-skill-path>/skill-setup.yml\r\n```\r\n\r\n@sepo-agent /answer ",
+      "createdAt": "2026-05-15T23:18:05Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/241#issuecomment-4464456693",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABChpOSw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "For that exact shape, no:\n\n```yaml\nrun: <resolved-skill-path>/skill-setup.yml\n```\n\n`run:` does **not** mean “run this YAML as GitHub Actions steps.” It means “send this string to the shell.” So GitHub would try to execute `skill-setup.yml` as a shell command/script. A YAML file like:\n\n```yaml\nversion: 1\nsteps:\n  - name: Install helper\n    run: npm install -g ...\n```\n\nis not executable by the shell.\n\nGitHub Actions only interprets workflow YAML when the workflow is loaded, from `.github/workflows/*.yml`. It does not interpret arbitrary runtime YAML files as nested workflow steps.\n\nThere are two valid variants:\n\n```yaml\n# 1. Run an executable script\nrun: bash .skills/deep-research/setup.sh\n```\n\nor:\n\n```yaml\n# 2. Call a local action\nuses: ./.github/actions/some-action\n```\n\nBut neither gives us dynamic per-skill Actions steps from `<resolved-skill-path>/skill-setup.yml`.\n\nFor Sepo’s skill route, this is why the current PR has a fixed workflow step:\n\n[`Run skill setup`](https://github.com/self-evolving/repo/blob/0d188a0ea041923b57657ebbf2ee045e80820de2/.github/workflows/agent-router.yml#L445-L453)\n\nThat step calls a Sepo CLI, and the CLI is what interprets `skill-setup.yaml`:\n\n[`parseSkillSetupManifest` / `runSkillSetup`](https://github.com/self-evolving/repo/blob/0d188a0ea041923b57657ebbf2ee045e80820de2/.agent/src/skills.ts#L193-L293)\n\nSo the cleanest options are:\n\n1. **Keep `skill-setup.yaml` as a Sepo manifest.**  \n   Then Sepo needs an interpreter, which is the current Node CLI.\n\n2. **Change the protocol to an executable script**, for example:\n\n   ```text\n   .skills/<name>/setup.sh\n   ```\n\n   and the workflow could do something closer to:\n\n   ```yaml\n   run: bash \"${{ steps.check-skill.outputs.setup_path }}\"\n   ```\n\n   That is simpler, but less structured: no schema validation, no per-step names, no per-step env, no typed timeout handling.\n\n3. **Wrap the current CLI in a local composite action** for readability:\n\n   ```yaml\n   - name: Run skill setup\n     uses: ./.github/actions/run-skill-setup\n     with:\n       skill: ${{ needs.portal.outputs.skill }}\n       skill_root: ${{ inputs.skill_root }}\n       trusted_ref: ${{ !startsWith(github.ref, 'refs/pull/') }}\n   ```\n\n   Internally it would still call `node .agent/dist/cli/run-skill-setup.js`.\n\nMy recommendation: option 3 is the cleanest workflow presentation, but option 1 is the right underlying model if we want `skill-setup.yaml` to remain a structured Sepo extension protocol.",
+      "createdAt": "2026-05-15T23:19:35Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/241#issuecomment-4464463435",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCh58Bg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer OK given this constraint, are there other ways to implement this feature more elegantly?",
+      "createdAt": "2026-05-16T00:30:06Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/241#issuecomment-4464737286",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCh6SvQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes. Given the Actions constraint, I see three realistic designs.\n\n**Best balance: keep the manifest, wrap it in a local action**\n\nCurrent PR has the right behavior, but the workflow reads a little low-level:\n\n```yaml\n- name: Run skill setup\n  run: node .agent/dist/cli/run-skill-setup.js\n```\n\nThat could become:\n\n```yaml\n- name: Run skill setup\n  uses: ./.github/actions/run-skill-setup\n  with:\n    skill: ${{ needs.portal.outputs.skill }}\n    skill_root: ${{ inputs.skill_root }}\n    trusted_ref: ${{ !startsWith(github.ref, 'refs/pull/') }}\n```\n\nThe local action would internally call the same typed CLI. This keeps the workflow more Actions-native while preserving the good parts: schema validation, no-op when setup is missing, PR-ref blocking, outputs, and testable TypeScript logic.\n\nThat is probably the cleanest version of the current approach. The current insertion point is here: [`agent-router.yml#L445-L453`](https://github.com/self-evolving/repo/blob/0d188a0ea041923b57657ebbf2ee045e80820de2/.github/workflows/agent-router.yml#L445-L453).\n\n**Simplest protocol: replace `skill-setup.yaml` with `setup.sh`**\n\nIf we want maximum simplicity, make setup an executable script:\n\n```text\n.skills/<name>/\n  SKILL.md\n  setup.sh\n```\n\nThen Sepo only resolves the path and runs:\n\n```yaml\n- name: Run skill setup\n  if: steps.check-skill.outputs.setup_exists == 'true'\n  run: bash \"${{ steps.check-skill.outputs.setup_path }}\"\n```\n\nThis is elegant because there is no manifest interpreter. But it gives up the structured v1 contract currently implemented in [`skills.ts`](https://github.com/self-evolving/repo/blob/0d188a0ea041923b57657ebbf2ee045e80820de2/.agent/src/skills.ts#L193-L293): named steps, per-step env, shell selection, timeout validation, and better error messages.\n\nI would choose this only if we believe skill setup should just be “run this repo-owned script.”\n\n**Not worth it: try to model skills as dynamic GitHub Actions**\n\nFor example:\n\n```text\n.skills/<name>/action.yml\n```\n\nand somehow:\n\n```yaml\nuses: ./.skills/${{ needs.portal.outputs.skill }}\n```\n\nThis would look elegant, but GitHub Actions does not support dynamic `uses:` paths this way, and local actions require static resolution. Generating or dispatching another workflow would be much more complex, and setup would not naturally share the same job environment before `Run skill`.\n\nSo my recommendation:\n\n- If `/skill` is meant to be a real Sepo extension protocol, keep `skill-setup.yaml`.\n- Refactor the workflow call into `./.github/actions/run-skill-setup` for readability.\n- Keep the parser/runner in TypeScript because that is where validation, trust rules, no-op behavior, and tests belong.\n- If we decide setup does not need structure, switch the protocol to `setup.sh` instead of YAML.",
+      "createdAt": "2026-05-16T00:31:39Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/241#issuecomment-4464743101",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCh_I-A",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Yes. Given the Actions constraint, I see three realistic designs.\n> \n> **Best balance: keep the manifest, wrap it in a local action**\n> \n> Current PR has the right behavior, but the workflow reads a little low-level:\n> \n> ```yaml\n> - name: Run skill setup\n>   run: node .agent/dist/cli/run-skill-setup.js\n> ```\n> \n> That could become:\n> \n> ```yaml\n> - name: Run skill setup\n>   uses: ./.github/actions/run-skill-setup\n>   with:\n>     skill: ${{ needs.portal.outputs.skill }}\n>     skill_root: ${{ inputs.skill_root }}\n>     trusted_ref: ${{ !startsWith(github.ref, 'refs/pull/') }}\n> ```\n> \n> The local action would internally call the same typed CLI. This keeps the workflow more Actions-native while preserving the good parts: schema validation, no-op when setup is missing, PR-ref blocking, outputs, and testable TypeScript logic.\n> \n> That is probably the cleanest version of the current approach. The current insertion point is here: [`agent-router.yml#L445-L453`](https://github.com/self-evolving/repo/blob/0d188a0ea041923b57657ebbf2ee045e80820de2/.github/workflows/agent-router.yml#L445-L453).\n> \n> **Simplest protocol: replace `skill-setup.yaml` with `setup.sh`**\n> \n> If we want maximum simplicity, make setup an executable script:\n> \n> ```text\n> .skills/<name>/\n>   SKILL.md\n>   setup.sh\n> ```\n> \n> Then Sepo only resolves the path and runs:\n> \n> ```yaml\n> - name: Run skill setup\n>   if: steps.check-skill.outputs.setup_exists == 'true'\n>   run: bash \"${{ steps.check-skill.outputs.setup_path }}\"\n> ```\n> \n> This is elegant because there is no manifest interpreter. But it gives up the structured v1 contract currently implemented in [`skills.ts`](https://github.com/self-evolving/repo/blob/0d188a0ea041923b57657ebbf2ee045e80820de2/.agent/src/skills.ts#L193-L293): named steps, per-step env, shell selection, timeout validation, and better error messages.\n> \n> I would choose this only if we believe skill setup should just be “run this repo-owned script.”\n> \n> **Not worth it: try to model skills as dynamic GitHub Actions**\n> \n> For example:\n> \n> ```text\n> .skills/<name>/action.yml\n> ```\n> \n> and somehow:\n> \n> ```yaml\n> uses: ./.skills/${{ needs.portal.outputs.skill }}\n> ```\n> \n> This would look elegant, but GitHub Actions does not support dynamic `uses:` paths this way, and local actions require static resolution. Generating or dispatching another workflow would be much more complex, and setup would not naturally share the same job environment before `Run skill`.\n> \n> So my recommendation:\n> \n> - If `/skill` is meant to be a real Sepo extension protocol, keep `skill-setup.yaml`.\n> - Refactor the workflow call into `./.github/actions/run-skill-setup` for readability.\n> - Keep the parser/runner in TypeScript because that is where validation, trust rules, no-op behavior, and tests belong.\n> - If we decide setup does not need structure, switch the protocol to `setup.sh` instead of YAML.\n\nOk I agree with the first approach. Then the question becomes, is the shell command a good idea? For example, in GitHub actions, people might want to use different docker environments? How does it solve this issue? ",
+      "createdAt": "2026-05-16T00:47:27Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/241#issuecomment-4464822520",
+      "viewerDidAuthor": false
     }
   ],
   "createdAt": "2026-05-13T21:52:33Z",
@@ -258,6 +421,6 @@
   ],
   "state": "OPEN",
   "title": "Add skill setup manifest support",
-  "updatedAt": "2026-05-13T22:17:01Z",
+  "updatedAt": "2026-05-16T00:47:27Z",
   "url": "https://github.com/self-evolving/repo/pull/241"
 }

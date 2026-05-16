@@ -1,0 +1,38 @@
+{
+  "number": 245,
+  "title": "Making the github app more extensible?",
+  "url": "https://github.com/self-evolving/repo/discussions/245",
+  "body": "1. For example, right now the github app server only authorize the oidc keys.\r\n2. why not having the github app server handle responding user questions for example? \r\n\r\n@sepo-agent /answer ",
+  "createdAt": "2026-05-16T00:36:56Z",
+  "updatedAt": "2026-05-16T00:39:30Z",
+  "author": {
+    "login": "lolipopshock"
+  },
+  "category": {
+    "name": "Ideas"
+  },
+  "comments": {
+    "nodes": [
+      {
+        "id": "DC_kwDOSOhEMM4BAm85",
+        "body": "Short answer: yes, but I would split this into two layers:\n\n1. Keep the hosted GitHub App server as a trusted control plane by default.\n2. Make the repo-local agent runtime more extensible for actual question answering, coding, review, and custom skills.\n\nToday, question answering is already handled by the GitHub Actions side, not the App server: mentions on issues/PRs/discussions enter [`agent-entrypoint.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-entrypoint.yml#L7-L21), route through [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L100-L241), and the `answer` job runs the agent and posts back inline ([router answer path](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L270-L365)). The hosted App/OIDC path is currently just auth brokerage: exchange GitHub Actions OIDC for a short-lived App installation token ([setup docs](https://github.com/self-evolving/repo/blob/main/.agent/docs/deployment/setup-guide.md#L30-L45), [auth action](https://github.com/self-evolving/repo/blob/main/.github/actions/resolve-github-auth/action.yml#L58-L65)).\n\nI would be cautious about moving answer execution into the App server first. The repo-local workflow currently gives each repository control over model credentials, runner environment, memory/rubrics branches, audit logs, workflow permissions, and PR review gates. A hosted answer server would need new answers for multi-tenant model credentials, data retention, memory isolation, rate limits, repo checkout access, tool permissions, and failure recovery.\n\nA good implementation path would be:\n\n1. Define an explicit hosted App boundary: auth broker only, webhook router, workflow dispatcher, or full hosted executor.\n2. Start with “hosted dispatcher” extensibility: App server receives GitHub webhooks, validates installation/policy, then dispatches the existing repo workflows instead of executing the agent itself.\n3. Keep `answer`, `skill`, `implement`, `review`, `fix-pr`, and `orchestrate` as repo-owned route contracts. Existing explicit routes and labels already map to this pattern ([supported routes](https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/supported-workflows.md#L207-L231)).\n4. Add a typed extension registry for routes/capabilities so new App-side triggers can target existing workflow contracts without hardcoding every behavior into the server.\n5. Only after that, consider an opt-in “hosted execution” mode for lightweight `/answer` requests, with clear repository settings for provider credentials, memory access, permissions, and logging.\n\nSo: yes, making the GitHub App more extensible makes sense. I would not start by having it directly answer questions. I’d first make it an extensible dispatch/control plane over the existing repo-local runtime, then add hosted execution as an explicit opt-in mode once the security and state model is clear.",
+        "createdAt": "2026-05-16T00:39:29Z",
+        "url": "https://github.com/self-evolving/repo/discussions/245#discussioncomment-16936761",
+        "author": {
+          "login": "sepo-agent-app"
+        },
+        "replies": {
+          "nodes": [],
+          "pageInfo": {
+            "hasNextPage": false,
+            "endCursor": null
+          }
+        }
+      }
+    ],
+    "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": null
+    }
+  }
+}
