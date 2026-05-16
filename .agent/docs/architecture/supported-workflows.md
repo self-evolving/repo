@@ -33,10 +33,12 @@ dispatches one built-in action (`implement`, `review`, `fix-pr`,
 That dispatch includes explicit orchestration context; only those orchestrator
 launched action runs hand back to `agent-orchestrator.yml` after post-processing.
 Direct `/implement`, `/review`, and `/fix-pr` runs remain one-shot. Pull request
-orchestrate starts remain deterministic in `heuristics` mode. In `agent` mode,
-issue-level and pull-request-level orchestrate starts may use the planner. For
-small self-contained issue work, the planner can return a normal handoff to
-`implement` on the current issue. For PR work, the planner can choose
+orchestrate starts remain deterministic in `heuristics` mode: when self-approval
+is enabled they dispatch `agent-self-approve` after confirming the PR is open,
+and otherwise route requested changes to `fix-pr` or the PR to `review`. In
+`agent` mode, issue-level and pull-request-level orchestrate starts may use the
+planner. For small self-contained issue work, the planner can return a normal
+handoff to `implement` on the current issue. For PR work, the planner can choose
 review-first, fix-the-PR, answer-only, or stop behavior; runtime policy validates
 that PR starts dispatch only `review` or `fix-pr` workflows. For
 meta-orchestration, the planner can return an internal `delegate_issue` command
@@ -262,11 +264,12 @@ provenance, verifies the approval actor differs from the pull request author,
 parses the agent verdict, and approves only when the expected, current, and
 inspected head SHAs match. Non-approval outcomes post a compact PR status
 comment. In orchestrated chains, `SHIP` review synthesis can hand off to
-`agent-self-approve`, and a self-approval `REQUEST_CHANGES` result can hand off
-to `fix-pr` with the approval agent's handoff context. Self-approval status
-comments are upserted by marker against comments authored by the authenticated
-Sepo actor, and result artifacts are retained for failed or blocked resolution
-paths where available.
+`agent-self-approve`, and manual heuristic PR starts also consult
+`agent-self-approve` first when self-approval is enabled. A self-approval
+`REQUEST_CHANGES` result can hand off to `fix-pr` with the approval agent's
+handoff context. Self-approval status comments are upserted by marker against
+comments authored by the authenticated Sepo actor, and result artifacts are
+retained for failed or blocked resolution paths where available.
 
 ### `agent-self-merge.yml`
 

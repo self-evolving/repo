@@ -77,6 +77,9 @@ Rules:
   as the primary automation signal: hand off on `FIX_PR`, stop on
   `HUMAN_DECISION` or `NO_AUTOMATED_ACTION` unless newer human input overrides
   it or self-approval is enabled for a `SHIP` review.
+- When self-approval is enabled for a `SHIP` review, do not stop just because
+  the synthesis says `HUMAN_DECISION`; hand off to `agent-self-approve` and let
+  that agent return `BLOCKED` if the final decision should stay with a human.
 - Use `handoff` only when one more automatic action is clearly warranted.
 - For issue-level `orchestrate`, prefer `handoff` with `next_action:
   "implement"` when the requested work fits in the current issue. Use

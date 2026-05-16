@@ -1293,6 +1293,15 @@ function decideManualOrchestration(): HandoffDecision {
     if (status.state !== "OPEN") {
       return { decision: "stop", reason: `pull request is ${status.state.toLowerCase()}`, nextRound };
     }
+    if (allowSelfApprove) {
+      return {
+        decision: "dispatch",
+        nextAction: "agent-self-approve",
+        targetNumber,
+        reason: "manual orchestrate start on PR with self-approval enabled; dispatching agent-self-approve",
+        nextRound,
+      };
+    }
     if (status.reviewDecision === "CHANGES_REQUESTED") {
       return {
         decision: "dispatch",

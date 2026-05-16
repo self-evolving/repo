@@ -181,6 +181,7 @@ exit 1
       AUTOMATION_MAX_ROUNDS: "5",
       ACCESS_POLICY: "",
       AUTHOR_ASSOCIATION: "MEMBER",
+      AGENT_ALLOW_SELF_APPROVE: "false",
       AGENT_ALLOW_SELF_MERGE: "false",
       BASE_BRANCH: "",
       BASE_PR: "",
@@ -866,12 +867,13 @@ test("manual orchestrate keeps dispatch when handoff cleanup fails", () => {
   assert.match(run.stderr, /Failed to collapse previous orchestrator handoff comments/);
 });
 
-test("manual orchestrate dispatches fix-pr for PR targets with CHANGES_REQUESTED", () => {
+test("manual orchestrate dispatches fix-pr for PR targets with CHANGES_REQUESTED when self-approval is disabled", () => {
   const run = runOrchestrateHandoff({
     TARGET_KIND: "pull_request",
     TARGET_NUMBER: "21",
     FAKE_PR_STATE: "OPEN",
     FAKE_PR_REVIEW_DECISION: "CHANGES_REQUESTED",
+    AGENT_ALLOW_SELF_APPROVE: "false",
   });
 
   assert.equal(run.status, 0);
@@ -887,6 +889,29 @@ test("manual orchestrate dispatches fix-pr for PR targets with CHANGES_REQUESTED
   assert.match(run.ghLog, /latest unresolved requested-change review comments/);
   const inputs = run.dispatchPayload?.inputs as Record<string, string>;
   assert.equal(inputs.orchestrator_context, run.outputs.get("handoff_context"));
+});
+
+test("manual orchestrate dispatches self-approval for PR targets before reviewDecision when enabled", () => {
+  const run = runOrchestrateHandoff({
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "21",
+    FAKE_PR_STATE: "OPEN",
+    FAKE_PR_REVIEW_DECISION: "CHANGES_REQUESTED",
+    AGENT_ALLOW_SELF_APPROVE: "true",
+  });
+
+  assert.equal(run.status, 0);
+  assert.equal(run.outputs.get("decision"), "dispatch");
+  assert.equal(run.outputs.get("next_action"), "agent-self-approve");
+  assert.equal(run.outputs.get("handoff_context"), "");
+  assert.match(
+    run.outputs.get("reason") || "",
+    /self-approval enabled; dispatching agent-self-approve/,
+  );
+  assert.match(run.ghLog, /actions\/workflows\/agent-self-approve\.yml\/dispatches/);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-fix-pr\.yml\/dispatches/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.pr_number, "21");
 });
 
 test("agent orchestrate dispatches planner-selected fix-pr for PR targets", () => {
