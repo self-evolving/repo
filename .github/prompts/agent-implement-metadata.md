@@ -6,12 +6,16 @@ Generate only the tracking issue metadata. The `/implement` command is already e
 
 ## Context Gathering
 
-- Read the target context first:
-  - For pull requests, run `gh pr view ${TARGET_NUMBER} --repo ${REPO_SLUG} --json title,body,author,comments,files,labels,reviews,reviewDecision,state,url`.
-  - For discussions, run `node .agent/dist/cli/fetch-discussion-transcript.js ${TARGET_NUMBER}`.
+- Use the pre-fetched target context below. Do not run `gh pr view`,
+  `fetch-discussion-transcript`, or any other command to gather the same
+  target context.
 - Use the request text, target title/body, and recent relevant discussion to infer the implementation task.
 - Do not derive the title by copying the literal text after `/implement`.
 - Ignore earlier prose mentions of `/implement` unless they are part of the current user request context.
+
+## Target Context
+
+${TARGET_CONTEXT}
 
 Return exactly one JSON object and nothing else:
 

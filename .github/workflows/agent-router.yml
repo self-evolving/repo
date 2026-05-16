@@ -249,11 +249,29 @@ jobs:
           reasoning_effort: medium
           workflow: agent-router.yml
 
+      - name: Prepare implement issue metadata context
+        if: >-
+          steps.context.outputs.should_respond == 'true' &&
+          steps.explicit_dispatch.outputs.route == 'implement' &&
+          steps.context.outputs.target_kind != 'issue' &&
+          steps.provider.outputs.provider != ''
+        id: implement_metadata_context
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_TOKEN: ${{ steps.auth.outputs.token }}
+          REPO_SLUG: ${{ github.repository }}
+          TARGET_KIND: ${{ steps.context.outputs.target_kind }}
+          TARGET_NUMBER: ${{ steps.context.outputs.target_number }}
+          TARGET_CONTEXT_FILE: ${{ runner.temp }}/implement-metadata-context.md
+        run: node .agent/dist/cli/prepare-implement-metadata-context.js
+
       - name: Generate implement issue metadata
         if: >-
           steps.context.outputs.should_respond == 'true' &&
           steps.explicit_dispatch.outputs.route == 'implement' &&
           steps.context.outputs.target_kind != 'issue' &&
+          steps.implement_metadata_context.outcome == 'success' &&
           steps.provider.outputs.provider != ''
         id: implement_metadata
         continue-on-error: true
@@ -276,6 +294,7 @@ jobs:
           source_kind: ${{ steps.context.outputs.source_kind }}
           target_kind: ${{ steps.context.outputs.target_kind }}
           target_number: ${{ steps.context.outputs.target_number }}
+          target_context_file: ${{ steps.implement_metadata_context.outputs.context_file }}
           target_url: ${{ steps.context.outputs.target_url }}
           reasoning_effort: medium
           workflow: agent-router.yml

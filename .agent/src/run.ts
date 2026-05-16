@@ -87,6 +87,7 @@ const SUPPLEMENTAL_PROMPT_VAR_NAMES = [
   "ORCHESTRATOR_CURRENT_ROUND",
   "ORCHESTRATOR_MAX_ROUNDS",
   "SELF_APPROVE_EXPECTED_HEAD_SHA",
+  "TARGET_CONTEXT_FILE",
 ] as const;
 
 // --- Envelope from env ---
@@ -322,6 +323,9 @@ function main(): void {
   }
   if (promptVars.RUBRICS_CONTEXT_FILE && existsSync(promptVars.RUBRICS_CONTEXT_FILE)) {
     promptVars.RUBRICS_CONTEXT = readFileSync(promptVars.RUBRICS_CONTEXT_FILE, "utf8");
+  }
+  if (promptVars.TARGET_CONTEXT_FILE && existsSync(promptVars.TARGET_CONTEXT_FILE)) {
+    promptVars.TARGET_CONTEXT = readFileSync(promptVars.TARGET_CONTEXT_FILE, "utf8");
   }
   // Aliases for backward compat
   promptVars.PR_NUMBER = promptVars.TARGET_NUMBER;

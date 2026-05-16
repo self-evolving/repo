@@ -569,11 +569,22 @@ test("agent router bypasses dispatch triage for explicit mention slash routes", 
   );
   assert.match(
     runnerWorkflow,
+    /- name: Prepare implement issue metadata context[\s\S]*continue-on-error:\s*true[\s\S]*TARGET_CONTEXT_FILE:\s*\$\{\{\s*runner\.temp\s*\}\}\/implement-metadata-context\.md[\s\S]*node \.agent\/dist\/cli\/prepare-implement-metadata-context\.js/,
+  );
+  assert.match(runnerWorkflow, /steps\.implement_metadata_context\.outcome == 'success'/);
+  assert.match(
+    runnerWorkflow,
+    /target_context_file:\s*\$\{\{\s*steps\.implement_metadata_context\.outputs\.context_file\s*\}\}/,
+  );
+  assert.match(
+    runnerWorkflow,
     /RESPONSE_FILE:\s*\$\{\{\s*steps\.triage\.outputs\.response_file \|\| steps\.implement_metadata\.outputs\.response_file\s*\}\}/,
   );
   assert.match(runnerWorkflow, /REQUESTED_ROUTE:\s*\$\{\{\s*steps\.context\.outputs\.requested_route\s*\}\}/);
   assert.match(resolveDispatch, /buildRequestedRouteDecision/);
   assert.match(resolveDispatch, /normalizeImplementIssueMetadata/);
+  assert.match(implementMetadataPrompt, /\$\{TARGET_CONTEXT\}/);
+  assert.match(implementMetadataPrompt, /Do not run `gh pr view`/);
   assert.match(implementMetadataPrompt, /Do not derive the title by copying the literal text after `\/implement`/);
   assert.match(implementMetadataPrompt, /Ignore earlier prose mentions of `\/implement`/);
 });
