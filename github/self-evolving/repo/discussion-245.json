@@ -4,7 +4,7 @@
   "url": "https://github.com/self-evolving/repo/discussions/245",
   "body": "1. For example, right now the github app server only authorize the oidc keys.\r\n2. why not having the github app server handle responding user questions for example? \r\n\r\n@sepo-agent /answer ",
   "createdAt": "2026-05-16T00:36:56Z",
-  "updatedAt": "2026-05-16T00:39:30Z",
+  "updatedAt": "2026-05-16T18:06:24Z",
   "author": {
     "login": "lolipopshock"
   },
@@ -22,7 +22,32 @@
           "login": "sepo-agent-app"
         },
         "replies": {
-          "nodes": [],
+          "nodes": [
+            {
+              "id": "DC_kwDOSOhEMM4BAoKO",
+              "body": "@sepo-agent /answer \n\nThe problem is that it's slow: right now answer will take a bit since the agent needs to set up the runtime etc. how to handle this? ",
+              "createdAt": "2026-05-16T18:04:48Z",
+              "url": "https://github.com/self-evolving/repo/discussions/245#discussioncomment-16941710",
+              "author": {
+                "login": "lolipopshock"
+              },
+              "replyTo": {
+                "id": "DC_kwDOSOhEMM4BAm85"
+              }
+            },
+            {
+              "id": "DC_kwDOSOhEMM4BAoKX",
+              "body": "Yes, this is the right pressure point. `/answer` is “inline” in product behavior, but it is not lightweight operationally.\n\nCurrent slow path:\n\n- `agent-router.yml` first runs portal setup, including `setup-agent-runtime` before it can even run `extract-context.js` ([router](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L154-L169)).\n- `setup-agent-runtime` always does `npm ci` and `npm run build`, then may install Codex/Claude CLIs ([setup action](https://github.com/self-evolving/repo/blob/main/.github/actions/setup-agent-runtime/action.yml#L79-L120)).\n- Then the separate `answer` job checks out again, resolves auth/provider again, sets up runtime again, runs the answer agent, and posts the response ([answer job](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L270-L365)).\n- `run-agent-task` may also restore session state and mount memory/rubrics before invoking `.agent/dist/run.js` ([run action](https://github.com/self-evolving/repo/blob/main/.github/actions/run-agent-task/action.yml#L212-L335)).\n\nFor `/answer`, I would handle this in phases:\n\n1. **Add a fast acknowledgement path first.**  \n   The hosted GitHub App can immediately post or react with something like “Queued answer run…” from the webhook server, while the full repo-local workflow continues. This improves perceived latency without changing trust boundaries.\n\n2. **Make the router portal lightweight.**  \n   Today the portal bootstraps the whole runtime before context extraction. We should split the deterministic router CLIs (`extract-context`, `resolve-dispatch`, `post-response`, reactions) into a prebuilt/minimal runtime path so explicit `/answer` can validate and route without `npm ci`, `npm run build`, or provider CLI setup. Explicit `/answer` already skips model dispatch triage because `requested_route` is set ([dispatch gating](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L179-L205)), so the remaining waste is mostly runtime bootstrap.\n\n3. **Avoid double setup for answer.**  \n   Either merge the portal and answer execution for the `answer` route into one job, or pass a prepared runtime/artifact from portal to answer. Right now `/answer` pays setup once in `portal` and again in `answer`.\n\n4. **Cache or preinstall runtime dependencies.**  \n   On GitHub-hosted runners, add npm cache keyed by `.agent/package-lock.json`. For serious latency, prefer self-hosted runners with Node, `gh`, `jq`, Codex/Claude, and warm npm cache already present. The setup action already has a self-hosted branch that reuses preinstalled Node ([setup action](https://github.com/self-evolving/repo/blob/main/.github/actions/setup-agent-runtime/action.yml#L39-L70)).\n\n5. **Add an opt-in “fast answer” mode later.**  \n   The GitHub App server could answer simple questions directly, but I would make that explicit, e.g. `AGENT_FAST_ANSWER_MODE=hosted`. That mode needs clear decisions for model credentials, memory/rubrics access, repo checkout depth, audit logs, and data retention. Without that, it weakens the repo-owned execution model.\n\nRecommended first implementation: optimize repo-local `/answer` before moving execution into the App server. Specifically: lightweight portal runtime, no double setup, npm caching, and optional self-hosted warm runners. Then add hosted fast-answer as an opt-in path once the security model is explicit.",
+              "createdAt": "2026-05-16T18:06:24Z",
+              "url": "https://github.com/self-evolving/repo/discussions/245#discussioncomment-16941719",
+              "author": {
+                "login": "sepo-agent-app"
+              },
+              "replyTo": {
+                "id": "DC_kwDOSOhEMM4BAm85"
+              }
+            }
+          ],
           "pageInfo": {
             "hasNextPage": false,
             "endCursor": null
