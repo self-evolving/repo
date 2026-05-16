@@ -12,6 +12,7 @@ import {
   normalizeDispatch,
   applyDispatchPolicy,
   buildRequestedRouteDecision,
+  normalizeImplementIssueMetadata,
 } from "../triage.js";
 
 const responseFile = process.env.RESPONSE_FILE || "";
@@ -35,8 +36,19 @@ function loadAccessPolicy(): AccessPolicy | null {
 function emitDecision(accessPolicy: AccessPolicy): void {
   try {
     const isExplicit = Boolean(requestedRoute);
+    const implementMetadata = isExplicit && requestedRoute === "implement" && raw.trim()
+      ? (() => {
+          try {
+            return normalizeImplementIssueMetadata(raw);
+          } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : String(err);
+            console.error(`Implement issue metadata was invalid; using fallback metadata: ${msg}`);
+            return null;
+          }
+        })()
+      : null;
     const decision = isExplicit
-      ? buildRequestedRouteDecision(requestedRoute, requestText)
+      ? buildRequestedRouteDecision(requestedRoute, requestText, implementMetadata)
       : normalizeDispatch(raw);
     const result = applyDispatchPolicy(
       decision,
