@@ -602,6 +602,23 @@ function decideAgentHandoff(input: HandoffInput): HandoffDecision {
     };
   }
   if (sourceAction === "orchestrate" && targetKind === "pull_request") {
+    if (plannerDecision.nextAction === "agent-self-approve") {
+      if (!input.allowSelfApprove) {
+        return {
+          decision: "stop",
+          reason: "agent planner requested agent-self-approve, but self-approval is disabled",
+          nextRound,
+        };
+      }
+      return {
+        decision: "dispatch",
+        nextAction: "agent-self-approve",
+        targetNumber: input.targetNumber,
+        reason: `agent planner selected agent-self-approve: ${plannerDecision.reason}`,
+        nextRound,
+        handoffContext: plannerDecision.handoffContext,
+      };
+    }
     if (plannerDecision.nextAction === "review" || plannerDecision.nextAction === "fix-pr") {
       if (plannerDecision.nextAction === "fix-pr" && !plannerDecision.handoffContext) {
         return {
@@ -621,7 +638,7 @@ function decideAgentHandoff(input: HandoffInput): HandoffDecision {
     }
     return {
       decision: "stop",
-      reason: `agent planner requested ${plannerDecision.nextAction}, but PR orchestration can dispatch only review or fix-pr`,
+      reason: `agent planner requested ${plannerDecision.nextAction}, but PR orchestration can dispatch only review, fix-pr, or enabled agent-self-approve`,
       nextRound,
     };
   }

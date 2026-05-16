@@ -39,8 +39,9 @@ and otherwise route requested changes to `fix-pr` or the PR to `review`. In
 `agent` mode, issue-level and pull-request-level orchestrate starts may use the
 planner. For small self-contained issue work, the planner can return a normal
 handoff to `implement` on the current issue. For PR work, the planner can choose
-review-first, fix-the-PR, answer-only, or stop behavior; runtime policy validates
-that PR starts dispatch only `review` or `fix-pr` workflows. For
+review-first, enabled self-approval, fix-the-PR, answer-only, or stop behavior;
+runtime policy validates that PR starts dispatch only `review`, `fix-pr`, or
+enabled `agent-self-approve` workflows. For
 meta-orchestration, the planner can return an internal `delegate_issue` command
 instead of adding a new public route. That command creates or reuses a child
 issue with parent/stage metadata, dispatches the child issue through the normal
@@ -264,8 +265,8 @@ provenance, verifies the approval actor differs from the pull request author,
 parses the agent verdict, and approves only when the expected, current, and
 inspected head SHAs match. Non-approval outcomes post a compact PR status
 comment. In orchestrated chains, `SHIP` review synthesis can hand off to
-`agent-self-approve`, and manual heuristic PR starts also consult
-`agent-self-approve` first when self-approval is enabled. A self-approval
+`agent-self-approve`, and manual PR starts can also consult
+`agent-self-approve` when self-approval is enabled. A self-approval
 `REQUEST_CHANGES` result can hand off to `fix-pr` with the approval agent's
 handoff context. Self-approval status comments are upserted by marker against
 comments authored by the authenticated Sepo actor, and result artifacts are

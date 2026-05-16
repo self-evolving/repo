@@ -943,6 +943,35 @@ test("agent orchestrate dispatches planner-selected fix-pr for PR targets", () =
   assert.equal(inputs.orchestrator_context, run.outputs.get("handoff_context"));
 });
 
+test("agent orchestrate dispatches planner-selected self-approval for PR targets when enabled", () => {
+  const run = runOrchestrateHandoff({
+    AUTOMATION_MODE: "agent",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "21",
+    FAKE_PR_STATE: "OPEN",
+    FAKE_PR_REVIEW_DECISION: "CHANGES_REQUESTED",
+    AGENT_ALLOW_SELF_APPROVE: "true",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "handoff",
+      next_action: "agent-self-approve",
+      reason: "Self-approval is enabled, so the approval gate should inspect the current PR.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "dispatch");
+  assert.equal(run.outputs.get("next_action"), "agent-self-approve");
+  assert.equal(run.outputs.get("target_number"), "21");
+  assert.equal(run.outputs.get("handoff_context"), "");
+  assert.match(run.outputs.get("reason") || "", /agent planner selected agent-self-approve/);
+  assert.match(run.ghLog, /pr view 21/);
+  assert.match(run.ghLog, /actions\/workflows\/agent-self-approve\.yml\/dispatches/);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-fix-pr\.yml\/dispatches/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.pr_number, "21");
+  assert.equal(inputs.automation_mode, "agent");
+});
+
 test("agent orchestrate stops planner-selected PR fix-pr without context", () => {
   const run = runOrchestrateHandoff({
     AUTOMATION_MODE: "agent",
