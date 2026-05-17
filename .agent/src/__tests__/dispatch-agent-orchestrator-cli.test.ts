@@ -60,7 +60,7 @@ test("dispatch-agent-orchestrator derives SHIP human decision context", () => {
       responsePath,
       [
         "## Summary of PR/Issue",
-        "Implementation is complete, but release timing needs maintainer judgment.",
+        "Implementation is complete, but maintainer judgment is needed.",
         "",
         "## Recommended Next Step",
         "HUMAN_DECISION: Decide release timing.",

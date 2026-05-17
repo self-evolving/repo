@@ -225,6 +225,7 @@ export function reviewNeedsHumanDecisionSelfApproval(markdown: string): boolean 
 export function buildReviewSelfApprovalHandoffContext(markdown: string): string {
   if (!reviewNeedsHumanDecisionSelfApproval(markdown)) return "";
   const details = [
+    extractMarkdownSection(markdown, "Recommended Next Step"),
     extractMarkdownSection(markdown, "Summary of PR/Issue"),
     extractMarkdownSection(markdown, "Review"),
     extractMarkdownSection(markdown, "Action Items"),

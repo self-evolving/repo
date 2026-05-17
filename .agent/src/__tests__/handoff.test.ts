@@ -742,6 +742,7 @@ test("review human decision helper requires SHIP final verdict", () => {
     buildReviewSelfApprovalHandoffContext(shipHumanDecision),
     /final verdict is SHIP, but its recommended next step is HUMAN_DECISION/,
   );
+  assert.match(buildReviewSelfApprovalHandoffContext(shipHumanDecision), /Product timing/);
   assert.equal(buildReviewSelfApprovalHandoffContext(nonShipHumanDecision), "");
 });
 
