@@ -94,8 +94,8 @@ permissions:
   id-token: write # required for GitHub Actions OIDC broker exchange
   # Note: workflow-level permissions are the union of all jobs. Individual
   # agent invocations use route-specific acpx permission modes, with
-  # dispatch triage, answer, implement, and fix-pr all currently using
-  # approve-all.
+  # dispatch triage, explicit implement metadata generation, answer,
+  # implement, and fix-pr all currently using approve-all.
 
 jobs:
   # --- Portal: extract context, triage, resolve route ---
@@ -264,7 +264,7 @@ jobs:
           github_token: ${{ steps.auth.outputs.token }}
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          permission_mode: approve-reads
+          permission_mode: approve-all
           prompt: agent-implement-metadata
           route: dispatch
           memory_ref: ${{ vars.AGENT_MEMORY_REF || 'agent/memory' }}

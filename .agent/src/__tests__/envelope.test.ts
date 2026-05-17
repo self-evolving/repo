@@ -565,7 +565,7 @@ test("agent router bypasses dispatch triage for explicit mention slash routes", 
   );
   assert.match(
     runnerWorkflow,
-    /- name: Generate implement issue metadata[\s\S]*steps\.explicit_dispatch\.outputs\.route == 'implement'[\s\S]*steps\.context\.outputs\.target_kind != 'issue'[\s\S]*continue-on-error:\s*true[\s\S]*permission_mode:\s*approve-reads[\s\S]*prompt:\s*agent-implement-metadata/,
+    /- name: Generate implement issue metadata[\s\S]*steps\.explicit_dispatch\.outputs\.route == 'implement'[\s\S]*steps\.context\.outputs\.target_kind != 'issue'[\s\S]*continue-on-error:\s*true[\s\S]*permission_mode:\s*approve-all[\s\S]*prompt:\s*agent-implement-metadata/,
   );
   assert.match(
     runnerWorkflow,
