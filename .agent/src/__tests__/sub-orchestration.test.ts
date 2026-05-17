@@ -6,6 +6,7 @@ import {
   formatSubOrchestrationIssueBody,
   formatSubOrchestratorChildLinkMarker,
   formatSubOrchestratorMarker,
+  normalizeSubOrchestratorFinalizePolicy,
   normalizeSubOrchestratorStage,
   parseSubOrchestratorChildLinkMarker,
   parseSubOrchestratorMarker,
@@ -33,6 +34,30 @@ test("sub-orchestrator markers format, parse, and update", () => {
   assert.match(updateSubOrchestratorMarkerParentRound(marker, 4), /parent_round:4/);
 });
 
+test("sub-orchestrator markers can defer parent finalization", () => {
+  const marker = formatSubOrchestratorMarker({
+    parent: 76,
+    stage: "Stacked Stage",
+    parentRound: 2,
+    finalizePolicy: "stacked",
+  });
+
+  assert.equal(
+    marker,
+    "<!-- sepo-sub-orchestrator parent:76 stage:stacked-stage state:running parent_round:2 finalize:defer -->",
+  );
+  assert.deepEqual(parseSubOrchestratorMarker(marker), {
+    parent: 76,
+    stage: "stacked-stage",
+    state: "running",
+    parentRound: 2,
+    finalizePolicy: "defer",
+  });
+  assert.equal(normalizeSubOrchestratorFinalizePolicy("independent"), "immediate");
+  assert.equal(normalizeSubOrchestratorFinalizePolicy("defer-self-approval"), "defer");
+  assert.match(updateSubOrchestratorMarkerParentRound(marker, 4), /finalize:defer/);
+});
+
 test("sub-orchestrator child link markers format and parse", () => {
   const marker = formatSubOrchestratorChildLinkMarker({
     parent: 76,
@@ -56,17 +81,20 @@ test("sub-orchestration issue body records visible task and hidden marker", () =
     taskInstructions: "Implement the first stage.",
     basePr: "66",
     parentRound: 2,
+    finalizePolicy: "defer",
   });
 
   assert.match(body, /Parent issue: #76/);
   assert.match(body, /Stage: Stage One/);
   assert.match(body, /Implement the first stage/);
   assert.match(body, /base_pr: #66/);
+  assert.match(body, /self_approval: defer_to_parent/);
   assert.deepEqual(parseSubOrchestratorMarker(body), {
     parent: 76,
     stage: "stage-one",
     state: "running",
     parentRound: 2,
+    finalizePolicy: "defer",
   });
 });
 

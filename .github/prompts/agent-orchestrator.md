@@ -27,7 +27,8 @@ these policy rules:
 - `review` may hand off to `fix-pr` only for `MINOR_ISSUES`,
   `NEEDS_REWORK`, or `CHANGES_REQUESTED`.
 - `review` may hand off to `agent-self-approve` only for `SHIP` when
-  self-approval is enabled; otherwise `SHIP` stops.
+  self-approval is enabled and the current child PR is not marked for deferred
+  parent finalization; otherwise `SHIP` stops.
 - `agent-self-approve` may hand off to `fix-pr` only for `REQUEST_CHANGES`.
   `APPROVED` may hand off to `agent-self-merge` only when self-merge is
   enabled; otherwise `APPROVED`, `BLOCKED`, and `FAILED` stop.
@@ -68,7 +69,8 @@ rubrics. Then return exactly one JSON object and nothing else:
   "child_instructions": "Concrete child issue task instructions when decision is delegate_issue.",
   "child_issue_number": "Optional existing child issue number to reuse or adopt.",
   "base_branch": "Optional branch to base implementation PRs on.",
-  "base_pr": "Optional PR number whose head branch implementation PRs should stack on."
+  "base_pr": "Optional PR number whose head branch implementation PRs should stack on.",
+  "finalize_policy": "Optional child finalization policy: immediate | defer"
 }
 ```
 
@@ -95,6 +97,11 @@ Rules:
   child PR so the next child stacks on it. Omit stack inputs only when the next
   child is intentionally independent, and explain that independence in
   `reason`.
+- For independent child PRs, omit `finalize_policy` or set it to `immediate`.
+  For batch or stacked child PRs that should not self-approve or self-merge
+  until the parent has no more child work, set `finalize_policy: "defer"`.
+  Deferred child PRs report readiness to the parent after `SHIP`; the parent
+  should finalize ready PRs later in dependency order.
 - Be conservative for `MINOR_ISSUES`, especially in late rounds. Hand off to
   `fix-pr` only for concrete unresolved findings that require a branch change
   and are safe for an automated agent to apply.

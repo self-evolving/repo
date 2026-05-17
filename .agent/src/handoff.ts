@@ -18,6 +18,7 @@ export interface HandoffInput {
   maxRounds: number;
   allowSelfApprove?: boolean;
   allowSelfMerge?: boolean;
+  deferSelfApproval?: boolean;
   plannerDecision?: PlannerDecision | null;
 }
 
@@ -36,6 +37,7 @@ export interface HandoffDecision {
   childIssueNumber?: string;
   baseBranch?: string;
   basePr?: string;
+  finalizePolicy?: string;
 }
 
 export interface HandoffDedupeInput {
@@ -65,6 +67,7 @@ export interface PlannerDecision {
   childIssueNumber?: string;
   baseBranch?: string;
   basePr?: string;
+  finalizePolicy?: string;
 }
 
 const REVIEW_TO_FIX_PR = new Set(["minor_issues", "needs_rework", "changes_requested"]);
@@ -256,6 +259,9 @@ export function parsePlannerDecision(raw: string): PlannerDecision | null {
   ).trim();
   const baseBranch = String(record.base_branch ?? record.baseBranch ?? "").trim();
   const basePr = String(record.base_pr ?? record.basePr ?? "").trim();
+  const finalizePolicy = String(
+    record.finalize_policy ?? record.finalizePolicy ?? record.finalization_policy ?? record.finalizationPolicy ?? "",
+  ).trim();
   const plannerDecision: PlannerDecision = {
     decision,
     nextAction: nextAction || undefined,
@@ -271,6 +277,7 @@ export function parsePlannerDecision(raw: string): PlannerDecision | null {
   if (childIssueNumber) plannerDecision.childIssueNumber = childIssueNumber;
   if (baseBranch) plannerDecision.baseBranch = baseBranch;
   if (basePr) plannerDecision.basePr = basePr;
+  if (finalizePolicy) plannerDecision.finalizePolicy = finalizePolicy;
   return plannerDecision;
 }
 
@@ -460,6 +467,13 @@ function decideHeuristicHandoff(input: HandoffInput): HandoffDecision {
 
   if (sourceAction === "review") {
     if (conclusion === "ship") {
+      if (input.deferSelfApproval) {
+        return {
+          decision: "stop",
+          reason: "review verdict is SHIP; self-approval deferred to parent finalization",
+          nextRound,
+        };
+      }
       if (input.allowSelfApprove) {
         return {
           decision: "dispatch",
@@ -575,6 +589,7 @@ function decideAgentHandoff(input: HandoffInput): HandoffDecision {
       childIssueNumber: plannerDecision.childIssueNumber,
       baseBranch: plannerDecision.baseBranch,
       basePr: plannerDecision.basePr,
+      finalizePolicy: plannerDecision.finalizePolicy,
     };
   }
   if (!plannerDecision.nextAction) {

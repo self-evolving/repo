@@ -31,6 +31,7 @@ import {
   formatSubOrchestrationIssueBody,
   formatSubOrchestratorChildLinkMarker,
   formatSubOrchestratorMarker,
+  normalizeSubOrchestratorFinalizePolicy,
   normalizeSubOrchestratorStage,
   parseSubOrchestratorChildLinkMarker,
   parseSubOrchestratorMarker,
@@ -708,8 +709,10 @@ function formatSubOrchestrationAdoptionComment(input: {
   parentIssue: number;
   stage: string;
   parentRound: number;
+  finalizePolicy?: string;
 }): string {
   const stage = normalizeSubOrchestratorStage(input.stage);
+  const finalizePolicy = normalizeSubOrchestratorFinalizePolicy(input.finalizePolicy || "");
   return [
     `Sepo adopted this issue as a sub-orchestrator child of #${input.parentIssue}.`,
     "",
@@ -722,6 +725,7 @@ function formatSubOrchestrationAdoptionComment(input: {
       parent: input.parentIssue,
       stage,
       parentRound: input.parentRound,
+      finalizePolicy,
     }),
     SUB_ORCHESTRATION_ADOPTION_COMMENT_MARKER,
   ].join("\n");
@@ -733,11 +737,12 @@ function adoptExistingSubOrchestrationIssue(
   parentIssue: number,
   stage: string,
   parentRound: number,
+  finalizePolicy?: string,
 ): SubOrchestrationIssueRecord {
   if (existing.number === parentIssue) {
     throw new Error(`child issue #${existing.number} cannot be the parent issue`);
   }
-  const body = formatSubOrchestrationAdoptionComment({ parentIssue, stage, parentRound });
+  const body = formatSubOrchestrationAdoptionComment({ parentIssue, stage, parentRound, finalizePolicy });
   const commentId = createIssueComment(repoSlug, existing.number, body);
   const marker = parseSubOrchestratorMarker(body);
   if (!marker) throw new Error(`could not create sub-orchestrator marker for child issue #${existing.number}`);
@@ -802,6 +807,7 @@ function ensureSubOrchestrationIssue(decision: HandoffDecision): string {
   const instructions = decision.childInstructions || decision.handoffContext || requestText;
   const existingIssueNumber = parseOptionalChildIssueNumber(decision.childIssueNumber);
   const parentRound = decision.nextRound;
+  const finalizePolicy = normalizeSubOrchestratorFinalizePolicy(decision.finalizePolicy || "");
 
   if (existingIssueNumber) {
     const existing = fetchIssue(repo, existingIssueNumber);
@@ -814,6 +820,7 @@ function ensureSubOrchestrationIssue(decision: HandoffDecision): string {
       parentIssue,
       stage,
       parentRound,
+      finalizePolicy,
     );
     validateReusableChildIssue(childIssue, parentIssue, stage);
     updateSubOrchestrationParentRound(repo, childIssue, parentRound);
@@ -843,6 +850,7 @@ function ensureSubOrchestrationIssue(decision: HandoffDecision): string {
     baseBranch: effectiveBaseBranch,
     basePr: effectiveBasePr,
     parentRound,
+    finalizePolicy,
   });
   const createdUrl = createIssueFromBody(repo, title, body);
   const createdNumber = parseIssueNumberFromUrl(createdUrl);
@@ -957,6 +965,25 @@ function resolveChildIssueForTerminal(): TerminalChildResolution {
     return resolveTerminalSubOrchestrationIssue(repo, fetchIssueStrict(repo, linkedIssueNumber));
   }
   return { kind: "none" };
+}
+
+function shouldDeferSelfApprovalForCurrentTarget(): boolean {
+  if (
+    normalizeToken(sourceAction) !== "review" ||
+    normalizeToken(sourceConclusion) !== "ship" ||
+    !allowSelfApprove ||
+    normalizeToken(sourceTargetKind) !== "pull_request"
+  ) {
+    return false;
+  }
+  try {
+    const childResolution = resolveChildIssueForTerminal();
+    return childResolution.kind === "trusted" &&
+      childResolution.issue.subOrchestrator.marker.finalizePolicy === "defer";
+  } catch (err: unknown) {
+    console.warn(`Failed to inspect sub-orchestration finalization policy: ${errorText(err)}`);
+    return false;
+  }
 }
 
 function hasTrustedTerminalSubOrchestrationStopComment(repoSlug: string, issueNumber: number, marker: string): boolean {
@@ -1337,6 +1364,7 @@ function decidePlannerOrchestration(): HandoffDecision {
     maxRounds,
     allowSelfApprove,
     allowSelfMerge,
+    deferSelfApproval: shouldDeferSelfApprovalForCurrentTarget(),
     sourceHandoffContext,
     plannerDecision: readPlannerDecision(),
   });
@@ -1373,6 +1401,7 @@ const routeDecision = authorizationStop || (normalizeToken(sourceAction) === "or
     maxRounds,
     allowSelfApprove,
     allowSelfMerge,
+    deferSelfApproval: shouldDeferSelfApprovalForCurrentTarget(),
     sourceHandoffContext,
     plannerDecision: automationMode === "agent" ? readPlannerDecision() : null,
   }));

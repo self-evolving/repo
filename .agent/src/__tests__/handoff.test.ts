@@ -511,6 +511,21 @@ test("review verdicts dispatch fix-pr or stop", () => {
   assert.equal(selfApprove.nextAction, "agent-self-approve");
   assert.equal(selfApprove.targetNumber, "99");
   assert.match(selfApprove.reason, /dispatching agent-self-approve/);
+
+  const deferredSelfApprove = decideHandoff({
+    automationMode: "heuristics",
+    sourceAction: "review",
+    sourceConclusion: "SHIP",
+    targetNumber: "99",
+    currentRound: 2,
+    maxRounds: 5,
+    allowSelfApprove: true,
+    deferSelfApproval: true,
+  });
+
+  assert.equal(deferredSelfApprove.decision, "stop");
+  assert.equal(deferredSelfApprove.nextAction, undefined);
+  assert.match(deferredSelfApprove.reason, /deferred to parent finalization/);
 });
 
 test("review fix-pr handoffs preserve derived source context", () => {
@@ -812,7 +827,7 @@ test("parsePlannerDecision reads planner JSON", () => {
   );
   assert.deepEqual(
     parsePlannerDecision(
-      '{"decision":"delegate_issue","reason":"Delegate.","child_stage":"Stage One","child_instructions":"Do one thing.","base_pr":"12"}',
+      '{"decision":"delegate_issue","reason":"Delegate.","child_stage":"Stage One","child_instructions":"Do one thing.","base_pr":"12","finalize_policy":"defer"}',
     ),
     {
       decision: "delegate_issue",
@@ -821,6 +836,7 @@ test("parsePlannerDecision reads planner JSON", () => {
       childStage: "Stage One",
       childInstructions: "Do one thing.",
       basePr: "12",
+      finalizePolicy: "defer",
     },
   );
   assert.equal(parsePlannerDecision("not json"), null);

@@ -1,10 +1,12 @@
 export type SubOrchestratorState = "running" | "done" | "blocked" | "failed";
+export type SubOrchestratorFinalizePolicy = "immediate" | "defer";
 
 export interface SubOrchestratorMarker {
   parent: number;
   stage: string;
   state: SubOrchestratorState;
   parentRound?: number;
+  finalizePolicy?: SubOrchestratorFinalizePolicy;
 }
 
 export interface SubOrchestratorChildLink {
@@ -18,6 +20,7 @@ const MARKER_RE = /<!--\s*sepo-sub-orchestrator\s+([\s\S]*?)-->/i;
 const CHILD_LINK_MARKER_PREFIX = "sepo-sub-orchestrator-child";
 const CHILD_LINK_MARKER_RE = /<!--\s*sepo-sub-orchestrator-child\s+([\s\S]*?)-->/i;
 const VALID_STATES = new Set<SubOrchestratorState>(["running", "done", "blocked", "failed"]);
+const VALID_FINALIZE_POLICIES = new Set<SubOrchestratorFinalizePolicy>(["immediate", "defer"]);
 
 export function normalizeSubOrchestratorStage(value: string): string {
   return String(value || "")
@@ -43,12 +46,32 @@ function parsePositiveInteger(value: string | undefined): number {
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : 0;
 }
 
+export function normalizeSubOrchestratorFinalizePolicy(value: string): SubOrchestratorFinalizePolicy {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+  if (
+    normalized === "defer" ||
+    normalized === "deferred" ||
+    normalized === "batch" ||
+    normalized === "stacked" ||
+    normalized === "defer_self_approval" ||
+    normalized === "defer_self_approval_and_merge"
+  ) {
+    return "defer";
+  }
+  return "immediate";
+}
+
 export function formatSubOrchestratorMarker(input: {
   parent: number;
   stage: string;
   state?: SubOrchestratorState;
   parentRound?: number;
+  finalizePolicy?: SubOrchestratorFinalizePolicy | string;
 }): string {
+  const finalizePolicy = normalizeSubOrchestratorFinalizePolicy(input.finalizePolicy || "");
   const parts = [
     MARKER_PREFIX,
     `parent:${input.parent}`,
@@ -57,6 +80,7 @@ export function formatSubOrchestratorMarker(input: {
   ];
   const parentRound = parsePositiveInteger(String(input.parentRound || ""));
   if (parentRound) parts.push(`parent_round:${parentRound}`);
+  if (finalizePolicy === "defer") parts.push("finalize:defer");
   return `<!-- ${parts.join(" ")} -->`;
 }
 
@@ -72,11 +96,17 @@ export function parseSubOrchestratorMarker(body: string): SubOrchestratorMarker 
   if (!parent || !stage || !VALID_STATES.has(rawState)) return null;
 
   const parentRound = parsePositiveInteger(tokens.get("parent_round"));
+  const finalizeToken = tokens.get("finalize") || tokens.get("finalize_policy");
+  const finalizePolicy = finalizeToken
+    ? normalizeSubOrchestratorFinalizePolicy(finalizeToken)
+    : "immediate";
+  if (!VALID_FINALIZE_POLICIES.has(finalizePolicy)) return null;
   return {
     parent,
     stage,
     state: rawState,
     ...(parentRound ? { parentRound } : {}),
+    ...(finalizePolicy === "defer" ? { finalizePolicy } : {}),
   };
 }
 
@@ -121,7 +151,9 @@ export function formatSubOrchestrationIssueBody(input: {
   baseBranch?: string;
   basePr?: string;
   parentRound?: number;
+  finalizePolicy?: SubOrchestratorFinalizePolicy | string;
 }): string {
+  const finalizePolicy = normalizeSubOrchestratorFinalizePolicy(input.finalizePolicy || "");
   const lines = [
     `Parent issue: #${input.parentIssue}`,
     "",
@@ -138,10 +170,20 @@ export function formatSubOrchestrationIssueBody(input: {
     if (input.basePr) lines.push(`- base_pr: #${input.basePr}`);
   }
 
+  if (finalizePolicy === "defer") {
+    lines.push(
+      "",
+      "## Finalization",
+      "",
+      "- self_approval: defer_to_parent",
+    );
+  }
+
   lines.push("", formatSubOrchestratorMarker({
     parent: input.parentIssue,
     stage: input.stage,
     parentRound: input.parentRound,
+    finalizePolicy,
   }));
   return lines.join("\n");
 }

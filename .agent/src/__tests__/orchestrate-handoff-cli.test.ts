@@ -373,6 +373,7 @@ test("agent orchestrate delegates to a child issue without extending AgentAction
       child_stage: "stage 1",
       child_instructions: "Implement the delegated stage.",
       base_pr: "66",
+      finalize_policy: "defer",
     }),
   });
 
@@ -1070,6 +1071,37 @@ test("review SHIP dispatches self-approval when enabled", () => {
   assert.equal(inputs.pr_number, "128");
   assert.equal(inputs.orchestration_enabled, "true");
   assert.equal(inputs.automation_current_round, "3");
+});
+
+test("review SHIP defers self-approval for deferred child PRs", () => {
+  const childBody = "<!-- sepo-sub-orchestrator parent:76 stage:stage-1 state:running parent_round:2 finalize:defer -->";
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "88",
+    AUTOMATION_MODE: "heuristics",
+    AUTOMATION_CURRENT_ROUND: "2",
+    AUTOMATION_MAX_ROUNDS: "5",
+    AGENT_ALLOW_SELF_APPROVE: "true",
+    FAKE_PR_BODY: "Implements #77",
+    FAKE_ISSUE_BODY: childBody,
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.equal(run.outputs.get("next_action"), "");
+  assert.match(run.outputs.get("reason") || "", /deferred to parent finalization/);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-self-approve\.yml\/dispatches/);
+  assert.match(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
+  assert.match(run.ghLog, /\| #77 \| #88 \| Ready to ship \| 2 \/ 5 \| Resuming parent orchestration \|/);
+  assert.match(run.ghLog, /Summary: review verdict is SHIP; self-approval deferred to parent finalization/);
+  assert.match(run.ghLog, /issue edit 77 --repo self-evolving\/repo --body-file/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.source_action, "orchestrate");
+  assert.equal(inputs.source_conclusion, "done");
+  assert.equal(inputs.target_number, "76");
+  assert.equal(inputs.automation_mode, "agent");
 });
 
 test("review SHIP stops when self-approval is disabled", () => {
