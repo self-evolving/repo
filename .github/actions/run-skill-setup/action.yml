@@ -12,6 +12,10 @@ inputs:
   trusted_ref:
     description: "Whether setup is loaded from a trusted checkout"
     required: true
+  run_setup:
+    description: "Whether to run setup.sh when it exists"
+    required: false
+    default: "true"
 
 outputs:
   exists:
@@ -40,6 +44,7 @@ runs:
         SKILL_NAME: ${{ inputs.skill }}
         SKILL_ROOT: ${{ inputs.skill_root }}
         SKILL_SETUP_TRUSTED_REF: ${{ inputs.trusted_ref }}
+        RUN_SKILL_SETUP: ${{ inputs.run_setup }}
       run: |
         set -euo pipefail
 
@@ -88,6 +93,11 @@ runs:
           exit 0
         fi
         printf 'setup_exists=true\n' >> "$GITHUB_OUTPUT"
+
+        if [ "$RUN_SKILL_SETUP" != "true" ]; then
+          printf 'Skill setup script found: %s\n' "$setup_path"
+          exit 0
+        fi
 
         if [ "$SKILL_SETUP_TRUSTED_REF" != "true" ]; then
           printf 'Refusing to run %s from an untrusted PR checkout\n' "$setup_path" >&2
