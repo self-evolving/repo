@@ -45,6 +45,8 @@ export interface SelfApprovalSignalComment {
 export interface SelfApprovalProvenanceResult {
   trusted: boolean;
   reason: string;
+  currentHeadReviewed: boolean;
+  conclusion: string;
 }
 
 export interface SelfApprovalActorResult {
@@ -130,12 +132,16 @@ export function evaluateSelfApprovalProvenance(input: {
     return {
       trusted: false,
       reason: "could not resolve trusted agent actor for self-approval provenance",
+      currentHeadReviewed: false,
+      conclusion: "",
     };
   }
   if (!expectedHeadSha) {
     return {
       trusted: false,
       reason: "could not resolve expected head SHA for self-approval provenance",
+      currentHeadReviewed: false,
+      conclusion: "",
     };
   }
 
@@ -167,6 +173,8 @@ export function evaluateSelfApprovalProvenance(input: {
     return {
       trusted: false,
       reason: "missing trusted review synthesis for self-approval",
+      currentHeadReviewed: false,
+      conclusion: "",
     };
   }
 
@@ -174,12 +182,16 @@ export function evaluateSelfApprovalProvenance(input: {
     return {
       trusted: false,
       reason: "latest trusted review synthesis is missing reviewed head SHA",
+      currentHeadReviewed: false,
+      conclusion: latest.conclusion,
     };
   }
   if (latest.reviewedHeadSha !== expectedHeadSha) {
     return {
       trusted: false,
       reason: "latest trusted review synthesis reviewed a different head SHA",
+      currentHeadReviewed: false,
+      conclusion: latest.conclusion,
     };
   }
 
@@ -187,12 +199,16 @@ export function evaluateSelfApprovalProvenance(input: {
     return {
       trusted: true,
       reason: "latest trusted review synthesis verdict is SHIP for current head",
+      currentHeadReviewed: true,
+      conclusion: latest.conclusion,
     };
   }
 
   return {
     trusted: false,
     reason: `latest trusted review synthesis verdict is ${latest.conclusion || "unknown"}, not SHIP`,
+    currentHeadReviewed: true,
+    conclusion: latest.conclusion,
   };
 }
 

@@ -1,5 +1,6 @@
 // CLI: preflight self-approval before running the approval agent.
-// Env: GITHUB_REPOSITORY, TARGET_NUMBER, TARGET_KIND, AGENT_ALLOW_SELF_APPROVE
+// Env: GITHUB_REPOSITORY, TARGET_NUMBER, TARGET_KIND, AGENT_ALLOW_SELF_APPROVE,
+//      SOURCE_HANDOFF_CONTEXT
 // Outputs: should_run, head_sha, reason, body_file
 
 import { mkdtempSync, writeFileSync } from "node:fs";
@@ -42,6 +43,7 @@ const repo = process.env.GITHUB_REPOSITORY || "";
 const targetNumber = Number(process.env.TARGET_NUMBER || process.env.PR_NUMBER || "");
 const targetKind = String(process.env.TARGET_KIND || "pull_request").trim().toLowerCase();
 const allowSelfApprove = envFlagEnabled(process.env.AGENT_ALLOW_SELF_APPROVE);
+const sourceHandoffContext = String(process.env.SOURCE_HANDOFF_CONTEXT || "").trim();
 
 if (!allowSelfApprove) {
   stop("AGENT_ALLOW_SELF_APPROVE is not enabled");
@@ -95,7 +97,14 @@ if (!allowSelfApprove) {
         expectedHeadSha: headSha,
       });
       if (!provenance.trusted) {
-        stop(provenance.reason);
+        if (sourceHandoffContext && provenance.currentHeadReviewed) {
+          setOutput("should_run", "true");
+          setOutput("head_sha", headSha);
+          setOutput("reason", provenance.reason);
+          setOutput("body_file", "");
+        } else {
+          stop(provenance.reason);
+        }
       } else {
         setOutput("should_run", "true");
         setOutput("head_sha", headSha);

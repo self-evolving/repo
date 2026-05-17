@@ -4,14 +4,17 @@
 //      REQUESTED_BY, REQUEST_TEXT, AUTOMATION_CURRENT_ROUND,
 //      AUTOMATION_MAX_ROUNDS, SESSION_BUNDLE_MODE, SOURCE_RUN_ID, TARGET_KIND,
 //      AUTHOR_ASSOCIATION, ACCESS_POLICY, REPOSITORY_PRIVATE, ORCHESTRATION_ENABLED,
-//      SOURCE_HANDOFF_CONTEXT, BASE_BRANCH, BASE_PR
+//      SOURCE_RECOMMENDED_NEXT_STEP, SOURCE_HANDOFF_CONTEXT, BASE_BRANCH, BASE_PR
 
 import { readFileSync } from "node:fs";
 import { dispatchWorkflow } from "../github.js";
 import {
   automationModeAllowsHandoff,
   buildReviewFixPrHandoffContext,
+  buildReviewSelfApprovalHandoffContext,
+  defaultReviewSelfApprovalHandoffContext,
   extractReviewConclusion,
+  extractReviewRecommendedNextStep,
   normalizeConclusion,
 } from "../handoff.js";
 
@@ -30,6 +33,23 @@ function sourceReviewNeedsFixPr(sourceAction: string, sourceConclusion: string):
   return new Set(["minor_issues", "needs_rework", "changes_requested"]).has(normalizeConclusion(sourceConclusion));
 }
 
+function sourceReviewNeedsSelfApprovalContext(
+  sourceAction: string,
+  sourceRecommendedNextStep: string,
+): boolean {
+  return sourceAction.trim().toLowerCase() === "review" &&
+    normalizeRecommendedNextStep(sourceRecommendedNextStep) === "human_decision";
+}
+
+function sourceReviewRecommendedNextStep(sourceAction: string, rawResponse: string): string {
+  if (sourceAction.trim().toLowerCase() !== "review") return "";
+  return extractReviewRecommendedNextStep(rawResponse);
+}
+
+function normalizeRecommendedNextStep(value: string): string {
+  return value.trim().toLowerCase().replace(/[\s-]+/g, "_");
+}
+
 const automationMode = process.env.AUTOMATION_MODE || "disabled";
 const sourceAction = process.env.SOURCE_ACTION || "";
 const isManualOrchestrateStart = sourceAction.trim().toLowerCase() === "orchestrate";
@@ -45,9 +65,22 @@ const effectiveAutomationMode = orchestrationEnabled && !automationModeAllowsHan
 const repo = process.env.GITHUB_REPOSITORY || "";
 const ref = process.env.DEFAULT_BRANCH || "";
 const rawResponse = readResponseFile();
-const sourceConclusion = process.env.SOURCE_CONCLUSION || extractReviewConclusion(rawResponse) || "unknown";
+const sourceConclusion = normalizeConclusion(
+  process.env.SOURCE_CONCLUSION || extractReviewConclusion(rawResponse) || "unknown",
+);
+const sourceRecommendedNextStep = normalizeRecommendedNextStep(
+  process.env.SOURCE_RECOMMENDED_NEXT_STEP || sourceReviewRecommendedNextStep(sourceAction, rawResponse),
+);
+const sourceReviewSelfApprovalContext = sourceReviewNeedsSelfApprovalContext(
+  sourceAction,
+  sourceRecommendedNextStep,
+)
+  ? buildReviewSelfApprovalHandoffContext(rawResponse, sourceConclusion) || defaultReviewSelfApprovalHandoffContext()
+  : "";
 const sourceHandoffContext = process.env.SOURCE_HANDOFF_CONTEXT ||
-  (sourceReviewNeedsFixPr(sourceAction, sourceConclusion) ? buildReviewFixPrHandoffContext(rawResponse) : "");
+  (sourceReviewNeedsFixPr(sourceAction, sourceConclusion) && sourceRecommendedNextStep !== "human_decision"
+    ? buildReviewFixPrHandoffContext(rawResponse)
+    : sourceReviewSelfApprovalContext);
 const targetNumber = process.env.TARGET_NUMBER || "";
 const targetKind = process.env.TARGET_KIND || "";
 
@@ -62,6 +95,7 @@ dispatchWorkflow(repo, "agent-orchestrator.yml", ref, {
   automation_max_rounds: process.env.AUTOMATION_MAX_ROUNDS || "12",
   source_action: sourceAction,
   source_conclusion: sourceConclusion,
+  source_recommended_next_step: sourceRecommendedNextStep,
   source_run_id: process.env.SOURCE_RUN_ID || process.env.GITHUB_RUN_ID || "",
   target_kind: targetKind,
   target_number: targetNumber,

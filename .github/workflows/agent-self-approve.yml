@@ -12,6 +12,10 @@ on:
       request_text:
         description: "Original request text"
         required: false
+      source_handoff_context:
+        description: "Optional context from the orchestrator handoff"
+        required: false
+        default: ""
       session_bundle_mode:
         description: "Session bundle persistence mode"
         required: false
@@ -71,6 +75,7 @@ jobs:
           AGENT_ALLOW_SELF_APPROVE: ${{ vars.AGENT_ALLOW_SELF_APPROVE || 'false' }}
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          SOURCE_HANDOFF_CONTEXT: ${{ inputs.source_handoff_context }}
           TARGET_KIND: pull_request
           TARGET_NUMBER: ${{ inputs.pr_number }}
         run: node .agent/dist/cli/prepare-self-approve.js
@@ -137,7 +142,7 @@ jobs:
           rubrics_limit: ${{ vars.AGENT_RUBRICS_LIMIT || '10' }}
           session_bundle_mode: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
           session_policy: track-only
-          request_text: ${{ inputs.request_text }}
+          request_text: ${{ inputs.source_handoff_context || inputs.request_text }}
           requested_by: ${{ inputs.requested_by || github.actor }}
           source_kind: workflow_dispatch
           target_kind: pull_request

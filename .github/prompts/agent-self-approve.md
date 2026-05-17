@@ -25,6 +25,9 @@ Rules:
 - Do not post comments directly with `gh`.
 - Return exactly one JSON object and nothing else.
 - Use `APPROVE` only when agent approval is genuinely appropriate.
+- If the request context says review synthesis recommended `HUMAN_DECISION`
+  after a non-`SHIP` verdict, do not approve; use `REQUEST_CHANGES` for concrete
+  follow-up work or `BLOCKED` when the decision should remain with a human.
 - Use `REQUEST_CHANGES` when follow-up implementation work is appropriate.
 - Use `BLOCKED` when the decision should stay with a human or required context
   is missing.

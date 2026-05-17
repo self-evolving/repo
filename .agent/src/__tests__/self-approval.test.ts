@@ -259,6 +259,8 @@ test("evaluateSelfApprovalProvenance requires the latest trusted ship signal", (
     ],
   });
   assert.equal(trusted.trusted, true);
+  assert.equal(trusted.currentHeadReviewed, true);
+  assert.equal(trusted.conclusion, "ship");
   assert.match(trusted.reason, /SHIP/);
 
   const superseded = evaluateSelfApprovalProvenance({
@@ -278,6 +280,8 @@ test("evaluateSelfApprovalProvenance requires the latest trusted ship signal", (
     ],
   });
   assert.equal(superseded.trusted, false);
+  assert.equal(superseded.currentHeadReviewed, true);
+  assert.equal(superseded.conclusion, "needs_rework");
   assert.match(superseded.reason, /needs_rework/);
 });
 

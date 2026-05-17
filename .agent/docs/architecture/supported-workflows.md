@@ -262,21 +262,24 @@ lowercase names to match consistently across case-sensitive filesystems.
 Self-approval is disabled unless `AGENT_ALLOW_SELF_APPROVE=true`. The manual
 workflow accepts a pull request number, confirms the target is an open PR, and
 requires the latest trusted review synthesis from the authenticated Sepo actor
-to be `SHIP` for the current reviewed-head marker before it runs an approval
-agent. The agent runs with read-approved permissions and returns structured JSON
-with a verdict, reason, optional follow-up context, and `inspected_head_sha`.
+to cover the current reviewed-head marker before it runs an approval agent. The
+agent runs with read-approved permissions and returns structured JSON with a
+verdict, reason, optional follow-up context, and `inspected_head_sha`.
 
 Deterministic resolver code is the only part that can submit the GitHub
 approval. It rereads the current PR head, rechecks trusted current-head review
 provenance, verifies the approval actor differs from the pull request author,
 parses the agent verdict, and approves only when the expected, current, and
-inspected head SHAs match. Non-approval outcomes post a compact PR status
-comment. In orchestrated chains, `SHIP` review synthesis can hand off to
-`agent-self-approve`, and a self-approval `REQUEST_CHANGES` result can hand off
-to `fix-pr` with the approval agent's handoff context. Self-approval status
-comments are upserted by marker against comments authored by the authenticated
-Sepo actor, and result artifacts are retained for failed or blocked resolution
-paths where available.
+inspected head SHAs match and the latest trusted current-head review synthesis
+verdict is `SHIP`. Non-approval outcomes post a compact PR status comment. In
+orchestrated chains, any review synthesis that recommends `HUMAN_DECISION` can
+hand off to `agent-self-approve` with context for the approval agent to approve
+when safe, request changes, or block for a human; non-`SHIP` human-decision cases
+can run the agent as a decision gate but cannot submit an approval. A
+self-approval `REQUEST_CHANGES` result can hand off to `fix-pr` with the approval
+agent's handoff context. Self-approval status comments are upserted by marker
+against comments authored by the authenticated Sepo actor, and result artifacts
+are retained for failed or blocked resolution paths where available.
 
 ### `agent-self-merge.yml`
 
