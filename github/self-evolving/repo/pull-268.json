@@ -1,0 +1,173 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Run `track-only` policies through one-shot ACP exec instead of persistent named prompt sessions.\n- Skip session bundle restore/backup for non-persistent `track-only` runs.\n- Add review-synthesis grounding guidance and update session policy docs/tests.\n\n## Tests\n- `cd .agent && npm run build && node --test dist/__tests__/session-policy.test.js dist/__tests__/session-bundle.test.js dist/__tests__/acpx-adapter.test.js dist/__tests__/envelope.test.js`\n\nCloses #267\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCpB-RQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #268 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: Implementation succeeded and produced open PR #268 for issue #267; no reviews have run yet, so the next useful automated step is PR review.\n\n<!-- sepo-agent-handoff state:dispatched created:1779045306818 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYwMDAwMjg5MTQ6aW1wbGVtZW50OjI2NzpyZXZpZXc6MjY4OjM -->",
+      "createdAt": "2026-05-17T19:15:07Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/268#issuecomment-4472208965",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCpCKng",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 94 | PASS | 5 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The diff reuses existing `attemptsResume(policy)` as the semantic source for persistent mode in `.agent/src/session-policy.ts` and imports `sessionModeForPolicy` into `.agent/src/session-bundle.ts` instead of duplicating policy checks. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The PR updates `.agent/docs/technical-details/session-continuity.md`, `.agent/docs/technical-details/key-concepts.md`, `.agent/docs/customization/creating-your-own-actions.md`, and `.github/prompts/agent-create-action.md` to describe `track-only` as one-shot execution with run metadata. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR closes #267, whose issue body and agent answer define the desired split: `track-only = tracked metadata, one-shot agent execution`. The implementation and docs match that linked context. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are confined to session policy/bundle behavior, review synthesis grounding prompt, matching docs, and focused tests. No broad refactor or unrelated workflow churn appears in the diff. |\n| coding_style / generic | Prefer simple implementations | partial | 6/7 | The core implementation is a one-line semantic change plus a small bundle guard. Minor gap: regression coverage asserts ACP args and policy behavior, but does not model two consecutive synthesis runs with contradictory artifacts as suggested in #267. |\n\n## Notes\n\n- The strongest rubric alignment is that the PR fixes the root cause directly: `track-only` no longer maps to persistent ACP mode, while `tracksThreadState(\"track-only\")` remains true through the unchanged policy contract.\n- Docs are updated in the right places for user-facing behavior and generated action guidance.\n- The only rubric-specific follow-up worth considering is a fuller regression for stale synthesis across consecutive runs, but the current unit tests cover the most important contracts.\n\n## Findings\n\n- **INFO:** The implementation satisfies the selected implementation rubrics. The remaining test gap is not blocking for rubric approval because `.agent/src/__tests__/session-policy.test.ts`, `.agent/src/__tests__/session-bundle.test.ts`, `.agent/src/__tests__/acpx-adapter.test.ts`, and `.agent/src/__tests__/envelope.test.ts` now lock the policy mode, bundle behavior, ACP exec args, and synthesis grounding prompt.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-17T19:16:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/268#issuecomment-4472212126",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCpFNsw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: f74071f72e9d8c4d7f957f5fa1de71a9c111b8e4 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #268 addresses #267, where `track-only` review synthesis could reuse stale persistent ACP session context.\n- The PR changes `track-only` to one-shot `exec` mode while preserving thread-state metadata.\n- It also skips session bundles for non-persistent `track-only` runs and updates docs to describe the new policy semantics.\n- The review synthesis prompt now requires blocking findings to be grounded in current review artifacts or the current diff.\n\n## Review\nThe stale-session fix is directionally correct, but the current implementation loses Codex reasoning-effort setup for the affected `track-only` lanes. This is blocking because review and synthesis jobs still request high effort, and the new exec path no longer applies it.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Codex track-only exec drops requested reasoning effort | BLOCKING | `track-only` now enters exec mode, but Codex `thought_level` is only applied during persistent session setup. Codex review/synthesis lanes that request `xhigh` would silently run at the backend default effort. |\n| Non-blocking polish noted by reviewers | INFO | Reviewers also noted optional cleanup around `always` bundle-mode wording, test coupling, and missing full two-run synthesis regression coverage. These are not required before fixing the runtime regression. |\n\n## Progress\n- The PR correctly splits `track-only` metadata tracking from persistent named session reuse.\n- Docs, prompt guidance, and targeted unit tests were updated for the intended stale-context fix.\n- Rubrics review passed and found the implementation generally surgical and aligned with #267.\n- Posted one inline comment on `.agent/src/session-policy.ts:33` for the reasoning-effort regression.\n\n## Issue Details\n\n<details>\n<summary>Codex track-only exec drops requested reasoning effort</summary>\n\n**Cause:** [`sessionModeForPolicy(\"track-only\")`](https://github.com/self-evolving/repo/blob/f74071f72e9d8c4d7f957f5fa1de71a9c111b8e4/.agent/src/session-policy.ts#L33) now returns `exec`. [`run.ts`](https://github.com/self-evolving/repo/blob/f74071f72e9d8c4d7f957f5fa1de71a9c111b8e4/.agent/src/run.ts#L544) still passes `thoughtLevel`, but [`runAcpx`](https://github.com/self-evolving/repo/blob/f74071f72e9d8c4d7f957f5fa1de71a9c111b8e4/.agent/src/acpx-adapter.ts#L595) skips session setup for exec routes. The Codex `thought_level` command is only emitted by [`buildSessionSetupCommands`](https://github.com/self-evolving/repo/blob/f74071f72e9d8c4d7f957f5fa1de71a9c111b8e4/.agent/src/acpx-adapter.ts#L287), inside the persistent branch.\n\n**Candidate solutions:** Preserve reasoning-effort propagation for Codex exec runs, or use a fresh per-run session path that can set `thought_level` without reusing the stable target/lane session. Add focused coverage proving `track-only` Codex jobs keep the requested effort.\n\n**Comments:** Codex flagged this as blocking; Claude and rubrics review considered the PR shippable. Synthesis agrees with the blocking finding after tracing the current runtime path.\n\n</details>\n\n## Recommended Next Step\nFIX_PR\n\nPreserve Codex reasoning-effort propagation for exec-mode `track-only` runs; this is a concrete branch change suitable for automated fix-pr.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Preserve `MODEL_REASONING_EFFORT` / Codex `thought_level` for exec-mode `track-only` runs without reusing a stable named session.\n- [ ] Add focused regression coverage for Codex `track-only` exec reasoning-effort propagation.",
+      "createdAt": "2026-05-17T19:28:24Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/268#issuecomment-4472262067",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCpFUaA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #268 | 4 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis for open PR #268 recommends FIX_PR with NEEDS_REWORK; the remaining items are concrete runtime/test changes and round budget remains available.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Preserve `MODEL_REASONING_EFFORT` / Codex `thought_level` for exec-mode `track-only` runs without reusing a stable named session.\n- Add focused regression coverage for Codex `track-only` exec reasoning-effort propagation.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1779046149658 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYwMDAxODU3MTc6cmV2aWV3OjI2ODpmaXhfcHI6MjY4OjQ -->",
+      "createdAt": "2026-05-17T19:29:10Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/268#issuecomment-4472263784",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-17T19:14:14Z",
+  "files": [
+    {
+      "path": ".agent/docs/customization/creating-your-own-actions.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/key-concepts.md",
+      "additions": 7,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/session-continuity.md",
+      "additions": 18,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/acpx-adapter.test.ts",
+      "additions": 23,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/session-bundle.test.ts",
+      "additions": 2,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/session-policy.test.ts",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/session-bundle.ts",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/session-policy.ts",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-create-action.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/review-synthesize.md",
+      "additions": 5,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-267/codex-26000028914",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 268,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAKsn6g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-17T19:26:54Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "f74071f72e9d8c4d7f957f5fa1de71a9c111b8e4"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Make track-only session policy one-shot",
+  "updatedAt": "2026-05-17T19:29:24Z",
+  "url": "https://github.com/self-evolving/repo/pull/268"
+}

@@ -471,6 +471,49 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/262#issuecomment-4469260647",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCoCGdg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Yes. If the requirement is now:\r\n> \r\n> > whenever review synthesis says `HUMAN_DECISION`, activate the self-approval agent\r\n> \r\n> then PR #262 is **not quite right**.\r\n> \r\n> What PR #262 currently does is narrower:\r\n> \r\n> ```ts\r\n> if recommendedNextStep === \"human_decision\":\r\n>   if conclusion === \"ship\" && allowSelfApprove:\r\n>     dispatch agent-self-approve\r\n>   else:\r\n>     stop\r\n> ```\r\n> \r\n> That means `HUMAN_DECISION + MINOR_ISSUES` and `HUMAN_DECISION + NEEDS_REWORK` still stop:\r\n> \r\n> https://github.com/self-evolving/repo/blob/9e117997c317d895597388d3ebf5e292cfcf5c0c/.agent/src/handoff.ts#L500-L511\r\n> \r\n> There is also a second issue: even if we dispatch `agent-self-approve` for non-`SHIP`, the current self-approval preflight requires the latest trusted synthesis verdict to be `SHIP`: https://github.com/self-evolving/repo/blob/main/.agent/src/self-approval.ts#L188-L195\r\n> \r\n> So just changing the handoff branch is not enough. The self-approval workflow would likely stop before the agent runs for `MINOR_ISSUES` / `NEEDS_REWORK`.\r\n> \r\n> The cleaner fix would be:\r\n> \r\n> * Route **any** `review + HUMAN_DECISION + AGENT_ALLOW_SELF_APPROVE=true` to `agent-self-approve`.\r\n> * Pass the review verdict and human-decision context into self-approval.\r\n> * Let `agent-self-approve` run as a decision gate.\r\n> * Keep the safety rule: it may only submit an actual GitHub approval when trusted current-head verdict is `SHIP`.\r\n> * For non-`SHIP`, it should return `REQUEST_CHANGES` or `BLOCKED`, not approve.\r\n> \r\n> So yes, this should be a **fix-pr on PR #262**, not a new implementation PR. The PR already owns the relevant files; the fix is to broaden the `HUMAN_DECISION` dispatch behavior and adjust self-approval preflight/prompt/tests so non-`SHIP` cases can run the agent but cannot accidentally approve.\r\n\r\n@sepo-agent /implement check https://github.com/self-evolving/repo/pull/262#issuecomment-4468989346 and https://github.com/self-evolving/repo/pull/262#issuecomment-4469005406 and the corresponding context to implement the new version ",
+      "createdAt": "2026-05-17T15:09:07Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/262#issuecomment-4471162486",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCoCQkA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Implementing this request — tracking in https://github.com/self-evolving/repo/issues/263.\n",
+      "createdAt": "2026-05-17T15:10:13Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/262#issuecomment-4471165072",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-17T01:27:27Z",
@@ -573,6 +616,6 @@
   ],
   "state": "OPEN",
   "title": "Route SHIP human decisions to self-approval",
-  "updatedAt": "2026-05-17T04:02:58Z",
+  "updatedAt": "2026-05-17T15:10:13Z",
   "url": "https://github.com/self-evolving/repo/pull/262"
 }

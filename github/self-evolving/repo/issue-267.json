@@ -1,0 +1,99 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "## Summary\n\nRepeated review-synthesis runs can accidentally reuse stale agent conversation context when the synthesis lane is backed by a persistent named ACP session. This can cause the synthesizer to emit findings from a previous review run instead of synthesizing the current run's review artifacts.\n\n## High-level failure mode\n\nA typical review pipeline has independent reviewer jobs that write fresh artifacts, followed by a synthesis job that reads those artifacts and posts the final review summary.\n\nIf the synthesis job uses a stable session name for the same target/route/lane, and the runtime creates or ensures that named session even when no explicit resume is requested, the agent backend may attach to an existing conversation for that target. The synthesizer can then answer from stale conversational state rather than re-reading the current artifacts.\n\nThis is especially risky for lanes configured as “track only”: the workflow may intend to record session metadata without resuming prior context, but the implementation can still use a persistent named session under the hood.\n\n## Potential symptoms\n\n- A follow-up synthesis repeats old findings that were already fixed.\n- Fresh individual review artifacts say the PR is ready or only has minor issues, but the synthesis reports older blocking issues.\n- The synthesis performs few or no tool reads of the current review artifacts.\n- Automation dispatches an unnecessary fix pass for already-addressed action items.\n- The subsequent fix pass returns no changes, causing confusing no-op automation or avoidable handoff churn.\n\n## Likely root cause\n\nThe runtime currently conflates two concepts:\n\n1. **Tracking run/session metadata** for observability and backup.\n2. **Running the agent in a persistent named conversation** that may retain prior context.\n\nFor synthesis-style jobs, the first is useful, but the second can be harmful unless an explicit resume was requested and validated.\n\n## Potential fix plan\n\n- Make review-synthesis jobs one-shot by default, e.g. use exec mode / `session_policy: none`, while still allowing artifact/session bundle backup if needed.\n- Or split session policy semantics so `track-only` records metadata but does not use a persistent named ACP session.\n- If persistent sessions are needed, include a freshness discriminator in the session name, such as run id, reviewed head SHA, or review artifact digest.\n- Add a guardrail in synthesis: before posting a blocking/needs-rework result, verify that the cited findings are present in the current reviewer artifacts or current diff, not only in prior PR discussion.\n- Add regression coverage for two consecutive synthesis runs on the same target where the second run's reviewer artifacts contradict the first run's findings.\n\n## Desired outcome\n\nA review synthesis run should always be grounded in the current run's review artifacts and current target state unless explicit session resume is requested. Stale synthesis output should not be able to trigger unnecessary follow-up automation.\n\n@sepo-agent /answer \"check this issue\"\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCpAu7A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I checked this against the current repo state. The issue looks valid.\n\nCurrent behavior:\n\n- Review synthesis uses `session_policy: track-only` with lane `synthesize` in [`agent-review.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-review.yml#L315-L335).\n- `track-only` currently maps to persistent ACP mode, not one-shot exec, in [`session-policy.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/session-policy.ts#L32-L38). The test suite explicitly locks that in.\n- Persistent mode derives a stable session name from `repo:target:route:lane`, e.g. `pull_request-123-review-synthesize`, in [`acpx-adapter.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/acpx-adapter.ts#L198-L205).\n- `runAcpx` then calls `acpx <agent> sessions ensure --name <stable-name>` even when no resume session id is provided, and runs `acpx <agent> prompt -s <stable-name>` instead of `exec` in [`acpx-adapter.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/acpx-adapter.ts#L576-L651).\n\nSo the root problem is real: `track-only` avoids explicit resume by thread state, but still uses a persistent named ACP conversation. On sticky runners or provider backends where `sessions ensure --name` attaches to an existing named session, synthesis can inherit stale conversation context.\n\nRecommended implementation path:\n\n1. Change `track-only` semantics so it still tracks thread state but runs in `exec` mode:\n   - update `sessionModeForPolicy(\"track-only\")` to return `exec`\n   - keep `tracksThreadState(\"track-only\") === true`\n   - keep `attemptsResume(\"track-only\") === false`\n\n2. Update tests that currently assert persistent mode for `track-only`, especially [`session-policy.test.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/session-policy.test.ts#L25-L30).\n\n3. Add regression coverage around synthesis:\n   - assert `review` + `synthesize` + `track-only` does not build `prompt -s <stable session>`\n   - assert thread state is still marked running/completed for `track-only`\n\n4. Consider a prompt guardrail in [`review-synthesize.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/review-synthesize.md#L5-L12): require every blocking/needs-rework finding to be supported by the current `${REVIEWS_DIR}` artifacts or current PR state.\n\n5. Update docs because current docs describe session policy behavior and route metadata, especially [`session-continuity.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/technical-details/session-continuity.md) and [`agent-actions.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/actions/agent-actions.md).\n\nI’d implement the semantic split as the primary fix: `track-only = tracked metadata, one-shot agent execution`. That addresses synthesis directly and prevents the same class of stale-context bug for any future “track but don’t resume” route.",
+      "createdAt": "2026-05-17T19:06:10Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/267#issuecomment-4472188652",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCpAzPQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate ",
+      "createdAt": "2026-05-17T19:06:37Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/267#issuecomment-4472189757",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCpBB7Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | implement | Issue #267 | 2 / 40 | Dispatched |\n\nReason: agent planner selected implement: Issue #267 is a valid, self-contained implementation task with no linked parent plan and no existing open PR found for the issue. The prior answer already confirmed the root cause and outlined concrete code/test/doc changes.\n\n<!-- sepo-agent-handoff state:dispatched created:1779044893448 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU5OTk5OTM1ODA6b3JjaGVzdHJhdGU6MjY3OmltcGxlbWVudDoyNjc6Mg -->",
+      "createdAt": "2026-05-17T19:08:13Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/267#issuecomment-4472193517",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCpB2tQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-267/codex-26000028914`\n- Pull request: https://github.com/self-evolving/repo/pull/268\n\nChanged `track-only` session policy to use one-shot ACP exec while still tracking thread state, disabled session bundle handling for non-persistent `track-only`, added a review-synthesis grounding guardrail, and updated docs plus regression tests. Verified with `npm run build` and targeted node tests for session policy, bundles, ACP args, and envelope contracts.",
+      "createdAt": "2026-05-17T19:14:17Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/267#issuecomment-4472207029",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-17T19:04:09Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 267,
+  "state": "OPEN",
+  "title": "Review synthesis can reuse stale persistent session context",
+  "updatedAt": "2026-05-17T19:14:17Z",
+  "url": "https://github.com/self-evolving/repo/issues/267"
+}

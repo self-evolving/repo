@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "1. it will clone the target (public) repo \n2. attempt to copy current sepo (using the latest release version) to the target repo; it will analyze conflicts and then propose a plan to resolve it \n3. then it will submit a pr to the target public repo \n\n@sepo-agent /answer what's a minimum way for implementing it?  ",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCpEEpg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Minimum v1: expose `/install` as a thin alias for the existing `install-agent` skill, not as a new full route engine.\n\nExisting pieces already line up:\n\n- Install docs already define the target behavior: open a PR that copies `.agent/` and `.github/`, merges ignore rules, then runs onboarding/memory/rubrics after merge ([docs](https://github.com/self-evolving/repo/blob/main/.agent/docs/deployment/install-existing-repository.md#L5-L47)).\n- `.skills/install-agent/SKILL.md` already contains the install workflow, conflict audit, conservative copy rules, validation, and PR body requirements ([skill](https://github.com/self-evolving/repo/blob/main/.skills/install-agent/SKILL.md#L1-L157)).\n- The router already supports explicit skill execution through `/skill <name>` and runs skills through the shared `skill` job ([router](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L434-L593)).\n- Explicit route parsing is centralized in `triage.ts`, so `/install` can be added in one place as an alias to `{ route: \"skill\", skill: \"install-agent\" }` ([parser](https://github.com/self-evolving/repo/blob/main/.agent/src/triage.ts#L107-L136)).\n- Source version resolution exists for updates, but it currently filters to non-prerelease stable releases ([resolver](https://github.com/self-evolving/repo/blob/main/.agent/scripts/resolve-update-source.sh#L62-L72)). As of today, the only GitHub release I see is `v0.1.0`, marked prerelease, published 2026-05-12, so `/install` should either include prereleases or the current resolver would fall back to `main`.\n\nProposed minimum implementation:\n\n1. Add `/install` parsing in `extractRequestedRouteDecision()`:\n   - Accept `@sepo-agent /install <owner/repo>`.\n   - Return `route: \"skill\"` and `skill: \"install-agent\"`.\n   - Keep `/skill install-agent` working unchanged.\n\n2. Teach `install-agent` to treat workflow-provided context as confirmation:\n   - target repo slug from the request text\n   - source repo `self-evolving/repo`\n   - source ref resolved to latest non-draft release, including prereleases for v0.x while no stable exists\n   - branch `agent/install-agent-infra`\n\n3. Add a small source resolver for install:\n   - either extend `resolve-update-source.sh` with an `INCLUDE_PRERELEASES=true` mode\n   - or create `resolve-install-source.sh` that returns `source_repo`, `source_ref`, `source_sha`, and `release_url`\n\n4. Leave execution on the existing `skill` route:\n   - no new workflow needed for the first cut\n   - no new `ROUTES` enum entry needed if `/install` maps to `skill`\n   - existing access policy applies as `skill`; a later version can add a first-class `install` route if install-specific access policy is needed\n\n5. Add tests:\n   - `/install owner/repo` parses to `skill/install-agent`\n   - `/skill install-agent` remains unchanged\n   - install source resolution selects latest release, including prerelease `v0.1.0`\n   - unsupported or malformed target slugs produce a clear answer instead of running\n\nImportant v1 limitation: submitting the PR requires auth that can push a branch or fork/open a PR against the target public repo. Minimum safe scope should be: clone any public target, but only open the PR when the resolved Sepo auth token can write to the target or an approved bot/PAT fork path exists. Otherwise, return a clear “install PR cannot be opened until Sepo/App/PAT has target write access” message.\n\nI’d implement this as `/install` → `install-agent` alias first, with release resolution and tests, then consider a dedicated `install` route only if we need separate access policy, metrics, or workflow UI. Please confirm that v1 auth scope is acceptable before coding.",
+      "createdAt": "2026-05-17T19:24:17Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/269#issuecomment-4472243366",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-17T19:21:29Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 269,
+  "state": "OPEN",
+  "title": "Allow a public route `/install` for installing sepo to an existing public repository",
+  "updatedAt": "2026-05-17T19:24:17Z",
+  "url": "https://github.com/self-evolving/repo/issues/269"
+}
