@@ -33,7 +33,8 @@ test("shouldUseSessionBundles follows auto and explicit mode semantics", () => {
   assert.equal(shouldUseSessionBundles("auto", "track-only"), false);
   assert.equal(shouldUseSessionBundles("auto", "resume-best-effort"), true);
   assert.equal(shouldUseSessionBundles("auto", "resume-required"), true);
-  assert.equal(shouldUseSessionBundles("always", "track-only"), true);
+  assert.equal(shouldUseSessionBundles("always", "track-only"), false);
+  assert.equal(shouldUseSessionBundles("always", "resume-best-effort"), true);
   assert.equal(shouldUseSessionBundles("never", "resume-required"), false);
 });
 

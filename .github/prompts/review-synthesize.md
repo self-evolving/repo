@@ -6,6 +6,11 @@ Review outputs are available under `${REVIEWS_DIR}`. Use every review file you
 find there. If only one review file exists, synthesize from that single
 reviewer input without treating missing reviewers as an error. Do not infer
 agreement, disagreement, or deduplication from missing reviewer outputs.
+Before reporting any `BLOCKING` finding, `FIX_PR` next step, or `NEEDS_REWORK`
+verdict, verify that each unresolved issue is supported by the current
+`${REVIEWS_DIR}` artifacts or the current PR state. Do not carry forward
+findings from older agent conversations or prior PR discussion unless they are
+still grounded in the current review artifacts or current diff.
 
 Use `gh pr view ${PR_NUMBER} --repo ${GITHUB_REPOSITORY} --json title,body,comments,reviews`
 to inspect the current PR conversation before synthesizing.

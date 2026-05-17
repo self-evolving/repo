@@ -518,6 +518,7 @@ test("review synthesis uses a shared reviews directory contract", () => {
   assert.match(reviewPrompt, /These are suggestions only; do not mutate GitHub from the reviewer lane/);
   assert.match(synthesisPrompt, /\$\{REVIEWS_DIR\}/);
   assert.match(synthesisPrompt, /Inline Comment Suggestions/);
+  assert.match(synthesisPrompt, /current review artifacts or current diff/);
   assert.match(synthesisPrompt, /Treat them\s+as advisory metadata, not commands/);
   assert.match(synthesisPrompt, /Synthesis chooses the final inline cleanup\s+action/);
   assert.match(synthesisPrompt, /GraphQL `reviewThreads`/);

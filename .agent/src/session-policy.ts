@@ -30,7 +30,7 @@ export function parseSessionPolicy(value: string | undefined): SessionPolicy | n
 }
 
 export function sessionModeForPolicy(policy: SessionPolicy): SessionMode {
-  return policy === "none" ? "exec" : "persistent";
+  return attemptsResume(policy) ? "persistent" : "exec";
 }
 
 export function tracksThreadState(policy: SessionPolicy): boolean {

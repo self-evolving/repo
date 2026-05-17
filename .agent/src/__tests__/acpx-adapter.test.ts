@@ -16,6 +16,7 @@ import {
   sessionNameFromThreadKey,
   tailForLog,
 } from "../acpx-adapter.js";
+import { sessionModeForPolicy } from "../session-policy.js";
 
 test("buildAcpxArgs puts global flags before the agent token for exec routes", () => {
   const args = buildAcpxArgs({
@@ -61,6 +62,28 @@ test("buildAcpxArgs uses prompt mode with a named session for persistent routes"
     "pull_request-38-fix-pr-default",
     "apply the requested fix",
   ]);
+});
+
+test("buildAcpxArgs keeps track-only synthesis in exec mode without a named session", () => {
+  const args = buildAcpxArgs({
+    agent: "codex",
+    prompt: "synthesize current artifacts",
+    permissionMode: "approve-all",
+    sessionName: sessionNameFromThreadKey("self-evolving/repo:pull_request:267:review:synthesize"),
+    isExecRoute: sessionModeForPolicy("track-only") === "exec",
+  });
+
+  assert.deepEqual(args, [
+    "--approve-all",
+    "--format",
+    "json",
+    "--json-strict",
+    "--suppress-reads",
+    "codex",
+    "exec",
+    "synthesize current artifacts",
+  ]);
+  assert.equal(args.includes("-s"), false);
 });
 
 test("selectPromptForSessionOutcome uses continuation only after successful resume", () => {

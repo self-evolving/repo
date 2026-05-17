@@ -14,7 +14,7 @@ import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import type { SessionPolicy } from "./session-policy.js";
-import { attemptsResume } from "./session-policy.js";
+import { attemptsResume, sessionModeForPolicy } from "./session-policy.js";
 
 export const SESSION_BUNDLE_SCHEMA_VERSION = 1;
 
@@ -150,7 +150,7 @@ export function shouldUseSessionBundles(
     return false;
   }
   if (mode === "always") {
-    return true;
+    return sessionModeForPolicy(policy) === "persistent";
   }
   return attemptsResume(policy);
 }
