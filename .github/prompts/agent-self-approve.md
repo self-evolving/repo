@@ -19,6 +19,10 @@ The workflow captured the PR head before this agent run:
 
 - Expected head SHA: `${SELF_APPROVE_EXPECTED_HEAD_SHA}`
 
+Orchestrator context, if any:
+
+`${SELF_APPROVE_HANDOFF_CONTEXT}`
+
 Rules:
 - Do not mutate GitHub state.
 - Do not submit a PR review yourself.

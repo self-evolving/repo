@@ -1559,6 +1559,7 @@ try {
     dispatchWorkflow(repo, "agent-self-approve.yml", ref, {
       ...commonInputs,
       pr_number: decision.targetNumber,
+      orchestrator_context: decision.handoffContext || "",
     });
   } else if (decision.nextAction === "agent-self-merge") {
     dispatchWorkflow(repo, "agent-self-merge.yml", ref, {

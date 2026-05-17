@@ -42,12 +42,10 @@ these policy rules:
   create, reuse, or adopt one child issue and start the child issue's normal
   orchestrator flow.
 - Pull-request-level `orchestrate` in agent mode may return `handoff` with
-  `next_action: "review"` or `next_action: "fix-pr"` for open PR targets. It
-  may return `next_action: "agent-self-approve"` only when self-approval is
-  enabled. Use `review` for analysis-only or review-first requests,
-  `agent-self-approve` when the enabled self-approval gate should inspect the
-  PR, and `fix-pr` only when the user clearly wants branch changes or PR fixes.
-  Use `answer`, `stop`, or `blocked` when no follow-up workflow should run.
+  `next_action: "review"` or `next_action: "fix-pr"` for open PR targets. Use
+  `review` for analysis-only or review-first requests, and `fix-pr` only when
+  the user clearly wants branch changes or PR fixes. Use `answer`, `stop`, or
+  `blocked` when no follow-up workflow should run.
 - Duplicate handoffs are skipped by the orchestrator marker dedupe logic.
 - You may choose to stop when another automatic action is not useful, except
   that enabled self-approval should receive a `SHIP` review handoff.
@@ -93,9 +91,9 @@ Rules:
   route. Provide either `child_instructions`, `handoff_context`, or
   `child_issue_number`.
 - For pull-request-level `orchestrate`, choose only `handoff` to `review`,
-  `handoff` to `fix-pr`, `handoff` to `agent-self-approve` when self-approval
-  is enabled, `answer`, `stop`, or `blocked`. Do not choose `implement`,
-  `agent-self-merge`, or `delegate_issue` for PR targets.
+  `handoff` to `fix-pr`, `answer`, `stop`, or `blocked`. Do not choose
+  `implement`, `agent-self-approve`, `agent-self-merge`, or `delegate_issue`
+  for PR targets.
 - When `delegate_issue` continues sequential child implementation work after a
   prior child finished with an open, unmerged PR, set `base_pr` to that prior
   child PR so the next child stacks on it. Omit stack inputs only when the next

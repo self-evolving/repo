@@ -10,8 +10,10 @@ import { readFileSync } from "node:fs";
 import { dispatchWorkflow } from "../github.js";
 import {
   automationModeAllowsHandoff,
+  buildReviewHumanDecisionSelfApprovalContext,
   buildReviewFixPrHandoffContext,
   extractReviewConclusion,
+  extractReviewRecommendedNextStep,
   normalizeConclusion,
 } from "../handoff.js";
 
@@ -45,9 +47,21 @@ const effectiveAutomationMode = orchestrationEnabled && !automationModeAllowsHan
 const repo = process.env.GITHUB_REPOSITORY || "";
 const ref = process.env.DEFAULT_BRANCH || "";
 const rawResponse = readResponseFile();
-const sourceConclusion = process.env.SOURCE_CONCLUSION || extractReviewConclusion(rawResponse) || "unknown";
+const sourceActionIsReview = sourceAction.trim().toLowerCase() === "review";
+const extractedReviewConclusion = process.env.SOURCE_CONCLUSION || extractReviewConclusion(rawResponse) || "unknown";
+const reviewRecommendedNextStep = sourceActionIsReview ? extractReviewRecommendedNextStep(rawResponse) : "";
+const sourceConclusion = sourceActionIsReview &&
+    reviewRecommendedNextStep === "human_decision" &&
+    normalizeConclusion(extractedReviewConclusion) !== "ship"
+  ? "human_decision"
+  : extractedReviewConclusion;
 const sourceHandoffContext = process.env.SOURCE_HANDOFF_CONTEXT ||
-  (sourceReviewNeedsFixPr(sourceAction, sourceConclusion) ? buildReviewFixPrHandoffContext(rawResponse) : "");
+  (sourceActionIsReview && reviewRecommendedNextStep === "human_decision" &&
+      normalizeConclusion(extractedReviewConclusion) === "ship"
+    ? buildReviewHumanDecisionSelfApprovalContext(rawResponse)
+    : sourceReviewNeedsFixPr(sourceAction, sourceConclusion)
+      ? buildReviewFixPrHandoffContext(rawResponse)
+      : "");
 const targetNumber = process.env.TARGET_NUMBER || "";
 const targetKind = process.env.TARGET_KIND || "";
 

@@ -32,6 +32,10 @@ on:
         description: "Whether this run belongs to an explicit orchestrator chain"
         required: false
         default: "false"
+      orchestrator_context:
+        description: "Optional context from the orchestrator handoff"
+        required: false
+        default: ""
 
 permissions:
   actions: read
@@ -147,6 +151,7 @@ jobs:
           workflow: agent-self-approve.yml
         env:
           SELF_APPROVE_EXPECTED_HEAD_SHA: ${{ steps.prepare.outputs.head_sha }}
+          SELF_APPROVE_HANDOFF_CONTEXT: ${{ inputs.orchestrator_context }}
 
       - name: Resolve self-approval result
         id: result

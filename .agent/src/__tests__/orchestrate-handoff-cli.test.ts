@@ -943,35 +943,6 @@ test("agent orchestrate dispatches planner-selected fix-pr for PR targets", () =
   assert.equal(inputs.orchestrator_context, run.outputs.get("handoff_context"));
 });
 
-test("agent orchestrate dispatches planner-selected self-approval for PR targets when enabled", () => {
-  const run = runOrchestrateHandoff({
-    AUTOMATION_MODE: "agent",
-    TARGET_KIND: "pull_request",
-    TARGET_NUMBER: "21",
-    FAKE_PR_STATE: "OPEN",
-    FAKE_PR_REVIEW_DECISION: "CHANGES_REQUESTED",
-    AGENT_ALLOW_SELF_APPROVE: "true",
-    FAKE_PLANNER_RESPONSE: JSON.stringify({
-      decision: "handoff",
-      next_action: "agent-self-approve",
-      reason: "Self-approval is enabled, so the approval gate should inspect the current PR.",
-    }),
-  });
-
-  assert.equal(run.status, 0, run.stderr || run.stdout);
-  assert.equal(run.outputs.get("decision"), "dispatch");
-  assert.equal(run.outputs.get("next_action"), "agent-self-approve");
-  assert.equal(run.outputs.get("target_number"), "21");
-  assert.equal(run.outputs.get("handoff_context"), "");
-  assert.match(run.outputs.get("reason") || "", /agent planner selected agent-self-approve/);
-  assert.match(run.ghLog, /pr view 21/);
-  assert.match(run.ghLog, /actions\/workflows\/agent-self-approve\.yml\/dispatches/);
-  assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-fix-pr\.yml\/dispatches/);
-  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
-  assert.equal(inputs.pr_number, "21");
-  assert.equal(inputs.automation_mode, "agent");
-});
-
 test("agent orchestrate stops planner-selected PR fix-pr without context", () => {
   const run = runOrchestrateHandoff({
     AUTOMATION_MODE: "agent",
@@ -1124,6 +1095,71 @@ test("review SHIP dispatches self-approval when enabled", () => {
   assert.equal(inputs.pr_number, "128");
   assert.equal(inputs.orchestration_enabled, "true");
   assert.equal(inputs.automation_current_round, "3");
+  assert.equal(inputs.orchestrator_context, "");
+});
+
+test("review HUMAN_DECISION with SHIP dispatches contextual self-approval when enabled", () => {
+  const handoffContext = [
+    "Review synthesis says Final Verdict is SHIP but recommends HUMAN_DECISION.",
+    "Ask agent-self-approve to inspect and either approve, request changes with concrete fix context, or block for a human.",
+  ].join(" ");
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    SOURCE_HANDOFF_CONTEXT: handoffContext,
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "128",
+    AUTOMATION_CURRENT_ROUND: "2",
+    AUTOMATION_MAX_ROUNDS: "5",
+    AGENT_ALLOW_SELF_APPROVE: "true",
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "dispatch");
+  assert.equal(run.outputs.get("next_action"), "agent-self-approve");
+  assert.equal(run.outputs.get("handoff_context"), handoffContext);
+  assert.match(run.ghLog, /actions\/workflows\/agent-self-approve\.yml\/dispatches/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.pr_number, "128");
+  assert.equal(inputs.orchestrator_context, handoffContext);
+});
+
+test("review HUMAN_DECISION with SHIP stops when self-approval is disabled", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    SOURCE_HANDOFF_CONTEXT: "Review synthesis says Final Verdict is SHIP but recommends HUMAN_DECISION.",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "128",
+    AUTOMATION_CURRENT_ROUND: "2",
+    AUTOMATION_MAX_ROUNDS: "5",
+    AGENT_ALLOW_SELF_APPROVE: "false",
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.equal(run.outputs.get("reason"), "review verdict is SHIP");
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-self-approve\.yml\/dispatches/);
+  assert.equal(run.dispatchPayload, null);
+});
+
+test("review HUMAN_DECISION without SHIP stops for a human", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "human_decision",
+    SOURCE_HANDOFF_CONTEXT: "Review synthesis recommends HUMAN_DECISION for non-SHIP findings.",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "128",
+    AUTOMATION_CURRENT_ROUND: "2",
+    AUTOMATION_MAX_ROUNDS: "5",
+    AGENT_ALLOW_SELF_APPROVE: "true",
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.equal(run.outputs.get("reason"), "review verdict human_decision has no handoff");
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\//);
+  assert.equal(run.dispatchPayload, null);
 });
 
 test("review SHIP stops when self-approval is disabled", () => {

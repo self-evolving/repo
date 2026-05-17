@@ -85,6 +85,11 @@ const DEFAULT_SELF_APPROVAL_FIX_PR_HANDOFF_CONTEXT = [
   "Address only the self-approval REQUEST_CHANGES findings.",
   "Preserve the reviewed-head and deterministic approval safeguards; avoid unrelated changes.",
 ].join(" ");
+const REVIEW_NEXT_STEPS: Partial<Record<string, string>> = {
+  fix_pr: "fix_pr",
+  human_decision: "human_decision",
+  no_automated_action: "no_automated_action",
+};
 const ANY_HANDOFF_MARKER_RE = new RegExp(
   `<!--\\s*${HANDOFF_MARKER_PREFIX}(?:\\s+state:(pending|dispatched|failed))?(?:\\s+created:(\\d+))?\\s+base64:[A-Za-z0-9_-]+\\s*-->`,
   "i",
@@ -283,6 +288,28 @@ export function extractReviewConclusion(markdown: string): string {
   return inlineMatch ? normalizeConclusion(inlineMatch[1]) : "unknown";
 }
 
+export function extractReviewRecommendedNextStep(markdown: string): string {
+  const section = extractMarkdownSection(markdown, "Recommended Next Step");
+  if (!section) return "unknown";
+  const tokenMatch = section.match(/\b(FIX[_ -]PR|HUMAN[_ -]DECISION|NO[_ -]AUTOMATED[_ -]ACTION)\b/i);
+  if (!tokenMatch) return "unknown";
+  return REVIEW_NEXT_STEPS[normalizeToken(tokenMatch[1])] || "unknown";
+}
+
+export function buildReviewHumanDecisionSelfApprovalContext(markdown: string): string {
+  const section = extractMarkdownSection(markdown, "Recommended Next Step");
+  const reason = normalizeReviewActionItem(
+    section
+      .replace(/^\s*[-*]?\s*`?HUMAN[_ -]DECISION`?\s*:?\s*/i, "")
+      .replace(/\bHUMAN[_ -]DECISION\b\s*:?\s*/i, ""),
+  );
+  return [
+    "Review synthesis says Final Verdict is SHIP but recommends HUMAN_DECISION.",
+    reason ? `Synthesis reason: ${reason}` : "",
+    "Ask agent-self-approve to inspect and either approve, request changes with concrete fix context, or block for a human.",
+  ].filter(Boolean).join(" ");
+}
+
 export function buildHandoffDedupeKey(input: HandoffDedupeInput): string {
   return [
     "handoff",
@@ -467,6 +494,7 @@ function decideHeuristicHandoff(input: HandoffInput): HandoffDecision {
           targetNumber: nextTarget,
           reason: "review verdict is SHIP; dispatching agent-self-approve",
           nextRound,
+          handoffContext: String(input.sourceHandoffContext || "").trim() || undefined,
         };
       }
       return { decision: "stop", reason: "review verdict is SHIP", nextRound };
@@ -602,23 +630,6 @@ function decideAgentHandoff(input: HandoffInput): HandoffDecision {
     };
   }
   if (sourceAction === "orchestrate" && targetKind === "pull_request") {
-    if (plannerDecision.nextAction === "agent-self-approve") {
-      if (!input.allowSelfApprove) {
-        return {
-          decision: "stop",
-          reason: "agent planner requested agent-self-approve, but self-approval is disabled",
-          nextRound,
-        };
-      }
-      return {
-        decision: "dispatch",
-        nextAction: "agent-self-approve",
-        targetNumber: input.targetNumber,
-        reason: `agent planner selected agent-self-approve: ${plannerDecision.reason}`,
-        nextRound,
-        handoffContext: plannerDecision.handoffContext,
-      };
-    }
     if (plannerDecision.nextAction === "review" || plannerDecision.nextAction === "fix-pr") {
       if (plannerDecision.nextAction === "fix-pr" && !plannerDecision.handoffContext) {
         return {
@@ -638,7 +649,7 @@ function decideAgentHandoff(input: HandoffInput): HandoffDecision {
     }
     return {
       decision: "stop",
-      reason: `agent planner requested ${plannerDecision.nextAction}, but PR orchestration can dispatch only review, fix-pr, or enabled agent-self-approve`,
+      reason: `agent planner requested ${plannerDecision.nextAction}, but PR orchestration can dispatch only review or fix-pr`,
       nextRound,
     };
   }

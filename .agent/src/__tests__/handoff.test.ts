@@ -2,12 +2,14 @@ import { test } from "node:test";
 import { strict as assert } from "node:assert";
 
 import {
+  buildReviewHumanDecisionSelfApprovalContext,
   buildReviewFixPrHandoffContext,
   buildHandoffDedupeKey,
   buildHandoffMarker,
   decideHandoff,
   defaultFixPrHandoffContext,
   extractReviewConclusion,
+  extractReviewRecommendedNextStep,
   extractReviewActionItems,
   formatHandoffMarkerComment,
   getHandoffMarkerState,
@@ -66,6 +68,7 @@ test("agent mode allows planner-selected self-approval for SHIP reviews when ena
     automationMode: "agent",
     sourceAction: "review",
     sourceConclusion: "SHIP",
+    sourceHandoffContext: "Review synthesis says SHIP but recommends HUMAN_DECISION.",
     targetNumber: "99",
     currentRound: 2,
     maxRounds: 5,
@@ -81,6 +84,7 @@ test("agent mode allows planner-selected self-approval for SHIP reviews when ena
   assert.equal(decision.nextAction, "agent-self-approve");
   assert.equal(decision.targetNumber, "99");
   assert.match(decision.reason, /agent planner selected agent-self-approve/);
+  assert.equal(decision.handoffContext, "Review synthesis says SHIP but recommends HUMAN_DECISION.");
 });
 
 test("agent mode allows planner-selected self-merge after self-approval when enabled", () => {
@@ -669,6 +673,32 @@ test("extractReviewConclusion reads final verdict markdown", () => {
   assert.equal(extractReviewConclusion("Final answer\n\n## Final Verdict\nSHIP"), "ship");
   assert.equal(extractReviewConclusion("This needs-rework before another pass"), "needs_rework");
   assert.equal(extractReviewConclusion("No verdict here"), "unknown");
+});
+
+test("review synthesis helpers read recommended next steps and self-approval context", () => {
+  const synthesis = [
+    "## Recommended Next Step",
+    "`HUMAN_DECISION`: the agent implemented the route, but the approval call needs product judgment.",
+    "",
+    "## Final Verdict",
+    "SHIP",
+  ].join("\n");
+
+  assert.equal(extractReviewRecommendedNextStep(synthesis), "human_decision");
+  assert.equal(extractReviewRecommendedNextStep("## Recommended Next Step\n- FIX_PR"), "fix_pr");
+  assert.equal(
+    extractReviewRecommendedNextStep("## Recommended Next Step\nNO_AUTOMATED_ACTION"),
+    "no_automated_action",
+  );
+  assert.equal(extractReviewRecommendedNextStep("No recommendation"), "unknown");
+  assert.match(
+    buildReviewHumanDecisionSelfApprovalContext(synthesis),
+    /Final Verdict is SHIP but recommends HUMAN_DECISION/,
+  );
+  assert.match(
+    buildReviewHumanDecisionSelfApprovalContext(synthesis),
+    /approval call needs product judgment/,
+  );
 });
 
 test("handoff dedupe markers are deterministic and detectable", () => {
