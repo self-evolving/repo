@@ -78,3 +78,4 @@
 - Default orchestration max rounds is 12 across workflows and CLI fallbacks.
 - Explicit non-issue /implement creates tracking metadata from context after auth; metadata uses approve-all.
 - For review syntheses, HUMAN_DECISION is a recommended next step; only HUMAN_DECISION + SHIP may route to self-approve.
+- Repository skills use setup.sh for simple setup; complex skill environments should customize the copied agent-router workflow.
