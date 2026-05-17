@@ -138,3 +138,42 @@ exit 1
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
+
+test("prepare-self-approve emits success outputs for trusted current-head non-SHIP", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-self-approve-prepare-"));
+  try {
+    const logPath = join(tempDir, "gh.log");
+    writeFileSync(join(tempDir, "gh"), `#!/usr/bin/env bash
+printf '%s\\n' "$*" >> "$FAKE_GH_LOG"
+if [ "$1" = "pr" ] && [ "$2" = "view" ]; then
+  printf '{"author":{"login":"lolipopshock"},"headRefName":"agent/test","headRefOid":"abc123","isCrossRepository":false,"state":"OPEN"}\\n'
+  exit 0
+fi
+if [ "$1" = "api" ] && [ "$2" = "graphql" ]; then
+  printf '{"data":{"viewer":{"login":"sepo-agent-app"}}}\\n'
+  exit 0
+fi
+if [ "$1" = "api" ] && [ "$2" = "--paginate" ] && [ "$3" = "--slurp" ]; then
+  printf '[[{"id":123,"body":"## AI Review Synthesis <!-- sepo-agent-review-synthesis --> <!-- sepo-agent-review-synthesis-head: abc123 --> ## Final Verdict NEEDS_REWORK","created_at":"2026-05-07T10:00:00Z","user":{"login":"sepo-agent-app"}}]]\\n'
+  exit 0
+fi
+printf 'unexpected gh args: %s\\n' "$*" >&2
+exit 1
+`, { encoding: "utf8", mode: 0o755 });
+
+    const result = runPrepareSelfApprove({
+      PATH: `${tempDir}:${process.env.PATH || ""}`,
+      AGENT_ALLOW_SELF_APPROVE: "true",
+      FAKE_GH_LOG: logPath,
+      GITHUB_REPOSITORY: "self-evolving/repo",
+      TARGET_KIND: "pull_request",
+      TARGET_NUMBER: "42",
+    }, tempDir);
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.output, /should_run<<[^\n]+\ntrue/);
+    assert.match(result.output, /head_sha<<[^\n]+\nabc123/);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});

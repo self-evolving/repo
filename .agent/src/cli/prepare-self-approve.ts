@@ -93,6 +93,7 @@ if (!allowSelfApprove) {
         comments: fetchIssueCommentRecords(targetNumber, repo),
         trustedActorLogin: authenticatedActorLogin,
         expectedHeadSha: headSha,
+        requireShip: false,
       });
       if (!provenance.trusted) {
         stop(provenance.reason);

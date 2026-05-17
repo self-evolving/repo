@@ -123,6 +123,7 @@ export function evaluateSelfApprovalProvenance(input: {
   comments: SelfApprovalSignalComment[];
   trustedActorLogin: string;
   expectedHeadSha: string;
+  requireShip?: boolean;
 }): SelfApprovalProvenanceResult {
   const trustedActor = normalizeActorLogin(input.trustedActorLogin);
   const expectedHeadSha = String(input.expectedHeadSha || "").trim();
@@ -183,7 +184,15 @@ export function evaluateSelfApprovalProvenance(input: {
     };
   }
 
-  if (latest.conclusion === "ship") {
+  const conclusion = latest.conclusion || "unknown";
+  if (input.requireShip === false) {
+    return {
+      trusted: true,
+      reason: `latest trusted review synthesis verdict is ${conclusion} for current head`,
+    };
+  }
+
+  if (conclusion === "ship") {
     return {
       trusted: true,
       reason: "latest trusted review synthesis verdict is SHIP for current head",
@@ -192,7 +201,7 @@ export function evaluateSelfApprovalProvenance(input: {
 
   return {
     trusted: false,
-    reason: `latest trusted review synthesis verdict is ${latest.conclusion || "unknown"}, not SHIP`,
+    reason: `latest trusted review synthesis verdict is ${conclusion}, not SHIP`,
   };
 }
 

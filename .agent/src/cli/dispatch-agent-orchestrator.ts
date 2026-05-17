@@ -35,11 +35,9 @@ function sourceReviewNeedsFixPr(sourceAction: string, sourceConclusion: string):
 
 function sourceReviewNeedsSelfApprovalContext(
   sourceAction: string,
-  sourceConclusion: string,
   sourceRecommendedNextStep: string,
 ): boolean {
   return sourceAction.trim().toLowerCase() === "review" &&
-    normalizeConclusion(sourceConclusion) === "ship" &&
     normalizeRecommendedNextStep(sourceRecommendedNextStep) === "human_decision";
 }
 
@@ -75,10 +73,10 @@ const sourceRecommendedNextStep = normalizeRecommendedNextStep(
 );
 const sourceReviewSelfApprovalContext = sourceReviewNeedsSelfApprovalContext(
   sourceAction,
-  sourceConclusion,
   sourceRecommendedNextStep,
 )
-  ? buildReviewSelfApprovalHandoffContext(rawResponse) || defaultReviewSelfApprovalHandoffContext()
+  ? buildReviewSelfApprovalHandoffContext(rawResponse, sourceConclusion) ||
+    defaultReviewSelfApprovalHandoffContext(sourceConclusion)
   : "";
 const sourceHandoffContext = process.env.SOURCE_HANDOFF_CONTEXT ||
   (sourceReviewNeedsFixPr(sourceAction, sourceConclusion) && sourceRecommendedNextStep !== "human_decision"

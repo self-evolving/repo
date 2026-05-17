@@ -19,6 +19,18 @@ The workflow captured the PR head before this agent run:
 
 - Expected head SHA: `${SELF_APPROVE_EXPECTED_HEAD_SHA}`
 
+If this run came from review synthesis, the orchestrator also passed:
+
+- Source review verdict: `${SELF_APPROVE_SOURCE_CONCLUSION}`
+- Source recommended next step: `${SELF_APPROVE_SOURCE_RECOMMENDED_NEXT_STEP}`
+- Source handoff context: `${SELF_APPROVE_SOURCE_HANDOFF_CONTEXT}`
+
+Treat `HUMAN_DECISION` handoffs as a decision gate. When the source review
+verdict is not `SHIP`, do not return `APPROVE`; return `REQUEST_CHANGES` for
+concrete follow-up work or `BLOCKED` when the decision should stay with a human.
+The deterministic resolver will also refuse to submit an actual GitHub approval
+unless the latest trusted current-head review synthesis verdict is `SHIP`.
+
 Rules:
 - Do not mutate GitHub state.
 - Do not submit a PR review yourself.

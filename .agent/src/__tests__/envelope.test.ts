@@ -1192,16 +1192,36 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestratorDoc, /minimizes older visible handoff marker comments/);
 });
 
-test("orchestrator source handoff context is renderable in planner prompts", () => {
+test("orchestrator source handoff fields are renderable in planner prompts", () => {
   const runSource = readRepoFile(".agent/src/run.ts");
   const orchestratorPrompt = readRepoFile(".github/prompts/agent-orchestrator.md");
-  const sourceContextName = "ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT";
+  const allowlisted = readSupplementalPromptVarNames(runSource);
 
-  assert.match(orchestratorPrompt, /\$\{ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT\}/);
-  assert.ok(
-    readSupplementalPromptVarNames(runSource).has(sourceContextName),
-    `${sourceContextName} must be allowlisted for runtime prompt rendering`,
-  );
+  for (const name of ["ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT", "ORCHESTRATOR_SOURCE_RECOMMENDED_NEXT_STEP"]) {
+    assert.match(orchestratorPrompt, new RegExp(`\\$\\{${name}\\}`));
+    assert.ok(
+      allowlisted.has(name),
+      `${name} must be allowlisted for runtime prompt rendering`,
+    );
+  }
+});
+
+test("self-approval source handoff fields are renderable in prompts", () => {
+  const runSource = readRepoFile(".agent/src/run.ts");
+  const selfApprovalPrompt = readRepoFile(".github/prompts/agent-self-approve.md");
+  const allowlisted = readSupplementalPromptVarNames(runSource);
+
+  for (const name of [
+    "SELF_APPROVE_SOURCE_CONCLUSION",
+    "SELF_APPROVE_SOURCE_RECOMMENDED_NEXT_STEP",
+    "SELF_APPROVE_SOURCE_HANDOFF_CONTEXT",
+  ]) {
+    assert.match(selfApprovalPrompt, new RegExp(`\\$\\{${name}\\}`));
+    assert.ok(
+      allowlisted.has(name),
+      `${name} must be allowlisted for runtime prompt rendering`,
+    );
+  }
 });
 
 test("workflow docs cover hosted auth and self-hosting paths", () => {

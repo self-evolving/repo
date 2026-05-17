@@ -26,9 +26,11 @@ these policy rules:
 - `implement` may hand off to `review` only when implementation succeeded and
   produced a pull request target.
 - `review` may hand off to `fix-pr` only for `MINOR_ISSUES`,
-  `NEEDS_REWORK`, or `CHANGES_REQUESTED`.
-- `review` may hand off to `agent-self-approve` only for `SHIP` when
-  self-approval is enabled; otherwise `SHIP` stops.
+  `NEEDS_REWORK`, or `CHANGES_REQUESTED`, except when the source recommended
+  next step is `HUMAN_DECISION`.
+- `review` may hand off to `agent-self-approve` when self-approval is enabled
+  and either the source conclusion is `SHIP` or the source recommended next step
+  is `HUMAN_DECISION`; otherwise `SHIP` and `HUMAN_DECISION` stop.
 - `agent-self-approve` may hand off to `fix-pr` only for `REQUEST_CHANGES`.
   `APPROVED` may hand off to `agent-self-merge` only when self-merge is
   enabled; otherwise `APPROVED`, `BLOCKED`, and `FAILED` stop.
@@ -77,11 +79,12 @@ Rules:
 - If the latest review synthesis includes a `Recommended Next Step`, treat it
   as the primary automation signal: hand off on `FIX_PR`, stop on
   `HUMAN_DECISION` or `NO_AUTOMATED_ACTION` unless newer human input overrides
-  it or self-approval is enabled for a `SHIP` review.
-- When source conclusion is `SHIP`, source recommended next step is
-  `HUMAN_DECISION`, and self-approval is enabled, hand off to
-  `agent-self-approve` with the source handoff context. Let self-approval return
-  `BLOCKED` if the decision should remain with a human.
+  it or self-approval is enabled for a `HUMAN_DECISION` review.
+- When source recommended next step is `HUMAN_DECISION` and self-approval is
+  enabled, hand off to `agent-self-approve` with the source verdict and handoff
+  context regardless of whether the final verdict is `SHIP`, `MINOR_ISSUES`, or
+  `NEEDS_REWORK`. Let self-approval approve only for trusted current-head
+  `SHIP`; for non-`SHIP` cases it should return `REQUEST_CHANGES` or `BLOCKED`.
 - Use `handoff` only when one more automatic action is clearly warranted.
 - For issue-level `orchestrate`, prefer `handoff` with `next_action:
   "implement"` when the requested work fits in the current issue. Use

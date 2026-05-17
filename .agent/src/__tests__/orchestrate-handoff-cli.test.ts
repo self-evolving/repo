@@ -1095,6 +1095,8 @@ test("review SHIP with HUMAN_DECISION dispatches self-approval with context when
   );
   assert.match(run.ghLog, /actions\/workflows\/agent-self-approve\.yml\/dispatches/);
   const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.source_conclusion, "SHIP");
+  assert.equal(inputs.source_recommended_next_step, "HUMAN_DECISION");
   assert.equal(
     inputs.source_handoff_context,
     "Review synthesis says SHIP but asks for human decision on release timing.",
@@ -1119,7 +1121,7 @@ test("review SHIP stops when self-approval is disabled", () => {
   assert.equal(run.dispatchPayload, null);
 });
 
-test("review HUMAN_DECISION stops without self-approval or non-SHIP verdict", () => {
+test("review HUMAN_DECISION stops without self-approval and dispatches non-SHIP when enabled", () => {
   const disabled = runOrchestrateHandoff({
     SOURCE_ACTION: "review",
     SOURCE_CONCLUSION: "SHIP",
@@ -1148,9 +1150,15 @@ test("review HUMAN_DECISION stops without self-approval or non-SHIP verdict", ()
   });
 
   assert.equal(nonShip.status, 0, nonShip.stderr || nonShip.stdout);
-  assert.equal(nonShip.outputs.get("decision"), "stop");
+  assert.equal(nonShip.outputs.get("decision"), "dispatch");
+  assert.equal(nonShip.outputs.get("next_action"), "agent-self-approve");
   assert.match(nonShip.outputs.get("reason") || "", /minor_issues/);
   assert.doesNotMatch(nonShip.ghLog, /actions\/workflows\/agent-fix-pr\.yml\/dispatches/);
+  assert.match(nonShip.ghLog, /actions\/workflows\/agent-self-approve\.yml\/dispatches/);
+  const inputs = nonShip.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.source_conclusion, "MINOR_ISSUES");
+  assert.equal(inputs.source_recommended_next_step, "HUMAN_DECISION");
+  assert.match(inputs.source_handoff_context, /final verdict is MINOR_ISSUES/);
 });
 
 test("self-approval request changes dispatches fix-pr with context", () => {

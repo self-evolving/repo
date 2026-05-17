@@ -251,21 +251,26 @@ Skill names are normalized to lowercase, so `agent/s/Release-Notes` resolves to 
 
 Self-approval is disabled unless `AGENT_ALLOW_SELF_APPROVE=true`. The manual
 workflow accepts a pull request number, confirms the target is an open PR, and
-requires the latest trusted review synthesis from the authenticated Sepo actor
-to be `SHIP` for the current reviewed-head marker before it runs an approval
-agent. The agent runs with read-approved permissions and returns structured JSON
-with a verdict, reason, optional follow-up context, and `inspected_head_sha`.
+requires the latest trusted review synthesis from the authenticated Sepo actor to
+match the current reviewed-head marker before it runs an approval agent. That
+preflight does not require the verdict to be `SHIP`, so review `HUMAN_DECISION`
+handoffs can use self-approval as a decision gate for `MINOR_ISSUES` and
+`NEEDS_REWORK` too.
+The agent runs with read-approved permissions and returns structured JSON with a
+verdict, reason, optional follow-up context, and `inspected_head_sha`.
 
 Deterministic resolver code is the only part that can submit the GitHub
 approval. It rereads the current PR head, rechecks trusted current-head review
 provenance, verifies the approval actor differs from the pull request author,
 parses the agent verdict, and approves only when the expected, current, and
-inspected head SHAs match. Non-approval outcomes post a compact PR status
-comment. In orchestrated chains, `SHIP` review synthesis can hand off to
-`agent-self-approve`; when the synthesis also recommends `HUMAN_DECISION`, that
-handoff includes context for the approval agent to approve, request changes, or
-block for a human. A self-approval `REQUEST_CHANGES` result can hand off to
-`fix-pr` with the approval agent's handoff context. Self-approval status comments
+inspected head SHAs match and the latest trusted current-head review verdict is
+`SHIP`. Non-approval outcomes post a compact PR status comment. In orchestrated
+chains, any review synthesis that recommends `HUMAN_DECISION` can hand off to
+`agent-self-approve` when self-approval is enabled; that handoff includes the
+review verdict and context so the approval agent can approve only for `SHIP`,
+request changes for concrete follow-up work, or block for a human. A
+self-approval `REQUEST_CHANGES` result can hand off to `fix-pr` with the approval
+agent's handoff context. Self-approval status comments
 are upserted by marker against comments authored by the authenticated Sepo
 actor, and result artifacts are retained for failed or blocked resolution paths
 where available.

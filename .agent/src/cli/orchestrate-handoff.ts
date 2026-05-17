@@ -1553,6 +1553,8 @@ try {
     dispatchWorkflow(repo, "agent-self-approve.yml", ref, {
       ...commonInputs,
       pr_number: decision.targetNumber,
+      source_conclusion: sourceConclusion,
+      source_recommended_next_step: sourceRecommendedNextStep,
       source_handoff_context: decision.handoffContext || "",
     });
   } else if (decision.nextAction === "agent-self-merge") {

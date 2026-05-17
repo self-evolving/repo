@@ -232,7 +232,8 @@ test("resolveSelfApproval records request changes without approving", () => {
     prState: "OPEN",
     expectedHeadSha: "abc123",
     currentHeadSha: "abc123",
-    approvalProvenanceTrusted: true,
+    approvalProvenanceTrusted: false,
+    approvalProvenanceReason: "latest trusted review synthesis verdict is minor_issues, not SHIP",
     decision: {
       verdict: "request_changes",
       reason: "Needs a narrower design.",
@@ -279,6 +280,24 @@ test("evaluateSelfApprovalProvenance requires the latest trusted ship signal", (
   });
   assert.equal(superseded.trusted, false);
   assert.match(superseded.reason, /needs_rework/);
+});
+
+test("evaluateSelfApprovalProvenance can accept non-SHIP current-head synthesis for preflight", () => {
+  const result = evaluateSelfApprovalProvenance({
+    trustedActorLogin: "sepo-agent-app[bot]",
+    expectedHeadSha: "abc123",
+    requireShip: false,
+    comments: [
+      {
+        authorLogin: "app/sepo-agent-app",
+        createdAt: "2026-05-07T10:00:00Z",
+        body: "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: abc123 -->\n\n## Final Verdict\n\nMINOR_ISSUES",
+      },
+    ],
+  });
+
+  assert.equal(result.trusted, true);
+  assert.match(result.reason, /minor_issues/);
 });
 
 test("evaluateSelfApprovalProvenance requires review synthesis for the current head", () => {

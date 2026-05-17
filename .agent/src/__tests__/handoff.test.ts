@@ -516,8 +516,8 @@ test("review verdicts dispatch fix-pr or stop", () => {
   assert.match(selfApprove.reason, /dispatching agent-self-approve/);
 });
 
-test("review HUMAN_DECISION with SHIP dispatches self-approval when enabled", () => {
-  const decision = decideHandoff({
+test("review HUMAN_DECISION dispatches self-approval when enabled", () => {
+  const ship = decideHandoff({
     automationMode: "heuristics",
     sourceAction: "review",
     sourceConclusion: "SHIP",
@@ -529,13 +529,28 @@ test("review HUMAN_DECISION with SHIP dispatches self-approval when enabled", ()
     allowSelfApprove: true,
   });
 
-  assert.equal(decision.decision, "dispatch");
-  assert.equal(decision.nextAction, "agent-self-approve");
-  assert.equal(decision.handoffContext, "Review synthesis says SHIP but needs human decision on release timing.");
-  assert.match(decision.reason, /HUMAN_DECISION/);
+  assert.equal(ship.decision, "dispatch");
+  assert.equal(ship.nextAction, "agent-self-approve");
+  assert.equal(ship.handoffContext, "Review synthesis says SHIP but needs human decision on release timing.");
+  assert.match(ship.reason, /HUMAN_DECISION/);
+
+  const nonShip = decideHandoff({
+    automationMode: "heuristics",
+    sourceAction: "review",
+    sourceConclusion: "MINOR_ISSUES",
+    sourceRecommendedNextStep: "HUMAN_DECISION",
+    targetNumber: "99",
+    currentRound: 2,
+    maxRounds: 5,
+    allowSelfApprove: true,
+  });
+  assert.equal(nonShip.decision, "dispatch");
+  assert.equal(nonShip.nextAction, "agent-self-approve");
+  assert.match(nonShip.reason, /minor_issues/);
+  assert.match(nonShip.handoffContext || "", /final verdict is MINOR_ISSUES/);
 });
 
-test("review HUMAN_DECISION stops when self-approval is disabled or verdict is not SHIP", () => {
+test("review HUMAN_DECISION stops when self-approval is disabled", () => {
   const disabled = decideHandoff({
     automationMode: "heuristics",
     sourceAction: "review",
@@ -548,20 +563,6 @@ test("review HUMAN_DECISION stops when self-approval is disabled or verdict is n
   });
   assert.equal(disabled.decision, "stop");
   assert.match(disabled.reason, /HUMAN_DECISION/);
-
-  const nonShip = decideHandoff({
-    automationMode: "heuristics",
-    sourceAction: "review",
-    sourceConclusion: "MINOR_ISSUES",
-    sourceRecommendedNextStep: "HUMAN_DECISION",
-    targetNumber: "99",
-    currentRound: 2,
-    maxRounds: 5,
-    allowSelfApprove: true,
-  });
-  assert.equal(nonShip.decision, "stop");
-  assert.equal(nonShip.nextAction, undefined);
-  assert.match(nonShip.reason, /minor_issues/);
 });
 
 test("review fix-pr handoffs preserve derived source context", () => {
@@ -722,7 +723,7 @@ test("extractReviewConclusion reads final verdict markdown", () => {
   assert.equal(extractReviewConclusion("No verdict here"), "unknown");
 });
 
-test("review human decision helper requires SHIP final verdict", () => {
+test("review human decision helper accepts any final verdict", () => {
   const shipHumanDecision = [
     "## Summary of PR/Issue",
     "Implementation is complete, but maintainer judgment is needed.",
@@ -737,13 +738,16 @@ test("review human decision helper requires SHIP final verdict", () => {
 
   assert.equal(extractReviewRecommendedNextStep(shipHumanDecision), "human_decision");
   assert.equal(reviewNeedsHumanDecisionSelfApproval(shipHumanDecision), true);
-  assert.equal(reviewNeedsHumanDecisionSelfApproval(nonShipHumanDecision), false);
+  assert.equal(reviewNeedsHumanDecisionSelfApproval(nonShipHumanDecision), true);
   assert.match(
     buildReviewSelfApprovalHandoffContext(shipHumanDecision),
-    /final verdict is SHIP, but its recommended next step is HUMAN_DECISION/,
+    /final verdict is SHIP, and its recommended next step is HUMAN_DECISION/,
   );
   assert.match(buildReviewSelfApprovalHandoffContext(shipHumanDecision), /Product timing/);
-  assert.equal(buildReviewSelfApprovalHandoffContext(nonShipHumanDecision), "");
+  assert.match(
+    buildReviewSelfApprovalHandoffContext(nonShipHumanDecision),
+    /final verdict is MINOR_ISSUES, and its recommended next step is HUMAN_DECISION/,
+  );
 });
 
 test("handoff dedupe markers are deterministic and detectable", () => {

@@ -12,6 +12,14 @@ on:
       request_text:
         description: "Original request text"
         required: false
+      source_conclusion:
+        description: "Optional source review verdict from the orchestrator handoff"
+        required: false
+        default: ""
+      source_recommended_next_step:
+        description: "Optional source review recommended next step from the orchestrator handoff"
+        required: false
+        default: ""
       source_handoff_context:
         description: "Optional context from the orchestrator handoff"
         required: false
@@ -151,6 +159,9 @@ jobs:
           workflow: agent-self-approve.yml
         env:
           SELF_APPROVE_EXPECTED_HEAD_SHA: ${{ steps.prepare.outputs.head_sha }}
+          SELF_APPROVE_SOURCE_CONCLUSION: ${{ inputs.source_conclusion }}
+          SELF_APPROVE_SOURCE_RECOMMENDED_NEXT_STEP: ${{ inputs.source_recommended_next_step }}
+          SELF_APPROVE_SOURCE_HANDOFF_CONTEXT: ${{ inputs.source_handoff_context }}
 
       - name: Resolve self-approval result
         id: result
