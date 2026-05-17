@@ -1,8 +1,8 @@
 # Repository Skills
 
-Repository skills are Sepo's lightweight extension format. A skill lives under
-the configured skill root, defaults to `.skills`, and can be invoked with
-`@sepo-agent /skill <name>` or the `agent/s/<name>` label.
+A repository skill is a `SKILL.md` file under the configured skill root, which
+defaults to `.skills`. Invoke one with `@sepo-agent /skill <name>` or the
+`agent/s/<name>` label.
 
 ```text
 .skills/<name>/
@@ -52,7 +52,7 @@ default-branch contexts such as an issue, discussion, issue comment, or the
 For setup that needs native GitHub Actions features such as `uses`, `with`,
 Docker actions, services, caches, or custom containers, edit the copied
 `.github/workflows/agent-router.yml` directly. The skill job has a natural
-customization point after `Resolve skill package` and before `Run skill`.
+customization point around `Run skill setup` and before `Run skill`.
 
 Example:
 

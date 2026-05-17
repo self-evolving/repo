@@ -453,32 +453,33 @@ jobs:
           pat: ${{ secrets.AGENT_PAT }}
           fallback_token: ${{ github.token }}
 
-      - name: Resolve skill provider
-        id: provider
+      - name: Require skill provider
+        id: skill_provider
         uses: ./.github/actions/resolve-agent-provider
         with:
           route: skill
           default_provider: ${{ vars.AGENT_DEFAULT_PROVIDER || inputs.default_agent || 'auto' }}
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          required: "false"
 
       - name: Setup agent runtime
         id: runtime
         uses: ./.github/actions/setup-agent-runtime
         with:
-          install_codex: ${{ steps.provider.outputs.install_codex }}
-          install_claude: ${{ steps.provider.outputs.install_claude }}
+          install_codex: ${{ steps.skill_provider.outputs.install_codex }}
+          install_claude: ${{ steps.skill_provider.outputs.install_claude }}
 
-      - name: Resolve skill package
-        id: check-skill
-        env:
-          SKILL_NAME: ${{ needs.portal.outputs.skill }}
-          SKILL_ROOT: ${{ inputs.skill_root }}
-        run: node .agent/dist/cli/resolve-skill.js
+      - name: Run skill setup
+        id: skill_setup
+        continue-on-error: true
+        uses: ./.github/actions/run-skill-setup
+        with:
+          skill: ${{ needs.portal.outputs.skill }}
+          skill_root: ${{ inputs.skill_root }}
+          trusted_ref: ${{ !startsWith(github.ref, 'refs/pull/') }}
 
       - name: Post missing-skill comment
-        if: steps.check-skill.outputs.exists == 'false'
+        if: steps.skill_setup.outputs.exists == 'false'
         env:
           BODY_FILE: ${{ runner.temp }}/missing-skill.md
           GH_TOKEN: ${{ steps.auth.outputs.token }}
@@ -489,35 +490,15 @@ jobs:
           DISCUSSION_ID: ${{ needs.portal.outputs.discussion_node_id }}
           REPLY_TO_ID: ${{ needs.portal.outputs.reply_to_id }}
           REQUESTED_SKILL: ${{ needs.portal.outputs.skill }}
-          SKILL_PATH: ${{ steps.check-skill.outputs.skill_path }}
+          SKILL_PATH: ${{ steps.skill_setup.outputs.skill_path }}
         run: |
           printf '%s\n' \
             "Skill \`${SKILL_PATH}\` was not found in this repository." \
             > "$BODY_FILE"
           node .agent/dist/cli/post-response.js
 
-      - name: Require skill provider
-        id: skill_provider
-        if: steps.check-skill.outputs.exists == 'true'
-        uses: ./.github/actions/resolve-agent-provider
-        with:
-          route: skill
-          default_provider: ${{ vars.AGENT_DEFAULT_PROVIDER || inputs.default_agent || 'auto' }}
-          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
-          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-
-      - name: Run skill setup
-        id: skill_setup
-        if: steps.check-skill.outputs.exists == 'true' && steps.skill_provider.outcome == 'success'
-        continue-on-error: true
-        uses: ./.github/actions/run-skill-setup
-        with:
-          skill: ${{ needs.portal.outputs.skill }}
-          skill_root: ${{ inputs.skill_root }}
-          trusted_ref: ${{ !startsWith(github.ref, 'refs/pull/') }}
-
       - name: Post skill setup failure
-        if: steps.check-skill.outputs.exists == 'true' && steps.skill_setup.outcome == 'failure'
+        if: steps.skill_setup.outcome == 'failure'
         env:
           BODY_FILE: ${{ runner.temp }}/skill-setup-failed.md
           GH_TOKEN: ${{ steps.auth.outputs.token }}
@@ -528,15 +509,21 @@ jobs:
           DISCUSSION_ID: ${{ needs.portal.outputs.discussion_node_id }}
           REPLY_TO_ID: ${{ needs.portal.outputs.reply_to_id }}
           REQUESTED_SKILL: ${{ needs.portal.outputs.skill }}
-          SETUP_PATH: ${{ steps.check-skill.outputs.setup_path }}
+          SETUP_PATH: ${{ steps.skill_setup.outputs.setup_path }}
         run: |
-          printf '%s\n' \
-            "Skill setup failed for \`${REQUESTED_SKILL}\` using \`${SETUP_PATH}\`. Check the workflow logs for the failed setup step." \
-            > "$BODY_FILE"
+          if [ -n "${SETUP_PATH}" ]; then
+            printf '%s\n' \
+              "Skill setup failed for \`${REQUESTED_SKILL}\` using \`${SETUP_PATH}\`. Check the workflow logs for the failed setup step." \
+              > "$BODY_FILE"
+          else
+            printf '%s\n' \
+              "Skill setup failed for \`${REQUESTED_SKILL}\`. Check the workflow logs for the failed setup step." \
+              > "$BODY_FILE"
+          fi
           node .agent/dist/cli/post-response.js
 
       - name: Resolve task timeout
-        if: steps.check-skill.outputs.exists == 'true' && steps.skill_setup.outcome == 'success'
+        if: steps.skill_setup.outputs.exists == 'true' && steps.skill_setup.outcome == 'success'
         id: task_timeout
         env:
           AGENT_TASK_TIMEOUT_POLICY: ${{ vars.AGENT_TASK_TIMEOUT_POLICY || '' }}
@@ -545,7 +532,7 @@ jobs:
 
       - name: Run skill
         id: skill
-        if: steps.check-skill.outputs.exists == 'true' && steps.skill_setup.outcome == 'success'
+        if: steps.skill_setup.outputs.exists == 'true' && steps.skill_setup.outcome == 'success'
         timeout-minutes: ${{ fromJson(steps.task_timeout.outputs.minutes || '30') }}
         uses: ./.github/actions/run-agent-task
         with:
@@ -571,7 +558,7 @@ jobs:
           workflow: agent-router.yml
 
       - name: Post skill response
-        if: steps.check-skill.outputs.exists == 'true' && steps.skill_setup.outcome == 'success' && steps.skill.outcome == 'success'
+        if: steps.skill_setup.outputs.exists == 'true' && steps.skill_setup.outcome == 'success' && steps.skill.outcome == 'success'
         env:
           BODY_FILE: ${{ steps.skill.outputs.response_file }}
           DISCUSSION_ID: ${{ needs.portal.outputs.discussion_node_id }}
