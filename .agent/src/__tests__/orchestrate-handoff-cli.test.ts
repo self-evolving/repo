@@ -1072,6 +1072,35 @@ test("review SHIP dispatches self-approval when enabled", () => {
   assert.equal(inputs.automation_current_round, "3");
 });
 
+test("review SHIP with HUMAN_DECISION dispatches self-approval with context when enabled", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    SOURCE_RECOMMENDED_NEXT_STEP: "HUMAN_DECISION",
+    SOURCE_HANDOFF_CONTEXT: "Review synthesis says SHIP but asks for human decision on release timing.",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "128",
+    AUTOMATION_CURRENT_ROUND: "2",
+    AUTOMATION_MAX_ROUNDS: "5",
+    AGENT_ALLOW_SELF_APPROVE: "true",
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "dispatch");
+  assert.equal(run.outputs.get("next_action"), "agent-self-approve");
+  assert.match(run.outputs.get("reason") || "", /HUMAN_DECISION/);
+  assert.equal(
+    run.outputs.get("handoff_context"),
+    "Review synthesis says SHIP but asks for human decision on release timing.",
+  );
+  assert.match(run.ghLog, /actions\/workflows\/agent-self-approve\.yml\/dispatches/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(
+    inputs.source_handoff_context,
+    "Review synthesis says SHIP but asks for human decision on release timing.",
+  );
+});
+
 test("review SHIP stops when self-approval is disabled", () => {
   const run = runOrchestrateHandoff({
     SOURCE_ACTION: "review",
@@ -1088,6 +1117,40 @@ test("review SHIP stops when self-approval is disabled", () => {
   assert.equal(run.outputs.get("reason"), "review verdict is SHIP");
   assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-self-approve\.yml\/dispatches/);
   assert.equal(run.dispatchPayload, null);
+});
+
+test("review HUMAN_DECISION stops without self-approval or non-SHIP verdict", () => {
+  const disabled = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    SOURCE_RECOMMENDED_NEXT_STEP: "HUMAN_DECISION",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "128",
+    AUTOMATION_CURRENT_ROUND: "2",
+    AUTOMATION_MAX_ROUNDS: "5",
+    AGENT_ALLOW_SELF_APPROVE: "false",
+  });
+
+  assert.equal(disabled.status, 0, disabled.stderr || disabled.stdout);
+  assert.equal(disabled.outputs.get("decision"), "stop");
+  assert.match(disabled.outputs.get("reason") || "", /HUMAN_DECISION/);
+  assert.doesNotMatch(disabled.ghLog, /actions\/workflows\/agent-self-approve\.yml\/dispatches/);
+
+  const nonShip = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "MINOR_ISSUES",
+    SOURCE_RECOMMENDED_NEXT_STEP: "HUMAN_DECISION",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "128",
+    AUTOMATION_CURRENT_ROUND: "2",
+    AUTOMATION_MAX_ROUNDS: "5",
+    AGENT_ALLOW_SELF_APPROVE: "true",
+  });
+
+  assert.equal(nonShip.status, 0, nonShip.stderr || nonShip.stdout);
+  assert.equal(nonShip.outputs.get("decision"), "stop");
+  assert.match(nonShip.outputs.get("reason") || "", /minor_issues/);
+  assert.doesNotMatch(nonShip.ghLog, /actions\/workflows\/agent-fix-pr\.yml\/dispatches/);
 });
 
 test("self-approval request changes dispatches fix-pr with context", () => {

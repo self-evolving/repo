@@ -10,6 +10,7 @@ export interface HandoffInput {
   automationMode: string;
   sourceAction: string;
   sourceConclusion: string;
+  sourceRecommendedNextStep?: string;
   sourceHandoffContext?: string;
   targetKind?: string;
   targetNumber: string;
@@ -84,6 +85,10 @@ const DEFAULT_FIX_PR_HANDOFF_CONTEXT = [
 const DEFAULT_SELF_APPROVAL_FIX_PR_HANDOFF_CONTEXT = [
   "Address only the self-approval REQUEST_CHANGES findings.",
   "Preserve the reviewed-head and deterministic approval safeguards; avoid unrelated changes.",
+].join(" ");
+const DEFAULT_REVIEW_SELF_APPROVAL_HANDOFF_CONTEXT = [
+  "Review synthesis final verdict is SHIP, but its recommended next step is HUMAN_DECISION.",
+  "Inspect the PR and either approve, request concrete follow-up changes, or block for a human decision.",
 ].join(" ");
 const ANY_HANDOFF_MARKER_RE = new RegExp(
   `<!--\\s*${HANDOFF_MARKER_PREFIX}(?:\\s+state:(pending|dispatched|failed))?(?:\\s+created:(\\d+))?\\s+base64:[A-Za-z0-9_-]+\\s*-->`,
@@ -205,12 +210,44 @@ export function buildReviewFixPrHandoffContext(markdown: string): string {
   ].join("\n");
 }
 
+export function extractReviewRecommendedNextStep(markdown: string): string {
+  const section = extractMarkdownSection(markdown, "Recommended Next Step");
+  const text = section || markdown || "";
+  const match = text.match(/\b(FIX_PR|HUMAN_DECISION|NO_AUTOMATED_ACTION)\b/i);
+  return match ? normalizeToken(match[1]) : "";
+}
+
+export function reviewNeedsHumanDecisionSelfApproval(markdown: string): boolean {
+  return extractReviewConclusion(markdown) === "ship" &&
+    extractReviewRecommendedNextStep(markdown) === "human_decision";
+}
+
+export function buildReviewSelfApprovalHandoffContext(markdown: string): string {
+  if (!reviewNeedsHumanDecisionSelfApproval(markdown)) return "";
+  const details = [
+    extractMarkdownSection(markdown, "Summary of PR/Issue"),
+    extractMarkdownSection(markdown, "Review"),
+    extractMarkdownSection(markdown, "Action Items"),
+  ]
+    .map((section) => section.trim())
+    .filter(Boolean)
+    .slice(0, 3);
+  return [
+    DEFAULT_REVIEW_SELF_APPROVAL_HANDOFF_CONTEXT,
+    ...details.flatMap((detail) => ["", detail]),
+  ].join("\n");
+}
+
 function resolveFixPrHandoffContext(input: HandoffInput): string {
   return String(input.sourceHandoffContext || "").trim() || defaultFixPrHandoffContext();
 }
 
 function resolveSelfApprovalFixPrHandoffContext(input: HandoffInput): string {
   return String(input.sourceHandoffContext || "").trim() || DEFAULT_SELF_APPROVAL_FIX_PR_HANDOFF_CONTEXT;
+}
+
+function resolveReviewSelfApprovalHandoffContext(input: HandoffInput): string {
+  return String(input.sourceHandoffContext || "").trim() || DEFAULT_REVIEW_SELF_APPROVAL_HANDOFF_CONTEXT;
 }
 
 function normalizeAgentAction(value: string): AgentAction | null {
@@ -459,6 +496,20 @@ function decideHeuristicHandoff(input: HandoffInput): HandoffDecision {
   }
 
   if (sourceAction === "review") {
+    const recommendedNextStep = normalizeToken(input.sourceRecommendedNextStep || "");
+    if (recommendedNextStep === "human_decision") {
+      if (conclusion === "ship" && input.allowSelfApprove) {
+        return {
+          decision: "dispatch",
+          nextAction: "agent-self-approve",
+          targetNumber: nextTarget,
+          reason: "review verdict is SHIP with HUMAN_DECISION; dispatching agent-self-approve",
+          nextRound,
+          handoffContext: resolveReviewSelfApprovalHandoffContext(input),
+        };
+      }
+      return { decision: "stop", reason: `review recommended HUMAN_DECISION after ${conclusion}`, nextRound };
+    }
     if (conclusion === "ship") {
       if (input.allowSelfApprove) {
         return {

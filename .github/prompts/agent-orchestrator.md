@@ -7,6 +7,7 @@ chain should stop or hand off to exactly one allowed next action.
 
 - Source action: `${ORCHESTRATOR_SOURCE_ACTION}`
 - Source conclusion: `${ORCHESTRATOR_SOURCE_CONCLUSION}`
+- Source recommended next step, if any: `${ORCHESTRATOR_SOURCE_RECOMMENDED_NEXT_STEP}`
 - Source run ID: `${ORCHESTRATOR_SOURCE_RUN_ID}`
 - Current round: `${ORCHESTRATOR_CURRENT_ROUND}`
 - Max rounds: `${ORCHESTRATOR_MAX_ROUNDS}`
@@ -77,6 +78,10 @@ Rules:
   as the primary automation signal: hand off on `FIX_PR`, stop on
   `HUMAN_DECISION` or `NO_AUTOMATED_ACTION` unless newer human input overrides
   it or self-approval is enabled for a `SHIP` review.
+- When source conclusion is `SHIP`, source recommended next step is
+  `HUMAN_DECISION`, and self-approval is enabled, hand off to
+  `agent-self-approve` with the source handoff context. Let self-approval return
+  `BLOCKED` if the decision should remain with a human.
 - Use `handoff` only when one more automatic action is clearly warranted.
 - For issue-level `orchestrate`, prefer `handoff` with `next_action:
   "implement"` when the requested work fits in the current issue. Use

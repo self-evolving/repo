@@ -856,6 +856,7 @@ const ref = process.env.DEFAULT_BRANCH || "";
 const sourceAction = process.env.SOURCE_ACTION || "";
 const sourceConclusion = process.env.SOURCE_CONCLUSION || "unknown";
 const sourceRunId = process.env.SOURCE_RUN_ID || process.env.GITHUB_RUN_ID || "";
+const sourceRecommendedNextStep = process.env.SOURCE_RECOMMENDED_NEXT_STEP || "";
 const sourceHandoffContext = process.env.SOURCE_HANDOFF_CONTEXT || "";
 const sourceTargetKind = process.env.TARGET_KIND || "";
 const sourceAssociationRaw = process.env.AUTHOR_ASSOCIATION || "";
@@ -1330,6 +1331,7 @@ function decidePlannerOrchestration(): HandoffDecision {
     automationMode,
     sourceAction,
     sourceConclusion,
+    sourceRecommendedNextStep,
     targetKind: sourceTargetKind,
     targetNumber,
     nextTargetNumber: process.env.NEXT_TARGET_NUMBER || "",
@@ -1366,6 +1368,7 @@ const routeDecision = authorizationStop || (normalizeToken(sourceAction) === "or
     automationMode,
     sourceAction,
     sourceConclusion,
+    sourceRecommendedNextStep,
     targetKind: sourceTargetKind,
     targetNumber,
     nextTargetNumber: process.env.NEXT_TARGET_NUMBER || "",
@@ -1550,6 +1553,7 @@ try {
     dispatchWorkflow(repo, "agent-self-approve.yml", ref, {
       ...commonInputs,
       pr_number: decision.targetNumber,
+      source_handoff_context: decision.handoffContext || "",
     });
   } else if (decision.nextAction === "agent-self-merge") {
     dispatchWorkflow(repo, "agent-self-merge.yml", ref, {
