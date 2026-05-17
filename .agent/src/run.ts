@@ -542,6 +542,7 @@ function runDirectPath(opts: {
     threadKey: envelope.thread_key,
     permissionMode,
     thoughtLevel: process.env.MODEL_REASONING_EFFORT,
+    preserveExecThoughtLevel: sessionPolicy === "track-only",
     resumeSessionId,
     continuationPrompt: continuationPromptAllowed ? continuationPrompt : undefined,
     env: sharedEnv,

@@ -7,14 +7,16 @@ Persistent session continuity can optionally use GitHub Actions artifacts to car
 The shared `run-agent-task` action accepts `session_policy`:
 
 - `none`: run one-shot with `acpx <agent> exec` and do not write thread state
-- `track-only`: run one-shot with `acpx <agent> exec` while still updating thread state for run metadata
+- `track-only`: run one-shot without a stable named ACP session while still updating thread state for run metadata
 - `resume-best-effort`: use a persistent named ACP session when a resumable identity is available, but fall back fresh when continuity cannot be restored
 - `resume-required`: use a persistent named ACP session and fail when an existing thread cannot satisfy the continuity requirement
 
 `track-only` intentionally does not ensure or prompt a stable named ACP session.
-It is for jobs that need observability without conversational continuity, such
-as review synthesis, reviewer lanes, self-approval checks, and scheduled
-one-shot actions.
+Codex `track-only` runs that need a `thought_level` may use a fresh per-run ACP
+session to apply that option, but still do not reuse the target/lane session
+identity. It is for jobs that need observability without conversational
+continuity, such as review synthesis, reviewer lanes, self-approval checks, and
+scheduled one-shot actions.
 
 ## Session bundle modes
 
