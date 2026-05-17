@@ -815,6 +815,7 @@ test("shared run-agent-task action exists and requires explicit prompt/skill/lan
   assert.match(action, /name: Run Agent Task/);
   assert.match(action, /prompt:/);
   assert.match(action, /skill:/);
+  assert.match(action, /skill_root:/);
   assert.match(action, /lane:/);
   assert.match(action, /session_policy:/);
   const sessionPolicyBlock = action.match(/session_policy:[\s\S]*?(?=^  [a-z_]+:|^outputs:)/m)?.[0] || "";
@@ -822,6 +823,7 @@ test("shared run-agent-task action exists and requires explicit prompt/skill/lan
   assert.doesNotMatch(sessionPolicyBlock, /default:/);
   assert.match(action, /PROMPT_NAME/);
   assert.match(action, /SKILL_NAME/);
+  assert.match(action, /SKILL_ROOT/);
   assert.match(action, /LANE/);
   assert.match(action, /SESSION_POLICY/);
   assert.match(action, /\.agent\/dist\/run\.js/);
@@ -836,6 +838,43 @@ test("shared setup-agent-runtime action exists and is referenced by reusable wor
   assert.match(action, /npm ci/);
   assert.match(action, /npm run build/);
   assert.match(runnerWorkflow, /\.\/\.github\/actions\/setup-agent-runtime/);
+});
+
+test("skill route uses the composite setup action for path and setup checks", () => {
+  const runnerWorkflow = readRepoFile(".github/workflows/agent-router.yml");
+  const setupAction = readRepoFile(".github/actions/run-skill-setup/action.yml");
+  const skillJobStart = runnerWorkflow.indexOf("  skill:\n    needs: portal");
+  const approvalJobStart = runnerWorkflow.indexOf("  approval:", skillJobStart);
+  assert.ok(skillJobStart >= 0);
+  assert.ok(approvalJobStart > skillJobStart);
+  const skillWorkflow = runnerWorkflow.slice(skillJobStart, approvalJobStart);
+  const optionalProviderStart = skillWorkflow.indexOf("- name: Resolve skill provider");
+  const runtimeStart = skillWorkflow.indexOf("- name: Setup agent runtime");
+  const checkStart = skillWorkflow.indexOf("- name: Check skill");
+  const requireProviderStart = skillWorkflow.indexOf("- name: Require skill provider");
+  const setupStart = skillWorkflow.indexOf("- name: Run skill setup");
+
+  assert.match(skillWorkflow, /\.\/\.github\/actions\/run-skill-setup/);
+  assert.match(skillWorkflow, /trusted_ref:\s*\$\{\{ !startsWith\(github\.ref, 'refs\/pull\/'\) \}\}/);
+  assert.match(skillWorkflow, /skill_root:\s*\$\{\{ inputs\.skill_root \}\}/);
+  assert.ok(optionalProviderStart >= 0);
+  assert.ok(runtimeStart > optionalProviderStart);
+  assert.ok(checkStart > runtimeStart);
+  assert.ok(requireProviderStart > checkStart);
+  assert.ok(setupStart > requireProviderStart);
+  assert.match(skillWorkflow, /required:\s*"false"/);
+  assert.doesNotMatch(skillWorkflow, /resolve-skill\.js/);
+  assert.match(skillWorkflow, /run_setup:\s*"false"/);
+  assert.match(skillWorkflow, /run_setup:\s*"true"/);
+  assert.match(skillWorkflow, /steps\.skill_setup\.outcome == 'success'/);
+  assert.match(skillWorkflow, /steps\.skill_check\.outputs\.exists == 'false'/);
+  assert.match(setupAction, /name: Run Skill Setup/);
+  assert.match(setupAction, /run_setup:/);
+  assert.doesNotMatch(setupAction, /node \.agent\/dist\/cli\/run-skill-setup\.js/);
+  assert.match(setupAction, /if \[ ! -f "\$skill_file" \]/);
+  assert.match(setupAction, /if \[ ! -f "\$setup_file" \]/);
+  assert.match(setupAction, /Refusing to run .*untrusted PR checkout/);
+  assert.match(setupAction, /bash "\$setup_file"/);
 });
 
 test("shared auth action supports the built-in hosted OIDC broker mode", () => {
@@ -942,6 +981,7 @@ test("workflow docs record the minimal metadata contract and developer notes", (
   const supportedWorkflows = readRepoFile(".agent/docs/architecture/supported-workflows.md");
   const requestLifecycle = readRepoFile(".agent/docs/architecture/request-lifecycle.md");
   const configurationList = readRepoFile(".agent/docs/customization/configuration-list.md");
+  const skillsDocs = readRepoFile(".agent/docs/customization/skills.md");
   const existingRepoInstall = readRepoFile(".agent/docs/deployment/install-existing-repository.md");
   const developerNotes = readRepoFile(".agent/docs/technical-details/developer-notes.md");
 
@@ -1031,8 +1071,10 @@ test("workflow docs record the minimal metadata contract and developer notes", (
   assert.match(developerNotes, /## Known limitations/);
   assert.match(developerNotes, /hosted Sepo App path only works/);
   assert.match(developerNotes, /selected-repository installation/);
-  assert.match(developerNotes, /`skill_root`/);
-  assert.match(developerNotes, /\/skill/);
+  assert.match(skillsDocs, /`skill_root`/);
+  assert.match(skillsDocs, /\/skill/);
+  assert.match(skillsDocs, /setup\.sh/);
+  assert.match(skillsDocs, /agent-router\.yml/);
   assert.match(developerNotes, /lazy blockquote/);
   assert.match(developerNotes, /lightweight post-agent check/);
 });

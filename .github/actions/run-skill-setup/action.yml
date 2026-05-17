@@ -1,0 +1,112 @@
+name: Run Skill Setup
+description: Run the optional setup.sh hook for a repository skill.
+
+inputs:
+  skill:
+    description: "User-defined skill name"
+    required: true
+  skill_root:
+    description: "Root directory for user-defined skills"
+    required: false
+    default: ".skills"
+  trusted_ref:
+    description: "Whether setup is loaded from a trusted checkout"
+    required: true
+  run_setup:
+    description: "Whether to run setup.sh when it exists"
+    required: false
+    default: "true"
+
+outputs:
+  exists:
+    description: "Whether the skill has a SKILL.md file"
+    value: ${{ steps.setup.outputs.exists }}
+  skill_path:
+    description: "Repository-relative SKILL.md path"
+    value: ${{ steps.setup.outputs.skill_path }}
+  setup_exists:
+    description: "Whether the skill has a setup.sh script"
+    value: ${{ steps.setup.outputs.setup_exists }}
+  setup_ran:
+    description: "Whether setup.sh ran"
+    value: ${{ steps.setup.outputs.setup_ran }}
+  setup_path:
+    description: "Repository-relative setup.sh path"
+    value: ${{ steps.setup.outputs.setup_path }}
+
+runs:
+  using: composite
+  steps:
+    - name: Run skill setup
+      id: setup
+      shell: bash
+      env:
+        SKILL_NAME: ${{ inputs.skill }}
+        SKILL_ROOT: ${{ inputs.skill_root }}
+        SKILL_SETUP_TRUSTED_REF: ${{ inputs.trusted_ref }}
+        RUN_SKILL_SETUP: ${{ inputs.run_setup }}
+      run: |
+        set -euo pipefail
+
+        skill="${SKILL_NAME}"
+        skill_root="${SKILL_ROOT:-.skills}"
+        if [ -z "$skill_root" ]; then
+          skill_root=".skills"
+        fi
+
+        if [[ ! "$skill" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
+          printf 'Invalid skill name "%s". Use letters, numbers, dots, underscores, or hyphens.\n' "$skill" >&2
+          exit 2
+        fi
+        case "$skill_root" in
+          /*|..|../*|*/..|*/../*)
+            printf 'Skill root must stay inside the repository: %s\n' "$skill_root" >&2
+            exit 2
+            ;;
+        esac
+        skill_root="${skill_root%/}"
+
+        skill_root_dir="$GITHUB_WORKSPACE/$skill_root"
+        skill_dir="$skill_root_dir/$skill"
+        skill_file="$skill_dir/SKILL.md"
+        setup_file="$skill_dir/setup.sh"
+        skill_path="$skill_root/$skill/SKILL.md"
+        setup_path="$skill_root/$skill/setup.sh"
+
+        {
+          printf 'skill_path=%s\n' "$skill_path"
+          printf 'setup_path=%s\n' "$setup_path"
+          printf 'setup_ran=false\n'
+        } >> "$GITHUB_OUTPUT"
+
+        if [ ! -f "$skill_file" ]; then
+          printf 'exists=false\n' >> "$GITHUB_OUTPUT"
+          printf 'setup_exists=false\n' >> "$GITHUB_OUTPUT"
+          printf 'Skill file not found: %s\n' "$skill_path"
+          exit 0
+        fi
+        printf 'exists=true\n' >> "$GITHUB_OUTPUT"
+
+        if [ ! -f "$setup_file" ]; then
+          printf 'setup_exists=false\n' >> "$GITHUB_OUTPUT"
+          printf 'No skill setup script found: %s\n' "$setup_path"
+          exit 0
+        fi
+        printf 'setup_exists=true\n' >> "$GITHUB_OUTPUT"
+
+        if [ "$RUN_SKILL_SETUP" != "true" ]; then
+          printf 'Skill setup script found: %s\n' "$setup_path"
+          exit 0
+        fi
+
+        if [ "$SKILL_SETUP_TRUSTED_REF" != "true" ]; then
+          printf 'Refusing to run %s from an untrusted PR checkout\n' "$setup_path" >&2
+          exit 1
+        fi
+
+        export SKILL_NAME="$skill"
+        export SKILL_ROOT="$skill_root_dir"
+        export SKILL_DIR="$skill_dir"
+        bash "$setup_file"
+        printf 'setup_ran=true\n' >> "$GITHUB_OUTPUT"
+        printf 'Skill setup completed: %s\n' "$setup_path"

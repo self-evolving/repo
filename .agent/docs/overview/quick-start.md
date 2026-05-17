@@ -34,7 +34,7 @@ Use an explicit slash route when you already know the action:
 | Create action | Propose a standalone scheduled agent workflow through a PR. | `@sepo-agent /create-action ...` |
 | Review | Run the dual-agent PR review flow. | `@sepo-agent /review` |
 | Fix PR | Push fixes to the current PR branch. | `@sepo-agent /fix-pr` |
-| Skill | Run a repository skill from `.skills/<name>/SKILL.md`. | `@sepo-agent /skill <name>` |
+| Skill | Run a repository skill from `<skill_root>/<name>/SKILL.md`. | `@sepo-agent /skill <name>` |
 
 You can also trigger the same built-in routes with labels:
 

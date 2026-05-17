@@ -217,7 +217,13 @@ Explicit routes are:
 Explicit routes skip dispatch triage and resolve locally, but still go through the same route policy checks afterward.
 When an explicit `/implement` request on a pull request or discussion creates a tracking issue, the router runs a metadata-only agent prompt to synthesize the issue title and body from the request plus target context. The slash command approves the route; it is not copied into the title. If metadata generation is unavailable or invalid, the issue falls back to `Implement requested change`.
 
-Mention-based skill requests normalize the skill name to lowercase and run `.skills/<name>/SKILL.md` inline through the same `skill` route used by `agent/s/<skill>` labels.
+Mention-based skill requests normalize the skill name to lowercase and run
+`<skill_root>/<name>/SKILL.md` inline through the same `skill` route used by
+`agent/s/<skill>` labels. If `<skill_root>/<name>/setup.sh` exists, the skill
+job runs it from the repository root before the agent task starts. More complex
+skill setup should customize the copied `agent-router.yml` skill job directly
+so repositories can use native GitHub Actions `uses`, `with`, Docker, service,
+or cache features.
 
 ### `agent-label.yml`
 
@@ -239,13 +245,17 @@ created per skill as needed.
 
 After a label-triggered request is accepted by the router, `agent-label.yml` removes the triggering `agent/*` label so label-based runs behave like one-shot queue entries, including policy-denied requests that resolve to `unsupported`.
 
-Built-in labels map directly to the existing routes. `agent/s/<skill>` runs `.skills/<skill>/SKILL.md` inline; if the skill file is missing, the runner posts a visible fallback comment instead of silently skipping the label.
+Built-in labels map directly to the existing routes. `agent/s/<skill>` runs
+`<skill_root>/<skill>/SKILL.md` inline; if the skill file is missing, the runner
+posts a visible fallback comment instead of silently skipping the label.
 
 If `AGENT_STATUS_LABEL_ENABLED=true`, accepted non-unsupported issue and pull request requests also get the fixed `agent` status label. This status label is separate from the `agent/*` trigger labels and does not select a route.
 
 Label triggers authorize the label applier rather than the issue or pull request author. Personal-repository owners map to `OWNER`; visible organization members map to `MEMBER`; repository collaborators with label permission map to `COLLABORATOR`.
 
-Skill names are normalized to lowercase, so `agent/s/Release-Notes` resolves to `.skills/release-notes/SKILL.md`. Skill directories should use lowercase names to match consistently across case-sensitive filesystems.
+Skill names are normalized to lowercase, so `agent/s/Release-Notes` resolves to
+`.skills/release-notes/SKILL.md` by default. Skill directories should use
+lowercase names to match consistently across case-sensitive filesystems.
 
 ### `agent-self-approve.yml`
 

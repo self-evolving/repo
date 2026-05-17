@@ -4,8 +4,8 @@
 // the prompt template (base + route), runs acpx directly, and outputs the
 // result.
 
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { readFileSync, writeFileSync, existsSync, statSync } from "node:fs";
+import { isAbsolute, join, resolve } from "node:path";
 import { randomBytes } from "node:crypto";
 
 import {
@@ -129,10 +129,24 @@ const PROMPT_TEMPLATES: Record<string, string> = {
   "agent-self-approve": ".github/prompts/agent-self-approve.md",
 };
 
+const VALID_SKILL_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
+function isRegularFile(path: string): boolean {
+  try {
+    return statSync(path).isFile();
+  } catch {
+    return false;
+  }
+}
+
+function isSafeRelativePath(path: string): boolean {
+  return path !== "" && !isAbsolute(path) && !path.split(/[\\/]+/).includes("..");
+}
+
 /**
  * Resolves the prompt template path from multiple sources:
  * 1. PROMPT_NAME env var → look up in PROMPT_TEMPLATES or .github/prompts/<name>.md
- * 2. SKILL_NAME env var → .skills/<name>/SKILL.md
+ * 2. SKILL_NAME env var → <skill_root>/<name>/SKILL.md
  * 3. Fall back to route-based lookup in PROMPT_TEMPLATES
  */
 function resolveTemplatePath(route: string, repoRoot: string): string | null {
@@ -151,9 +165,10 @@ function resolveTemplatePath(route: string, repoRoot: string): string | null {
   }
 
   if (skillName) {
-    // Named skill: .skills/<name>/SKILL.md
-    const p = join(repoRoot, ".skills", skillName, "SKILL.md");
-    if (existsSync(p)) return p;
+    const skillRoot = process.env.SKILL_ROOT?.trim() || ".skills";
+    if (!VALID_SKILL_NAME.test(skillName) || !isSafeRelativePath(skillRoot)) return null;
+    const p = join(repoRoot, skillRoot, skillName, "SKILL.md");
+    if (isRegularFile(p)) return p;
     return null;
   }
 
