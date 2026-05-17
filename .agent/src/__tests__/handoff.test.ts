@@ -368,6 +368,48 @@ test("agent mode stops invalid or disallowed planner handoffs", () => {
   assert.match(wrongEdge.reason, /policy only allows fix-pr/);
 });
 
+test("agent mode permits parent finalization of deferred child PRs", () => {
+  const decision = decideHandoff({
+    automationMode: "agent",
+    sourceAction: "orchestrate",
+    sourceConclusion: "done",
+    targetKind: "issue",
+    targetNumber: "76",
+    currentRound: 2,
+    maxRounds: 5,
+    allowSelfApprove: true,
+    plannerDecision: {
+      decision: "handoff",
+      nextAction: "agent-self-approve",
+      targetPr: "88",
+      reason: "Finalize the first ready deferred child PR.",
+    },
+  });
+
+  assert.equal(decision.decision, "dispatch");
+  assert.equal(decision.nextAction, "agent-self-approve");
+  assert.equal(decision.targetNumber, "88");
+  assert.match(decision.reason, /deferred child finalization/);
+
+  const missingTarget = decideHandoff({
+    automationMode: "agent",
+    sourceAction: "orchestrate",
+    sourceConclusion: "done",
+    targetKind: "issue",
+    targetNumber: "76",
+    currentRound: 2,
+    maxRounds: 5,
+    allowSelfApprove: true,
+    plannerDecision: {
+      decision: "handoff",
+      nextAction: "agent-self-approve",
+      reason: "Finalize the next child.",
+    },
+  });
+  assert.equal(missingTarget.decision, "stop");
+  assert.match(missingTarget.reason, /target_pr/);
+});
+
 test("agent mode respects planner stop, invalid planner output, and round budget", () => {
   const stopped = decideHandoff({
     automationMode: "agent",
@@ -827,7 +869,7 @@ test("parsePlannerDecision reads planner JSON", () => {
   );
   assert.deepEqual(
     parsePlannerDecision(
-      '{"decision":"delegate_issue","reason":"Delegate.","child_stage":"Stage One","child_instructions":"Do one thing.","base_pr":"12","finalize_policy":"defer"}',
+      '{"decision":"delegate_issue","reason":"Delegate.","child_stage":"Stage One","child_instructions":"Do one thing.","base_pr":"12","finalize_policy":"defer","target_pr":"99"}',
     ),
     {
       decision: "delegate_issue",
@@ -837,6 +879,7 @@ test("parsePlannerDecision reads planner JSON", () => {
       childInstructions: "Do one thing.",
       basePr: "12",
       finalizePolicy: "defer",
+      targetPr: "99",
     },
   );
   assert.equal(parsePlannerDecision("not json"), null);

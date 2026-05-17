@@ -11,6 +11,7 @@ import {
   parseSubOrchestratorChildLinkMarker,
   parseSubOrchestratorMarker,
   resultStateFromTerminal,
+  updateSubOrchestratorMarkerFinalizePolicy,
   updateSubOrchestratorMarkerParentRound,
   updateSubOrchestratorMarkerState,
 } from "../sub-orchestration.js";
@@ -56,6 +57,8 @@ test("sub-orchestrator markers can defer parent finalization", () => {
   assert.equal(normalizeSubOrchestratorFinalizePolicy("independent"), "immediate");
   assert.equal(normalizeSubOrchestratorFinalizePolicy("defer-self-approval"), "defer");
   assert.match(updateSubOrchestratorMarkerParentRound(marker, 4), /finalize:defer/);
+  assert.match(updateSubOrchestratorMarkerFinalizePolicy(marker, "immediate"), /parent_round:2 -->$/);
+  assert.doesNotMatch(updateSubOrchestratorMarkerFinalizePolicy(marker, "immediate"), /finalize:defer/);
 });
 
 test("sub-orchestrator child link markers format and parse", () => {

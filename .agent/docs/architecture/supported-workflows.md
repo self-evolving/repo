@@ -43,7 +43,10 @@ meta-orchestration, the planner can return an internal `delegate_issue` command
 instead of adding a new public route. That command creates or reuses a child
 issue with parent/stage metadata, dispatches the child issue through the normal
 `/orchestrate` flow in heuristic mode, and keeps the parent/child relationship
-in GitHub issue state rather than session identity.
+in GitHub issue state rather than session identity. Child metadata can also
+record `finalize:defer`: independent children keep immediate per-PR
+self-approval/self-merge behavior, while deferred children stop after a `SHIP`
+review and report readiness to the parent.
 When `delegate_issue` names an existing user-authored issue, the orchestrator
 adopts it by writing the trusted child marker in an agent-authored issue comment
 and recording the parent/child link on the parent issue. The dispatcher also
@@ -66,7 +69,12 @@ terminal target is a PR. It then posts or updates a visible progress comment on
 the parent issue, dispatches the parent issue orchestrator again in agent mode,
 and only then marks the trusted child marker as `done`, `blocked`, or `failed`.
 Already-dispatched terminal reports are idempotent so reruns do not overwrite
-completed child state.
+completed child state. When a deferred child reports a ready PR, the parent can
+later dispatch `agent-self-approve` for the earliest unfinalized ready child PR;
+runtime validation rejects missing, untrusted, or out-of-order targets. The
+normal self-approval/self-merge handoff chain runs for that PR, and terminal
+finalization resumes the parent so additional ready child PRs are finalized in
+dependency order.
 
 Because `/orchestrate` can delegate into implementation, review, fix, enabled
 self-approval workflows, and enabled self-merge workflows, initial

@@ -144,6 +144,15 @@ export function updateSubOrchestratorMarkerParentRound(body: string, parentRound
   return String(body || "").replace(MARKER_RE, formatSubOrchestratorMarker({ ...marker, parentRound }));
 }
 
+export function updateSubOrchestratorMarkerFinalizePolicy(
+  body: string,
+  finalizePolicy: SubOrchestratorFinalizePolicy | string,
+): string {
+  const marker = parseSubOrchestratorMarker(body);
+  if (!marker) return body;
+  return String(body || "").replace(MARKER_RE, formatSubOrchestratorMarker({ ...marker, finalizePolicy }));
+}
+
 export function formatSubOrchestrationIssueBody(input: {
   parentIssue: number;
   stage: string;

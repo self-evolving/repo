@@ -42,6 +42,10 @@ these policy rules:
 - Issue-level `orchestrate` in agent mode may return `delegate_issue` to
   create, reuse, or adopt one child issue and start the child issue's normal
   orchestrator flow.
+- Resumed issue-level parent `orchestrate` may return `handoff` with
+  `next_action: "agent-self-approve"` and `target_pr` only for the earliest
+  trusted deferred child PR that has reported `Ready to ship`; runtime rejects
+  missing, untrusted, or out-of-order targets.
 - Pull-request-level `orchestrate` in agent mode may return `handoff` with
   `next_action: "review"` or `next_action: "fix-pr"` for open PR targets. Use
   `review` for analysis-only or review-first requests, and `fix-pr` only when
@@ -70,7 +74,8 @@ rubrics. Then return exactly one JSON object and nothing else:
   "child_issue_number": "Optional existing child issue number to reuse or adopt.",
   "base_branch": "Optional branch to base implementation PRs on.",
   "base_pr": "Optional PR number whose head branch implementation PRs should stack on.",
-  "finalize_policy": "Optional child finalization policy: immediate | defer"
+  "finalize_policy": "Optional child finalization policy: immediate | defer",
+  "target_pr": "Ready deferred child PR number when a parent is finalizing child work."
 }
 ```
 
@@ -102,6 +107,12 @@ Rules:
   until the parent has no more child work, set `finalize_policy: "defer"`.
   Deferred child PRs report readiness to the parent after `SHIP`; the parent
   should finalize ready PRs later in dependency order.
+- When the parent has no more child implementation work and deferred child PRs
+  are ready, hand off `agent-self-approve` with `target_pr` for the earliest
+  unfinalized ready child PR. Do not dispatch `agent-self-merge` directly; the
+  normal self-approval result handoff handles self-merge when it is enabled, and
+  terminal finalization resumes the parent so it can continue with the next
+  ready child.
 - Be conservative for `MINOR_ISSUES`, especially in late rounds. Hand off to
   `fix-pr` only for concrete unresolved findings that require a branch change
   and are safe for an automated agent to apply.

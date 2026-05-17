@@ -36,6 +36,7 @@ import {
   parseSubOrchestratorChildLinkMarker,
   parseSubOrchestratorMarker,
   resultStateFromTerminal,
+  updateSubOrchestratorMarkerFinalizePolicy,
   updateSubOrchestratorMarkerParentRound,
   updateSubOrchestratorMarkerState,
   type SubOrchestratorMarker,
@@ -147,6 +148,10 @@ function formatSubOrchestrationOutcome(state: SubOrchestratorState): string {
   }
 }
 
+function formatDeferredFinalizationOutcome(state: SubOrchestratorState): string {
+  return state === "done" ? "Finalized" : formatSubOrchestrationOutcome(state);
+}
+
 function formatSubOrchestrationProgressComment(input: {
   childIssue: number;
   prNumber?: string;
@@ -178,6 +183,61 @@ function formatSubOrchestrationProgressComment(input: {
     "",
     input.marker,
   ].join("\n");
+}
+
+function formatDeferredFinalizationProgressComment(input: {
+  childIssue: number;
+  prNumber: string;
+  resultState: SubOrchestratorState;
+  parentRound: number;
+  maxRounds: number;
+  summary: string;
+  marker: string;
+}): string {
+  return [
+    "Deferred child finalization completed.",
+    "",
+    ...formatTransposedMarkdownTable(
+      ["Child task", "PR", "Outcome", "Parent round", "Next step"],
+      [
+        `#${input.childIssue}`,
+        `#${input.prNumber}`,
+        formatDeferredFinalizationOutcome(input.resultState),
+        `${input.parentRound} / ${input.maxRounds}`,
+        "Resuming parent orchestration",
+      ],
+    ),
+    "",
+    `Summary: ${input.summary || "No summary provided."}`,
+    "",
+    input.marker,
+  ].join("\n");
+}
+
+function parseSubOrchestrationReportChild(body: string): number {
+  const match = String(body || "").match(/<!--\s*sepo-sub-orchestrator-report\s+child:(\d+)\s+resume:(?:pending|dispatched)\s*-->/i);
+  return match ? parsePositiveTargetNumber(match[1] || "") : 0;
+}
+
+function parseDeferredFinalizationMarker(body: string): { childIssue: number; prNumber: number } | null {
+  const match = String(body || "").match(
+    /<!--\s*sepo-sub-orchestrator-finalization\s+child:(\d+)\s+pr:(\d+)\s+resume:(?:pending|dispatched)\s*-->/i,
+  );
+  if (!match) return null;
+  const childIssue = parsePositiveTargetNumber(match[1] || "");
+  const prNumber = parsePositiveTargetNumber(match[2] || "");
+  return childIssue && prNumber ? { childIssue, prNumber } : null;
+}
+
+function extractReportedPrNumber(body: string, childIssue: number): number {
+  const tableMatch = String(body || "").match(new RegExp(`\\|\\s*#${childIssue}\\s*\\|\\s*#(\\d+)\\s*\\|`, "i"));
+  if (tableMatch) return parsePositiveTargetNumber(tableMatch[1] || "");
+  const legacyMatch = String(body || "").match(/\bPR:\s*#?(\d+)\b/i);
+  return legacyMatch ? parsePositiveTargetNumber(legacyMatch[1] || "") : 0;
+}
+
+function isReadyProgressReport(body: string): boolean {
+  return /\bReady to ship\b/i.test(body) || /\bResult:\s*SHIP\b/i.test(body);
 }
 
 function formatActorLoginForMessage(login: string | undefined): string {
@@ -547,12 +607,16 @@ function updateTrustedSubOrchestratorMarker(
   updateIssueComment(repoSlug, issue.subOrchestrator.commentId, body);
 }
 
-function updateSubOrchestrationParentRound(
+function updateSubOrchestrationMarker(
   repoSlug: string,
   issue: SubOrchestrationIssueRecord,
-  parentRound: number,
+  input: {
+    parentRound: number;
+    finalizePolicy: string;
+  },
 ): void {
-  const updatedBody = updateSubOrchestratorMarkerParentRound(issue.subOrchestrator.body, parentRound);
+  let updatedBody = updateSubOrchestratorMarkerParentRound(issue.subOrchestrator.body, input.parentRound);
+  updatedBody = updateSubOrchestratorMarkerFinalizePolicy(updatedBody, input.finalizePolicy);
   if (updatedBody !== issue.subOrchestrator.body) {
     updateTrustedSubOrchestratorMarker(repoSlug, issue, updatedBody);
   }
@@ -705,6 +769,61 @@ function recordSubOrchestrationIssue(repoSlug: string, parentIssue: number, stag
   ensureGitHubSubIssueRelation(repoSlug, parentIssue, childIssue);
 }
 
+function finalizedDeferredChildKey(childIssue: number, prNumber: number): string {
+  return `${childIssue}:${prNumber}`;
+}
+
+function trustedFinalizedDeferredChildKeys(comments: CommentRecord[]): Set<string> {
+  const finalized = new Set<string>();
+  for (const comment of comments) {
+    if (!isTrustedActorLogin(comment.authorLogin || "")) continue;
+    const marker = parseDeferredFinalizationMarker(comment.body || "");
+    if (marker) {
+      finalized.add(finalizedDeferredChildKey(marker.childIssue, marker.prNumber));
+    }
+  }
+  return finalized;
+}
+
+function readyDeferredChildPrsInDependencyOrder(
+  repoSlug: string,
+  parentIssue: number,
+): Array<{ childIssue: number; prNumber: number }> {
+  const comments = fetchIssueComments(repoSlug, parentIssue);
+  const finalized = trustedFinalizedDeferredChildKeys(comments);
+  const ready: Array<{ childIssue: number; prNumber: number }> = [];
+  const seen = new Set<string>();
+
+  for (const comment of comments) {
+    if (!isTrustedActorLogin(comment.authorLogin || "")) continue;
+    const childIssue = parseSubOrchestrationReportChild(comment.body || "");
+    if (!childIssue) continue;
+    if (!isReadyProgressReport(comment.body || "")) continue;
+    const prNumber = extractReportedPrNumber(comment.body || "", childIssue);
+    if (!prNumber) continue;
+    const key = finalizedDeferredChildKey(childIssue, prNumber);
+    if (seen.has(key) || finalized.has(key)) continue;
+
+    let child: SubOrchestrationIssueRecord | null = null;
+    try {
+      child = trustedSubOrchestrationIssue(repoSlug, fetchIssueStrict(repoSlug, childIssue));
+    } catch {
+      child = null;
+    }
+    const marker = child?.subOrchestrator.marker;
+    if (
+      marker?.parent === parentIssue &&
+      (marker.state === "done" || marker.state === "running") &&
+      marker.finalizePolicy === "defer"
+    ) {
+      ready.push({ childIssue, prNumber });
+      seen.add(key);
+    }
+  }
+
+  return ready;
+}
+
 function formatSubOrchestrationAdoptionComment(input: {
   parentIssue: number;
   stage: string;
@@ -823,21 +942,21 @@ function ensureSubOrchestrationIssue(decision: HandoffDecision): string {
       finalizePolicy,
     );
     validateReusableChildIssue(childIssue, parentIssue, stage);
-    updateSubOrchestrationParentRound(repo, childIssue, parentRound);
+    updateSubOrchestrationMarker(repo, childIssue, { parentRound, finalizePolicy });
     recordSubOrchestrationIssue(repo, parentIssue, stage, childIssue.number);
     return String(existingIssueNumber);
   }
 
   const recordedIssue = findRecordedSubOrchestrationIssue(repo, parentIssue, stage);
   if (recordedIssue) {
-    updateSubOrchestrationParentRound(repo, recordedIssue, parentRound);
+    updateSubOrchestrationMarker(repo, recordedIssue, { parentRound, finalizePolicy });
     ensureGitHubSubIssueRelation(repo, parentIssue, recordedIssue.number);
     return String(recordedIssue.number);
   }
 
   const reusableIssue = findExistingSubOrchestrationIssue(repo, parentIssue, stage);
   if (reusableIssue) {
-    updateSubOrchestrationParentRound(repo, reusableIssue, parentRound);
+    updateSubOrchestrationMarker(repo, reusableIssue, { parentRound, finalizePolicy });
     recordSubOrchestrationIssue(repo, parentIssue, stage, reusableIssue.number);
     return String(reusableIssue.number);
   }
@@ -986,6 +1105,61 @@ function shouldDeferSelfApprovalForCurrentTarget(): boolean {
   }
 }
 
+function validateDeferredParentFinalizationTarget(decision: HandoffDecision): HandoffDecision | null {
+  if (
+    decision.decision !== "dispatch" ||
+    decision.nextAction !== "agent-self-approve" ||
+    normalizeToken(sourceAction) !== "orchestrate" ||
+    normalizeToken(sourceTargetKind) !== "issue"
+  ) {
+    return null;
+  }
+
+  const nextRound = decision.nextRound;
+  const parentIssue = parsePositiveTargetNumber(targetNumber);
+  const requestedPr = parsePositiveTargetNumber(decision.targetNumber || "");
+  if (!parentIssue || !requestedPr) {
+    return { decision: "stop", reason: "parent finalization requires a valid target_pr", nextRound };
+  }
+
+  const ready = readyDeferredChildPrsInDependencyOrder(repo, parentIssue);
+  if (!ready.length) {
+    return {
+      decision: "stop",
+      reason: "no deferred ready child PRs are available for parent finalization",
+      nextRound,
+    };
+  }
+
+  const nextReady = ready[0];
+  if (nextReady.prNumber !== requestedPr) {
+    const requested = ready.find((candidate) => candidate.prNumber === requestedPr);
+    return {
+      decision: "stop",
+      reason: requested
+        ? `deferred child PR #${requestedPr} cannot be finalized before PR #${nextReady.prNumber}`
+        : `PR #${requestedPr} is not a trusted deferred ready child PR for parent issue #${parentIssue}`,
+      nextRound,
+    };
+  }
+
+  return null;
+}
+
+function isDeferredParentFinalizationDispatch(decision: HandoffDecision): boolean {
+  return decision.decision === "dispatch" &&
+    decision.nextAction === "agent-self-approve" &&
+    normalizeToken(sourceAction) === "orchestrate" &&
+    normalizeToken(sourceTargetKind) === "issue";
+}
+
+function dispatchedActionAutomationMode(decision: HandoffDecision): string {
+  if (isDeferredParentFinalizationDispatch(decision)) {
+    return "heuristics";
+  }
+  return automationMode === "disabled" ? "heuristics" : automationMode;
+}
+
 function hasTrustedTerminalSubOrchestrationStopComment(repoSlug: string, issueNumber: number, marker: string): boolean {
   try {
     return fetchIssueComments(repoSlug, issueNumber).some((comment) =>
@@ -1018,7 +1192,94 @@ function commentOnTerminalSubOrchestrationRejection(rejection: TerminalSubOrches
   }));
 }
 
+function reportDeferredFinalizationToParent(decision: HandoffDecision): boolean {
+  const normalizedSourceAction = normalizeToken(sourceAction);
+  if (
+    normalizeToken(sourceTargetKind) !== "pull_request" ||
+    (normalizedSourceAction !== "agent_self_approve" && normalizedSourceAction !== "agent_self_merge")
+  ) {
+    return false;
+  }
+
+  const childResolution = resolveChildIssueForTerminal();
+  if (childResolution.kind !== "trusted") {
+    if (childResolution.kind === "rejected") {
+      commentOnTerminalSubOrchestrationRejection(childResolution.rejection);
+    }
+    return false;
+  }
+
+  const childIssue = childResolution.issue;
+  const marker = childIssue.subOrchestrator.marker;
+  if (marker.finalizePolicy !== "defer" || marker.state !== "done") {
+    return false;
+  }
+
+  const prNumber = parsePositiveTargetNumber(targetNumber);
+  if (!prNumber) return false;
+
+  const resultState = resultStateFromTerminal({
+    sourceAction,
+    sourceConclusion,
+    reason: decision.reason,
+  });
+  const parentRound = currentRound;
+  const progressMarkerPrefix = `sepo-sub-orchestrator-finalization child:${childIssue.number} pr:${prNumber}`;
+  const pendingProgressMarker = `<!-- ${progressMarkerPrefix} resume:pending -->`;
+  const dispatchedProgressMarker = `<!-- ${progressMarkerPrefix} resume:dispatched -->`;
+  const progressComments = fetchIssueComments(repo, marker.parent).filter((comment) =>
+    String(comment.body || "").includes(progressMarkerPrefix) && isTrustedActorLogin(comment.authorLogin || "")
+  );
+  const existingProgress = progressComments[progressComments.length - 1];
+  const progressWasDispatched = String(existingProgress?.body || "").includes(dispatchedProgressMarker);
+  if (progressWasDispatched) {
+    return true;
+  }
+
+  let progressCommentId = existingProgress?.id ? String(existingProgress.id) : "";
+  const writeProgress = (progressMarker: string): void => {
+    const progressBody = formatDeferredFinalizationProgressComment({
+      childIssue: childIssue.number,
+      prNumber: String(prNumber),
+      resultState,
+      parentRound,
+      maxRounds,
+      summary: decision.reason,
+      marker: progressMarker,
+    });
+    if (progressCommentId) {
+      updateIssueComment(repo, progressCommentId, progressBody);
+    } else {
+      progressCommentId = createIssueComment(repo, marker.parent, progressBody);
+    }
+  };
+
+  writeProgress(pendingProgressMarker);
+  dispatchWorkflow(repo, "agent-orchestrator.yml", ref, {
+    source_action: "orchestrate",
+    source_conclusion: resultState,
+    source_run_id: sourceRunId,
+    target_kind: "issue",
+    target_number: String(marker.parent),
+    requested_by: requestedBy,
+    request_text: `Deferred child PR #${prNumber} finalized with ${resultState.toUpperCase()}: ${decision.reason}`,
+    automation_mode: "agent",
+    automation_current_round: String(parentRound),
+    automation_max_rounds: String(maxRounds),
+    session_bundle_mode: sessionBundleMode,
+    base_branch: baseBranch,
+    base_pr: basePr,
+    author_association: sourceAssociationRaw,
+    access_policy: accessPolicyRaw,
+    repository_private: isPublicRepo ? "false" : "true",
+  });
+  writeProgress(dispatchedProgressMarker);
+  return true;
+}
+
 function reportTerminalToParent(decision: HandoffDecision): void {
+  if (reportDeferredFinalizationToParent(decision)) return;
+
   const childResolution = resolveChildIssueForTerminal();
   if (childResolution.kind === "none") return;
   if (childResolution.kind === "rejected") {
@@ -1085,6 +1346,9 @@ function reportTerminalToParent(decision: HandoffDecision): void {
       session_bundle_mode: sessionBundleMode,
       base_branch: baseBranch,
       base_pr: basePr,
+      author_association: sourceAssociationRaw,
+      access_policy: accessPolicyRaw,
+      repository_private: isPublicRepo ? "false" : "true",
     });
 
     writeProgress(dispatchedProgressMarker);
@@ -1405,7 +1669,7 @@ const routeDecision = authorizationStop || (normalizeToken(sourceAction) === "or
     sourceHandoffContext,
     plannerDecision: automationMode === "agent" ? readPlannerDecision() : null,
   }));
-const decision = routeDecision;
+const decision = validateDeferredParentFinalizationTarget(routeDecision) || routeDecision;
 
 if (decision.decision === "dispatch" && decision.nextAction === "fix-pr" && !decision.handoffContext) {
   decision.handoffContext = fallbackFixPrHandoffContext();
@@ -1563,7 +1827,7 @@ const commonInputs = {
   requested_by: requestedBy,
   request_text: requestText,
   orchestration_enabled: "true",
-  automation_mode: automationMode === "disabled" ? "heuristics" : automationMode,
+  automation_mode: dispatchedActionAutomationMode(decision),
   automation_current_round: String(decision.nextRound),
   automation_max_rounds: String(maxRounds),
   session_bundle_mode: sessionBundleMode,

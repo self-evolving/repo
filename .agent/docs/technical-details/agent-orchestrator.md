@@ -24,7 +24,8 @@ stateDiagram-v2
     Implement --> Review: success + PR created
     Implement --> Stop: failed or no PR
 
-    Review --> SelfApprove: SHIP + AGENT_ALLOW_SELF_APPROVE=true
+    Review --> SelfApprove: SHIP + AGENT_ALLOW_SELF_APPROVE=true + immediate finalization
+    Review --> Stop: SHIP + deferred parent finalization
     Review --> FixPR: MINOR_ISSUES / NEEDS_REWORK / CHANGES_REQUESTED
     Review --> Stop: SHIP + self-approval disabled
     Review --> Stop: failed or unsupported verdict
@@ -103,11 +104,25 @@ on the parent issue, the dispatcher also best-effort links the child through
 GitHub's sub-issue REST API when that endpoint is available. If the API is
 unavailable or rejects the link, the marker/comment relation remains the durable
 fallback and child orchestration continues. The child issue then follows the
-normal bounded chain of `implement`, `review`, `fix-pr`, and, when enabled,
-`agent-self-approve` and `agent-self-merge` runs. The public route remains
-`/orchestrate`; the internal command keeps child delegation separate from
-concrete follow-up actions such as `implement`, `review`, `fix-pr`,
-`agent-self-approve`, and `agent-self-merge`.
+normal bounded chain of `implement`, `review`, and `fix-pr`. By default,
+`SHIP` reviews continue immediately to enabled `agent-self-approve` and
+`agent-self-merge` runs. When the child marker has `finalize:defer`, a `SHIP`
+review instead stops the child, reports the PR as ready to the parent, and waits
+for parent finalization. The public route remains `/orchestrate`; the internal
+command keeps child delegation separate from concrete follow-up actions such as
+`implement`, `review`, `fix-pr`, `agent-self-approve`, and `agent-self-merge`.
+
+The parent can finalize trusted deferred children after it has no more child
+implementation work. In agent mode, the resumed parent planner returns
+`handoff` with `next_action: "agent-self-approve"` and `target_pr` for the
+earliest unfinalized deferred child PR that reported ready. Runtime validation
+reconstructs ready children from trusted parent progress comments and trusted
+child markers, rejects untrusted or out-of-order targets, and dispatches
+`agent-self-approve` with the original `requested_by` context. The normal
+self-approval handoff then dispatches `agent-self-merge` when enabled; once
+self-approval stops without self-merge or self-merge reaches a terminal result,
+the dispatcher reports finalization back to the parent and resumes it so the
+next ready child can be finalized in dependency order.
 
 When the meta-orchestrator continues sequential child implementation work after
 a prior child produced an open, unmerged PR, the planner should set `base_pr` to
@@ -150,7 +165,10 @@ includes `agent-self-merge`. Disabled self-approval or self-merge routes are not
 part of the delegated capability check. This keeps authorization at the user
 boundary: child and parent resume dispatches preserve `requested_by` for
 traceability, but they do not need to thread requester association and route
-policy through every downstream workflow.
+policy through every downstream workflow. Deferred parent finalization uses the
+same original requester context and is allowed only for chains that passed the
+initial `/orchestrate` delegated-route capability check with self-approval
+enabled.
 
 When an orchestrator dispatches `implement`, it forwards any planner-provided
 or explicit `base_branch` or `base_pr` input. `agent-implement.yml` then

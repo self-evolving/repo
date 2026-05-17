@@ -68,6 +68,7 @@ export interface PlannerDecision {
   baseBranch?: string;
   basePr?: string;
   finalizePolicy?: string;
+  targetPr?: string;
 }
 
 const REVIEW_TO_FIX_PR = new Set(["minor_issues", "needs_rework", "changes_requested"]);
@@ -262,6 +263,10 @@ export function parsePlannerDecision(raw: string): PlannerDecision | null {
   const finalizePolicy = String(
     record.finalize_policy ?? record.finalizePolicy ?? record.finalization_policy ?? record.finalizationPolicy ?? "",
   ).trim();
+  const targetPr = String(
+    record.target_pr ?? record.targetPr ?? record.target_pr_number ?? record.targetPrNumber ?? record.pr_number ??
+      record.prNumber ?? "",
+  ).trim();
   const plannerDecision: PlannerDecision = {
     decision,
     nextAction: nextAction || undefined,
@@ -278,6 +283,7 @@ export function parsePlannerDecision(raw: string): PlannerDecision | null {
   if (baseBranch) plannerDecision.baseBranch = baseBranch;
   if (basePr) plannerDecision.basePr = basePr;
   if (finalizePolicy) plannerDecision.finalizePolicy = finalizePolicy;
+  if (targetPr) plannerDecision.targetPr = targetPr;
   return plannerDecision;
 }
 
@@ -614,6 +620,29 @@ function decideAgentHandoff(input: HandoffInput): HandoffDecision {
       handoffContext: plannerDecision.handoffContext,
       baseBranch: plannerDecision.baseBranch,
       basePr: plannerDecision.basePr,
+    };
+  }
+  if (sourceAction === "orchestrate" && targetKind === "issue" && plannerDecision.nextAction === "agent-self-approve") {
+    if (normalizeConclusion(input.sourceConclusion) !== "done") {
+      return {
+        decision: "stop",
+        reason: "parent finalization can dispatch agent-self-approve only after a ready child result",
+        nextRound,
+      };
+    }
+    if (!input.allowSelfApprove) {
+      return { decision: "stop", reason: "parent finalization requires self-approval to be enabled", nextRound };
+    }
+    if (!plannerDecision.targetPr) {
+      return { decision: "stop", reason: "parent finalization requires target_pr", nextRound };
+    }
+    return {
+      decision: "dispatch",
+      nextAction: "agent-self-approve",
+      targetNumber: plannerDecision.targetPr,
+      reason: `agent planner selected deferred child finalization: ${plannerDecision.reason}`,
+      nextRound,
+      handoffContext: plannerDecision.handoffContext,
     };
   }
   if (sourceAction === "orchestrate" && targetKind === "pull_request") {

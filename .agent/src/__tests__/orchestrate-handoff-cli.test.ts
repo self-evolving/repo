@@ -82,6 +82,14 @@ if [ "\${1-}" = "issue" ] && [ "\${2-}" = "create" ]; then
 fi
 
 if [ "\${1-}" = "issue" ] && [ "\${2-}" = "edit" ]; then
+  args=("$@")
+  for ((i=0; i<\${#args[@]}; i++)); do
+    if [ "\${args[$i]}" = "--body-file" ] && [ $((i + 1)) -lt \${#args[@]} ]; then
+      printf '%s\\n' "--- body-file:\${args[$((i + 1))]}" >> "$FAKE_GH_LOG"
+      cat "\${args[$((i + 1))]}" >> "$FAKE_GH_LOG"
+      printf '\\n--- end-body-file\\n' >> "$FAKE_GH_LOG"
+    fi
+  done
   exit 0
 fi
 
@@ -656,6 +664,91 @@ test("agent orchestrate reuses explicit adopted child marker comments on rerun",
   assert.match(run.ghLog, /issue view 77/);
   assert.match(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
   assert.doesNotMatch(run.ghLog, /Sepo adopted this issue as a sub-orchestrator child/);
+  assert.doesNotMatch(run.ghLog, /issue create/);
+});
+
+test("agent orchestrate reconciles explicit child finalization policy on reuse", () => {
+  const run = runOrchestrateHandoff({
+    AUTOMATION_MODE: "agent",
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "76",
+    FAKE_ISSUE_BODY: "<!-- sepo-sub-orchestrator parent:76 stage:stage-1 state:running parent_round:2 -->",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "delegate_issue",
+      reason: "Reuse the explicit child issue with deferred finalization.",
+      child_stage: "stage 1",
+      child_issue_number: "77",
+      finalize_policy: "defer",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "delegate_issue");
+  assert.equal(run.outputs.get("target_number"), "77");
+  assert.match(run.ghLog, /issue edit 77 --repo self-evolving\/repo --body-file/);
+  assert.match(run.ghLog, /<!-- sepo-sub-orchestrator parent:76 stage:stage-1 state:running parent_round:2 finalize:defer -->/);
+  assert.match(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
+});
+
+test("agent orchestrate reconciles recorded child finalization policy on reuse", () => {
+  const run = runOrchestrateHandoff({
+    AUTOMATION_MODE: "agent",
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "76",
+    FAKE_ISSUE_BODY: "<!-- sepo-sub-orchestrator parent:76 stage:stage-1 state:running parent_round:2 -->",
+    FAKE_ISSUE_COMMENTS_JSON: JSON.stringify([
+      {
+        id: "parent-child-link",
+        body: "<!-- sepo-sub-orchestrator-child parent:76 stage:stage-1 child:77 -->",
+        user: { login: "sepo-agent-app[bot]" },
+      },
+    ]),
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "delegate_issue",
+      reason: "Reuse the recorded child issue with deferred finalization.",
+      child_stage: "stage 1",
+      child_instructions: "Continue the delegated stage.",
+      finalize_policy: "defer",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "delegate_issue");
+  assert.equal(run.outputs.get("target_number"), "77");
+  assert.match(run.ghLog, /issue view 77/);
+  assert.match(run.ghLog, /issue edit 77 --repo self-evolving\/repo --body-file/);
+  assert.match(run.ghLog, /finalize:defer/);
+  assert.doesNotMatch(run.ghLog, /issue create/);
+});
+
+test("agent orchestrate reconciles searched child finalization policy on reuse", () => {
+  const run = runOrchestrateHandoff({
+    AUTOMATION_MODE: "agent",
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "76",
+    FAKE_ISSUE_LIST_JSON: JSON.stringify([
+      {
+        number: 77,
+        title: "Existing child",
+        body: "<!-- sepo-sub-orchestrator parent:76 stage:stage-1 state:running parent_round:2 -->",
+        author: { login: "sepo-agent-app[bot]" },
+      },
+    ]),
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "delegate_issue",
+      reason: "Reuse the searched child issue with deferred finalization.",
+      child_stage: "stage 1",
+      child_instructions: "Continue the delegated stage.",
+      finalize_policy: "defer",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "delegate_issue");
+  assert.equal(run.outputs.get("target_number"), "77");
+  assert.match(run.ghLog, /issue list/);
+  assert.match(run.ghLog, /issue edit 77 --repo self-evolving\/repo --body-file/);
+  assert.match(run.ghLog, /finalize:defer/);
   assert.doesNotMatch(run.ghLog, /issue create/);
 });
 
@@ -1487,6 +1580,180 @@ test("agent parent orchestrate stop skips matching trusted final comment", () =>
   assert.doesNotMatch(run.ghLog, /api --method POST repos\/self-evolving\/repo\/issues\/76\/comments/);
   assert.doesNotMatch(run.ghLog, /actions\/workflows\//);
   assert.equal(run.dispatchPayload, null);
+});
+
+test("agent parent orchestrate dispatches self-approval for next deferred ready child", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "orchestrate",
+    SOURCE_CONCLUSION: "done",
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "76",
+    AUTOMATION_MODE: "agent",
+    AUTOMATION_CURRENT_ROUND: "2",
+    AUTOMATION_MAX_ROUNDS: "10",
+    AGENT_ALLOW_SELF_APPROVE: "true",
+    FAKE_ISSUE_BODY: "<!-- sepo-sub-orchestrator parent:76 stage:stage-1 state:done parent_round:2 finalize:defer -->",
+    FAKE_ISSUE_COMMENTS_JSON: JSON.stringify([
+      {
+        id: "child-77-ready",
+        body: [
+          "Child task completed.",
+          "",
+          "| Child task | PR | Outcome | Parent round | Next step |",
+          "| --- | --- | --- | --- | --- |",
+          "| #77 | #88 | Ready to ship | 2 / 10 | Resuming parent orchestration |",
+          "",
+          "<!-- sepo-sub-orchestrator-report child:77 resume:dispatched -->",
+        ].join("\n"),
+        user: { login: "sepo-agent-app[bot]" },
+      },
+      {
+        id: "child-78-ready",
+        body: [
+          "Child task completed.",
+          "",
+          "| Child task | PR | Outcome | Parent round | Next step |",
+          "| --- | --- | --- | --- | --- |",
+          "| #78 | #89 | Ready to ship | 3 / 10 | Resuming parent orchestration |",
+          "",
+          "<!-- sepo-sub-orchestrator-report child:78 resume:dispatched -->",
+        ].join("\n"),
+        user: { login: "sepo-agent-app[bot]" },
+      },
+    ]),
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "handoff",
+      next_action: "agent-self-approve",
+      target_pr: "88",
+      reason: "Finalize the first ready child PR.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "dispatch");
+  assert.equal(run.outputs.get("next_action"), "agent-self-approve");
+  assert.equal(run.outputs.get("target_number"), "88");
+  assert.match(run.outputs.get("reason") || "", /deferred child finalization/);
+  assert.match(run.ghLog, /actions\/workflows\/agent-self-approve\.yml\/dispatches/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.pr_number, "88");
+  assert.equal(inputs.requested_by, "lolipopshock");
+  assert.equal(inputs.automation_mode, "heuristics");
+  assert.equal(inputs.automation_current_round, "3");
+});
+
+test("agent parent orchestrate rejects out-of-order deferred finalization", () => {
+  const readyReports = [
+    {
+      id: "child-77-ready",
+      body: [
+        "Child task completed.",
+        "",
+        "| Child task | PR | Outcome | Parent round | Next step |",
+        "| --- | --- | --- | --- | --- |",
+        "| #77 | #88 | Ready to ship | 2 / 10 | Resuming parent orchestration |",
+        "",
+        "<!-- sepo-sub-orchestrator-report child:77 resume:dispatched -->",
+      ].join("\n"),
+      user: { login: "sepo-agent-app[bot]" },
+    },
+    {
+      id: "child-78-ready",
+      body: [
+        "Child task completed.",
+        "",
+        "| Child task | PR | Outcome | Parent round | Next step |",
+        "| --- | --- | --- | --- | --- |",
+        "| #78 | #89 | Ready to ship | 3 / 10 | Resuming parent orchestration |",
+        "",
+        "<!-- sepo-sub-orchestrator-report child:78 resume:dispatched -->",
+      ].join("\n"),
+      user: { login: "sepo-agent-app[bot]" },
+    },
+  ];
+  const blocked = runOrchestrateHandoff({
+    SOURCE_ACTION: "orchestrate",
+    SOURCE_CONCLUSION: "done",
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "76",
+    AUTOMATION_MODE: "agent",
+    AUTOMATION_CURRENT_ROUND: "2",
+    AUTOMATION_MAX_ROUNDS: "10",
+    AGENT_ALLOW_SELF_APPROVE: "true",
+    FAKE_ISSUE_BODY: "<!-- sepo-sub-orchestrator parent:76 stage:stage-1 state:done parent_round:2 finalize:defer -->",
+    FAKE_ISSUE_COMMENTS_JSON: JSON.stringify(readyReports),
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "handoff",
+      next_action: "agent-self-approve",
+      target_pr: "89",
+      reason: "Finalize the second child PR first.",
+    }),
+  });
+
+  assert.equal(blocked.status, 0, blocked.stderr || blocked.stdout);
+  assert.equal(blocked.outputs.get("decision"), "stop");
+  assert.match(blocked.outputs.get("reason") || "", /cannot be finalized before PR #88/);
+  assert.doesNotMatch(blocked.ghLog, /actions\/workflows\/agent-self-approve\.yml\/dispatches/);
+
+  const allowed = runOrchestrateHandoff({
+    SOURCE_ACTION: "orchestrate",
+    SOURCE_CONCLUSION: "done",
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "76",
+    AUTOMATION_MODE: "agent",
+    AUTOMATION_CURRENT_ROUND: "4",
+    AUTOMATION_MAX_ROUNDS: "10",
+    AGENT_ALLOW_SELF_APPROVE: "true",
+    FAKE_ISSUE_BODY: "<!-- sepo-sub-orchestrator parent:76 stage:stage-1 state:done parent_round:2 finalize:defer -->",
+    FAKE_ISSUE_COMMENTS_JSON: JSON.stringify([
+      ...readyReports,
+      {
+        id: "child-77-finalized",
+        body: "<!-- sepo-sub-orchestrator-finalization child:77 pr:88 resume:dispatched -->",
+        user: { login: "sepo-agent-app[bot]" },
+      },
+    ]),
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "handoff",
+      next_action: "agent-self-approve",
+      target_pr: "89",
+      reason: "Finalize the next ready child PR.",
+    }),
+  });
+
+  assert.equal(allowed.status, 0, allowed.stderr || allowed.stdout);
+  assert.equal(allowed.outputs.get("decision"), "dispatch");
+  assert.equal(allowed.outputs.get("target_number"), "89");
+  assert.match(allowed.ghLog, /actions\/workflows\/agent-self-approve\.yml\/dispatches/);
+});
+
+test("deferred child finalization resumes parent after self-merge", () => {
+  const childBody = "<!-- sepo-sub-orchestrator parent:76 stage:stage-1 state:done parent_round:2 finalize:defer -->";
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "agent-self-merge",
+    SOURCE_CONCLUSION: "merged",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "88",
+    AUTOMATION_MODE: "heuristics",
+    AUTOMATION_CURRENT_ROUND: "4",
+    AUTOMATION_MAX_ROUNDS: "10",
+    FAKE_PR_BODY: "Implements #77",
+    FAKE_ISSUE_BODY: childBody,
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.equal(run.outputs.get("reason"), "agent-self-merge concluded merged");
+  assert.match(run.ghLog, /Deferred child finalization completed\./);
+  assert.match(run.ghLog, /\| #77 \| #88 \| Finalized \| 4 \/ 10 \| Resuming parent orchestration \|/);
+  assert.match(run.ghLog, /<!-- sepo-sub-orchestrator-finalization child:77 pr:88 resume:dispatched -->/);
+  assert.match(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
+  assert.doesNotMatch(run.ghLog, /sepo-sub-orchestrator-report child:77 resume:pending/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.source_action, "orchestrate");
+  assert.equal(inputs.source_conclusion, "done");
+  assert.equal(inputs.target_number, "76");
+  assert.equal(inputs.automation_current_round, "4");
 });
 
 test("heuristics parent orchestrate stops do not post final comments", () => {
