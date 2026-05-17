@@ -1,0 +1,578 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Add review synthesis recommended-next-step parsing and route `HUMAN_DECISION + SHIP` to `agent-self-approve` only when self-approval is enabled.\n- Preserve non-`SHIP` `HUMAN_DECISION` as a stop and pass focused handoff context into self-approval.\n- Update orchestrator workflow inputs, prompt guidance, docs, and focused regression tests.\n\n## Verification\n- `npm run build`\n- `node --test dist/__tests__/handoff.test.js dist/__tests__/dispatch-agent-orchestrator-cli.test.js dist/__tests__/orchestrate-handoff-cli.test.js`\n- `node --test dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nCloses #261\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCl3l9w",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer I still don't get it -- it is still very complicated here. I am primary thinking about using a similar logic like how we handle `SHIP` -> when we detect SHIP then it will execute the certain next step. I think we can reuse a lot of logics there? However why we add some other infrastructures?",
+      "createdAt": "2026-05-17T02:20:41Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/262#issuecomment-4468893175",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCl4MGg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, I think your mental model is right: this should reuse the existing `SHIP -> agent-self-approve` path, not create a separate orchestration concept.\n\nThe reason this PR has a little extra plumbing is that `SHIP` and `HUMAN_DECISION` come from two different review-synthesis fields:\n\n- `SHIP` is the final verdict, already carried as `source_conclusion`.\n- `HUMAN_DECISION` is the recommended next step, which previously was not carried through the handoff envelope.\n\nSo the minimal shape is:\n\n1. Extract `Recommended Next Step` from the review synthesis.\n   [handoff.ts#L213-L238](https://github.com/self-evolving/repo/blob/9e117997c317d895597388d3ebf5e292cfcf5c0c/.agent/src/handoff.ts#L213-L238)\n\n2. Pass it as `source_recommended_next_step` beside the existing `source_conclusion`.\n   [dispatch-agent-orchestrator.ts#L59-L84](https://github.com/self-evolving/repo/blob/9e117997c317d895597388d3ebf5e292cfcf5c0c/.agent/src/cli/dispatch-agent-orchestrator.ts#L59-L84)\n\n3. In the same existing review handoff logic, special-case only:\n   `sourceAction=review` + `sourceConclusion=SHIP` + `sourceRecommendedNextStep=HUMAN_DECISION` + self-approval enabled.\n   [handoff.ts#L498-L523](https://github.com/self-evolving/repo/blob/9e117997c317d895597388d3ebf5e292cfcf5c0c/.agent/src/handoff.ts#L498-L523)\n\n4. Pass context into `agent-self-approve` so that agent knows what human decision was requested.\n   [orchestrate-handoff.ts#L1552-L1557](https://github.com/self-evolving/repo/blob/9e117997c317d895597388d3ebf5e292cfcf5c0c/.agent/src/cli/orchestrate-handoff.ts#L1552-L1557)\n\nThat is the “extra infrastructure”: not a new route, but carrying one extra structured field across the workflow boundary. Without that field, the orchestrator only sees `SHIP` and cannot tell whether the synthesis also said `HUMAN_DECISION`, nor can it give self-approval the focused context.\n\nSo the answer is: we are reusing the `SHIP` logic. The only addition I think is justified is the minimum plumbing needed to preserve `Recommended Next Step` and handoff context. We should not add broader `/orchestrate -> agent-self-approve` behavior for this case.",
+      "createdAt": "2026-05-17T02:23:18Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/262#issuecomment-4468902938",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCl54hg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Yes, I think your mental model is right: this should reuse the existing `SHIP -> agent-self-approve` path, not create a separate orchestration concept.\r\n> \r\n> The reason this PR has a little extra plumbing is that `SHIP` and `HUMAN_DECISION` come from two different review-synthesis fields:\r\n> \r\n> * `SHIP` is the final verdict, already carried as `source_conclusion`.\r\n> * `HUMAN_DECISION` is the recommended next step, which previously was not carried through the handoff envelope.\r\n> \r\n> So the minimal shape is:\r\n> \r\n> 1. Extract `Recommended Next Step` from the review synthesis.\r\n>    [handoff.ts#L213-L238](https://github.com/self-evolving/repo/blob/9e117997c317d895597388d3ebf5e292cfcf5c0c/.agent/src/handoff.ts#L213-L238)\r\n> 2. Pass it as `source_recommended_next_step` beside the existing `source_conclusion`.\r\n>    [dispatch-agent-orchestrator.ts#L59-L84](https://github.com/self-evolving/repo/blob/9e117997c317d895597388d3ebf5e292cfcf5c0c/.agent/src/cli/dispatch-agent-orchestrator.ts#L59-L84)\r\n> 3. In the same existing review handoff logic, special-case only:\r\n>    `sourceAction=review` + `sourceConclusion=SHIP` + `sourceRecommendedNextStep=HUMAN_DECISION` + self-approval enabled.\r\n>    [handoff.ts#L498-L523](https://github.com/self-evolving/repo/blob/9e117997c317d895597388d3ebf5e292cfcf5c0c/.agent/src/handoff.ts#L498-L523)\r\n> 4. Pass context into `agent-self-approve` so that agent knows what human decision was requested.\r\n>    [orchestrate-handoff.ts#L1552-L1557](https://github.com/self-evolving/repo/blob/9e117997c317d895597388d3ebf5e292cfcf5c0c/.agent/src/cli/orchestrate-handoff.ts#L1552-L1557)\r\n> \r\n> That is the “extra infrastructure”: not a new route, but carrying one extra structured field across the workflow boundary. Without that field, the orchestrator only sees `SHIP` and cannot tell whether the synthesis also said `HUMAN_DECISION`, nor can it give self-approval the focused context.\r\n> \r\n> So the answer is: we are reusing the `SHIP` logic. The only addition I think is justified is the minimum plumbing needed to preserve `Recommended Next Step` and handoff context. We should not add broader `/orchestrate -> agent-self-approve` behavior for this case.\r\n\r\n@sepo-agent /answer \r\n\r\n- OK but is there a really difference between source_conclusion vs sourceRecommendedNextStep ? \r\n- further more, in the current code, when we see HUMAN_DECISION, the orchestrator will also stop. Isn't it also a \"source_conclusion\"?",
+      "createdAt": "2026-05-17T02:29:09Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/262#issuecomment-4468930694",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCl6GVA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, there is a real difference, but the naming makes it easy to blur.\n\n`source_conclusion` means: **what did the previous action conclude?**\n\nFor a review synthesis, current deterministic code gets that from `## Final Verdict`:\n\n- `SHIP`\n- `MINOR_ISSUES`\n- `NEEDS_REWORK`\n\nThat is what `extractReviewConclusion()` parses today:\nhttps://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L277-L284\n\n`sourceRecommendedNextStep` means: **what does the synthesis recommend automation should do next?**\n\nThat comes from the separate `## Recommended Next Step` section:\n\n- `FIX_PR`\n- `HUMAN_DECISION`\n- `NO_AUTOMATED_ACTION`\n\nThe review synthesis prompt defines that separately from final verdict:\nhttps://github.com/self-evolving/repo/blob/main/.github/prompts/review-synthesize.md#L105-L117\n\nSo this case can exist:\n\n```md\n## Recommended Next Step\nHUMAN_DECISION: release timing needs maintainer judgment.\n\n## Final Verdict\nSHIP\n```\n\nIf we collapse that into only `source_conclusion=HUMAN_DECISION`, we lose the important `SHIP` fact. That matters because `agent-self-approve` is only safe when there is a trusted current-head `SHIP` review synthesis.\n\nIf we keep only `source_conclusion=SHIP`, we lose the `HUMAN_DECISION` context and the self-approval agent will not know what judgment it is supposed to make.\n\nSo I would phrase it this way:\n\n- `SHIP` is the **review result / safety gate**.\n- `HUMAN_DECISION` is the **routing recommendation / context**.\n- The self-approval path needs both.\n\nOn your second point: when the orchestrator “sees `HUMAN_DECISION` and stops,” that is currently prompt-level policy from the review synthesis recommendation, not a deterministic `source_conclusion`. The orchestrator prompt says to stop on `HUMAN_DECISION` unless self-approval is enabled for a `SHIP` review:\nhttps://github.com/self-evolving/repo/blob/main/.github/prompts/agent-orchestrator.md#L76-L80\n\nSo no, I would not treat `HUMAN_DECISION` as another `source_conclusion`. It is better modeled as a second field, because it modifies what to do with the real conclusion.",
+      "createdAt": "2026-05-17T02:30:36Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/262#issuecomment-4468934228",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCl7mZA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> On your second point: when the orchestrator “sees HUMAN_DECISION and stops,” that is currently prompt-level policy from the review synthesis recommendation, not a deterministic source_conclusion. The orchestrator prompt says to stop on HUMAN_DECISION unless self-approval is enabled for a SHIP review:\r\n\r\n@sepo-agent /answer ok then given this, it seems currently orchestrator just reads the prompt and make the decisions? so even a simpler change is to just modify the prompt and tell the agent to launch self-approval when it sees HUMAN_DECISION + self-approval is allowed? ",
+      "createdAt": "2026-05-17T02:34:26Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/262#issuecomment-4468958820",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCl7voQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Prompt-only would be simpler, but it would only solve the **agent-planner path**, not the whole orchestrator behavior.\n\nThe orchestrator has two layers:\n\n1. **Agent planner prompt**: can read context and propose a next action.\n2. **Runtime handoff policy**: deterministic code that validates and dispatches the next workflow.\n\nThe prompt lives here:\nhttps://github.com/self-evolving/repo/blob/main/.github/prompts/agent-orchestrator.md#L76-L80\n\nBut the deterministic review handoff lives here:\nhttps://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L459-L476\n\nSo if we only edit the prompt:\n\n- It works only when the orchestrator planner actually runs in `agent` mode.\n- It does not help `heuristics` mode.\n- It requires the planner to rediscover/parse the latest review synthesis from GitHub, instead of using the review output already available at dispatch time.\n- It still does not pass focused context into `agent-self-approve` unless we also change the workflow dispatch input.\n\nSo I’d avoid prompt-only as the core fix. The prompt should describe the rule, but the rule itself should be encoded in the runtime handoff policy.\n\nMinimal robust fix is still:\n\n- parse `Recommended Next Step`\n- keep `source_conclusion=SHIP`\n- carry `source_recommended_next_step=HUMAN_DECISION`\n- let existing `SHIP -> agent-self-approve` handoff dispatch, with context\n- keep non-`SHIP + HUMAN_DECISION` as stop\n\nThat keeps the agent prompt and deterministic runtime consistent.",
+      "createdAt": "2026-05-17T02:35:29Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/262#issuecomment-4468961185",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCl8Fpg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> * keep non-`SHIP + HUMAN_DECISION` as stop\r\n\r\nThis is also weird. I think the whole point is to -- when there's HUMAN_DECISION, and regardless of whether it is ship or minor issues, we should then invoke the self-approval agent to check and recommend the next step. \r\n",
+      "createdAt": "2026-05-17T02:38:55Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/262#issuecomment-4468966822",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCl8KQA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer you know what, maybe a even simpler solution is to remove HUMAN_DECISION from the review prompt output if self-approve and self-merge is enabled. ",
+      "createdAt": "2026-05-17T02:39:40Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/262#issuecomment-4468968000",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCl8TaA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I would not do that as the main fix.\n\nIt sounds simpler, but it changes the meaning of the review synthesis output. `HUMAN_DECISION` is useful information: it means “the code may be technically okay, but there is a product/style/metadata/ambiguous judgment here.” That signal should not disappear just because self-approval/self-merge is enabled.\n\nTwo practical issues:\n\n1. The review synthesis prompt currently does not receive `AGENT_ALLOW_SELF_APPROVE` or `AGENT_ALLOW_SELF_MERGE`, so making its output conditional would require passing those settings into the review workflow anyway:\n   https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-review.yml#L312-L331\n\n2. If self-merge is enabled, hiding `HUMAN_DECISION` is actually riskier. The review might say `NO_AUTOMATED_ACTION`/`SHIP`, then self-approval may approve, then self-merge may merge, while the original “this needs human judgment” signal was suppressed.\n\nThe better model is:\n\n- Review synthesis should stay honest and emit `HUMAN_DECISION` when judgment is needed:\n  https://github.com/self-evolving/repo/blob/main/.github/prompts/review-synthesize.md#L105-L117\n\n- Self-approval should receive that context and decide:\n  - `APPROVE` if the agent can safely make the call\n  - `REQUEST_CHANGES` if there is concrete follow-up work\n  - `BLOCKED` if it really should stay human\n\nThat matches the self-approval prompt’s existing contract:\nhttps://github.com/self-evolving/repo/blob/main/.github/prompts/agent-self-approve.md#L28-L31\n\nSo I’d keep `HUMAN_DECISION` in the review output. The minimal fix should route the narrow `SHIP + HUMAN_DECISION + self-approval enabled` case into `agent-self-approve` with the reason/context preserved, not erase the signal upstream.",
+      "createdAt": "2026-05-17T02:41:03Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/262#issuecomment-4468970344",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCl9UyQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> I would not do that as the main fix.\r\n> \r\n> It sounds simpler, but it changes the meaning of the review synthesis output. `HUMAN_DECISION` is useful information: it means “the code may be technically okay, but there is a product/style/metadata/ambiguous judgment here.” That signal should not disappear just because self-approval/self-merge is enabled.\r\n> \r\n> Two practical issues:\r\n> \r\n> 1. The review synthesis prompt currently does not receive `AGENT_ALLOW_SELF_APPROVE` or `AGENT_ALLOW_SELF_MERGE`, so making its output conditional would require passing those settings into the review workflow anyway:\r\n>    https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-review.yml#L312-L331\r\n> 2. If self-merge is enabled, hiding `HUMAN_DECISION` is actually riskier. The review might say `NO_AUTOMATED_ACTION`/`SHIP`, then self-approval may approve, then self-merge may merge, while the original “this needs human judgment” signal was suppressed.\r\n> \r\n> The better model is:\r\n> \r\n> * Review synthesis should stay honest and emit `HUMAN_DECISION` when judgment is needed:\r\n>   https://github.com/self-evolving/repo/blob/main/.github/prompts/review-synthesize.md#L105-L117\r\n> * Self-approval should receive that context and decide:\r\n>   \r\n>   * `APPROVE` if the agent can safely make the call\r\n>   * `REQUEST_CHANGES` if there is concrete follow-up work\r\n>   * `BLOCKED` if it really should stay human\r\n> \r\n> That matches the self-approval prompt’s existing contract: https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-self-approve.md#L28-L31\r\n> \r\n> So I’d keep `HUMAN_DECISION` in the review output. The minimal fix should route the narrow `SHIP + HUMAN_DECISION + self-approval enabled` case into `agent-self-approve` with the reason/context preserved, not erase the signal upstream.\r\n\r\n@sepo-agent /answer ok fine then what are the concrete steps? ",
+      "createdAt": "2026-05-17T02:50:37Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/262#issuecomment-4468987081",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCl9dog",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Concrete plan:\n\n1. Keep review synthesis semantics unchanged.\n   `## Recommended Next Step` stays separate from `## Final Verdict`:\n   https://github.com/self-evolving/repo/blob/main/.github/prompts/review-synthesize.md#L105-L117\n\n2. Add a small parser in `handoff.ts` for `Recommended Next Step`.\n   Current code only extracts final verdict via `extractReviewConclusion()`:\n   https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L277-L284\n\n   Add:\n   - `extractReviewRecommendedNextStep(markdown)`\n   - `reviewNeedsHumanDecisionSelfApproval(markdown)`\n   - `buildReviewSelfApprovalHandoffContext(markdown)`\n\n3. Extend the handoff input with `sourceRecommendedNextStep`.\n   This keeps `sourceConclusion=SHIP` while separately carrying `HUMAN_DECISION`.\n\n4. Update review-originated handoff logic.\n   Current `SHIP -> agent-self-approve` path already exists:\n   https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L459-L476\n\n   Add one branch before the normal `SHIP` branch:\n\n   ```ts\n   if recommendedNextStep === \"human_decision\":\n     if conclusion === \"ship\" && allowSelfApprove:\n       dispatch agent-self-approve with context\n     else:\n       stop for human decision\n   ```\n\n5. Update `dispatch-agent-orchestrator.ts`.\n   It already reads the review response and extracts `sourceConclusion`:\n   https://github.com/self-evolving/repo/blob/main/.agent/src/cli/dispatch-agent-orchestrator.ts#L44-L52\n\n   Add:\n   - extract recommended next step from the same response file\n   - pass `source_recommended_next_step`\n   - build self-approval context only for `SHIP + HUMAN_DECISION`\n\n6. Update `agent-orchestrator.yml`.\n   Add a workflow input `source_recommended_next_step`, then pass it to:\n   - planner env as `ORCHESTRATOR_SOURCE_RECOMMENDED_NEXT_STEP`\n   - handoff CLI env as `SOURCE_RECOMMENDED_NEXT_STEP`\n\n7. Update `orchestrate-handoff.ts`.\n   Read `SOURCE_RECOMMENDED_NEXT_STEP`, pass it into `decideHandoff()`, and when dispatching `agent-self-approve`, forward `decision.handoffContext`.\n\n8. Update `agent-self-approve.yml`.\n   Add optional `source_handoff_context` input and feed it into the self-approval task as the request text/context, so the approval agent sees why the review said `HUMAN_DECISION`.\n\n9. Update prompt/docs narrowly.\n   In `agent-orchestrator.md`, say: if `sourceConclusion=SHIP`, `sourceRecommendedNextStep=HUMAN_DECISION`, and self-approval is enabled, hand off to `agent-self-approve`; otherwise `HUMAN_DECISION` stops.\n\n10. Add focused tests.\n   - `handoff.test.ts`: helper parsing, eligible dispatch, disabled stop, non-`SHIP` stop.\n   - `dispatch-agent-orchestrator-cli.test.ts`: response with `HUMAN_DECISION + SHIP` dispatches orchestrator with both fields and context.\n   - `orchestrate-handoff-cli.test.ts`: dispatches `agent-self-approve` with context only for eligible case.\n   - envelope/docs tests if existing snapshots expect workflow inputs.\n\nVerification:\n- `npm run build`\n- targeted node tests for handoff, dispatch, orchestrate\n- `git diff --check`\n\nI’d implement exactly that, without removing `HUMAN_DECISION` and without adding broad `/orchestrate -> agent-self-approve` behavior.",
+      "createdAt": "2026-05-17T02:52:06Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/262#issuecomment-4468989346",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCl-Qlw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Concrete plan:\r\n> \r\n> 1. Keep review synthesis semantics unchanged.\r\n>    `## Recommended Next Step` stays separate from `## Final Verdict`:\r\n>    https://github.com/self-evolving/repo/blob/main/.github/prompts/review-synthesize.md#L105-L117\r\n> 2. Add a small parser in `handoff.ts` for `Recommended Next Step`.\r\n>    Current code only extracts final verdict via `extractReviewConclusion()`:\r\n>    https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L277-L284\r\n>    Add:\r\n>    \r\n>    * `extractReviewRecommendedNextStep(markdown)`\r\n>    * `reviewNeedsHumanDecisionSelfApproval(markdown)`\r\n>    * `buildReviewSelfApprovalHandoffContext(markdown)`\r\n> 3. Extend the handoff input with `sourceRecommendedNextStep`.\r\n>    This keeps `sourceConclusion=SHIP` while separately carrying `HUMAN_DECISION`.\r\n> 4. Update review-originated handoff logic.\r\n>    Current `SHIP -> agent-self-approve` path already exists:\r\n>    https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L459-L476\r\n>    Add one branch before the normal `SHIP` branch:\r\n>    ```ts\r\n>    if recommendedNextStep === \"human_decision\":\r\n>      if conclusion === \"ship\" && allowSelfApprove:\r\n>        dispatch agent-self-approve with context\r\n>      else:\r\n>        stop for human decision\r\n>    ```\r\n> 5. Update `dispatch-agent-orchestrator.ts`.\r\n>    It already reads the review response and extracts `sourceConclusion`:\r\n>    https://github.com/self-evolving/repo/blob/main/.agent/src/cli/dispatch-agent-orchestrator.ts#L44-L52\r\n>    Add:\r\n>    \r\n>    * extract recommended next step from the same response file\r\n>    * pass `source_recommended_next_step`\r\n>    * build self-approval context only for `SHIP + HUMAN_DECISION`\r\n> 6. Update `agent-orchestrator.yml`.\r\n>    Add a workflow input `source_recommended_next_step`, then pass it to:\r\n>    \r\n>    * planner env as `ORCHESTRATOR_SOURCE_RECOMMENDED_NEXT_STEP`\r\n>    * handoff CLI env as `SOURCE_RECOMMENDED_NEXT_STEP`\r\n> 7. Update `orchestrate-handoff.ts`.\r\n>    Read `SOURCE_RECOMMENDED_NEXT_STEP`, pass it into `decideHandoff()`, and when dispatching `agent-self-approve`, forward `decision.handoffContext`.\r\n> 8. Update `agent-self-approve.yml`.\r\n>    Add optional `source_handoff_context` input and feed it into the self-approval task as the request text/context, so the approval agent sees why the review said `HUMAN_DECISION`.\r\n> 9. Update prompt/docs narrowly.\r\n>    In `agent-orchestrator.md`, say: if `sourceConclusion=SHIP`, `sourceRecommendedNextStep=HUMAN_DECISION`, and self-approval is enabled, hand off to `agent-self-approve`; otherwise `HUMAN_DECISION` stops.\r\n> 10. Add focused tests.\r\n> \r\n> * `handoff.test.ts`: helper parsing, eligible dispatch, disabled stop, non-`SHIP` stop.\r\n> * `dispatch-agent-orchestrator-cli.test.ts`: response with `HUMAN_DECISION + SHIP` dispatches orchestrator with both fields and context.\r\n> * `orchestrate-handoff-cli.test.ts`: dispatches `agent-self-approve` with context only for eligible case.\r\n> * envelope/docs tests if existing snapshots expect workflow inputs.\r\n> \r\n> Verification:\r\n> \r\n> * `npm run build`\r\n> * targeted node tests for handoff, dispatch, orchestrate\r\n> * `git diff --check`\r\n> \r\n> I’d implement exactly that, without removing `HUMAN_DECISION` and without adding broad `/orchestrate -> agent-self-approve` behavior.\r\n\r\n@sepo-agent /answer \r\n\r\n1. what's implemented and not implemented in this PR? \r\n2. should we do a fix-pr or launch a new pr with implement?",
+      "createdAt": "2026-05-17T03:00:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/262#issuecomment-4469002391",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCl-cXg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "For PR #262 specifically:\n\nImplemented:\n\n- Parses `Recommended Next Step` separately from `Final Verdict`.\n  https://github.com/self-evolving/repo/blob/9e117997c317d895597388d3ebf5e292cfcf5c0c/.agent/src/handoff.ts#L213-L238\n\n- Adds `sourceRecommendedNextStep` to handoff input and routes:\n  `review + SHIP + HUMAN_DECISION + AGENT_ALLOW_SELF_APPROVE=true -> agent-self-approve`.\n  https://github.com/self-evolving/repo/blob/9e117997c317d895597388d3ebf5e292cfcf5c0c/.agent/src/handoff.ts#L498-L523\n\n- Keeps non-`SHIP` `HUMAN_DECISION` as a stop.\n  Same block: https://github.com/self-evolving/repo/blob/9e117997c317d895597388d3ebf5e292cfcf5c0c/.agent/src/handoff.ts#L500-L511\n\n- Extracts recommended next step in `dispatch-agent-orchestrator.ts`, builds self-approval context, and passes `source_recommended_next_step`.\n  https://github.com/self-evolving/repo/blob/9e117997c317d895597388d3ebf5e292cfcf5c0c/.agent/src/cli/dispatch-agent-orchestrator.ts#L59-L84\n\n- Adds `source_recommended_next_step` to `agent-orchestrator.yml` and passes it to both planner and deterministic handoff CLI.\n  https://github.com/self-evolving/repo/blob/9e117997c317d895597388d3ebf5e292cfcf5c0c/.github/workflows/agent-orchestrator.yml#L12-L15\n\n- Passes self-approval handoff context into `agent-self-approve.yml`.\n  https://github.com/self-evolving/repo/blob/9e117997c317d895597388d3ebf5e292cfcf5c0c/.github/workflows/agent-self-approve.yml#L15-L18\n\n- Updates prompt/docs/tests for that narrow behavior.\n\nNot implemented:\n\n- It does **not** route `HUMAN_DECISION + MINOR_ISSUES` or `HUMAN_DECISION + NEEDS_REWORK` to `agent-self-approve`.\n- It does **not** change self-approval’s trusted `SHIP` provenance requirement.\n- It does **not** remove `HUMAN_DECISION` from review synthesis.\n- It does **not** add broad manual `/orchestrate -> agent-self-approve` behavior.\n\nFor the second question: if the desired behavior is still the narrow `SHIP + HUMAN_DECISION` route, I would not launch a new PR. PR #262 already implements it.\n\nIf you want to change the behavior to “any `HUMAN_DECISION`, regardless of final verdict, should invoke `agent-self-approve` to recommend approve/request-changes/block,” then use **fix-pr on this PR**, not a new implement PR. This PR already owns the touched code paths, so a new PR would likely duplicate/conflict. But that is a scope change: we would also need to decide whether self-approval is still allowed to require `SHIP`, or whether it becomes more of a “decision gate” for non-`SHIP` reviews.",
+      "createdAt": "2026-05-17T03:02:12Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/262#issuecomment-4469005406",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCl-84Q",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /fix-pr check https://github.com/self-evolving/repo/pull/262#issuecomment-4468989346 and https://github.com/self-evolving/repo/pull/262#issuecomment-4469005406 to fix the PR",
+      "createdAt": "2026-05-17T03:04:55Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/262#issuecomment-4469013729",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCmAuuw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-261/codex-25977865971`. Requested by @lolipopshock.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Included the `Recommended Next Step` text in review self-approval handoff context so `HUMAN_DECISION + SHIP` carries the actual decision reason.\n- Tightened regression coverage so the decision reason must come from the recommended-next-step section, not just summary text.\n- Verified `npm run build`, targeted handoff/dispatch/orchestrate tests, `node --test dist/__tests__/envelope.test.js`, and `git diff --check`.",
+      "createdAt": "2026-05-17T03:08:30Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/262#issuecomment-4469042875",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCmCiMA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate ",
+      "createdAt": "2026-05-17T03:18:15Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/262#issuecomment-4469072432",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCmCzlQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | review | PR #262 | 2 / 40 | Dispatched |\n\nReason: agent planner selected review: PR #262 is open and the latest human request was /orchestrate after fix-pr pushed changes; a fresh review is the useful next automatic step.\n\n<!-- sepo-agent-handoff state:dispatched created:1778987987946 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU5ODAwNTU1ODY6b3JjaGVzdHJhdGU6MjYyOnJldmlldzoyNjI6Mg -->",
+      "createdAt": "2026-05-17T03:19:48Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/262#issuecomment-4469076885",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCmDVcw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 95 | PARTIAL | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | The PR keeps the new route inside the existing review-originated handoff policy and still dispatches `agent-self-approve.yml` through `orchestrate-handoff` with `requested_by`, `request_text`, round budget, and self-approval gating. It does not add broad manual `/orchestrate -> agent-self-approve` dispatch. |\n| review_quality / generic | Use investigative approval review | pass | 8/8 | The route requires `Final Verdict = SHIP` plus `Recommended Next Step = HUMAN_DECISION`, then passes focused context into self-approval so the approval agent can inspect and approve/request changes/block instead of blindly approving. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR extends existing helpers in [`.agent/src/handoff.ts`](https://github.com/self-evolving/repo/blob/0f19f7766ee10d0385ac249df8b18264901257a2/.agent/src/handoff.ts), existing dispatch CLIs, and existing workflows instead of creating a parallel route or new orchestration subsystem. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The PR updates [supported workflows](https://github.com/self-evolving/repo/blob/0f19f7766ee10d0385ac249df8b18264901257a2/.agent/docs/architecture/supported-workflows.md), [technical orchestrator docs](https://github.com/self-evolving/repo/blob/0f19f7766ee10d0385ac249df8b18264901257a2/.agent/docs/technical-details/agent-orchestrator.md), and [the orchestrator prompt](https://github.com/self-evolving/repo/blob/0f19f7766ee10d0385ac249df8b18264901257a2/.github/prompts/agent-orchestrator.md). |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | The decision policy is encoded in the existing runtime handoff flow using current review synthesis context, not a new repository-level setting. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The PR adds explicit `source_recommended_next_step` and `source_handoff_context` fields rather than overloading `source_conclusion` or parsing command text downstream. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is scoped to the handoff path, workflow inputs, prompt/docs, and focused tests for the new route. No unrelated refactor is visible in the PR diff. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation is the smallest robust shape for the linked issue: parse one extra review field, carry it through the envelope, and branch before the existing `SHIP` handoff. |\n| coding_workflow / generic | Comment on accepted workflow stops | partial | 4/6 | Non-`SHIP` `HUMAN_DECISION` now stops deterministically, which matches issue #261, but the diff does not add a visible stop comment for review-originated human-decision stops. Existing terminal comments cover some initial/manual stop cases, but not this specific review follow-up path. |\n\n## Notes\n\n- The implementation matches the linked issue #261 acceptance criteria: preserve `HUMAN_DECISION` as a recommended next step, route only `SHIP + HUMAN_DECISION + self-approval enabled`, stop non-`SHIP`, and keep the route inside existing self-approval safeguards.\n- The strongest rubric fit is the use of explicit structured handoff metadata instead of collapsing `HUMAN_DECISION` into `source_conclusion`.\n- Smallest useful follow-up: consider adding a compact visible stop comment when review-originated orchestration stops because `Recommended Next Step = HUMAN_DECISION` but the case is not self-approval eligible.\n\n## Findings\n\n- **WARNING:** For `comment-on-accepted-workflow-stops`, the new non-`SHIP` `HUMAN_DECISION` stop is policy-correct but may still be silent in a follow-up chain. A concise status comment would make the accepted orchestrator request visibly terminal instead of only ending in workflow logs.\n\n## Final Rubric Verdict\n\nPARTIAL",
+      "createdAt": "2026-05-17T03:21:33Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/262#issuecomment-4469085555",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCmHHOw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 0f19f7766ee10d0385ac249df8b18264901257a2 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #262 implements issue #261’s narrow route for review syntheses where `Final Verdict = SHIP` but `Recommended Next Step = HUMAN_DECISION`.\n- The PR preserves `SHIP` as the review conclusion and carries `HUMAN_DECISION` as separate structured handoff metadata.\n- When self-approval is enabled, the eligible `SHIP + HUMAN_DECISION` case dispatches `agent-self-approve` with focused context; non-`SHIP` human-decision reviews still stop.\n- The PR also updates workflows, prompts, docs, and focused regression tests for that path.\n\n## Review\nThe implementation matches the intended scope and keeps the delegated self-approval route behind the existing safeguards. One reviewer found no issues, while another identified a low-risk dispatcher consistency problem that is worth fixing before merge.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Self-approval context condition reparses raw response | WARNING | [`dispatch-agent-orchestrator.ts`](https://github.com/self-evolving/repo/blob/0f19f7766ee10d0385ac249df8b18264901257a2/.agent/src/cli/dispatch-agent-orchestrator.ts#L64-L68) computes normalized source fields with env overrides, but the context branch reparses the raw response. If those differ, a valid `SHIP + HUMAN_DECISION` dispatch can lose the detailed handoff context. |\n\n## Progress\n- Issue #261’s requested narrow behavior is implemented: only `SHIP + HUMAN_DECISION + self-approval enabled` routes to self-approval.\n- The fix-pr follow-up already added the recommended-next-step text into self-approval handoff context.\n- Existing inline review comments and review threads were empty before synthesis.\n- Posted one new inline comment: https://github.com/self-evolving/repo/pull/262#discussion_r3253972400\n- No comments were minimized, no replies were added, and no threads were resolved.\n\n## Issue Details\n<details>\n<summary>Self-approval context condition reparses raw response</summary>\n\n**Cause:** `sourceConclusion` and `sourceRecommendedNextStep` are computed from env overrides or the response file, but `reviewNeedsHumanDecisionSelfApproval(rawResponse)` ignores those computed values and reparses only the raw response.\n\n**Candidate solutions:** Derive the self-approval-context condition from normalized `sourceAction`, `sourceConclusion`, and `sourceRecommendedNextStep`. Use the raw response only to build richer context, with a fallback context when the parsed response is incomplete.\n\n**Comments:** This is not a blocking authorization issue; the downstream handoff still falls back to generic self-approval context. The concern is consistency and preserving the useful decision reason.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the remaining issue is concrete, small, and safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Derive the self-approval context condition in `dispatch-agent-orchestrator.ts` from the computed normalized source fields, using raw response parsing only to enrich the context.",
+      "createdAt": "2026-05-17T03:29:48Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/262#issuecomment-4469147451",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCmHcGw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #262 | 3 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis for open PR #262 has Final Verdict MINOR_ISSUES and Recommended Next Step FIX_PR with one concrete code action item; another automated fix-pr pass is warranted.\n\nTask for fix-pr:\nAddress only the latest review synthesis action item: in `.agent/src/cli/dispatch-agent-orchestrator.ts`, derive the self-approval context condition from the computed normalized source fields (`sourceAction`, `sourceConclusion`, and `sourceRecommendedNextStep`) rather than reparsing only the raw response. Use raw response parsing only to enrich/build the context, with an appropriate fallback if the raw response is incomplete. Preserve the existing narrow scope for issue #261: only `SHIP + HUMAN_DECISION + self-approval enabled` routes to `agent-self-approve`; non-`SHIP` human-decision cases still stop. Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by this action item.\n\n<!-- sepo-agent-handoff state:dispatched created:1778988649516 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU5ODAwODUxOTY6cmV2aWV3OjI2MjpmaXhfcHI6MjYyOjM -->",
+      "createdAt": "2026-05-17T03:30:49Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/262#issuecomment-4469152795",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCmIj4Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-261/codex-25977865971`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Updated `dispatch-agent-orchestrator` so self-approval context eligibility comes from the normalized source fields, not a raw-response reparse.\n- Added a default review self-approval context fallback when the computed fields say `SHIP + HUMAN_DECISION` but the response markdown is incomplete.\n- Preserved the narrow issue #261 scope: only `SHIP + HUMAN_DECISION` can route to self-approval; non-`SHIP` human-decision cases still stop.\n- Added regression coverage for the normalized-field/incomplete-response case.\n- Verified `npm run build`, targeted handoff/dispatch/orchestrate tests, and `git diff --check`.",
+      "createdAt": "2026-05-17T03:34:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/262#issuecomment-4469171169",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCmI0hA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #262 | 4 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded after addressing the latest MINOR_ISSUES/FIX_PR review finding on open PR #262; a fresh review should verify the current head before stopping.\n\n<!-- sepo-agent-handoff state:dispatched created:1778988929962 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU5ODAyOTU0MDk6Zml4X3ByOjI2MjpyZXZpZXc6MjYyOjQ -->",
+      "createdAt": "2026-05-17T03:35:30Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/262#issuecomment-4469175428",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCmJYbQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "The linked issue asks for the narrow `SHIP + HUMAN_DECISION + self-approval enabled` route and explicitly says non-`SHIP` human-decision reviews should stop. The current diff satisfies that core scope; the only rubric-specific caveat I still see is around visible stop comments for those expected stops.## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 94 | PARTIAL | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | The PR keeps self-approval behind the existing review-originated handoff path, carries requester context through `agent-orchestrator.yml`/`agent-self-approve.yml`, and does not add broad manual `/orchestrate -> agent-self-approve` dispatch. |\n| review_quality / generic | Use investigative approval review | pass | 8/8 | The new route requires `Final Verdict = SHIP` plus `Recommended Next Step = HUMAN_DECISION`, then passes focused context so self-approval can approve, request changes, or block. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The diff extends existing handoff helpers, dispatch CLIs, workflows, prompts, and tests instead of introducing a parallel orchestration mechanism. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The PR updates `.agent/docs/architecture/supported-workflows.md`, `.agent/docs/technical-details/agent-orchestrator.md`, and `.github/prompts/agent-orchestrator.md` for the new route. |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | The decision is encoded from current review synthesis fields in runtime handoff policy, without adding a new repo-level setting. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The PR adds `source_recommended_next_step` and `source_handoff_context` instead of overloading `source_conclusion` or reparsing command text downstream. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is scoped to the review-to-self-approval handoff path, workflow inputs, docs/prompts, and focused tests. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation is the minimal robust path from issue #261: parse one extra review field, carry it through the envelope, and branch in existing handoff logic. |\n| coding_workflow / generic | Comment on accepted workflow stops | partial | 4/6 | Non-`SHIP` `HUMAN_DECISION` correctly stops, but the diff does not add a dedicated visible stop comment for this review-originated terminal case. |\n\n## Notes\n\n- The PR matches issue #261’s narrow acceptance criteria: preserve `HUMAN_DECISION` as a recommended next step, route only `SHIP + HUMAN_DECISION + self-approval enabled`, and keep non-`SHIP` cases as stops.\n- The current head also addresses the earlier consistency concern by deriving self-approval context eligibility from normalized source fields and using raw response parsing only to enrich/fallback context.\n- Smallest useful follow-up: add a compact visible stop comment for review-originated `HUMAN_DECISION` stops that are not self-approval eligible.\n\n## Findings\n\n- **WARNING:** For `comment-on-accepted-workflow-stops`, the new non-`SHIP` `HUMAN_DECISION` stop is policy-correct but may be silent in a follow-up chain. A concise terminal status comment would make the accepted orchestration request visibly complete.\n\n## Final Rubric Verdict\n\nPARTIAL",
+      "createdAt": "2026-05-17T03:36:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/262#issuecomment-4469184621",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCmK7fw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 3412a756186ba47dae3c5cc5595cdb4a188e0207 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #262 implements issue #261’s narrow handoff path for review syntheses where `Final Verdict = SHIP` and `Recommended Next Step = HUMAN_DECISION`.\n- The PR keeps `SHIP` as the review conclusion and carries `HUMAN_DECISION` separately as structured routing metadata.\n- When self-approval is enabled, that eligible case now dispatches `agent-self-approve` with focused context; non-`SHIP` human-decision cases still stop.\n- The PR also updates workflows, prompts, docs, and focused regression tests for the new path.\n\n## Review\nThe current head satisfies the linked issue’s scope. Claude and Codex both concluded the implementation is ready to ship; the rubrics review noted optional visible-stop-comment polish, but not a required branch change for this PR.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable issues | INFO | The previous dispatcher-context inconsistency has been fixed, and the remaining rubric caveat is optional workflow visibility polish rather than required issue #261 work. |\n\n## Progress\n- The fix-pr follow-up addressed the prior inline finding by deriving self-approval-context eligibility from normalized source fields.\n- Resolved the older same-agent inline review thread on `.agent/src/cli/dispatch-agent-orchestrator.ts`: `PRRT_kwDOSOhEMM6CnGVM`.\n- No new inline comments were posted, no replies were added, and no comments were minimized.\n- Rubrics review still suggests a future visible stop comment for non-`SHIP` `HUMAN_DECISION` stops; that is intentionally treated as optional follow-up.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved required branch-change work remains for this PR.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-17T03:44:05Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/262#issuecomment-4469209983",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCmNx1g",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> For PR #262 specifically:\n> \n> Implemented:\n> \n> - Parses `Recommended Next Step` separately from `Final Verdict`.\n>   https://github.com/self-evolving/repo/blob/9e117997c317d895597388d3ebf5e292cfcf5c0c/.agent/src/handoff.ts#L213-L238\n> \n> - Adds `sourceRecommendedNextStep` to handoff input and routes:\n>   `review + SHIP + HUMAN_DECISION + AGENT_ALLOW_SELF_APPROVE=true -> agent-self-approve`.\n>   https://github.com/self-evolving/repo/blob/9e117997c317d895597388d3ebf5e292cfcf5c0c/.agent/src/handoff.ts#L498-L523\n> \n> - Keeps non-`SHIP` `HUMAN_DECISION` as a stop.\n>   Same block: https://github.com/self-evolving/repo/blob/9e117997c317d895597388d3ebf5e292cfcf5c0c/.agent/src/handoff.ts#L500-L511\n> \n> - Extracts recommended next step in `dispatch-agent-orchestrator.ts`, builds self-approval context, and passes `source_recommended_next_step`.\n>   https://github.com/self-evolving/repo/blob/9e117997c317d895597388d3ebf5e292cfcf5c0c/.agent/src/cli/dispatch-agent-orchestrator.ts#L59-L84\n> \n> - Adds `source_recommended_next_step` to `agent-orchestrator.yml` and passes it to both planner and deterministic handoff CLI.\n>   https://github.com/self-evolving/repo/blob/9e117997c317d895597388d3ebf5e292cfcf5c0c/.github/workflows/agent-orchestrator.yml#L12-L15\n> \n> - Passes self-approval handoff context into `agent-self-approve.yml`.\n>   https://github.com/self-evolving/repo/blob/9e117997c317d895597388d3ebf5e292cfcf5c0c/.github/workflows/agent-self-approve.yml#L15-L18\n> \n> - Updates prompt/docs/tests for that narrow behavior.\n> \n> Not implemented:\n> \n> - It does **not** route `HUMAN_DECISION + MINOR_ISSUES` or `HUMAN_DECISION + NEEDS_REWORK` to `agent-self-approve`.\n> - It does **not** change self-approval’s trusted `SHIP` provenance requirement.\n> - It does **not** remove `HUMAN_DECISION` from review synthesis.\n> - It does **not** add broad manual `/orchestrate -> agent-self-approve` behavior.\n> \n> For the second question: if the desired behavior is still the narrow `SHIP + HUMAN_DECISION` route, I would not launch a new PR. PR #262 already implements it.\n> \n> If you want to change the behavior to “any `HUMAN_DECISION`, regardless of final verdict, should invoke `agent-self-approve` to recommend approve/request-changes/block,” then use **fix-pr on this PR**, not a new implement PR. This PR already owns the touched code paths, so a new PR would likely duplicate/conflict. But that is a scope change: we would also need to decide whether self-approval is still allowed to require `SHIP`, or whether it becomes more of a “decision gate” for non-`SHIP` reviews.\n\n@sepo-agent /answer it seems the follow up implementation is not right? We want to make sure whenever there is human decision it will always activate it ",
+      "createdAt": "2026-05-17T04:01:39Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/262#issuecomment-4469256662",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCmOBZw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes. If the requirement is now:\n\n> whenever review synthesis says `HUMAN_DECISION`, activate the self-approval agent\n\nthen PR #262 is **not quite right**.\n\nWhat PR #262 currently does is narrower:\n\n```ts\nif recommendedNextStep === \"human_decision\":\n  if conclusion === \"ship\" && allowSelfApprove:\n    dispatch agent-self-approve\n  else:\n    stop\n```\n\nThat means `HUMAN_DECISION + MINOR_ISSUES` and `HUMAN_DECISION + NEEDS_REWORK` still stop:\nhttps://github.com/self-evolving/repo/blob/9e117997c317d895597388d3ebf5e292cfcf5c0c/.agent/src/handoff.ts#L500-L511\n\nThere is also a second issue: even if we dispatch `agent-self-approve` for non-`SHIP`, the current self-approval preflight requires the latest trusted synthesis verdict to be `SHIP`:\nhttps://github.com/self-evolving/repo/blob/main/.agent/src/self-approval.ts#L188-L195\n\nSo just changing the handoff branch is not enough. The self-approval workflow would likely stop before the agent runs for `MINOR_ISSUES` / `NEEDS_REWORK`.\n\nThe cleaner fix would be:\n\n- Route **any** `review + HUMAN_DECISION + AGENT_ALLOW_SELF_APPROVE=true` to `agent-self-approve`.\n- Pass the review verdict and human-decision context into self-approval.\n- Let `agent-self-approve` run as a decision gate.\n- Keep the safety rule: it may only submit an actual GitHub approval when trusted current-head verdict is `SHIP`.\n- For non-`SHIP`, it should return `REQUEST_CHANGES` or `BLOCKED`, not approve.\n\nSo yes, this should be a **fix-pr on PR #262**, not a new implementation PR. The PR already owns the relevant files; the fix is to broaden the `HUMAN_DECISION` dispatch behavior and adjust self-approval preflight/prompt/tests so non-`SHIP` cases can run the agent but cannot accidentally approve.",
+      "createdAt": "2026-05-17T04:02:58Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/262#issuecomment-4469260647",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-17T01:27:27Z",
+  "files": [
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 7,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/agent-orchestrator.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/dispatch-agent-orchestrator-cli.test.ts",
+      "additions": 118,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/handoff.test.ts",
+      "additions": 75,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrate-handoff-cli.test.ts",
+      "additions": 63,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/dispatch-agent-orchestrator.ts",
+      "additions": 40,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrate-handoff.ts",
+      "additions": 4,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/handoff.ts",
+      "additions": 56,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-orchestrator.md",
+      "additions": 5,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-orchestrator.yml",
+      "additions": 6,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-self-approve.yml",
+      "additions": 5,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-261/codex-25977865971",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 262,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAJU5Iw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-17T03:29:03Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "0f19f7766ee10d0385ac249df8b18264901257a2"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Route SHIP human decisions to self-approval",
+  "updatedAt": "2026-05-17T04:02:58Z",
+  "url": "https://github.com/self-evolving/repo/pull/262"
+}

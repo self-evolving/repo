@@ -1,0 +1,626 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Add shared skill path resolution and optional `setup.sh` execution with PR-ref trust checks\n- Expose skill setup through a local `run-skill-setup` composite action and wire it into the skill route\n- Thread `skill_root` into runtime prompt loading and document simple vs advanced skill customization\n\n## Verification\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/skill-setup.test.js .agent/dist/__tests__/envelope.test.js`\n- `git diff --check`\n- Attempted `npm --prefix .agent test`; it failed only in existing onboarding CLI tests due local-runner `EPERM` writing `_runner_file_commands`\n\nCloses #250\n",
+  "closedAt": "2026-05-17T03:17:54Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCllFtQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate review this first, reviewing the previous discussions inside #241 ",
+      "createdAt": "2026-05-17T00:05:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/252#issuecomment-4468590005",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClpNAw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo orchestration stopped after `orchestrate` concluded `requested`.\n\n- Source action: `orchestrate`\n- Source conclusion: `requested`\n- Target: `pull_request #252`\n- Round: `1/40`\n- Reason: agent planner decision missing or invalid\n- Source run ID: `25976481514`\n\nNo follow-up workflow was dispatched. Inspect the source action status comment and workflow logs before retrying or continuing manually.\n\n<!-- sepo-agent-orchestrate-stop -->",
+      "createdAt": "2026-05-17T00:36:53Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/252#issuecomment-4468657411",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClu5kw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate review this PR first? (refer to previous discussions inside https://github.com/self-evolving/repo/pull/241",
+      "createdAt": "2026-05-17T01:22:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/252#issuecomment-4468750739",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClvEqA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | review | PR #252 | 2 / 40 | Dispatched |\n\nReason: agent planner selected review: Open PR #252 was explicitly requested for review-first automation, and it implements issue #250 from the PR #241 customization-boundary discussion; an automated review is the appropriate next action.\n\n<!-- sepo-agent-handoff state:dispatched created:1778981034888 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU5Nzc5MDAxODM6b3JjaGVzdHJhdGU6MjUyOnJldmlldzoyNTI6Mg -->",
+      "createdAt": "2026-05-17T01:23:55Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/252#issuecomment-4468753576",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClvU9Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 11 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #252 implements issue #250, which was created from the PR #241 discussion pivot from `skill-setup.yaml` to `setup.sh` plus advanced workflow customization docs. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Skill path/setup behavior is centralized in `.agent/src/skills.ts` and small CLIs instead of inline workflow shell: [`skills.ts`](https://github.com/self-evolving/repo/blob/5acf16e9c48722ad7fe189736cd9e9d6a8f0feda/.agent/src/skills.ts#L58), [`resolve-skill.ts`](https://github.com/self-evolving/repo/blob/5acf16e9c48722ad7fe189736cd9e9d6a8f0feda/.agent/src/cli/resolve-skill.ts#L55). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Adds repository skill docs and updates action/workflow docs for `<skill_root>`, `setup.sh`, and advanced customization: [`skills.md`](https://github.com/self-evolving/repo/blob/5acf16e9c48722ad7fe189736cd9e9d6a8f0feda/.agent/docs/customization/skills.md#L1). |\n| communication / generic | Write audience-first documentation | pass | 7/7 | The new docs lead with invocation and the simple `.skills/<name>/` shape, then defer trade-offs and advanced Actions customization to later sections: [`skills.md`](https://github.com/self-evolving/repo/blob/5acf16e9c48722ad7fe189736cd9e9d6a8f0feda/.agent/docs/customization/skills.md#L3). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Uses explicit `skill_root` and `trusted_ref` action inputs rather than overloading the skill name or request text: [`run-skill-setup/action.yml`](https://github.com/self-evolving/repo/blob/5acf16e9c48722ad7fe189736cd9e9d6a8f0feda/.github/actions/run-skill-setup/action.yml#L4). |\n| coding_workflow / generic | Keep privileged workflows on trusted runtime code | pass | 8/8 | Setup execution is blocked on PR checkout refs via `trusted_ref: ${{ !startsWith(github.ref, 'refs/pull/') }}` and runtime refusal when `trustedRef === false`: [`agent-router.yml`](https://github.com/self-evolving/repo/blob/5acf16e9c48722ad7fe189736cd9e9d6a8f0feda/.github/workflows/agent-router.yml#L499), [`skills.ts`](https://github.com/self-evolving/repo/blob/5acf16e9c48722ad7fe189736cd9e9d6a8f0feda/.agent/src/skills.ts#L125). |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Setup failure posts a visible failure response and prevents provider/task execution by gating later steps on `steps.skill_setup.outcome == 'success'`: [`agent-router.yml`](https://github.com/self-evolving/repo/blob/5acf16e9c48722ad7fe189736cd9e9d6a8f0feda/.github/workflows/agent-router.yml#L509). |\n| communication / generic | Keep status comments compact | pass | 6/6 | Missing-skill and setup-failure comments are short, user-facing messages with the relevant path, not raw logs: [`agent-router.yml`](https://github.com/self-evolving/repo/blob/5acf16e9c48722ad7fe189736cd9e9d6a8f0feda/.github/workflows/agent-router.yml#L493). |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | If an accepted skill request cannot proceed due missing skill or setup failure, the route posts a concise visible stop reason before skipping the agent task: [`agent-router.yml`](https://github.com/self-evolving/repo/blob/5acf16e9c48722ad7fe189736cd9e9d6a8f0feda/.github/workflows/agent-router.yml#L480). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Scope stays on the requested skill customization boundary: skill resolution, optional setup hook, route wiring, focused tests, and docs. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The PR removes the manifest-runner direction from #241 and uses the simpler `setup.sh` primitive plus docs for advanced native Actions customization: [`skills.ts`](https://github.com/self-evolving/repo/blob/5acf16e9c48722ad7fe189736cd9e9d6a8f0feda/.agent/src/skills.ts#L105), [`skills.md`](https://github.com/self-evolving/repo/blob/5acf16e9c48722ad7fe189736cd9e9d6a8f0feda/.agent/docs/customization/skills.md#L50). |\n\n## Notes\n\n- The implementation matches the PR #241 follow-up decision: minimal `setup.sh` support for simple cases, a local `run-skill-setup` action for workflow readability, and explicit docs telling advanced users to customize the copied `agent-router.yml`.\n- Focused verification passed locally: `npm --prefix .agent run build`, `node --test .agent/dist/__tests__/skill-setup.test.js .agent/dist/__tests__/envelope.test.js`, and `git diff --check origin/main...HEAD`.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-17T01:26:17Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/252#issuecomment-4468757749",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClwTNQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 5acf16e9c48722ad7fe189736cd9e9d6a8f0feda -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #252 implements issue #250, which came from the PR #241 discussion about replacing the `skill-setup.yaml` mini-manifest with a simpler `setup.sh` hook.\n- It adds shared skill path resolution, a `run-skill-setup` composite action, `skill_root` plumbing into runtime prompt loading, and documentation for simple versus advanced skill customization.\n- The PR preserves the important PR-ref trust guard by using `!startsWith(github.ref, 'refs/pull/')`.\n- The main design matches the agreed customization boundary, but two workflow/runtime edge cases still need branch changes.\n\n## Review\nThe implementation is directionally solid and matches the requested design pivot. The remaining issues are localized but concrete: setup can run before required provider readiness is known, and skill file detection regresses from regular-file checks to path-existence checks.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Setup can run before required provider readiness | WARNING | `setup.sh` runs before the route verifies that a required agent provider is available, so setup side effects can happen on runs that later cannot start the skill agent. |\n| Skill detection accepts directories as files | WARNING | `existsSync()` treats directories as present, unlike the old `-f` workflow check, so malformed `SKILL.md/` or `setup.sh/` directories can be treated as valid files. |\n\n## Progress\n- The rubric review passed and confirmed the PR matches the #241/#250 design direction.\n- Claude’s review found only minor carry-over UX/docs concerns from PR #241; those are not promoted to required automation items here.\n- Posted inline comments for both required findings: https://github.com/self-evolving/repo/pull/252#discussion_r3253851210 and https://github.com/self-evolving/repo/pull/252#discussion_r3253851209\n- No existing inline comments or review threads were present before posting; no replies were added, no comments were minimized, and no threads were resolved.\n\n## Issue Details\n<details>\n<summary>Setup can run before required provider readiness</summary>\n\n**Cause:** `.github/workflows/agent-router.yml` resolves the provider once with `required: \"false\"` for runtime setup, then runs `setup.sh`, and only afterward runs the required provider resolution. If auto provider detection has no configured provider, the setup hook can still execute before the workflow fails at `Require skill provider`.\n\n**Candidate solutions:** Move required provider resolution before `Run skill setup`, or add a provider-ready gate so setup only runs when the skill agent can actually start.\n\n**Comments:** This is not a disagreement about the `setup.sh` design; it is an ordering issue in the skill job.\n\n</details>\n\n<details>\n<summary>Skill detection accepts directories as files</summary>\n\n**Cause:** `.agent/src/skills.ts` uses `existsSync()` for `skillExists` and `setupExists`. The previous workflow used `-f`, so directories named `SKILL.md` or `setup.sh` were not accepted as files.\n\n**Candidate solutions:** Use `statSync(...).isFile()` or a small helper that returns `false` for missing paths and non-regular files, then add focused tests for directory-shaped `SKILL.md` and `setup.sh`.\n\n**Comments:** This can let setup run for a malformed skill before prompt loading fails, so it should be fixed with the branch changes.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the remaining findings are concrete, localized branch changes and are safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Gate `Run skill setup` on required provider readiness, or move required provider resolution before setup.\n- [ ] Replace `existsSync()` skill/setup checks with regular-file checks and add focused regression coverage.",
+      "createdAt": "2026-05-17T01:33:36Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/252#issuecomment-4468773685",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClwfTA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #252 | 3 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis for open PR #252 recommends FIX_PR with MINOR_ISSUES; the remaining findings are concrete, localized branch changes within the round budget.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Gate `Run skill setup` on required provider readiness, or move required provider resolution before setup.\n- Replace `existsSync()` skill/setup checks with regular-file checks and add focused regression coverage.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1778981664752 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU5Nzc5MjU3OTU6cmV2aWV3OjI1MjpmaXhfcHI6MjUyOjM -->",
+      "createdAt": "2026-05-17T01:34:25Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/252#issuecomment-4468776780",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClxcSQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-250/codex-25975610901`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Moved required skill-provider resolution before `Run skill setup` and gated setup on provider success, so `setup.sh` cannot run when the skill agent cannot start.\n- Replaced skill/setup existence checks with regular-file checks and added regressions for directory-shaped `SKILL.md` and `setup.sh` paths.\n\n<details><summary>Verification</summary>\n\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/skill-setup.test.js .agent/dist/__tests__/envelope.test.js`\n- `git diff --check`\n\n</details>",
+      "createdAt": "2026-05-17T01:38:10Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/252#issuecomment-4468792393",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClxm_A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #252 | 4 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on open PR #252 after the prior review recommended FIX_PR; a follow-up review is warranted to verify the localized fixes and current head.\n\n<!-- sepo-agent-handoff state:dispatched created:1778981943780 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU5NzgxMTkyNjA6Zml4X3ByOjI1MjpyZXZpZXc6MjUyOjQ -->",
+      "createdAt": "2026-05-17T01:39:04Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/252#issuecomment-4468795132",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClxxXw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 12 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #252 closes #250, which was created from the PR #241 discussion pivot away from `skill-setup.yaml` toward `setup.sh` plus advanced workflow customization docs. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Skill resolution/setup behavior is centralized in `.agent/src/skills.ts` and small CLIs, with workflow glue using `resolve-skill.js` and `run-skill-setup.js` instead of embedding nontrivial shell logic. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Adds `.agent/docs/customization/skills.md` and updates README/action/workflow docs for `<skill_root>`, optional `setup.sh`, and advanced `agent-router.yml` customization. |\n| communication / generic | Write audience-first documentation | pass | 7/7 | The new skills doc leads with how to invoke and structure a skill, then separates `SKILL.md`, simple setup, and advanced setup; internal trade-offs are not front-loaded. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Adds explicit `skill_root` and `trusted_ref` inputs on `.github/actions/run-skill-setup/action.yml` rather than overloading the skill name or command text. |\n| coding_workflow / generic | Keep privileged workflows on trusted runtime code | pass | 8/8 | The setup action receives `trusted_ref: ${{ !startsWith(github.ref, 'refs/pull/') }}`, and `.agent/src/skills.ts` refuses setup when `trustedRef === false`, preserving the PR-ref trust boundary from #241. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Setup runs with `continue-on-error`, posts a visible setup-failure response, and gates later task timeout/skill execution on `steps.skill_setup.outcome == 'success'`. |\n| communication / generic | Keep status comments compact | pass | 6/6 | Missing-skill and setup-failure responses are short user-facing messages with the relevant path, not raw logs or dense tables. |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Missing skill and failed setup both produce visible comments before the route skips the agent task. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | The PR does not add new persistent user-visible artifacts; the added setup/missing-skill messages follow existing route response posting paths rather than creating new tracking objects. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Scope stays on the requested skill customization boundary: `setup.sh` support, `skill_root` plumbing, local action wrapper, focused tests, and docs. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The PR removes the prior YAML manifest direction and implements the simpler `setup.sh` primitive while documenting direct workflow edits for complex Actions/Docker setup. |\n\n## Notes\n\n- The strongest score drivers are that PR #252 matches the explicit #241/#250 design decision: minimal default hook for simple cases, local action wrapper for readability, and docs that direct advanced cases to native workflow customization.\n- The earlier review findings on provider gating and directory-shaped `SKILL.md`/`setup.sh` paths are addressed in the current diff: required provider resolution now precedes setup, setup is gated on provider success, and file checks use `statSync(...).isFile()` with focused tests.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-17T01:40:29Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/252#issuecomment-4468797791",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCly6fA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: c3e09a2a058f56e65a2c865e2ef26e8adb89ede3 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #252 implements issue #250, which came out of the PR #241 discussion about replacing the heavier `skill-setup.yaml` direction with a simpler `setup.sh` hook. It adds shared skill package resolution, a `run-skill-setup` composite action, `skill_root` plumbing into runtime prompt loading, and docs that split simple skill setup from advanced workflow customization. The follow-up fix-pr pass addressed the prior review’s two concrete workflow/runtime concerns. The current head `c3e09a2a058f56e65a2c865e2ef26e8adb89ede3` now matches the agreed customization boundary.\n\n## Review\nReviewers agree there are no remaining BLOCKING or WARNING issues. The prior findings are fixed, and the remaining INFO-level observations are optional polish rather than required branch work.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | Current reviews found no unresolved branch-change requirements. Minor notes around setup failure wording, absolute path docs, and CLI trust defaults are non-blocking. |\n\n## Progress\n- The prior directory-shaped `SKILL.md` / `setup.sh` issue is fixed by regular-file checks using `statSync(...).isFile()` plus regression tests.\n- The prior setup-before-provider issue is fixed by moving required provider resolution before setup and gating setup on `steps.skill_provider.outcome == 'success'`.\n- Rubrics review passed and found the PR aligned with the #241/#250 design direction.\n- Resolved the two stale same-agent inline review threads: https://github.com/self-evolving/repo/pull/252#discussion_r3253851209 and https://github.com/self-evolving/repo/pull/252#discussion_r3253851210\n- No new inline comments were posted, no replies were added, and no comments were minimized.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved actionable branch changes remain for automation.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change action items remain.",
+      "createdAt": "2026-05-17T01:49:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/252#issuecomment-4468816508",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCl51wA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I agree with your comments. A formal “skill package” model is heavier than this implementation needs.\n\nThe useful parts to keep are practical workflow safeguards, not a formal skill definition:\n\n- safe `skill_root` / skill name path resolution in [`skills.ts`](https://github.com/self-evolving/repo/blob/c3e09a2a058f56e65a2c865e2ef26e8adb89ede3/.agent/src/skills.ts#L66-L100)\n- regular-file checks for `SKILL.md` / `setup.sh`\n- GitHub step outputs used by the workflow in [`agent-router.yml`](https://github.com/self-evolving/repo/blob/c3e09a2a058f56e65a2c865e2ef26e8adb89ede3/.github/workflows/agent-router.yml#L475-L517)\n- the PR-ref trust guard before executing repo-owned setup code\n\nBut I would not frame this as Sepo defining a “skill package” abstraction. The contract should just be:\n\n```text\n.skills/<name>/\n  SKILL.md\n  setup.sh   # optional\n```\n\nSo my recommended revision is:\n\n1. Keep the `setup.sh` design and the local `run-skill-setup` action.\n2. Keep a small typed helper for path normalization, file checks, and PR-ref refusal.\n3. Rename/simplify the internal model from `SkillPackage` to something more mechanical like `SkillPaths` or `ResolvedSkill`.\n4. Consider trimming the two CLIs if we can avoid duplication, but don’t move all of this into inline shell because the trust/path checks should stay tested.\n5. Keep docs focused on the convention, not a formal skill definition.\n\nSo: yes, the previous YAML manifest was overkill, and this branch moves in the right direction. I’d still simplify the naming/shape so it reads as “resolve paths and run optional setup,” not “define a skill system.”",
+      "createdAt": "2026-05-17T02:28:45Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/252#issuecomment-4468929984",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCl6sWQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> * Keep a small typed helper for path normalization, file checks, and PR-ref refusal.\r\n\r\n@sepo-agent /answer \r\nI even doubt if we need the typed helper. I think the simplest way is to just add a single yaml action to check if there is a setup and run it and report it. I frankly feel others is a overkill for now. ",
+      "createdAt": "2026-05-17T02:31:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/252#issuecomment-4468943961",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCl7Xug",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I think that is reasonable. For this v1, the typed helper is probably still more structure than we need.\n\nThe core behavior can live entirely inside `./.github/actions/run-skill-setup/action.yml` as a small composite action:\n\n```yaml\n- validate skill name is a simple path segment\n- compute skill_dir=\"$GITHUB_WORKSPACE/$skill_root/$skill\"\n- check `-f \"$skill_dir/SKILL.md\"`\n- output `skill_path`, `setup_path`, `exists`, `setup_exists`\n- if no `setup.sh`, no-op\n- if `setup.sh` exists and `trusted_ref != true`, fail clearly\n- otherwise run `bash \"$skill_dir/setup.sh\"`\n```\n\nThat keeps the implementation aligned with the intended boundary:\n\n- simple customization: `setup.sh`\n- advanced customization: edit `agent-router.yml`\n- no `skill-setup.yaml`\n- no TypeScript domain model for “skill packages”\n- no separate `resolve-skill.ts` / `run-skill-setup.ts` unless we later need stronger shared behavior\n\nThe only checks I would not drop are the basic path/trust checks: skill name must not allow traversal, `SKILL.md` and `setup.sh` should be regular files, and setup must not run from PR refs. But those can be done in bash inside the composite action.\n\nSo yes: I’d simplify this PR further and remove the typed helper/CLIs for now. Keep the contract intentionally boring.",
+      "createdAt": "2026-05-17T02:32:55Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/252#issuecomment-4468955066",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCl7wNw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> I think that is reasonable. For this v1, the typed helper is probably still more structure than we need.\r\n> \r\n> The core behavior can live entirely inside `./.github/actions/run-skill-setup/action.yml` as a small composite action:\r\n> \r\n> ```yaml\r\n> - validate skill name is a simple path segment\r\n> - compute skill_dir=\"$GITHUB_WORKSPACE/$skill_root/$skill\"\r\n> - check `-f \"$skill_dir/SKILL.md\"`\r\n> - output `skill_path`, `setup_path`, `exists`, `setup_exists`\r\n> - if no `setup.sh`, no-op\r\n> - if `setup.sh` exists and `trusted_ref != true`, fail clearly\r\n> - otherwise run `bash \"$skill_dir/setup.sh\"`\r\n> ```\r\n> \r\n> That keeps the implementation aligned with the intended boundary:\r\n> \r\n> * simple customization: `setup.sh`\r\n> * advanced customization: edit `agent-router.yml`\r\n> * no `skill-setup.yaml`\r\n> * no TypeScript domain model for “skill packages”\r\n> * no separate `resolve-skill.ts` / `run-skill-setup.ts` unless we later need stronger shared behavior\r\n> \r\n> The only checks I would not drop are the basic path/trust checks: skill name must not allow traversal, `SKILL.md` and `setup.sh` should be regular files, and setup must not run from PR refs. But those can be done in bash inside the composite action.\r\n> \r\n> So yes: I’d simplify this PR further and remove the typed helper/CLIs for now. Keep the contract intentionally boring.\r\n\r\n@sepo-agent /fix-pr checking our discussion here -- basically remove a lot of complexities and simplify to the simplest implementation ",
+      "createdAt": "2026-05-17T02:35:35Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/252#issuecomment-4468961335",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCl8ddg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-250/codex-25975610901`. Requested by @lolipopshock.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Simplified skill setup to a single bash composite action in `.github/actions/run-skill-setup/action.yml` with skill-name/path validation, `-f` checks, outputs, PR-ref trust refusal, and `bash setup.sh` execution.\n- Removed the TypeScript skill domain helper, both skill setup CLIs, and their dedicated tests.\n- Kept `skill_root` runtime loading with a small local regular-file/path check and updated workflow/docs/tests for the simpler contract.\n\n<details><summary>Verification</summary>\n\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/envelope.test.js`\n- `git diff --check`\n\n</details>",
+      "createdAt": "2026-05-17T02:42:20Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/252#issuecomment-4468972918",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCl849A",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate ",
+      "createdAt": "2026-05-17T02:46:16Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/252#issuecomment-4468979956",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCl9Cdg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | review | PR #252 | 2 / 40 | Dispatched |\n\nReason: agent planner selected review: Open PR #252 received a new fix-pr pass after the prior SHIP review, and the requester invoked /orchestrate again; a fresh review is warranted for the current simplified implementation.\n\n<!-- sepo-agent-handoff state:dispatched created:1778986059518 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU5Nzk0NzAxMTQ6b3JjaGVzdHJhdGU6MjUyOnJldmlldzoyNTI6Mg -->",
+      "createdAt": "2026-05-17T02:47:39Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/252#issuecomment-4468982390",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCl9Njg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 12 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #252 closes #250, which was created from the PR #241 discussion that rejected a heavier `skill-setup.yaml` model in favor of simple `setup.sh` plus documented workflow customization. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The current diff keeps workflow integration in a reusable local composite action, `.github/actions/run-skill-setup/action.yml`, and wires it through existing `agent-router.yml` / `run-agent-task` paths instead of adding a new TypeScript skill package subsystem. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Adds `.agent/docs/customization/skills.md` and updates README/action/workflow docs for `<skill_root>`, optional `setup.sh`, and advanced `agent-router.yml` customization. |\n| communication / generic | Write audience-first documentation | pass | 7/7 | The new docs lead with the simple `.skills/<name>/SKILL.md` / `setup.sh` convention and invocation, then put advanced workflow customization later. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The composite action exposes explicit `skill`, `skill_root`, and `trusted_ref` inputs rather than encoding these in route text. |\n| coding_workflow / generic | Keep privileged workflows on trusted runtime code | pass | 8/8 | Setup execution is guarded by `trusted_ref: ${{ !startsWith(github.ref, 'refs/pull/') }}` and the composite action refuses to run `setup.sh` unless that input is `true`. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | `Run skill setup` uses `continue-on-error`, setup failures get a visible response, and later timeout/task steps require `steps.skill_setup.outcome == 'success'`. |\n| communication / generic | Keep status comments compact | pass | 6/6 | Missing-skill and setup-failure messages remain short, user-facing comments with the relevant path or skill name. |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Missing `SKILL.md` and failed setup both post a visible stop reason before skipping the agent task. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | The PR does not add new tracking issues or persistent setup artifacts; it uses the existing route response mechanism for visible failure messages. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Scope is limited to repository skill setup: `setup.sh` support, `skill_root` plumbing, one local action, docs, and focused validation tests. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The latest simplification removes the typed skill helper/CLIs and implements the requested minimal primitive as a small composite action plus runtime `skill_root` loading. |\n\n## Notes\n\n- The current head matches the newer maintainer direction in the PR thread: no `skill-setup.yaml`, no formal skill package model, and advanced cases should customize the copied workflow directly.\n- The important trust boundary from PR #241 is preserved with a ref-based `refs/pull/` guard before executing repo-owned setup code.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-17T02:49:20Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/252#issuecomment-4468985230",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCl90qg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: ded76e188f8b2db434f5d48718d3dd4e03cc44fd -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #252 implements issue #250, which came from the PR #241 discussion about replacing the heavier `skill-setup.yaml` approach with a simple `setup.sh` hook. The current simplified head `ded76e188f8b2db434f5d48718d3dd4e03cc44fd` removes the TypeScript skill helper/CLIs and keeps the setup logic in one composite action. It still wires `skill_root` through runtime prompt loading and documents the simple `setup.sh` path versus advanced `agent-router.yml` customization. The design now matches the maintainer’s simplification request, but one workflow-ordering regression remains.\n\n## Review\nReviewers broadly agree the simplified design is now the right shape. Claude and rubrics found no blocking issues, while Codex identified one concrete regression in user-facing missing-skill handling.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Missing-skill feedback now depends on provider availability | WARNING | The skill job now requires an agent provider before running the deterministic skill existence check, so repositories without configured provider credentials fail before posting the documented missing-skill fallback comment. |\n\n## Progress\n- The earlier provider-before-setup safety issue is fixed: `setup.sh` no longer runs before provider readiness.\n- The earlier directory-as-file issue is fixed by using shell `-f` checks in the composite action and regular-file checks in runtime prompt loading.\n- The maintainer’s over-complexity concern was addressed by removing `.agent/src/skills.ts`, `.agent/src/cli/run-skill-setup.ts`, and `.agent/src/cli/resolve-skill.ts`.\n- Posted one new inline comment for the remaining warning: https://github.com/self-evolving/repo/pull/252#discussion_r3253937716\n- Existing same-agent stale threads were already resolved. Human-authored complexity threads remain unresolved and were not resolved by the agent.\n\n## Issue Details\n<details>\n<summary>Missing-skill feedback now depends on provider availability</summary>\n\n**Cause:** `.github/workflows/agent-router.yml` moved `Require skill provider` before the composite setup action, and the composite action now owns the `SKILL.md` existence check. If provider resolution fails, the workflow never reaches the cheap path/file check and cannot post the “Skill `<path>/SKILL.md` was not found” response.\n\n**Candidate solutions:** Split skill existence/path checking from setup execution, or otherwise run the missing-skill check before required provider resolution while keeping `setup.sh` execution gated on provider readiness.\n\n**Comments:** This is the only current branch-change finding. Claude and rubrics treated the simplified implementation as otherwise shippable.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the remaining finding is a localized workflow-ordering fix that is safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Restore provider-independent missing-skill detection/commenting while keeping `setup.sh` execution gated on provider readiness.",
+      "createdAt": "2026-05-17T02:56:05Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/252#issuecomment-4468995242",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCl951A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #252 | 3 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis for open PR #252 recommends FIX_PR with MINOR_ISSUES; the remaining issue is a concrete localized workflow-ordering fix within the round budget.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Restore provider-independent missing-skill detection/commenting while keeping `setup.sh` execution gated on provider readiness.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1778986612356 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU5Nzk0OTM5OTk6cmV2aWV3OjI1MjpmaXhfcHI6MjUyOjM -->",
+      "createdAt": "2026-05-17T02:56:52Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/252#issuecomment-4468996564",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCl-dNQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-250/codex-25975610901`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Restored provider-independent missing-skill handling by running a check-only `run-skill-setup` pass before required provider resolution.\n- Kept actual `setup.sh` execution gated after required provider readiness with a second setup-running action call.\n- Updated the composite action contract with explicit `run_setup` and refreshed the workflow contract test/docs.\n\n<details><summary>Verification</summary>\n\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/envelope.test.js`\n- `git diff --check`\n\n</details>",
+      "createdAt": "2026-05-17T03:02:20Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/252#issuecomment-4469005621",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCl-jFg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #252 | 4 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on open PR #252 after addressing the latest review synthesis warning; a follow-up review is warranted to verify the current head and confirm no actionable issues remain.\n\n<!-- sepo-agent-handoff state:dispatched created:1778986992106 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU5Nzk2NTM1Mzg6Zml4X3ByOjI1MjpyZXZpZXc6MjUyOjQ -->",
+      "createdAt": "2026-05-17T03:03:12Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/252#issuecomment-4469007126",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCl-zUA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 12 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #252 closes #250, which was created from the PR #241 discussion rejecting `skill-setup.yaml` in favor of a minimal `setup.sh` hook plus documented workflow customization. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The latest diff keeps setup behavior in a reusable composite action, `.github/actions/run-skill-setup/action.yml`, and wires it through the existing `agent-router.yml` / `run-agent-task` flow instead of adding a separate skill package subsystem. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Adds `.agent/docs/customization/skills.md` and updates README/action/workflow docs for `<skill_root>`, `setup.sh`, and advanced `agent-router.yml` customization. |\n| communication / generic | Write audience-first documentation | pass | 7/7 | The new skills doc starts with invocation and the simple `.skills/<name>/SKILL.md` / `setup.sh` convention, then moves advanced workflow customization later. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The composite action exposes explicit `skill`, `skill_root`, `trusted_ref`, and `run_setup` inputs rather than encoding those meanings into route text. |\n| coding_workflow / generic | Keep privileged workflows on trusted runtime code | pass | 8/8 | Setup execution is guarded with `trusted_ref: ${{ !startsWith(github.ref, 'refs/pull/') }}`, and the action refuses to run `setup.sh` unless the ref is trusted. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Setup runs with `continue-on-error`, setup failures post a visible response, and later timeout/task steps require `steps.skill_setup.outcome == 'success'`. |\n| communication / generic | Keep status comments compact | pass | 6/6 | Missing-skill and setup-failure responses are concise user-facing messages with the relevant skill path or setup path, not raw logs. |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Missing `SKILL.md` and failed setup both post visible stop reasons before skipping the agent task. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | The PR does not add new tracking artifacts; it uses existing route response posting for visible failure messages. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Scope is limited to repository skill setup: `setup.sh` support, `skill_root` plumbing, one local action, docs, and focused workflow/runtime tests. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The latest implementation removed the TypeScript helper/CLIs and uses the requested minimal composite action plus runtime `skill_root` loading. |\n\n## Notes\n\n- The current head matches the maintainer’s later direction in the PR thread: no formal skill package model, no `skill-setup.yaml`, and advanced cases should customize the copied workflow directly.\n- The prior review concern about provider-independent missing-skill feedback appears addressed: the workflow now runs a check-only `run-skill-setup` pass before required provider resolution, then runs actual setup only after provider readiness.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-17T03:04:34Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/252#issuecomment-4469011280",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCmBmcA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 8e8d77add486ddb86496478590e989dae3267eea -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #252 implements issue #250 from the PR #241 customization-boundary discussion. It replaces the heavier `skill-setup.yaml` direction with a minimal `setup.sh` hook, keeps setup behavior in a composite action, wires `skill_root` into skill prompt loading, and documents simple setup versus advanced `agent-router.yml` customization. The latest fix restored provider-independent missing-skill detection while keeping actual setup execution after the provider gate. Current head is `8e8d77add486ddb86496478590e989dae3267eea`.\n\n## Review\nNo actionable branch-change issues remain. Claude raised a setup-provider gating warning, but Codex and rubrics reviewed the newer head as fixed; direct inspection confirms the current flow does check-only skill detection before provider resolution and does not use `always()` to force setup past a failed provider step.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | Current head addresses the prior missing-skill/provider-ordering warning and matches the requested simplification. Remaining notes are test-depth or human-thread cleanup concerns, not required branch work. |\n\n## Progress\n- The maintainer’s complexity concern was addressed by removing the TypeScript skill package helper/CLIs and moving setup behavior into `.github/actions/run-skill-setup/action.yml`.\n- Missing-skill feedback is provider-independent again via a check-only setup action pass before `Require skill provider`.\n- Actual `setup.sh` execution still happens after the provider requirement and remains guarded by the PR-ref trust check.\n- Resolved the stale same-agent thread for the prior missing-skill/provider ordering warning: https://github.com/self-evolving/repo/pull/252#discussion_r3253937716\n- No new inline comments were posted, no replies were added, and no comments were minimized.\n- Human-authored complexity threads were not resolved by the agent; they refer to files removed by the simplification pass.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved actionable branch changes remain for automation.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change action items remain.",
+      "createdAt": "2026-05-17T03:12:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/252#issuecomment-4469057136",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCmC4MQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nUpdated [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #252.\n\nAdded one active rubric:\n\n`rubrics/workflow/minimal-defaults-native-escape-hatches.yaml`\n\nIt captures the durable preference from PR #252 and linked PR #241: keep extension/customization surfaces minimal for common cases, and document native repo-owned workflow/code customization for advanced cases instead of building a full platform abstraction.\n\nValidation: YAML parsed successfully. Only the new rubric file is changed; no commit was made.\n",
+      "createdAt": "2026-05-17T03:20:10Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/252#issuecomment-4469078065",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-16T23:26:44Z",
+  "files": [
+    {
+      "path": ".agent/docs/README.md",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/actions/agent-actions.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/actions/internal-actions.md",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 13,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/skills.md",
+      "additions": 78,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/docs/overview/quick-start.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/developer-notes.md",
+      "additions": 0,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 44,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/run.ts",
+      "additions": 21,
+      "deletions": 6,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/run-agent-task/action.yml",
+      "additions": 6,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/run-skill-setup/action.yml",
+      "additions": 112,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/workflows/agent-router.yml",
+      "additions": 53,
+      "deletions": 19,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": "README.md",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-250/codex-25975610901",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": "2026-05-17T03:17:54Z",
+  "number": 252,
+  "reviewDecision": "CHANGES_REQUESTED",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAJNcnw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-17T01:33:06Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "5acf16e9c48722ad7fe189736cd9e9d6a8f0feda"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAJNcoA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-17T01:33:06Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "5acf16e9c48722ad7fe189736cd9e9d6a8f0feda"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAJQzdg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer\n\nCheck my comments. I think there formal definition of skills is an overkill for this implementation. \n\n",
+      "submittedAt": "2026-05-17T02:26:32Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "state": "CHANGES_REQUESTED",
+      "commit": {
+        "oid": "c3e09a2a058f56e65a2c865e2ef26e8adb89ede3"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAJSeWQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-17T02:55:38Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "ded76e188f8b2db434f5d48718d3dd4e03cc44fd"
+      }
+    }
+  ],
+  "state": "MERGED",
+  "title": "Add setup.sh hooks for repository skills",
+  "updatedAt": "2026-05-17T03:20:10Z",
+  "url": "https://github.com/self-evolving/repo/pull/252"
+}

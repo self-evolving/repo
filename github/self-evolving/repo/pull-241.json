@@ -5,7 +5,7 @@
   },
   "baseRefName": "main",
   "body": "## Summary\n- Add typed skill package resolution and skill-setup.yaml v1 validation/execution CLIs\n- Wire the skill route to honor skill_root, run optional setup before the agent task, post setup failures, and refuse setup on raw pull_request checkouts\n- Document repository skills, setup schema, trust boundary, and example manifests\n\n## Verification\n- npm --prefix .agent test\n\nCloses #201\n",
-  "closedAt": null,
+  "closedAt": "2026-05-17T03:20:58Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABCPjbLQ",
@@ -281,14 +281,116 @@
         "login": "lolipopshock"
       },
       "authorAssociation": "CONTRIBUTOR",
-      "body": "> Yes. Given the Actions constraint, I see three realistic designs.\n> \n> **Best balance: keep the manifest, wrap it in a local action**\n> \n> Current PR has the right behavior, but the workflow reads a little low-level:\n> \n> ```yaml\n> - name: Run skill setup\n>   run: node .agent/dist/cli/run-skill-setup.js\n> ```\n> \n> That could become:\n> \n> ```yaml\n> - name: Run skill setup\n>   uses: ./.github/actions/run-skill-setup\n>   with:\n>     skill: ${{ needs.portal.outputs.skill }}\n>     skill_root: ${{ inputs.skill_root }}\n>     trusted_ref: ${{ !startsWith(github.ref, 'refs/pull/') }}\n> ```\n> \n> The local action would internally call the same typed CLI. This keeps the workflow more Actions-native while preserving the good parts: schema validation, no-op when setup is missing, PR-ref blocking, outputs, and testable TypeScript logic.\n> \n> That is probably the cleanest version of the current approach. The current insertion point is here: [`agent-router.yml#L445-L453`](https://github.com/self-evolving/repo/blob/0d188a0ea041923b57657ebbf2ee045e80820de2/.github/workflows/agent-router.yml#L445-L453).\n> \n> **Simplest protocol: replace `skill-setup.yaml` with `setup.sh`**\n> \n> If we want maximum simplicity, make setup an executable script:\n> \n> ```text\n> .skills/<name>/\n>   SKILL.md\n>   setup.sh\n> ```\n> \n> Then Sepo only resolves the path and runs:\n> \n> ```yaml\n> - name: Run skill setup\n>   if: steps.check-skill.outputs.setup_exists == 'true'\n>   run: bash \"${{ steps.check-skill.outputs.setup_path }}\"\n> ```\n> \n> This is elegant because there is no manifest interpreter. But it gives up the structured v1 contract currently implemented in [`skills.ts`](https://github.com/self-evolving/repo/blob/0d188a0ea041923b57657ebbf2ee045e80820de2/.agent/src/skills.ts#L193-L293): named steps, per-step env, shell selection, timeout validation, and better error messages.\n> \n> I would choose this only if we believe skill setup should just be “run this repo-owned script.”\n> \n> **Not worth it: try to model skills as dynamic GitHub Actions**\n> \n> For example:\n> \n> ```text\n> .skills/<name>/action.yml\n> ```\n> \n> and somehow:\n> \n> ```yaml\n> uses: ./.skills/${{ needs.portal.outputs.skill }}\n> ```\n> \n> This would look elegant, but GitHub Actions does not support dynamic `uses:` paths this way, and local actions require static resolution. Generating or dispatching another workflow would be much more complex, and setup would not naturally share the same job environment before `Run skill`.\n> \n> So my recommendation:\n> \n> - If `/skill` is meant to be a real Sepo extension protocol, keep `skill-setup.yaml`.\n> - Refactor the workflow call into `./.github/actions/run-skill-setup` for readability.\n> - Keep the parser/runner in TypeScript because that is where validation, trust rules, no-op behavior, and tests belong.\n> - If we decide setup does not need structure, switch the protocol to `setup.sh` instead of YAML.\n\nOk I agree with the first approach. Then the question becomes, is the shell command a good idea? For example, in GitHub actions, people might want to use different docker environments? How does it solve this issue? ",
+      "body": "> Yes. Given the Actions constraint, I see three realistic designs.\r\n> \r\n> **Best balance: keep the manifest, wrap it in a local action**\r\n> \r\n> Current PR has the right behavior, but the workflow reads a little low-level:\r\n> \r\n> ```yaml\r\n> - name: Run skill setup\r\n>   run: node .agent/dist/cli/run-skill-setup.js\r\n> ```\r\n> \r\n> That could become:\r\n> \r\n> ```yaml\r\n> - name: Run skill setup\r\n>   uses: ./.github/actions/run-skill-setup\r\n>   with:\r\n>     skill: ${{ needs.portal.outputs.skill }}\r\n>     skill_root: ${{ inputs.skill_root }}\r\n>     trusted_ref: ${{ !startsWith(github.ref, 'refs/pull/') }}\r\n> ```\r\n> \r\n> The local action would internally call the same typed CLI. This keeps the workflow more Actions-native while preserving the good parts: schema validation, no-op when setup is missing, PR-ref blocking, outputs, and testable TypeScript logic.\r\n> \r\n> That is probably the cleanest version of the current approach. The current insertion point is here: [`agent-router.yml#L445-L453`](https://github.com/self-evolving/repo/blob/0d188a0ea041923b57657ebbf2ee045e80820de2/.github/workflows/agent-router.yml#L445-L453).\r\n> \r\n> **Simplest protocol: replace `skill-setup.yaml` with `setup.sh`**\r\n> \r\n> If we want maximum simplicity, make setup an executable script:\r\n> \r\n> ```text\r\n> .skills/<name>/\r\n>   SKILL.md\r\n>   setup.sh\r\n> ```\r\n> \r\n> Then Sepo only resolves the path and runs:\r\n> \r\n> ```yaml\r\n> - name: Run skill setup\r\n>   if: steps.check-skill.outputs.setup_exists == 'true'\r\n>   run: bash \"${{ steps.check-skill.outputs.setup_path }}\"\r\n> ```\r\n> \r\n> This is elegant because there is no manifest interpreter. But it gives up the structured v1 contract currently implemented in [`skills.ts`](https://github.com/self-evolving/repo/blob/0d188a0ea041923b57657ebbf2ee045e80820de2/.agent/src/skills.ts#L193-L293): named steps, per-step env, shell selection, timeout validation, and better error messages.\r\n> \r\n> I would choose this only if we believe skill setup should just be “run this repo-owned script.”\r\n> \r\n> **Not worth it: try to model skills as dynamic GitHub Actions**\r\n> \r\n> For example:\r\n> \r\n> ```text\r\n> .skills/<name>/action.yml\r\n> ```\r\n> \r\n> and somehow:\r\n> \r\n> ```yaml\r\n> uses: ./.skills/${{ needs.portal.outputs.skill }}\r\n> ```\r\n> \r\n> This would look elegant, but GitHub Actions does not support dynamic `uses:` paths this way, and local actions require static resolution. Generating or dispatching another workflow would be much more complex, and setup would not naturally share the same job environment before `Run skill`.\r\n> \r\n> So my recommendation:\r\n> \r\n> - If `/skill` is meant to be a real Sepo extension protocol, keep `skill-setup.yaml`.\r\n> - Refactor the workflow call into `./.github/actions/run-skill-setup` for readability.\r\n> - Keep the parser/runner in TypeScript because that is where validation, trust rules, no-op behavior, and tests belong.\r\n> - If we decide setup does not need structure, switch the protocol to `setup.sh` instead of YAML.\r\n\r\n@sepo-agent /answer \r\n\r\nOk I agree with the first approach. Then the question becomes, is the shell command a good idea? For example, in GitHub actions, people might want to use different docker environments? How does it solve this issue? ",
       "createdAt": "2026-05-16T00:47:27Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/241#issuecomment-4464822520",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCk-1TA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "The shell command is a reasonable v1 primitive, but it does **not** solve “I want this skill to run in a different Docker environment” by itself.\n\nA shell `run` step in GitHub Actions is exactly that: command-line programs executed by the job shell. GitHub documents `steps[*].run` this way, and separately models job containers via `jobs.<job_id>.container` and Docker actions via action metadata. Those are different execution models, not just different shell strings. See GitHub’s docs for [`steps[*].run`](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idstepsrun), [`jobs.<job_id>.container`](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idcontainer), and [Docker container actions](https://docs.github.com/en/actions/reference/workflows-and-actions/metadata-syntax#runs-for-docker-container-actions).\n\nSo I’d frame it this way:\n\n- `skill-setup.yaml` v1 with `run:` is good for installing packages/tools into the current Sepo job environment.\n- It is **not** a full GitHub Actions replacement.\n- If we want Docker isolation, that should be an explicit v2 capability, not hidden inside shell.\n\nThere are three reasonable ways to handle Docker:\n\n1. **Workflow-level container for all skill runs**\n\n   Add a workflow input/config like `skill_container_image`, and run the whole `skill` job in that container.\n\n   This uses native GitHub Actions container semantics. It is clean, but coarse: the checkout, runtime setup, skill setup, and agent run all happen in that same container. That can break if the container lacks Node, git, bash, Docker, etc.\n\n2. **Setup-step container in Sepo’s manifest**\n\n   Extend the manifest later:\n\n   ```yaml\n   version: 2\n   steps:\n     - name: Build research index\n       image: ghcr.io/org/research-tools:latest\n       run: agent-papers index .\n   ```\n\n   Sepo would execute that as something like `docker run` with the workspace mounted. This gives per-skill or per-step containers, but Sepo now owns Docker semantics: mounts, env propagation, credentials, working directory, output persistence, platform assumptions, and cleanup.\n\n   This is powerful, but meaningfully more complex.\n\n3. **Docker command inside shell**\n\n   Skill authors can already do:\n\n   ```yaml\n   steps:\n     - name: Run tool in container\n       run: docker run --rm -v \"$PWD:/work\" -w /work ghcr.io/org/tool:latest tool-command\n   ```\n\n   That is pragmatic for v1. It keeps Sepo small and lets advanced users opt into Docker manually.\n\nMy recommendation: keep v1 as shell-based `run` steps, because it matches GitHub’s basic `run:` mental model and is enough for installing CLIs. Do **not** pretend it solves all runtime isolation. Document that Docker is currently done by explicit `docker run` in setup, and consider a v2 `image:` field only if we see repeated demand.\n\nThe current PR’s runner already gives us a good place to evolve this later: [`runSkillSetup`](https://github.com/self-evolving/repo/blob/0d188a0ea041923b57657ebbf2ee045e80820de2/.agent/src/skills.ts#L241-L293). For now, wrapping it in `./.github/actions/run-skill-setup` improves workflow readability without overcommitting Sepo to a partial Actions/Docker reimplementation.",
+      "createdAt": "2026-05-16T20:02:58Z",
       "includesCreatedEdit": false,
       "isMinimized": false,
       "minimizedReason": "",
       "reactionGroups": [],
-      "url": "https://github.com/self-evolving/repo/pull/241#issuecomment-4464822520",
+      "url": "https://github.com/self-evolving/repo/pull/241#issuecomment-4467963212",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClV_8w",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> The shell command is a reasonable v1 primitive, but it does **not** solve “I want this skill to run in a different Docker environment” by itself.\r\n> \r\n> A shell `run` step in GitHub Actions is exactly that: command-line programs executed by the job shell. GitHub documents `steps[*].run` this way, and separately models job containers via `jobs.<job_id>.container` and Docker actions via action metadata. Those are different execution models, not just different shell strings. See GitHub’s docs for [`steps[*].run`](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idstepsrun), [`jobs.<job_id>.container`](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idcontainer), and [Docker container actions](https://docs.github.com/en/actions/reference/workflows-and-actions/metadata-syntax#runs-for-docker-container-actions).\r\n> \r\n> So I’d frame it this way:\r\n> \r\n> * `skill-setup.yaml` v1 with `run:` is good for installing packages/tools into the current Sepo job environment.\r\n> * It is **not** a full GitHub Actions replacement.\r\n> * If we want Docker isolation, that should be an explicit v2 capability, not hidden inside shell.\r\n> \r\n> There are three reasonable ways to handle Docker:\r\n> \r\n> 1. **Workflow-level container for all skill runs**\r\n>    Add a workflow input/config like `skill_container_image`, and run the whole `skill` job in that container.\r\n>    This uses native GitHub Actions container semantics. It is clean, but coarse: the checkout, runtime setup, skill setup, and agent run all happen in that same container. That can break if the container lacks Node, git, bash, Docker, etc.\r\n> 2. **Setup-step container in Sepo’s manifest**\r\n>    Extend the manifest later:\r\n>    ```yaml\r\n>    version: 2\r\n>    steps:\r\n>      - name: Build research index\r\n>        image: ghcr.io/org/research-tools:latest\r\n>        run: agent-papers index .\r\n>    ```\r\n>    \r\n>    \r\n>        \r\n>          \r\n>        \r\n>    \r\n>          \r\n>        \r\n>    \r\n>        \r\n>      \r\n>    Sepo would execute that as something like `docker run` with the workspace mounted. This gives per-skill or per-step containers, but Sepo now owns Docker semantics: mounts, env propagation, credentials, working directory, output persistence, platform assumptions, and cleanup.\r\n>    This is powerful, but meaningfully more complex.\r\n> 3. **Docker command inside shell**\r\n>    Skill authors can already do:\r\n>    ```yaml\r\n>    steps:\r\n>      - name: Run tool in container\r\n>        run: docker run --rm -v \"$PWD:/work\" -w /work ghcr.io/org/tool:latest tool-command\r\n>    ```\r\n>    \r\n>    \r\n>        \r\n>          \r\n>        \r\n>    \r\n>          \r\n>        \r\n>    \r\n>        \r\n>      \r\n>    That is pragmatic for v1. It keeps Sepo small and lets advanced users opt into Docker manually.\r\n> \r\n> My recommendation: keep v1 as shell-based `run` steps, because it matches GitHub’s basic `run:` mental model and is enough for installing CLIs. Do **not** pretend it solves all runtime isolation. Document that Docker is currently done by explicit `docker run` in setup, and consider a v2 `image:` field only if we see repeated demand.\r\n> \r\n> The current PR’s runner already gives us a good place to evolve this later: [`runSkillSetup`](https://github.com/self-evolving/repo/blob/0d188a0ea041923b57657ebbf2ee045e80820de2/.agent/src/skills.ts#L241-L293). For now, wrapping it in `./.github/actions/run-skill-setup` improves workflow readability without overcommitting Sepo to a partial Actions/Docker reimplementation.\r\n\r\n@sepo-agent /answer \r\n\r\nI think this goes to the right problem: \r\n1. we should provide a minimal primitive (with relatively simple support) for simple extension tasks. Framing that as a setup-up.sh script seems to make it way much more easy and straightforward. Using the `uses` and `with` syntax makes sense as well. \r\n2. Further more, for more complex skill setups, we should alter our infrastructure so it can allow users to directly override the skill route logic, i.e., there should be an easy way (either documentation or some modifications of our current skill dispatch route) such that it can handle such special skill routes (for example, statically code the setup actions etc). \r\n\r\nThe essence here is to redesign the customization / generalization boundary here: since when users use speo, they will install and duplicate everything to their own repo. Therefore, we should consider the right trade-offs: supporting the minimal infrastructure for simple customizations, and allow and instruct users/agents to change the code when they demand larger customizations. ",
+      "createdAt": "2026-05-16T22:04:46Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/241#issuecomment-4468342771",
       "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClWWZA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I agree. This is the better customization boundary.\n\nThe current PR leans toward “Sepo defines a mini setup manifest.” After this discussion, I would instead frame the boundary as:\n\n- Sepo provides a **small default hook** for common cases.\n- Repo owners can **edit the copied Sepo workflow** for complex cases.\n- Sepo docs should explicitly bless that workflow customization path instead of trying to model all of GitHub Actions inside `skill-setup.yaml`.\n\nConcretely, I would change the PR direction like this.\n\n1. Replace `skill-setup.yaml` with an optional script convention:\n\n```text\n.skills/<name>/\n  SKILL.md\n  setup.sh      # optional\n```\n\n2. Keep the workflow readable with a local action:\n\n```yaml\n- name: Run skill setup\n  uses: ./.github/actions/run-skill-setup\n  with:\n    skill: ${{ needs.portal.outputs.skill }}\n    skill_root: ${{ inputs.skill_root }}\n    trusted_ref: ${{ !startsWith(github.ref, 'refs/pull/') }}\n```\n\n3. Internally, that action only does simple things:\n\n- resolve `<skill_root>/<skill>/SKILL.md`\n- check whether `setup.sh` exists\n- refuse PR checkout refs\n- run `bash <skill_dir>/setup.sh`\n- expose clear outputs/failure state\n\nThat lets us keep the useful path resolution/trust behavior from the current PR, but removes the custom YAML parser and the “is this becoming fake GitHub Actions?” concern currently centered in [`skills.ts`](https://github.com/self-evolving/repo/blob/0d188a0ea041923b57657ebbf2ee045e80820de2/.agent/src/skills.ts#L193-L293).\n\n4. Add docs for advanced customization.\n\nThe docs should say: for complex skill routes, edit the copied `.github/workflows/agent-router.yml` directly. The skill job already has a natural customization point after `Resolve skill package` and before `Run skill`: [`agent-router.yml#L419-L453`](https://github.com/self-evolving/repo/blob/0d188a0ea041923b57657ebbf2ee045e80820de2/.github/workflows/agent-router.yml#L419-L453).\n\nExample advanced customization:\n\n```yaml\n- name: Setup deep research skill\n  if: needs.portal.outputs.skill == 'deep-research'\n  uses: docker://ghcr.io/example/research-env:latest\n  with:\n    args: prepare-research-env\n```\n\nor:\n\n```yaml\n- name: Setup release skill\n  if: needs.portal.outputs.skill == 'release-notes'\n  uses: actions/setup-node@v4\n  with:\n    node-version: 22\n```\n\nThat is much cleaner than making Sepo support Docker, `uses`, `with`, services, caches, matrix behavior, etc. Users already own the copied workflow, so advanced cases should use native Actions.\n\nMy recommended revision to PR #241:\n\n1. Remove `skill-setup.yaml` schema/executor.\n2. Add optional `setup.sh` support.\n3. Add `./.github/actions/run-skill-setup`.\n4. Keep typed skill path resolution and PR-ref trust guard.\n5. Update docs to explicitly define two levels:\n   - simple extension: `.skills/<name>/setup.sh`\n   - advanced extension: customize the `skill` job in `agent-router.yml`\n\nThat gives Sepo a minimal primitive without hiding the fact that larger customization belongs in the repo-owned workflow code.",
+      "createdAt": "2026-05-16T22:06:17Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/241#issuecomment-4468348516",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClf57Q",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> I agree. This is the better customization boundary.\n> \n> The current PR leans toward “Sepo defines a mini setup manifest.” After this discussion, I would instead frame the boundary as:\n> \n> - Sepo provides a **small default hook** for common cases.\n> - Repo owners can **edit the copied Sepo workflow** for complex cases.\n> - Sepo docs should explicitly bless that workflow customization path instead of trying to model all of GitHub Actions inside `skill-setup.yaml`.\n> \n> Concretely, I would change the PR direction like this.\n> \n> 1. Replace `skill-setup.yaml` with an optional script convention:\n> \n> ```text\n> .skills/<name>/\n>   SKILL.md\n>   setup.sh      # optional\n> ```\n> \n> 2. Keep the workflow readable with a local action:\n> \n> ```yaml\n> - name: Run skill setup\n>   uses: ./.github/actions/run-skill-setup\n>   with:\n>     skill: ${{ needs.portal.outputs.skill }}\n>     skill_root: ${{ inputs.skill_root }}\n>     trusted_ref: ${{ !startsWith(github.ref, 'refs/pull/') }}\n> ```\n> \n> 3. Internally, that action only does simple things:\n> \n> - resolve `<skill_root>/<skill>/SKILL.md`\n> - check whether `setup.sh` exists\n> - refuse PR checkout refs\n> - run `bash <skill_dir>/setup.sh`\n> - expose clear outputs/failure state\n> \n> That lets us keep the useful path resolution/trust behavior from the current PR, but removes the custom YAML parser and the “is this becoming fake GitHub Actions?” concern currently centered in [`skills.ts`](https://github.com/self-evolving/repo/blob/0d188a0ea041923b57657ebbf2ee045e80820de2/.agent/src/skills.ts#L193-L293).\n> \n> 4. Add docs for advanced customization.\n> \n> The docs should say: for complex skill routes, edit the copied `.github/workflows/agent-router.yml` directly. The skill job already has a natural customization point after `Resolve skill package` and before `Run skill`: [`agent-router.yml#L419-L453`](https://github.com/self-evolving/repo/blob/0d188a0ea041923b57657ebbf2ee045e80820de2/.github/workflows/agent-router.yml#L419-L453).\n> \n> Example advanced customization:\n> \n> ```yaml\n> - name: Setup deep research skill\n>   if: needs.portal.outputs.skill == 'deep-research'\n>   uses: docker://ghcr.io/example/research-env:latest\n>   with:\n>     args: prepare-research-env\n> ```\n> \n> or:\n> \n> ```yaml\n> - name: Setup release skill\n>   if: needs.portal.outputs.skill == 'release-notes'\n>   uses: actions/setup-node@v4\n>   with:\n>     node-version: 22\n> ```\n> \n> That is much cleaner than making Sepo support Docker, `uses`, `with`, services, caches, matrix behavior, etc. Users already own the copied workflow, so advanced cases should use native Actions.\n> \n> My recommended revision to PR #241:\n> \n> 1. Remove `skill-setup.yaml` schema/executor.\n> 2. Add optional `setup.sh` support.\n> 3. Add `./.github/actions/run-skill-setup`.\n> 4. Keep typed skill path resolution and PR-ref trust guard.\n> 5. Update docs to explicitly define two levels:\n>    - simple extension: `.skills/<name>/setup.sh`\n>    - advanced extension: customize the `skill` job in `agent-router.yml`\n> \n> That gives Sepo a minimal primitive without hiding the fact that larger customization belongs in the repo-owned workflow \n\n@sepo-agent /implement can we try to implement it in a new issue ",
+      "createdAt": "2026-05-16T23:18:37Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/241#issuecomment-4468505069",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClgA1Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Implementing this request — tracking in https://github.com/self-evolving/repo/issues/250.\n",
+      "createdAt": "2026-05-16T23:19:33Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/241#issuecomment-4468506837",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-13T21:52:33Z",
@@ -419,8 +521,8 @@
       }
     }
   ],
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Add skill setup manifest support",
-  "updatedAt": "2026-05-16T00:47:27Z",
+  "updatedAt": "2026-05-17T03:20:58Z",
   "url": "https://github.com/self-evolving/repo/pull/241"
 }

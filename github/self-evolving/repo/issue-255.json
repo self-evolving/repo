@@ -1,0 +1,39 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "body": "## Goal\nImplement the requested change from the agent mention.\n\n## Original request\n> Yes, this should be a small fix.\n> \n> The important distinction: `gh pr view ...` **does work** in the workflow shell with `GH_TOKEN`. The failure was not that `gh pr view` is impossible. It failed because the metadata prompt asked the **Codex tool runtime** to run `gh pr view`, and under `permission_mode: approve-reads` that still triggered an interactive “allow network command?” approval. In GitHub Actions there is nobody to approve it, so the metadata step got cancelled and Sepo fell back to `Implement requested change`.\n> \n> I would not fix this by changing the metadata step to `approve-all`. Better small fix:\n> \n> 1. Keep the metadata agent read-only.\n> 2. Fetch PR/discussion context deterministically before the agent prompt, using workflow/CLI code with `GH_TOKEN`.\n> 3. Inject that fetched context into the metadata prompt.\n> 4. Update `agent-implement-metadata.md` so it says “use the provided target context”, not “run `gh pr view` yourself.”\n> 5. Add a regression asserting the metadata prompt path does not require agent tool approval for `gh pr view`.\n> \n> So yes: `gh pr view` should work, but it should be run by the workflow/runtime before the agent call, not interactively by the metadata agent.\n\n@sepo-agent /implement  https://github.com/self-evolving/repo/pull/254 is totally wrong. What I want is just simply allow accept-all for metadata generation step to fix the bug.\n\n## Acceptance criteria\n- Implement the requested change.\n- Preserve existing behavior unless the request requires a change.\n- Update tests or validation as needed.\n\n---\n\nRequested via issue_comment at https://github.com/self-evolving/repo/pull/244\n",
+  "closedAt": "2026-05-17T01:07:57Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCli9Bw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-255/codex-25976078888`\n- Pull request: https://github.com/self-evolving/repo/pull/256\n\nChanged the explicit non-issue `/implement` metadata-generation step in `agent-router.yml` from `approve-reads` to `approve-all`, updated the workflow contract test to assert that permission mode, and refreshed durable memory to match. Verified with `npm --prefix .agent run build`, `node --test .agent/dist/__tests__/envelope.test.js`, and `git diff --check`.",
+      "createdAt": "2026-05-16T23:46:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/255#issuecomment-4468555015",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-16T23:44:40Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 255,
+  "state": "CLOSED",
+  "title": "Implement requested change",
+  "updatedAt": "2026-05-17T01:07:57Z",
+  "url": "https://github.com/self-evolving/repo/issues/255"
+}

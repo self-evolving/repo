@@ -547,6 +547,43 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/126#issuecomment-4375846062",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCmDtPA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer can you take a look at these PRs again and reflect if they need to be updated given new functions in this repo ",
+      "createdAt": "2026-05-17T03:22:25Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/126#issuecomment-4469091644",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCmF3Xg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Context compacted\nI re-checked the #126 stack against current `main` and the newer open route work. Short version: the PRs were mostly reasonable when opened, but I would **not merge the whole stack as-is** now. A few should be updated first.\n\nSuggested ordering:\n\n- **Merge/update the shared route catalog first: #221**\n  - This is now the main architectural dependency for `/setup`.\n  - If #221 lands, #147 and #149 should register setup routes through the shared catalog instead of manually editing route lists in `triage`, workflow prompts, and related files.\n  - This avoids making `/setup` another hardcoded route that has to be patched in multiple places.\n\n- **Update #134 before merging**\n  - #134 adds `agent-running/*` activity labels.\n  - Current `main` now has newer actions/routes around self-approval and self-merge.\n  - We should decide explicitly whether `agent-self-approve` / `agent-self-merge` get activity labels or are treated as internal actions. Silent omission would be confusing once #25-style visibility exists.\n\n- **#136 is mostly still fine**\n  - Assigning accepted work to the configured agent handle still matches the discussion.\n  - It should probably just be rebased after #134.\n  - I would keep assignment based on repo config, not hardcoded `@sepo-agent`.\n\n- **Update #141 / #143 around project labels**\n  - Current `main` has project-manager behavior where `AGENT_PROJECT_MANAGEMENT_APPLY_LABELS` defaults to enabled.\n  - That conflicts with the direction from this issue: avoid cluttering public issue labels with priority/effort labels unless explicitly enabled.\n  - Before merging, these PRs should make the intended model clear: GitHub Project fields are primary; repo labels are legacy/optional/fallback.\n\n- **#145 can likely merge with only a rebase**\n  - The setup issue template is fairly standalone.\n  - It may need minor wording updates after the final `/setup` design is settled.\n\n- **Update #147**\n  - The `/setup plan` route should be based on the shared route catalog if #221 lands.\n  - I would also revisit idempotency: repeated `/setup plan` comments should update or clearly supersede prior setup plans instead of creating ambiguous duplicate plans.\n\n- **Update #149**\n  - Same route-catalog issue as #147.\n  - Also re-check the repo-variable mutation docs and permission assumptions against the current setup/self-approval behavior.\n  - The implementation direction still seems right, but it should be rebased onto the newer route/config model.\n\n- **Treat #262 as another dependency to watch**\n  - Since it touches self-approval flow, it may affect how #134 reports active agent work.\n  - It probably does not block all of #126, but it does affect the final activity-label design.\n\nMy recommended sequence is:\n\n1. Finish #221 route catalog.\n2. Update #134 for current action/route coverage.\n3. Rebase #136 on #134.\n4. Update #141/#143 to settle Project fields vs repo labels.\n5. Merge/rebase #145.\n6. Rework #147/#149 on top of #221 using the shared route catalog.\n7. Then create the later project-creation/sync tasks after the setup route shape is stable.\n\nSo yes: the PRs need a refresh, mainly because the repo has gained newer routing and self-approval functionality since the original #126 task split.",
+      "createdAt": "2026-05-17T03:26:07Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/126#issuecomment-4469127006",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-04T01:14:19Z",
@@ -573,6 +610,6 @@
   "number": 126,
   "state": "OPEN",
   "title": "What's the best way to manage the tasks and project planning for this repo now?",
-  "updatedAt": "2026-05-05T03:52:01Z",
+  "updatedAt": "2026-05-17T03:26:08Z",
   "url": "https://github.com/self-evolving/repo/issues/126"
 }

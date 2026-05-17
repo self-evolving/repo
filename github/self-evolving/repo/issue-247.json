@@ -1,0 +1,115 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "@sepo-agent /anaswer  \n\nDo we tell the answer route which PR it is in? And does it by default check out to code in that PR? Or can it check code in other branches?",
+  "closedAt": "2026-05-16T23:19:17Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClXukQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, for a PR-surface `/answer`, the route is told the PR context.\n\n- PR issue comments are normalized to `target_kind: pull_request` and `target_number: <PR number>` in [`context.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/context.ts#L176-L187).\n- The answer job passes those fields into the agent task in [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L320-L342).\n- The base prompt exposes them as `Target: pull_request #N` and suggests `gh pr view` / `gh pr diff` for PR targets in [`_base.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/_base.md#L5-L21).\n\nIt does **not** default-checkout the PR head for `/answer`. The answer job just runs `actions/checkout` with no PR-specific `ref` in [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L278-L281). The explicit PR-head checkout is only in `/fix-pr`, via `checkout-pr.js`, in [`agent-fix-pr.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-fix-pr.yml#L150-L156).\n\nSo current behavior is:\n\n- `/answer` inside a PR knows “this is PR #N”.\n- `/answer` should use `gh pr view`, `gh pr diff`, or explicit `git fetch` if it needs PR code.\n- The local checkout is **not guaranteed to be the PR branch**.\n- It can inspect other branches if it explicitly fetches/checks them out and token permissions allow it, but that is agent/tool behavior, not an automatic route guarantee.",
+      "createdAt": "2026-05-16T22:10:30Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/247#issuecomment-4468371089",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClYIPw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\n1. Shouldn't we change it such that for the answer route it should change the checkout to the PR accordingly? \n2. Also how does it impact the triage / entrypoint? ",
+      "createdAt": "2026-05-16T22:12:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/247#issuecomment-4468377663",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClYWzw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I’ll answer this as a design question, not start an implementation. The key distinction is whether we change only the answer job’s working tree after trusted setup, or change the router/portal checkout that performs route resolution.I would change the behavior, but not by blindly making the main `/answer` checkout switch to the PR head.\n\nFor `/answer`, the safer target state is: **the route is told the PR number, and when the target is a PR it has an explicit, read-only PR code view available**. Today it gets the PR metadata (`target_kind`, `target_number`, `target_url`) through the router, but the answer job’s checkout is just the normal router checkout, not PR head: [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L278-L342). PR comments are correctly normalized to `target_kind: pull_request` in [`context.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/context.ts#L176-L187).\n\nI would avoid changing the **portal/entrypoint** checkout. The portal does context extraction, route resolution, access policy, and optional triage before it knows which route will run: [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L161-L241). Checking out PR code there would mean route selection and policy gates might run against PR-modified repo files/runtime, which is the wrong trust boundary.\n\nFor the answer job specifically, there are two reasonable options:\n\n1. **Low-risk improvement:** update the answer/base prompt to say that for PR targets, the local checkout is not guaranteed to be PR head and the agent should use `gh pr view` / `gh pr diff`. This matches current behavior.\n\n2. **Better UX, more engineering:** after trusted router setup, create a separate read-only PR worktree or fetch ref for same-repo open PRs, then tell `/answer` where it is. I would prefer a separate worktree over replacing the main workspace, because local actions/runtime are loaded from the workspace and we do not want untrusted PR changes to influence the route machinery.\n\nImpact on triage/entrypoint:\n\n- Explicit `/answer` parsing is unchanged.\n- Dispatch triage is unchanged if we only modify the answer job after `portal`.\n- Session/thread identity remains `pull_request:<n>:answer`.\n- The important constraint is: do **not** move the initial router checkout or dispatch runtime onto PR code.\n\nRecommended plan:\n\n1. Keep portal checkout as trusted/default-branch code.\n2. Add answer-only PR code preparation for `target_kind == pull_request`, preferably into a separate path like `$RUNNER_TEMP/pr-worktree`.\n3. Restrict automatic checkout to open same-repo PRs first; for forks, use `gh pr diff` unless we explicitly design fork-safe handling.\n4. Inject a prompt variable such as `PR_WORKTREE` / `PR_CHECKOUT_AVAILABLE`.\n5. Update `_base.md` or `agent-answer.md` so `/answer` knows whether to inspect the PR worktree or fall back to `gh pr diff`.\n\nThat gives `/answer` better PR awareness without weakening the router’s trust boundary.",
+      "createdAt": "2026-05-16T22:14:07Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/247#issuecomment-4468381391",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClZLXQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\nTLDR, not the top priority now? we shouldn't change anything and it still works?",
+      "createdAt": "2026-05-16T22:20:31Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/247#issuecomment-4468394845",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClZTBw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Correct. TLDR: not top priority.\n\nNothing is broken for `/answer` today:\n\n- It is told when the target is a PR and which PR number it is.\n- It can still inspect the PR using `gh pr view` / `gh pr diff`.\n- It just should not assume the local checkout is the PR head.\n\nI would leave the checkout behavior unchanged for now. A small prompt clarification later would be useful, but changing checkout semantics touches trust boundaries and route setup, so it is not worth doing unless PR-answer code inspection becomes a recurring pain.",
+      "createdAt": "2026-05-16T22:21:24Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/247#issuecomment-4468396807",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-16T22:08:08Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 247,
+  "state": "CLOSED",
+  "title": "For the answer route inside a PR",
+  "updatedAt": "2026-05-16T23:19:17Z",
+  "url": "https://github.com/self-evolving/repo/issues/247"
+}

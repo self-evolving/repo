@@ -1,0 +1,63 @@
+{
+  "number": 257,
+  "title": "How does the current self-approval interacts with the meta orchestrator?",
+  "url": "https://github.com/self-evolving/repo/discussions/257",
+  "body": "@sepo-agent /answer \r\n\r\n- Right now our meta orchestrator agent can launch multiple sub issues and prs \r\n- If self-approve and self-merge is enabled, it will then check approval and then merge the prs. \r\n\r\nIs it the right, expected behavior? Or should it only start self-approval when it finishes implementing all the PRs?",
+  "createdAt": "2026-05-17T00:27:16Z",
+  "updatedAt": "2026-05-17T01:12:00Z",
+  "author": {
+    "login": "lolipopshock"
+  },
+  "category": {
+    "name": "Ideas"
+  },
+  "comments": {
+    "nodes": [
+      {
+        "id": "DC_kwDOSOhEMM4BAooS",
+        "body": "Current behavior: **yes, this is the expected behavior in the current code**. Self-approval is a **per-PR post-review gate**, not a parent/meta-orchestrator batch gate.\n\nThe chain today is:\n\n- `implement` succeeds -> hand off to `review`\n- `review` returns `SHIP` -> hand off to `agent-self-approve` when self-approval is enabled\n- `agent-self-approve` returns `APPROVED` -> hand off to `agent-self-merge` when self-merge is enabled\n\nThat policy is stated in the orchestrator prompt and enforced in runtime code:\n- [`agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/5b201e1027e3fc441a3ecbbae98f447cc72d6765/.github/prompts/agent-orchestrator.md#L24-L34)\n- [`handoff.ts`](https://github.com/self-evolving/repo/blob/5b201e1027e3fc441a3ecbbae98f447cc72d6765/.agent/src/handoff.ts#L461-L511)\n- actual workflow dispatch happens in [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/5b201e1027e3fc441a3ecbbae98f447cc72d6765/.agent/src/cli/orchestrate-handoff.ts#L1543-L1575)\n\nFor sub-orchestration, the parent only resumes when the child reaches a terminal result. With self-merge enabled, `agent-self-merge` terminal states like `merged` or `auto_merge_enabled` map to parent child-state `done`, so the parent continues after that PR has reached the self-merge terminal point:\n- [`sub-orchestration.ts`](https://github.com/self-evolving/repo/blob/5b201e1027e3fc441a3ecbbae98f447cc72d6765/.agent/src/sub-orchestration.ts#L186-L211)\n- [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/5b201e1027e3fc441a3ecbbae98f447cc72d6765/.agent/src/cli/orchestrate-handoff.ts#L994-L1071)\n\nSo I would summarize it this way:\n\n- For **independent child PRs**, current behavior is reasonable: each PR can be reviewed, self-approved, and merged once it independently passes.\n- For **one logical meta task split into stacked or dependent PRs**, I do **not** think global immediate self-merge is the ideal product behavior. In that case, the safer behavior is to defer self-approval/self-merge until the parent orchestrator decides the whole plan is complete, then finalize PRs in dependency order.\n\nI would not change the global default to “wait for all PRs” because single-PR and independent-subtask flows should not be blocked by parent orchestration. The better change is an explicit meta-orchestration policy, for example:\n\n1. Mark child issues/PRs as `independent` vs `batch/stacked`.\n2. For `independent`, keep today’s per-PR self-approval/self-merge.\n3. For `batch/stacked`, stop after `SHIP` and report “ready” to the parent instead of dispatching `agent-self-approve`.\n4. Let the parent orchestrator dispatch final self-approval/self-merge only after it has no more child work, in the correct PR order.\n\nThat preserves the current safe PR-level checks while avoiding accidental early merges for multi-PR plans.",
+        "createdAt": "2026-05-17T00:30:14Z",
+        "url": "https://github.com/self-evolving/repo/discussions/257#discussioncomment-16943634",
+        "author": {
+          "login": "sepo-agent-app"
+        },
+        "replies": {
+          "nodes": [
+            {
+              "id": "DC_kwDOSOhEMM4BAorE",
+              "body": "@sepo-agent /implement sketch a small PR for this?",
+              "createdAt": "2026-05-17T01:10:44Z",
+              "url": "https://github.com/self-evolving/repo/discussions/257#discussioncomment-16943812",
+              "author": {
+                "login": "lolipopshock"
+              },
+              "replyTo": {
+                "id": "DC_kwDOSOhEMM4BAooS"
+              }
+            },
+            {
+              "id": "DC_kwDOSOhEMM4BAorN",
+              "body": "Implementing this request — tracking in https://github.com/self-evolving/repo/issues/259.\n",
+              "createdAt": "2026-05-17T01:12:00Z",
+              "url": "https://github.com/self-evolving/repo/discussions/257#discussioncomment-16943821",
+              "author": {
+                "login": "sepo-agent-app"
+              },
+              "replyTo": {
+                "id": "DC_kwDOSOhEMM4BAooS"
+              }
+            }
+          ],
+          "pageInfo": {
+            "hasNextPage": false,
+            "endCursor": null
+          }
+        }
+      }
+    ],
+    "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": null
+    }
+  }
+}

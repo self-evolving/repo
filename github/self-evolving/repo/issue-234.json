@@ -4,7 +4,7 @@
     "login": "app/sepo-agent-app"
   },
   "body": "## Goal\nImplement the requested change from the agent mention.\n\n## Original request\n> You’re right. PR #232 implements the wrong behavior.\r\n> \r\n> Current architecture explains why: explicit routes skip dispatch triage in [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L201-L241), then [`resolve-dispatch.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/resolve-dispatch.ts#L35-L55) uses deterministic metadata from [`buildRequestedRouteDecision`](https://github.com/self-evolving/repo/blob/main/.agent/src/triage.ts#L94-L126). The tracking issue is then created from that `issue_title` in [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L589-L598).\r\n> \r\n> The fix should not copy text after `/implement`. It should add a lightweight title/body generation step for explicit `/implement` on PRs/discussions, using the original mention plus target context, while still treating the slash command as explicit approval to run `agent-implement`.\r\n> \r\n> Concrete revision plan:\r\n> \r\n> 1. Revert the command-tail title extraction in PR [Derive implement issue titles from command text #232](https://github.com/self-evolving/repo/pull/232).\r\n> 2. Add or reuse an agent prompt that generates only tracking issue metadata: concise title under 70 chars and structured issue body.\r\n> 3. Run that metadata generation when `requested_route == implement` and the target is not already an issue.\r\n> 4. Keep `needsApproval: false` for explicit `/implement`.\r\n> 5. Keep `Implement requested change` only as an error/fallback path.\r\n> 6. Add tests proving `/implement please fix this` does not literally become the title, and that PR/discussion context drives the generated metadata.\r\n> \r\n> So the intended behavior is: `/implement` selects the route; the agent still synthesizes the issue title from the request and surrounding context.\r\n\r\n@sepo-agent /implement\n\n## Acceptance criteria\n- Implement the requested change.\n- Preserve existing behavior unless the request requires a change.\n- Update tests or validation as needed.\n\n---\n\nRequested via issue_comment at https://github.com/self-evolving/repo/pull/232\n",
-  "closedAt": null,
+  "closedAt": "2026-05-17T01:20:31Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABCH81-A",
@@ -32,8 +32,8 @@
     }
   ],
   "number": 234,
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Implement requested change",
-  "updatedAt": "2026-05-13T05:10:53Z",
+  "updatedAt": "2026-05-17T01:20:31Z",
   "url": "https://github.com/self-evolving/repo/issues/234"
 }

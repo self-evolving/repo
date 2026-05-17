@@ -1,0 +1,39 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "body": "## Goal\nImplement the requested change from the agent mention.\n\n## Original request\n> I agree. This is the better customization boundary.\n> \n> The current PR leans toward “Sepo defines a mini setup manifest.” After this discussion, I would instead frame the boundary as:\n> \n> - Sepo provides a **small default hook** for common cases.\n> - Repo owners can **edit the copied Sepo workflow** for complex cases.\n> - Sepo docs should explicitly bless that workflow customization path instead of trying to model all of GitHub Actions inside `skill-setup.yaml`.\n> \n> Concretely, I would change the PR direction like this.\n> \n> 1. Replace `skill-setup.yaml` with an optional script convention:\n> \n> ```text\n> .skills/<name>/\n>   SKILL.md\n>   setup.sh      # optional\n> ```\n> \n> 2. Keep the workflow readable with a local action:\n> \n> ```yaml\n> - name: Run skill setup\n>   uses: ./.github/actions/run-skill-setup\n>   with:\n>     skill: ${{ needs.portal.outputs.skill }}\n>     skill_root: ${{ inputs.skill_root }}\n>     trusted_ref: ${{ !startsWith(github.ref, 'refs/pull/') }}\n> ```\n> \n> 3. Internally, that action only does simple things:\n> \n> - resolve `<skill_root>/<skill>/SKILL.md`\n> - check whether `setup.sh` exists\n> - refuse PR checkout refs\n> - run `bash <skill_dir>/setup.sh`\n> - expose clear outputs/failure state\n> \n> That lets us keep the useful path resolution/trust behavior from the current PR, but removes the custom YAML parser and the “is this becoming fake GitHub Actions?” concern currently centered in [`skills.ts`](https://github.com/self-evolving/repo/blob/0d188a0ea041923b57657ebbf2ee045e80820de2/.agent/src/skills.ts#L193-L293).\n> \n> 4. Add docs for advanced customization.\n> \n> The docs should say: for complex skill routes, edit the copied `.github/workflows/agent-router.yml` directly. The skill job already has a natural customization point after `Resolve skill package` and before `Run skill`: [`agent-router.yml#L419-L453`](https://github.com/self-evolving/repo/blob/0d188a0ea041923b57657ebbf2ee045e80820de2/.github/workflows/agent-router.yml#L419-L453).\n> \n> Example advanced customization:\n> \n> ```yaml\n> - name: Setup deep research skill\n>   if: needs.portal.outputs.skill == 'deep-research'\n>   uses: docker://ghcr.io/example/research-env:latest\n>   with:\n>     args: prepare-research-env\n> ```\n> \n> or:\n> \n> ```yaml\n> - name: Setup release skill\n>   if: needs.portal.outputs.skill == 'release-notes'\n>   uses: actions/setup-node@v4\n>   with:\n>     node-version: 22\n> ```\n> \n> That is much cleaner than making Sepo support Docker, `uses`, `with`, services, caches, matrix behavior, etc. Users already own the copied workflow, so advanced cases should use native Actions.\n> \n> My recommended revision to PR #241:\n> \n> 1. Remove `skill-setup.yaml` schema/executor.\n> 2. Add optional `setup.sh` support.\n> 3. Add `./.github/actions/run-skill-setup`.\n> 4. Keep typed skill path resolution and PR-ref trust guard.\n> 5. Update docs to explicitly define two levels:\n>    - simple extension: `.skills/<name>/setup.sh`\n>    - advanced extension: customize the `skill` job in `agent-router.yml`\n> \n> That gives Sepo a minimal primitive without hiding the fact that larger customization belongs in the repo-owned workflow \n\n@sepo-agent /implement can we try to implement it in a new issue\n\n## Acceptance criteria\n- Implement the requested change.\n- Preserve existing behavior unless the request requires a change.\n- Update tests or validation as needed.\n\n---\n\nRequested via issue_comment at https://github.com/self-evolving/repo/pull/241\n",
+  "closedAt": "2026-05-17T01:19:52Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClgzBQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-250/codex-25975610901`\n- Pull request: https://github.com/self-evolving/repo/pull/252\n\nAdded typed skill package resolution plus an optional `<skill_root>/<skill>/setup.sh` hook exposed through a new `./.github/actions/run-skill-setup` composite action, wired `skill_root` through skill prompt loading and the skill route, and documented the simple setup hook versus advanced workflow customization path. Verification: `npm --prefix .agent run build`, focused `node --test .agent/dist/__tests__/skill-setup.test.js .agent/dist/__tests__/envelope.test.js`, and `git diff --check` passed; full `npm --prefix .agent test` was attempted and only failed in existing onboarding CLI tests with local-runner `EPERM` writes to `_runner_file_commands`.",
+      "createdAt": "2026-05-16T23:26:46Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/250#issuecomment-4468519685",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-16T23:19:31Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 250,
+  "state": "CLOSED",
+  "title": "Implement requested change",
+  "updatedAt": "2026-05-17T01:19:52Z",
+  "url": "https://github.com/self-evolving/repo/issues/250"
+}

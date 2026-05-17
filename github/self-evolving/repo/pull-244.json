@@ -141,6 +141,166 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/244#issuecomment-4463600186",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClgmDA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer\n\nWait a sec I merged this pr and then launched another implement request https://github.com/self-evolving/repo/issues/250 but the title is still not correct ?",
+      "createdAt": "2026-05-16T23:24:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/244#issuecomment-4468516364",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClg13Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, you’re right: #250 should not have kept the fallback title.\n\nWhat happened:\n\n- The title fix came from PR #232, not PR #244. PR #244 only changed daily-summary/orchestration defaults.\n- The #250 router run did enter the new `Generate implement issue metadata` step.\n- That metadata step failed before returning JSON. The log shows Codex tried to run `gh pr view 241 ...`, requested interactive network approval, then the workflow aborted it.\n- Because the step is `continue-on-error`, `Resolve route` continued and logged: `Implement issue metadata was invalid; using fallback metadata`.\n- So #250 was created with the fallback title: `Implement requested change`.\n\nSo this is a real bug in the new metadata path, not GitHub caching.\n\nThe fix should be: make the metadata step non-interactive. Either prefetch the PR/discussion context deterministically before invoking the agent, or adjust the metadata prompt/runtime so read-only GitHub context access does not require an interactive approval. The intended title for #250 would be something like:\n\n`Replace skill setup manifest with setup.sh hook`\n\nThe issue body still contains the full request, so implementation can proceed, but the tracking issue title fallback behavior needs a follow-up fix.",
+      "createdAt": "2026-05-16T23:27:15Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/244#issuecomment-4468520413",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClhGug",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> adjust the metadata prompt/runtime so read-only GitHub context access does not require an interactive approval\n\n@sepo-agent /answer we should add a small fix? Also the gh view command should work right? ",
+      "createdAt": "2026-05-16T23:29:45Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/244#issuecomment-4468524730",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClhQig",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, this should be a small fix.\n\nThe important distinction: `gh pr view ...` **does work** in the workflow shell with `GH_TOKEN`. The failure was not that `gh pr view` is impossible. It failed because the metadata prompt asked the **Codex tool runtime** to run `gh pr view`, and under `permission_mode: approve-reads` that still triggered an interactive “allow network command?” approval. In GitHub Actions there is nobody to approve it, so the metadata step got cancelled and Sepo fell back to `Implement requested change`.\n\nI would not fix this by changing the metadata step to `approve-all`. Better small fix:\n\n1. Keep the metadata agent read-only.\n2. Fetch PR/discussion context deterministically before the agent prompt, using workflow/CLI code with `GH_TOKEN`.\n3. Inject that fetched context into the metadata prompt.\n4. Update `agent-implement-metadata.md` so it says “use the provided target context”, not “run `gh pr view` yourself.”\n5. Add a regression asserting the metadata prompt path does not require agent tool approval for `gh pr view`.\n\nSo yes: `gh pr view` should work, but it should be run by the workflow/runtime before the agent call, not interactively by the metadata agent.",
+      "createdAt": "2026-05-16T23:31:06Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/244#issuecomment-4468527242",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClhbLA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> I would not fix this by changing the metadata step to approve-all. Better small fix:\n\nWe should do this fix. @sepo-agent /implement ",
+      "createdAt": "2026-05-16T23:32:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/244#issuecomment-4468529964",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClhhpQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Implementing this request — tracking in https://github.com/self-evolving/repo/issues/253.\n",
+      "createdAt": "2026-05-16T23:33:27Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/244#issuecomment-4468531621",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCliq6g",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Yes, this should be a small fix.\n> \n> The important distinction: `gh pr view ...` **does work** in the workflow shell with `GH_TOKEN`. The failure was not that `gh pr view` is impossible. It failed because the metadata prompt asked the **Codex tool runtime** to run `gh pr view`, and under `permission_mode: approve-reads` that still triggered an interactive “allow network command?” approval. In GitHub Actions there is nobody to approve it, so the metadata step got cancelled and Sepo fell back to `Implement requested change`.\n> \n> I would not fix this by changing the metadata step to `approve-all`. Better small fix:\n> \n> 1. Keep the metadata agent read-only.\n> 2. Fetch PR/discussion context deterministically before the agent prompt, using workflow/CLI code with `GH_TOKEN`.\n> 3. Inject that fetched context into the metadata prompt.\n> 4. Update `agent-implement-metadata.md` so it says “use the provided target context”, not “run `gh pr view` yourself.”\n> 5. Add a regression asserting the metadata prompt path does not require agent tool approval for `gh pr view`.\n> \n> So yes: `gh pr view` should work, but it should be run by the workflow/runtime before the agent call, not interactively by the metadata agent.\n\n@sepo-agent /implement  https://github.com/self-evolving/repo/pull/254 is totally wrong. What I want is just simply allow accept-all for metadata generation step to fix the bug. ",
+      "createdAt": "2026-05-16T23:44:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/244#issuecomment-4468550378",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCliu8g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Implementing this request — tracking in https://github.com/self-evolving/repo/issues/255.\n",
+      "createdAt": "2026-05-16T23:44:42Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/244#issuecomment-4468551410",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-15T17:01:08Z",
@@ -339,6 +499,6 @@
   ],
   "state": "MERGED",
   "title": "Update agent schedule and orchestration defaults",
-  "updatedAt": "2026-05-15T21:01:24Z",
+  "updatedAt": "2026-05-16T23:44:42Z",
   "url": "https://github.com/self-evolving/repo/pull/244"
 }

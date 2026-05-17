@@ -1,0 +1,300 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Add `finalize_policy: \"defer\"` support for delegated sub-orchestrator child work.\n- Preserve immediate per-PR self-approval by default, but stop after `SHIP` and report readiness to the parent for trusted deferred child PRs.\n- Update orchestrator guidance and regression coverage for immediate and deferred paths.\n\n## Tests\n- `npm run build`\n- `node --test dist/__tests__/handoff.test.js dist/__tests__/sub-orchestration.test.js dist/__tests__/orchestrate-handoff-cli.test.js`\n- `git diff --check`\n\nCloses #259\n",
+  "closedAt": "2026-05-17T03:00:59Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCl3uGw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate ",
+      "createdAt": "2026-05-17T02:21:30Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/260#issuecomment-4468895259",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCl4Kbw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | review | PR #260 | 2 / 40 | Dispatched |\n\nReason: agent planner selected review: PR-level /orchestrate was requested on open draft PR #260 and there is no prior review synthesis or recommended next step; an automated review is the appropriate next action before any fixes.\n\n<!-- sepo-agent-handoff state:dispatched created:1778984592846 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU5NzkwMTAzMTc6b3JjaGVzdHJhdGU6MjYwOnJldmlldzoyNjA6Mg -->",
+      "createdAt": "2026-05-17T02:23:13Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/260#issuecomment-4468902511",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCl5MJA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 97 | PASS | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Deferred self-approval only applies after resolving a trusted sub-orchestrator marker, and parent resumption preserves `requested_by` in the dispatched orchestrator inputs: [orchestrate-handoff.ts](https://github.com/self-evolving/repo/blob/6c10bd6629ccbcb020895d59b99b55913b22e8cb/.agent/src/cli/orchestrate-handoff.ts#L970), [orchestrate-handoff.ts](https://github.com/self-evolving/repo/blob/6c10bd6629ccbcb020895d59b99b55913b22e8cb/.agent/src/cli/orchestrate-handoff.ts#L1072). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The change extends existing handoff and sub-orchestration helpers instead of adding workflow glue or a parallel marker system: [sub-orchestration.ts](https://github.com/self-evolving/repo/blob/6c10bd6629ccbcb020895d59b99b55913b22e8cb/.agent/src/sub-orchestration.ts#L49), [handoff.ts](https://github.com/self-evolving/repo/blob/6c10bd6629ccbcb020895d59b99b55913b22e8cb/.agent/src/handoff.ts#L262). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The orchestrator prompt documents the new `finalize_policy` field and deferred child PR behavior: [agent-orchestrator.md](https://github.com/self-evolving/repo/blob/6c10bd6629ccbcb020895d59b99b55913b22e8cb/.github/prompts/agent-orchestrator.md#L29), [agent-orchestrator.md](https://github.com/self-evolving/repo/blob/6c10bd6629ccbcb020895d59b99b55913b22e8cb/.github/prompts/agent-orchestrator.md#L100). |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | The policy is planner-selected through structured `finalize_policy`, not a new repo-level setting or environment variable: [handoff.ts](https://github.com/self-evolving/repo/blob/6c10bd6629ccbcb020895d59b99b55913b22e8cb/.agent/src/handoff.ts#L262), [handoff.ts](https://github.com/self-evolving/repo/blob/6c10bd6629ccbcb020895d59b99b55913b22e8cb/.agent/src/handoff.ts#L592). |\n| coding_workflow / generic | Prefer explicit structured inputs | partial | 6/7 | The PR adds a separate structured `finalize_policy` field, but invalid/unknown values normalize to `immediate` rather than failing clearly: [sub-orchestration.ts](https://github.com/self-evolving/repo/blob/6c10bd6629ccbcb020895d59b99b55913b22e8cb/.agent/src/sub-orchestration.ts#L49). |\n| communication / generic | Keep status comments compact | pass | 6/6 | Deferred completion reports use the existing compact progress/status format, and regression coverage checks the visible “Ready to ship” parent-resume row: [orchestrate-handoff-cli.test.ts](https://github.com/self-evolving/repo/blob/6c10bd6629ccbcb020895d59b99b55913b22e8cb/.agent/src/__tests__/orchestrate-handoff-cli.test.ts#L1097). |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | A deferred `SHIP` stops self-approval and reports readiness to the parent instead of silently ending: [handoff.ts](https://github.com/self-evolving/repo/blob/6c10bd6629ccbcb020895d59b99b55913b22e8cb/.agent/src/handoff.ts#L470), [orchestrate-handoff.ts](https://github.com/self-evolving/repo/blob/6c10bd6629ccbcb020895d59b99b55913b22e8cb/.agent/src/cli/orchestrate-handoff.ts#L1021). |\n| coding_workflow / generic | Surface stateful failures | partial | 6/7 | Inspection failures are logged with `console.warn`, but the fallback is immediate self-approval behavior rather than a blocked/failed stop: [orchestrate-handoff.ts](https://github.com/self-evolving/repo/blob/6c10bd6629ccbcb020895d59b99b55913b22e8cb/.agent/src/cli/orchestrate-handoff.ts#L979). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is limited to handoff/sub-orchestration runtime code, focused tests, and the orchestrator prompt; no broad refactor or unrelated workflow churn. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation uses a small marker field plus existing stop/report paths; tests cover immediate and deferred behavior without adding a new orchestration subsystem. |\n\n## Notes\n\n- The implementation satisfies the linked issue’s main acceptance criteria: ordinary `SHIP` reviews still dispatch self-approval, deferred child PRs stop after `SHIP`, parent orchestration is resumed, and prompt guidance explains parent finalization order.\n- Verified locally on the PR branch: `npm run build` and `node --test dist/__tests__/handoff.test.js dist/__tests__/sub-orchestration.test.js dist/__tests__/orchestrate-handoff-cli.test.js` passed, 99 tests total.\n- Smallest useful follow-up: consider making unknown `finalize_policy` values fail or warn during planner decision handling instead of silently becoming `immediate`.\n\n## Findings\n\n- **INFO:** `finalize_policy` is structured and documented, but invalid values currently normalize to `immediate`. This is not blocking for the current PR, but stricter validation would better satisfy the explicit-inputs rubric.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-17T02:26:27Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/260#issuecomment-4468919332",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCl7xBQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 6c10bd6629ccbcb020895d59b99b55913b22e8cb -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #260 implements #259, which came from discussion #257 about preventing batch or stacked child PRs from self-approving and self-merging too early.\n- The PR adds `finalize_policy: \"defer\"` metadata for sub-orchestrator children, stops trusted deferred child PRs after a `SHIP` review, and reports readiness back to the parent orchestrator.\n- The intended product behavior is to preserve immediate per-PR self-approval for independent work while letting the parent finalize batch/stacked PRs later in dependency order.\n- The implementation covers the deferral stop path, but the parent finalization and reuse behavior are not complete enough to ship as-is.\n\n## Review\nThe reviewers agree the marker-based approach is small and fits the existing orchestration design. The main disagreement is severity: one review treated parent finalization as prompt-level guidance, but after checking #257 and runtime policy, the deferred flow currently has no automated way to finish.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Parent finalization has no dispatch path | BLOCKING | Deferred child PRs report “ready” to the parent, but the resumed issue-level parent orchestrator cannot dispatch `agent-self-approve` or `agent-self-merge` for that PR. |\n| Reused child issues can ignore deferral | BLOCKING | `finalize_policy: \"defer\"` is applied to new or newly adopted children, but recorded, searched, or already-marked reusable children keep their existing marker policy. |\n| Agent docs omit deferred finalization behavior | WARNING | `.agent/docs` still describes child orchestration as always following the normal self-approval/self-merge chain, which is stale for this behavior change. |\n\n## Progress\n- Implemented pieces include marker parsing/formatting, deferred `SHIP` stop behavior, parent progress reporting, prompt guidance, and focused tests for the main deferred path.\n- The rubrics review passed overall and raised only INFO-level validation concerns for unknown `finalize_policy` values.\n- Existing PR discussion had no inline review comments or review threads before synthesis.\n- Posted two new inline comments: `.github/prompts/agent-orchestrator.md:103` and `.agent/src/cli/orchestrate-handoff.ts:810`.\n- No comments were minimized, no replies were added, and no threads were resolved.\n- Optional reviewer nits not elevated to required action items: unreachable validation guard, extra CLI assertion coverage, and stricter invalid-policy handling.\n\n## Issue Details\n<details>\n<summary>Parent finalization has no dispatch path</summary>\n\n**Cause:** The prompt says deferred child PRs should be finalized by the parent later, but `reportTerminalToParent` resumes the parent as issue-level `orchestrate`, and `decideAgentHandoff` only allows issue-level orchestrate to dispatch `implement` or `delegate_issue`. PR-level orchestrate is also limited to `review` or `fix-pr`, so there is no runtime-supported parent path to self-approve the ready child PR.\n\n**Candidate solutions:** Add a trusted parent finalization path that can dispatch `agent-self-approve` for ready deferred child PRs while preserving requester authorization and ordering constraints, or change the prompt/status/docs to state that finalization is manual.\n\n**Comments:** Reviewer disagreement was material here. The originating discussion explicitly proposed that the parent dispatch final self-approval/self-merge after all child work is done, so this is treated as blocking rather than documentation-only.\n\n</details>\n\n<details>\n<summary>Reused child issues can ignore deferral</summary>\n\n**Cause:** `ensureSubOrchestrationIssue` normalizes the requested finalize policy, but reuse paths for explicit trusted children, recorded children, and searched reusable children only update `parent_round`. If an existing marker is still immediate, a new planner decision with `finalize_policy: \"defer\"` can be ignored and the child PR can still self-approve on `SHIP`.\n\n**Candidate solutions:** Reconcile the trusted marker policy during reuse, or reject conflicting reuse with a visible stop. Add regression coverage for explicit, recorded, and searched child reuse with a changed finalization policy.\n\n**Comments:** This was posted inline at `.agent/src/cli/orchestrate-handoff.ts:810`.\n\n</details>\n\n<details>\n<summary>Agent docs omit deferred finalization behavior</summary>\n\n**Cause:** The technical docs still say child issues follow the normal bounded chain including `agent-self-approve` and `agent-self-merge`, without documenting immediate vs deferred finalization.\n\n**Candidate solutions:** Update `.agent/docs/technical-details/agent-orchestrator.md` and any short user-facing action docs that describe child orchestration/self-approval behavior.\n\n</details>\n\n## Recommended Next Step\nFIX_PR\n\nUnresolved findings require concrete branch changes and are safe for an automated fix-pr pass scoped to orchestration policy, marker reconciliation, tests, and docs.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Add a runtime-supported parent finalization path for deferred ready child PRs, preserving requester authorization and dependency order.\n- [ ] Reconcile or reject `finalize_policy` changes when reusing existing trusted child issues, with regression coverage.\n- [ ] Update `.agent/docs` to describe immediate vs deferred sub-orchestrator finalization behavior.",
+      "createdAt": "2026-05-17T02:35:41Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/260#issuecomment-4468961541",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCl71JQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #260 | 3 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review concluded NEEDS_REWORK with concrete branch changes required, so the PR should be handed to fix-pr for the listed action items.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Add a runtime-supported parent finalization path for deferred ready child PRs, preserving requester authorization and dependency order.\n- Reconcile or reject `finalize_policy` changes when reusing existing trusted child issues, with regression coverage.\n- Update `.agent/docs` to describe immediate vs deferred sub-orchestrator finalization behavior.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1778985378780 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU5NzkwNDI4NzU6cmV2aWV3OjI2MDpmaXhfcHI6MjYwOjM -->",
+      "createdAt": "2026-05-17T02:36:19Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/260#issuecomment-4468962597",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCl9Psg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-259/codex-25977703817`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Added parent finalization support for deferred ready child PRs: planner can select `agent-self-approve` with `target_pr`, and runtime validates trusted readiness plus dependency order.\n- Reconciled `finalize_policy` on reused explicit, recorded, and searched child issues, with regression coverage.\n- Updated the orchestrator prompt and `.agent/docs` for immediate vs deferred child finalization.\n\n<details><summary>Checks</summary>\n\n- `npm run build`\n- `node --test dist/__tests__/handoff.test.js dist/__tests__/sub-orchestration.test.js dist/__tests__/orchestrate-handoff-cli.test.js`\n- `node --test dist/__tests__/envelope.test.js`\n- `git diff --check`\n\n</details>",
+      "createdAt": "2026-05-17T02:49:43Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/260#issuecomment-4468985778",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCl9VqA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #260 | 4 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded after the prior NEEDS_REWORK review; the updated PR should be reviewed again to verify the concrete fixes before any terminal decision.\n\n<!-- sepo-agent-handoff state:dispatched created:1778986246657 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU5NzkyOTAwMjA6Zml4X3ByOjI2MDpyZXZpZXc6MjYwOjQ -->",
+      "createdAt": "2026-05-17T02:50:47Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/260#issuecomment-4468987304",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCl9lGg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 97 | PASS | 11 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Parent finalization is allowed only from issue-level `orchestrate`, requires self-approval enabled plus `target_pr`, and runtime revalidates trusted ready children before dispatch: [.agent/src/handoff.ts](https://github.com/self-evolving/repo/blob/37c32e2a5f179b695d336e9e7de8d0dc0ece343b/.agent/src/handoff.ts#L625), [.agent/src/cli/orchestrate-handoff.ts](https://github.com/self-evolving/repo/blob/37c32e2a5f179b695d336e9e7de8d0dc0ece343b/.agent/src/cli/orchestrate-handoff.ts#L1108). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR extends existing handoff, marker, progress-comment, and sub-orchestration helpers instead of adding workflow glue or a parallel subsystem. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updated action, architecture, and technical orchestrator docs to describe immediate vs deferred child finalization and parent-dispatched self-approval: [.agent/docs/architecture/supported-workflows.md](https://github.com/self-evolving/repo/blob/37c32e2a5f179b695d336e9e7de8d0dc0ece343b/.agent/docs/architecture/supported-workflows.md#L43), [.agent/docs/technical-details/agent-orchestrator.md](https://github.com/self-evolving/repo/blob/37c32e2a5f179b695d336e9e7de8d0dc0ece343b/.agent/docs/technical-details/agent-orchestrator.md#L103). |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | Uses planner-selected `finalize_policy` and `target_pr` fields, validated by runtime, rather than a new repository setting or environment variable: [.github/prompts/agent-orchestrator.md](https://github.com/self-evolving/repo/blob/37c32e2a5f179b695d336e9e7de8d0dc0ece343b/.github/prompts/agent-orchestrator.md#L64). |\n| coding_workflow / generic | Prefer explicit structured inputs | partial | 6/7 | The new inputs are structured fields, but unknown `finalize_policy` values normalize to `immediate` rather than failing clearly: [.agent/src/sub-orchestration.ts](https://github.com/self-evolving/repo/blob/37c32e2a5f179b695d336e9e7de8d0dc0ece343b/.agent/src/sub-orchestration.ts#L46). |\n| communication / generic | Keep status comments compact | pass | 6/6 | Deferred readiness and finalization reports use compact transposed tables and hidden markers; tests assert the visible rows: [.agent/src/__tests__/orchestrate-handoff-cli.test.ts](https://github.com/self-evolving/repo/blob/37c32e2a5f179b695d336e9e7de8d0dc0ece343b/.agent/src/__tests__/orchestrate-handoff-cli.test.ts#L1184). |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Deferred `SHIP` stops self-approval but reports “Ready to ship” to the parent, so accepted automation does not silently stop: [.agent/src/__tests__/orchestrate-handoff-cli.test.ts](https://github.com/self-evolving/repo/blob/37c32e2a5f179b695d336e9e7de8d0dc0ece343b/.agent/src/__tests__/orchestrate-handoff-cli.test.ts#L1184). |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Deferred finalization uses trusted pending/dispatched markers and skips already-dispatched finalization progress: [.agent/src/cli/orchestrate-handoff.ts](https://github.com/self-evolving/repo/blob/37c32e2a5f179b695d336e9e7de8d0dc0ece343b/.agent/src/cli/orchestrate-handoff.ts#L1195). |\n| coding_workflow / generic | Surface stateful failures | partial | 6/7 | Inspection/reporting failures are surfaced with warnings and stop comments for rejected markers, but deferred policy inspection falls back to immediate behavior after warning: [.agent/src/cli/orchestrate-handoff.ts](https://github.com/self-evolving/repo/blob/37c32e2a5f179b695d336e9e7de8d0dc0ece343b/.agent/src/cli/orchestrate-handoff.ts#L1089). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is scoped to orchestration docs, handoff/sub-orchestration runtime, and focused tests for the new deferred-finalization behavior. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The design adds one marker policy plus existing parent resume/self-approval paths; no broad orchestration redesign. |\n\n## Notes\n\n- The current head addresses the earlier review’s blocking gaps: parent finalization can now dispatch `agent-self-approve` for the earliest trusted ready child, reused child issues reconcile `finalize_policy`, and `.agent/docs` describe the new behavior.\n- The strongest remaining rubric-specific nit is validation strictness: a mistyped `finalize_policy` silently becomes `immediate`.\n\n## Findings\n\n- **INFO:** Unknown `finalize_policy` values normalize to `immediate`. This is non-blocking for the PR, but stricter validation would better satisfy the explicit structured inputs rubric.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-17T02:53:24Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/260#issuecomment-4468991258",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCl-V-w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 37c32e2a5f179b695d336e9e7de8d0dc0ece343b -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #260 implements #259 from discussion #257 by adding deferred finalization for batch or stacked child PRs.\n- Independent child PRs keep the existing per-PR `SHIP -> agent-self-approve -> agent-self-merge` behavior.\n- Deferred child PRs stop after `SHIP`, report readiness to the parent, and the parent can later dispatch self-approval in dependency order.\n- A prior fix-pr pass addressed earlier blockers around parent finalization dispatch, child reuse policy reconciliation, and docs.\n\n## Review\nThe current head fixes the earlier synthesis blockers, but one retry path can still leave a deferred child PR ready and unfinalized. Reviewers otherwise agree the design is small and aligned with existing orchestration patterns; the main disagreement is that the stale Claude review was against the pre-fix commit and did not cover the new retry edge.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Deferred finalization retry can stall | BLOCKING | If parent-dispatched self-approval returns `REQUEST_CHANGES`, the later `fix-pr -> review -> SHIP` path is suppressed as deferred readiness again and does not resume parent finalization. |\n| Non-blocking cleanup/test coverage nits remain | INFO | A stale reviewer noted an unreachable finalize-policy guard and a missing direct CLI assertion for created child issue body propagation; these are minor and not required action items. |\n\n## Progress\n- Earlier blockers are addressed: parent `agent-self-approve` dispatch exists, reused child issues reconcile `finalize_policy`, and `.agent/docs` describe deferred finalization.\n- Posted one new inline comment at `.agent/src/cli/orchestrate-handoff.ts:1100`.\n- Resolved two older same-agent threads after verifying authorship and fixes: `.github/prompts/agent-orchestrator.md:108` and `.agent/src/cli/orchestrate-handoff.ts:929`.\n- No replies were added and no comments were minimized.\n- The synthesis did not rerun tests; reviewer notes report prior build/test checks, and the remaining blocker comes from tracing current head behavior.\n\n## Issue Details\n<details>\n<summary>Deferred finalization retry can stall</summary>\n\n**Cause:** `shouldDeferSelfApprovalForCurrentTarget()` suppresses every deferred child `review` `SHIP`, including a re-review after parent-dispatched self-approval requested changes. Then `reportTerminalToParent()` skips because the child marker is already `done` and the original ready report was already dispatched, so the parent is not resumed.\n\n**Candidate solutions:** Carry explicit parent-finalization retry context through `agent-self-approve -> fix-pr -> review`, or re-notify the parent when a `done` deferred child receives another `SHIP` after fixes. Add regression coverage for `agent-self-approve REQUEST_CHANGES -> fix-pr success -> review SHIP`.\n\n**Comments:** This is the only required branch change before another automated review.\n\n</details>\n\n<details>\n<summary>Non-blocking cleanup/test coverage nits remain</summary>\n\n**Cause:** `parseSubOrchestratorMarker()` still has a guard that is unreachable after normalization, and the delegate CLI test adds `finalize_policy: \"defer\"` without directly asserting the created issue body contains `finalize:defer`.\n\n**Candidate solutions:** Remove the dead guard or make normalization strict, and add a direct `ghLog` assertion for the created child issue body when convenient.\n\n**Comments:** These were treated as minor by the stale review and are not included in required automation action items.\n\n</details>\n\n## Recommended Next Step\nFIX_PR\n\nThe remaining blocker is a concrete orchestration retry bug and is safe for an automated fix-pr pass with focused regression coverage.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Fix deferred child finalization after `agent-self-approve` returns `REQUEST_CHANGES` so the later `fix-pr -> review -> SHIP` path either retries parent finalization or dispatches self-approval again, with regression coverage.",
+      "createdAt": "2026-05-17T03:01:14Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/260#issuecomment-4469003771",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCl-dtQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo orchestration needs clarification before it can continue.\n\nThe latest review found one concrete blocker, but PR #260 is closed and unmerged. I cannot safely continue the automatic fix-pr chain on a closed PR.\n\nClarification request: Please reopen PR #260 or tell Sepo where the follow-up fix should be applied.\n\n- Source action: `review`\n- Source conclusion: `needs_rework`\n- Target: `pull_request #260`\n- Round: `4/40`\n- Reason: agent planner blocked: Latest review recommends FIX_PR, but PR #260 is currently closed and unmerged, so an automatic fix-pr handoff against this PR is unsafe/unsupported.\n- Source run ID: `25979548778`\n\nNo follow-up workflow was dispatched. Reply with the requested context, then continue with `/orchestrate`, `/implement`, or `/answer` when ready.\n\n<!-- sepo-agent-orchestrate-stop -->",
+      "createdAt": "2026-05-17T03:02:24Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/260#issuecomment-4469005749",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-17T01:17:36Z",
+  "files": [
+    {
+      "path": ".agent/docs/actions/agent-actions.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 10,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/agent-orchestrator.md",
+      "additions": 25,
+      "deletions": 7,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/handoff.test.ts",
+      "additions": 60,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrate-handoff-cli.test.ts",
+      "additions": 299,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/sub-orchestration.test.ts",
+      "additions": 31,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrate-handoff.ts",
+      "additions": 302,
+      "deletions": 9,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/handoff.ts",
+      "additions": 44,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/sub-orchestration.ts",
+      "additions": 51,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-orchestrator.md",
+      "additions": 20,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-259/codex-25977703817",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 260,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAJRf5g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-17T02:34:04Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "6c10bd6629ccbcb020895d59b99b55913b22e8cb"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAJRgzQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-17T02:34:22Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "6c10bd6629ccbcb020895d59b99b55913b22e8cb"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAJSrbw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-17T02:59:58Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "37c32e2a5f179b695d336e9e7de8d0dc0ece343b"
+      }
+    }
+  ],
+  "state": "CLOSED",
+  "title": "Defer self-approval for batch child PRs",
+  "updatedAt": "2026-05-17T03:02:24Z",
+  "url": "https://github.com/self-evolving/repo/pull/260"
+}

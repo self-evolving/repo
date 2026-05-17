@@ -5,7 +5,7 @@
   },
   "baseRefName": "main",
   "body": "## Summary\n- Derive explicit `/implement` tracking issue titles from the command detail.\n- Keep `Implement requested change` as the fallback when no detail is provided.\n- Document the behavior and add triage regression coverage.\n\n## Tests\n- `npm --prefix .agent run build && node --test .agent/dist/__tests__/triage.test.js`\n\nCloses #228\n",
-  "closedAt": null,
+  "closedAt": "2026-05-16T23:09:17Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABCH5Fdg",
@@ -231,8 +231,8 @@
       "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-228/codex-25779146548`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Changed the explicit implement metadata generator to run with `permission_mode: approve-reads`.\n- Updated the workflow contract test to assert the read-only permission mode for that step.\n- Verified with `npm --prefix .agent run build && node --test .agent/dist/__tests__/envelope.test.js` and `git diff --check`.",
       "createdAt": "2026-05-13T05:30:59Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4437649514",
       "viewerDidAuthor": true
@@ -246,8 +246,8 @@
       "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #232 | 7 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on open PR #232 after addressing the latest MINOR_ISSUES action item; one automated review pass is warranted to verify the permission-mode fix before stopping for human merge decision.\n\n<!-- sepo-agent-handoff state:dispatched created:1778650317507 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU3ODAyOTYyMjk6Zml4X3ByOjIzMjpyZXZpZXc6MjMyOjc -->",
       "createdAt": "2026-05-13T05:31:57Z",
       "includesCreatedEdit": true,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4437656599",
       "viewerDidAuthor": true
@@ -261,8 +261,8 @@
       "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | [`agent-router.yml`](https://github.com/self-evolving/repo/blob/959a47c8240c51260714dcdee3071f743c95e892/.github/workflows/agent-router.yml) resolves explicit route authorization before metadata generation, and the metadata step only runs after `explicit_dispatch.outputs.route == 'implement'`. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Reuses `run-agent-task`, `resolve-dispatch`, `buildRequestedRouteDecision`, and existing prompt/response-file plumbing instead of adding a separate dispatch path. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates [`request-lifecycle.md`](https://github.com/self-evolving/repo/blob/959a47c8240c51260714dcdee3071f743c95e892/.agent/docs/architecture/request-lifecycle.md) and [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/959a47c8240c51260714dcdee3071f743c95e892/.agent/docs/architecture/supported-workflows.md) for explicit `/implement` metadata generation and fallback behavior. |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | Adds [`agent-implement-metadata.md`](https://github.com/self-evolving/repo/blob/959a47c8240c51260714dcdee3071f743c95e892/.github/prompts/agent-implement-metadata.md) so the agent synthesizes context-derived title/body metadata rather than copying command text or adding a new setting. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The prompt requires JSON `issue_title` and `issue_body`, and [`normalizeImplementIssueMetadata`](https://github.com/self-evolving/repo/blob/959a47c8240c51260714dcdee3071f743c95e892/.agent/src/triage.ts) validates both before dispatch metadata is used. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Invalid metadata is not silently treated as clean success: [`resolve-dispatch.ts`](https://github.com/self-evolving/repo/blob/959a47c8240c51260714dcdee3071f743c95e892/.agent/src/cli/resolve-dispatch.ts) logs fallback use, with regression coverage in [`resolve-dispatch-cli.test.ts`](https://github.com/self-evolving/repo/blob/959a47c8240c51260714dcdee3071f743c95e892/.agent/src/__tests__/resolve-dispatch-cli.test.ts). |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | Current head reflects issue #228 plus the PR clarification rejecting literal command-tail titles; tests and docs now assert context-derived metadata. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are limited to router dispatch flow, triage/dispatch metadata handling, focused tests, one prompt, and matching docs. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation adds a small prompt, parser, fallback, and workflow step without broader configuration or new subsystems. |\n\n## Notes\n\n- The current PR head addresses the main rubric risk from earlier revisions: `/implement` selects the route, while issue metadata is generated from request and target context.\n- The latest permission fix also satisfies the trust-boundary concern by running metadata generation with `permission_mode: approve-reads`.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** I found no rubric-specific blocker or warning on the current PR head.\n\n## Final Rubric Verdict\n\nPASS",
       "createdAt": "2026-05-13T05:33:09Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4437664310",
       "viewerDidAuthor": true
@@ -276,8 +276,8 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 959a47c8240c51260714dcdee3071f743c95e892 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #232 addresses #228, where explicit `/implement` requests from PR or discussion contexts created tracking issues with the generic title `Implement requested change`. The original branch copied command text into the title, but the requester clarified that Sepo should synthesize proper metadata from the request and target context. The current head now adds a metadata-only prompt, validates generated `issue_title`/`issue_body`, preserves explicit route approval, falls back safely, and updates tests/docs. The latest fix also changed the metadata step to read-only agent permissions.\n\n## Review\nThe current PR head looks shippable. Codex and rubrics found no current blockers or warnings; Claude raised optional cleanup around parser-side title length and style, but downstream issue creation already enforces the title cap and the style note is not required for correctness.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable issues | INFO | The prior product mismatch and `approve-all` trust-boundary warning are addressed on `959a47c8240c51260714dcdee3071f743c95e892`. Remaining reviewer notes are optional polish, not required branch changes. |\n\n## Progress\n- Issue #228 and the PR discussion clarified that `/implement` selects the route, while tracking issue metadata should be generated from request and target context.\n- Current head wires the metadata prompt through authorized explicit dispatch, uses `permission_mode: approve-reads`, validates/falls back in dispatch resolution, and updates docs/tests.\n- The earlier inline thread about `approve-all` was resolved after re-fetching and verifying it was same-agent, viewer-resolvable, and fixed by the current head.\n- No new inline comments, replies, or minimizations were posted.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: No unresolved required branch changes remain, so the next useful step is human merge/release judgment.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch changes remain.",
       "createdAt": "2026-05-13T05:42:12Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4437713936",
       "viewerDidAuthor": true
@@ -317,6 +317,390 @@
       "minimizedReason": "",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4443754877",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClX-mQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \r\n\r\nRight now we have some additional prompts for the implement request endpoint. Just want to double check that they are expected right? B/c previous for other implement route they do not have the agent generated titles and metadata?",
+      "createdAt": "2026-05-16T22:11:44Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4468375193",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClYRPA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, the additional prompt is expected for this specific path.\n\nThe distinction is:\n\n| Implement path | Does it already have agent-generated issue metadata? | Extra metadata prompt needed? |\n| --- | --- | --- |\n| Free-form request triaged to `implement` | Yes. The normal dispatch prompt generates `issue_title` / `issue_body`. | No |\n| Explicit `/implement` on an issue | No tracking issue is created; implementation runs against the issue. | No |\n| Explicit `/implement` on a PR/discussion | Previously no, because explicit routes bypass dispatch triage. A tracking issue must be created first. | **Yes** |\n| `agent/implement` label on PR/discussion | Same explicit route path. | **Yes** |\n\nSo the new [`agent-implement-metadata.md`](https://github.com/self-evolving/repo/blob/959a47c8240c51260714dcdee3071f743c95e892/.github/prompts/agent-implement-metadata.md) prompt is there to fill the gap only for explicit non-issue implement requests. It is not route selection and should not approve anything; `/implement` already did that. It only returns `issue_title` and `issue_body`.\n\nThat is why #232 also gates the prompt behind explicit route authorization, non-issue target, and read-only permissions in [`agent-router.yml`](https://github.com/self-evolving/repo/blob/959a47c8240c51260714dcdee3071f743c95e892/.github/workflows/agent-router.yml). Then [`resolve-dispatch.ts`](https://github.com/self-evolving/repo/blob/959a47c8240c51260714dcdee3071f743c95e892/.agent/src/cli/resolve-dispatch.ts) uses the generated metadata if valid, otherwise falls back to `Implement requested change`.\n\nSo yes: the extra prompt is intentional because explicit `/implement` skips the normal dispatch prompt that other implement flows already use for generated titles/metadata.",
+      "createdAt": "2026-05-16T22:13:31Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4468379964",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClYZUA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \r\n\r\nBut we also added a bunch of auth checker in this PR -> is that intended? ",
+      "createdAt": "2026-05-16T22:14:24Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4468382032",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClYkZg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, the auth check is intentional, but I agree it looks heavier than the core product change.\n\nWhy it was added: the new metadata prompt runs before creating the tracking issue, and it can read PR/discussion context. So #232 first reuses the existing dispatch-policy path to confirm the explicit route is actually authorized before letting that metadata prompt run. That is the new `Resolve explicit route authorization` step in [`agent-router.yml`](https://github.com/self-evolving/repo/blob/959a47c8240c51260714dcdee3071f743c95e892/.github/workflows/agent-router.yml), and the metadata prompt only runs after `explicit_dispatch.outputs.route == 'implement'`.\n\nThat part is expected. It prevents this sequence:\n\n1. Someone sends explicit `/implement`.\n2. The router starts a context-reading metadata agent prompt.\n3. Only later do we discover the actor was not allowed to run `implement`.\n\nThe current PR avoids that by checking `AGENT_ACCESS_POLICY` first.\n\nOne nuance: the current check runs for all explicit routes, even though the new metadata prompt only needs it for explicit `implement` on non-issue targets. The final `Resolve route` step still applies policy again afterward, so this precheck is mainly a guard for the metadata prompt. If we want the PR to feel narrower, it would be reasonable to scope that precheck to:\n\n```yaml\nrequested_route == 'implement' && target_kind != 'issue'\n```\n\nSo: **do not remove the auth checker entirely**, but it is fair to tighten its condition so it is clearly just protecting the new metadata-generation path, not changing the broader explicit-route auth model.",
+      "createdAt": "2026-05-16T22:15:44Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4468384870",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClY_XA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \r\n\r\n```\r\n     - name: Resolve explicit route authorization\r\n        if: >-\r\n          steps.context.outputs.should_respond == 'true' &&\r\n          steps.context.outputs.requested_route != ''\r\n        id: explicit_dispatch\r\n        env:\r\n          REQUESTED_ROUTE: ${{ steps.context.outputs.requested_route }}\r\n          REQUESTED_SKILL: ${{ steps.context.outputs.requested_skill }}\r\n          REQUEST_TEXT: ${{ steps.context.outputs.body }}\r\n          TARGET_KIND: ${{ steps.context.outputs.target_kind }}\r\n          AUTHOR_ASSOCIATION: ${{ steps.context.outputs.association }}\r\n          ACCESS_POLICY: ${{ inputs.access_policy }}\r\n          REPOSITORY_PRIVATE: ${{ github.event.repository.private && 'true' || 'false' }}\r\n        run: node .agent/dist/cli/resolve-dispatch.js\r\n\r\n      - name: Require dispatch provider\r\n        id: dispatch_provider\r\n        if: >-\r\n      - name: Resolve task timeout\r\n        if: >-\r\n          steps.context.outputs.should_respond == 'true' &&\r\n          (\r\n            steps.context.outputs.requested_route == '' ||\r\n            (\r\n              steps.explicit_dispatch.outputs.route == 'implement' &&\r\n              steps.context.outputs.target_kind != 'issue' &&\r\n              steps.provider.outputs.provider != ''\r\n            )\r\n          )\r\n```\r\n\r\nThere are two questions here: \r\n\r\n1. for the addition of the `resolve-dispatch.js` step: shouldn't existing code also check the auth and guard implement? \r\n2. why do we dispatch_provider conditions? is it necessary? is it too much \"gating\" ? \r\n ",
+      "createdAt": "2026-05-16T22:19:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4468391772",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClZKKg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "1. **Existing code already checks auth before actual implement dispatch.**  \n   The final `Resolve route` step already calls [`resolve-dispatch.js`](https://github.com/self-evolving/repo/blob/959a47c8240c51260714dcdee3071f743c95e892/.agent/src/cli/resolve-dispatch.ts), which applies `AGENT_ACCESS_POLICY` before the route output is used by the implement job.\n\n   The reason #232 adds an earlier `Resolve explicit route authorization` step is narrower: the new metadata prompt runs **before** the final `Resolve route` step, because its output becomes part of the final route metadata. So without the precheck, an unauthorized explicit `/implement` could still trigger a context-reading metadata agent pass before being denied later.\n\n   So the auth precheck is intended, but it only needs to protect this new metadata-generation path. I’d be comfortable narrowing it to:\n\n   ```yaml\n   requested_route == 'implement' && target_kind != 'issue'\n   ```\n\n   That would make it clearer this is not a broader auth-model change.\n\n2. **The provider gating is mostly necessary, but should stay best-effort.**  \n   There are two provider concepts here:\n\n   - `dispatch_provider`: required for normal route-selection triage when `requested_route == ''`.\n   - `provider`: optional early provider resolution used by the new metadata prompt.\n\n   For explicit `/implement`, we should **not** require a dispatch provider just to proceed. Metadata generation is best-effort: if no provider is available, skip the metadata prompt and fall back to `Implement requested change`.\n\n   The condition:\n\n   ```yaml\n   steps.explicit_dispatch.outputs.route == 'implement' &&\n   steps.context.outputs.target_kind != 'issue' &&\n   steps.provider.outputs.provider != ''\n   ```\n\n   is there so timeout resolution and the metadata prompt only run when the metadata prompt can actually run. That part is reasonable.\n\n   My take: the intent is right, but the workflow would read cleaner if the new precheck and timeout/provider gating were scoped exactly to “explicit implement on non-issue target with provider available.” The important part is: do not make explicit implement depend on provider availability; provider absence should just mean fallback metadata.",
+      "createdAt": "2026-05-16T22:20:22Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4468394538",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClZUPw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Existing code already checks auth before actual implement dispatch.\r\n> The final Resolve route step already calls [resolve-dispatch.js](https://github.com/self-evolving/repo/blob/959a47c8240c51260714dcdee3071f743c95e892/.agent/src/cli/resolve-dispatch.ts), which applies AGENT_ACCESS_POLICY before the route output is used by the implement job.\r\n> \r\n> The reason https://github.com/self-evolving/repo/pull/232 adds an earlier Resolve explicit route authorization step is narrower: the new metadata prompt runs before the final Resolve route step, because its output becomes part of the final route metadata. So without the precheck, an unauthorized explicit /implement could still trigger a context-reading metadata agent pass before being denied later.\r\n> \r\n> So the auth precheck is intended, but it only needs to protect this new metadata-generation path. I’d be comfortable narrowing it to:\r\n> \r\n> requested_route == 'implement' && target_kind != 'issue'\r\n> That would make it clearer this is not a broader auth-model change.\r\n\r\n\r\n@sepo-agent /answer so the questions is, after adding this new gate, should we remove the older gate? ",
+      "createdAt": "2026-05-16T22:21:34Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4468397119",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClZcHw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "No. I would **not** remove the older/final gate.\n\nThe new gate is a **precheck** only. Its job is to prevent an unauthorized explicit `/implement` from running the new metadata prompt before policy has been checked.\n\nThe older/final `Resolve route` gate should stay as the source of truth because it still:\n\n- applies `AGENT_ACCESS_POLICY` to the actual route output before any route job runs;\n- handles all routes, not just explicit non-issue `implement`;\n- applies policy after metadata is merged/fallbacked;\n- emits the canonical `route`, `needs_approval`, `issue_title`, `issue_body`, and `skill` outputs used by downstream jobs.\n\nSo the right shape is:\n\n1. **Precheck gate**: only for explicit `/implement` on non-issue targets, before metadata generation.\n2. **Final gate**: always keep it; it decides what the workflow is actually allowed to do.\n\nWhat I would change is not removing the older gate, but narrowing the new one so it does not look like a second general auth system:\n\n```yaml\nsteps.context.outputs.should_respond == 'true' &&\nsteps.context.outputs.requested_route == 'implement' &&\nsteps.context.outputs.target_kind != 'issue'\n```\n\nThen keep the final `Resolve route` step unchanged as the authoritative dispatch-policy gate.",
+      "createdAt": "2026-05-16T22:22:36Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4468399135",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClaNPg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> No. I would **not** remove the older/final gate.\n> \n> The new gate is a **precheck** only. Its job is to prevent an unauthorized explicit `/implement` from running the new metadata prompt before policy has been checked.\n> \n> The older/final `Resolve route` gate should stay as the source of truth because it still:\n> \n> - applies `AGENT_ACCESS_POLICY` to the actual route output before any route job runs;\n> - handles all routes, not just explicit non-issue `implement`;\n> - applies policy after metadata is merged/fallbacked;\n> - emits the canonical `route`, `needs_approval`, `issue_title`, `issue_body`, and `skill` outputs used by downstream jobs.\n> \n> So the right shape is:\n> \n> 1. **Precheck gate**: only for explicit `/implement` on non-issue targets, before metadata generation.\n> 2. **Final gate**: always keep it; it decides what the workflow is actually allowed to do.\n> \n> What I would change is not removing the older gate, but narrowing the new one so it does not look like a second general auth system:\n> \n> ```yaml\n> steps.context.outputs.should_respond == 'true' &&\n> steps.context.outputs.requested_route == 'implement' &&\n> steps.context.outputs.target_kind != 'issue'\n> ```\n> \n> Then keep the final `Resolve route` step unchanged as the authoritative dispatch-policy gate.\n\n@sepo-agent /answer now I really don't get it. Since we have a later gating, why don't we reuse the later gating for the same metadata generation? Or are you saying the later gating cannot be reused easily? ",
+      "createdAt": "2026-05-16T22:29:00Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4468411710",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClaUlg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "You’re right to push on this. The later gate cannot be reused as a **single workflow step** because of an ordering dependency.\n\nCurrent desired flow is:\n\n```text\nextract context\n→ decide whether explicit /implement is authorized enough to run metadata prompt\n→ run metadata prompt\n→ final resolve-dispatch using generated metadata\n→ create issue / dispatch implement\n```\n\nThe later `Resolve route` step needs the metadata prompt output:\n\n```yaml\nRESPONSE_FILE: ${{ steps.triage.outputs.response_file || steps.implement_metadata.outputs.response_file }}\n```\n\nSo if we tried to use only the later gate, we get a cycle:\n\n```text\nNeed final Resolve route to know whether metadata prompt is allowed.\nNeed metadata prompt output before final Resolve route can produce final issue_title/body.\n```\n\nThat is why the PR adds an earlier precheck. It is not a separate auth model; it is an early call to the same policy machinery so the metadata prompt does not run before authorization.\n\nCould we restructure to avoid this shape? Yes, but it would be more awkward:\n\n1. Run `resolve-dispatch.js` early with fallback metadata.\n2. Run metadata prompt if authorized.\n3. Run another merge/finalize step to replace fallback title/body.\n\nThat still has two phases; it just moves the duplication around.\n\nSo the honest answer is: **we can reuse the same code, but not the same later workflow step**, because the later step depends on metadata that has not been generated yet. The current approach is reasonable if the precheck is narrowly scoped and clearly named as a metadata precheck.",
+      "createdAt": "2026-05-16T22:30:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4468413590",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClbACw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer\n\n> Final gate: always keep it; it decides what the workflow is actually allowed to do.\n> What I would change is not removing the older gate, but narrowing the new one so it does not look like a second general auth system:\n> \n> steps.context.outputs.should_respond == 'true' &&\n> steps.context.outputs.requested_route == 'implement' &&\n> steps.context.outputs.target_kind != 'issue'\n> Then keep the final Resolve route step unchanged as the authoritative dispatch-policy gate.\n\n\nWhy there's a != issue in the condition? \n",
+      "createdAt": "2026-05-16T22:35:51Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4468424715",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClbHVA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Because the metadata prompt is only needed when Sepo must create a **new tracking issue**.\n\nFor explicit `/implement` on an existing issue:\n\n```text\nissue comment → /implement → run agent-implement on that same issue\n```\n\nThere is no new issue to title, so generated `issue_title` / `issue_body` are irrelevant.\n\nFor explicit `/implement` on a PR or discussion:\n\n```text\nPR/discussion comment → /implement → create tracking issue → run agent-implement on that issue\n```\n\nThat is the case where we need generated metadata for the tracking issue.\n\nSo `target_kind != 'issue'` mirrors the later issue-creation condition: only non-issue surfaces need a tracking issue.\n\nThat said, for readability I’d slightly prefer the condition be more explicit if only PRs/discussions are intended:\n\n```yaml\nsteps.context.outputs.requested_route == 'implement' &&\n(\n  steps.context.outputs.target_kind == 'pull_request' ||\n  steps.context.outputs.target_kind == 'discussion'\n)\n```\n\nFunctionally, `!= 'issue'` matches the current create-issue path; explicit PR/discussion checks communicate the intent better.",
+      "createdAt": "2026-05-16T22:36:53Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4468426580",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClbPVQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer\n\nWhat I would change is not removing the older gate, but narrowing the new one so it does not look like a second general auth system:\n\nsteps.context.outputs.should_respond == 'true' &&\nsteps.context.outputs.requested_route == 'implement' &&\nsteps.context.outputs.target_kind != 'issue'\nThen keep the final Resolve route step unchanged as the authoritative dispatch-policy gate.\n\nGood that's the intended change right? ",
+      "createdAt": "2026-05-16T22:38:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4468428629",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClbVow",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes. That is the intended change.\n\nKeep the final `Resolve route` step unchanged as the authoritative dispatch-policy gate, and narrow the new precheck so it only exists to protect the metadata prompt path:\n\n```yaml\nsteps.context.outputs.should_respond == 'true' &&\nsteps.context.outputs.requested_route == 'implement' &&\nsteps.context.outputs.target_kind != 'issue'\n```\n\nThat way the PR reads as:\n\n- normal explicit-route authorization remains where it already was;\n- the new early check is only a precheck for generated tracking-issue metadata;\n- existing issue `/implement` and other explicit routes are not pulled into an extra auth-looking path.",
+      "createdAt": "2026-05-16T22:38:56Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4468430243",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClb1IA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Yes. That is the intended change.\n> \n> Keep the final `Resolve route` step unchanged as the authoritative dispatch-policy gate, and narrow the new precheck so it only exists to protect the metadata prompt path:\n> \n> ```yaml\n> steps.context.outputs.should_respond == 'true' &&\n> steps.context.outputs.requested_route == 'implement' &&\n> steps.context.outputs.target_kind != 'issue'\n> ```\n> \n> That way the PR reads as:\n> \n> - normal explicit-route authorization remains where it already was;\n> - the new early check is only a precheck for generated tracking-issue metadata;\n> - existing issue `/implement` and other explicit routes are not pulled into an extra auth-looking path.\n\n@sepo-agent /orchestrate can you implement the minimum fix and then review it? ",
+      "createdAt": "2026-05-16T22:42:33Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4468438304",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClcGVw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | fix-pr | PR #232 | 2 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: The user explicitly requested a minimum branch fix on open PR #232 before review; PR-level orchestrate should dispatch fix-pr first, then the chain can review after a successful fix.\n\nTask for fix-pr:\nImplement only the minimum fix requested in the latest PR discussion:\n- In `.github/workflows/agent-router.yml`, keep the final `Resolve route` step unchanged as the authoritative dispatch-policy gate.\n- Narrow the new early explicit-route authorization/precheck so it only protects the generated implement metadata prompt path, with this condition:\n  `steps.context.outputs.should_respond == 'true' && steps.context.outputs.requested_route == 'implement' && steps.context.outputs.target_kind != 'issue'`\n- Preserve the generated tracking-issue metadata behavior for explicit `/implement` on non-issue targets.\n- Do not add broader auth-model changes, do not remove the final gate, and do not pull issue `/implement` or other explicit routes into the new precheck.\n- Update focused tests/docs only if required by this condition change, and keep the patch surgical.\n\nAfter fix-pr succeeds, the next useful automated action is review, per the user's request to implement the minimum fix and then review it.\n\n<!-- sepo-agent-handoff state:dispatched created:1778971437438 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU5NzQ5MTUzNDI6b3JjaGVzdHJhdGU6MjMyOmZpeF9wcjoyMzI6Mg -->",
+      "createdAt": "2026-05-16T22:43:57Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4468442711",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClcTNw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-228/codex-25779146548`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Narrowed the early `Resolve explicit route authorization` precheck to only explicit non-issue `/implement` requests.\n- Kept the final `Resolve route` step unchanged as the authoritative dispatch-policy gate.\n- Updated the focused workflow test to assert the narrowed precheck condition.\n- Verified with `npm --prefix .agent run build && node --test .agent/dist/__tests__/envelope.test.js` and `git diff --check`.",
+      "createdAt": "2026-05-16T22:45:52Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4468446007",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClcaHg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #232 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on open PR #232, and the user explicitly asked to review after the minimum fix was implemented.\n\n<!-- sepo-agent-handoff state:dispatched created:1778971601444 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU5NzQ5NDE3NjE6Zml4X3ByOjIzMjpyZXZpZXc6MjMyOjM -->",
+      "createdAt": "2026-05-16T22:46:41Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4468447774",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClcjqQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | The new early precheck in [`agent-router.yml`](https://github.com/self-evolving/repo/blob/2a5a2bd211b75065faa55b42d70a38c03721e4a2/.github/workflows/agent-router.yml) is now scoped to `should_respond`, `requested_route == 'implement'`, and `target_kind != 'issue'`; the final `Resolve route` step remains unchanged as the authoritative policy gate. |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | Explicit non-issue `/implement` metadata is generated through [`agent-implement-metadata.md`](https://github.com/self-evolving/repo/blob/2a5a2bd211b75065faa55b42d70a38c03721e4a2/.github/prompts/agent-implement-metadata.md), not a repo setting or command-tail heuristic. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR reuses `resolve-dispatch.js`, `run-agent-task`, provider resolution, and `buildRequestedRouteDecision` rather than adding a separate auth or dispatch implementation. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Generated metadata is normalized from explicit `issue_title` / `issue_body` JSON fields via `normalizeImplementIssueMetadata` in [`triage.ts`](https://github.com/self-evolving/repo/blob/2a5a2bd211b75065faa55b42d70a38c03721e4a2/.agent/src/triage.ts). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | [`request-lifecycle.md`](https://github.com/self-evolving/repo/blob/2a5a2bd211b75065faa55b42d70a38c03721e4a2/.agent/docs/architecture/request-lifecycle.md) and [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/2a5a2bd211b75065faa55b42d70a38c03721e4a2/.agent/docs/architecture/supported-workflows.md) document generated tracking-issue metadata and fallback behavior. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The current PR head reflects the PR discussion clarification: keep the final gate, narrow the precheck, and only protect generated tracking-issue metadata for non-issue `/implement`. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The latest requested fix is limited to the precheck condition plus a focused workflow-contract test in [`envelope.test.ts`](https://github.com/self-evolving/repo/blob/2a5a2bd211b75065faa55b42d70a38c03721e4a2/.agent/src/__tests__/envelope.test.ts). |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The final shape is a narrow precheck plus the existing final dispatch gate; no broader auth-model refactor or extra configuration was introduced. |\n\n## Notes\n\n- The minimum requested fix appears implemented: the early `Resolve explicit route authorization` step now only runs for explicit `/implement` on non-issue targets, so issue `/implement` and other explicit routes are not pulled into an extra precheck path.\n- The final `Resolve route` step remains the canonical dispatch-policy gate, preserving the existing authorization model.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** I found no rubric-specific blocker. The current diff matches the clarified intent and keeps the change narrowly scoped.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-16T22:48:01Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4468450217",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCldbuQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 2a5a2bd211b75065faa55b42d70a38c03721e4a2 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #232 fixes weak tracking issue metadata for explicit `/implement` requests from PR/discussion contexts.\n- Earlier versions copied command-tail text, but the requester clarified that Sepo should generate context-derived issue metadata instead.\n- The current head uses a metadata-only prompt, keeps the final `Resolve route` step as the authoritative policy gate, and narrows the early precheck to explicit non-issue `/implement`.\n- The latest fix also preserves the prior `approve-reads` trust-boundary change for metadata generation.\n\n## Review\nThe current PR head looks ready to ship. Codex found no issues, Claude only noted optional INFO-level cleanup, and rubrics review passed all applicable dimensions.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable issues | INFO | Current head `2a5a2bd` matches the clarified PR discussion: the precheck is scoped to explicit non-issue `/implement`, the final dispatch gate remains authoritative, and the metadata prompt runs read-only. |\n\n## Progress\n- The rejected command-tail title behavior has been replaced by context-derived metadata generation.\n- The prior inline concern about `permission_mode: approve-all` is addressed with `approve-reads`; that thread is already resolved.\n- The latest requested minimum fix narrowed `Resolve explicit route authorization` to the metadata prompt path only.\n- Current GitHub check `Test Scripts / check` is passing, and reviewer-reported `git diff --check` is clean.\n- No new inline comments, replies, minimizations, or thread resolutions were performed in this synthesis.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: No unresolved actionable branch changes remain; this is ready for human merge decision.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch changes.",
+      "createdAt": "2026-05-16T22:55:45Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4468464569",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClfGog",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nUpdated [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #232.\n\nAdded one rubric:\n\n- `context-derived-artifact-metadata` under `rubrics/workflow/`\n- Captures the durable preference from PR #232: when automation creates user-facing tracking artifacts from terse commands, generate title/body from request plus target context rather than copying command text or using generic placeholders.\n\nSkipped the later gate/precheck feedback as already covered by existing authorization, structured-input, and surgical-change rubrics.\n\nValidation passed: `validated 21 rubrics`.\n",
+      "createdAt": "2026-05-16T23:11:17Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/232#issuecomment-4468491938",
       "viewerDidAuthor": true
     }
   ],
@@ -372,7 +756,7 @@
     },
     {
       "path": ".github/workflows/agent-router.yml",
-      "additions": 55,
+      "additions": 56,
       "deletions": 2,
       "changeType": "MODIFIED"
     }
@@ -386,7 +770,7 @@
       "color": "0e8a16"
     }
   ],
-  "mergedAt": null,
+  "mergedAt": "2026-05-16T23:09:17Z",
   "number": 232,
   "reviewDecision": "",
   "reviews": [
@@ -406,8 +790,8 @@
       }
     }
   ],
-  "state": "OPEN",
+  "state": "MERGED",
   "title": "Derive implement issue titles from command text",
-  "updatedAt": "2026-05-13T17:42:00Z",
+  "updatedAt": "2026-05-16T23:11:17Z",
   "url": "https://github.com/self-evolving/repo/pull/232"
 }

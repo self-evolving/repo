@@ -1,0 +1,99 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "@sepo-agent /answer check this",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClcc4w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I checked this. The concern is valid for one path.\n\nCurrent post-review automation is already correct: when a review synthesis returns `SHIP` and `AGENT_ALLOW_SELF_APPROVE=true`, the handoff policy dispatches `agent-self-approve` instead of stopping on the review verdict ([`.agent/src/handoff.ts`](https://github.com/self-evolving/repo/blob/6cf7ec8b87919ae546d790bfa92a44187ab8d7a5/.agent/src/handoff.ts#L461-L470), covered by [test](https://github.com/self-evolving/repo/blob/6cf7ec8b87919ae546d790bfa92a44187ab8d7a5/.agent/src/__tests__/orchestrate-handoff-cli.test.ts#L1051-L1068)).\n\nThe remaining bug is initial/manual PR orchestration. `decideManualOrchestration()` still reads GitHub’s PR `reviewDecision`, and if it sees `CHANGES_REQUESTED` it dispatches `fix-pr` directly ([`.agent/src/cli/orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/6cf7ec8b87919ae546d790bfa92a44187ab8d7a5/.agent/src/cli/orchestrate-handoff.ts#L1288-L1304)). There is even a test locking in that old behavior ([test](https://github.com/self-evolving/repo/blob/6cf7ec8b87919ae546d790bfa92a44187ab8d7a5/.agent/src/__tests__/orchestrate-handoff-cli.test.ts#L869-L879)).\n\nI’d fix it this way:\n\n1. In `decideManualOrchestration()`, keep the open-PR status check, but when `allowSelfApprove` is true, dispatch `agent-self-approve` before consulting `reviewDecision`.\n2. Let `agent-self-approve.yml` own the safety gate. Its prepare step already requires a trusted current-head `SHIP` synthesis before running the approval agent ([`prepare-self-approve.ts`](https://github.com/self-evolving/repo/blob/6cf7ec8b87919ae546d790bfa92a44187ab8d7a5/.agent/src/cli/prepare-self-approve.ts#L90-L104)).\n3. Keep the existing `CHANGES_REQUESTED -> fix-pr` behavior only when self-approval is disabled.\n4. Update the manual orchestration tests to cover both cases.\n5. Slightly clarify the orchestrator prompt so “human decision” becomes a self-approval-agent `BLOCKED` outcome, not an earlier router/orchestrator stop; the self-approval prompt already has that verdict ([`.github/prompts/agent-self-approve.md`](https://github.com/self-evolving/repo/blob/6cf7ec8b87919ae546d790bfa92a44187ab8d7a5/.github/prompts/agent-self-approve.md#L27-L30)).\n\nSo yes: when self-approve is enabled, the manual PR path should stop using GitHub’s human `reviewDecision` as the deciding branch and should consult `agent-self-approve` instead.",
+      "createdAt": "2026-05-16T22:47:05Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/249#issuecomment-4468448483",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClf88g",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate  ",
+      "createdAt": "2026-05-16T23:19:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/249#issuecomment-4468505842",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClgHAA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | implement | Issue #249 | 2 / 40 | Dispatched |\n\nReason: agent planner selected implement: Issue #249 is a small, self-contained implementation request after a prior /answer scoped the bug and fix plan; no parent/tracking issue requires delegation.\n\n<!-- sepo-agent-handoff state:dispatched created:1778973628023 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU5NzU2MDMzNjE6b3JjaGVzdHJhdGU6MjQ5OmltcGxlbWVudDoyNDk6Mg -->",
+      "createdAt": "2026-05-16T23:20:28Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/249#issuecomment-4468508416",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClgrTg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-249/codex-25975629121`\n- Pull request: https://github.com/self-evolving/repo/pull/251\n\nManual PR orchestration now dispatches agent-self-approve after confirming the PR is open whenever self-approval is enabled, leaving CHANGES_REQUESTED -> fix-pr only for the disabled case. Updated the orchestrator prompt/docs and verified with npm run build && node --test dist/__tests__/orchestrate-handoff-cli.test.js.",
+      "createdAt": "2026-05-16T23:25:35Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/249#issuecomment-4468517710",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-16T22:43:45Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 249,
+  "state": "OPEN",
+  "title": "When we enable self-approve, the human decision should be gone -> it should consult the self-approve agent instead",
+  "updatedAt": "2026-05-16T23:25:35Z",
+  "url": "https://github.com/self-evolving/repo/issues/249"
+}

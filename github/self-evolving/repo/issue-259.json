@@ -1,0 +1,39 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "body": "## Goal\n\nSketch a small implementation for the discussion in #257: meta-orchestrated work should not always self-approve and self-merge each child PR immediately when the child review returns `SHIP`.\n\n## Context\n\nCurrent behavior is per-PR: `implement` hands off to `review`, `SHIP` hands off to `agent-self-approve`, and approval can then hand off to `agent-self-merge`. This is reasonable for independent child PRs, but risky for one logical meta task split into stacked or dependent PRs.\n\nThe requested direction is to introduce an explicit meta-orchestration policy so batch/stacked child PRs can stop after review readiness and let the parent orchestrator finalize them later, in dependency order.\n\nRelevant areas mentioned in the discussion:\n- `.github/prompts/agent-orchestrator.md`\n- `.agent/src/handoff.ts`\n- `.agent/src/cli/orchestrate-handoff.ts`\n- `.agent/src/sub-orchestration.ts`\n\n## Acceptance Criteria\n\n- Preserve current per-PR self-approval/self-merge behavior for ordinary and independent PR flows.\n- Add a small, explicit mechanism for batch/stacked orchestrated child work to defer `agent-self-approve` / `agent-self-merge` after `review` returns `SHIP`.\n- When deferral applies, the child result should report a ready-for-parent/finalization state instead of launching self-approval immediately.\n- Parent/meta orchestrator guidance should describe that deferred PRs are finalized after no more child work remains, in the correct dependency order.\n- Include focused tests or fixtures covering both independent immediate self-approval and deferred batch/stacked behavior.\n\n## Ambiguity\n\nThe discussion proposes marking child work as `independent` vs `batch/stacked`, but does not prescribe the exact representation. The implementation should choose the smallest repo-consistent signal or metadata shape that supports this policy without a broad orchestration redesign.\n\n---\n\nRequested via discussion_comment at https://github.com/self-evolving/repo/discussions/257\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCluX7g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-259/codex-25977703817`\n- Pull request: https://github.com/self-evolving/repo/pull/260\n\nAdded an explicit sub-orchestrator finalization policy so batch/stacked child work can mark `finalize_policy: \"defer\"`; trusted deferred child PRs now stop after review `SHIP` and report readiness to the parent instead of dispatching self-approval, while ordinary PRs keep the existing immediate self-approval/self-merge path. Verified with `npm run build`, focused handoff/sub-orchestration/orchestrate-handoff tests, and `git diff --check`.",
+      "createdAt": "2026-05-17T01:17:39Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/259#issuecomment-4468742126",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-17T01:11:58Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 259,
+  "state": "OPEN",
+  "title": "Defer self-merge for batch orchestrator PRs",
+  "updatedAt": "2026-05-17T01:17:39Z",
+  "url": "https://github.com/self-evolving/repo/issues/259"
+}

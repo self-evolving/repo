@@ -1,0 +1,444 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Dispatch `agent-self-approve` for open manual PR orchestrate starts when self-approval is enabled.\n- Keep `CHANGES_REQUESTED -> fix-pr` behavior when self-approval is disabled.\n- Update orchestrator tests, prompt guidance, and docs for the new routing.\n\n## Verification\n- `npm run build && node --test dist/__tests__/orchestrate-handoff-cli.test.js`\n\nCloses #249\n",
+  "closedAt": "2026-05-17T03:00:59Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClgw6A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #251 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: Implementation for issue #249 succeeded and produced open PR #251; the next useful automated step is review.\n\n<!-- sepo-agent-handoff state:dispatched created:1778973984831 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU5NzU2MjkxMjE6aW1wbGVtZW50OjI0OTpyZXZpZXc6MjUxOjM -->",
+      "createdAt": "2026-05-16T23:26:25Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/251#issuecomment-4468519144",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClh6JA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: f23551ae7f2e74ddbb67a4d9a5d0f27a713376af -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #251 addresses issue #249, which asked manual PR `/orchestrate` runs to consult `agent-self-approve` when self-approval is enabled.\n- The PR adds a self-approval dispatch branch after the open-PR check in the deterministic manual orchestration path.\n- It also updates tests, orchestrator prompt guidance, and docs to describe the new routing.\n- The intended behavior is important because `agent-self-approve` owns the trusted current-head `SHIP` gate and should decide whether approval, changes, or blocking is appropriate.\n\n## Review\nOne reviewer considered the heuristics-path change shippable with only optional INFO notes, while the other found a default-mode gap. The blocking finding is supported by the code: packaged entry routing defaults to `agent` mode, but PR-level agent-mode `/orchestrate` still rejects `agent-self-approve`.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Default agent-mode PR orchestration still rejects self-approval | BLOCKING | The new branch only covers `decideManualOrchestration()`, while default PR `/orchestrate` runs use the planner path. That planner path still limits PR orchestration handoffs to `review` or `fix-pr`, so `agent-self-approve` is stopped even when self-approval is enabled. |\n\n## Progress\n- The heuristics path now correctly dispatches `agent-self-approve` after confirming the PR is open.\n- The delegated-route authorization check already includes `agent-self-approve` when self-approval is enabled.\n- Posted one inline comment on `.agent/src/cli/orchestrate-handoff.ts#L1296`: https://github.com/self-evolving/repo/pull/251#discussion_r3253731986\n- No existing inline comments or review threads were present, so no replies, minimization, or thread resolution were needed.\n- Optional reviewer INFO notes about extra heuristics coverage and prompt wording are left out of required action items.\n\n## Issue Details\n<details>\n<summary>Default agent-mode PR orchestration still rejects self-approval</summary>\n\n**Cause:** The router defaults `automation_mode` to `agent`, and PR `/orchestrate` then reaches `decidePlannerOrchestration()` instead of `decideManualOrchestration()`. That path calls `decideHandoff()`, where PR-level `orchestrate` only allows planner handoffs to `review` or `fix-pr`: https://github.com/self-evolving/repo/blob/f23551ae7f2e74ddbb67a4d9a5d0f27a713376af/.agent/src/handoff.ts#L604-L625\n\n**Candidate solutions:** Either bypass the planner for open PRs when `allowSelfApprove` is true and dispatch `agent-self-approve`, or allow planner-selected `agent-self-approve` for PR orchestration when `allowSelfApprove` is true. Add a regression test with `AUTOMATION_MODE=agent`, `TARGET_KIND=pull_request`, and `AGENT_ALLOW_SELF_APPROVE=true`.\n\n**Comments:** This is the meaningful reviewer disagreement: one review treated agent mode as prompt-only, but runtime validation still rejects the prompted handoff.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: The remaining issue is a concrete branch change that is safe for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Update agent-mode PR `/orchestrate` handling so self-approval-enabled runs can dispatch `agent-self-approve`.\n- [ ] Add regression coverage for manual PR `/orchestrate` with `AUTOMATION_MODE=agent` and `AGENT_ALLOW_SELF_APPROVE=true`.",
+      "createdAt": "2026-05-16T23:36:42Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/251#issuecomment-4468537892",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCliBDA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #251 | 4 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis recommends FIX_PR for concrete unresolved NEEDS_REWORK items on open PR #251; round budget remains available.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Update agent-mode PR `/orchestrate` handling so self-approval-enabled runs can dispatch `agent-self-approve`.\n- Add regression coverage for manual PR `/orchestrate` with `AUTOMATION_MODE=agent` and `AGENT_ALLOW_SELF_APPROVE=true`.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1778974661592 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU5NzU3NDM1NTY6cmV2aWV3OjI1MTpmaXhfcHI6MjUxOjQ -->",
+      "createdAt": "2026-05-16T23:37:42Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/251#issuecomment-4468539660",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClihzQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-249/codex-25975629121`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Allowed agent-mode PR `/orchestrate` planner handoffs to dispatch `agent-self-approve` when self-approval is enabled.\n- Added regression coverage for `AUTOMATION_MODE=agent` + `AGENT_ALLOW_SELF_APPROVE=true`.\n- Updated orchestrator prompt/docs to include the enabled self-approval PR path.\n- Verified with `npm run build`, `node --test dist/__tests__/orchestrate-handoff-cli.test.js`, and `git diff --check`.",
+      "createdAt": "2026-05-16T23:42:35Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/251#issuecomment-4468548045",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClinWQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #251 | 5 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on open PR #251 and pushed changes addressing the prior NEEDS_REWORK findings; the next useful automated step is a fresh review of the updated head.\n\n<!-- sepo-agent-handoff state:dispatched created:1778975008548 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU5NzU5NTQwMTU6Zml4X3ByOjI1MTpyZXZpZXc6MjUxOjU -->",
+      "createdAt": "2026-05-16T23:43:28Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/251#issuecomment-4468549465",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClixXw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "The linked issue asked for exactly this behavior: with self-approval enabled, manual PR orchestration should consult `agent-self-approve` before using GitHub’s `reviewDecision`. I’m narrowing the scoring to rubrics that touch this changed behavior: delegated authorization, docs, existing helper reuse, structured decision fields, surgical/simple changes, and automation status/prompt behavior.## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | PR-level agent-mode handoff now permits `agent-self-approve` only when `input.allowSelfApprove` is true in `.agent/src/handoff.ts`; disabled self-approval returns a stop reason instead of dispatching. Existing orchestrator delegated capability checks include `agent-self-approve` only when enabled, and PR #251 adds regression coverage for the enabled planner path. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The implementation extends existing handoff policy in `.agent/src/handoff.ts` and existing manual orchestration routing in `.agent/src/cli/orchestrate-handoff.ts`; it does not add workflow glue or duplicate dispatch logic. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Docs were updated alongside runtime behavior in `.agent/docs/actions/agent-actions.md`, `.agent/docs/architecture/supported-workflows.md`, and `.agent/docs/technical-details/agent-orchestrator.md`; the orchestrator prompt was also updated in `.github/prompts/agent-orchestrator.md`. |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | In `agent` mode, the planner may choose `agent-self-approve` through the existing structured handoff decision, while runtime policy still validates whether self-approval is enabled. No new repo-level switch was introduced. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The change uses existing explicit fields: `next_action: \"agent-self-approve\"` and `AGENT_ALLOW_SELF_APPROVE`; it does not overload free-form text or infer behavior from command tails. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is limited to orchestrator handoff policy, its focused tests, prompt guidance, and docs for that behavior. No unrelated refactor or broad formatting churn is present. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The heuristics path adds a direct enabled-self-approval branch after the open-PR check; the agent path adds one narrow policy branch before the existing `review`/`fix-pr` handling. |\n| communication / generic | Keep status comments compact | pass | 6/6 | The behavior continues to use the existing compact handoff status format; PR comments show concise table-based dispatch statuses rather than raw logs. |\n\n## Notes\n\n- The strongest rubric drivers are the enabled-only authorization guard in `.agent/src/handoff.ts`, the focused regression tests for both heuristics and agent mode, and the matching docs/prompt updates.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific issues found.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-16T23:45:01Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/251#issuecomment-4468552031",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCljXyg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: ca2bb22b199a89b9a769c2871ec5cfe120dfd7ad -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #251 addresses issue #249 by routing manual PR `/orchestrate` starts through `agent-self-approve` when self-approval is enabled.\n- The change avoids using GitHub’s `reviewDecision` as the deciding branch in that enabled path, leaving the self-approval workflow to apply its trusted current-head `SHIP` gate.\n- The PR also updates agent-mode PR orchestration policy so planner-selected `agent-self-approve` is accepted only when self-approval is enabled.\n- Tests, prompt guidance, and docs were updated to match the new routing.\n\n## Review\nThe current head is ready to ship. Reviewers agree the prior blocking agent-mode gap has been fixed; the only remaining notes are optional INFO-level coverage or wording suggestions.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable issues | INFO | No required branch-change work remains. Optional notes about an extra `APPROVED` test variant and prompt wording do not block this PR. |\n\n## Progress\n- Prior blocker fixed: PR-level agent-mode orchestration now permits planner-selected `agent-self-approve` only when `allowSelfApprove` is true.\n- Regression coverage was added for enabled heuristics and enabled agent-mode self-approval paths.\n- Rubrics review passed, including delegated-route authorization, docs sync, reuse, and surgical-change checks.\n- Resolved the prior same-agent inline review thread on `.agent/src/cli/orchestrate-handoff.ts#L1296`; no new inline comments were posted.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: No unresolved actionable branch changes remain, and the remaining reviewer notes are optional.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-16T23:50:36Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/251#issuecomment-4468561866",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClmN1A",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer does the PR and implementation route human decision to self-approval? \r\n\r\nalso i imagine the minimal fix is even not to change `HUMAN_DECISION` but just extract it and route it to `self-approval` ? ",
+      "createdAt": "2026-05-17T00:14:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/251#issuecomment-4468608468",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClmdhQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, with one nuance: the PR does **not** change `HUMAN_DECISION` itself, and that is the right shape.\n\nWhat it does is route the self-approval-enabled cases to `agent-self-approve` instead of letting earlier router state stop or choose `fix-pr`:\n\n- Manual PR `/orchestrate`: after confirming the PR is open, `AGENT_ALLOW_SELF_APPROVE=true` now dispatches `agent-self-approve` **before** consulting GitHub `reviewDecision`, so `CHANGES_REQUESTED` no longer wins in that enabled path: https://github.com/self-evolving/repo/blob/ca2bb22b199a89b9a769c2871ec5cfe120dfd7ad/.agent/src/cli/orchestrate-handoff.ts#L1296-L1305\n- Post-review handoff: `SHIP` + self-approval enabled dispatches `agent-self-approve`: https://github.com/self-evolving/repo/blob/ca2bb22b199a89b9a769c2871ec5cfe120dfd7ad/.agent/src/handoff.ts#L461-L470\n- Agent-mode PR orchestration now permits planner-selected `agent-self-approve` only when self-approval is enabled: https://github.com/self-evolving/repo/blob/ca2bb22b199a89b9a769c2871ec5cfe120dfd7ad/.agent/src/handoff.ts#L604-L620\n- The orchestrator prompt keeps `HUMAN_DECISION`, but says when self-approval is enabled for a `SHIP` review, hand off to `agent-self-approve` and let that agent return `BLOCKED` if the final call should stay human: https://github.com/self-evolving/repo/blob/ca2bb22b199a89b9a769c2871ec5cfe120dfd7ad/.github/prompts/agent-orchestrator.md#L78-L84\n\nSo your proposed minimal fix is basically what this PR implements: don’t redefine `HUMAN_DECISION`; route the eligible enabled self-approval case to `agent-self-approve`, where the approval agent can decide `APPROVE`, `REQUEST_CHANGES`, or `BLOCKED`. The added tests cover both “before `reviewDecision`” manual routing and agent-mode planner routing.",
+      "createdAt": "2026-05-17T00:16:29Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/251#issuecomment-4468612485",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClnPvQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Agent-mode PR orchestration now permits planner-selected agent-self-approve only when self-approval is enabled:\r\n\r\n@sepo-agent /answer that might make it more complicated? In my mind, for this PR, the only thing we need to change is the following: \r\n- when the review says Request human decision , we then launch agent-self-approval if it is allowed (with the necessary context, something like \"the agent has implemented xxx, but it needs human decision at xxx\" please review and provide suggestions\"). \r\n\r\nAnd allowing orchestrate to call self-approval -- I thought it was implemented already -- for the last step when it is SHIP? ",
+      "createdAt": "2026-05-17T00:22:36Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/251#issuecomment-4468625341",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClnaow",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, the last-step `SHIP -> agent-self-approve` path is already implemented for review-originated handoffs:\n\n- `.agent/src/handoff.ts` dispatches `agent-self-approve` when `sourceAction === \"review\"`, conclusion is `SHIP`, and `allowSelfApprove` is true.\n- `.github/prompts/agent-orchestrator.md` already states that `review` may hand off to `agent-self-approve` only for `SHIP` when self-approval is enabled.\n\nSo if the desired behavior is only “after a review synthesis reaches a self-approval-eligible state, run `agent-self-approve` with context,” then yes, adding a broad “PR `/orchestrate` may planner-select `agent-self-approve`” branch is more than that minimal fix.\n\nThe important distinction is:\n\n- `SHIP` is the **Final Verdict** that the deterministic handoff code currently extracts.\n- `HUMAN_DECISION` is the **Recommended Next Step** in the review synthesis prompt, not currently the deterministic `sourceConclusion`.\n\nSo a minimal targeted fix would be:\n\n1. Leave `HUMAN_DECISION` as-is.\n2. Detect the latest review synthesis where `Recommended Next Step = HUMAN_DECISION` and `Final Verdict = SHIP`.\n3. If `AGENT_ALLOW_SELF_APPROVE=true`, dispatch `agent-self-approve` instead of stopping.\n4. Pass handoff context like: “Review synthesis says SHIP but recommends HUMAN_DECISION because <summary/details>; inspect and either approve, request changes with concrete fix context, or block for a human.”\n5. Keep non-`SHIP` `HUMAN_DECISION` as a human stop unless we intentionally broaden self-approval, because `agent-self-approve` currently requires a trusted current-head `SHIP` synthesis before approval can proceed.\n\nSo your intuition is right: we should not need to change the meaning of `HUMAN_DECISION`. We should route the eligible `HUMAN_DECISION + SHIP + self-approval enabled` case into `agent-self-approve` with explicit context. The broader agent-mode PR `/orchestrate -> agent-self-approve` allowance is only needed if we also want manual PR orchestrate starts in `agent` mode to choose self-approval directly; it is not required for the existing final `SHIP` review handoff.",
+      "createdAt": "2026-05-17T00:24:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/251#issuecomment-4468628131",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClnh5A",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Yes, the last-step `SHIP -> agent-self-approve` path is already implemented for review-originated handoffs:\r\n> \r\n> * `.agent/src/handoff.ts` dispatches `agent-self-approve` when `sourceAction === \"review\"`, conclusion is `SHIP`, and `allowSelfApprove` is true.\r\n> * `.github/prompts/agent-orchestrator.md` already states that `review` may hand off to `agent-self-approve` only for `SHIP` when self-approval is enabled.\r\n> \r\n> So if the desired behavior is only “after a review synthesis reaches a self-approval-eligible state, run `agent-self-approve` with context,” then yes, adding a broad “PR `/orchestrate` may planner-select `agent-self-approve`” branch is more than that minimal fix.\r\n> \r\n> The important distinction is:\r\n> \r\n> * `SHIP` is the **Final Verdict** that the deterministic handoff code currently extracts.\r\n> * `HUMAN_DECISION` is the **Recommended Next Step** in the review synthesis prompt, not currently the deterministic `sourceConclusion`.\r\n> \r\n> So a minimal targeted fix would be:\r\n> \r\n> 1. Leave `HUMAN_DECISION` as-is.\r\n> 2. Detect the latest review synthesis where `Recommended Next Step = HUMAN_DECISION` and `Final Verdict = SHIP`.\r\n> 3. If `AGENT_ALLOW_SELF_APPROVE=true`, dispatch `agent-self-approve` instead of stopping.\r\n> 4. Pass handoff context like: “Review synthesis says SHIP but recommends HUMAN_DECISION because <summary/details>; inspect and either approve, request changes with concrete fix context, or block for a human.”\r\n> 5. Keep non-`SHIP` `HUMAN_DECISION` as a human stop unless we intentionally broaden self-approval, because `agent-self-approve` currently requires a trusted current-head `SHIP` synthesis before approval can proceed.\r\n> \r\n> So your intuition is right: we should not need to change the meaning of `HUMAN_DECISION`. We should route the eligible `HUMAN_DECISION + SHIP + self-approval enabled` case into `agent-self-approve` with explicit context. The broader agent-mode PR `/orchestrate -> agent-self-approve` allowance is only needed if we also want manual PR orchestrate starts in `agent` mode to choose self-approval directly; it is not required for the existing final `SHIP` review handoff.\r\n\r\n@sepo-agent /orchestrate  launch a fix then review ",
+      "createdAt": "2026-05-17T00:25:03Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/251#issuecomment-4468629988",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClnuqQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | fix-pr | PR #251 | 2 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest human input requests a concrete PR fix followed by review, overriding the prior SHIP/NO_AUTOMATED_ACTION synthesis; the PR is open and the requested scope is safe for fix-pr.\n\nTask for fix-pr:\nImplement the minimal targeted behavior from the latest PR discussion. Do not broaden PR-level `/orchestrate` in agent mode to planner-select `agent-self-approve` unless it is necessary for this targeted path. Instead, route only the eligible review-synthesis case: latest synthesis has `Recommended Next Step = HUMAN_DECISION`, `Final Verdict = SHIP`, and `AGENT_ALLOW_SELF_APPROVE=true`; dispatch `agent-self-approve` with explicit context explaining that review says SHIP but recommended HUMAN_DECISION and asking the self-approval agent to approve, request changes with concrete fix context, or block for a human. Keep non-`SHIP` `HUMAN_DECISION` as a human stop. Preserve the existing review-originated `SHIP -> agent-self-approve` safety gate and current-head trusted synthesis requirements. Remove or revise PR #251's broader agent-mode PR `/orchestrate -> agent-self-approve` runtime/prompt/docs/tests if they only support that broader allowance. Add focused regression coverage for `HUMAN_DECISION + SHIP + self-approval enabled`, plus disabled or non-SHIP cases stopping for human decision. After fix-pr succeeds, the orchestrator should hand off to review.\n\n<!-- sepo-agent-handoff state:dispatched created:1778977605865 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU5NzY4MzU1OTc6b3JjaGVzdHJhdGU6MjUxOmZpeF9wcjoyNTE6Mg -->",
+      "createdAt": "2026-05-17T00:26:46Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/251#issuecomment-4468633257",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClo7VA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-249/codex-25975629121`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Routed only the targeted review-synthesis case: `Recommended Next Step = HUMAN_DECISION` + `Final Verdict = SHIP` keeps the `SHIP` handoff and dispatches `agent-self-approve` with explicit context when self-approval is enabled.\n- Converted non-`SHIP` `HUMAN_DECISION` review synthesis results into a human-stop conclusion, and kept disabled self-approval as a stop.\n- Removed the broader agent-mode PR `/orchestrate -> agent-self-approve` planner allowance from runtime policy, prompt guidance, docs, and tests.\n- Passed context through `agent-self-approve.yml` into the self-approval prompt.\n- Verified with `npm run build`, `node --test dist/__tests__/handoff.test.js`, `node --test dist/__tests__/dispatch-agent-orchestrator-cli.test.js`, `node --test dist/__tests__/orchestrate-handoff-cli.test.js`, and `git diff --check`.",
+      "createdAt": "2026-05-17T00:35:09Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/251#issuecomment-4468652884",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClpE_A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #251 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on open PR #251 after the latest human request to launch a fix then review; a fresh automated review is the requested next step.\n\n<!-- sepo-agent-handoff state:dispatched created:1778978158782 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjU5NzY4NjY3MTI6Zml4X3ByOjI1MTpyZXZpZXc6MjUxOjM -->",
+      "createdAt": "2026-05-17T00:35:59Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/251#issuecomment-4468655356",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClpQ-A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 87 | PARTIAL | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | `agent-self-approve` dispatch remains gated on enabled self-approval and review `SHIP`; non-`SHIP` `HUMAN_DECISION` stops instead of delegating. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR extends existing `.agent/src/handoff.ts` extraction/handoff helpers, `dispatch-agent-orchestrator`, and `orchestrate-handoff` dispatch paths rather than adding workflow-only routing logic. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The runtime change is reflected in `.agent/docs/actions/agent-actions.md`, `.agent/docs/architecture/supported-workflows.md`, `.agent/docs/technical-details/agent-orchestrator.md`, and `.github/prompts/agent-orchestrator.md`. |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | The decision uses existing review synthesis fields and existing `AGENT_ALLOW_SELF_APPROVE`; it does not add a new repository-level setting. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The PR extracts structured `Recommended Next Step` and `Final Verdict` values, and passes explicit `orchestrator_context` into `agent-self-approve.yml`. |\n| coding_workflow / generic | Make surgical changes | partial | 5/8 | The targeted `HUMAN_DECISION + SHIP` path is implemented, but the PR still includes broader manual heuristic PR `/orchestrate` routing to `agent-self-approve` before `reviewDecision`, plus docs/tests for that broader behavior. That may exceed the latest clarified minimal request. |\n| coding_style / generic | Prefer simple implementations | partial | 5/7 | The extraction and handoff context are straightforward, but keeping both the targeted review-synthesis route and broad manual PR self-approval route adds behavioral surface beyond the minimal fix. |\n| communication / generic | Keep status comments compact | pass | 6/6 | The PR preserves existing compact handoff/status comment style and passes context through prompts rather than expanding visible status output. |\n\n## Notes\n\n- The strongest positive evidence is the focused extraction of `Recommended Next Step = HUMAN_DECISION` while preserving `Final Verdict = SHIP`, with explicit context passed into `agent-self-approve`.\n- The main rubric concern is scope: after the latest discussion, the minimal requested behavior was the review-synthesis case, while the PR still retains manual heuristic PR `/orchestrate -> agent-self-approve` behavior from the earlier issue framing.\n\n## Findings\n\n- **WARNING:** Under `Make surgical changes`, consider removing or explicitly re-justifying the remaining manual heuristic PR `/orchestrate` self-approval branch if the accepted scope is now only `HUMAN_DECISION + SHIP` review synthesis handoff.\n\n## Final Rubric Verdict\n\nPARTIAL",
+      "createdAt": "2026-05-17T00:37:24Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/251#issuecomment-4468658424",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClrIsA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 42ae71ba3014cf5fa9b5c2c122d747d011761102 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #251 addresses issue #249 by changing self-approval-enabled orchestration so human review state does not prematurely stop or route around `agent-self-approve`.\n- The current head implements the narrowed `Recommended Next Step = HUMAN_DECISION` plus `Final Verdict = SHIP` review-synthesis path and passes explicit context into self-approval.\n- It also keeps manual heuristic PR `/orchestrate` routing to `agent-self-approve` for any open PR when self-approval is enabled.\n- That manual heuristic behavior matches the original issue analysis, but it may exceed the later PR discussion that asked for only the review-synthesis `HUMAN_DECISION` case.\n\n## Review\nThe targeted `HUMAN_DECISION + SHIP` implementation looks sound and covered. The only remaining concern is scope: reviewers disagree on whether the still-present manual heuristic PR route is desired or should be removed after the later clarification.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Manual PR heuristics may exceed the narrowed request | WARNING | `.agent/src/cli/orchestrate-handoff.ts#L1296` sends any open PR to `agent-self-approve` when self-approval is enabled before checking `reviewDecision`. This matches the original issue plan, but later PR discussion narrowed the desired fix to review synthesis `HUMAN_DECISION + SHIP`, so maintainer confirmation is needed. |\n\n## Progress\n- Targeted `HUMAN_DECISION + SHIP` routing is implemented in `dispatch-agent-orchestrator.ts`.\n- Non-`SHIP` `HUMAN_DECISION` results now remain a human stop.\n- Self-approval handoff context is passed through `handoff.ts`, `orchestrate-handoff.ts`, `agent-self-approve.yml`, and the prompt.\n- The prior agent-mode PR `/orchestrate -> agent-self-approve` allowance was removed.\n- No new inline comments were posted; the scope warning is already clearly covered in existing PR/rubrics discussion, and the prior same-agent inline thread is already resolved.\n\n## Issue Details\n<details>\n<summary>Manual PR heuristics may exceed the narrowed request</summary>\n\n**Cause:** The manual PR path returns `agent-self-approve` whenever `allowSelfApprove` is true after confirming the PR is open: https://github.com/self-evolving/repo/blob/42ae71ba3014cf5fa9b5c2c122d747d011761102/.agent/src/cli/orchestrate-handoff.ts#L1296-L1303. That bypasses the prior `CHANGES_REQUESTED -> fix-pr` branch for self-approval-enabled manual starts.\n\n**Candidate solutions:** If maintainers want the original issue behavior, keep this branch and explicitly accept it as in scope. If the later narrowed request controls, remove this early return and any docs/tests that only support broad manual PR self-approval routing.\n\n**Comments:** This is a scope decision, not a clear correctness bug. One reviewer judged the PR shippable; two reviewer inputs flagged this broader route under surgical-change scope.\n\n</details>\n\n## Recommended Next Step\nHUMAN_DECISION: The remaining concern is a maintainer scope decision between the original issue plan and the later narrowed PR discussion.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Maintainer: confirm whether the manual PR `/orchestrate` self-approval-first path should remain in scope for PR #251.",
+      "createdAt": "2026-05-17T00:52:13Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/251#issuecomment-4468689072",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClukrQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Yes, the last-step `SHIP -> agent-self-approve` path is already implemented for review-originated handoffs:\r\n> \r\n> * `.agent/src/handoff.ts` dispatches `agent-self-approve` when `sourceAction === \"review\"`, conclusion is `SHIP`, and `allowSelfApprove` is true.\r\n> * `.github/prompts/agent-orchestrator.md` already states that `review` may hand off to `agent-self-approve` only for `SHIP` when self-approval is enabled.\r\n> \r\n> So if the desired behavior is only “after a review synthesis reaches a self-approval-eligible state, run `agent-self-approve` with context,” then yes, adding a broad “PR `/orchestrate` may planner-select `agent-self-approve`” branch is more than that minimal fix.\r\n> \r\n> The important distinction is:\r\n> \r\n> * `SHIP` is the **Final Verdict** that the deterministic handoff code currently extracts.\r\n> * `HUMAN_DECISION` is the **Recommended Next Step** in the review synthesis prompt, not currently the deterministic `sourceConclusion`.\r\n> \r\n> So a minimal targeted fix would be:\r\n> \r\n> 1. Leave `HUMAN_DECISION` as-is.\r\n> 2. Detect the latest review synthesis where `Recommended Next Step = HUMAN_DECISION` and `Final Verdict = SHIP`.\r\n> 3. If `AGENT_ALLOW_SELF_APPROVE=true`, dispatch `agent-self-approve` instead of stopping.\r\n> 4. Pass handoff context like: “Review synthesis says SHIP but recommends HUMAN_DECISION because <summary/details>; inspect and either approve, request changes with concrete fix context, or block for a human.”\r\n> 5. Keep non-`SHIP` `HUMAN_DECISION` as a human stop unless we intentionally broaden self-approval, because `agent-self-approve` currently requires a trusted current-head `SHIP` synthesis before approval can proceed.\r\n> \r\n> So your intuition is right: we should not need to change the meaning of `HUMAN_DECISION`. We should route the eligible `HUMAN_DECISION + SHIP + self-approval enabled` case into `agent-self-approve` with explicit context. The broader agent-mode PR `/orchestrate -> agent-self-approve` allowance is only needed if we also want manual PR orchestrate starts in `agent` mode to choose self-approval directly; it is not required for the existing final `SHIP` review handoff.\r\n\r\n@sepo-agent /implement Given this discussion here, we should only have that minimal function and remove other heuristics for now. Let's do it in a new PR?",
+      "createdAt": "2026-05-17T01:19:35Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/251#issuecomment-4468745389",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABClus5A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Implementing this request — tracking in https://github.com/self-evolving/repo/issues/261.\n",
+      "createdAt": "2026-05-17T01:20:44Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/251#issuecomment-4468747492",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-16T23:25:32Z",
+  "files": [
+    {
+      "path": ".agent/docs/actions/agent-actions.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 13,
+      "deletions": 9,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/agent-orchestrator.md",
+      "additions": 12,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/dispatch-agent-orchestrator-cli.test.ts",
+      "additions": 74,
+      "deletions": 10,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/handoff.test.ts",
+      "additions": 30,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrate-handoff-cli.test.ts",
+      "additions": 91,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/dispatch-agent-orchestrator.ts",
+      "additions": 16,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrate-handoff.ts",
+      "additions": 10,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/handoff.ts",
+      "additions": 28,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-orchestrator.md",
+      "additions": 5,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-self-approve.md",
+      "additions": 4,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-self-approve.yml",
+      "additions": 5,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-249/codex-25975629121",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 251,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAJF9hg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-16T23:35:54Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "f23551ae7f2e74ddbb67a4d9a5d0f27a713376af"
+      }
+    }
+  ],
+  "state": "CLOSED",
+  "title": "Route manual PR orchestration through self-approval",
+  "updatedAt": "2026-05-17T03:00:59Z",
+  "url": "https://github.com/self-evolving/repo/pull/251"
+}

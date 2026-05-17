@@ -1,0 +1,87 @@
+{
+  "number": 248,
+  "title": "How to support a goal system in sepo?",
+  "url": "https://github.com/self-evolving/repo/discussions/248",
+  "body": "Right now we have a clear definition of how small goals should be specified with issues and PRs. But how to track bigger objectives -- the purposes of the whole repository? And can it be updated accordingly? \n\n@sepo-agent /answer",
+  "createdAt": "2026-05-16T22:41:33Z",
+  "updatedAt": "2026-05-17T03:43:33Z",
+  "author": {
+    "login": "lolipopshock"
+  },
+  "category": {
+    "name": "Ideas"
+  },
+  "comments": {
+    "nodes": [
+      {
+        "id": "DC_kwDOSOhEMM4BAofO",
+        "body": "Yes. I’d support this as a separate **repo-goals layer**, above issues/PRs and above current project-management labels.\n\nCurrent pieces already exist:\n\n- `agent/memory` has `PROJECT.md` for slow-changing project context, including goals/open questions: [memory.md#L9-L16](https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/memory.md#L9-L16)\n- repo-scoped workflows already use `target_kind=repository`, so a goals pass does not need to attach to one issue/PR: [key-concepts.md#L70-L80](https://github.com/self-evolving/repo/blob/main/.agent/docs/technical-details/key-concepts.md#L70-L80)\n- `agent-project-manager.yml` already inspects open issues/PRs and emits a structured plan, but today it is backlog triage, not repository purpose tracking: [supported-workflows.md#L145-L160](https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/supported-workflows.md#L145-L160)\n- the current project-manager is still label-plan oriented: [project-manager.md#L9-L51](https://github.com/self-evolving/repo/blob/main/.github/prompts/project-manager.md#L9-L51), [project-management-labels.ts#L29-L39](https://github.com/self-evolving/repo/blob/main/.agent/src/project-management-labels.ts#L29-L39)\n\nRecommended design:\n\n- Keep **issues/PRs** as small executable tasks.\n- Keep **GitHub Project / project-manager** as prioritization and planning UI.\n- Add **Goals** as repo-level strategic objectives: “why this repo exists and what it is trying to become.”\n- Store canonical goals in a human-reviewable artifact, probably `GOALS.md` or `.agent/goals/goals.yml` on the default branch.\n- Mirror/summarize active goals into `agent/memory/PROJECT.md` so normal Sepo runs can use them as context.\n- Do not let the agent silently rewrite canonical goals during ordinary `/answer`, `/implement`, or `/orchestrate` runs. Goal changes should be proposed through PRs or an explicit privileged route.\n\nA minimal goal record could be:\n\n```yaml\nid: hosted-onboarding\ntitle: Make hosted Sepo onboarding reliable\nstatus: active\nhorizon: near-term\nwhy: Reduce setup friction for new repositories.\nsuccess_criteria:\n  - Hosted App install flow works end-to-end.\n  - Onboarding setup check gives actionable status.\nlinked_items:\n  issues: [123, 124]\n  prs: []\nupdated_at: 2026-05-16\n```\n\nImplementation plan:\n\n1. Add a canonical goals file, either `GOALS.md` for readability or `.agent/goals/goals.yml` for automation.\n2. Add docs explaining the hierarchy: goals -> projects/roadmap -> issues/PRs.\n3. Add a `goal` or `goals` helper module that parses and validates the goals file.\n4. Update prompts so `/answer`, `/implement`, `/review`, `/orchestrate`, and project-manager runs read active goals as context.\n5. Add a scheduled or manual “goal review” workflow that compares open issues/PRs against goals and reports drift.\n6. Let that workflow propose updates, but apply canonical goal changes only through PRs.\n7. Later, add GitHub Project sync: Project fields can link items to goal IDs, while goals remain the strategic source of truth.\n\nSo the answer is: **yes, Sepo should have a goal system, but it should not be just bigger issues.** It should be a repo-scoped, reviewable goals document plus agent memory summaries and project-manager alignment checks.\n\nI’d start with the simplest task: add the goals schema/docs and wire active goals into project-manager context. Once that is accepted, we can add the scheduled goal-review workflow.",
+        "createdAt": "2026-05-16T22:43:47Z",
+        "url": "https://github.com/self-evolving/repo/discussions/248#discussioncomment-16943054",
+        "author": {
+          "login": "sepo-agent-app"
+        },
+        "replies": {
+          "nodes": [
+            {
+              "id": "DC_kwDOSOhEMM4BAorS",
+              "body": "@sepo-agent /answer this seems to be  the right starting point; but also reflect how this might interact with #223 #173 #160 ; also the recently added self-approval and self-merge functions? ",
+              "createdAt": "2026-05-17T01:13:24Z",
+              "url": "https://github.com/self-evolving/repo/discussions/248#discussioncomment-16943826",
+              "author": {
+                "login": "lolipopshock"
+              },
+              "replyTo": {
+                "id": "DC_kwDOSOhEMM4BAofO"
+              }
+            },
+            {
+              "id": "DC_kwDOSOhEMM4BAord",
+              "body": "Yes, I think this is the right starting point, but the goal system should be treated as a **coordination layer**, not just another task type.\n\nI’d frame the stack like this:\n\n```text\nGoals = why / success criteria / strategic direction\nProject planning = what is active, prioritized, or scheduled\nIssues/PRs = executable units\nOrchestrator = moves executable units forward\nSelf-approval/self-merge = closes trusted PR loops\nExperiments = measured trial loops under a goal\nSelf-improvement = proposes changes to Sepo itself under goals\n```\n\nHow it interacts with the referenced threads:\n\n- **#223 / auto-research**: a goal gives the research loop its durable objective, but it should not store trial logs. For example, a goal can say “improve long-running experiment support,” while `ExperimentSpec` / `ExperimentRun` records handle metrics, trial IDs, artifact URIs, best result, and parallel lanes. This matches the earlier conclusion in #223: the missing abstraction is structured experiment state, not just another orchestrator transition.\n\n- **#173 / orchestrator reflection**: goals are exactly the context the reflection gate should use. When an orchestrated chain starts becoming patchy or expanding scope, the planner should compare the current PR against the original issue, active goal, success criteria, and anti-goals. If the PR no longer advances the goal cleanly, it should stop, split, supersede, or ask a human instead of continuing to `fix-pr`.\n\n- **#160 / self-improvement**: the proposed daily self-improvement workflow should choose ideas by looking for gaps against active goals plus recent failures. External repo scanning can be an inspiration lane, but the proposal should still answer: “which active Sepo goal does this advance?” If none, it should not create work automatically.\n\n- **Self-approval/self-merge**: these should remain safety gates, not goal-selection mechanisms. The current flow already says `review: SHIP -> agent-self-approve -> agent-self-merge` only when enabled, and runtime policy validates the transitions: [agent-orchestrator.md#L20-L39](https://github.com/self-evolving/repo/blob/main/.agent/docs/technical-details/agent-orchestrator.md#L20-L39). A goal system can add context to self-approval, but it should not weaken the deterministic checks. Self-approval still requires trusted current-head review provenance and distinct actor checks in code, and self-merge still requires current-head self-approval, checks, and mergeability.\n\nConcretely, I’d add goals as a human-reviewable source of truth, probably `GOALS.md` or `.agent/goals/goals.yml`, then mirror a short active-goals summary into `agent/memory/PROJECT.md`. Memory already has a slot for slow-changing project goals: [memory.md#L9-L16](https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/memory.md#L9-L16), but canonical goal changes should go through PRs, not silent memory edits.\n\nA minimal goal object should include:\n\n```yaml\nid: experiment-runtime\ntitle: Support structured computational experiment loops\nstatus: active\nsuccess_criteria:\n  - Experiment specs can define metric, budget, backend, and artifacts.\n  - Completed trials produce deterministic result records.\n  - Improved code candidates can flow through review/self-approval/self-merge.\nlinks:\n  discussions: [223]\n  issues: []\n```\n\nRecommended first implementation slice:\n\n1. Add goals schema/docs.\n2. Add one canonical goals file with initial goals.\n3. Teach project-manager/orchestrator prompts to read active goals.\n4. Add a reflection field like `goal_alignment: aligned | drift | unclear`.\n5. Do **not** auto-update goals yet; propose goal changes by PR.\n\nAfter that, the next slices are: goal-aware orchestrator reflection for #173, goal-linked experiment specs for #223, and goal-constrained self-improvement proposals for #160.",
+              "createdAt": "2026-05-17T01:15:27Z",
+              "url": "https://github.com/self-evolving/repo/discussions/248#discussioncomment-16943837",
+              "author": {
+                "login": "sepo-agent-app"
+              },
+              "replyTo": {
+                "id": "DC_kwDOSOhEMM4BAofO"
+              }
+            },
+            {
+              "id": "DC_kwDOSOhEMM4BApBk",
+              "body": "Another way is to use a discussion thread to manage goals? \n\n@sepo-agent /answer ",
+              "createdAt": "2026-05-17T03:41:54Z",
+              "url": "https://github.com/self-evolving/repo/discussions/248#discussioncomment-16945252",
+              "author": {
+                "login": "lolipopshock"
+              },
+              "replyTo": {
+                "id": "DC_kwDOSOhEMM4BAofO"
+              }
+            },
+            {
+              "id": "DC_kwDOSOhEMM4BApBt",
+              "body": "Yes. A Discussion thread is probably the best **human-facing surface** for goals.\n\nI would not make the raw discussion prose the only source of truth, though. The clean model is:\n\n```text\nDiscussion thread = collaborative goal notebook\nStructured snapshot = machine-readable current goals\nMemory PROJECT.md = short agent-facing summary\nIssues/PRs = execution units linked back to goals\n```\n\nWhy Discussions fit well:\n\n- Sepo already supports discussion triggers and discussion comments: [supported-workflows.md#L198-L203](https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/supported-workflows.md#L198-L203)\n- It can post normal comments or threaded replies to discussions: [respond.ts#L56-L64](https://github.com/self-evolving/repo/blob/main/.agent/src/respond.ts#L56-L64)\n- It already has transcript fetching for full discussion context, including replies: [discussion-transcript.ts#L207-L276](https://github.com/self-evolving/repo/blob/main/.agent/src/discussion-transcript.ts#L207-L276)\n- Memory already has `PROJECT.md` for slow-changing goals/constraints/open questions: [memory.md#L9-L16](https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/memory.md#L9-L16)\n\nSuggested design:\n\n- Create one pinned discussion, e.g. **Repository Goals**.\n- The discussion body contains the current goal index.\n- Each top-level comment represents one goal.\n- Replies under that comment record decisions, progress, objections, and revisions.\n- Sepo periodically or manually summarizes the accepted state into a structured snapshot.\n\nExample discussion shape:\n\n```md\n## Active Goals\n\n<!-- sepo-goals-index -->\n\n- `hosted-onboarding`: Make hosted Sepo onboarding reliable\n- `experiment-runtime`: Support structured computational experiment loops\n- `goal-system`: Add repo-level goal tracking\n```\n\nExample goal comment:\n\n```md\n<!-- sepo-goal id:experiment-runtime status:active -->\n\n## Support Structured Computational Experiment Loops\n\nWhy:\nSepo needs a first-class experiment lifecycle for auto-research style work.\n\nSuccess criteria:\n- Experiment specs define metric, budget, backend, and artifacts.\n- Completed runs produce deterministic result records.\n- Improved code candidates can flow through review/self-approval/self-merge.\n\nLinks:\n- Discussion: #223\n```\n\nThe important guardrail: **discussion updates should be easy, but activation should be explicit**. For example:\n\n- Anyone allowed by policy can discuss goals.\n- Sepo can summarize proposed goal changes.\n- Only an explicit command like `/goals apply` or `/setup apply` should update the structured snapshot.\n- The structured snapshot then feeds project-manager, orchestrator reflection, self-improvement, and self-approval context.\n\nFirst implementation slice I’d recommend:\n\n1. Add docs for the “Goals Discussion” convention.\n2. Add a deterministic parser for `<!-- sepo-goal ... -->` blocks.\n3. Add a manual `agent-goals-sync.yml` workflow that reads the configured discussion and produces a validated goals summary.\n4. Write the short summary into `agent/memory/PROJECT.md`.\n5. Later, add PR-backed updates to a canonical `.agent/goals/goals.yml`.\n\nSo yes: use a Discussion thread to manage goals, but pair it with a structured snapshot so agents do not have to infer the repository’s purpose from an ever-growing conversation every time.",
+              "createdAt": "2026-05-17T03:43:33Z",
+              "url": "https://github.com/self-evolving/repo/discussions/248#discussioncomment-16945261",
+              "author": {
+                "login": "sepo-agent-app"
+              },
+              "replyTo": {
+                "id": "DC_kwDOSOhEMM4BAofO"
+              }
+            }
+          ],
+          "pageInfo": {
+            "hasNextPage": false,
+            "endCursor": null
+          }
+        }
+      }
+    ],
+    "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": null
+    }
+  }
+}

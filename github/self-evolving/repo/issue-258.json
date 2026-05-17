@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "Given what we have done in https://github.com/self-evolving/repo/pull/256 (and the corresponding issues), we should review any agent routes with approve-reads and change it to approve-all ? \n\n@sepo-agent /answer ",
+  "closedAt": "2026-05-17T01:20:12Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCltu3w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Short answer: I would **not do a blanket change**. After PR #256, the ordinary agent routes are already `approve-all`.\n\nCurrent state I found:\n\n- `dispatch` triage uses `approve-all`: https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L224-L238\n- explicit non-issue `/implement` metadata generation now uses `approve-all`: https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L252-L268\n- `answer` uses `approve-all`: https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L374-L386\n- `orchestrator` uses `approve-all`: https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-orchestrator.yml#L148-L183\n- `review` lanes and synthesis use `approve-all`: https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-review.yml#L138-L147 and https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-review.yml#L318-L325\n- `implement` / `fix-pr` omit `permission_mode`, which means they inherit the shared action default of `approve-all`: https://github.com/self-evolving/repo/blob/main/.github/actions/run-agent-task/action.yml#L20-L23\n\nThe only remaining live workflow `approve-reads` I found is `agent-self-approve`: https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-self-approve.yml#L117-L129\n\nI would leave that one alone for now unless we have a concrete failure. It is intentionally documented as special: the agent may inspect context, but deterministic resolver code owns the actual approval submission: https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/request-lifecycle.md#L43-L50\n\nRecommended plan:\n\n1. No broad route migration is needed.\n2. Keep `agent-self-approve` on `approve-reads` unless we observe the same non-interactive approval failure there.\n3. If we do decide self-approval also needs non-interactive GitHub context gathering, make that a focused PR changing only:\n   - `.github/workflows/agent-self-approve.yml`\n   - `.agent/docs/architecture/request-lifecycle.md`\n   - the focused workflow envelope test that currently asserts `approve-reads`.\n\nSo my answer is: **PR #256 already fixed the relevant agent route/helper path; do not change self-approval to `approve-all` without a separate trust-boundary decision.**",
+      "createdAt": "2026-05-17T01:12:29Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/258#issuecomment-4468731615",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-17T01:10:27Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 258,
+  "state": "CLOSED",
+  "title": "Switch any approve-reads to approve-all for agent routes?",
+  "updatedAt": "2026-05-17T01:20:12Z",
+  "url": "https://github.com/self-evolving/repo/issues/258"
+}
