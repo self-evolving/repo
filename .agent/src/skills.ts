@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { statSync } from "node:fs";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 
@@ -45,6 +45,14 @@ function toRepoPath(repoRoot: string, absolutePath: string): string {
   return rel.split(sep).join("/");
 }
 
+function isRegularFile(path: string): boolean {
+  try {
+    return statSync(path).isFile();
+  } catch {
+    return false;
+  }
+}
+
 export function normalizeSkillName(skillName: string): string {
   const normalized = skillName.trim();
   if (!VALID_SKILL_NAME.test(normalized)) {
@@ -87,8 +95,8 @@ export function resolveSkillPackage(input: {
     setupFile,
     skillPath: toRepoPath(repoRoot, skillFile),
     setupPath: toRepoPath(repoRoot, setupFile),
-    skillExists: existsSync(skillFile),
-    setupExists: existsSync(setupFile),
+    skillExists: isRegularFile(skillFile),
+    setupExists: isRegularFile(setupFile),
   };
 }
 

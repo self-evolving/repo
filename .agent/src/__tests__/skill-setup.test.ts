@@ -50,11 +50,62 @@ test("resolveSkillPackage rejects path traversal inputs", () => {
   }
 });
 
+test("resolveSkillPackage requires skill and setup paths to be regular files", () => {
+  const repo = makeSkillRepo();
+  try {
+    const skillFile = join(repo, ".skills", "demo", "SKILL.md");
+    const setupFile = join(repo, ".skills", "demo", "setup.sh");
+    rmSync(skillFile);
+    mkdirSync(skillFile);
+    mkdirSync(setupFile);
+
+    const skill = resolveSkillPackage({ repoRoot: repo, skillName: "demo" });
+    assert.equal(skill.skillExists, false);
+    assert.equal(skill.setupExists, false);
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+});
+
 test("runSkillSetup skips missing setup scripts", () => {
   const repo = makeSkillRepo();
   try {
     const result = runSkillSetup({ repoRoot: repo, skillName: "demo" });
     assert.equal(result.setupRan, false);
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test("runSkillSetup skips directory-shaped setup paths", () => {
+  const repo = makeSkillRepo();
+  try {
+    mkdirSync(join(repo, ".skills", "demo", "setup.sh"));
+    const result = runSkillSetup({
+      repoRoot: repo,
+      skillName: "demo",
+      spawn: () => {
+        throw new Error("setup directory should not run");
+      },
+    });
+    assert.equal(result.setupRan, false);
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test("runSkillSetup refuses directory-shaped skill files before setup", () => {
+  const repo = makeSkillRepo();
+  try {
+    const skillFile = join(repo, ".skills", "demo", "SKILL.md");
+    rmSync(skillFile);
+    mkdirSync(skillFile);
+    writeFileSync(join(repo, ".skills", "demo", "setup.sh"), "true\n");
+
+    assert.throws(
+      () => runSkillSetup({ repoRoot: repo, skillName: "demo" }),
+      /Skill file not found/,
+    );
   } finally {
     rmSync(repo, { recursive: true, force: true });
   }

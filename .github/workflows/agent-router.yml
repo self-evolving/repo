@@ -496,9 +496,19 @@ jobs:
             > "$BODY_FILE"
           node .agent/dist/cli/post-response.js
 
+      - name: Require skill provider
+        id: skill_provider
+        if: steps.check-skill.outputs.exists == 'true'
+        uses: ./.github/actions/resolve-agent-provider
+        with:
+          route: skill
+          default_provider: ${{ vars.AGENT_DEFAULT_PROVIDER || inputs.default_agent || 'auto' }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
       - name: Run skill setup
         id: skill_setup
-        if: steps.check-skill.outputs.exists == 'true'
+        if: steps.check-skill.outputs.exists == 'true' && steps.skill_provider.outcome == 'success'
         continue-on-error: true
         uses: ./.github/actions/run-skill-setup
         with:
@@ -524,16 +534,6 @@ jobs:
             "Skill setup failed for \`${REQUESTED_SKILL}\` using \`${SETUP_PATH}\`. Check the workflow logs for the failed setup step." \
             > "$BODY_FILE"
           node .agent/dist/cli/post-response.js
-
-      - name: Require skill provider
-        id: skill_provider
-        if: steps.check-skill.outputs.exists == 'true' && steps.skill_setup.outcome == 'success'
-        uses: ./.github/actions/resolve-agent-provider
-        with:
-          route: skill
-          default_provider: ${{ vars.AGENT_DEFAULT_PROVIDER || inputs.default_agent || 'auto' }}
-          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
-          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
       - name: Resolve task timeout
         if: steps.check-skill.outputs.exists == 'true' && steps.skill_setup.outcome == 'success'

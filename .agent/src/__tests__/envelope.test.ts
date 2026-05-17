@@ -843,12 +843,17 @@ test("shared setup-agent-runtime action exists and is referenced by reusable wor
 test("skill route uses resolved packages and optional setup action", () => {
   const runnerWorkflow = readRepoFile(".github/workflows/agent-router.yml");
   const setupAction = readRepoFile(".github/actions/run-skill-setup/action.yml");
+  const requireProviderStart = runnerWorkflow.indexOf("- name: Require skill provider");
+  const setupStart = runnerWorkflow.indexOf("- name: Run skill setup");
 
   assert.match(runnerWorkflow, /name: Resolve skill package/);
   assert.match(runnerWorkflow, /node \.agent\/dist\/cli\/resolve-skill\.js/);
   assert.match(runnerWorkflow, /\.\/\.github\/actions\/run-skill-setup/);
   assert.match(runnerWorkflow, /trusted_ref:\s*\$\{\{ !startsWith\(github\.ref, 'refs\/pull\/'\) \}\}/);
   assert.match(runnerWorkflow, /skill_root:\s*\$\{\{ inputs\.skill_root \}\}/);
+  assert.ok(requireProviderStart >= 0);
+  assert.ok(setupStart > requireProviderStart);
+  assert.match(runnerWorkflow, /Run skill setup[\s\S]*if: steps\.check-skill\.outputs\.exists == 'true' && steps\.skill_provider\.outcome == 'success'/);
   assert.match(runnerWorkflow, /steps\.skill_setup\.outcome == 'success'/);
   assert.match(setupAction, /name: Run Skill Setup/);
   assert.match(setupAction, /node \.agent\/dist\/cli\/run-skill-setup\.js/);
