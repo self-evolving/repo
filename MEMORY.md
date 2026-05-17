@@ -77,3 +77,4 @@
 - Scheduled daily summaries are disabled by default; enable agent-daily-summary.yml only via explicit schedule-policy override.
 - Default orchestration max rounds is 12 across workflows and CLI fallbacks.
 - Explicit non-issue /implement creates tracking metadata from context after auth; metadata uses approve-all.
+- For review syntheses, HUMAN_DECISION is a recommended next step; only HUMAN_DECISION + SHIP may route to self-approve.
