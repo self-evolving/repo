@@ -88,7 +88,7 @@ const DEFAULT_SELF_APPROVAL_FIX_PR_HANDOFF_CONTEXT = [
 ].join(" ");
 const DEFAULT_REVIEW_SELF_APPROVAL_HANDOFF_CONTEXT = [
   "Review synthesis recommended HUMAN_DECISION.",
-  "Run agent-self-approve as a decision gate: it may approve only when the latest trusted current-head review verdict is SHIP; otherwise request concrete follow-up changes or block for a human decision.",
+  "Run agent-self-approve as a decision gate: it may approve only when the latest trusted current-head review verdict is SHIP; otherwise request concrete follow-up changes or return BLOCKED only for safety, missing-context, or automation failures.",
 ].join(" ");
 const ANY_HANDOFF_MARKER_RE = new RegExp(
   `<!--\\s*${HANDOFF_MARKER_PREFIX}(?:\\s+state:(pending|dispatched|failed))?(?:\\s+created:(\\d+))?\\s+base64:[A-Za-z0-9_-]+\\s*-->`,

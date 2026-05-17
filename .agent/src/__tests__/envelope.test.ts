@@ -460,6 +460,7 @@ test("self-approval workflow stays opt-in and read-only until deterministic reso
   assert.equal(runStep.with.route, "agent-self-approve");
   assert.equal(runStep.with.github_token, "${{ github.token }}");
   assert.match(workflowText, /AGENT_ALLOW_SELF_APPROVE:\s*\$\{\{\s*vars\.AGENT_ALLOW_SELF_APPROVE \|\| 'false'\s*\}\}/);
+  assert.match(workflowText, /SOURCE_RECOMMENDED_NEXT_STEP:\s*\$\{\{ inputs\.source_recommended_next_step \}\}/);
   assert.match(workflowText, /node \.agent\/dist\/cli\/prepare-self-approve\.js/);
   assert.match(workflowText, /node \.agent\/dist\/cli\/resolve-self-approve\.js/);
   assert.match(workflowText, /Post self-approval stop[\s\S]*always\(\)[\s\S]*steps\.prepare\.outcome == 'success'[\s\S]*steps\.prepare\.outputs\.should_run != 'true'[\s\S]*steps\.prepare\.outputs\.body_file != ''/);

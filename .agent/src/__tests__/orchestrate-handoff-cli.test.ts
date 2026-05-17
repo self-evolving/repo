@@ -1077,7 +1077,7 @@ test("review SHIP with HUMAN_DECISION dispatches self-approval with context when
     SOURCE_ACTION: "review",
     SOURCE_CONCLUSION: "SHIP",
     SOURCE_RECOMMENDED_NEXT_STEP: "HUMAN_DECISION",
-    SOURCE_HANDOFF_CONTEXT: "Review synthesis says SHIP but asks for human decision on release timing.",
+    SOURCE_HANDOFF_CONTEXT: "Review synthesis says SHIP but asks for self-approval judgment on release timing.",
     TARGET_KIND: "pull_request",
     TARGET_NUMBER: "128",
     AUTOMATION_CURRENT_ROUND: "2",
@@ -1091,7 +1091,7 @@ test("review SHIP with HUMAN_DECISION dispatches self-approval with context when
   assert.match(run.outputs.get("reason") || "", /HUMAN_DECISION/);
   assert.equal(
     run.outputs.get("handoff_context"),
-    "Review synthesis says SHIP but asks for human decision on release timing.",
+    "Review synthesis says SHIP but asks for self-approval judgment on release timing.",
   );
   assert.match(run.ghLog, /actions\/workflows\/agent-self-approve\.yml\/dispatches/);
   const inputs = run.dispatchPayload?.inputs as Record<string, string>;
@@ -1099,7 +1099,7 @@ test("review SHIP with HUMAN_DECISION dispatches self-approval with context when
   assert.equal(inputs.source_recommended_next_step, "HUMAN_DECISION");
   assert.equal(
     inputs.source_handoff_context,
-    "Review synthesis says SHIP but asks for human decision on release timing.",
+    "Review synthesis says SHIP but asks for self-approval judgment on release timing.",
   );
 });
 

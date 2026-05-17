@@ -27,9 +27,10 @@ If this run came from review synthesis, the orchestrator also passed:
 
 Treat `HUMAN_DECISION` handoffs as a decision gate. When the source review
 verdict is not `SHIP`, do not return `APPROVE`; return `REQUEST_CHANGES` for
-concrete follow-up work or `BLOCKED` when the decision should stay with a human.
-The deterministic resolver will also refuse to submit an actual GitHub approval
-unless the latest trusted current-head review synthesis verdict is `SHIP`.
+concrete follow-up work or `BLOCKED` only when safety checks, missing context, or
+automation failures prevent a reliable decision. The deterministic resolver will
+also refuse to submit an actual GitHub approval unless the latest trusted
+current-head review synthesis verdict is `SHIP`.
 
 Rules:
 - Do not mutate GitHub state.
@@ -38,8 +39,8 @@ Rules:
 - Return exactly one JSON object and nothing else.
 - Use `APPROVE` only when agent approval is genuinely appropriate.
 - Use `REQUEST_CHANGES` when follow-up implementation work is appropriate.
-- Use `BLOCKED` when the decision should stay with a human or required context
-  is missing.
+- Use `BLOCKED` only when required context is missing, safety checks fail, or
+  automation cannot make a reliable decision.
 
 Ask and answer concrete questions about the implementation from these dimensions:
 

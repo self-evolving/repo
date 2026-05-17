@@ -268,9 +268,10 @@ inspected head SHAs match and the latest trusted current-head review verdict is
 chains, any review synthesis that recommends `HUMAN_DECISION` can hand off to
 `agent-self-approve` when self-approval is enabled; that handoff includes the
 review verdict and context so the approval agent can approve only for `SHIP`,
-request changes for concrete follow-up work, or block for a human. A
-self-approval `REQUEST_CHANGES` result can hand off to `fix-pr` with the approval
-agent's handoff context. Self-approval status comments
+request changes for concrete follow-up work, or block only for safety,
+missing-context, or automation-failure cases. A self-approval `REQUEST_CHANGES`
+result can hand off to `fix-pr` with the approval agent's handoff context.
+Self-approval status comments
 are upserted by marker against comments authored by the authenticated Sepo
 actor, and result artifacts are retained for failed or blocked resolution paths
 where available.

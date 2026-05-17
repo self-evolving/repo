@@ -522,7 +522,7 @@ test("review HUMAN_DECISION dispatches self-approval when enabled", () => {
     sourceAction: "review",
     sourceConclusion: "SHIP",
     sourceRecommendedNextStep: "HUMAN_DECISION",
-    sourceHandoffContext: "Review synthesis says SHIP but needs human decision on release timing.",
+    sourceHandoffContext: "Review synthesis says SHIP but needs self-approval judgment on release timing.",
     targetNumber: "99",
     currentRound: 2,
     maxRounds: 5,
@@ -531,7 +531,7 @@ test("review HUMAN_DECISION dispatches self-approval when enabled", () => {
 
   assert.equal(ship.decision, "dispatch");
   assert.equal(ship.nextAction, "agent-self-approve");
-  assert.equal(ship.handoffContext, "Review synthesis says SHIP but needs human decision on release timing.");
+  assert.equal(ship.handoffContext, "Review synthesis says SHIP but needs self-approval judgment on release timing.");
   assert.match(ship.reason, /HUMAN_DECISION/);
 
   const nonShip = decideHandoff({
