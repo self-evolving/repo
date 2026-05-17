@@ -155,6 +155,10 @@ export function defaultFixPrHandoffContext(): string {
   return DEFAULT_FIX_PR_HANDOFF_CONTEXT;
 }
 
+export function defaultReviewSelfApprovalHandoffContext(): string {
+  return DEFAULT_REVIEW_SELF_APPROVAL_HANDOFF_CONTEXT;
+}
+
 function extractMarkdownSection(markdown: string, heading: string): string {
   const lines = String(markdown || "").split(/\r?\n/);
   const wanted = normalizeToken(heading);
@@ -248,7 +252,7 @@ function resolveSelfApprovalFixPrHandoffContext(input: HandoffInput): string {
 }
 
 function resolveReviewSelfApprovalHandoffContext(input: HandoffInput): string {
-  return String(input.sourceHandoffContext || "").trim() || DEFAULT_REVIEW_SELF_APPROVAL_HANDOFF_CONTEXT;
+  return String(input.sourceHandoffContext || "").trim() || defaultReviewSelfApprovalHandoffContext();
 }
 
 function normalizeAgentAction(value: string): AgentAction | null {

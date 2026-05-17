@@ -4,7 +4,7 @@
 //      REQUESTED_BY, REQUEST_TEXT, AUTOMATION_CURRENT_ROUND,
 //      AUTOMATION_MAX_ROUNDS, SESSION_BUNDLE_MODE, SOURCE_RUN_ID, TARGET_KIND,
 //      AUTHOR_ASSOCIATION, ACCESS_POLICY, REPOSITORY_PRIVATE, ORCHESTRATION_ENABLED,
-//      SOURCE_HANDOFF_CONTEXT, BASE_BRANCH, BASE_PR
+//      SOURCE_RECOMMENDED_NEXT_STEP, SOURCE_HANDOFF_CONTEXT, BASE_BRANCH, BASE_PR
 
 import { readFileSync } from "node:fs";
 import { dispatchWorkflow } from "../github.js";
@@ -12,10 +12,10 @@ import {
   automationModeAllowsHandoff,
   buildReviewFixPrHandoffContext,
   buildReviewSelfApprovalHandoffContext,
+  defaultReviewSelfApprovalHandoffContext,
   extractReviewConclusion,
   extractReviewRecommendedNextStep,
   normalizeConclusion,
-  reviewNeedsHumanDecisionSelfApproval,
 } from "../handoff.js";
 
 function readResponseFile(): string {
@@ -31,6 +31,16 @@ function readResponseFile(): string {
 function sourceReviewNeedsFixPr(sourceAction: string, sourceConclusion: string): boolean {
   if (sourceAction.trim().toLowerCase() !== "review") return false;
   return new Set(["minor_issues", "needs_rework", "changes_requested"]).has(normalizeConclusion(sourceConclusion));
+}
+
+function sourceReviewNeedsSelfApprovalContext(
+  sourceAction: string,
+  sourceConclusion: string,
+  sourceRecommendedNextStep: string,
+): boolean {
+  return sourceAction.trim().toLowerCase() === "review" &&
+    normalizeConclusion(sourceConclusion) === "ship" &&
+    normalizeRecommendedNextStep(sourceRecommendedNextStep) === "human_decision";
 }
 
 function sourceReviewRecommendedNextStep(sourceAction: string, rawResponse: string): string {
@@ -57,16 +67,23 @@ const effectiveAutomationMode = orchestrationEnabled && !automationModeAllowsHan
 const repo = process.env.GITHUB_REPOSITORY || "";
 const ref = process.env.DEFAULT_BRANCH || "";
 const rawResponse = readResponseFile();
-const sourceConclusion = process.env.SOURCE_CONCLUSION || extractReviewConclusion(rawResponse) || "unknown";
+const sourceConclusion = normalizeConclusion(
+  process.env.SOURCE_CONCLUSION || extractReviewConclusion(rawResponse) || "unknown",
+);
 const sourceRecommendedNextStep = normalizeRecommendedNextStep(
   process.env.SOURCE_RECOMMENDED_NEXT_STEP || sourceReviewRecommendedNextStep(sourceAction, rawResponse),
 );
+const sourceReviewSelfApprovalContext = sourceReviewNeedsSelfApprovalContext(
+  sourceAction,
+  sourceConclusion,
+  sourceRecommendedNextStep,
+)
+  ? buildReviewSelfApprovalHandoffContext(rawResponse) || defaultReviewSelfApprovalHandoffContext()
+  : "";
 const sourceHandoffContext = process.env.SOURCE_HANDOFF_CONTEXT ||
   (sourceReviewNeedsFixPr(sourceAction, sourceConclusion) && sourceRecommendedNextStep !== "human_decision"
     ? buildReviewFixPrHandoffContext(rawResponse)
-    : reviewNeedsHumanDecisionSelfApproval(rawResponse)
-      ? buildReviewSelfApprovalHandoffContext(rawResponse)
-      : "");
+    : sourceReviewSelfApprovalContext);
 const targetNumber = process.env.TARGET_NUMBER || "";
 const targetKind = process.env.TARGET_KIND || "";
 
