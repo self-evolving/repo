@@ -37,6 +37,8 @@ export interface AcpxRunOptions {
   timeout?: number;
   /** Optional Codex thought level for session-backed runs. */
   thoughtLevel?: string;
+  /** Allow exec lanes to use a fresh session for non-resumable artifacts. */
+  preserveExecSession?: boolean;
   /** Allow exec lanes to use a fresh Codex session only to apply thoughtLevel. */
   preserveExecThoughtLevel?: boolean;
   /** Prior ACP session ID to resume (when workflow opts in) */
@@ -649,6 +651,7 @@ export function runAcpx(options: AcpxRunOptions): AcpxRunResult {
     threadKey,
     timeout,
     thoughtLevel,
+    preserveExecSession,
     preserveExecThoughtLevel,
     resumeSessionId,
     env: extraEnv,
@@ -658,11 +661,15 @@ export function runAcpx(options: AcpxRunOptions): AcpxRunResult {
   const isExecRoute = sessionMode === "exec";
   const env = { ...process.env, ...extraEnv };
   const normalizedThoughtLevel = thoughtLevel?.trim();
-  const needsTransientCodexSession =
-    preserveExecThoughtLevel === true && isExecRoute && isCodexAgent(agent) && Boolean(normalizedThoughtLevel);
+  const needsTransientExecSession =
+    preserveExecSession === true ||
+    (preserveExecThoughtLevel === true &&
+      isExecRoute &&
+      isCodexAgent(agent) &&
+      Boolean(normalizedThoughtLevel));
   let sessionName: string | undefined;
   let sessionEnsureOutcome: SessionEnsureOutcome = { kind: "not_applicable" };
-  if (needsTransientCodexSession) {
+  if (isExecRoute && needsTransientExecSession) {
     sessionName = transientSessionNameForExec(threadKey);
     sessionEnsureOutcome = createTransientSession(agent, sessionName, cwd, env);
     if (sessionEnsureOutcome.kind === "failed") {
@@ -742,7 +749,7 @@ export function runAcpx(options: AcpxRunOptions): AcpxRunResult {
     permissionMode,
     timeout,
     sessionName,
-    isExecRoute: isExecRoute && !needsTransientCodexSession,
+    isExecRoute: isExecRoute && !needsTransientExecSession,
   });
 
   const result = runCommandWithFileCapture({

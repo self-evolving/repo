@@ -14,9 +14,11 @@ import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import type { SessionPolicy } from "./session-policy.js";
-import { attemptsResume, sessionModeForPolicy } from "./session-policy.js";
+import { attemptsResume } from "./session-policy.js";
 
 export const SESSION_BUNDLE_SCHEMA_VERSION = 1;
+export const RESTORABLE_SESSION_BUNDLE_BACKEND = "github-artifact";
+export const DEBUG_SESSION_BUNDLE_BACKEND = "github-artifact-debug";
 
 export type SessionBundleMode = "auto" | "always" | "never";
 export type SessionBundleRestoreStatus =
@@ -142,7 +144,17 @@ export function parseSessionBundleMode(value: string | undefined): SessionBundle
   return "auto";
 }
 
-export function shouldUseSessionBundles(
+export function shouldRestoreSessionBundles(
+  mode: SessionBundleMode,
+  policy: SessionPolicy,
+): boolean {
+  if (policy === "none" || mode === "never") {
+    return false;
+  }
+  return attemptsResume(policy);
+}
+
+export function shouldBackupSessionBundles(
   mode: SessionBundleMode,
   policy: SessionPolicy,
 ): boolean {
@@ -150,9 +162,13 @@ export function shouldUseSessionBundles(
     return false;
   }
   if (mode === "always") {
-    return sessionModeForPolicy(policy) === "persistent";
+    return true;
   }
   return attemptsResume(policy);
+}
+
+export function isRestorableSessionBundleBackend(backend: string): boolean {
+  return backend === "" || backend === RESTORABLE_SESSION_BUNDLE_BACKEND;
 }
 
 export function hasValidThreadTargetNumber(targetKind: string, targetNumber: number): boolean {

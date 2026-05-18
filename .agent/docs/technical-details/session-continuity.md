@@ -13,10 +13,11 @@ The shared `run-agent-task` action accepts `session_policy`:
 
 `track-only` intentionally does not ensure or prompt a stable named ACP session.
 Codex `track-only` runs that need a `thought_level` may use a fresh per-run ACP
-session to apply that option, but still do not reuse the target/lane session
-identity. It is for jobs that need observability without conversational
-continuity, such as review synthesis, reviewer lanes, self-approval checks, and
-scheduled one-shot actions.
+session to apply that option; `track-only` runs that upload debug bundles also
+use a fresh per-run ACP session. Neither path reuses the target/lane session
+identity. `track-only` is for jobs that need observability without
+conversational continuity, such as review synthesis, reviewer lanes,
+self-approval checks, and scheduled one-shot actions.
 
 ## Session bundle modes
 
@@ -24,11 +25,14 @@ The shared `run-agent-task` action accepts `session_bundle_mode`:
 
 - `never`: disable bundle restore and backup
 - `auto`: enable restore and backup only for routes that attempt session resume
-- `always`: enable restore and backup for any persistent session policy
+- `always`: enable restore and backup for resume policies, and upload debug-only
+  bundles for `track-only`
 
-Because `track-only` is one-shot execution, bundle modes do not restore or back
-up a session for it. The shared action also accepts
-`session_bundle_retention_days` with a default of `30`.
+Because `track-only` is one-shot execution, bundle modes do not restore or
+download a session for it. With `session_bundle_mode: always`, `track-only`
+runs may still upload a debug-only bundle, but that artifact is marked
+non-restorable and is ignored by later restore and fork lookup. The shared
+action also accepts `session_bundle_retention_days` with a default of `30`.
 
 ## Session forks
 

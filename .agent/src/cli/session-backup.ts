@@ -5,7 +5,7 @@ import {
   createSessionBundle,
   hasValidThreadTargetNumber,
   parseSessionBundleMode,
-  shouldUseSessionBundles,
+  shouldBackupSessionBundles,
 } from "../session-bundle.js";
 import { parseSessionPolicy } from "../session-policy.js";
 
@@ -33,7 +33,7 @@ setOutput("total_size_bytes", "0");
 if (!policy) {
   console.error("Missing or invalid SESSION_POLICY");
   process.exitCode = 2;
-} else if (!shouldUseSessionBundles(bundleMode, policy)) {
+} else if (!shouldBackupSessionBundles(bundleMode, policy)) {
   process.exit(0);
 } else if (
   !repoSlug ||

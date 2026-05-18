@@ -167,6 +167,84 @@ if (args.includes("prompt")) {
   }
 });
 
+test("runAcpx can use a transient exec session for debug bundle capture", () => {
+  const dir = mkdtempSync(join(tmpdir(), "acpx-track-only-debug-test-"));
+  const oldPath = process.env.PATH;
+  const threadKey = "self-evolving/repo:pull_request:272:review:claude";
+  const stableSessionName = sessionNameFromThreadKey(threadKey);
+
+  try {
+    const acpxPath = join(dir, "acpx");
+    const callsPath = join(dir, "calls.jsonl");
+    writeFileSync(
+      acpxPath,
+      `#!/usr/bin/env node
+const fs = require("node:fs");
+const args = process.argv.slice(2);
+fs.appendFileSync(process.env.ACPX_TEST_CALLS, JSON.stringify({ args }) + "\\n");
+if (args.includes("prompt")) {
+  process.stdout.write([
+    '{"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess-track-only-debug","models":{"currentModelId":"claude-sonnet"}}}',
+    '{"jsonrpc":"2.0","method":"session/update","params":{"update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"Done."}}}}',
+    '{"jsonrpc":"2.0","id":2,"result":{"stopReason":"end_turn"}}'
+  ].join("\\n") + "\\n");
+}
+`,
+      "utf8",
+    );
+    chmodSync(acpxPath, 0o755);
+    process.env.PATH = `${dir}${delimiter}${oldPath || ""}`;
+
+    const result = runAcpx({
+      agent: "claude",
+      prompt: "review current artifacts",
+      cwd: process.cwd(),
+      sessionMode: sessionModeForPolicy("track-only"),
+      threadKey,
+      permissionMode: "approve-all",
+      preserveExecSession: true,
+      env: { ACPX_TEST_CALLS: callsPath },
+    });
+
+    assert.equal(result.exitCode, 0);
+    assert.equal(result.stdout, "Done.");
+    assert.equal(result.sessionEnsureOutcome.kind, "fresh");
+    assert.match(result.sessionName ?? "", /^pull_request-272-review-claude-exec-[0-9a-f]{12}$/);
+    assert.notEqual(result.sessionName, stableSessionName);
+
+    const sessionName = result.sessionName!;
+    const calls = readFileSync(callsPath, "utf8")
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line) as { args: string[] });
+
+    assert.deepEqual(calls.map((call) => call.args), [
+      ["claude", "sessions", "new", "--name", sessionName],
+      ["claude", "set-mode", "-s", sessionName, "bypassPermissions"],
+      [
+        "--approve-all",
+        "--format",
+        "json",
+        "--json-strict",
+        "--suppress-reads",
+        "claude",
+        "prompt",
+        "-s",
+        sessionName,
+        "review current artifacts",
+      ],
+    ]);
+    assert.equal(calls.some((call) => call.args.includes(stableSessionName)), false);
+  } finally {
+    if (oldPath === undefined) {
+      delete process.env.PATH;
+    } else {
+      process.env.PATH = oldPath;
+    }
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("selectPromptForSessionOutcome uses continuation only after successful resume", () => {
   assert.equal(
     selectPromptForSessionOutcome({
