@@ -31,8 +31,8 @@
       "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 94 | PASS | 5 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The diff reuses existing `attemptsResume(policy)` as the semantic source for persistent mode in `.agent/src/session-policy.ts` and imports `sessionModeForPolicy` into `.agent/src/session-bundle.ts` instead of duplicating policy checks. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The PR updates `.agent/docs/technical-details/session-continuity.md`, `.agent/docs/technical-details/key-concepts.md`, `.agent/docs/customization/creating-your-own-actions.md`, and `.github/prompts/agent-create-action.md` to describe `track-only` as one-shot execution with run metadata. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR closes #267, whose issue body and agent answer define the desired split: `track-only = tracked metadata, one-shot agent execution`. The implementation and docs match that linked context. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are confined to session policy/bundle behavior, review synthesis grounding prompt, matching docs, and focused tests. No broad refactor or unrelated workflow churn appears in the diff. |\n| coding_style / generic | Prefer simple implementations | partial | 6/7 | The core implementation is a one-line semantic change plus a small bundle guard. Minor gap: regression coverage asserts ACP args and policy behavior, but does not model two consecutive synthesis runs with contradictory artifacts as suggested in #267. |\n\n## Notes\n\n- The strongest rubric alignment is that the PR fixes the root cause directly: `track-only` no longer maps to persistent ACP mode, while `tracksThreadState(\"track-only\")` remains true through the unchanged policy contract.\n- Docs are updated in the right places for user-facing behavior and generated action guidance.\n- The only rubric-specific follow-up worth considering is a fuller regression for stale synthesis across consecutive runs, but the current unit tests cover the most important contracts.\n\n## Findings\n\n- **INFO:** The implementation satisfies the selected implementation rubrics. The remaining test gap is not blocking for rubric approval because `.agent/src/__tests__/session-policy.test.ts`, `.agent/src/__tests__/session-bundle.test.ts`, `.agent/src/__tests__/acpx-adapter.test.ts`, and `.agent/src/__tests__/envelope.test.ts` now lock the policy mode, bundle behavior, ACP exec args, and synthesis grounding prompt.\n\n## Final Rubric Verdict\n\nPASS",
       "createdAt": "2026-05-17T19:16:28Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/268#issuecomment-4472212126",
       "viewerDidAuthor": true
@@ -46,8 +46,8 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: f74071f72e9d8c4d7f957f5fa1de71a9c111b8e4 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #268 addresses #267, where `track-only` review synthesis could reuse stale persistent ACP session context.\n- The PR changes `track-only` to one-shot `exec` mode while preserving thread-state metadata.\n- It also skips session bundles for non-persistent `track-only` runs and updates docs to describe the new policy semantics.\n- The review synthesis prompt now requires blocking findings to be grounded in current review artifacts or the current diff.\n\n## Review\nThe stale-session fix is directionally correct, but the current implementation loses Codex reasoning-effort setup for the affected `track-only` lanes. This is blocking because review and synthesis jobs still request high effort, and the new exec path no longer applies it.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Codex track-only exec drops requested reasoning effort | BLOCKING | `track-only` now enters exec mode, but Codex `thought_level` is only applied during persistent session setup. Codex review/synthesis lanes that request `xhigh` would silently run at the backend default effort. |\n| Non-blocking polish noted by reviewers | INFO | Reviewers also noted optional cleanup around `always` bundle-mode wording, test coupling, and missing full two-run synthesis regression coverage. These are not required before fixing the runtime regression. |\n\n## Progress\n- The PR correctly splits `track-only` metadata tracking from persistent named session reuse.\n- Docs, prompt guidance, and targeted unit tests were updated for the intended stale-context fix.\n- Rubrics review passed and found the implementation generally surgical and aligned with #267.\n- Posted one inline comment on `.agent/src/session-policy.ts:33` for the reasoning-effort regression.\n\n## Issue Details\n\n<details>\n<summary>Codex track-only exec drops requested reasoning effort</summary>\n\n**Cause:** [`sessionModeForPolicy(\"track-only\")`](https://github.com/self-evolving/repo/blob/f74071f72e9d8c4d7f957f5fa1de71a9c111b8e4/.agent/src/session-policy.ts#L33) now returns `exec`. [`run.ts`](https://github.com/self-evolving/repo/blob/f74071f72e9d8c4d7f957f5fa1de71a9c111b8e4/.agent/src/run.ts#L544) still passes `thoughtLevel`, but [`runAcpx`](https://github.com/self-evolving/repo/blob/f74071f72e9d8c4d7f957f5fa1de71a9c111b8e4/.agent/src/acpx-adapter.ts#L595) skips session setup for exec routes. The Codex `thought_level` command is only emitted by [`buildSessionSetupCommands`](https://github.com/self-evolving/repo/blob/f74071f72e9d8c4d7f957f5fa1de71a9c111b8e4/.agent/src/acpx-adapter.ts#L287), inside the persistent branch.\n\n**Candidate solutions:** Preserve reasoning-effort propagation for Codex exec runs, or use a fresh per-run session path that can set `thought_level` without reusing the stable target/lane session. Add focused coverage proving `track-only` Codex jobs keep the requested effort.\n\n**Comments:** Codex flagged this as blocking; Claude and rubrics review considered the PR shippable. Synthesis agrees with the blocking finding after tracing the current runtime path.\n\n</details>\n\n## Recommended Next Step\nFIX_PR\n\nPreserve Codex reasoning-effort propagation for exec-mode `track-only` runs; this is a concrete branch change suitable for automated fix-pr.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Preserve `MODEL_REASONING_EFFORT` / Codex `thought_level` for exec-mode `track-only` runs without reusing a stable named session.\n- [ ] Add focused regression coverage for Codex `track-only` exec reasoning-effort propagation.",
       "createdAt": "2026-05-17T19:28:24Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/268#issuecomment-4472262067",
       "viewerDidAuthor": true
@@ -61,10 +61,261 @@
       "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #268 | 4 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis for open PR #268 recommends FIX_PR with NEEDS_REWORK; the remaining items are concrete runtime/test changes and round budget remains available.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Preserve `MODEL_REASONING_EFFORT` / Codex `thought_level` for exec-mode `track-only` runs without reusing a stable named session.\n- Add focused regression coverage for Codex `track-only` exec reasoning-effort propagation.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1779046149658 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYwMDAxODU3MTc6cmV2aWV3OjI2ODpmaXhfcHI6MjY4OjQ -->",
       "createdAt": "2026-05-17T19:29:10Z",
       "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/268#issuecomment-4472263784",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCpG5bQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-267/codex-26000028914`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Preserved Codex `thought_level` for `track-only` exec-mode runs by using a fresh per-run ACP session instead of the stable target/lane session.\n- Added focused regression coverage proving Codex `track-only` propagates `thought_level` and avoids the stable synthesis session name.\n- Updated session continuity docs for the per-run Codex `thought_level` exception.\n\n<details><summary>Checks</summary>\n\n- `cd .agent && npm run build`\n- `cd .agent && node --test dist/__tests__/acpx-adapter.test.js dist/__tests__/session-policy.test.js dist/__tests__/session-bundle.test.js`\n- `git diff --check`\n</details>",
+      "createdAt": "2026-05-17T19:40:32Z",
+      "includesCreatedEdit": false,
       "isMinimized": false,
       "minimizedReason": "",
       "reactionGroups": [],
-      "url": "https://github.com/self-evolving/repo/pull/268#issuecomment-4472263784",
+      "url": "https://github.com/self-evolving/repo/pull/268#issuecomment-4472289645",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCpHEUw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #268 | 5 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on open PR #268 after the latest NEEDS_REWORK synthesis, so one follow-up review is warranted to validate the pushed runtime/test fixes before stopping.\n\n<!-- sepo-agent-handoff state:dispatched created:1779046896102 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYwMDA1MDExODA6Zml4X3ByOjI2ODpyZXZpZXc6MjY4OjU -->",
+      "createdAt": "2026-05-17T19:41:36Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/268#issuecomment-4472292435",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCpHPuw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 5 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR keeps policy semantics centralized in `.agent/src/session-policy.ts`, reuses `attemptsResume(policy)` and `sessionModeForPolicy(policy)`, and factors session setup through shared `buildSessionSetupCommands` rather than duplicating Codex setup logic. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The diff updates `.agent/docs/technical-details/session-continuity.md`, `.agent/docs/technical-details/key-concepts.md`, `.agent/docs/customization/creating-your-own-actions.md`, and `.github/prompts/agent-create-action.md` to describe `track-only` as one-shot run metadata, including the Codex per-run session exception for `thought_level`. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #268 closes #267, whose issue body and agent answer called for `track-only = tracked metadata, one-shot agent execution`, current-artifact synthesis grounding, tests, and docs. The current diff implements those requested changes and addresses the later review-synthesis action item. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are limited to session policy, ACP session handling, session bundle behavior, review synthesis prompt grounding, targeted tests, and matching docs. No unrelated workflow or broad refactor appears in the PR diff. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The core policy split remains small: `track-only` maps to exec while still tracking thread state. The added Codex path uses a fresh per-run session only when needed to preserve `thoughtLevel`, with focused regression coverage for the behavior. |\n\n## Notes\n\n- The strongest rubric alignment is that the PR fixes the exact stale-context class from #267 without changing route authorization, dispatch policy, or broader orchestration behavior.\n- The follow-up fix preserves Codex `MODEL_REASONING_EFFORT` for `track-only` runs without returning to the stable target/lane session name that caused stale synthesis risk.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** The implementation satisfies the applicable selected rubrics. The current diff includes focused tests for policy mode, bundle behavior, ACP args, transient Codex session setup, and review-synthesis grounding.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-17T19:42:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/268#issuecomment-4472295355",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCpIOXg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 3b67adcee51d359e749ecae9339834f9c869bac7 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #268 addresses #267, where `track-only` review synthesis could reuse stale persistent ACP session context.\n- The PR changes `track-only` to one-shot execution while preserving thread-state metadata.\n- It also prevents session bundle restore/backup for non-persistent runs, adds a synthesis grounding guard, and updates docs/tests.\n- A follow-up fix preserved Codex `thought_level` for `track-only` runs by using a fresh per-run session instead of the stable target/lane session.\n\n## Review\nCurrent head `3b67adcee51d359e749ecae9339834f9c869bac7` addresses the previous blocking reasoning-effort regression. Reviewers only disagreed on optional maintenance severity; there is no unresolved required branch change.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable issues | INFO | The stale-context fix and Codex `thought_level` regression are covered by current runtime changes, docs, and focused tests. Optional cleanup notes do not require automation. |\n\n## Progress\n- Prior blocking inline thread on `.agent/src/session-policy.ts:33` was resolved after re-fetching PR review threads and confirming it was same-agent, unresolved, viewer-resolvable, and superseded by the current head.\n- No new inline comments were posted.\n- Claude noted optional follow-ups around transient session cleanup, naming clarity, and additional test cases; Codex and rubrics review found no blocking or warning issues, and synthesis treats these as non-required maintenance.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION\n\nNo unresolved actionable branch work remains; optional cleanup is maintainer judgment and should not trigger fix-pr automation.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change action items.",
+      "createdAt": "2026-05-17T19:50:10Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/268#issuecomment-4472311390",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCpyHdA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer for track-only, we should also upload but do not download?",
+      "createdAt": "2026-05-18T00:23:49Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/268#issuecomment-4472997748",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCpzAUA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "If “upload” means **session bundle upload**, I’d keep `track-only` as **do not download and do not upload session bundles**.\n\nReasoning:\n\n- `track-only` should mean “write run/thread metadata, but do not preserve conversational continuity.” The PR now makes that explicit in [`session-policy.ts`](https://github.com/self-evolving/repo/blob/3b67adcee51d359e749ecae9339834f9c869bac7/.agent/src/session-policy.ts#L32-L37).\n- Session bundles are specifically continuity artifacts. Uploading them for `track-only` would keep stale context available for a future restore/fork path, which is the class of bug this PR is trying to avoid.\n- The current PR intentionally skips bundles for `track-only` even when `session_bundle_mode: always`, via [`shouldUseSessionBundles`](https://github.com/self-evolving/repo/blob/3b67adcee51d359e749ecae9339834f9c869bac7/.agent/src/session-bundle.ts#L145-L155). Both restore and backup use that gate, so download and upload are both skipped.\n- Docs now say the same: because `track-only` is one-shot execution, bundle modes do not restore or back up a session for it: [`session-continuity.md`](https://github.com/self-evolving/repo/blob/3b67adcee51d359e749ecae9339834f9c869bac7/.agent/docs/technical-details/session-continuity.md#L23-L30).\n\nSo my recommendation is:\n\n- **Yes upload normal run artifacts** like review outputs, response files, logs, etc.\n- **No session bundle download.**\n- **No session bundle upload** for `track-only`.\n\nIf we later want forensic-only session capture, I’d make that a separate artifact type or explicit mode, not reuse the resumable session bundle path.",
+      "createdAt": "2026-05-18T00:26:10Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/268#issuecomment-4473012304",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCp0FfQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> If “upload” means **session bundle upload**, I’d keep `track-only` as **do not download and do not upload session bundles**.\r\n> \r\n> Reasoning:\r\n> \r\n> * `track-only` should mean “write run/thread metadata, but do not preserve conversational continuity.” The PR now makes that explicit in [`session-policy.ts`](https://github.com/self-evolving/repo/blob/3b67adcee51d359e749ecae9339834f9c869bac7/.agent/src/session-policy.ts#L32-L37).\r\n> * Session bundles are specifically continuity artifacts. Uploading them for `track-only` would keep stale context available for a future restore/fork path, which is the class of bug this PR is trying to avoid.\r\n> * The current PR intentionally skips bundles for `track-only` even when `session_bundle_mode: always`, via [`shouldUseSessionBundles`](https://github.com/self-evolving/repo/blob/3b67adcee51d359e749ecae9339834f9c869bac7/.agent/src/session-bundle.ts#L145-L155). Both restore and backup use that gate, so download and upload are both skipped.\r\n> * Docs now say the same: because `track-only` is one-shot execution, bundle modes do not restore or back up a session for it: [`session-continuity.md`](https://github.com/self-evolving/repo/blob/3b67adcee51d359e749ecae9339834f9c869bac7/.agent/docs/technical-details/session-continuity.md#L23-L30).\r\n> \r\n> So my recommendation is:\r\n> \r\n> * **Yes upload normal run artifacts** like review outputs, response files, logs, etc.\r\n> * **No session bundle download.**\r\n> * **No session bundle upload** for `track-only`.\r\n> \r\n> If we later want forensic-only session capture, I’d make that a separate artifact type or explicit mode, not reuse the resumable session bundle path.\r\n\r\n@sepo-agent /answer\r\nhmmm ok... but right now we make each session a unique hash id right? so that won't be a problem?",
+      "createdAt": "2026-05-18T00:29:23Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/268#issuecomment-4473030013",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCp1OjA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, the PR’s Codex `track-only` exception uses a fresh per-run session name with a random suffix, so it avoids the original **stable named session reuse** bug.\n\nBut I’d still avoid session bundle upload for `track-only`.\n\nThe unique session name solves one failure mode: `sessions ensure --name pull_request-268-review-synthesize` attaching to an old conversation. It does **not** change what a session bundle is: a resumable copy of local ACP/provider session state. If we upload and register that bundle, we have preserved continuity material for a policy whose contract is “track metadata only, no conversational continuity.”\n\nSo the distinction is:\n\n- Unique per-run session name: fine, used only so Codex can apply `thought_level`.\n- Thread state: fine, keeps observability/run metadata.\n- Session bundle upload: still a continuity artifact, so I would not do it for `track-only`.\n\nIf we uploaded but never downloaded, it probably would not recreate the immediate stale synthesis bug today. But it adds artifact churn and leaves a footgun for future restore/fork/policy changes. For `track-only`, keeping bundles completely off is the cleaner invariant.",
+      "createdAt": "2026-05-18T00:30:55Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/268#issuecomment-4473048716",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCp4o3Q",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer also there is not a problem for claude?",
+      "createdAt": "2026-05-18T00:35:43Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/268#issuecomment-4473104605",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCp5XLg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Correct: there isn’t the same **Codex-specific** problem for Claude.\n\nThe follow-up fix only exists because Codex reasoning effort is applied through a session setting (`thought_level`). When `track-only` moved to exec mode, Codex needed a fresh per-run session just to apply that setting.\n\nClaude does not have that same `thought_level` setup requirement in this code path, so Claude `track-only` can stay as plain one-shot exec:\n\n- no stable named session reuse\n- no transient per-run session needed\n- no session bundle restore/upload\n- still writes thread/run metadata\n\nThe original stale-context risk could affect Claude too if `track-only` used a stable persistent named session, but this PR removes that for both agents. The extra transient-session exception is only for Codex.",
+      "createdAt": "2026-05-18T00:36:43Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/268#issuecomment-4473116462",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCqAfBg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer i still want the track only to upload (this is going to be extremely helpful for debugging purposes i think). what should be done here?",
+      "createdAt": "2026-05-18T00:51:41Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/268#issuecomment-4473233158",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCqA_GQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "That’s reasonable. I’d implement it as **upload-only debug bundles for `track-only`**, while keeping restore/download disabled.\n\nThe important part is to split the current single bundle decision into direction-specific decisions. Right now one helper, [`shouldUseSessionBundles`](https://github.com/self-evolving/repo/blob/main/.agent/src/session-bundle.ts#L145-L156), gates all three paths:\n\n- restore/download in [`session-restore.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/session-restore.ts#L270-L272)\n- backup/upload preparation in [`session-backup.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/session-backup.ts#L36-L37)\n- artifact registration in [`session-register.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/session-register.ts#L42-L43)\n\nWhat I’d do:\n\n1. Replace the single helper with two helpers:\n   - `shouldRestoreSessionBundles(mode, policy)`\n   - `shouldBackupSessionBundles(mode, policy)`\n\n2. Set semantics like this:\n   - `never`: restore false, backup false\n   - `auto + track-only`: restore false, backup false\n   - `always + track-only`: restore false, backup true\n   - resume policies: restore/backup true for `auto` and `always`\n\n3. Keep the workflow shape unchanged. The shared action already has separate restore and upload phases:\n   - restore step: [`run-agent-task/action.yml`](https://github.com/self-evolving/repo/blob/main/.github/actions/run-agent-task/action.yml#L216-L231)\n   - prepare/upload/register steps: [`run-agent-task/action.yml`](https://github.com/self-evolving/repo/blob/main/.github/actions/run-agent-task/action.yml#L431-L476)\n\n4. Update tests so they prove the key invariant:\n   - `track-only` never downloads/restores\n   - `track-only + session_bundle_mode: always` prepares/uploads a bundle\n   - `track-only + auto` stays quiet to avoid default artifact churn\n\nOne detail I’d be careful with: if we register uploaded `track-only` bundles into the same “restorable bundle” thread-state fields, a future resume policy on that same thread could accidentally treat the debug bundle as continuity material. The cleanest version is either:\n\n- upload the artifact but **do not register it as restorable**, or\n- add metadata that marks the bundle as `debug_only` / non-restorable and have restore ignore it.\n\nMy recommendation: implement **upload-only under `session_bundle_mode: always`**, and make registered `track-only` bundles explicitly non-restorable. That gives us the debugging artifact without weakening the stale-context fix.\n\nApproval question: should the follow-up change make `track-only` upload only when `session_bundle_mode: always`, rather than uploading by default under `auto`?",
+      "createdAt": "2026-05-18T00:53:46Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/268#issuecomment-4473241369",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCqB9Wg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> That’s reasonable. I’d implement it as **upload-only debug bundles for `track-only`**, while keeping restore/download disabled.\r\n> \r\n> The important part is to split the current single bundle decision into direction-specific decisions. Right now one helper, [`shouldUseSessionBundles`](https://github.com/self-evolving/repo/blob/main/.agent/src/session-bundle.ts#L145-L156), gates all three paths:\r\n> \r\n> * restore/download in [`session-restore.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/session-restore.ts#L270-L272)\r\n> * backup/upload preparation in [`session-backup.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/session-backup.ts#L36-L37)\r\n> * artifact registration in [`session-register.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/session-register.ts#L42-L43)\r\n> \r\n> What I’d do:\r\n> \r\n> 1. Replace the single helper with two helpers:\r\n>    \r\n>    * `shouldRestoreSessionBundles(mode, policy)`\r\n>    * `shouldBackupSessionBundles(mode, policy)`\r\n> 2. Set semantics like this:\r\n>    \r\n>    * `never`: restore false, backup false\r\n>    * `auto + track-only`: restore false, backup false\r\n>    * `always + track-only`: restore false, backup true\r\n>    * resume policies: restore/backup true for `auto` and `always`\r\n> 3. Keep the workflow shape unchanged. The shared action already has separate restore and upload phases:\r\n>    \r\n>    * restore step: [`run-agent-task/action.yml`](https://github.com/self-evolving/repo/blob/main/.github/actions/run-agent-task/action.yml#L216-L231)\r\n>    * prepare/upload/register steps: [`run-agent-task/action.yml`](https://github.com/self-evolving/repo/blob/main/.github/actions/run-agent-task/action.yml#L431-L476)\r\n> 4. Update tests so they prove the key invariant:\r\n>    \r\n>    * `track-only` never downloads/restores\r\n>    * `track-only + session_bundle_mode: always` prepares/uploads a bundle\r\n>    * `track-only + auto` stays quiet to avoid default artifact churn\r\n> \r\n> One detail I’d be careful with: if we register uploaded `track-only` bundles into the same “restorable bundle” thread-state fields, a future resume policy on that same thread could accidentally treat the debug bundle as continuity material. The cleanest version is either:\r\n> \r\n> * upload the artifact but **do not register it as restorable**, or\r\n> * add metadata that marks the bundle as `debug_only` / non-restorable and have restore ignore it.\r\n> \r\n> My recommendation: implement **upload-only under `session_bundle_mode: always`**, and make registered `track-only` bundles explicitly non-restorable. That gives us the debugging artifact without weakening the stale-context fix.\r\n> \r\n> Approval question: should the follow-up change make `track-only` upload only when `session_bundle_mode: always`, rather than uploading by default under `auto`?\r\n\r\n@sepo-agent /implement work on this as a stacked PR?",
+      "createdAt": "2026-05-18T00:56:59Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/268#issuecomment-4473257306",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCqCSyQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Implementing this request — tracking in https://github.com/self-evolving/repo/issues/272.\n",
+      "createdAt": "2026-05-18T00:58:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/268#issuecomment-4473262793",
       "viewerDidAuthor": true
     }
   ],
@@ -84,14 +335,14 @@
     },
     {
       "path": ".agent/docs/technical-details/session-continuity.md",
-      "additions": 18,
+      "additions": 20,
       "deletions": 1,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/__tests__/acpx-adapter.test.ts",
-      "additions": 23,
-      "deletions": 0,
+      "additions": 105,
+      "deletions": 1,
       "changeType": "MODIFIED"
     },
     {
@@ -110,6 +361,18 @@
       "path": ".agent/src/__tests__/session-policy.test.ts",
       "additions": 2,
       "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/acpx-adapter.ts",
+      "additions": 117,
+      "deletions": 22,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/run.ts",
+      "additions": 1,
+      "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
@@ -168,6 +431,6 @@
   ],
   "state": "OPEN",
   "title": "Make track-only session policy one-shot",
-  "updatedAt": "2026-05-17T19:29:24Z",
+  "updatedAt": "2026-05-18T00:58:02Z",
   "url": "https://github.com/self-evolving/repo/pull/268"
 }

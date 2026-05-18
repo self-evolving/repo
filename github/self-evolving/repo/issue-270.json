@@ -1,0 +1,16 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "body": "## Problem\n\nSepo currently has fallback logic for weak `author_association` values on issue-body mentions, but the same normalization does not consistently apply to other mention-trigger surfaces such as discussion comments, issue comments, PR review comments, and review submissions.\n\nGitHub webhook and GraphQL payloads can report a weak association such as `NONE` or `CONTRIBUTOR` even when the triggering user has repository access. When that weak value is passed directly into route authorization, otherwise valid requests can be rejected by `AGENT_ACCESS_POLICY`.\n\n## Mechanism\n\nThe existing issue path refreshes weak issue author associations from the live issue API and, when needed, checks repository collaborator status before policy evaluation. Non-issue mention surfaces still primarily trust the event payload association.\n\nThis creates inconsistent authorization behavior across surfaces:\n\n- issue-body mentions can be upgraded after a live API/collaborator check\n- discussion/comment/review mentions can remain stuck at a weak payload association\n- dispatch policy then rejects the route even if the actor has repository access\n\n## Proposed solution\n\nGeneralize the existing issue fallback into a shared weak-association normalization step for mention triggers.\n\nSuggested approach:\n\n1. Treat strong associations (`OWNER`, `MEMBER`, `COLLABORATOR`) as trusted without refresh.\n2. For weak associations (`NONE`, `CONTRIBUTOR`, `FIRST_TIMER`, `FIRST_TIME_CONTRIBUTOR`, etc.), identify the triggering actor login for the current event type.\n3. Check repository collaborator/permission status with the GitHub API.\n4. If the actor has repository access, normalize the association to `COLLABORATOR` before route policy evaluation.\n5. Preserve the current issue-specific refresh where useful, but make the final collaborator fallback surface-agnostic.\n6. Add regression tests for `discussion_comment`, `issue_comment`, and PR review/comment events where the payload association is weak but collaborator lookup succeeds.\n7. Update access-policy docs to describe weak-association normalization across mention surfaces, not only issue-body mentions.\n\nThis should keep the trust boundary conservative: weak associations are only promoted when GitHub confirms repository access.",
+  "closedAt": null,
+  "comments": [],
+  "createdAt": "2026-05-18T00:07:29Z",
+  "labels": [],
+  "number": 270,
+  "state": "OPEN",
+  "title": "Normalize weak author associations for non-issue mention triggers",
+  "updatedAt": "2026-05-18T00:07:29Z",
+  "url": "https://github.com/self-evolving/repo/issues/270"
+}

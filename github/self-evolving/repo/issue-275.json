@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "For example https://github.com/self-evolving/repo/pull/268#issuecomment-4473257306\n\nWhile it says to create a stacked pr, it still merges to main in the end. Can you investigate? \n\n@sepo-agent /answer",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCqHc7w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I found the gap.\n\nThe `/implement work on this as a stacked PR?` comment was made on PR #268, but the explicit implement dispatch path did **not** pass `base_pr=268` or `base_branch=<PR #268 head>` into `agent-implement.yml`.\n\nEvidence:\n\n- Router dispatches implement with `REQUEST_TEXT` and `SESSION_FORK_FROM_THREAD_KEY`, but no `BASE_BRANCH` / `BASE_PR`: [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L688-L704)\n- `dispatch-agent-implement` already forwards `base_branch` / `base_pr` if env vars exist: [`dispatch-agent-implement.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/dispatch-agent-implement.ts#L17-L35)\n- `agent-implement.yml` resolves from those inputs, otherwise falls back to default branch: [`agent-implement.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-implement.yml#L171-L179), [`implementation-base.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/implementation-base.ts#L55-L91)\n- PR creation then uses that resolved `BASE_BRANCH`: [`agent-implement.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-implement.yml#L263-L273), [`create-pr.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/create-pr.ts#L12-L45)\n\nFor this specific run, the logs confirm it:\n\n- run `26007926364` had `BASE_BRANCH:` empty and `BASE_PR:` empty\n- it resolved `Resolved implementation base branch main from default_branch`\n- PR creation ran with `BASE_BRANCH: main`\n\nThe agent did notice the issue inside its own implementation session and fast-forwarded the branch onto PR #268’s head before editing. That made the branch content stacked, but the workflow-created PR initially still targeted `main`. The timeline shows PR #274 was later retargeted manually by `lolipopshock` at `2026-05-18T01:11:34Z`; current PR #274 now has base `agent/implement-issue-267/codex-26000028914`.\n\nRecommended fix: for explicit `/implement` comments on a PR, the router should derive `BASE_PR=<source PR number>` when the request says stacked/follow-up, then pass it to `dispatch-agent-implement`. Using `base_pr` is preferable because `implementation-base.ts` already validates that the PR is open and same-repo, then resolves its head branch safely. This should also add a regression test around a PR comment like `@sepo-agent /implement work on this as a stacked PR?` producing `base_pr: \"268\"` instead of falling back to `main`.",
+      "createdAt": "2026-05-18T01:18:52Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/275#issuecomment-4473347311",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-18T01:14:40Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 275,
+  "state": "OPEN",
+  "title": "Parse merge head  information from user request from implement request",
+  "updatedAt": "2026-05-18T01:18:52Z",
+  "url": "https://github.com/self-evolving/repo/issues/275"
+}

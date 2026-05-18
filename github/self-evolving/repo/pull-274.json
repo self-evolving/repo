@@ -1,0 +1,261 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "agent/implement-issue-267/codex-26000028914",
+  "body": "## Summary\n- Split session bundle restore and backup decisions so `track-only` never restores but can back up under `session_bundle_mode: always`.\n- Use fresh per-run exec sessions for debug bundle capture without reusing stable target/lane session names.\n- Mark `track-only` uploaded bundles as debug-only/non-restorable and make restore/fork lookup ignore them.\n- Update session continuity docs and focused tests.\n\n## Tests\n- `cd .agent && npm run build`\n- `cd .agent && node --test dist/__tests__/session-bundle.test.js dist/__tests__/acpx-adapter.test.js dist/__tests__/session-policy.test.js`\n- `git diff --check`\n\nCloses #272\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCqF2-w",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate ",
+      "createdAt": "2026-05-18T01:12:15Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/274#issuecomment-4473321211",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCqGTgw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | review | PR #274 | 2 / 40 | Dispatched |\n\nReason: agent planner selected review: Open PR #274 is a newly created stacked implementation for issue #272 with no existing review synthesis; the /orchestrate request should run a review before any fixes are considered.\n\n<!-- sepo-agent-handoff state:dispatched created:1779066844920 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYwMDgyODI3NzU6b3JjaGVzdHJhdGU6Mjc0OnJldmlldzoyNzQ6Mg -->",
+      "createdAt": "2026-05-18T01:14:05Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/274#issuecomment-4473328515",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCqG9nA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 6 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Replaces the existing bundle gate with `shouldRestoreSessionBundles` / `shouldBackupSessionBundles` in `.agent/src/session-bundle.ts`, then reuses those helpers from restore, backup, register, and runtime paths. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates `.agent/docs/technical-details/session-continuity.md` to document `track-only` debug bundle upload behavior and non-restorable semantics. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Uses explicit `session_bundle_backend` metadata values, including `github-artifact-debug`, instead of inferring debug-only status from artifact names or command text. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | Preserves the existing `session_bundle_mode` surface and interprets `always` for the new debug upload case rather than adding another repo setting. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are limited to session bundle helpers, runtime adapter plumbing, registration/restore CLIs, focused tests, and matching docs. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The core implementation is a small split between restore and backup decisions plus one backend predicate, with no broader workflow restructuring. |\n\n## Notes\n\n- The PR aligns closely with issue #272’s acceptance criteria: `track-only` restore remains disabled, `always + track-only` can upload a debug bundle, and registered debug bundles are ignored by destination and fork restore paths.\n- Test evidence is focused and relevant: helper semantics are covered in `session-bundle.test.ts`, transient debug session capture is covered in `acpx-adapter.test.ts`, and the PR reports build plus focused test execution.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-18T01:16:26Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/274#issuecomment-4473339292",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCqJBQQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 3d84427e060d5188cddd2093f197b70d05c61441 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #274 is a stacked follow-up to issue #272, building on PR #268’s `track-only` one-shot behavior.\n- It splits session bundle policy into direction-specific restore and backup decisions so `track-only` never restores bundles.\n- It also allows `track-only + session_bundle_mode: always` to upload debug-only bundles while marking them non-restorable.\n- The core helper, registration, restore, docs, and focused tests are in place, but one workflow/runtime wiring gap prevents the main action path from meeting the upload criterion.\n\n## Review\nThe core design is sound, but the shared action does not pass the new runtime dependency into the actual agent run step. That blocks the central acceptance criterion for `track-only + always` debug uploads in common paths.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Run step does not pass session bundle mode | BLOCKING | [`run.ts`](https://github.com/self-evolving/repo/blob/3d84427e060d5188cddd2093f197b70d05c61441/.agent/src/run.ts#L540) reads `SESSION_BUNDLE_MODE`, but the shared action’s [`Run agent task`](https://github.com/self-evolving/repo/blob/3d84427e060d5188cddd2093f197b70d05c61441/.github/actions/run-agent-task/action.yml#L298-L335) env block does not provide it. This makes the runtime default to `auto`, so `track-only + always` can fail to preserve a transient session for debug bundle backup. |\n\n## Progress\n- Issue #272 context was checked; the PR matches the requested helper split and non-restorable debug bundle approach.\n- Existing PR discussion includes an orchestrator handoff and a passing rubrics review.\n- No prior inline comments or review threads existed before synthesis.\n- Posted one inline comment on `.agent/src/run.ts#L540`; no replies, thread resolutions, or minimizations were performed.\n- Reviewer disagreement: one code review and the rubrics review considered the implementation shippable, while another review identified the missing action env wiring as blocking.\n\n## Issue Details\n<details>\n<summary>Run step does not pass session bundle mode</summary>\n\n**Cause:** The new runtime logic calls `parseSessionBundleMode(process.env.SESSION_BUNDLE_MODE)`, but `.github/actions/run-agent-task/action.yml` only passes `SESSION_BUNDLE_MODE` to restore, backup, and register steps, not to `Run agent task`. In the main action path, that means the runtime sees `undefined`, defaults to `auto`, and does not set `preserveExecSession` for `track-only + always`.\n\n**Candidate solutions:** Add `SESSION_BUNDLE_MODE: ${{ inputs.session_bundle_mode }}` to the `Run agent task` env block. Add focused coverage for the action/runtime wiring so the runtime receives `always` when the shared action input is `always`.\n\n**Comments:** This is narrow and safe to fix automatically; the underlying bundle policy helpers and debug backend guard are otherwise aligned with issue #272.\n\n</details>\n\n## Recommended Next Step\nFIX_PR\n\nA fix-pr pass can safely wire the missing env var and add focused regression coverage without needing a maintainer product decision.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Pass `SESSION_BUNDLE_MODE: ${{ inputs.session_bundle_mode }}` into the shared action’s `Run agent task` env block.\n- [ ] Add regression coverage proving `track-only + session_bundle_mode: always` reaches `run.ts` as `always` and enables debug bundle session preservation.",
+      "createdAt": "2026-05-18T01:24:13Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/274#issuecomment-4473372993",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCqJZdw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #274 | 3 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis for open PR #274 recommends FIX_PR and reports NEEDS_REWORK with two concrete, narrow branch changes required to satisfy issue #272 acceptance criteria.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Pass `SESSION_BUNDLE_MODE: ${{ inputs.session_bundle_mode }}` into the shared action’s `Run agent task` env block in `.github/actions/run-agent-task/action.yml`, so `.agent/src/run.ts` receives the action input instead of defaulting to `auto`.\n- Add regression coverage proving `track-only + session_bundle_mode: always` reaches `run.ts` as `always` and enables debug bundle session preservation.\n\nPreserve the issue #272 semantics: `track-only` must never restore bundles; `track-only + auto` should not upload by default; `track-only + always` may upload debug-only/non-restorable bundles; resume-capable policies should keep existing restore/backup behavior. Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1779067520491 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYwMDgzMjYxNDk6cmV2aWV3OjI3NDpmaXhfcHI6Mjc0OjM -->",
+      "createdAt": "2026-05-18T01:25:20Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/274#issuecomment-4473379191",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCqK3AQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-272/codex-26007926364`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Added `SESSION_BUNDLE_MODE: ${{ inputs.session_bundle_mode }}` to the shared action `Run agent task` env so `run.ts` receives the requested mode.\n- Added regression coverage for the action-to-runtime wiring and the `track-only` bundle policy guard.\n- Verified with `npm run build`, focused `node --test`, and `git diff --check`.",
+      "createdAt": "2026-05-18T01:29:52Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/274#issuecomment-4473403137",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCqLaZg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #274 | 4 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded after addressing the prior NEEDS_REWORK synthesis, so the PR should receive one fresh review on the updated head before stopping or further fixes.\n\n<!-- sepo-agent-handoff state:dispatched created:1779067859972 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYwMDg2MTg4NzM6Zml4X3ByOjI3NDpyZXZpZXc6Mjc0OjQ -->",
+      "createdAt": "2026-05-18T01:31:00Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/274#issuecomment-4473412198",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCqLzNw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 6 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR keeps session-bundle behavior in existing `.agent/src/session-bundle.ts` helpers and reuses them from restore, backup, register, and runtime paths instead of adding workflow-local logic. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | `.agent/docs/technical-details/session-continuity.md` now documents `track-only + session_bundle_mode: always` debug uploads and their non-restorable semantics. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The implementation uses structured `session_bundle_backend` metadata, including a debug-only backend, rather than inferring restorable state from artifact names or command text. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | The PR preserves the existing `session_bundle_mode` input and extends `always` semantics for the new debug-upload case without adding a new repository setting. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are limited to session-bundle policy helpers, runtime/action wiring, session restore/register/backup paths, focused tests, and matching docs. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The core change is a small split between restore and backup decisions plus a non-restorable backend guard, with no broad workflow redesign. |\n\n## Notes\n\n- Issue #272 asked for direction-specific bundle decisions: `track-only` must never restore, `auto + track-only` must not upload, and `always + track-only` may upload debug-only bundles. The current PR diff implements those semantics and includes focused test coverage.\n- The earlier review found missing `SESSION_BUNDLE_MODE` wiring into the shared action’s run step. The current head includes the one-line action fix and regression coverage in `.agent/src/__tests__/envelope.test.ts`.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-18T01:32:19Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/274#issuecomment-4473418551",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCqNx5Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 54a49b22aef628fadbca1f904bdd8304d5d610ed -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #274 implements the follow-up requested in issue #272 for upload-only debug session bundles on `track-only` runs.\n- It splits restore and backup bundle decisions so `track-only` never restores or downloads bundles.\n- It allows `track-only + session_bundle_mode: always` to upload a debug-only bundle, while `auto` remains quiet to avoid default artifact churn.\n- Registered debug bundles are marked non-restorable so later restore and fork lookup ignore them.\n\n## Review\nThe updated head addresses the prior blocking env-wiring issue. Current reviewer inputs agree there are no unresolved required branch changes.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable issues | INFO | The session bundle policy split, debug-only backend guard, action/runtime env wiring, docs, and focused tests now satisfy issue #272’s acceptance criteria. |\n\n## Progress\n- Prior blocker on missing `SESSION_BUNDLE_MODE` propagation was fixed on head `54a49b22aef628fadbca1f904bdd8304d5d610ed`.\n- Re-fetched existing inline comments and review threads before cleanup.\n- Resolved the older same-agent inline thread on `.agent/src/run.ts#L540`; no new inline comments, replies, or minimizations were added.\n- Claude, Codex, and rubrics review all reached a ship/pass outcome on the updated head; Claude’s remaining notes are optional maintenance, not required fixes.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION\n\nNo unresolved actionable branch work remains, so another automated fix-pr pass is not needed.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change action items.",
+      "createdAt": "2026-05-18T01:37:08Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/274#issuecomment-4473450981",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-18T01:04:28Z",
+  "files": [
+    {
+      "path": ".agent/docs/technical-details/session-continuity.md",
+      "additions": 13,
+      "deletions": 9,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/acpx-adapter.test.ts",
+      "additions": 78,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 17,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/session-bundle.test.ts",
+      "additions": 27,
+      "deletions": 9,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/acpx-adapter.ts",
+      "additions": 11,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/session-backup.ts",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/session-register.ts",
+      "additions": 8,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/session-restore.ts",
+      "additions": 7,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/run.ts",
+      "additions": 7,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/session-bundle.ts",
+      "additions": 19,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/run-agent-task/action.yml",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-272/codex-26007926364",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 274,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABALNDIw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-18T01:23:34Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "3d84427e060d5188cddd2093f197b70d05c61441"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Add upload-only track-only session bundles",
+  "updatedAt": "2026-05-18T01:37:08Z",
+  "url": "https://github.com/self-evolving/repo/pull/274"
+}

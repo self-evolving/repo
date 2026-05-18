@@ -22,6 +22,175 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/269#issuecomment-4472243366",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCpwYsA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\nwhat's the right category in the discussions for managing the installation requests?",
+      "createdAt": "2026-05-18T00:17:48Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/269#issuecomment-4472969392",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCpw2pw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Use a dedicated **Install Requests** Discussion category if we can add one. Make it **answerable**, so each request can be marked resolved when the install PR is opened, blocked, or completed.\n\nSuggested category:\n\n- **Name:** `Install Requests`\n- **Purpose:** intake and status thread for installing Sepo into public repositories\n- **Answerable:** yes\n- **Template fields:** target repo, requester relationship to repo, whether Sepo App is installed, desired provider/auth path, blockers/notes\n\nIf we must use the existing categories, use **Q&A** with a title prefix like:\n\n```text\n[Install] owner/repo\n```\n\nI would avoid **General** because it becomes unstructured, **Ideas** because these are operational requests rather than proposals, and **Bug Report** unless an install attempt already failed. Daily Summary should stay reserved for automation summaries.",
+      "createdAt": "2026-05-18T00:19:27Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/269#issuecomment-4472977063",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCpyYmA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Suggested category:\n> \n> * **Name:** `Install Requests`\n> * **Purpose:** intake and status thread for installing Sepo into public repositories\n> * **Answerable:** yes\n> * **Template fields:** target repo, requester relationship to repo, whether Sepo App is installed, desired provider/auth path, blockers/notes\n\n@sepo-agent /answer can you create the category? ",
+      "createdAt": "2026-05-18T00:24:53Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/269#issuecomment-4473002136",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCpzANw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I can’t create it from `/answer`. This route should only reply, and Discussion category creation is a repo settings/admin operation, not something Sepo currently automates.\n\nCreate it in GitHub UI:\n\n`Settings` → `Features` → `Discussions` → `Categories` → `New category`\n\nUse:\n\n- **Name:** `Install Requests`\n- **Format:** `Question and answer` / answerable\n- **Description:** `Requests and status threads for installing Sepo into public repositories`\n- **Emoji:** something neutral like `:inbox_tray:` or `:wrench:`\n\nAfter it exists, Sepo can use that category as the intake surface for `/install` requests.",
+      "createdAt": "2026-05-18T00:26:10Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/269#issuecomment-4473012279",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCp2eSw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer but a real question is that for our current answer route, we should be able to do this right? (the oidc should grant us sufficient access for downloading the code and making a pr to a public repo, right?",
+      "createdAt": "2026-05-18T00:32:37Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/269#issuecomment-4473069131",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCp3deQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Not automatically. The current `answer` route has enough local workflow permissions and `approve-all` agent permissions to *try* external GitHub operations, but OIDC does not grant global write access to public repos.\n\nThe important distinction:\n\n- **Downloading/cloning a public repo:** yes, no special token needed.\n- **Creating a branch/PR in that public repo:** only if the resolved GitHub token has write access to that target repo.\n- **Hosted OIDC path:** it exchanges the workflow OIDC token for a Sepo GitHub App installation token. That token is scoped to repositories where the Sepo App is installed, not all public repos.\n- **Fallback `github.token`:** scoped to the current repository only.\n- **`pull-requests: write` / `contents: write`:** workflow permissions for the current workflow token; they do not grant cross-repo write access.\n\nSo for `/install`, the safe v1 assumption should be:\n\n1. Clone/analyze any public target repo.\n2. Check whether the resolved token can write to the target repo.\n3. If yes, push an install branch and open the PR.\n4. If no, report a blocked install request with a concrete next step: install the Sepo App on the target repo, use a target-scoped PAT, or support a separate fork-based PR path.\n\nThis matches the current docs: hosted OIDC works for repositories where the Sepo GitHub App is installed; selected-repository installs need each repository added before onboarding.",
+      "createdAt": "2026-05-18T00:34:00Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/269#issuecomment-4473085305",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCqABig",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate implement this \n\n1. also for the pr message for the installation, we should consider making it more structured next steps like (1) installing the github app (2) adding the provider auth tokens etc. -> check sepo status check / onboarding comments and prompts. ",
+      "createdAt": "2026-05-18T00:49:46Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/269#issuecomment-4473225610",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCqAXHw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | implement | Issue #269 | 2 / 40 | Dispatched |\n\nReason: agent planner selected implement: Issue #269 has a concrete implementation request that fits direct issue-level implementation; no child issue is needed.\n\n<!-- sepo-agent-handoff state:dispatched created:1779065468467 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYwMDc3MjA1NzA6b3JjaGVzdHJhdGU6MjY5OmltcGxlbWVudDoyNjk6Mg -->",
+      "createdAt": "2026-05-18T00:51:08Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/269#issuecomment-4473231135",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCqCm4A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-269/codex-26007754542`\n- Pull request: https://github.com/self-evolving/repo/pull/273\n\nImplemented `@sepo-agent /install owner/repo` as a deterministic alias to the bundled `install-agent` skill, with malformed install requests producing a clear unsupported response before the skill runs. Updated install docs and skill instructions so install PRs use latest-release source guidance and structured setup steps for GitHub App/auth, provider secrets, onboarding, memory, rubrics, and smoke tests; verified with build, focused tests, envelope docs test, and `git diff --check`.",
+      "createdAt": "2026-05-18T00:59:05Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/269#issuecomment-4473267936",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-17T19:21:29Z",
@@ -36,6 +205,6 @@
   "number": 269,
   "state": "OPEN",
   "title": "Allow a public route `/install` for installing sepo to an existing public repository",
-  "updatedAt": "2026-05-17T19:24:17Z",
+  "updatedAt": "2026-05-18T00:59:05Z",
   "url": "https://github.com/self-evolving/repo/issues/269"
 }

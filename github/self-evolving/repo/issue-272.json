@@ -1,0 +1,39 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "body": "## Goal\nImplement a stacked follow-up to PR #268 that allows `track-only` runs to upload debug session bundles only when `session_bundle_mode: always`, while keeping restore/download disabled for `track-only`.\n\n## Context\nPR #268 makes `track-only` session policy one-shot to avoid stale persistent ACP context while still tracking thread state. A follow-up request asks to split the current single session bundle gate into direction-specific decisions so restore/download and backup/upload can behave differently.\n\nCurrent helper `shouldUseSessionBundles(mode, policy)` gates restore/download, backup/upload preparation, and artifact registration. The requested semantics are:\n\n- `never`: restore false, backup false\n- `auto + track-only`: restore false, backup false\n- `always + track-only`: restore false, backup true\n- resume policies: restore true and backup true for `auto` and `always`\n\nImportant safety detail: uploaded `track-only` bundles must not become restorable continuity material. Either avoid registering them as restorable, or register them with explicit non-restorable/debug-only metadata and make restore ignore them.\n\n## Suggested Implementation\nReplace the single bundle decision helper with direction-specific helpers such as:\n\n- `shouldRestoreSessionBundles(mode, policy)`\n- `shouldBackupSessionBundles(mode, policy)`\n\nKeep the existing workflow shape unchanged because restore and upload/register already run in separate phases in `.github/actions/run-agent-task/action.yml`.\n\nRelevant code paths:\n\n- `.agent/src/session-bundle.ts`\n- `.agent/src/cli/session-restore.ts`\n- `.agent/src/cli/session-backup.ts`\n- `.agent/src/cli/session-register.ts`\n- `.github/actions/run-agent-task/action.yml`\n\n## Acceptance Criteria\n- `track-only` never downloads or restores session bundles.\n- `track-only` with `session_bundle_mode: always` prepares and uploads a debug bundle.\n- `track-only` with `session_bundle_mode: auto` does not prepare/upload bundles, avoiding default artifact churn.\n- Resume-capable policies continue to restore and back up bundles for `auto` and `always` modes.\n- Uploaded `track-only` bundles are explicitly non-restorable or are not registered as restorable continuity state.\n- Tests cover the direction-specific helper semantics and the key `track-only` restore/upload invariants.\n- This should be implemented as a stacked PR on top of PR #268.\n\n---\n\nRequested via issue_comment at https://github.com/self-evolving/repo/pull/268\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCqEatg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-272/codex-26007926364`\n- Pull request: https://github.com/self-evolving/repo/pull/274\n\nImplemented upload-only debug session bundles for `track-only` runs when `session_bundle_mode: always`, while keeping restore/download disabled and marking those uploaded artifacts with a non-restorable backend so future resume/fork paths ignore them. Also added transient exec sessions for debug capture, updated docs, and verified with `npm run build`, focused node tests, and `git diff --check`.",
+      "createdAt": "2026-05-18T01:04:31Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/272#issuecomment-4473297590",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-18T00:58:00Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 272,
+  "state": "OPEN",
+  "title": "Add upload-only track-only session bundles",
+  "updatedAt": "2026-05-18T01:04:31Z",
+  "url": "https://github.com/self-evolving/repo/issues/272"
+}

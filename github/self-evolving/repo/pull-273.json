@@ -1,0 +1,396 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Add `/install owner/repo` explicit mention parsing as an alias to the bundled `install-agent` skill.\n- Return a clear unsupported response for malformed install requests before skill execution.\n- Update install docs and skill instructions with latest-release source guidance and structured post-merge setup steps.\n\n## Verification\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/triage.test.js .agent/dist/__tests__/resolve-dispatch-cli.test.js`\n- `node --test .agent/dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nCloses #269\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCqC5xQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #273 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: Implementation succeeded and produced open PR #273, so the next warranted automation step is review.\n\n<!-- sepo-agent-handoff state:dispatched created:1779065997977 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYwMDc3NTQ1NDI6aW1wbGVtZW50OjI2OTpyZXZpZXc6MjczOjM -->",
+      "createdAt": "2026-05-18T00:59:58Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4473272773",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCqDZww",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 88 | PASS | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | PR implements `/install owner/repo` as an alias to the existing `install-agent` skill instead of adding a new workflow/route engine; docs explicitly describe it as a thin alias to `/skill install-agent`. |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | `.agent/src/triage.ts` maps valid `/install` requests to `{ route: \"skill\", skill: \"install-agent\" }`, and docs state access policy evaluates `/install` as the `skill` route. |\n| coding_workflow / generic | Prefer explicit structured inputs | partial | 5/7 | The target slug is validated with `VALID_INSTALL_TARGET_REPO` before skill dispatch, but the validated `owner/repo` value is not carried as a separate typed field; the downstream skill still depends on request text/context. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | The skill guidance keeps the existing install branch convention, requires conflict/audit checks, and aligns post-merge setup with the reusable `Sepo setup check` issue rather than one-off guidance. |\n| communication / generic | Keep status comments compact | pass | 6/6 | Install PR guidance is changed to a numbered “Required setup after merge” section with concise next steps for App/auth, provider secrets, onboarding, memory, and rubrics. |\n| communication / generic | Write audience-first documentation | pass | 7/7 | README and install docs lead with the user action, `@sepo-agent /install owner/repo`, and defer auth/source details to the deployment guide and skill instructions. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Route behavior is documented across actions, supported workflows, skills, install guide, quick start, developer notes, and README alongside code/test changes. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The PR reflects issue #269’s minimum-v1 plan: alias to `install-agent`, malformed slug handling, release-source guidance, and structured post-merge setup steps. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are limited to route parsing/tests plus install-related docs and skill instructions; no broad unrelated refactor is visible in the diff. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation adds a small parser branch and focused tests rather than introducing a dedicated install workflow or new action type. |\n\n## Notes\n\n- The strongest rubric fit is the decision to reuse the existing `skill` route and `install-agent` skill while documenting that `/install` inherits `skill` access policy.\n- The main rubric gap is that the validated install target is not represented as a structured dispatch output. That is acceptable for this minimal alias, but it is less robust than passing `install_target_repo` through the route contract.\n\n## Findings\n\n- **WARNING:** `prefer-explicit-structured-inputs` is only partially satisfied because `/install owner/repo` validates the slug but does not preserve it as a typed field for the skill execution path. A future follow-up should add an explicit dispatch output/context field if install automation starts relying on deterministic target metadata rather than the original request text.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-18T01:01:14Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4473280963",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCqFkaA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: fac9e4019bad27a10a7757c6b49fb10b2dbccf8d -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\nPR #273 implements issue #269 by adding `@sepo-agent /install owner/repo` as a thin alias to the bundled `install-agent` skill. It validates malformed install requests before skill execution and returns a clear unsupported-route response when the target slug is missing or invalid. It also updates install documentation and skill instructions so generated install PRs include latest-release source guidance and structured post-merge setup steps for app/auth, provider secrets, onboarding, memory, and rubrics. The approach matches the requested minimum v1 and reuses the existing skill route/access policy rather than adding a new workflow route.\n\n## Review\n\nOverall, the PR is directionally sound and fits the minimum implementation request. The remaining concerns are minor but concrete hardening items around idempotent install reruns and preserving validated route input.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Install reruns can miss an existing open install PR | WARNING | The install skill checks existing `agent/*` branches but does not explicitly check for an already-open `agent/install-agent-infra` PR, so reruns can fail late at `gh pr create` instead of reporting the existing PR. |\n| Validated install target is dropped before skill execution | WARNING | [`extractRequestedRouteDecision()`](https://github.com/self-evolving/repo/blob/fac9e4019bad27a10a7757c6b49fb10b2dbccf8d/.agent/src/triage.ts#L138-L142) validates a normalized `owner/repo` token, then returns only `skill/install-agent`; downstream execution still depends on free-form request text. |\n| Unsupported route messaging depends on an install-only invariant | INFO | [`buildRequestedRouteDecision(\"unsupported\", ...)`](https://github.com/self-evolving/repo/blob/fac9e4019bad27a10a7757c6b49fb10b2dbccf8d/.agent/src/triage.ts#L266-L273) now emits install-specific guidance for any explicit `unsupported` route, which is safe only while malformed `/install` is the sole producer. |\n\n## Progress\n\n- Existing PR conversation already includes the rubrics review noting the structured-input gap, so no duplicate inline comment was posted for that issue.\n- Posted one new inline comment on `.skills/install-agent/SKILL.md:94` for the missing open install PR lookup.\n- Reviewers agree the alias-to-skill design is the right minimum v1. There was disagreement on idempotency: the rubrics review accepted the branch convention, while another review flagged the missing open-PR check; synthesis treats that as a minor required hardening item.\n\n## Issue Details\n\n<details>\n<summary>Install reruns can miss an existing open install PR</summary>\n\n**Cause:** The audit step checks branches with `git ls-remote --heads origin agent/memory agent/rubrics 'agent/*'`, but it does not explicitly query open PRs for the install branch before the commit/push/open-PR step.\n\n**Candidate solutions:** Add a check such as `gh pr list --head agent/install-agent-infra --state open --json number,url,state`. If an open PR exists, report its URL and stop or reuse that PR path instead of attempting a new `gh pr create`.\n\n**Comments:** This is the only new inline comment posted during synthesis.\n\n</details>\n\n<details>\n<summary>Validated install target is dropped before skill execution</summary>\n\n**Cause:** The parser validates `targetToken`, but the returned decision only carries `{ route: \"skill\", skill: \"install-agent\" }`. The skill then relies on original request text, which can be ambiguous if a comment includes multiple repo slugs or stale prose.\n\n**Candidate solutions:** Preserve the normalized target as explicit route/skill context, or make the install skill parse exactly the same first token and reject ambiguous extra repo-like arguments.\n\n**Comments:** The rubrics review considered this acceptable for the minimal alias but still identified it as the main structured-input gap.\n\n</details>\n\n<details>\n<summary>Unsupported route messaging depends on an install-only invariant</summary>\n\n**Cause:** `unsupported` is now allowed through `buildRequestedRouteDecision()`, and that branch always returns `/install owner/repo` guidance.\n\n**Candidate solutions:** Add a short invariant comment, use a more specific internal route such as `invalid-install`, or ensure any future `unsupported` producers supply route-specific messaging.\n\n**Comments:** This is low risk today because malformed `/install` is currently the only producer.\n\n</details>\n\n## Recommended Next Step\n\nFIX_PR: the two WARNING items are concrete, branch-local changes that are safe for an automated fix-pr pass.\n\n## Final Verdict\n\nMINOR_ISSUES\n\n## Action Items\n\n- [ ] Add an explicit open install PR lookup to the install skill audit before commit/push/PR creation.\n- [ ] Preserve the validated install target as explicit context, or make the install skill reject ambiguous request text using the same parsing rule.",
+      "createdAt": "2026-05-18T01:10:57Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4473316456",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCqFwIA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #273 | 4 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: The latest review synthesis recommends FIX_PR for two concrete WARNING items on open PR #273; both are branch-local and safe for an automated fix-pr pass.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Add an explicit open install PR lookup to the install skill audit before commit/push/PR creation.\n- Preserve the validated install target as explicit context, or make the install skill reject ambiguous request text using the same parsing rule.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1779066709131 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYwMDc5NzYyMTM6cmV2aWV3OjI3MzpmaXhfcHI6MjczOjQ -->",
+      "createdAt": "2026-05-18T01:11:49Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4473319456",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCqHLOA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-269/codex-26007754542`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Added explicit install target context: `/install owner/repo` now preserves the validated slug as `requested_install_target_repo` and passes it to the skill prompt as `INSTALL_TARGET_REPO`.\n- Updated the install skill audit to check for an existing open `agent/install-agent-infra` PR before commit/push/PR creation and stop with the existing PR URL.\n- Added focused coverage for triage parsing, extract-context outputs, router/action wiring, and prompt variable allowlisting.\n\n<details><summary>Verification</summary>\n\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/triage.test.js .agent/dist/__tests__/extract-context-cli.test.js .agent/dist/__tests__/envelope.test.js .agent/dist/__tests__/resolve-dispatch-cli.test.js`\n- `git diff --check`\n\n</details>",
+      "createdAt": "2026-05-18T01:17:34Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4473342776",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCqHXYw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #273 | 5 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on open PR #273 after addressing the prior review synthesis warnings, so one automated review pass is warranted to verify the fixes and decide whether the PR is now ready or needs further work.\n\n<!-- sepo-agent-handoff state:dispatched created:1779067105263 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYwMDgyNzEyMDY6Zml4X3ByOjI3MzpyZXZpZXc6MjczOjU -->",
+      "createdAt": "2026-05-18T01:18:25Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4473345891",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCqHZFA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer\n\n\nThere's a conceptual issue here:\nWe want to enable this: people can just run /install inside our sepo repo and then we can run it on outside and then make a pr to the public repo for installing. \n\nFor example, like this: \n\nhttps://github.com/self-evolving/repo/discussions/271\n\nIt seems we might do a bit more work then just aliasing this? ",
+      "createdAt": "2026-05-18T01:18:33Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4473346324",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCqHpJw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I have enough context to score this now. The key tension is that the diff satisfies the earlier “minimum v1 alias to install-agent” plan, but the latest maintainer comment and Discussion #271 clarify a broader desired capability: run `/install` from this repo and actually create PRs against outside public repos via a suitable target or fork identity.## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 88 | PARTIAL | 11 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | `/install owner/repo` is implemented as a thin alias to the existing `install-agent` skill in `.agent/src/triage.ts`, not as a new route engine or workflow. |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Docs state `/install` is evaluated as the `skill` route, and the router maps it to `{ route: \"skill\", skill: \"install-agent\" }`, preserving existing route policy boundaries. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The latest diff preserves the validated target as `installTargetRepo`, emits `requested_install_target_repo`, wires it through `agent-router.yml`, and passes it to the prompt as `INSTALL_TARGET_REPO`. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | The install skill now checks for an existing open `agent/install-agent-infra` PR before continuing, and the setup guidance points to the reusable `Sepo setup check` issue. |\n| communication / generic | Keep status comments compact | pass | 6/6 | Install PR guidance is structured as concise numbered setup steps: App/auth, provider secrets, onboarding check, memory, and rubrics. |\n| communication / generic | Write audience-first documentation | partial | 5/7 | README and install docs lead with `@sepo-agent /install owner/repo`, but the docs still under-explain the practical public-repo PR limitation raised in Discussion #271: cloning is public, pushing/opening a PR requires a target or fork-capable identity. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The route behavior is documented across README, quick start, supported workflows, actions, skills, install guide, and developer notes. |\n| coding_workflow / generic | Read docs and linked context first | partial | 4/6 | The PR satisfies Issue #269’s earlier minimum-v1 alias plan, but the latest PR comment and Discussion #271 clarify a broader goal: run `/install` from this repo and actually open PRs against outside public repos. The implementation does not address the PAT/fork/auth-path selection needed for that capability. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | partial | 7/8 | Keeping `/install` as a skill alias is a good minimal default, but the external-public-repo write path is left as guidance rather than a concrete native escape hatch for selecting a PAT/fork-capable identity. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is limited to route parsing/context wiring, focused tests, workflow input plumbing, and install-related docs/skill instructions. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation adds a small parser branch and focused context plumbing instead of a dedicated install workflow. |\n\n## Notes\n\n- The strongest rubric improvements are the structured target propagation and idempotent open-PR check added after the first review pass.\n- The main remaining rubric issue is conceptual fit: the PR implements the earlier minimum alias, but the requester’s latest clarification points to a fuller external install flow where Sepo can create a PR for a public repo using an authorized target or fork identity.\n\n## Findings\n\n- **WARNING:** `read-docs-first` / `audience-first-documentation` are only partially satisfied. Discussion #271 shows users expect “public repo” install requests to result in an actual PR when a suitable repo-defined identity exists, but this PR mostly documents App/PAT options and does not implement explicit auth-path selection or fork-backed PR creation for external public repos.\n\n## Final Rubric Verdict\n\nPARTIAL",
+      "createdAt": "2026-05-18T01:19:51Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4473350439",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCqH1yg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, I agree this is more than a plain alias.\n\nPR #273 is now a reasonable **front door** for the workflow: `/install owner/repo` validates the target and maps to `install-agent` in [`triage.ts`](https://github.com/self-evolving/repo/blob/6b2ccbc2f409e88fd6ebf3af8dc3916b4f9cd8bd/.agent/src/triage.ts#L134-L145), preserves the normalized target as `requested_install_target_repo` in [`extract-context.ts`](https://github.com/self-evolving/repo/blob/6b2ccbc2f409e88fd6ebf3af8dc3916b4f9cd8bd/.agent/src/cli/extract-context.ts#L192-L223), and passes it into the skill as `INSTALL_TARGET_REPO` through [`agent-router.yml`](https://github.com/self-evolving/repo/blob/6b2ccbc2f409e88fd6ebf3af8dc3916b4f9cd8bd/.github/workflows/agent-router.yml#L562-L576) and [`run-agent-task`](https://github.com/self-evolving/repo/blob/6b2ccbc2f409e88fd6ebf3af8dc3916b4f9cd8bd/.github/actions/run-agent-task/action.yml#L313-L322). That fixes the most important “not just aliasing” problem: the external target is no longer only implicit prose.\n\nBut the full behavior from discussion #271 needs one more layer: **cross-repo PR authority and mechanics**. Public repo visibility only lets us clone/read. To open an install PR, Sepo still needs a token that can push somewhere and create the PR. The current auth stack resolves app/OIDC/PAT/fallback token in priority order, documented in [`setup-guide.md`](https://github.com/self-evolving/repo/blob/6b2ccbc2f409e88fd6ebf3af8dc3916b4f9cd8bd/.agent/docs/deployment/setup-guide.md#L14-L21) and implemented in [`resolve-github-auth`](https://github.com/self-evolving/repo/blob/6b2ccbc2f409e88fd6ebf3af8dc3916b4f9cd8bd/.github/actions/resolve-github-auth/action.yml#L81-L92). A `github.token` from `self-evolving/repo` will not be enough for `lm4sci/lm4sci.github.io`.\n\nSo I’d treat this PR as **minimum v1 routing + install-skill hardening**, not the whole external install product. The follow-up should add a deterministic external install path:\n\n1. Keep `/install owner/repo` as the user command.\n2. In the install skill/helper, probe target permissions up front: can the resolved identity push to the target repo?\n3. If yes, push `agent/install-agent-infra` directly to the target and open the PR.\n4. If no, but a configured PAT/machine-user can create or use a fork, fork/push/open PR from the fork.\n5. If neither is available, stop with a clear message: install Sepo App on target repo or configure target-scoped `AGENT_PAT`.\n6. Prefer moving the cross-repo clone/fork/push/PR steps into a typed CLI helper rather than relying only on skill prose, because this is auth-sensitive and should be testable.\n\nThe current PR already documents the auth limitation in [`install-existing-repository.md`](https://github.com/self-evolving/repo/blob/6b2ccbc2f409e88fd6ebf3af8dc3916b4f9cd8bd/.agent/docs/deployment/install-existing-repository.md#L18-L26), and the skill now checks source release, target, existing install PR, and post-merge setup in [`install-agent/SKILL.md`](https://github.com/self-evolving/repo/blob/6b2ccbc2f409e88fd6ebf3af8dc3916b4f9cd8bd/.skills/install-agent/SKILL.md#L86-L175).\n\nMy recommendation: merge this only if we define it as the command/parser/skill-input layer, then open a follow-up for “external public repo install PR via target app or fork/PAT.” If we expect #273 itself to satisfy the discussion #271 flow end-to-end, then it should stay open and grow that deterministic cross-repo PR helper.",
+      "createdAt": "2026-05-18T01:20:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4473353674",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCqLREA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 6b2ccbc2f409e88fd6ebf3af8dc3916b4f9cd8bd -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #273 adds `@sepo-agent /install owner/repo` as a thin alias to the bundled `install-agent` skill, closing the parser/front-door portion of issue #269. The latest head now preserves the validated install target as `INSTALL_TARGET_REPO` and added the previously requested open install PR lookup. The broader context from Discussion #271 and the latest maintainer comment is that `/install` should help Sepo create PRs against outside public repositories, not just route to a skill. The remaining concern is whether this PR’s docs and skill contract accurately reflect the current cross-repo auth mechanics.\n\n## Review\nThe implementation is sound for the minimum parser/skill-input layer, and the previous fix-pr pass addressed the two earlier warnings. The unresolved issue is contract fit: the PR still presents an external public-repo install path that the current auth wiring cannot reliably execute without an install-specific target/fork identity selection path.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| External install PR auth path is not actually selectable | BLOCKING | The docs tell users to add target auth and rerun, but the skill job receives one pre-resolved token from `resolve-github-auth`, with no target repo or fork selection input. |\n| Install-only unsupported messaging is a fragile shared fallback | WARNING | Malformed `/install` returns the generic `unsupported` route, and `buildRequestedRouteDecision()` hardcodes install-specific guidance for every `unsupported` decision. |\n| Release source resolution remains prose-only | INFO | The skill now tells the agent to prefer the latest non-draft release/prerelease, but there is still no deterministic install source resolver as originally suggested in issue #269. |\n\n## Progress\n- Prior structured-input and rerun-idempotency concerns are addressed in the latest PR head.\n- Resolved the older same-agent inline thread on `.skills/install-agent/SKILL.md:103` because the open install PR lookup was added.\n- Posted one new inline comment on `.agent/docs/deployment/install-existing-repository.md:25` for the misleading external auth recovery path.\n- Reviewers disagree on whether the external auth gap blocks this PR or belongs to follow-up; synthesis treats it as blocking unless the PR contract is narrowed.\n\n## Issue Details\n<details>\n<summary>External install PR auth path is not actually selectable</summary>\n\n**Cause:** The install docs say users can install the Sepo App, provide a target-scoped PAT, or use another auth path before rerunning, but the `skill` job resolves a single `GH_TOKEN` before the install skill runs. `resolve-github-auth` prefers App/OIDC before `AGENT_PAT` and has no target-repo or fork input, so `/install owner/repo` cannot intentionally switch to a token that can push to the external target.\n\n**Candidate solutions:** Add install-specific target/fork auth selection with a permission probe, or narrow the docs and skill contract to say v1 can only open the PR when the already resolved token has target write access. If neither is true, stop with a blocked install message.\n\n**Comments:** This is central to the latest maintainer concern and Discussion #271.\n\n</details>\n\n<details>\n<summary>Install-only unsupported messaging is a fragile shared fallback</summary>\n\n**Cause:** `.agent/src/triage.ts` returns `{ route: \"unsupported\" }` for malformed `/install`, then `buildRequestedRouteDecision()` hardcodes `/install owner/repo` guidance for any explicit `unsupported` route.\n\n**Candidate solutions:** Use a narrower internal decision such as `invalid-install`, carry an unsupported reason/context field, or add an explicit invariant comment and regression test making clear malformed `/install` is the only producer.\n\n</details>\n\n<details>\n<summary>Release source resolution remains prose-only</summary>\n\n**Cause:** `.skills/install-agent/SKILL.md` instructs the agent to choose the latest release/prerelease, but this is still model-guided rather than a deterministic script.\n\n**Candidate solutions:** Add `resolve-install-source.sh`, or extend `resolve-update-source.sh` with an install mode that can include prereleases and returns source repo, ref, SHA, and release URL.\n\n</details>\n\n## Recommended Next Step\nHUMAN_DECISION: maintainers should decide whether #273 should implement the external public-repo PR flow now or explicitly ship only the narrower parser/skill-input layer.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Choose and apply the external install contract: add install-specific target/fork auth selection, or narrow docs/skill guidance to already-resolved-token write access only.\n- [ ] Make the malformed `/install` unsupported path route-specific instead of using a generic hardcoded install message.",
+      "createdAt": "2026-05-18T01:30:34Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4473409808",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCqLfKA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #273 | 6 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: The latest review concluded NEEDS_REWORK and provided concrete branch-local action items, so an automated fix-pr pass is warranted on open PR #273.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Choose and apply the external install contract: add install-specific target/fork auth selection, or narrow docs/skill guidance to already-resolved-token write access only.\n- Make the malformed `/install` unsupported path route-specific instead of using a generic hardcoded install message.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1779067875231 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYwMDg0MzU0OTQ6cmV2aWV3OjI3MzpmaXhfcHI6MjczOjY -->",
+      "createdAt": "2026-05-18T01:31:15Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4473413416",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCqMnpQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-269/codex-26007754542`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Narrowed `/install` v1 contract to the already-resolved workflow token: it may clone public targets, but opens an install PR only when that active token can write to the target.\n- Updated install docs, README, quick start, and `install-agent` skill guidance to stop as blocked instead of implying token switching or fork creation.\n- Made malformed `/install` requests use an internal `invalid-install` decision, so generic `unsupported` no longer hardcodes install-specific guidance.\n\n<details><summary>Verification</summary>\n\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/triage.test.js .agent/dist/__tests__/resolve-dispatch-cli.test.js .agent/dist/__tests__/extract-context-cli.test.js .agent/dist/__tests__/envelope.test.js`\n- `git diff --check`\n\n</details>",
+      "createdAt": "2026-05-18T01:35:17Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4473431973",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCqNUJQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #273 | 7 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on open PR #273 and pushed changes addressing the prior review action items; one automated review pass is warranted to validate the latest head.\n\n<!-- sepo-agent-handoff state:dispatched created:1779068185357 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYwMDg3NzczOTA6Zml4X3ByOjI3MzpyZXZpZXc6MjczOjc -->",
+      "createdAt": "2026-05-18T01:36:25Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4473443365",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCqN98g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 94 | PASS | 11 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | `/install owner/repo` reuses the existing `skill` route and bundled `install-agent` skill instead of adding a separate route engine or workflow. |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | The docs state `/install` is evaluated as the `skill` route, and `.agent/src/triage.ts` maps valid install requests to `route: \"skill\", skill: \"install-agent\"`, preserving the downstream route policy. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The latest head preserves the validated target as `installTargetRepo`, emits `requested_install_target_repo`, wires it through `agent-router.yml`, and exposes it to the skill prompt as `INSTALL_TARGET_REPO`. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | `.skills/install-agent/SKILL.md` now requires checking for an existing open `agent/install-agent-infra` PR before commit/push/PR creation, and setup guidance points users back to the reusable `Sepo setup check` issue. |\n| communication / generic | Keep status comments compact | pass | 6/6 | The install PR guidance now uses a concise numbered “Required setup after merge” structure for App/auth, provider secrets, onboarding check, memory, and rubrics. |\n| communication / generic | Write audience-first documentation | pass | 7/7 | README and install docs lead with the user-facing command and practical limitation: `/install owner/repo` works when the already-resolved Sepo token can write to the target. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Route behavior and install limitations are updated across README, quick start, supported workflows, actions, skills, install guide, developer notes, and the install skill. |\n| coding_workflow / generic | Read docs and linked context first | partial | 5/6 | The PR reflects issue #269 and Discussion #271 by narrowing v1 to clone/analyze public repos and open PRs only with current-token write access. Minor gap: release source resolution remains skill prose rather than the deterministic resolver/test suggested in the issue discussion. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | The implementation keeps `/install` as a minimal alias while documenting the v1 boundary and pointing unsupported target/fork auth flows to manual or future native paths. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are scoped to route parsing/context plumbing, focused tests, workflow input passing, and install-related documentation/skill guidance. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The PR adds a small parser branch, explicit target context, and skill guidance rather than introducing a larger install subsystem. |\n\n## Notes\n\n- The important earlier rubric gaps were addressed in the latest head: validated target context is now structured, install reruns check for an existing open install PR, and malformed `/install` uses a route-specific `invalid-install` path.\n- The remaining rubric-specific caveat is small: issue #269 suggested deterministic release source resolution, but this PR keeps latest-release selection in skill instructions.\n\n## Findings\n\n- **INFO:** `read-docs-first` is not perfect because the linked minimum plan mentioned a source resolver and tests for release/prerelease selection; the PR documents the behavior in `.skills/install-agent/SKILL.md` instead of implementing deterministic resolution. This is acceptable for the narrowed v1 contract but worth tracking if install automation becomes more than agent-guided skill execution.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-18T01:37:43Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4473454066",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABCqPr4A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: cf4b5636ee175d779b542276c8612e9174c7d165 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #273 adds `@sepo-agent /install owner/repo` as a thin alias to the bundled `install-agent` skill for issue #269. The latest head preserves the validated target as structured install context and passes it through to the skill prompt. It also narrows the v1 external install contract in response to Discussion #271: Sepo may clone public repos, but it only opens the install PR when the already-resolved workflow token can write to the target. The install docs and skill guidance now make that limitation explicit and keep fork/PAT-backed external install as future work.\n\n## Review\nThe current reviewer outputs agree that the latest head is shippable. The previous blocking/warning concerns have been addressed, and the remaining notes are non-blocking follow-up hardening rather than required PR changes.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable issues | INFO | No current BLOCKING or WARNING findings remain on the latest head. Remaining notes are future hardening around deterministic release-source resolution and fork/PAT-backed external install. |\n\n## Progress\n- Prior structured-input concern is fixed: `requested_install_target_repo` now flows into `INSTALL_TARGET_REPO`.\n- Prior rerun-idempotency concern is fixed: the install skill now checks for an existing open install PR.\n- Prior external-auth contract concern is fixed by narrowing v1 to the already-resolved token and blocked-result behavior.\n- Resolved the older same-agent inline thread on `.agent/docs/deployment/install-existing-repository.md`; no new inline comments were posted.\n- Current reviewers do not materially disagree; all treat fork/PAT-backed external install and deterministic release resolution as follow-up, not blockers.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved required branch changes remain for automation.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-18T01:44:45Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4473482208",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-18T00:59:02Z",
+  "files": [
+    {
+      "path": ".agent/docs/actions/agent-actions.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 6,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/skills.md",
+      "additions": 4,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/deployment/install-existing-repository.md",
+      "additions": 33,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/overview/quick-start.md",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/developer-notes.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 8,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/extract-context-cli.test.ts",
+      "additions": 51,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/resolve-dispatch-cli.test.ts",
+      "additions": 32,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/triage.test.ts",
+      "additions": 55,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/extract-context.ts",
+      "additions": 4,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/run.ts",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/triage.ts",
+      "additions": 50,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/run-agent-task/action.yml",
+      "additions": 5,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-router.yml",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".skills/install-agent/SKILL.md",
+      "additions": 77,
+      "deletions": 16,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": "README.md",
+      "additions": 4,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-269/codex-26007754542",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 273,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABALLNhw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-18T01:09:54Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "fac9e4019bad27a10a7757c6b49fb10b2dbccf8d"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABALN7ig",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-18T01:28:53Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "6b2ccbc2f409e88fd6ebf3af8dc3916b4f9cd8bd"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Add /install route alias for install-agent",
+  "updatedAt": "2026-05-18T01:44:46Z",
+  "url": "https://github.com/self-evolving/repo/pull/273"
+}
