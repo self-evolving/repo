@@ -38,6 +38,8 @@ test("session bundle direction helpers separate restore from backup", () => {
   assert.equal(shouldBackupSessionBundles("auto", "track-only"), false);
   assert.equal(shouldRestoreSessionBundles("always", "track-only"), false);
   assert.equal(shouldBackupSessionBundles("always", "track-only"), true);
+  assert.equal(shouldRestoreSessionBundles("never", "track-only"), false);
+  assert.equal(shouldBackupSessionBundles("never", "track-only"), false);
 
   assert.equal(shouldRestoreSessionBundles("auto", "resume-best-effort"), true);
   assert.equal(shouldBackupSessionBundles("auto", "resume-best-effort"), true);
