@@ -8,6 +8,23 @@ In practice, the cleanest install path is:
 2. merge that PR
 3. use the repository's own GitHub Actions workflows to bootstrap `agent/memory` and, optionally, `agent/rubrics`
 
+From `self-evolving/repo`, authorized users can ask Sepo to prepare that PR for
+a public target repository:
+
+```md
+@sepo-agent /install owner/repo
+```
+
+The `/install` command is a thin alias for the `install-agent` skill. It still
+requires a target repository slug in `owner/repo` form, resolves the install
+source to the latest non-draft Sepo release, and records that source revision in
+the PR body. If no stable release exists yet, the skill may use the latest
+non-draft prerelease. Opening the PR requires the resolved GitHub token to have
+write access to the target repository. If Sepo can clone the public repository
+but cannot push a branch, install the Sepo GitHub App on that repository,
+provide a target-scoped PAT, or use another supported auth path before
+rerunning. Access policy evaluates `/install` as the `skill` route.
+
 ## Minimal file layout
 
 Copy these directories into the target repository:
@@ -36,6 +53,19 @@ At minimum, configure:
 - `OPENAI_API_KEY` and/or `CLAUDE_CODE_OAUTH_TOKEN` as repository secrets
 
 See [Setup guide](setup-guide.md) for the auth options and trade-offs.
+
+Install PRs should include a structured setup section that mirrors the
+onboarding setup check:
+
+1. install the Sepo GitHub App on the target repository, or choose another auth
+   path from the setup guide
+2. add at least one provider credential secret: `OPENAI_API_KEY` and/or
+   `CLAUDE_CODE_OAUTH_TOKEN`
+3. run `Agent / Onboarding / Check Setup`
+4. review the `Sepo setup check` issue and complete any remaining setup it
+   reports
+5. initialize `agent/memory` if missing
+6. optionally initialize `agent/rubrics` if the repo wants rubric steering
 
 ## First verification
 

@@ -151,6 +151,45 @@ test("extractRequestedRouteDecision detects mention-based skill requests", () =>
   );
 });
 
+test("extractRequestedRouteDecision maps install requests to install-agent skill", () => {
+  assert.deepEqual(
+    extractRequestedRouteDecision(
+      "@sepo-agent /install self-evolving/example-repo",
+      "@sepo-agent",
+    ),
+    { route: "skill", skill: "install-agent" },
+  );
+  assert.deepEqual(
+    extractRequestedRouteDecision(
+      "Please install it.\n\n@sepo-agent /install self-evolving/example-repo.",
+      "@sepo-agent",
+    ),
+    { route: "skill", skill: "install-agent" },
+  );
+  assert.deepEqual(
+    extractRequestedRouteDecision(
+      "@sepo-agent /install: self-evolving/example-repo",
+      "@sepo-agent",
+    ),
+    { route: "skill", skill: "install-agent" },
+  );
+});
+
+test("extractRequestedRouteDecision rejects malformed install targets before skill runs", () => {
+  assert.deepEqual(
+    extractRequestedRouteDecision("@sepo-agent /install", "@sepo-agent"),
+    { route: "unsupported", skill: "" },
+  );
+  assert.deepEqual(
+    extractRequestedRouteDecision("@sepo-agent /install not-a-slug", "@sepo-agent"),
+    { route: "unsupported", skill: "" },
+  );
+  assert.match(
+    buildRequestedRouteDecision("unsupported", "@sepo-agent /install").summary,
+    /target repository slug/,
+  );
+});
+
 test("extractRequestedRoute ignores non-route slash commands and commands without the mention", () => {
   assert.equal(
     extractRequestedRoute("@sepo-agent /approve req-a1b2c3", "@sepo-agent"),

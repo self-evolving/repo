@@ -14,13 +14,19 @@ GitHub assets intact.
 Confirm these before editing:
 
 - target repository slug and default branch
-- source agent repo/ref, defaulting to the current checkout
+- source agent repo/ref, defaulting to the latest non-draft release from
+  `self-evolving/repo`; include prereleases when no stable release exists
 - install branch name, defaulting to `agent/install-agent-infra`
 - preferred GitHub auth path: hosted app/OIDC, bring-your-own GitHub App,
   `AGENT_PAT`, or fallback workflow token
 - model provider secret plan: `OPENAI_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`, or both
 - whether to copy any `.skills/` directories; default is no
 - whether to copy root `AGENT.md`; default is no
+
+When invoked through `@sepo-agent /install owner/repo`, treat the validated
+`owner/repo` target slug and the defaults above as confirmed. Do not pause for a
+second confirmation unless the target branch, source revision, auth path, or
+file replacement decision is ambiguous.
 
 Stop if the target repo, branch, or source revision is ambiguous.
 
@@ -68,13 +74,21 @@ unless explicitly requested.
    - `.agent/docs/deployment/install-existing-repository.md`
    - `.agent/docs/deployment/setup-guide.md`
 
-2. Prepare the target checkout.
+2. Resolve the source Sepo revision before copying.
+   - Prefer the latest non-draft GitHub Release from `self-evolving/repo`.
+   - If no stable release exists yet, use the latest non-draft prerelease.
+   - Use the current checkout only when the user explicitly asks for it or
+     release lookup is unavailable and you clearly report the fallback.
+   - Record the source repo, ref/tag, SHA, and release URL or fallback reason in
+     the PR body.
+
+3. Prepare the target checkout.
    - Clone/open the target repo.
    - Create the install branch from the target default branch.
    - Check `git status --short`; stop if unrelated local changes would make the
      install ambiguous.
 
-3. Audit before copying.
+4. Audit before copying.
    - Inspect every path in **Agent-Owned Scope**.
    - Check related branches/refs:
      `git ls-remote --heads origin agent/memory agent/rubrics 'agent/*'`.
@@ -87,7 +101,7 @@ unless explicitly requested.
    - Present the audit in a small table and ask before replacing divergent files
      or removing anything.
 
-4. Copy the install files conservatively.
+5. Copy the install files conservatively.
    - Sync `.agent/` with generated/dependency exclusions.
    - Preserve target-owned root files, but add the agent ignore entries
      `.agent/dist/` and `.agent/node_modules/` to the target `.gitignore` if
@@ -99,18 +113,30 @@ unless explicitly requested.
    - Copy source prompt `.md` files without deleting target-only prompts.
    - Copy requested `.skills/` directories and `AGENT.md` only when approved.
 
-5. Configure target repository guidance.
+6. Configure target repository guidance.
    - Do not commit secret values.
-   - In the PR body, tell the owner to configure at least one provider secret:
-     `OPENAI_API_KEY` and/or `CLAUDE_CODE_OAUTH_TOKEN`.
-   - Summarize auth options from the setup guide: hosted app/OIDC, BYO GitHub App
-     via `AGENT_APP_ID` + `AGENT_APP_PRIVATE_KEY`, `AGENT_PAT`, or fallback
-     workflow token.
+   - In the PR body, include a structured **Required setup after merge**
+     section with numbered next steps:
+     1. install the Sepo GitHub App on the target repository, or choose another
+        supported auth path from the setup guide
+     2. add at least one model-provider repository secret:
+        `OPENAI_API_KEY` and/or `CLAUDE_CODE_OAUTH_TOKEN`
+     3. run **Actions > Agent / Onboarding / Check Setup**
+     4. review the `Sepo setup check` issue and complete any remaining setup it
+        reports
+     5. run **Actions > Agent / Memory / Initialization** if `agent/memory` is
+        missing
+     6. optionally run **Actions > Agent / Rubrics / Initialization** if the repo
+        wants rubric steering and `agent/rubrics` is missing
+   - Summarize auth options from the setup guide in the first next step:
+     hosted app/OIDC, BYO GitHub App via `AGENT_APP_ID` +
+     `AGENT_APP_PRIVATE_KEY`, `AGENT_PAT`, or fallback workflow token. Make the
+     hosted Sepo GitHub App path the default recommendation.
    - Mention useful optional variables such as `AGENT_HANDLE`, `AGENT_RUNS_ON`,
      `AGENT_ACCESS_POLICY`, `AGENT_MEMORY_POLICY`, `AGENT_RUBRICS_POLICY`,
      `AGENT_SESSION_BUNDLE_MODE`, and `AGENT_STATUS_LABEL_ENABLED`.
 
-6. Review and validate before commit.
+7. Review and validate before commit.
    - Confirm the diff is limited to approved agent infrastructure:
      `git status --short`, `git diff --stat`, and
      `git diff -- .agent .github .skills AGENT.md`.
@@ -123,13 +149,15 @@ unless explicitly requested.
      `npm --prefix .agent test`, and YAML parsing for `.github/workflows/*.yml`.
    - If a check cannot run, report exactly why it was skipped.
 
-7. Commit, push, and open the PR.
+8. Commit, push, and open the PR.
    - Commit message: `chore: install Sepo agent infrastructure`.
    - Stage only intended files, typically `.agent .github`, plus approved
      `.skills/<requested-skill>` and/or `AGENT.md`.
    - PR body should include source revision, installed files, conflict audit,
      preserved/skipped files, validation results, required secrets/variables,
-     and post-merge setup notes.
+     and the structured numbered setup section above. Keep the user-facing copy
+     aligned with the onboarding status comment: GitHub App/auth, model
+     credentials, memory, rubrics, remaining setup, and smoke-test commands.
    - Do not merge the PR unless explicitly asked.
 
 ## Post-Merge Guidance
@@ -137,6 +165,9 @@ unless explicitly requested.
 After the install PR merges:
 
 - Verify GitHub Actions are enabled and required secrets/auth settings are set.
+- Run `Agent / Onboarding / Check Setup` and use the `Sepo setup check` issue as
+  the source of truth for current GitHub auth, provider credential, memory, and
+  rubrics status.
 - Check for existing branches before initializing:
   `git ls-remote --heads https://github.com/<owner>/<repo>.git agent/memory agent/rubrics`.
 - If `agent/memory` is missing, run or ask the owner to run

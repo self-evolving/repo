@@ -213,6 +213,7 @@ Explicit routes are:
 - `@sepo-agent /review`
 - `@sepo-agent /orchestrate`
 - `@sepo-agent /skill <name>`
+- `@sepo-agent /install owner/repo`
 
 Explicit routes skip dispatch triage and resolve locally, but still go through the same route policy checks afterward.
 When an explicit `/implement` request on a pull request or discussion creates a tracking issue, the router runs a metadata-only agent prompt to synthesize the issue title and body from the request plus target context. The slash command approves the route; it is not copied into the title. If metadata generation is unavailable or invalid, the issue falls back to `Implement requested change`.
@@ -224,6 +225,11 @@ job runs it from the repository root before the agent task starts. More complex
 skill setup should customize the copied `agent-router.yml` skill job directly
 so repositories can use native GitHub Actions `uses`, `with`, Docker, service,
 or cache features.
+
+`/install owner/repo` is a public convenience alias for
+`/skill install-agent`; it requires a target repository slug in `owner/repo`
+form before the skill route runs. Access policy evaluates this alias as the
+`skill` route.
 
 ### `agent-label.yml`
 

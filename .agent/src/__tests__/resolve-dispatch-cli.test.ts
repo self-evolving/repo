@@ -127,3 +127,35 @@ test("resolve-dispatch falls back when generated implement metadata is invalid",
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
+
+test("resolve-dispatch returns a clear unsupported response for invalid install requests", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-resolve-dispatch-"));
+
+  try {
+    const outputPath = join(tempDir, "github-output.txt");
+    writeFileSync(outputPath, "", "utf8");
+
+    const result = spawnSync("node", [".agent/dist/cli/resolve-dispatch.js"], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        GITHUB_OUTPUT: outputPath,
+        REQUESTED_ROUTE: "unsupported",
+        REQUEST_TEXT: "@sepo-agent /install",
+        TARGET_KIND: "issue",
+        AUTHOR_ASSOCIATION: "MEMBER",
+        ACCESS_POLICY: "",
+        REPOSITORY_PRIVATE: "false",
+      },
+      encoding: "utf8",
+    });
+
+    assert.equal(result.status, 0);
+    const outputs = parseGithubOutput(outputPath);
+    assert.equal(outputs.get("route"), "unsupported");
+    assert.equal(outputs.get("needs_approval"), "false");
+    assert.match(outputs.get("summary") || "", /@sepo-agent \/install owner\/repo/);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
