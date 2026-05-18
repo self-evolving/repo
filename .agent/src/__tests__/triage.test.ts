@@ -157,21 +157,33 @@ test("extractRequestedRouteDecision maps install requests to install-agent skill
       "@sepo-agent /install self-evolving/example-repo",
       "@sepo-agent",
     ),
-    { route: "skill", skill: "install-agent" },
+    {
+      route: "skill",
+      skill: "install-agent",
+      installTargetRepo: "self-evolving/example-repo",
+    },
   );
   assert.deepEqual(
     extractRequestedRouteDecision(
       "Please install it.\n\n@sepo-agent /install self-evolving/example-repo.",
       "@sepo-agent",
     ),
-    { route: "skill", skill: "install-agent" },
+    {
+      route: "skill",
+      skill: "install-agent",
+      installTargetRepo: "self-evolving/example-repo",
+    },
   );
   assert.deepEqual(
     extractRequestedRouteDecision(
       "@sepo-agent /install: self-evolving/example-repo",
       "@sepo-agent",
     ),
-    { route: "skill", skill: "install-agent" },
+    {
+      route: "skill",
+      skill: "install-agent",
+      installTargetRepo: "self-evolving/example-repo",
+    },
   );
 });
 

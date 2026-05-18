@@ -44,6 +44,7 @@ export interface RequestedLabelDecision {
 export interface RequestedRouteDecision {
   route: string;
   skill: string;
+  installTargetRepo?: string;
 }
 
 export interface ImplementIssueMetadata {
@@ -139,7 +140,7 @@ export function extractRequestedRouteDecision(body: string, mention: string): Re
     const installArgs = (installMatch[1] || "").replace(/^[\s.,;:!?)\]}]+/, "");
     const targetToken = normalizeInstallTargetToken(installArgs.trim().split(/\s+/)[0] || "");
     if (VALID_INSTALL_TARGET_REPO.test(targetToken)) {
-      return { route: "skill", skill: INSTALL_AGENT_SKILL };
+      return { route: "skill", skill: INSTALL_AGENT_SKILL, installTargetRepo: targetToken };
     }
     return { route: "unsupported", skill: "" };
   }

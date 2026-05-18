@@ -5,7 +5,8 @@
 // Outputs: should_respond, association, body, source_kind, target_kind,
 //          target_number, target_url, reaction_subject_id, response_kind,
 //          source_comment_id, source_comment_url, review_comment_id,
-//          discussion_node_id, reply_to_id, requested_by, requested_route, requested_skill
+//          discussion_node_id, reply_to_id, requested_by, requested_route,
+//          requested_skill, requested_install_target_repo
 
 import { readFileSync } from "node:fs";
 import { isKnownAuthorAssociation } from "../access-policy.js";
@@ -196,6 +197,7 @@ if (!eventPath || !eventName) {
           : extractRequestedRouteDecision(ctx.body, mention);
         const requestedRoute = requestedLabel?.route || requestedMention.route;
         const requestedSkill = requestedLabel?.skill || requestedMention.skill;
+        const requestedInstallTargetRepo = requestedLabel ? "" : requestedMention.installTargetRepo || "";
 
         if (triggerKind === "label" && !requestedLabel) {
           setOutput("should_respond", "false");
@@ -218,6 +220,7 @@ if (!eventPath || !eventName) {
           setOutput("requested_by", requestedBy);
           setOutput("requested_route", requestedRoute);
           setOutput("requested_skill", requestedSkill);
+          setOutput("requested_install_target_repo", requestedInstallTargetRepo);
         }
       }
     }

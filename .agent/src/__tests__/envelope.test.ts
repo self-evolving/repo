@@ -576,6 +576,8 @@ test("agent router bypasses dispatch triage for explicit mention slash routes", 
   assert.match(resolveDispatch, /normalizeImplementIssueMetadata/);
   assert.match(implementMetadataPrompt, /Do not derive the title by copying the literal text after `\/implement`/);
   assert.match(implementMetadataPrompt, /Ignore earlier prose mentions of `\/implement`/);
+  assert.match(extractContext, /setOutput\("requested_install_target_repo", requestedInstallTargetRepo\)/);
+  assert.match(runnerWorkflow, /requested_install_target_repo:/);
 });
 
 test("agent router supports label-triggered route and skill overrides", () => {
@@ -843,6 +845,9 @@ test("shared setup-agent-runtime action exists and is referenced by reusable wor
 test("skill route uses the composite setup action for path and setup checks", () => {
   const runnerWorkflow = readRepoFile(".github/workflows/agent-router.yml");
   const setupAction = readRepoFile(".github/actions/run-skill-setup/action.yml");
+  const runAgentTaskAction = readRepoFile(".github/actions/run-agent-task/action.yml");
+  const runSource = readRepoFile(".agent/src/run.ts");
+  const supplementalVars = readSupplementalPromptVarNames(runSource);
   const skillJobStart = runnerWorkflow.indexOf("  skill:\n    needs: portal");
   const approvalJobStart = runnerWorkflow.indexOf("  approval:", skillJobStart);
   assert.ok(skillJobStart >= 0);
@@ -857,6 +862,7 @@ test("skill route uses the composite setup action for path and setup checks", ()
   assert.match(skillWorkflow, /\.\/\.github\/actions\/run-skill-setup/);
   assert.match(skillWorkflow, /trusted_ref:\s*\$\{\{ !startsWith\(github\.ref, 'refs\/pull\/'\) \}\}/);
   assert.match(skillWorkflow, /skill_root:\s*\$\{\{ inputs\.skill_root \}\}/);
+  assert.match(skillWorkflow, /install_target_repo:\s*\$\{\{\s*needs\.portal\.outputs\.requested_install_target_repo\s*\}\}/);
   assert.ok(optionalProviderStart >= 0);
   assert.ok(runtimeStart > optionalProviderStart);
   assert.ok(checkStart > runtimeStart);
@@ -875,6 +881,8 @@ test("skill route uses the composite setup action for path and setup checks", ()
   assert.match(setupAction, /if \[ ! -f "\$setup_file" \]/);
   assert.match(setupAction, /Refusing to run .*untrusted PR checkout/);
   assert.match(setupAction, /bash "\$setup_file"/);
+  assert.match(runAgentTaskAction, /install_target_repo:/);
+  assert.ok(supplementalVars.has("INSTALL_TARGET_REPO"));
 });
 
 test("shared auth action supports the built-in hosted OIDC broker mode", () => {

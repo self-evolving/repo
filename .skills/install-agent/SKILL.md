@@ -23,10 +23,19 @@ Confirm these before editing:
 - whether to copy any `.skills/` directories; default is no
 - whether to copy root `AGENT.md`; default is no
 
-When invoked through `@sepo-agent /install owner/repo`, treat the validated
-`owner/repo` target slug and the defaults above as confirmed. Do not pause for a
-second confirmation unless the target branch, source revision, auth path, or
-file replacement decision is ambiguous.
+When invoked through `@sepo-agent /install owner/repo`, the router supplies the
+validated target as `INSTALL_TARGET_REPO`: `${INSTALL_TARGET_REPO}`. Treat that
+target and the defaults above as confirmed. Do not pause for a second
+confirmation unless the target branch, source revision, auth path, or file
+replacement decision is ambiguous.
+
+If `INSTALL_TARGET_REPO` is empty, derive the target from request text using the
+same `/install` parsing rule: take the first non-punctuation token immediately
+after the live `@sepo-agent /install` command, trim trailing `.`, `,`, `;`, `:`,
+`!`, `?`, `)`, `]`, or `}`, and require `owner/repo` form where the owner starts
+and ends with an alphanumeric character and the repo contains only
+alphanumerics, `.`, `_`, or `-`. Stop if that rule does not identify exactly one
+target or if unrelated prose contains a conflicting repo-like slug.
 
 Stop if the target repo, branch, or source revision is ambiguous.
 
@@ -92,6 +101,11 @@ unless explicitly requested.
    - Inspect every path in **Agent-Owned Scope**.
    - Check related branches/refs:
      `git ls-remote --heads origin agent/memory agent/rubrics 'agent/*'`.
+   - Check for an existing open install PR before continuing toward
+     commit/push/PR creation:
+     `gh pr list --repo <owner>/<repo> --head agent/install-agent-infra --state open --json number,url,state`.
+     If one exists, report its URL and stop unless the user explicitly asks to
+     update or reuse it.
    - Check existing secrets/variables/workflows where permissions allow:
      `gh secret list`, `gh variable list`, and `gh workflow list`.
    - Look for legacy or overlapping scaffolds such as `.flows/`, `.claude/`, old
