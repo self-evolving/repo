@@ -77,6 +77,4 @@
 - Scheduled daily summaries are disabled by default; enable agent-daily-summary.yml only via explicit schedule-policy override.
 - Default orchestration max rounds is 12 across workflows and CLI fallbacks.
 - Explicit non-issue /implement creates tracking metadata from context after auth; metadata uses approve-all.
-- For review syntheses, HUMAN_DECISION is a recommended next step; self-approval-enabled orchestration runs self-approve as its decision gate.
 - Repository skills use setup.sh for simple setup; complex skill environments should customize the copied agent-router workflow.
-- Track-only session policy runs one-shot exec while still writing thread state; resume policies own persistent ACP continuity.
