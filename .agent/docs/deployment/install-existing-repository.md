@@ -20,10 +20,13 @@ requires a target repository slug in `owner/repo` form, resolves the install
 source to the latest non-draft Sepo release, and records that source revision in
 the PR body. If no stable release exists yet, the skill may use the latest
 non-draft prerelease. Opening the PR requires the resolved GitHub token to have
-write access to the target repository. If Sepo can clone the public repository
-but cannot push a branch, install the Sepo GitHub App on that repository,
-provide a target-scoped PAT, or use another supported auth path before
-rerunning. Access policy evaluates `/install` as the `skill` route.
+write access to the target repository. The v1 install flow does not switch to a
+different token or create a fork after the skill starts. If Sepo can clone the
+public repository but the already-resolved token cannot push a branch and open a
+PR, the run should stop as blocked. Rerun only after the workflow is configured
+so the token resolved at startup already has target write access, or use a
+manual/fork-based install path outside this v1 command. Access policy evaluates
+`/install` as the `skill` route.
 
 ## Minimal file layout
 

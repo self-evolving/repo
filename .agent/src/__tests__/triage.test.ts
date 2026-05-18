@@ -190,15 +190,19 @@ test("extractRequestedRouteDecision maps install requests to install-agent skill
 test("extractRequestedRouteDecision rejects malformed install targets before skill runs", () => {
   assert.deepEqual(
     extractRequestedRouteDecision("@sepo-agent /install", "@sepo-agent"),
-    { route: "unsupported", skill: "" },
+    { route: "invalid-install", skill: "" },
   );
   assert.deepEqual(
     extractRequestedRouteDecision("@sepo-agent /install not-a-slug", "@sepo-agent"),
-    { route: "unsupported", skill: "" },
+    { route: "invalid-install", skill: "" },
   );
   assert.match(
-    buildRequestedRouteDecision("unsupported", "@sepo-agent /install").summary,
+    buildRequestedRouteDecision("invalid-install", "@sepo-agent /install").summary,
     /target repository slug/,
+  );
+  assert.doesNotMatch(
+    buildRequestedRouteDecision("unsupported", "@sepo-agent /deploy").summary,
+    /\/install owner\/repo/,
   );
 });
 

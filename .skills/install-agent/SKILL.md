@@ -17,8 +17,8 @@ Confirm these before editing:
 - source agent repo/ref, defaulting to the latest non-draft release from
   `self-evolving/repo`; include prereleases when no stable release exists
 - install branch name, defaulting to `agent/install-agent-infra`
-- preferred GitHub auth path: hosted app/OIDC, bring-your-own GitHub App,
-  `AGENT_PAT`, or fallback workflow token
+- resolved GitHub auth identity; it must already have target write access to
+  open the install PR
 - model provider secret plan: `OPENAI_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`, or both
 - whether to copy any `.skills/` directories; default is no
 - whether to copy root `AGENT.md`; default is no
@@ -37,7 +37,17 @@ and ends with an alphanumeric character and the repo contains only
 alphanumerics, `.`, `_`, or `-`. Stop if that rule does not identify exactly one
 target or if unrelated prose contains a conflicting repo-like slug.
 
-Stop if the target repo, branch, or source revision is ambiguous.
+Current v1 auth contract: use only the `GH_TOKEN` already resolved for this
+skill run. You may clone public target repositories, but open an install PR only
+when that same token can push a branch to the target repository and create the
+PR. Do not switch to a different token, create a fork, or assume configuring a
+new App/PAT during the run changes the active token. If the token lacks target
+write access, stop with a blocked result that tells the requester to rerun from
+a workflow whose resolved token already has target write access, or to use a
+manual/fork-based install path outside this v1 command.
+
+Stop if the target repo, branch, source revision, or active write identity is
+ambiguous.
 
 ## Agent-Owned Scope
 
@@ -93,6 +103,11 @@ unless explicitly requested.
 
 3. Prepare the target checkout.
    - Clone/open the target repo.
+   - Verify the already-resolved `GH_TOKEN` can write to the target repository
+     before editing: check the authenticated identity and target permission with
+     `gh auth status` and `gh api repos/<owner>/<repo> --jq '.viewerPermission // .permissions.push // empty'`.
+   - If the active token cannot push to the target repository, report the
+     install as blocked and do not proceed to commit, push, fork, or open a PR.
    - Create the install branch from the target default branch.
    - Check `git status --short`; stop if unrelated local changes would make the
      install ambiguous.
@@ -142,10 +157,11 @@ unless explicitly requested.
         missing
      6. optionally run **Actions > Agent / Rubrics / Initialization** if the repo
         wants rubric steering and `agent/rubrics` is missing
-   - Summarize auth options from the setup guide in the first next step:
-     hosted app/OIDC, BYO GitHub App via `AGENT_APP_ID` +
+   - Summarize post-merge auth options from the setup guide in the first next
+     step: hosted app/OIDC, BYO GitHub App via `AGENT_APP_ID` +
      `AGENT_APP_PRIVATE_KEY`, `AGENT_PAT`, or fallback workflow token. Make the
-     hosted Sepo GitHub App path the default recommendation.
+     hosted Sepo GitHub App path the default recommendation. Keep this separate
+     from the active token used to open this install PR.
    - Mention useful optional variables such as `AGENT_HANDLE`, `AGENT_RUNS_ON`,
      `AGENT_ACCESS_POLICY`, `AGENT_MEMORY_POLICY`, `AGENT_RUBRICS_POLICY`,
      `AGENT_SESSION_BUNDLE_MODE`, and `AGENT_STATUS_LABEL_ENABLED`.

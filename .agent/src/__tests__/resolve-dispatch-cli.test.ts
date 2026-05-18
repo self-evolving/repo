@@ -128,7 +128,7 @@ test("resolve-dispatch falls back when generated implement metadata is invalid",
   }
 });
 
-test("resolve-dispatch returns a clear unsupported response for invalid install requests", () => {
+test("resolve-dispatch returns a clear response for invalid install requests", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-resolve-dispatch-"));
 
   try {
@@ -140,7 +140,7 @@ test("resolve-dispatch returns a clear unsupported response for invalid install 
       env: {
         ...process.env,
         GITHUB_OUTPUT: outputPath,
-        REQUESTED_ROUTE: "unsupported",
+        REQUESTED_ROUTE: "invalid-install",
         REQUEST_TEXT: "@sepo-agent /install",
         TARGET_KIND: "issue",
         AUTHOR_ASSOCIATION: "MEMBER",

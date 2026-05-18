@@ -33,6 +33,7 @@ const LABEL_ROUTE_PREFIX = "agent/";
 const LABEL_SKILL_PREFIX = "agent/s/";
 const VALID_SKILL_LABEL = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const INSTALL_AGENT_SKILL = "install-agent";
+const INVALID_INSTALL_ROUTE = "invalid-install";
 const VALID_INSTALL_TARGET_REPO = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?\/[A-Za-z0-9._-]+$/;
 const DEFAULT_IMPLEMENT_ISSUE_TITLE = "Implement requested change";
 
@@ -142,7 +143,7 @@ export function extractRequestedRouteDecision(body: string, mention: string): Re
     if (VALID_INSTALL_TARGET_REPO.test(targetToken)) {
       return { route: "skill", skill: INSTALL_AGENT_SKILL, installTargetRepo: targetToken };
     }
-    return { route: "unsupported", skill: "" };
+    return { route: INVALID_INSTALL_ROUTE, skill: "" };
   }
 
   const skillRegex = new RegExp(
@@ -172,6 +173,7 @@ export function buildRequestedRouteDecision(
   const normalizedRoute = String(route || "").trim().toLowerCase();
   if (
     normalizedRoute !== "skill" &&
+    normalizedRoute !== INVALID_INSTALL_ROUTE &&
     normalizedRoute !== "unsupported" &&
     !EXPLICIT_ROUTE_COMMANDS.includes(normalizedRoute as (typeof EXPLICIT_ROUTE_COMMANDS)[number])
   ) {
@@ -264,12 +266,23 @@ export function buildRequestedRouteDecision(
     };
   }
 
-  if (normalizedRoute === "unsupported") {
+  if (normalizedRoute === INVALID_INSTALL_ROUTE) {
     return {
       route: "unsupported",
       needsApproval: false,
       confidence: "high",
       summary: "Install requests need a target repository slug, for example `@sepo-agent /install owner/repo`.",
+      issueTitle: "",
+      issueBody: "",
+    };
+  }
+
+  if (normalizedRoute === "unsupported") {
+    return {
+      route: "unsupported",
+      needsApproval: false,
+      confidence: "high",
+      summary: "This explicit request is not supported by this repository agent.",
       issueTitle: "",
       issueBody: "",
     };
