@@ -80,4 +80,3 @@
 - Repository skills use setup.sh for simple setup; complex skill environments should customize the copied agent-router workflow.
 - track-only session bundles are debug-only: never restore; only always may upload non-restorable github-artifact-debug bundles.
 - Stacked PR /implement base_pr should flow through implement metadata, not ad hoc request-text parsing.
-- Install route uses AGENT_INSTALL_PAT as task token; normal routes keep the standard auth resolver.
