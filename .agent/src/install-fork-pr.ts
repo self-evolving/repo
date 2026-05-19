@@ -421,15 +421,26 @@ function cloneTarget(
 ): string {
   const workdir = requestedWorkdir || join(mkdtempSync(join(tmpdir(), "sepo-install-")), target.name);
   try {
-    runner.git([
-      "clone",
-      "--depth",
-      "1",
-      "--branch",
-      target.defaultBranch,
-      `https://github.com/${target.fullName}.git`,
-      workdir,
-    ], process.cwd());
+    const cloneArgs = checkoutExistingBranch
+      ? [
+          "clone",
+          "--branch",
+          target.defaultBranch,
+          `https://github.com/${target.fullName}.git`,
+          workdir,
+        ]
+      : [
+          "clone",
+          "--depth",
+          "1",
+          "--branch",
+          target.defaultBranch,
+          `https://github.com/${target.fullName}.git`,
+          workdir,
+        ];
+    runner.git(cloneArgs, process.cwd());
+    const targetDefaultRef = "sepo-target-default";
+    runner.git(["branch", targetDefaultRef, "HEAD"], workdir);
     try {
       runner.git(["remote", "remove", "install-fork"], workdir);
     } catch {
@@ -437,8 +448,9 @@ function cloneTarget(
     }
     runner.git(["remote", "add", "install-fork", `https://github.com/${fork.fullName}.git`], workdir);
     if (checkoutExistingBranch) {
-      runner.git(["fetch", "--depth", "1", "install-fork", branch], workdir);
+      runner.git(["fetch", "install-fork", branch], workdir);
       runner.git(["checkout", "-B", branch, "FETCH_HEAD"], workdir);
+      runner.git(["merge", "--no-edit", targetDefaultRef], workdir);
     } else {
       runner.git(["checkout", "-B", branch], workdir);
     }

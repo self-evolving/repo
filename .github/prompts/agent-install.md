@@ -41,11 +41,15 @@ repository by opening or reusing a focused install PR.
      `prUrl` for publish.
    - If a reusable PR already exists, update that worktree and PR rather than
      creating a duplicate.
-4. Execute the plan steps in order inside the prepared worktree. Treat the step
-   IDs, commands, and descriptions as the deterministic install contract for
-   target write-path probing, source release selection, copy scope, and diff
-   validation. Use the helper output for the prepared worktree, fork repo,
-   default branch, install branch, and reusable PR state.
+4. Execute the remaining plan steps in order. Treat the step IDs, commands,
+   command templates, template slots, and descriptions as the deterministic
+   install contract for source release selection, copy scope, diff validation,
+   and helper-owned publishing. Never run a `commandTemplate` until every
+   `templateSlots` entry has been filled from its named `sourceStep`.
+   - Use the helper output for the prepared worktree, fork repo, default branch,
+     install branch, and reusable PR state.
+   - Do not replace helper-owned fork branch or PR operations with raw
+     `git checkout`, `git push`, or `gh pr create` commands.
 5. If a step cannot be completed, stop and return a blocked result that names
    the failed step and the needed next action. For target write failures, say to
    update `AGENT_INSTALL_PAT` or target repository access before rerunning

@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -181,6 +181,7 @@ test("prepareInstallForkPr creates a fork and target checkout for public install
   assert.equal(result.reusedPr, false);
   assert.ok(runner.called("gh", /api --method POST repos\/lm4sci\/lm4sci\.github\.io\/forks/));
   assert.ok(runner.called("git", /clone --depth 1 --branch main https:\/\/github\.com\/lm4sci\/lm4sci\.github\.io\.git/));
+  assert.ok(runner.called("git", /branch sepo-target-default HEAD/));
   assert.ok(runner.called("git", /checkout -B agent\/install-agent-infra/));
 });
 
@@ -252,8 +253,9 @@ test("prepareInstallForkPr reuses a same-owner install PR at prepare time", () =
   assert.equal(result.prUrl, "https://github.com/lm4sci/lm4sci.github.io/pull/55");
   assert.equal(result.prNumber, "55");
   assert.equal(runner.called("gh", /forks/), false);
-  assert.ok(runner.called("git", /fetch --depth 1 install-fork agent\/install-agent-infra/));
+  assert.ok(runner.called("git", /fetch install-fork agent\/install-agent-infra/));
   assert.ok(runner.called("git", /checkout -B agent\/install-agent-infra FETCH_HEAD/));
+  assert.ok(runner.called("git", /merge --no-edit sepo-target-default/));
 });
 
 test("prepareInstallForkPr finds reusable install PRs outside the default list window", () => {
@@ -506,7 +508,7 @@ test("publishInstallForkPr reruns update an existing fork branch without a non-f
 
     assert.equal(prepared.status, "prepared");
     assert.equal(prepared.reusedPr, true);
-    assert.ok(runner.called("git", /fetch --depth 1 install-fork agent\/install-agent-infra/));
+    assert.ok(runner.called("git", /fetch install-fork agent\/install-agent-infra/));
 
     commitFile(workdir, "agent.txt", "new install\n", "Update install");
     const localHead = runGit(["rev-parse", "HEAD"], workdir);
@@ -564,7 +566,7 @@ test("publishInstallForkPr recovers a stale fork branch when no open PR exists",
     assert.equal(prepared.status, "prepared");
     assert.equal(prepared.reusedPr, false);
     assert.ok(runner.called("git", /ls-remote --heads https:\/\/github\.com\/sepo-install-bot\/lm4sci\.github\.io\.git agent\/install-agent-infra/));
-    assert.ok(runner.called("git", /fetch --depth 1 install-fork agent\/install-agent-infra/));
+    assert.ok(runner.called("git", /fetch install-fork agent\/install-agent-infra/));
 
     commitFile(workdir, "agent.txt", "new install after closed pr\n", "Update stale install");
     const localHead = runGit(["rev-parse", "HEAD"], workdir);
@@ -585,6 +587,48 @@ test("publishInstallForkPr recovers a stale fork branch when no open PR exists",
       runGit(["--git-dir", forkBare, "rev-parse", `refs/heads/${DEFAULT_INSTALL_BRANCH}`], root),
       localHead,
     );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("prepareInstallForkPr merges an advanced target default into an existing fork branch", () => {
+  const root = mkdtempSync(join(tmpdir(), "install-fork-pr-git-"));
+  const workdir = join(root, "install-work");
+
+  try {
+    const { targetBare, forkBare } = createGitFixture(root);
+    const targetAdvance = join(root, "target-advance");
+    runGit(["clone", targetBare, targetAdvance], root);
+    configureGitUser(targetAdvance);
+    commitFile(targetAdvance, "target-owned.txt", "advanced target default\n", "Advance target default");
+    runGit(["push", "origin", "main"], targetAdvance);
+
+    const runner = new GitFixtureRunner(new Map([
+      ["lm4sci/lm4sci.github.io", targetBare],
+      ["sepo-install-bot/lm4sci.github.io", forkBare],
+    ]));
+    runner.repos.set("lm4sci/lm4sci.github.io", repoRecord("lm4sci/lm4sci.github.io"));
+    runner.repos.set(
+      "sepo-install-bot/lm4sci.github.io",
+      repoRecord("sepo-install-bot/lm4sci.github.io", {
+        fork: true,
+        parent: "lm4sci/lm4sci.github.io",
+      }),
+    );
+
+    const prepared = prepareInstallForkPr({
+      targetRepo: "lm4sci/lm4sci.github.io",
+      githubToken: "pat-token",
+      workdir,
+      forkPollAttempts: 1,
+      runner,
+    });
+
+    assert.equal(prepared.status, "prepared");
+    assert.equal(prepared.reusedPr, false);
+    assert.equal(readFileSync(join(workdir, "target-owned.txt"), "utf8"), "advanced target default\n");
+    assert.ok(runner.called("git", /merge --no-edit sepo-target-default/));
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

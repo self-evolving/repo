@@ -14,17 +14,22 @@ test("buildInstallLifecyclePlan emits deterministic install route steps", () => 
   assert.deepEqual(
     plan.steps.map((step) => step.id),
     [
-      "check-target-write",
-      "check-existing-install-pr",
+      "prepare-install-worktree",
       "resolve-source-release",
-      "prepare-target-branch",
       "copy-install-scope",
       "validate-install-diff",
-      "open-install-pr",
+      "publish-install-pr",
     ],
   );
-  assert.match(plan.steps[0]?.command || "", /gh api repos\/foo\/bar/);
-  assert.match(plan.steps[1]?.command || "", /gh pr list --repo foo\/bar --head agent\/install-agent-infra/);
+  assert.match(plan.steps[0]?.command || "", /install-fork-pr\.js prepare --target-repo foo\/bar/);
+  assert.match(plan.steps[0]?.description || "", /current target default branch/);
+  assert.equal(plan.steps[2]?.templateSlots?.[1]?.sourceStep, "prepare-install-worktree");
+  assert.match(plan.steps[4]?.commandTemplate || "", /install-fork-pr\.js publish --target-repo foo\/bar/);
+  assert.match(plan.steps[4]?.commandTemplate || "", /{{target_default_branch}}/);
+  assert.match(plan.steps[4]?.commandTemplate || "", /{{fork_repo}}/);
+  assert.match(plan.steps[4]?.commandTemplate || "", /{{install_pr_body_file}}/);
+  assert.equal(plan.steps[4]?.templateSlots?.[0]?.sourceStep, "prepare-install-worktree");
+  assert.doesNotMatch(JSON.stringify(plan), /<target-default-branch>|<install-pr-body\.md>/);
 });
 
 test("buildInstallLifecyclePlan blocks missing and ambiguous install targets", () => {

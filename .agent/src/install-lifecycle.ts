@@ -11,7 +11,15 @@ export type InstallLifecycleStatus = InstallTargetResolution["status"];
 export interface InstallLifecycleStep {
   id: string;
   title: string;
-  command: string;
+  command?: string;
+  commandTemplate?: string;
+  templateSlots?: InstallLifecycleTemplateSlot[];
+  description: string;
+}
+
+export interface InstallLifecycleTemplateSlot {
+  name: string;
+  sourceStep: string;
   description: string;
 }
 
@@ -70,18 +78,11 @@ export function buildInstallLifecyclePlan(input: InstallLifecyclePlanInput): Ins
     message: target.message,
     steps: [
       {
-        id: "check-target-write",
-        title: "Check target repository access",
-        command: `gh api repos/${targetRepo} --jq '{default_branch: .default_branch, permissions: .permissions}'`,
+        id: "prepare-install-worktree",
+        title: "Prepare the fork-backed install worktree",
+        command: `GH_TOKEN="$GH_TOKEN" node .agent/dist/cli/install-fork-pr.js prepare --target-repo ${targetRepo} --branch ${installBranch}`,
         description:
-          "Confirm the install token can read the target repository and has push/write permission before preparing changes.",
-      },
-      {
-        id: "check-existing-install-pr",
-        title: "Check for an existing install PR",
-        command: `gh pr list --repo ${targetRepo} --head ${installBranch} --state open --json number,url,state,headRefName`,
-        description:
-          "Reuse or report the open install PR before committing, pushing, or creating a new PR.",
+          "Use the install fork/PR helper to validate the public target, create or reuse the token-owner fork, detect reusable or duplicate install PRs, and prepare the fork branch from the current target default branch.",
       },
       {
         id: "resolve-source-release",
@@ -91,18 +92,23 @@ export function buildInstallLifecyclePlan(input: InstallLifecyclePlanInput): Ins
           "Select the latest non-draft stable release, falling back to the latest non-draft prerelease only when no stable release exists.",
       },
       {
-        id: "prepare-target-branch",
-        title: "Prepare the target install branch",
-        command: `git checkout -B ${installBranch} <target-default-branch>`,
-        description:
-          "Create or update the install branch from the target repository default branch in a clean target worktree.",
-      },
-      {
         id: "copy-install-scope",
         title: "Copy the approved install scope",
-        command: "copy .agent/ and Sepo-owned .github assets from the resolved source revision",
+        commandTemplate: "copy .agent/ and Sepo-owned .github assets from {{source_checkout}} into {{target_worktree}}",
+        templateSlots: [
+          {
+            name: "source_checkout",
+            sourceStep: "resolve-source-release",
+            description: "Use the checkout for the selected Sepo source revision.",
+          },
+          {
+            name: "target_worktree",
+            sourceStep: "prepare-install-worktree",
+            description: "Use the helper-returned workdir on the install branch.",
+          },
+        ],
         description:
-          "Copy only Sepo-owned infrastructure, preserving target-owned application code and unrelated GitHub assets.",
+          "Fill the template slots before copying only Sepo-owned infrastructure, preserving target-owned application code and unrelated GitHub assets.",
       },
       {
         id: "validate-install-diff",
@@ -112,11 +118,33 @@ export function buildInstallLifecyclePlan(input: InstallLifecyclePlanInput): Ins
           "Confirm the diff is limited to the approved install scope and run lightweight checks that are available in the target worktree.",
       },
       {
-        id: "open-install-pr",
-        title: "Open the install PR",
-        command: `gh pr create --repo ${targetRepo} --head ${installBranch} --base <target-default-branch> --title 'Install Sepo agent infrastructure' --body-file <install-pr-body.md>`,
+        id: "publish-install-pr",
+        title: "Publish the install PR",
+        commandTemplate: `GH_TOKEN="$GH_TOKEN" node .agent/dist/cli/install-fork-pr.js publish --target-repo ${targetRepo} --workdir {{target_worktree}} --fork-repo {{fork_repo}} --default-branch {{target_default_branch}} --branch ${installBranch} --pr-title 'Install Sepo agent infrastructure' --pr-body-file {{install_pr_body_file}}`,
+        templateSlots: [
+          {
+            name: "target_default_branch",
+            sourceStep: "prepare-install-worktree",
+            description: "Use the defaultBranch returned by the helper prepare step.",
+          },
+          {
+            name: "target_worktree",
+            sourceStep: "prepare-install-worktree",
+            description: "Use the workdir returned by the helper prepare step.",
+          },
+          {
+            name: "fork_repo",
+            sourceStep: "prepare-install-worktree",
+            description: "Use the forkRepo returned by the helper prepare step.",
+          },
+          {
+            name: "install_pr_body_file",
+            sourceStep: "validate-install-diff",
+            description: "Use the generated install PR body file after validation.",
+          },
+        ],
         description:
-          "Open the PR with source revision, installed files, validation, and required setup after merge.",
+          "Fill all template slots before using the helper to push the fork branch and reuse or open the install PR with source revision, installed files, validation, and required setup after merge.",
       },
     ],
   };
