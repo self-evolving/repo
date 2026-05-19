@@ -8,6 +8,7 @@ import { strict as assert } from "node:assert";
 import {
   type CommandRunner,
   DEFAULT_INSTALL_BRANCH,
+  INSTALL_PREPARE_STATE_FILE,
   prepareInstallForkPr,
   publishInstallForkPr,
 } from "../install-fork-pr.js";
@@ -120,6 +121,23 @@ function commitFile(workdir: string, path: string, contents: string, message: st
   writeFileSync(join(workdir, path), contents, "utf8");
   runGit(["add", path], workdir);
   runGit(["commit", "-m", message], workdir);
+}
+
+function writePrepareState(workdir: string, overrides: Record<string, unknown> = {}): void {
+  mkdirSync(join(workdir, ".git"), { recursive: true });
+  writeFileSync(
+    join(workdir, ".git", INSTALL_PREPARE_STATE_FILE),
+    `${JSON.stringify({
+      schemaVersion: 1,
+      targetRepo: "lm4sci/lm4sci.github.io",
+      defaultBranch: "main",
+      branch: DEFAULT_INSTALL_BRANCH,
+      tokenOwner: "sepo-install-bot",
+      forkRepo: "sepo-install-bot/lm4sci.github.io",
+      ...overrides,
+    }, null, 2)}\n`,
+    "utf8",
+  );
 }
 
 class GitFixtureRunner extends FakeRunner {
@@ -371,6 +389,7 @@ test("publishInstallForkPr pushes and reuses an existing install PR from the tok
   const tempDir = mkdtempSync(join(tmpdir(), "install-fork-pr-"));
   const bodyFile = join(tempDir, "body.md");
   writeFileSync(bodyFile, "Install Sepo.\n", "utf8");
+  writePrepareState(tempDir);
 
   try {
     const runner = new FakeRunner();
@@ -412,6 +431,7 @@ test("publishInstallForkPr pushes and opens a new install PR", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "install-fork-pr-"));
   const bodyFile = join(tempDir, "body.md");
   writeFileSync(bodyFile, "Install Sepo.\n", "utf8");
+  writePrepareState(tempDir);
 
   try {
     const runner = new FakeRunner();
@@ -466,6 +486,75 @@ test("publishInstallForkPr rejects target repo as fork when token owner differs"
     assert.equal(result.status, "blocked");
     assert.equal(result.blockedCode, "fork_owner_mismatch");
     assert.match(result.message, /not owned by the AGENT_INSTALL_PAT token owner sepo-install-bot/);
+    assert.equal(runner.called("git", /push/), false);
+    assert.equal(runner.called("gh", /pr create/), false);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("publishInstallForkPr requires prepare state before pushing", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "install-fork-pr-"));
+  const bodyFile = join(tempDir, "body.md");
+  writeFileSync(bodyFile, "Install Sepo.\n", "utf8");
+
+  try {
+    const runner = new FakeRunner();
+    runner.repos.set("lm4sci/lm4sci.github.io", repoRecord("lm4sci/lm4sci.github.io"));
+    runner.repos.set(
+      "sepo-install-bot/lm4sci.github.io",
+      repoRecord("sepo-install-bot/lm4sci.github.io", {
+        fork: true,
+        parent: "lm4sci/lm4sci.github.io",
+      }),
+    );
+
+    const result = publishInstallForkPr({
+      targetRepo: "lm4sci/lm4sci.github.io",
+      githubToken: "pat-token",
+      workdir: tempDir,
+      forkRepo: "sepo-install-bot/lm4sci.github.io",
+      bodyFile,
+      runner,
+    });
+
+    assert.equal(result.status, "blocked");
+    assert.equal(result.blockedCode, "missing_prepare_state");
+    assert.equal(runner.called("git", /push/), false);
+    assert.equal(runner.called("gh", /pr create/), false);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("publishInstallForkPr rejects mismatched prepare state before pushing", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "install-fork-pr-"));
+  const bodyFile = join(tempDir, "body.md");
+  writeFileSync(bodyFile, "Install Sepo.\n", "utf8");
+  writePrepareState(tempDir, { forkRepo: "other-bot/lm4sci.github.io" });
+
+  try {
+    const runner = new FakeRunner();
+    runner.repos.set("lm4sci/lm4sci.github.io", repoRecord("lm4sci/lm4sci.github.io"));
+    runner.repos.set(
+      "sepo-install-bot/lm4sci.github.io",
+      repoRecord("sepo-install-bot/lm4sci.github.io", {
+        fork: true,
+        parent: "lm4sci/lm4sci.github.io",
+      }),
+    );
+
+    const result = publishInstallForkPr({
+      targetRepo: "lm4sci/lm4sci.github.io",
+      githubToken: "pat-token",
+      workdir: tempDir,
+      forkRepo: "sepo-install-bot/lm4sci.github.io",
+      bodyFile,
+      runner,
+    });
+
+    assert.equal(result.status, "blocked");
+    assert.equal(result.blockedCode, "prepare_state_mismatch");
     assert.equal(runner.called("git", /push/), false);
     assert.equal(runner.called("gh", /pr create/), false);
   } finally {
@@ -631,6 +720,16 @@ test("prepareInstallForkPr merges an advanced target default into an existing fo
     assert.equal(prepared.reusedPr, false);
     assert.equal(readFileSync(join(workdir, "target-owned.txt"), "utf8"), "advanced target default\n");
     assert.ok(runner.called("git", /merge --no-edit sepo-target-default/));
+    const mergeIndex = runner.calls.findIndex((call) => call.tool === "git" && call.args[0] === "merge");
+    const nameConfigIndex = runner.calls.findIndex((call) => (
+      call.tool === "git" && call.args.join(" ") === "config user.name sepo-agent"
+    ));
+    const emailConfigIndex = runner.calls.findIndex((call) => (
+      call.tool === "git" &&
+      call.args.join(" ") === "config user.email 279869237+sepo-agent@users.noreply.github.com"
+    ));
+    assert.ok(nameConfigIndex >= 0 && nameConfigIndex < mergeIndex);
+    assert.ok(emailConfigIndex >= 0 && emailConfigIndex < mergeIndex);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -667,6 +766,7 @@ test("publishInstallForkPr reports push failures as blocked permission gaps", ()
   const tempDir = mkdtempSync(join(tmpdir(), "install-fork-pr-"));
   const bodyFile = join(tempDir, "body.md");
   writeFileSync(bodyFile, "Install Sepo.\n", "utf8");
+  writePrepareState(tempDir);
 
   try {
     const runner = new FakeRunner();

@@ -1,16 +1,18 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, isAbsolute, join } from "node:path";
 
 import { buildAuthUrl } from "./git.js";
 
 export const DEFAULT_INSTALL_BRANCH = "agent/install-agent-infra";
+export const INSTALL_PREPARE_STATE_FILE = "sepo-install-prepare-state.json";
 
 const VALID_INSTALL_TARGET_REPO = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?\/[A-Za-z0-9._-]+$/;
 const DEFAULT_BOT_NAME = "sepo-agent";
 const DEFAULT_BOT_EMAIL = "279869237+sepo-agent@users.noreply.github.com";
 const MAX_BUFFER = 10 * 1024 * 1024;
+const PREPARE_STATE_VERSION = 1;
 
 export type InstallForkPrAction = "prepare" | "publish";
 export type InstallForkPrStatus = "prepared" | "published" | "blocked";
@@ -69,6 +71,15 @@ interface PullRequestInfo {
   url: string;
   headRefName: string;
   headOwner: string;
+}
+
+interface PrepareState {
+  schemaVersion: number;
+  targetRepo: string;
+  defaultBranch: string;
+  branch: string;
+  tokenOwner: string;
+  forkRepo: string;
 }
 
 class InstallForkPrBlocked extends Error {
@@ -348,6 +359,88 @@ function repoIsForkOf(repo: RepoInfo, targetRepo: string): boolean {
   return sameRepo(repo.parentFullName, targetRepo) || sameRepo(repo.sourceFullName, targetRepo);
 }
 
+function prepareStatePath(runner: CommandRunner, workdir: string): string {
+  try {
+    const statePath = runner.git(["rev-parse", "--git-path", INSTALL_PREPARE_STATE_FILE], workdir).trim();
+    if (statePath) return isAbsolute(statePath) ? statePath : join(workdir, statePath);
+  } catch {
+    // Fall back for tests or partial checkouts where git cannot resolve the path.
+  }
+  return join(workdir, ".git", INSTALL_PREPARE_STATE_FILE);
+}
+
+function writePrepareState(runner: CommandRunner, workdir: string, state: PrepareState): void {
+  try {
+    const statePath = prepareStatePath(runner, workdir);
+    if (!existsSync(dirname(statePath))) {
+      return;
+    }
+    writeFileSync(statePath, `${JSON.stringify(state, null, 2)}\n`, "utf8");
+  } catch {
+    if (existsSync(workdir)) {
+      throw new InstallForkPrBlocked(
+        "prepare_state_write_failed",
+        "Could not record install prepare state; rerun /install after checking the prepared checkout.",
+      );
+    }
+  }
+}
+
+function normalizePrepareState(raw: unknown): PrepareState {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new InstallForkPrBlocked("invalid_prepare_state", "Install prepare state is not valid JSON.");
+  }
+  const record = raw as Record<string, unknown>;
+  return {
+    schemaVersion: Number(record.schemaVersion || 0),
+    targetRepo: String(record.targetRepo || "").trim(),
+    defaultBranch: String(record.defaultBranch || "").trim(),
+    branch: String(record.branch || "").trim(),
+    tokenOwner: String(record.tokenOwner || "").trim(),
+    forkRepo: String(record.forkRepo || "").trim(),
+  };
+}
+
+function readPrepareState(runner: CommandRunner, workdir: string): PrepareState {
+  const statePath = prepareStatePath(runner, workdir);
+  if (!existsSync(statePath)) {
+    throw new InstallForkPrBlocked(
+      "missing_prepare_state",
+      "Publish requires the prepare-state file written by install-fork-pr prepare; rerun prepare and pass its returned workdir.",
+    );
+  }
+  try {
+    return normalizePrepareState(JSON.parse(readFileSync(statePath, "utf8")));
+  } catch (err) {
+    if (err instanceof InstallForkPrBlocked) throw err;
+    throw new InstallForkPrBlocked("invalid_prepare_state", "Install prepare state is not valid JSON.");
+  }
+}
+
+function validatePrepareState(
+  state: PrepareState,
+  expected: { targetRepo: string; defaultBranch: string; branch: string; tokenOwner: string; forkRepo: string },
+): void {
+  if (state.schemaVersion !== PREPARE_STATE_VERSION) {
+    throw new InstallForkPrBlocked(
+      "invalid_prepare_state",
+      "Install prepare state has an unsupported schema version; rerun prepare before publishing.",
+    );
+  }
+  if (
+    !sameRepo(state.targetRepo, expected.targetRepo) ||
+    state.defaultBranch !== expected.defaultBranch ||
+    state.branch !== expected.branch ||
+    !sameLogin(state.tokenOwner, expected.tokenOwner) ||
+    !sameRepo(state.forkRepo, expected.forkRepo)
+  ) {
+    throw new InstallForkPrBlocked(
+      "prepare_state_mismatch",
+      "Publish inputs do not match the prepared install worktree; rerun prepare and publish with its returned values.",
+    );
+  }
+}
+
 function remoteBranchExists(runner: CommandRunner, repo: RepoInfo, branch: string): boolean {
   try {
     return Boolean(runner.git(["ls-remote", "--heads", `https://github.com/${repo.fullName}.git`, branch], process.cwd()).trim());
@@ -447,6 +540,8 @@ function cloneTarget(
       // Fresh clones will not have this remote.
     }
     runner.git(["remote", "add", "install-fork", `https://github.com/${fork.fullName}.git`], workdir);
+    runner.git(["config", "user.name", process.env.GIT_BOT_NAME || DEFAULT_BOT_NAME], workdir);
+    runner.git(["config", "user.email", process.env.GIT_BOT_EMAIL || DEFAULT_BOT_EMAIL], workdir);
     if (checkoutExistingBranch) {
       runner.git(["fetch", "install-fork", branch], workdir);
       runner.git(["checkout", "-B", branch, "FETCH_HEAD"], workdir);
@@ -461,8 +556,6 @@ function cloneTarget(
     } else {
       runner.git(["checkout", "-B", branch], workdir);
     }
-    runner.git(["config", "user.name", process.env.GIT_BOT_NAME || DEFAULT_BOT_NAME], workdir);
-    runner.git(["config", "user.email", process.env.GIT_BOT_EMAIL || DEFAULT_BOT_EMAIL], workdir);
   } catch (err) {
     if (err instanceof InstallForkPrBlocked) throw err;
     throw new InstallForkPrBlocked(
@@ -485,6 +578,14 @@ export function prepareInstallForkPr(opts: InstallForkPrOptions): InstallForkPrR
     const fork = ensureForkRepo(runner, target, tokenOwner, opts.forkPollAttempts || 6);
     const existingForkBranch = Boolean(existingPr) || remoteBranchExists(runner, fork, branch);
     const workdir = cloneTarget(runner, target, fork, branch, existingForkBranch, opts.workdir);
+    writePrepareState(runner, workdir, {
+      schemaVersion: PREPARE_STATE_VERSION,
+      targetRepo: target.fullName,
+      defaultBranch: target.defaultBranch,
+      branch,
+      tokenOwner,
+      forkRepo: fork.fullName,
+    });
 
     return {
       action: "prepare",
@@ -561,6 +662,13 @@ export function publishInstallForkPr(opts: PublishInstallForkPrOptions): Install
         `Fork ${fork.fullName} is not in the fork network for ${target.fullName}.`,
       );
     }
+    validatePrepareState(readPrepareState(runner, workdir), {
+      targetRepo: target.fullName,
+      defaultBranch,
+      branch,
+      tokenOwner,
+      forkRepo: fork.fullName,
+    });
 
     try {
       runner.git(["push", buildAuthUrl(opts.githubToken, fork.fullName), `HEAD:${branch}`], workdir);

@@ -66,11 +66,14 @@ repository by opening or reusing a focused install PR.
 6. Stage and commit the validated install diff before publishing. If no staged
    changes exist after the copy/validation steps, stop and report that no
    install diff was produced rather than publishing the previous `HEAD`.
-7. If a step cannot be completed, stop and return a blocked result that names
+7. Run the lifecycle `write-install-pr-body` step after committing the install
+   diff. Use its stdout as `install_pr_body_file`; do not invent a separate body
+   path for publish.
+8. If a step cannot be completed, stop and return a blocked result that names
    the failed step and the needed next action. For target write failures, say to
    update `AGENT_INSTALL_PAT` or target repository access before rerunning
    `/install`.
-8. Publish through the helper with flag-style arguments:
+9. Publish through the helper with flag-style arguments:
    ```sh
    GH_TOKEN="$GH_TOKEN" node .agent/dist/cli/install-fork-pr.js publish \
      --target-repo "<target_repo>" \

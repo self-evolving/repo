@@ -99,6 +99,10 @@ GH_TOKEN="$GH_TOKEN" node .agent/dist/cli/install-fork-pr.js publish \
   --pr-body-file "<body-file>"
 ```
 
+The publish command requires the prepare-state file written into the returned
+workdir by the prepare command, so rerun prepare instead of substituting an
+arbitrary checkout path.
+
 Install PRs should include a structured setup section that mirrors the
 onboarding setup check:
 

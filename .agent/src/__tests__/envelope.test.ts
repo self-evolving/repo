@@ -886,6 +886,7 @@ test("skill route uses the composite setup action for path and setup checks", ()
   assert.doesNotMatch(skillWorkflow, /install_target_repo:/);
   assert.match(skillWorkflow, /github_token:\s*\$\{\{\s*steps\.auth\.outputs\.token\s*\}\}/);
   assert.match(installWorkflow, /needs\.portal\.outputs\.route == 'install'/);
+  assert.match(installWorkflow, /persist-credentials:\s*false/);
   assert.match(installWorkflow, /AGENT_INSTALL_PAT_CONFIGURED:\s*\$\{\{\s*secrets\.AGENT_INSTALL_PAT != '' && 'true' \|\| 'false'\s*\}\}/);
   assert.match(installWorkflow, /Post install configuration blocked response/);
   assert.match(installWorkflow, /Install is not configured/);

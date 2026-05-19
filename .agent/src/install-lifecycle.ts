@@ -58,6 +58,12 @@ const SOURCE_CHECKOUT_SLOT: InstallLifecycleTemplateSlot = {
   description: "Use the clean source checkout created from the selected Sepo release.",
 };
 
+const INSTALL_PR_BODY_FILE_SLOT: InstallLifecycleTemplateSlot = {
+  name: "install_pr_body_file",
+  sourceStep: "write-install-pr-body",
+  description: "Use the install PR body file path printed by the lifecycle body step.",
+};
+
 const INSTALL_TOKEN_ENV = {
   GH_TOKEN: "AGENT_INSTALL_PAT",
 };
@@ -182,6 +188,87 @@ export function buildInstallLifecyclePlan(input: InstallLifecyclePlanInput): Ins
           "Create the install commit after validation; if there are no staged changes, stop and report that no install diff was produced.",
       },
       {
+        id: "write-install-pr-body",
+        title: "Write the install PR body file",
+        commandTemplate: [
+          "bash -lc 'body=\"$1/.sepo-install-pr-body.md\"; cat > \"$body\" <<'\"'\"'EOF'\"'\"'",
+          "## Install Sepo agent infrastructure",
+          "",
+          "- Target repository: {{target_repo}}",
+          "- Target branch: {{target_default_branch}}",
+          "- Install branch: {{install_branch}}",
+          "- Source repository: {{source_repo}}",
+          "- Source ref: {{source_ref}}",
+          "- Source revision: {{source_revision}}",
+          "- Source release: {{source_release_url}}",
+          "",
+          "## Installed Scope",
+          "",
+          "{{install_file_summary}}",
+          "",
+          "## Validation",
+          "",
+          "{{validation_summary}}",
+          "",
+          "## Required setup after merge",
+          "",
+          "1. Install the Sepo GitHub App on the target repository, or choose another supported auth path from the setup guide.",
+          "2. Add OPENAI_API_KEY and/or CLAUDE_CODE_OAUTH_TOKEN.",
+          "3. Run Actions > Agent / Onboarding / Check Setup.",
+          "4. Review the Sepo setup check issue and complete remaining setup.",
+          "5. Initialize agent/memory if missing.",
+          "6. Optionally initialize agent/rubrics.",
+          "EOF",
+          "printf \"%s\\n\" \"$body\"' bash {{target_worktree}}",
+        ].join("\n"),
+        templateSlots: [
+          {
+            name: "target_repo",
+            sourceStep: "prepare-install-worktree",
+            description: "Use the targetRepo returned by the helper prepare step.",
+          },
+          TARGET_DEFAULT_BRANCH_SLOT,
+          {
+            name: "install_branch",
+            sourceStep: "prepare-install-worktree",
+            description: "Use the branch returned by the helper prepare step.",
+          },
+          {
+            name: "source_repo",
+            sourceStep: "resolve-source-release",
+            description: "Use the Sepo source repository considered during release selection.",
+          },
+          {
+            name: "source_ref",
+            sourceStep: "resolve-source-release",
+            description: "Use the selected Sepo release tag or fallback ref.",
+          },
+          {
+            name: "source_revision",
+            sourceStep: "checkout-source-release",
+            description: "Use the checked-out Sepo source commit SHA.",
+          },
+          {
+            name: "source_release_url",
+            sourceStep: "resolve-source-release",
+            description: "Use the selected release URL, or record the fallback reason.",
+          },
+          {
+            name: "install_file_summary",
+            sourceStep: "validate-install-diff",
+            description: "Summarize installed, skipped, preserved, or review-required files.",
+          },
+          {
+            name: "validation_summary",
+            sourceStep: "validate-install-diff",
+            description: "Summarize validation commands and results.",
+          },
+          TARGET_WORKTREE_SLOT,
+        ],
+        description:
+          "Create the markdown PR body after the install diff is committed, then record stdout as install_pr_body_file for the publish helper.",
+      },
+      {
         id: "publish-install-pr",
         title: "Publish the install PR",
         commandTemplate: `node .agent/dist/cli/install-fork-pr.js publish --target-repo ${targetRepo} --workdir {{target_worktree}} --fork-repo {{fork_repo}} --default-branch {{target_default_branch}} --branch ${installBranch} --pr-title 'Install Sepo agent infrastructure' --pr-body-file {{install_pr_body_file}}`,
@@ -194,11 +281,7 @@ export function buildInstallLifecyclePlan(input: InstallLifecyclePlanInput): Ins
             sourceStep: "prepare-install-worktree",
             description: "Use the forkRepo returned by the helper prepare step.",
           },
-          {
-            name: "install_pr_body_file",
-            sourceStep: "commit-install-changes",
-            description: "Use the generated install PR body file after validation.",
-          },
+          INSTALL_PR_BODY_FILE_SLOT,
         ],
         description:
           "Fill all template slots after committing the install diff, then use the helper to push the fork branch and reuse or open the install PR with source revision, installed files, validation, and required setup after merge.",
