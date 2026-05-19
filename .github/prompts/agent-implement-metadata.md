@@ -18,7 +18,8 @@ Return exactly one JSON object and nothing else:
 ```json
 {
   "issue_title": "Concise implementation title under 70 characters",
-  "issue_body": "Structured markdown with goal, context, and acceptance criteria"
+  "issue_body": "Structured markdown with goal, context, and acceptance criteria",
+  "base_pr": "Optional positive integer PR number for stacked implementation"
 }
 ```
 
@@ -26,4 +27,7 @@ Rules:
 - Make `issue_title` a context-derived task title, not a command tail.
 - Keep `issue_title` under 70 characters.
 - Include enough context in `issue_body` for the implementation workflow to act without rereading every comment.
+- Omit `base_pr` unless `TARGET_KIND` is `pull_request` and the current user request explicitly asks for a stacked or follow-up PR.
+- When setting `base_pr`, set it to the current target pull request number (`TARGET_NUMBER`) as digits only, with no `#` prefix.
+- Do not infer `base_pr` from target title/body prose alone.
 - If the task is ambiguous, describe the known request and the ambiguity in `issue_body`; still provide the best concise title.

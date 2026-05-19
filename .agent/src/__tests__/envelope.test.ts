@@ -573,10 +573,13 @@ test("agent router bypasses dispatch triage for explicit mention slash routes", 
     /RESPONSE_FILE:\s*\$\{\{\s*steps\.triage\.outputs\.response_file \|\| steps\.implement_metadata\.outputs\.response_file\s*\}\}/,
   );
   assert.match(runnerWorkflow, /REQUESTED_ROUTE:\s*\$\{\{\s*steps\.context\.outputs\.requested_route\s*\}\}/);
+  assert.match(runnerWorkflow, /base_pr:\s*\$\{\{\s*steps\.dispatch\.outputs\.base_pr\s*\}\}/);
   assert.match(resolveDispatch, /buildRequestedRouteDecision/);
   assert.match(resolveDispatch, /normalizeImplementIssueMetadata/);
   assert.match(implementMetadataPrompt, /Do not derive the title by copying the literal text after `\/implement`/);
   assert.match(implementMetadataPrompt, /Ignore earlier prose mentions of `\/implement`/);
+  assert.match(implementMetadataPrompt, /Omit `base_pr` unless `TARGET_KIND` is `pull_request`/);
+  assert.match(implementMetadataPrompt, /digits only, with no `#` prefix/);
 });
 
 test("agent router supports label-triggered route and skill overrides", () => {
@@ -712,6 +715,10 @@ test("agent router dispatches agent-implement directly for explicit implement re
   assert.match(
     implementJob,
     /SESSION_FORK_FROM_THREAD_KEY:\s*\$\{\{ github\.repository \}\}:\$\{\{ needs\.portal\.outputs\.target_kind \}\}:\$\{\{ needs\.portal\.outputs\.target_number \}\}:answer:default/,
+  );
+  assert.match(
+    implementJob,
+    /BASE_PR:\s*\$\{\{\s*needs\.portal\.outputs\.base_pr\s*\}\}/,
   );
 
   // Link-back comment on the originating PR/discussion points at the

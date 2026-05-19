@@ -20,6 +20,9 @@ The orchestrator is now a top-level route. Users start orchestration explicitly 
 Implementation runs can create stacked PRs by receiving either `base_branch` or
 `base_pr`. `base_pr` resolves to the open same-repository PR head branch; when
 neither input is set, implementations branch from the repository default branch.
+For explicit `/implement` requests on pull requests, the router can obtain
+`base_pr` from the metadata-only tracking issue prompt when the current request
+asks for stacked or follow-up implementation work.
 
 ## Consumption model
 

@@ -61,6 +61,7 @@ test("resolve-dispatch uses generated metadata for explicit implement tracking i
       JSON.stringify({
         issue_title: "Fix explicit implement issue titles",
         issue_body: "## Goal\nGenerate titles from PR context.\n\n## Acceptance criteria\n- Ignore earlier prose command mentions.",
+        base_pr: "268",
       }),
       "utf8",
     );
@@ -88,6 +89,7 @@ test("resolve-dispatch uses generated metadata for explicit implement tracking i
     assert.equal(outputs.get("issue_title"), "Fix explicit implement issue titles");
     assert.doesNotMatch(outputs.get("issue_title") || "", /stale wording/);
     assert.match(outputs.get("issue_body") || "", /Generate titles from PR context/);
+    assert.equal(outputs.get("base_pr"), "268");
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
@@ -123,6 +125,49 @@ test("resolve-dispatch falls back when generated implement metadata is invalid",
     const outputs = parseGithubOutput(outputPath);
     assert.equal(outputs.get("issue_title"), "Implement requested change");
     assert.match(outputs.get("issue_body") || "", /Original request/);
+    assert.equal(outputs.get("base_pr"), "");
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("resolve-dispatch rejects invalid implement base PR metadata", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-resolve-dispatch-"));
+
+  try {
+    const outputPath = join(tempDir, "github-output.txt");
+    const metadataPath = join(tempDir, "metadata.json");
+    writeFileSync(outputPath, "", "utf8");
+    writeFileSync(
+      metadataPath,
+      JSON.stringify({
+        issue_title: "Stack follow-up work",
+        issue_body: "## Goal\nCreate a stacked follow-up PR.",
+        base_pr: "#268",
+      }),
+      "utf8",
+    );
+
+    const result = spawnSync("node", [".agent/dist/cli/resolve-dispatch.js"], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        GITHUB_OUTPUT: outputPath,
+        RESPONSE_FILE: metadataPath,
+        REQUESTED_ROUTE: "implement",
+        REQUEST_TEXT: "@sepo-agent /implement work on this as a stacked PR?",
+        TARGET_KIND: "pull_request",
+        AUTHOR_ASSOCIATION: "MEMBER",
+        ACCESS_POLICY: "",
+        REPOSITORY_PRIVATE: "true",
+      },
+      encoding: "utf8",
+    });
+
+    assert.equal(result.status, 0);
+    assert.match(result.stderr, /base_pr must be a positive integer/);
+    const outputs = parseGithubOutput(outputPath);
+    assert.equal(outputs.get("base_pr"), "");
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
