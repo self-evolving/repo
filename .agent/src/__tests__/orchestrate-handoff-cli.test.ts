@@ -24,6 +24,7 @@ function runOrchestrateHandoff(env: Record<string, string | undefined>): {
   outputs: Map<string, string>;
   ghLog: string;
   dispatchPayload: Record<string, unknown> | null;
+  createdIssueBody: string;
 } {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-orchestrate-handoff-"));
   try {
@@ -31,6 +32,7 @@ function runOrchestrateHandoff(env: Record<string, string | undefined>): {
     const outputPath = join(tempDir, "github-output.txt");
     const ghLogPath = join(tempDir, "gh.log");
     const dispatchPayloadPath = join(tempDir, "dispatch.json");
+    const createdIssueBodyPath = join(tempDir, "created-issue-body.md");
     const plannerResponse = env.FAKE_PLANNER_RESPONSE || "";
     const plannerResponseFile = join(tempDir, "planner-response.md");
     const runEnv = { ...env };
@@ -50,6 +52,10 @@ printf '%s\\n' "$*" >> "$FAKE_GH_LOG"
 if [ "\${1-}" = "pr" ] && [ "\${2-}" = "view" ]; then
   if [ "\${FAKE_PR_STATUS_MODE-}" = "missing" ]; then
     exit 1
+  fi
+  if [[ "$*" == *"title,body,url"* ]]; then
+    printf '{"title":"%s","body":"%s","url":"%s"}\\n' "\${FAKE_PR_TITLE-PR title}" "\${FAKE_PR_BODY-}" "\${FAKE_PR_URL-https://github.com/self-evolving/repo/pull/21}"
+    exit 0
   fi
   if [[ "$*" == *"body"* ]]; then
     printf '{"body":"%s"}\\n' "\${FAKE_PR_BODY-}"
@@ -77,6 +83,18 @@ if [ "\${1-}" = "issue" ] && [ "\${2-}" = "list" ]; then
 fi
 
 if [ "\${1-}" = "issue" ] && [ "\${2-}" = "create" ]; then
+  body_file=""
+  prev=""
+  for arg in "$@"; do
+    if [ "$prev" = "--body-file" ]; then
+      body_file="$arg"
+      break
+    fi
+    prev="$arg"
+  done
+  if [ -n "$body_file" ] && [ -f "$body_file" ]; then
+    cp "$body_file" "$FAKE_CREATED_ISSUE_BODY"
+  fi
   printf 'https://github.com/self-evolving/repo/issues/%s\\n' "\${FAKE_CREATED_ISSUE_NUMBER-77}"
   exit 0
 fi
@@ -107,6 +125,12 @@ if [ "\${1-}" = "api" ] && [ "\${2-}" = "graphql" ]; then
   case "$*" in
     *ViewerLogin*)
       printf '{"data":{"viewer":{"login":"sepo-agent-app[bot]"}}}\\n'
+      ;;
+    *OrchestratedImplementDiscussion*)
+      printf '{"data":{"repository":{"discussion":{"id":"%s","title":"%s","body":"%s","url":"%s"}}}}\\n' "\${FAKE_DISCUSSION_ID-D_21}" "\${FAKE_DISCUSSION_TITLE-Discussion title}" "\${FAKE_DISCUSSION_BODY-Discussion body}" "\${FAKE_DISCUSSION_URL-https://github.com/self-evolving/repo/discussions/21}"
+      ;;
+    *addDiscussionComment*)
+      printf '{"data":{"addDiscussionComment":{"comment":{"url":"https://github.com/self-evolving/repo/discussions/21#discussioncomment-1"}}}}\\n'
       ;;
     *IssueGeneratedComments*)
       printf '{"data":{"repository":{"issue":{"comments":{"nodes":%s,"pageInfo":{"hasNextPage":false,"endCursor":null}}}}}}\\n' "\${FAKE_GRAPHQL_ISSUE_COMMENTS-[]}"
@@ -187,6 +211,7 @@ exit 1
       REPOSITORY_PRIVATE: "true",
       FAKE_GH_LOG: ghLogPath,
       FAKE_DISPATCH_PAYLOAD: dispatchPayloadPath,
+      FAKE_CREATED_ISSUE_BODY: createdIssueBodyPath,
     };
     for (const [key, value] of Object.entries(runEnv)) {
       if (value === undefined) {
@@ -218,6 +243,14 @@ exit 1
         dispatchPayload = null;
       }
     }
+    let createdIssueBody = "";
+    if (existsSync(createdIssueBodyPath)) {
+      try {
+        createdIssueBody = readFileSync(createdIssueBodyPath, "utf8");
+      } catch {
+        createdIssueBody = "";
+      }
+    }
 
     return {
       status: result.status,
@@ -226,6 +259,7 @@ exit 1
       outputs: parseGithubOutput(outputPath),
       ghLog,
       dispatchPayload,
+      createdIssueBody,
     };
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
@@ -334,6 +368,88 @@ test("agent orchestrate dispatches implement directly for self-contained issue t
   assert.equal(inputs.automation_current_round, "2");
   assert.equal(inputs.orchestration_enabled, "true");
   assert.equal(inputs.base_branch, "planner-base");
+});
+
+test("agent orchestrate creates a tracking issue before PR implement handoff", () => {
+  const run = runOrchestrateHandoff({
+    AUTOMATION_MODE: "agent",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "21",
+    BASE_BRANCH: "",
+    BASE_PR: "",
+    FAKE_CREATED_ISSUE_NUMBER: "77",
+    FAKE_PR_TITLE: "Add custom installer flow",
+    FAKE_PR_BODY: "The PR discusses adding a follow-up installer flow.",
+    FAKE_PR_URL: "https://github.com/self-evolving/repo/pull/21",
+    FAKE_PR_STATE: "OPEN",
+    FAKE_PR_REVIEW_DECISION: "APPROVED",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "handoff",
+      next_action: "implement",
+      reason: "The request asks for a separate implementation PR from main.",
+      handoff_context: "Implement the installer follow-up from the PR discussion.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "dispatch");
+  assert.equal(run.outputs.get("next_action"), "implement");
+  assert.equal(run.outputs.get("target_number"), "77");
+  assert.match(run.ghLog, /issue create/);
+  assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/21\/comments/);
+  assert.match(run.ghLog, /tracking in https:\/\/github\.com\/self-evolving\/repo\/issues\/77/);
+  assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/77\/comments/);
+  assert.match(run.ghLog, /actions\/workflows\/agent-implement\.yml\/dispatches/);
+  assert.match(run.createdIssueBody, /Target kind: `pull_request`/);
+  assert.match(run.createdIssueBody, /Target URL: https:\/\/github\.com\/self-evolving\/repo\/pull\/21/);
+  assert.match(run.createdIssueBody, /Implementation base: repository default branch/);
+  assert.match(run.createdIssueBody, /Implement the installer follow-up from the PR discussion\./);
+  assert.match(run.createdIssueBody, /Add custom installer flow/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.issue_number, "77");
+  assert.equal(inputs.base_branch, "");
+  assert.equal(inputs.base_pr, "");
+  assert.equal(inputs.automation_mode, "agent");
+  assert.equal(inputs.automation_current_round, "2");
+  assert.equal(inputs.orchestration_enabled, "true");
+});
+
+test("agent orchestrate creates a tracking issue before discussion implement handoff", () => {
+  const run = runOrchestrateHandoff({
+    AUTOMATION_MODE: "agent",
+    TARGET_KIND: "discussion",
+    TARGET_NUMBER: "31",
+    BASE_BRANCH: "",
+    BASE_PR: "",
+    FAKE_CREATED_ISSUE_NUMBER: "88",
+    FAKE_DISCUSSION_ID: "D_31",
+    FAKE_DISCUSSION_TITLE: "Support plugin skill setup",
+    FAKE_DISCUSSION_BODY: "Discussion proposes a concrete plugin skill setup change.",
+    FAKE_DISCUSSION_URL: "https://github.com/self-evolving/repo/discussions/31",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "handoff",
+      next_action: "implement",
+      reason: "The discussion contains an actionable implementation request.",
+      handoff_context: "Implement the plugin setup proposal from the discussion.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "dispatch");
+  assert.equal(run.outputs.get("next_action"), "implement");
+  assert.equal(run.outputs.get("target_number"), "88");
+  assert.match(run.ghLog, /OrchestratedImplementDiscussion/);
+  assert.match(run.ghLog, /addDiscussionComment/);
+  assert.match(run.ghLog, /issue create/);
+  assert.match(run.ghLog, /actions\/workflows\/agent-implement\.yml\/dispatches/);
+  assert.match(run.createdIssueBody, /Target kind: `discussion`/);
+  assert.match(run.createdIssueBody, /Target URL: https:\/\/github\.com\/self-evolving\/repo\/discussions\/31/);
+  assert.match(run.createdIssueBody, /Support plugin skill setup/);
+  assert.match(run.createdIssueBody, /Implement the plugin setup proposal from the discussion\./);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.issue_number, "88");
+  assert.equal(inputs.automation_current_round, "2");
+  assert.equal(inputs.orchestration_enabled, "true");
 });
 
 test("agent orchestrate rejects effective implement base input conflicts", () => {

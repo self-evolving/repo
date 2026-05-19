@@ -9,6 +9,7 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { addDiscussionComment } from "../discussion.js";
 import { dispatchWorkflow, gh } from "../github.js";
 import { setOutput } from "../output.js";
 import {
@@ -58,6 +59,16 @@ interface IssueRecord {
   authorLogin?: string;
   state?: string;
   url?: string;
+}
+
+interface SourceTargetMetadata {
+  kind: "pull_request" | "discussion";
+  number: string;
+  label: string;
+  title: string;
+  body: string;
+  url: string;
+  discussionId?: string;
 }
 
 interface TrustedSubOrchestratorMarkerRecord {
@@ -413,6 +424,228 @@ function createIssueFromBody(repoSlug: string, title: string, body: string): str
 function parseIssueNumberFromUrl(url: string): string {
   const match = String(url || "").trim().match(/\/issues\/(\d+)(?:\D*)?$/);
   return match ? match[1] : "";
+}
+
+function splitRepoSlug(repoSlug: string): { owner: string; name: string } {
+  const [owner = "", name = ""] = String(repoSlug || "").split("/");
+  return { owner, name };
+}
+
+function fallbackTargetUrl(repoSlug: string, kind: "pull_request" | "discussion", number: string): string {
+  if (!repoSlug || !number) return "";
+  const path = kind === "pull_request" ? "pull" : "discussions";
+  return `https://github.com/${repoSlug}/${path}/${number}`;
+}
+
+function normalizeInlineText(value: string): string {
+  return String(value || "").replace(/[\r\n]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function truncateText(value: string, maxLength: number): string {
+  const text = String(value || "").trim();
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
+}
+
+function formatTrackingIssueTitle(metadata: SourceTargetMetadata): string {
+  const targetTitle = normalizeInlineText(metadata.title);
+  const fallback = `Implement ${metadata.label} orchestration request`;
+  const raw = targetTitle ? `Implement ${metadata.label}: ${targetTitle}` : fallback;
+  return truncateText(raw, 70) || fallback;
+}
+
+function appendMarkdownSection(lines: string[], title: string, value: string, maxLength: number): void {
+  const text = truncateText(value, maxLength);
+  if (!text) return;
+  lines.push("", `## ${title}`, "", text);
+}
+
+function formatImplementationBase(baseBranchInput: string, basePrInput: string): string {
+  if (basePrInput) return `PR #${basePrInput}`;
+  if (baseBranchInput) return `branch \`${baseBranchInput}\``;
+  return "repository default branch";
+}
+
+function fallbackSourceTargetMetadata(kind: "pull_request" | "discussion", number: string): SourceTargetMetadata {
+  const label = kind === "pull_request" ? `PR #${number || "unknown"}` : `discussion #${number || "unknown"}`;
+  return {
+    kind,
+    number,
+    label,
+    title: "",
+    body: "",
+    url: fallbackTargetUrl(repo, kind, number),
+  };
+}
+
+function fetchPullRequestSourceTargetMetadata(repoSlug: string, prNumber: string): SourceTargetMetadata {
+  const fallback = fallbackSourceTargetMetadata("pull_request", prNumber);
+  try {
+    const raw = gh([
+      "pr",
+      "view",
+      prNumber,
+      "--repo",
+      repoSlug,
+      "--json",
+      "title,body,url",
+    ]).trim();
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    return {
+      ...fallback,
+      title: String(parsed.title || ""),
+      body: String(parsed.body || ""),
+      url: String(parsed.url || "") || fallback.url,
+    };
+  } catch (err: unknown) {
+    console.warn(`Could not read pull request #${prNumber} for tracking issue metadata: ${errorText(err)}`);
+    return fallback;
+  }
+}
+
+function fetchDiscussionSourceTargetMetadata(repoSlug: string, discussionNumber: string): SourceTargetMetadata {
+  const fallback = fallbackSourceTargetMetadata("discussion", discussionNumber);
+  const { owner, name } = splitRepoSlug(repoSlug);
+  const parsedNumber = parsePositiveTargetNumber(discussionNumber);
+  if (!owner || !name || !parsedNumber) return fallback;
+
+  try {
+    const query = `
+      query OrchestratedImplementDiscussion($owner: String!, $repo: String!, $number: Int!) {
+        repository(owner: $owner, name: $repo) {
+          discussion(number: $number) {
+            id
+            title
+            body
+            url
+          }
+        }
+      }
+    `;
+    const raw = gh([
+      "api",
+      "graphql",
+      "-f",
+      `query=${query}`,
+      "-f",
+      `owner=${owner}`,
+      "-f",
+      `repo=${name}`,
+      "-F",
+      `number=${parsedNumber}`,
+    ]).trim();
+    const parsed = JSON.parse(raw || "{}") as {
+      data?: {
+        repository?: {
+          discussion?: {
+            id?: unknown;
+            title?: unknown;
+            body?: unknown;
+            url?: unknown;
+          } | null;
+        } | null;
+      } | null;
+    };
+    const discussion = parsed.data?.repository?.discussion;
+    if (!discussion) return fallback;
+    return {
+      ...fallback,
+      title: String(discussion.title || ""),
+      body: String(discussion.body || ""),
+      url: String(discussion.url || "") || fallback.url,
+      discussionId: String(discussion.id || "") || undefined,
+    };
+  } catch (err: unknown) {
+    console.warn(`Could not read discussion #${discussionNumber} for tracking issue metadata: ${errorText(err)}`);
+    return fallback;
+  }
+}
+
+function fetchSourceTargetMetadata(kind: string, number: string): SourceTargetMetadata | null {
+  const normalizedKind = normalizeToken(kind);
+  if (normalizedKind === "pull_request") {
+    return fetchPullRequestSourceTargetMetadata(repo, number);
+  }
+  if (normalizedKind === "discussion") {
+    return fetchDiscussionSourceTargetMetadata(repo, number);
+  }
+  return null;
+}
+
+function formatOrchestratedImplementationIssueBody(input: {
+  decision: HandoffDecision;
+  metadata: SourceTargetMetadata;
+  baseBranch: string;
+  basePr: string;
+}): string {
+  const lines = [
+    "## Goal",
+    "",
+    `Implement the follow-up selected by \`/orchestrate\` for ${input.metadata.label}.`,
+    "",
+    "## Source target",
+    "",
+    `- Target kind: \`${input.metadata.kind}\``,
+    `- Target number: \`${input.metadata.number || "unknown"}\``,
+    `- Target URL: ${input.metadata.url || "unknown"}`,
+    `- Requested by: \`${requestedBy || "unknown"}\``,
+    `- Implementation base: ${formatImplementationBase(input.baseBranch, input.basePr)}`,
+    `- Planner reason: ${input.decision.reason}`,
+  ];
+
+  appendMarkdownSection(lines, "Request", requestText, 4000);
+  appendMarkdownSection(lines, "Orchestrator context", input.decision.handoffContext || input.decision.reason, 4000);
+  appendMarkdownSection(lines, "Target title", input.metadata.title, 500);
+  appendMarkdownSection(lines, "Target body", input.metadata.body, 4000);
+
+  return `${lines.join("\n").trim()}\n`;
+}
+
+function postOrchestratedImplementationLinkBack(metadata: SourceTargetMetadata, issueUrl: string): void {
+  const body = `Implementing this orchestration request - tracking in ${issueUrl}.`;
+  try {
+    if (metadata.kind === "pull_request") {
+      const number = parsePositiveTargetNumber(metadata.number);
+      if (!number) throw new Error(`invalid pull request number: ${metadata.number}`);
+      createIssueComment(repo, number, body);
+      return;
+    }
+    if (!metadata.discussionId) {
+      console.warn(`Could not post discussion link-back for ${metadata.label}: missing discussion node ID`);
+      return;
+    }
+    addDiscussionComment(metadata.discussionId, body);
+  } catch (err: unknown) {
+    console.warn(`Could not post orchestrated implement link-back to ${metadata.label}: ${errorText(err)}`);
+  }
+}
+
+function ensureImplementationTrackingIssue(
+  decision: HandoffDecision,
+  effectiveBaseBranch: string,
+  effectiveBasePr: string,
+): string {
+  if (normalizeToken(sourceTargetKind) === "issue") {
+    return decision.targetNumber || targetNumber;
+  }
+  const metadata = fetchSourceTargetMetadata(sourceTargetKind, targetNumber);
+  if (!metadata) {
+    throw new Error(`orchestrated implement cannot create tracking issue for ${sourceTargetKind || "missing"} targets`);
+  }
+
+  const title = formatTrackingIssueTitle(metadata);
+  const body = formatOrchestratedImplementationIssueBody({
+    decision,
+    metadata,
+    baseBranch: effectiveBaseBranch,
+    basePr: effectiveBasePr,
+  });
+  const issueUrl = createIssueFromBody(repo, title, body);
+  const issueNumber = parseIssueNumberFromUrl(issueUrl);
+  if (!issueNumber) throw new Error(`Could not parse orchestrated implement tracking issue URL: ${issueUrl}`);
+  postOrchestratedImplementationLinkBack(metadata, issueUrl);
+  return issueNumber;
 }
 
 function trustedSubOrchestratorMarkerFromBody(issue: IssueRecord): TrustedSubOrchestratorMarkerRecord | null {
@@ -1197,10 +1430,20 @@ function hasMatchingOrchestrateStopComment(repoSlug: string, issueNumber: number
 
 function createOrchestrateStopComment(decision: HandoffDecision): void {
   const target = parsePositiveTargetNumber(targetNumber);
-  if (!repo || !target || !["issue", "pull_request"].includes(normalizeToken(sourceTargetKind))) {
+  const normalizedKind = normalizeToken(sourceTargetKind);
+  if (!repo || !target || !["issue", "pull_request", "discussion"].includes(normalizedKind)) {
     return;
   }
   const body = formatOrchestrateStopComment(decision);
+  if (normalizedKind === "discussion") {
+    const metadata = fetchDiscussionSourceTargetMetadata(repo, targetNumber);
+    if (!metadata.discussionId) {
+      console.warn(`Could not post orchestrator stop to discussion #${targetNumber}: missing discussion node ID`);
+      return;
+    }
+    addDiscussionComment(metadata.discussionId, body);
+    return;
+  }
   if (hasMatchingOrchestrateStopComment(repo, target, body)) {
     return;
   }
@@ -1361,7 +1604,7 @@ function validateInitialOrchestrateCapabilities(): HandoffDecision | null {
 const authorizationStop = validateInitialOrchestrateCapabilities();
 const routeDecision = authorizationStop || (normalizeToken(sourceAction) === "orchestrate"
   ? automationMode === "agent" &&
-      ["issue", "pull_request"].includes(normalizeToken(sourceTargetKind))
+      ["issue", "pull_request", "discussion"].includes(normalizeToken(sourceTargetKind))
     ? decidePlannerOrchestration()
     : decideManualOrchestration()
   : decideHandoff({
@@ -1463,6 +1706,33 @@ if (decision.nextAction === "implement" && effectiveBaseBranch && effectiveBaseP
     console.warn(`Failed to report implementation base input conflict: ${errorText(err)}`);
   }
   process.exit(0);
+}
+
+if (decision.nextAction === "implement" && normalizeToken(sourceTargetKind) !== "issue") {
+  try {
+    dispatchTargetNumber = ensureImplementationTrackingIssue(decision, effectiveBaseBranch, effectiveBasePr);
+    decision.targetNumber = dispatchTargetNumber;
+    setOutput("target_number", dispatchTargetNumber);
+  } catch (err: unknown) {
+    const message = `implementation tracking issue creation failed: ${errorText(err).slice(0, 1000)}`;
+    const stopDecision: HandoffDecision = {
+      decision: "stop",
+      reason: message,
+      nextRound: decision.nextRound,
+      targetNumber,
+    };
+    setOutput("decision", "stop");
+    setOutput("next_action", "");
+    setOutput("target_number", targetNumber);
+    setOutput("reason", message);
+    console.error(message);
+    try {
+      commentOnInitialOrchestrateStop(stopDecision);
+    } catch (commentErr: unknown) {
+      console.warn(`Failed to report implementation tracking issue failure: ${errorText(commentErr)}`);
+    }
+    process.exit(0);
+  }
 }
 
 const dedupeKey = buildHandoffDedupeKey({

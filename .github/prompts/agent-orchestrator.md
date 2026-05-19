@@ -45,10 +45,16 @@ these policy rules:
   create, reuse, or adopt one child issue and start the child issue's normal
   orchestrator flow.
 - Pull-request-level `orchestrate` in agent mode may return `handoff` with
-  `next_action: "review"` or `next_action: "fix-pr"` for open PR targets. Use
-  `review` for analysis-only or review-first requests, and `fix-pr` only when
-  the user clearly wants branch changes or PR fixes. Use `answer`, `stop`, or
-  `blocked` when no follow-up workflow should run.
+  `next_action: "review"`, `next_action: "fix-pr"`, or `next_action:
+  "implement"` for open PR targets. Use `review` for analysis-only or
+  review-first requests, `fix-pr` when the user clearly wants changes to the
+  current PR branch, and `implement` when the user wants a separate
+  implementation PR from the default branch or an explicitly requested
+  `base_pr`. Non-issue `implement` handoffs create a tracking issue first.
+- Discussion-level `orchestrate` in agent mode may return `handoff` with
+  `next_action: "implement"` when the discussion contains an actionable
+  implementation request. The runtime creates a tracking issue first. Use
+  `answer`, `stop`, or `blocked` when implementation is not appropriate.
 - Duplicate handoffs are skipped by the orchestrator marker dedupe logic.
 - You may choose to stop when another automatic action is not useful, except
   that enabled self-approval should receive `SHIP` and review `HUMAN_DECISION`
@@ -91,9 +97,12 @@ Rules:
   `next_action` with `delegate_issue`; it is an internal command, not a public
   route. Provide either `child_instructions`, `handoff_context`, or
   `child_issue_number`.
-- For pull-request-level `orchestrate`, choose only `handoff` to `review`,
-  `handoff` to `fix-pr`, `answer`, `stop`, or `blocked`. Do not choose
-  `implement` or `delegate_issue` for PR targets.
+- For pull-request-level `orchestrate`, choose `handoff` to `review`,
+  `handoff` to `fix-pr`, `handoff` to `implement`, `answer`, `stop`, or
+  `blocked`. Do not choose `delegate_issue` for PR targets.
+- For discussion-level `orchestrate`, choose `handoff` to `implement`,
+  `answer`, `stop`, or `blocked`. Do not choose `review`, `fix-pr`, or
+  `delegate_issue` for discussion targets.
 - When `delegate_issue` continues sequential child implementation work after a
   prior child finished with an open, unmerged PR, set `base_pr` to that prior
   child PR so the next child stacks on it. Omit stack inputs only when the next

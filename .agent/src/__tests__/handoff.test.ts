@@ -157,7 +157,7 @@ test("agent mode supports issue-level orchestrate handoff to implement", () => {
   assert.equal(decision.baseBranch, "feature-base");
 });
 
-test("agent mode supports PR-level orchestrate handoff to review or fix-pr", () => {
+test("agent mode supports PR-level orchestrate handoff to review, fix-pr, or implement", () => {
   const review = decideHandoff({
     automationMode: "agent",
     sourceAction: "orchestrate",
@@ -197,9 +197,7 @@ test("agent mode supports PR-level orchestrate handoff to review or fix-pr", () 
   assert.equal(fix.targetNumber, "66");
   assert.equal(fix.handoffContext, "Fix the merge conflict only.");
   assert.match(fix.reason, /agent planner selected fix-pr/);
-});
 
-test("agent mode rejects invalid PR-level orchestrate handoffs", () => {
   const implement = decideHandoff({
     automationMode: "agent",
     sourceAction: "orchestrate",
@@ -211,12 +209,18 @@ test("agent mode rejects invalid PR-level orchestrate handoffs", () => {
     plannerDecision: {
       decision: "handoff",
       nextAction: "implement",
-      reason: "Try to implement from a PR.",
+      reason: "The request asks for a separate implementation PR.",
+      handoffContext: "Implement a follow-up based on the current default branch.",
     },
   });
-  assert.equal(implement.decision, "stop");
-  assert.match(implement.reason, /only for issue targets/);
+  assert.equal(implement.decision, "dispatch");
+  assert.equal(implement.nextAction, "implement");
+  assert.equal(implement.targetNumber, "66");
+  assert.equal(implement.handoffContext, "Implement a follow-up based on the current default branch.");
+  assert.match(implement.reason, /agent planner selected implement/);
+});
 
+test("agent mode rejects invalid PR-level orchestrate handoffs", () => {
   const mixedAnswer = decideHandoff({
     automationMode: "agent",
     sourceAction: "orchestrate",
@@ -250,6 +254,50 @@ test("agent mode rejects invalid PR-level orchestrate handoffs", () => {
   });
   assert.equal(fixWithoutContext.decision, "stop");
   assert.match(fixWithoutContext.reason, /without handoff_context/);
+});
+
+test("agent mode supports discussion-level orchestrate handoff to implement", () => {
+  const decision = decideHandoff({
+    automationMode: "agent",
+    sourceAction: "orchestrate",
+    sourceConclusion: "requested",
+    targetKind: "discussion",
+    targetNumber: "67",
+    currentRound: 1,
+    maxRounds: 5,
+    plannerDecision: {
+      decision: "handoff",
+      nextAction: "implement",
+      reason: "The discussion contains an actionable implementation request.",
+      handoffContext: "Implement the proposal from the discussion.",
+    },
+  });
+
+  assert.equal(decision.decision, "dispatch");
+  assert.equal(decision.nextAction, "implement");
+  assert.equal(decision.targetNumber, "67");
+  assert.equal(decision.handoffContext, "Implement the proposal from the discussion.");
+  assert.match(decision.reason, /agent planner selected implement/);
+});
+
+test("agent mode rejects non-implement discussion orchestrate handoffs", () => {
+  const decision = decideHandoff({
+    automationMode: "agent",
+    sourceAction: "orchestrate",
+    sourceConclusion: "requested",
+    targetKind: "discussion",
+    targetNumber: "67",
+    currentRound: 1,
+    maxRounds: 5,
+    plannerDecision: {
+      decision: "handoff",
+      nextAction: "review",
+      reason: "Try to review a discussion.",
+    },
+  });
+
+  assert.equal(decision.decision, "stop");
+  assert.match(decision.reason, /discussion orchestration can dispatch only implement/);
 });
 
 test("agent mode rejects invalid child issue delegation", () => {
@@ -302,12 +350,12 @@ test("agent mode rejects invalid child issue delegation", () => {
   assert.match(mixedCommand.reason, /must not set next_action/);
 });
 
-test("agent mode rejects issue-level implement handoffs for non-issue targets", () => {
+test("agent mode rejects orchestrated implement handoffs for unsupported targets", () => {
   const decision = decideHandoff({
     automationMode: "agent",
     sourceAction: "orchestrate",
     sourceConclusion: "requested",
-    targetKind: "pull_request",
+    targetKind: "repository",
     targetNumber: "76",
     currentRound: 1,
     maxRounds: 5,
@@ -319,7 +367,7 @@ test("agent mode rejects issue-level implement handoffs for non-issue targets", 
   });
 
   assert.equal(decision.decision, "stop");
-  assert.match(decision.reason, /only for issue targets/);
+  assert.match(decision.reason, /only for issue, pull request, or discussion targets/);
 });
 
 test("agent mode falls back to default fix-pr context when planner omits it", () => {

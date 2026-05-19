@@ -46,7 +46,7 @@ stateDiagram-v2
 When the route starts, the router dispatches `agent-orchestrator.yml` with:
 
 - source action (`orchestrate`)
-- target kind (`issue` or `pull_request`)
+- target kind (`issue`, `pull_request`, or `discussion`)
 - target number
 - requester and request text
 - current round and max rounds
@@ -86,11 +86,16 @@ directly for a small, self-contained change on the current issue, or act as a
 meta-orchestrator when a separate child issue materially helps. For direct
 implementation, the planner returns `handoff` with `next_action: "implement"`,
 and the dispatcher launches `agent-implement.yml` for the current issue. For PR
-targets, the planner can return `handoff` with `next_action: "review"` or
-`next_action: "fix-pr"` after parsing the user's request text; runtime policy
-checks that the PR is open and rejects PR starts that try to dispatch
-`implement` or `delegate_issue`. The planner may also return `answer`, `stop`,
-or `blocked` when no follow-up workflow should run.
+targets, the planner can return `handoff` with `next_action: "review"`,
+`next_action: "fix-pr"`, or `next_action: "implement"` after parsing the user's
+request text; runtime policy checks that the PR is open. PR `implement` creates
+a context-derived tracking issue before dispatching `agent-implement.yml`, and
+defaults to the repository default branch unless the planner explicitly sets
+`base_pr`. For discussion targets, the planner can return `handoff` with
+`next_action: "implement"` when the discussion is actionable; that path also
+creates a tracking issue first and posts a best-effort link-back to the
+discussion. The planner may also return `answer`, `stop`, or `blocked` when no
+follow-up workflow should run.
 
 For child work, the planner may return `delegate_issue`, which is an internal
 command rather than a public route. The dispatcher creates or reuses one child
