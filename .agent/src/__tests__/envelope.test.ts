@@ -599,6 +599,7 @@ test("agent router supports label-triggered route and skill overrides", () => {
   assert.match(extractContext, /resolveRequestedLabel/);
   assert.match(labelWorkflow, /issues:\s+types: \[labeled\]/);
   assert.match(labelWorkflow, /pull_request_target:\s+types: \[labeled\]/);
+  assert.match(labelWorkflow, /startsWith\(github\.event\.label\.name, 'agent\/'\)/);
   assert.match(labelWorkflow, /cleanup-label:/);
   assert.match(labelWorkflow, /needs\.agent\.result == 'success'/);
   assert.match(labelWorkflow, /needs\.agent\.outputs\.should_respond == 'true'/);

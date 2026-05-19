@@ -1,13 +1,13 @@
 # Repository goals
 
-Sepo tracks large repository objectives as GitHub issues with the `goal` label.
-A goal issue is the canonical, reviewable object for a strategic objective. It
-should describe the objective, rationale, success criteria, current strategy,
-subgoals, and linked work.
+Sepo tracks large repository objectives as GitHub issues with the `agent-goal`
+label. A goal issue is the canonical, reviewable object for a strategic
+objective. It should describe the objective, rationale, success criteria,
+current strategy, subgoals, and linked work.
 
-Use the `Repository goal` issue template to create one. The template includes a
-hidden `sepo-goal v1` marker for future tooling, but the durable source of truth
-is still the issue body and GitHub issue history.
+Use the `Agent goal` issue form to create one. The form applies `agent-goal`
+and requires Goal, Why, and Success criteria. The durable source of truth is the
+issue body and GitHub issue history.
 
 ## Hierarchy
 
@@ -29,8 +29,8 @@ implementation, review, and fix-pr loops.
 
 ## Orchestration
 
-Run `@sepo-agent /orchestrate` on a goal issue when Sepo should plan the next
-bounded step. In agent automation mode, the orchestrator may treat a `goal`
+Run `@sepo-agent /orchestrate` on an `agent-goal` issue when Sepo should plan
+the next bounded step. In agent automation mode, the orchestrator may treat the
 issue as a parent objective and use the internal `delegate_issue` decision to
 create, reuse, or adopt one child issue. The child issue then runs the normal
 orchestrator flow, and the parent goal receives visible progress comments when
@@ -43,9 +43,10 @@ During parent planning and later reflection, the goal's success criteria are the
 scope boundary: proposed children should explain how they advance the goal, and
 Sepo should avoid continuing work that no longer matches that objective.
 
-`goal` is a repository-management label, not a route trigger. Do not use an
-`agent/goal` label for v0: labels under `agent/` select agent routes, while
-goals are context for planning and decomposition.
+`agent-goal` is a repository-management label, not a route trigger. Do not use
+an `agent/goal` label for v0: labels under `agent/` select agent routes, while
+goals are context for planning and decomposition. A future `agent/goal` label
+would need explicit route semantics before entering the trigger namespace.
 
 ## Memory
 

@@ -8,9 +8,9 @@ const ONBOARDING_TITLE = "Sepo setup check";
 const COMMENT_MARKER = "<!-- sepo-agent-onboarding-check -->";
 const REPOSITORY_MANAGEMENT_LABELS = [
   {
-    name: "goal",
+    name: "agent-goal",
     color: "5319e7",
-    description: "Tracks a larger repository objective for sub-issues and orchestration",
+    description: "Marks an issue as a repository-level goal for Sepo planning",
   },
 ];
 

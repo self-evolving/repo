@@ -92,7 +92,7 @@ checks that the PR is open and rejects PR starts that try to dispatch
 `implement` or `delegate_issue`. The planner may also return `answer`, `stop`,
 or `blocked` when no follow-up workflow should run.
 
-Issue targets labeled `goal` are parent objectives rather than ordinary
+Issue targets labeled `agent-goal` are parent objectives rather than ordinary
 implementation tasks. The planner should use the goal body, success criteria,
 subgoals, linked work, and existing sub-issues to choose one bounded next step.
 When the next step is non-trivial or represents a distinct subgoal, prefer
