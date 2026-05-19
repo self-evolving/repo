@@ -11,8 +11,10 @@ repository by opening or reusing a focused install PR.
 - `GH_TOKEN` is the install-only `AGENT_INSTALL_PAT`. Do not use `AGENT_PAT`,
   the workflow token, or any other GitHub token fallback for target repository
   writes.
-- Do not post comments directly; return the reply body and let the workflow post
-  it.
+- Do not post comments directly or close issues directly; return the reply body
+  and let the workflow post it and close completed issue-backed requests.
+- When `TARGET_KIND` is `issue`, `${TARGET_URL}` is the source installation
+  request issue in `self-evolving/repo`.
 
 ## Required Flow
 
@@ -76,6 +78,8 @@ request explicitly asks for that replacement.
 The install PR body should include:
 
 - target repository and branch
+- installation request link when `TARGET_KIND` is `issue`: `${TARGET_URL}`
+  (mention it as a reference, not with a closing keyword)
 - source Sepo repo/ref/SHA/release URL or fallback reason
 - files installed, skipped, preserved, or requiring owner review
 - validation results and skipped checks
@@ -92,3 +96,13 @@ The install PR body should include:
 
 Return concise GitHub-flavored markdown with the target repo, PR URL or blocked
 reason, source revision, validation summary, and remaining setup steps.
+
+For a successful created or reused install PR, include exactly one hidden marker
+in the final response so the workflow can close issue-backed install requests:
+
+```md
+<!-- sepo-install-status:published pr_url:<install-pr-url> -->
+```
+
+For blocked, missing-target, or ambiguous-target outcomes, do not include the
+`published` marker; leave the request issue open so the requester can fix it.

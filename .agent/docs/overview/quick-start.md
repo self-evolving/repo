@@ -15,7 +15,7 @@
 
 ## Install into an existing repository
 
-Use [Install into an existing repository](../deployment/install-existing-repository.md) for the minimal non-template flow. It covers copying `.agent/` and `.github/`, configuring secrets, running the onboarding setup check, and bootstrapping `agent/memory` from GitHub Actions.
+Use [Install into an existing repository](../deployment/install-existing-repository.md) for the minimal non-template flow. It covers copying `.agent/` and `.github/`, configuring secrets, running the onboarding setup check, and bootstrapping `agent/memory` from GitHub Actions. Authorized users can also [open an install request issue](https://github.com/self-evolving/repo/issues/new?template=install-sepo.md) in `self-evolving/repo` and paste the public target URL.
 
 ## Trigger Sepo
 
@@ -35,7 +35,7 @@ Use an explicit slash route when you already know the action:
 | Review | Run the dual-agent PR review flow. | `@sepo-agent /review` |
 | Fix PR | Push fixes to the current PR branch. | `@sepo-agent /fix-pr` |
 | Skill | Run a repository skill from `<skill_root>/<name>/SKILL.md`. | `@sepo-agent /skill <name>` |
-| Install | Run the dedicated install route when Sepo can write to the target repository. | `@sepo-agent /install ...` |
+| Install | Run the dedicated install route when Sepo can write to the target repository, or use the [install request issue template](https://github.com/self-evolving/repo/issues/new?template=install-sepo.md). | `@sepo-agent /install ...` |
 
 You can also trigger the same built-in routes with labels:
 

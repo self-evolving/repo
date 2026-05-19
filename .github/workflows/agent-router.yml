@@ -704,6 +704,32 @@ jobs:
           TARGET_NUMBER: ${{ needs.portal.outputs.target_number }}
         run: node .agent/dist/cli/post-response.js
 
+      - name: Close completed install request issue
+        if: env.AGENT_INSTALL_PAT_CONFIGURED == 'true' && steps.install.outcome == 'success' && needs.portal.outputs.target_kind == 'issue'
+        env:
+          BODY_FILE: ${{ steps.install.outputs.response_file }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          TARGET_NUMBER: ${{ needs.portal.outputs.target_number }}
+        run: |
+          if ! grep -q '<!-- sepo-install-status:published' "$BODY_FILE"; then
+            echo "Install did not publish or reuse a target PR; leaving request issue open."
+            exit 0
+          fi
+
+          state="$(gh issue view "$TARGET_NUMBER" --repo "$GITHUB_REPOSITORY" --json state --jq .state 2>/dev/null || true)"
+          if [ "$state" = "CLOSED" ]; then
+            echo "Install request issue #${TARGET_NUMBER} is already closed."
+            exit 0
+          fi
+
+          install_pr_url="$(grep -Eo 'https://github.com/[^[:space:])]+/pull/[0-9]+' "$BODY_FILE" | head -n 1 || true)"
+          if [ -n "$install_pr_url" ]; then
+            gh issue close "$TARGET_NUMBER" --repo "$GITHUB_REPOSITORY" --comment "Installation PR is ready: $install_pr_url"
+          else
+            gh issue close "$TARGET_NUMBER" --repo "$GITHUB_REPOSITORY" --comment "Installation PR is ready; see the agent response above for details."
+          fi
+
   # --- Route: implementation-like routes (approval request) ---
   approval:
     needs: portal

@@ -9,7 +9,9 @@ In practice, the cleanest install path is:
 3. use the repository's own GitHub Actions workflows to bootstrap `agent/memory` and, optionally, `agent/rubrics`
 
 From `self-evolving/repo`, authorized users can ask Sepo to prepare that PR for
-a public target repository:
+a public target repository by opening an
+[install request issue](https://github.com/self-evolving/repo/issues/new?template=install-sepo.md)
+and pasting the target URL, or by mentioning the install route directly:
 
 ```md
 @sepo-agent /install can you install Sepo into https://github.com/owner/repo?
@@ -40,7 +42,9 @@ cannot read the public target, create/reuse the fork, push the branch, or
 open/reuse the PR, the route reports a blocked result with the specific
 permission gap and next step. An existing open install PR from the same token
 owner is reused; an open install PR from another owner is treated as a duplicate
-blocked state.
+blocked state. When an issue-backed install request successfully publishes or
+reuses the target install PR, the source issue in `self-evolving/repo` is closed
+after the agent response is posted.
 
 Use `AGENT_ACCESS_POLICY.route_overrides.install` to restrict who may trigger
 external installs independently from general `/skill` runs:

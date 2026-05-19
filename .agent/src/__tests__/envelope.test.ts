@@ -857,6 +857,8 @@ test("skill route uses the composite setup action for path and setup checks", ()
   const runnerWorkflow = readRepoFile(".github/workflows/agent-router.yml");
   const setupAction = readRepoFile(".github/actions/run-skill-setup/action.yml");
   const runAgentTaskAction = readRepoFile(".github/actions/run-agent-task/action.yml");
+  const installPrompt = readRepoFile(".github/prompts/agent-install.md");
+  const installIssueTemplate = readRepoFile(".github/ISSUE_TEMPLATE/install-sepo.md");
   const runSource = readRepoFile(".agent/src/run.ts");
   const supplementalVars = readSupplementalPromptVarNames(runSource);
   const skillJobStart = runnerWorkflow.indexOf("  skill:\n    needs: portal");
@@ -894,6 +896,15 @@ test("skill route uses the composite setup action for path and setup checks", ()
   assert.match(installWorkflow, /ROUTE:\s*install/);
   assert.match(installWorkflow, /github_token:\s*\$\{\{\s*secrets\.AGENT_INSTALL_PAT\s*\}\}/);
   assert.doesNotMatch(installWorkflow, /github_token:[^\n]*steps\.auth\.outputs\.token/);
+  assert.match(installWorkflow, /Close completed install request issue/);
+  assert.match(installWorkflow, /needs\.portal\.outputs\.target_kind == 'issue'/);
+  assert.match(installWorkflow, /sepo-install-status:published/);
+  assert.match(installWorkflow, /gh issue close/);
+  assert.match(installPrompt, /installation request link/);
+  assert.match(installPrompt, /\$\{TARGET_URL\}/);
+  assert.match(installPrompt, /sepo-install-status:published pr_url:<install-pr-url>/);
+  assert.match(installIssueTemplate, /@sepo-agent \/install/);
+  assert.doesNotMatch(installIssueTemplate, /owner\/repo|OWNER\/REPO|your-org\/your-repository/);
   assert.doesNotMatch(installWorkflow, /\.\/\.github\/actions\/run-skill-setup/);
   assert.ok(optionalProviderStart >= 0);
   assert.ok(runtimeStart > optionalProviderStart);

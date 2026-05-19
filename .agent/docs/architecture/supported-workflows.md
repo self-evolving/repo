@@ -219,7 +219,7 @@ Explicit routes are:
 - `@sepo-agent /review`
 - `@sepo-agent /orchestrate`
 - `@sepo-agent /skill <name>`
-- `@sepo-agent /install ...`
+- `@sepo-agent /install ...` or the [install request issue template](https://github.com/self-evolving/repo/issues/new?template=install-sepo.md)
 
 Explicit routes skip dispatch triage and resolve locally, but still go through the same route policy checks afterward.
 When an explicit `/implement` request on a pull request or discussion creates a tracking issue, the router runs a metadata-only agent prompt to synthesize the issue title and body from the request plus target context. The slash command approves the route; it is not copied into the title. Pull request metadata can also include `base_pr` for stacked or follow-up implementation requests. If metadata generation is unavailable or invalid, the issue falls back to `Implement requested change`.
@@ -242,7 +242,9 @@ without blocking general `/skill` runs. The install route requires the
 `AGENT_INSTALL_PAT` secret and passes that token to the install prompt; other
 routes continue using the standard GitHub auth resolver. The prompt uses the
 install fork/PR helper to prepare a fork-backed worktree, then push, reuse, or
-open the install PR.
+open the install PR. Successful issue-backed install requests are closed after
+the agent response is posted, and the target install PR body links back to the
+source request issue.
 
 ### `agent-label.yml`
 
