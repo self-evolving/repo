@@ -188,8 +188,8 @@
       "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-269/codex-26007754542`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Narrowed `/install` v1 contract to the already-resolved workflow token: it may clone public targets, but opens an install PR only when that active token can write to the target.\n- Updated install docs, README, quick start, and `install-agent` skill guidance to stop as blocked instead of implying token switching or fork creation.\n- Made malformed `/install` requests use an internal `invalid-install` decision, so generic `unsupported` no longer hardcodes install-specific guidance.\n\n<details><summary>Verification</summary>\n\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/triage.test.js .agent/dist/__tests__/resolve-dispatch-cli.test.js .agent/dist/__tests__/extract-context-cli.test.js .agent/dist/__tests__/envelope.test.js`\n- `git diff --check`\n\n</details>",
       "createdAt": "2026-05-18T01:35:17Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4473431973",
       "viewerDidAuthor": true
@@ -218,8 +218,8 @@
       "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 94 | PASS | 11 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | `/install owner/repo` reuses the existing `skill` route and bundled `install-agent` skill instead of adding a separate route engine or workflow. |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | The docs state `/install` is evaluated as the `skill` route, and `.agent/src/triage.ts` maps valid install requests to `route: \"skill\", skill: \"install-agent\"`, preserving the downstream route policy. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The latest head preserves the validated target as `installTargetRepo`, emits `requested_install_target_repo`, wires it through `agent-router.yml`, and exposes it to the skill prompt as `INSTALL_TARGET_REPO`. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | `.skills/install-agent/SKILL.md` now requires checking for an existing open `agent/install-agent-infra` PR before commit/push/PR creation, and setup guidance points users back to the reusable `Sepo setup check` issue. |\n| communication / generic | Keep status comments compact | pass | 6/6 | The install PR guidance now uses a concise numbered “Required setup after merge” structure for App/auth, provider secrets, onboarding check, memory, and rubrics. |\n| communication / generic | Write audience-first documentation | pass | 7/7 | README and install docs lead with the user-facing command and practical limitation: `/install owner/repo` works when the already-resolved Sepo token can write to the target. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Route behavior and install limitations are updated across README, quick start, supported workflows, actions, skills, install guide, developer notes, and the install skill. |\n| coding_workflow / generic | Read docs and linked context first | partial | 5/6 | The PR reflects issue #269 and Discussion #271 by narrowing v1 to clone/analyze public repos and open PRs only with current-token write access. Minor gap: release source resolution remains skill prose rather than the deterministic resolver/test suggested in the issue discussion. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | The implementation keeps `/install` as a minimal alias while documenting the v1 boundary and pointing unsupported target/fork auth flows to manual or future native paths. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are scoped to route parsing/context plumbing, focused tests, workflow input passing, and install-related documentation/skill guidance. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The PR adds a small parser branch, explicit target context, and skill guidance rather than introducing a larger install subsystem. |\n\n## Notes\n\n- The important earlier rubric gaps were addressed in the latest head: validated target context is now structured, install reruns check for an existing open install PR, and malformed `/install` uses a route-specific `invalid-install` path.\n- The remaining rubric-specific caveat is small: issue #269 suggested deterministic release source resolution, but this PR keeps latest-release selection in skill instructions.\n\n## Findings\n\n- **INFO:** `read-docs-first` is not perfect because the linked minimum plan mentioned a source resolver and tests for release/prerelease selection; the PR documents the behavior in `.skills/install-agent/SKILL.md` instead of implementing deterministic resolution. This is acceptable for the narrowed v1 contract but worth tracking if install automation becomes more than agent-guided skill execution.\n\n## Final Rubric Verdict\n\nPASS",
       "createdAt": "2026-05-18T01:37:43Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4473454066",
       "viewerDidAuthor": true
@@ -233,36 +233,238 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: cf4b5636ee175d779b542276c8612e9174c7d165 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #273 adds `@sepo-agent /install owner/repo` as a thin alias to the bundled `install-agent` skill for issue #269. The latest head preserves the validated target as structured install context and passes it through to the skill prompt. It also narrows the v1 external install contract in response to Discussion #271: Sepo may clone public repos, but it only opens the install PR when the already-resolved workflow token can write to the target. The install docs and skill guidance now make that limitation explicit and keep fork/PAT-backed external install as future work.\n\n## Review\nThe current reviewer outputs agree that the latest head is shippable. The previous blocking/warning concerns have been addressed, and the remaining notes are non-blocking follow-up hardening rather than required PR changes.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable issues | INFO | No current BLOCKING or WARNING findings remain on the latest head. Remaining notes are future hardening around deterministic release-source resolution and fork/PAT-backed external install. |\n\n## Progress\n- Prior structured-input concern is fixed: `requested_install_target_repo` now flows into `INSTALL_TARGET_REPO`.\n- Prior rerun-idempotency concern is fixed: the install skill now checks for an existing open install PR.\n- Prior external-auth contract concern is fixed by narrowing v1 to the already-resolved token and blocked-result behavior.\n- Resolved the older same-agent inline thread on `.agent/docs/deployment/install-existing-repository.md`; no new inline comments were posted.\n- Current reviewers do not materially disagree; all treat fork/PAT-backed external install and deterministic release resolution as follow-up, not blockers.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved required branch changes remain for automation.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
       "createdAt": "2026-05-18T01:44:45Z",
       "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4473482208",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC6G38w",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer can you check my latest review comments ",
+      "createdAt": "2026-05-19T17:01:00Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4490115059",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC6H4Lg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I checked them. Your latest inline comments are all on the `/install` regex in PR #273:\n\n- [`triage.ts` regex concern](https://github.com/self-evolving/repo/pull/273#discussion_r3267976463): parsing the install target with a rigid regex is too narrow.\n- [Follow-up](https://github.com/self-evolving/repo/pull/273#discussion_r3267981430): if the agent parses the request, maybe we do not need the extra variable.\n- [Follow-up](https://github.com/self-evolving/repo/pull/273#discussion_r3267987692): after #281, #283, #285, `/install` is closer to an `implement`-style route.\n\nI agree with the direction, with one caveat.\n\n`/install` should become first-class route behavior, not just “regex extracts `owner/repo` then run a skill.” The better model after #281/#283/#285 is:\n\n1. Router detects `@sepo-agent /install` and authorizes the `install` route.\n2. The full user request is passed through.\n3. Install logic extracts the target from either `owner/repo`, a GitHub URL, or natural language.\n4. If the target is missing or ambiguous, it blocks with a clarification.\n5. If clear, the install route uses the install-only auth/fork helper to create or reuse the external install PR.\n\nSo yes: the current PR #273 parser is probably too strict as the long-term interface.\n\nI would still keep a structured target variable, but make it optional. It is useful when deterministic extraction succeeds, because downstream helper code should not re-parse prose if it already has a normalized `owner/repo`. But it should not be the only accepted path. The route should not reject `/install can you install Sepo into https://github.com/foo/bar` just because the first token is not a perfect slug.\n\nConcretely, I’d adjust the stack like this:\n\n- In #273, make `/install` route detection permissive: detect the command, do not require an immediate slug.\n- Let `requested_install_target_repo` be optional best-effort normalized context, not a hard gate.\n- Move richer target resolution into install-specific code/skill/helper, with support for GitHub URLs and natural text.\n- Keep #281’s first-class `install` route, because install needs separate access policy from generic `/skill`.\n- Keep #283/#285’s install-only PAT/fork mechanics, because external public repo PR creation is not the same as normal same-repo implementation.\n\nSo I would not remove all structured context, but I would remove the rigid “must parse exact slug at route extraction time” contract.",
+      "createdAt": "2026-05-19T17:03:08Z",
+      "includesCreatedEdit": false,
       "isMinimized": false,
       "minimizedReason": "",
       "reactionGroups": [],
-      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4473482208",
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4490131502",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC6N1Nw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> I checked them. Your latest inline comments are all on the `/install` regex in PR #273:\r\n> \r\n> * [`triage.ts` regex concern](https://github.com/self-evolving/repo/pull/273#discussion_r3267976463): parsing the install target with a rigid regex is too narrow.\r\n> * [Follow-up](https://github.com/self-evolving/repo/pull/273#discussion_r3267981430): if the agent parses the request, maybe we do not need the extra variable.\r\n> * [Follow-up](https://github.com/self-evolving/repo/pull/273#discussion_r3267987692): after [Make /install a first-class route #281](https://github.com/self-evolving/repo/pull/281), [Use AGENT_INSTALL_PAT for /install runs #283](https://github.com/self-evolving/repo/pull/283), [Add fork-backed install PR helper #285](https://github.com/self-evolving/repo/pull/285), `/install` is closer to an `implement`-style route.\r\n> \r\n> I agree with the direction, with one caveat.\r\n> \r\n> `/install` should become first-class route behavior, not just “regex extracts `owner/repo` then run a skill.” The better model after #281/#283/#285 is:\r\n> \r\n> 1. Router detects `@sepo-agent /install` and authorizes the `install` route.\r\n> 2. The full user request is passed through.\r\n> 3. Install logic extracts the target from either `owner/repo`, a GitHub URL, or natural language.\r\n> 4. If the target is missing or ambiguous, it blocks with a clarification.\r\n> 5. If clear, the install route uses the install-only auth/fork helper to create or reuse the external install PR.\r\n> \r\n> So yes: the current PR #273 parser is probably too strict as the long-term interface.\r\n> \r\n> I would still keep a structured target variable, but make it optional. It is useful when deterministic extraction succeeds, because downstream helper code should not re-parse prose if it already has a normalized `owner/repo`. But it should not be the only accepted path. The route should not reject `/install can you install Sepo into https://github.com/foo/bar` just because the first token is not a perfect slug.\r\n> \r\n> Concretely, I’d adjust the stack like this:\r\n> \r\n> * In [Add /install route alias for install-agent #273](https://github.com/self-evolving/repo/pull/273), make `/install` route detection permissive: detect the command, do not require an immediate slug.\r\n> * Let `requested_install_target_repo` be optional best-effort normalized context, not a hard gate.\r\n> * Move richer target resolution into install-specific code/skill/helper, with support for GitHub URLs and natural text.\r\n> * Keep [Make /install a first-class route #281](https://github.com/self-evolving/repo/pull/281)’s first-class `install` route, because install needs separate access policy from generic `/skill`.\r\n> * Keep [Use AGENT_INSTALL_PAT for /install runs #283](https://github.com/self-evolving/repo/pull/283)/[Add fork-backed install PR helper #285](https://github.com/self-evolving/repo/pull/285)’s install-only PAT/fork mechanics, because external public repo PR creation is not the same as normal same-repo implementation.\r\n> \r\n> So I would not remove all structured context, but I would remove the rigid “must parse exact slug at route extraction time” contract.\r\n\r\n@sepo-agent /fix-pr\r\n\r\n1. I merged 281 + 283 to this PR; \r\n2. Let's fix this PR given our discussion above. I think `Let requested_install_target_repo be optional best-effort normalized context, not a hard gate.` might not be that useful if that's a just an optional context.\r\n3. Further, we should also resolve merge conflicts with main. ",
+      "createdAt": "2026-05-19T17:15:40Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4490229047",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC6R1MA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-269/codex-26007754542`. Requested by @lolipopshock.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Resolved the merge with `origin/main`; all conflicts are fixed and staged, with merge still uncommitted as requested.\n- Made `/install` route detection permissive: the router now detects the command and passes the full request through without requiring a route-time `owner/repo` slug.\n- Removed `requested_install_target_repo` / `install_target_repo` / `INSTALL_TARGET_REPO` plumbing and updated install docs/skill guidance so target resolution belongs to the install skill.\n- Verified with `npm --prefix .agent run build` and focused routing/envelope tests: 137 passed.",
+      "createdAt": "2026-05-19T17:24:12Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4490294576",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC6Tirw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review",
+      "createdAt": "2026-05-19T17:28:09Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4490322607",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC6VKEQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer also i think in this PR and the next one the modification makes the `install-agent` way too much complicated and beyond its their original scope. \r\n\r\nin that vein, perhaps we should avoid modifying the existing skill-based installation and just create a dedicated install prompt (and route)? ",
+      "createdAt": "2026-05-19T17:31:43Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4490349073",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC6VMPQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 94 | PASS | 12 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | `/install` is now a first-class `install` route, and policy can restrict it independently from `/skill`; see [`triage.ts`](https://github.com/self-evolving/repo/blob/927edc45996ee412e4dad88ce6ffbad0412611f8/.agent/src/triage.ts#L146) and [`install-existing-repository.md`](https://github.com/self-evolving/repo/blob/927edc45996ee412e4dad88ce6ffbad0412611f8/.agent/docs/deployment/install-existing-repository.md#L37). |\n| coding_workflow / generic | Prefer permissive command route parsing | partial | 6/7 | Route detection now only detects `/install` and passes full `REQUEST_TEXT`; the skill resolves slugs, URLs, or natural language. It no longer preserves deterministic normalized context, which the rubric allows as useful but not mandatory per latest requester direction. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The route still executes the existing bundled `install-agent` skill through the shared skill job rather than adding a separate install workflow; see [`agent-router.yml`](https://github.com/self-evolving/repo/blob/927edc45996ee412e4dad88ce6ffbad0412611f8/.github/workflows/agent-router.yml#L438). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The PR uses explicit `install` route semantics and a dedicated `AGENT_INSTALL_PAT` secret instead of overloading generic `/skill` auth or normal `AGENT_PAT`; see [`agent-router.yml`](https://github.com/self-evolving/repo/blob/927edc45996ee412e4dad88ce6ffbad0412611f8/.github/workflows/agent-router.yml#L446). |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | The implementation keeps the default surface small: route authorization plus the install skill, with target/fork/auth behavior bounded to `AGENT_INSTALL_PAT` and skill guidance. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | The install skill now checks for an existing open `agent/install-agent-infra` PR before push/PR creation; see [`SKILL.md`](https://github.com/self-evolving/repo/blob/927edc45996ee412e4dad88ce6ffbad0412611f8/.skills/install-agent/SKILL.md#L118). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Docs cover route behavior, route policy, `AGENT_INSTALL_PAT`, and target resolution across install docs, README, supported workflows, access policy, and configuration docs. |\n| communication / generic | Write audience-first documentation | pass | 7/7 | The install guide leads with the user command and practical behavior before auth details; see [`install-existing-repository.md`](https://github.com/self-evolving/repo/blob/927edc45996ee412e4dad88ce6ffbad0412611f8/.agent/docs/deployment/install-existing-repository.md#L11). |\n| communication / generic | Keep status comments compact | pass | 6/6 | The missing-`AGENT_INSTALL_PAT` response is concise and action-oriented; see [`agent-router.yml`](https://github.com/self-evolving/repo/blob/927edc45996ee412e4dad88ce6ffbad0412611f8/.github/workflows/agent-router.yml#L480). |\n| coding_workflow / generic | Generate context-derived artifact metadata | pass | 7/7 | The install skill requires PR bodies to include source revision, audit, detected settings, validation, and remaining setup todos; see [`SKILL.md`](https://github.com/self-evolving/repo/blob/927edc45996ee412e4dad88ce6ffbad0412611f8/.skills/install-agent/SKILL.md#L183). |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The latest head reflects issue #269, discussion #271, and the latest inline comments by making parsing permissive and moving target resolution into install-specific skill behavior. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is scoped to install route parsing, workflow plumbing, tests, docs, and skill instructions; no broad unrelated refactor is visible. |\n\n## Notes\n\n- The latest head addresses the requester’s main inline concern: `/install` no longer requires an exact route-time slug and no longer carries `requested_install_target_repo`; the skill receives the full request and owns target resolution.\n- The strongest rubric fits are authorization separation, reuse of the existing skill execution path, and docs staying aligned with `AGENT_INSTALL_PAT`.\n- The only minor deduction is that the permissive parsing rubric says normalized context can still be useful when extraction is deterministic, while this PR intentionally removes it based on the latest discussion.\n\n## Findings\n\n- **INFO:** `permissive-command-route-parsing` is substantially satisfied. The remaining structured-context omission is acceptable given the requester’s latest preference that optional `requested_install_target_repo` may not be useful.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-19T17:31:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4490349629",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC6ZXhQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> also i think in this PR and the next one the modification makes the `install-agent` way too much complicated and beyond its their original scope.\r\n> \r\n> in that vein, perhaps we should avoid modifying the existing skill-based installation and just create a dedicated install prompt (and route)?\r\n\r\n@sepo-agent /answer",
+      "createdAt": "2026-05-19T17:41:15Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4490418053",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC6ZZvg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 927edc45996ee412e4dad88ce6ffbad0412611f8 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #273 implements issue #269 by adding `/install` as a first-class route for installing Sepo into another repository. The latest head makes route detection permissive, passes the full request to `install-agent`, removes `requested_install_target_repo`, and gates install runs on `AGENT_INSTALL_PAT`. It also documents separate install authorization, target resolution, post-merge setup, and install-specific token behavior. This reflects the broader Discussion #271 constraint that public repos are readable, but opening PRs requires a writable install identity.\n\n## Review\nThe current implementation is close, and reviewers agree the rigid `/install owner/repo` parsing concern has been addressed. One workflow hardening item remains around keeping install runs from ever falling back to the normal route token.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Install token handoff can fall back if guards drift | WARNING | `.github/workflows/agent-router.yml` passes `secrets.AGENT_INSTALL_PAT || steps.auth.outputs.token`; today earlier gates prevent empty-PAT install execution, but the token input itself does not enforce that invariant. |\n| Dedicated install prompt vs bundled skill remains a design choice | INFO | The latest maintainer comment questions whether `install-agent` is now too broad. Current review artifacts treat the bundled skill route as acceptable, so this is a product direction call rather than a required branch fix. |\n| Rubrics docs lag install route support | INFO | `rubrics.ts` now supports `install` and `skill -> install` matching, but the rubrics architecture doc example still omits `install`. This is non-blocking docs polish. |\n\n## Progress\n- The prior human inline concern on rigid regex parsing is addressed in code: `/install` detection is command-only and target parsing moved to the install skill.\n- Prior findings about open install PR lookup and external-auth documentation are fixed; older same-agent threads remain resolved.\n- Posted one new inline comment on `.github/workflows/agent-router.yml:590`.\n- No threads were resolved and no comments were minimized in this synthesis pass.\n\n## Issue Details\n<details>\n<summary>Install token handoff can fall back if guards drift</summary>\n\n**Cause:** The current input at [`agent-router.yml#L590`](https://github.com/self-evolving/repo/blob/927edc45996ee412e4dad88ce6ffbad0412611f8/.github/workflows/agent-router.yml#L590) falls back to `steps.auth.outputs.token` when `AGENT_INSTALL_PAT` is empty. The step is currently unreachable in that state, but the protection lives in earlier `if` guards.\n\n**Candidate solutions:** Split normal skill and install skill execution into separate steps with fixed token inputs, or compute an explicit task token that only uses the normal auth token when `route != 'install'`.\n\n**Comments:** Codex/rubrics reviewers did not treat this as blocking; Claude flagged it as workflow hardening. Synthesis treats it as a minor required fix because `/install` is a privileged cross-repo path.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: one concrete workflow hardening change remains and is safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Harden the install-route `github_token` handoff so `/install` cannot use the normal auth token if `AGENT_INSTALL_PAT` is absent or a guard is refactored.",
+      "createdAt": "2026-05-19T17:41:19Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4490418622",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC6aXZw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I agree. At this point `/install` has grown past what a repository skill should own.\n\nThe clean split should be:\n\n- Keep `.skills/install-agent/SKILL.md` as the original manual/skill-based installation guidance: useful for “run this skill and adapt the repo carefully.”\n- Add a dedicated install route/prompt, something like `.github/prompts/agent-install.md`, for the productized `/install` flow.\n- Keep deterministic mechanics in typed code, not skill prose: target/fork validation, `AGENT_INSTALL_PAT`, branch creation, PR reuse, blocked states, and PR creation should live in `.agent/src/*` helpers/CLIs.\n- Let the install prompt orchestrate those helpers and write the user-facing summary/PR body.\n\nSo yes: we should stop expanding `install-agent` to cover route policy, PAT/fork behavior, blocked states, target parsing, and install PR lifecycle. That is route behavior, not skill behavior.\n\nI’d make the stack look like this:\n\n1. **This PR #273:** first-class `install` route, access policy, permissive `/install` command detection, dedicated install prompt wiring. Minimize or revert most `install-agent` skill expansion.\n2. **Next PR #285:** fork-backed public install helper stays, but it is invoked by the dedicated install route/prompt, not by mutating the skill into a workflow controller.\n3. **Existing skill:** remains available for manual/custom installs, maybe with a short note: “For public cross-repo install PRs, prefer `@sepo-agent /install ...`.”\n\nI would not model `/install` as generic `/implement`; it has different auth and safety semantics. But I would model it similarly in shape: a first-class route with a dedicated prompt and typed helper code behind it.",
+      "createdAt": "2026-05-19T17:42:57Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4490434407",
       "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-18T00:59:02Z",
   "files": [
     {
-      "path": ".agent/docs/actions/agent-actions.md",
-      "additions": 1,
-      "deletions": 1,
-      "changeType": "MODIFIED"
-    },
-    {
-      "path": ".agent/docs/architecture/supported-workflows.md",
-      "additions": 6,
+      "path": ".agent/docs/access-policy.md",
+      "additions": 12,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
-      "path": ".agent/docs/customization/skills.md",
-      "additions": 4,
+      "path": ".agent/docs/actions/agent-actions.md",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 11,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 1,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/docs/deployment/install-existing-repository.md",
-      "additions": 33,
+      "additions": 50,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/deployment/setup-guide.md",
+      "additions": 4,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
@@ -280,7 +482,7 @@
     },
     {
       "path": ".agent/src/__tests__/envelope.test.ts",
-      "additions": 8,
+      "additions": 26,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
@@ -292,49 +494,79 @@
     },
     {
       "path": ".agent/src/__tests__/resolve-dispatch-cli.test.ts",
-      "additions": 32,
+      "additions": 39,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/rubrics.test.ts",
+      "additions": 19,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/__tests__/triage.test.ts",
-      "additions": 55,
+      "additions": 96,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/cli/extract-context.ts",
-      "additions": 4,
+      "additions": 2,
       "deletions": 1,
       "changeType": "MODIFIED"
     },
     {
-      "path": ".agent/src/run.ts",
+      "path": ".agent/src/cli/resolve-dispatch.ts",
+      "additions": 10,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/envelope.ts",
       "additions": 1,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
+      "path": ".agent/src/rubrics.ts",
+      "additions": 5,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
       "path": ".agent/src/triage.ts",
-      "additions": 50,
+      "additions": 36,
       "deletions": 1,
       "changeType": "MODIFIED"
     },
     {
       "path": ".github/actions/run-agent-task/action.yml",
-      "additions": 5,
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-entrypoint.yml",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-label.yml",
+      "additions": 1,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
       "path": ".github/workflows/agent-router.yml",
-      "additions": 2,
-      "deletions": 0,
+      "additions": 34,
+      "deletions": 7,
       "changeType": "MODIFIED"
     },
     {
       "path": ".skills/install-agent/SKILL.md",
-      "additions": 77,
+      "additions": 78,
       "deletions": 16,
       "changeType": "MODIFIED"
     },
@@ -387,10 +619,40 @@
       "commit": {
         "oid": "6b2ccbc2f409e88fd6ebf3af8dc3916b4f9cd8bd"
       }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAY3kPQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer check my comments ",
+      "submittedAt": "2026-05-19T16:41:18Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "cf4b5636ee175d779b542276c8612e9174c7d165"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAZTpow",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-19T17:40:07Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "927edc45996ee412e4dad88ce6ffbad0412611f8"
+      }
     }
   ],
   "state": "OPEN",
   "title": "Add /install route alias for install-agent",
-  "updatedAt": "2026-05-18T01:44:46Z",
+  "updatedAt": "2026-05-19T17:42:57Z",
   "url": "https://github.com/self-evolving/repo/pull/273"
 }

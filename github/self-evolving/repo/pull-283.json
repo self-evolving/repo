@@ -3,9 +3,9 @@
     "is_bot": true,
     "login": "app/sepo-agent-app"
   },
-  "baseRefName": "agent/implement-issue-279/codex-26084652085",
+  "baseRefName": "agent/implement-issue-269/codex-26007754542",
   "body": "## Summary\n- Add optional `AGENT_INSTALL_PAT` plumbing through the entrypoint, label, and router workflows.\n- Block `/install owner/repo` before the skill runs when `AGENT_INSTALL_PAT` is missing, with a clear required-secret and rerun message.\n- Pass `AGENT_INSTALL_PAT` as the install-agent task token only for the `install` route; normal skill and other routes keep the existing auth resolver path.\n- Update install docs, setup/configuration docs, install skill guidance, and envelope tests.\n\n## Notes\n- This does not add `AGENT_INSTALL_POLICY`, fork creation, or a typed cross-repo PR helper.\n\n## Verification\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/envelope.test.js .agent/dist/__tests__/resolve-dispatch-cli.test.js .agent/dist/__tests__/triage.test.js`\n- `node -e \"const fs=require('fs'); const YAML=require('yaml'); for (const f of ['.github/workflows/agent-router.yml','.github/workflows/agent-entrypoint.yml','.github/workflows/agent-label.yml']) YAML.parse(fs.readFileSync(f,'utf8'));\"`\n- `git diff --check`\n\nCloses #282\n",
-  "closedAt": null,
+  "closedAt": "2026-05-19T17:11:54Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABC2ILFA",
@@ -36,14 +36,41 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/283#issuecomment-4486036843",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC6Mvxg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #283.\n\nNo rubric changes.\n\nI read PR #283, issue comments, review comments, reviews, owner/collaborator signals, linked issue #282, parent issue #277, and the active rubric set. PR #283’s own conversation only had bot-authored automation/synthesis comments, with no trusted human review feedback. The broader issue context was install-specific planning, and the reusable lessons are already covered by existing rubrics like `simple-implementation`, `keep-docs-in-sync`, `validate-delegated-route-authorization`, and `abstract-learned-rubrics`.\n\nRubrics worktree is clean.\n",
+      "createdAt": "2026-05-19T17:13:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/283#issuecomment-4490211270",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-19T08:38:55Z",
   "files": [
     {
-      "path": ".agent/docs/architecture/supported-workflows.md",
-      "additions": 3,
+      "path": ".agent/docs/access-policy.md",
+      "additions": 12,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/actions/agent-actions.md",
+      "additions": 2,
       "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 7,
+      "deletions": 4,
       "changeType": "MODIFIED"
     },
     {
@@ -53,9 +80,15 @@
       "changeType": "MODIFIED"
     },
     {
+      "path": ".agent/docs/customization/skills.md",
+      "additions": 3,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
       "path": ".agent/docs/deployment/install-existing-repository.md",
-      "additions": 10,
-      "deletions": 8,
+      "additions": 25,
+      "deletions": 12,
       "changeType": "MODIFIED"
     },
     {
@@ -66,8 +99,62 @@
     },
     {
       "path": ".agent/src/__tests__/envelope.test.ts",
-      "additions": 14,
+      "additions": 18,
       "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/extract-context-cli.test.ts",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/resolve-dispatch-cli.test.ts",
+      "additions": 39,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/rubrics.test.ts",
+      "additions": 19,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/triage.test.ts",
+      "additions": 55,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/resolve-dispatch.ts",
+      "additions": 10,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/envelope.ts",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/rubrics.ts",
+      "additions": 5,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/triage.ts",
+      "additions": 15,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/run-agent-task/action.yml",
+      "additions": 1,
+      "deletions": 1,
       "changeType": "MODIFIED"
     },
     {
@@ -84,14 +171,14 @@
     },
     {
       "path": ".github/workflows/agent-router.yml",
-      "additions": 29,
-      "deletions": 1,
+      "additions": 35,
+      "deletions": 7,
       "changeType": "MODIFIED"
     },
     {
       "path": ".skills/install-agent/SKILL.md",
-      "additions": 15,
-      "deletions": 10,
+      "additions": 17,
+      "deletions": 9,
       "changeType": "MODIFIED"
     }
   ],
@@ -104,12 +191,12 @@
       "color": "0e8a16"
     }
   ],
-  "mergedAt": null,
+  "mergedAt": "2026-05-19T17:11:54Z",
   "number": 283,
   "reviewDecision": "",
   "reviews": [],
-  "state": "OPEN",
+  "state": "MERGED",
   "title": "Use AGENT_INSTALL_PAT for /install runs",
-  "updatedAt": "2026-05-19T08:50:37Z",
+  "updatedAt": "2026-05-19T17:13:28Z",
   "url": "https://github.com/self-evolving/repo/pull/283"
 }

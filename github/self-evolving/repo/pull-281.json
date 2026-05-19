@@ -5,7 +5,7 @@
   },
   "baseRefName": "agent/implement-issue-269/codex-26007754542",
   "body": "## Summary\n- Resolve `@sepo-agent /install owner/repo` as the `install` route while still running the bundled `install-agent` skill.\n- Apply `AGENT_ACCESS_POLICY.route_overrides.install` independently from general `/skill` access.\n- Update install docs and skill guidance with route-policy examples and clear post-merge onboarding todos.\n\n## Notes\n- This intentionally does not add `AGENT_INSTALL_PAT`, fork creation, or cross-repo PR mechanics.\n- Builds on #273.\n\n## Verification\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/triage.test.js .agent/dist/__tests__/resolve-dispatch-cli.test.js .agent/dist/__tests__/extract-context-cli.test.js .agent/dist/__tests__/envelope.test.js .agent/dist/__tests__/rubrics.test.js`\n- `node -e \"const fs=require('fs'); const YAML=require('yaml'); for (const f of ['.github/workflows/agent-router.yml','.github/actions/run-agent-task/action.yml']) YAML.parse(fs.readFileSync(f,'utf8'));\"`\n- `git diff --check`\n\nCloses #279\n",
-  "closedAt": null,
+  "closedAt": "2026-05-19T17:13:21Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABC19xqg",
@@ -51,6 +51,21 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/281#issuecomment-4485851514",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC6OGZQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nUpdated [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #281.\n\nAdded one durable rubric:\n\n`rubrics/workflow/permissive-command-route-parsing.yaml`\n\nIt captures the reusable preference that user-facing command routes should detect the command and pass through the full request, with richer target parsing handled by route-specific logic rather than a brittle early regex. Provenance points to the relevant `/install` review comments.\n\nValidated with:\n`loadRubrics(...)` against the rubrics checkout: `rubrics 25`\n\nNo git commit was made.\n",
+      "createdAt": "2026-05-19T17:16:12Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/281#issuecomment-4490233445",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-19T08:17:25Z",
@@ -75,8 +90,8 @@
     },
     {
       "path": ".agent/docs/customization/skills.md",
-      "additions": 3,
-      "deletions": 2,
+      "additions": 0,
+      "deletions": 4,
       "changeType": "MODIFIED"
     },
     {
@@ -167,12 +182,12 @@
       "color": "0e8a16"
     }
   ],
-  "mergedAt": null,
+  "mergedAt": "2026-05-19T17:13:21Z",
   "number": 281,
   "reviewDecision": "",
   "reviews": [],
-  "state": "OPEN",
+  "state": "MERGED",
   "title": "Make /install a first-class route",
-  "updatedAt": "2026-05-19T08:28:52Z",
+  "updatedAt": "2026-05-19T17:16:12Z",
   "url": "https://github.com/self-evolving/repo/pull/281"
 }
