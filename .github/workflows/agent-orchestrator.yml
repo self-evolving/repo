@@ -9,6 +9,10 @@ on:
       source_conclusion:
         description: "Normalized source action conclusion"
         required: true
+      source_recommended_next_step:
+        description: "Optional source action recommended next step"
+        required: false
+        default: ""
       source_run_id:
         description: "Workflow run ID of the source action, used for handoff dedupe"
         required: false
@@ -153,6 +157,7 @@ jobs:
         env:
           ORCHESTRATOR_SOURCE_ACTION: ${{ inputs.source_action }}
           ORCHESTRATOR_SOURCE_CONCLUSION: ${{ inputs.source_conclusion }}
+          ORCHESTRATOR_SOURCE_RECOMMENDED_NEXT_STEP: ${{ inputs.source_recommended_next_step }}
           ORCHESTRATOR_SOURCE_RUN_ID: ${{ inputs.source_run_id || github.run_id }}
           ORCHESTRATOR_NEXT_TARGET_NUMBER: ${{ inputs.next_target_number }}
           ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT: ${{ inputs.source_handoff_context }}
@@ -204,6 +209,7 @@ jobs:
           SESSION_BUNDLE_MODE: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
           SOURCE_ACTION: ${{ inputs.source_action }}
           SOURCE_CONCLUSION: ${{ inputs.source_conclusion }}
+          SOURCE_RECOMMENDED_NEXT_STEP: ${{ inputs.source_recommended_next_step }}
           SOURCE_HANDOFF_CONTEXT: ${{ inputs.source_handoff_context }}
           SOURCE_RUN_ID: ${{ inputs.source_run_id || github.run_id }}
           AGENT_ALLOW_SELF_APPROVE: ${{ vars.AGENT_ALLOW_SELF_APPROVE || 'false' }}

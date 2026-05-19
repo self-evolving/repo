@@ -281,6 +281,48 @@ test("evaluateSelfApprovalProvenance requires the latest trusted ship signal", (
   assert.match(superseded.reason, /needs_rework/);
 });
 
+test("evaluateSelfApprovalProvenance can allow trusted HUMAN_DECISION gate", () => {
+  const humanDecision = evaluateSelfApprovalProvenance({
+    trustedActorLogin: "sepo-agent-app[bot]",
+    expectedHeadSha: "abc123",
+    allowHumanDecisionGate: true,
+    comments: [
+      {
+        authorLogin: "sepo-agent-app",
+        createdAt: "2026-05-07T10:00:00Z",
+        body: [
+          "## AI Review Synthesis",
+          "<!-- sepo-agent-review-synthesis -->",
+          "<!-- sepo-agent-review-synthesis-head: abc123 -->",
+          "",
+          "## Recommended Next Step",
+          "HUMAN_DECISION: self-approval should decide.",
+          "",
+          "## Final Verdict",
+          "NEEDS_REWORK",
+        ].join("\n"),
+      },
+    ],
+  });
+  assert.equal(humanDecision.trusted, true);
+  assert.match(humanDecision.reason, /HUMAN_DECISION/);
+
+  const fixPr = evaluateSelfApprovalProvenance({
+    trustedActorLogin: "sepo-agent-app[bot]",
+    expectedHeadSha: "abc123",
+    allowHumanDecisionGate: true,
+    comments: [
+      {
+        authorLogin: "sepo-agent-app",
+        createdAt: "2026-05-07T10:00:00Z",
+        body: "## AI Review Synthesis\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: abc123 -->\n\n## Recommended Next Step\nFIX_PR\n\n## Final Verdict\nNEEDS_REWORK",
+      },
+    ],
+  });
+  assert.equal(fixPr.trusted, false);
+  assert.match(fixPr.reason, /not SHIP/);
+});
+
 test("evaluateSelfApprovalProvenance requires review synthesis for the current head", () => {
   const stale = evaluateSelfApprovalProvenance({
     trustedActorLogin: "sepo-agent-app[bot]",
