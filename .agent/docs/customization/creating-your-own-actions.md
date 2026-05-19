@@ -33,7 +33,7 @@ Generated workflows should:
 - include `schedule` only for automatic recurring work
 - use `.github/actions/check-agent-action-expiration` before provider/runtime setup
 - gate provider-backed steps with `if: steps.expiration.outputs.expired != 'true'`
-- use `permission_mode: approve-all`, `memory_mode_override: read-only`, and `session_policy: track-only`
+- use `permission_mode: approve-all`, `memory_mode_override: read-only`, and `session_policy: track-only` for one-shot execution with run metadata
 - use a unique lane such as `agent-action-<short-slug>`
 - add `issues: write` only when setting `REPORT_ISSUE_NUMBER` for issue reporting
 

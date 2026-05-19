@@ -14,7 +14,7 @@ Use GitHub Actions as the scheduler and activation mechanism:
 - Use the existing shared actions from the template: `resolve-github-auth`, `resolve-agent-provider`, `check-agent-action-expiration`, `setup-agent-runtime`, and `run-agent-task`.
 - Keep the workflow scoped with least-privilege GitHub permissions; add issue write permission only when enabling issue reporting.
 - Set a unique `lane` such as `agent-action-<short-slug>` so scheduled runs do not share session identity with normal answer traffic.
-- Set `permission_mode: approve-all`, `memory_mode_override: read-only`, and `session_policy: track-only` for the scheduled agent task so recurring runs do not write repository memory or try to resume interactive sessions.
+- Set `permission_mode: approve-all`, `memory_mode_override: read-only`, and `session_policy: track-only` for the scheduled agent task so recurring runs stay one-shot, write run metadata, and do not write repository memory or resume interactive sessions.
 - Prefer `prompt: answer` and `route: answer`; put the bounded recurring task in `request_text`.
 - If the workflow should report to an issue, set `REPORT_ISSUE_NUMBER`, add `issues: write`, and post `steps.agent.outputs.response_file` to that issue after the agent run.
 

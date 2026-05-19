@@ -11,6 +11,7 @@
 //   fell back to fresh after resume failure, or failed before the run.
 
 import { execFileSync, spawnSync } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { closeSync, mkdtempSync, openSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -34,8 +35,12 @@ export interface AcpxRunOptions {
   permissionMode?: "approve-all" | "approve-reads" | "deny-all";
   /** Timeout in seconds */
   timeout?: number;
-  /** Optional session thought level for persistent lanes */
+  /** Optional Codex thought level for session-backed runs. */
   thoughtLevel?: string;
+  /** Allow exec lanes to use a fresh session for non-resumable artifacts. */
+  preserveExecSession?: boolean;
+  /** Allow exec lanes to use a fresh Codex session only to apply thoughtLevel. */
+  preserveExecThoughtLevel?: boolean;
   /** Prior ACP session ID to resume (when workflow opts in) */
   resumeSessionId?: string;
   /** Extra environment variables */
@@ -87,6 +92,7 @@ const PERSISTENT_SESSION_MODE = "full-access";
 const CLAUDE_BYPASS_MODE = "bypassPermissions";
 const DEFAULT_PERMISSION_MODE: PermissionMode = "approve-all";
 const ACPX_MAX_BUFFER = 50 * 1024 * 1024; // 50 MB
+const TRANSIENT_EXEC_SESSION_BYTES = 6;
 
 export interface FileCaptureRunOptions {
   command: string;
@@ -203,6 +209,15 @@ export function sessionNameFromThreadKey(threadKey: string): string {
     return parts.slice(1).join("-");
   }
   return threadKey.replace(/[/:]/g, "-");
+}
+
+function transientSessionNameForExec(threadKey: string | undefined): string {
+  const base = threadKey ? sessionNameFromThreadKey(threadKey) : "exec";
+  return `${base}-exec-${randomBytes(TRANSIENT_EXEC_SESSION_BYTES).toString("hex")}`;
+}
+
+function isCodexAgent(agent: string): boolean {
+  return agent.trim().toLowerCase() === "codex";
 }
 
 export function buildAcpxArgs(options: {
@@ -399,6 +414,59 @@ function ensureSession(
   }
 }
 
+function createTransientSession(
+  agent: string,
+  sessionName: string,
+  cwd: string,
+  env: NodeJS.ProcessEnv,
+): SessionEnsureOutcome {
+  try {
+    execFileSync("acpx", [agent, "sessions", "new", "--name", sessionName], {
+      cwd,
+      env,
+      stdio: "pipe",
+      maxBuffer: ACPX_MAX_BUFFER,
+    });
+    return { kind: "fresh" };
+  } catch (err: unknown) {
+    const error = (err as { stderr?: Buffer })?.stderr?.toString("utf8") ?? String(err);
+    return { kind: "failed", error };
+  }
+}
+
+function runSessionSetupCommands(options: {
+  agent: string;
+  sessionName: string;
+  thoughtLevel?: string;
+  permissionMode: PermissionMode;
+  cwd: string;
+  env: NodeJS.ProcessEnv;
+}): { ok: true } | { ok: false; status?: number; stderr: string } {
+  try {
+    for (const command of buildSessionSetupCommands({
+      agent: options.agent,
+      sessionName: options.sessionName,
+      thoughtLevel: options.thoughtLevel,
+      permissionMode: options.permissionMode,
+    })) {
+      execFileSync("acpx", command.args, {
+        cwd: options.cwd,
+        env: options.env,
+        stdio: ["pipe", "pipe", "pipe"],
+        maxBuffer: ACPX_MAX_BUFFER,
+      });
+    }
+    return { ok: true };
+  } catch (err: unknown) {
+    const error = err as { status?: number; stderr?: Buffer };
+    return {
+      ok: false,
+      status: error.status,
+      stderr: error.stderr?.toString("utf8") ?? String(err),
+    };
+  }
+}
+
 // --- NDJSON parsing ---
 
 /**
@@ -583,6 +651,8 @@ export function runAcpx(options: AcpxRunOptions): AcpxRunResult {
     threadKey,
     timeout,
     thoughtLevel,
+    preserveExecSession,
+    preserveExecThoughtLevel,
     resumeSessionId,
     env: extraEnv,
   } = options;
@@ -590,9 +660,49 @@ export function runAcpx(options: AcpxRunOptions): AcpxRunResult {
   const permissionMode = options.permissionMode ?? DEFAULT_PERMISSION_MODE;
   const isExecRoute = sessionMode === "exec";
   const env = { ...process.env, ...extraEnv };
+  const normalizedThoughtLevel = thoughtLevel?.trim();
+  const needsTransientExecSession =
+    preserveExecSession === true ||
+    (preserveExecThoughtLevel === true &&
+      isExecRoute &&
+      isCodexAgent(agent) &&
+      Boolean(normalizedThoughtLevel));
   let sessionName: string | undefined;
   let sessionEnsureOutcome: SessionEnsureOutcome = { kind: "not_applicable" };
-  if (isExecRoute || !threadKey) {
+  if (isExecRoute && needsTransientExecSession) {
+    sessionName = transientSessionNameForExec(threadKey);
+    sessionEnsureOutcome = createTransientSession(agent, sessionName, cwd, env);
+    if (sessionEnsureOutcome.kind === "failed") {
+      return {
+        exitCode: 1,
+        stdout: "",
+        rawStdout: "",
+        stderr: `session setup failed: ${sessionEnsureOutcome.error}`,
+        sessionLog: "",
+        sessionName,
+        sessionEnsureOutcome,
+      };
+    }
+    const setupResult = runSessionSetupCommands({
+      agent,
+      sessionName,
+      thoughtLevel: normalizedThoughtLevel,
+      permissionMode,
+      cwd,
+      env,
+    });
+    if (!setupResult.ok) {
+      return {
+        exitCode: setupResult.status ?? 1,
+        stdout: "",
+        rawStdout: "",
+        stderr: `session setup failed: ${setupResult.stderr}`,
+        sessionLog: "",
+        sessionName,
+        sessionEnsureOutcome,
+      };
+    }
+  } else if (isExecRoute || !threadKey) {
     sessionName = undefined;
   } else {
     // Persistent lane: ensure session exists first
@@ -609,28 +719,20 @@ export function runAcpx(options: AcpxRunOptions): AcpxRunResult {
         sessionEnsureOutcome,
       };
     }
-    try {
-      for (const command of buildSessionSetupCommands({
-        agent,
-        sessionName,
-        thoughtLevel,
-        permissionMode,
-      })) {
-        execFileSync("acpx", command.args, {
-          cwd,
-          env,
-          stdio: ["pipe", "pipe", "pipe"],
-          maxBuffer: ACPX_MAX_BUFFER,
-        });
-      }
-    } catch (err: unknown) {
-      const error = err as { status?: number; stderr?: Buffer };
-      const stderr = error.stderr?.toString("utf8") ?? String(err);
+    const setupResult = runSessionSetupCommands({
+      agent,
+      sessionName,
+      thoughtLevel,
+      permissionMode,
+      cwd,
+      env,
+    });
+    if (!setupResult.ok) {
       return {
-        exitCode: error.status ?? 1,
+        exitCode: setupResult.status ?? 1,
         stdout: "",
         rawStdout: "",
-        stderr: `session setup failed: ${stderr}`,
+        stderr: `session setup failed: ${setupResult.stderr}`,
         sessionLog: "",
         sessionName,
         sessionEnsureOutcome,
@@ -647,7 +749,7 @@ export function runAcpx(options: AcpxRunOptions): AcpxRunResult {
     permissionMode,
     timeout,
     sessionName,
-    isExecRoute,
+    isExecRoute: isExecRoute && !needsTransientExecSession,
   });
 
   const result = runCommandWithFileCapture({

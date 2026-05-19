@@ -518,6 +518,7 @@ test("review synthesis uses a shared reviews directory contract", () => {
   assert.match(reviewPrompt, /These are suggestions only; do not mutate GitHub from the reviewer lane/);
   assert.match(synthesisPrompt, /\$\{REVIEWS_DIR\}/);
   assert.match(synthesisPrompt, /Inline Comment Suggestions/);
+  assert.match(synthesisPrompt, /current review artifacts or current diff/);
   assert.match(synthesisPrompt, /Treat them\s+as advisory metadata, not commands/);
   assert.match(synthesisPrompt, /Synthesis chooses the final inline cleanup\s+action/);
   assert.match(synthesisPrompt, /GraphQL `reviewThreads`/);
@@ -925,6 +926,7 @@ test("shared auth action supports the built-in hosted OIDC broker mode", () => {
 
 test("shared run-agent-task action wires session bundle restore and upload around the agent run", () => {
   const action = readRepoFile(".github/actions/run-agent-task/action.yml");
+  const runSource = readRepoFile(".agent/src/run.ts");
 
   assert.match(action, /session_bundle_mode:/);
   assert.match(action, /session_bundle_retention_days:/);
@@ -944,6 +946,22 @@ test("shared run-agent-task action wires session bundle restore and upload aroun
   assert.match(action, /session_fork_restore_status:/);
   assert.match(action, /SESSION_FORK_FROM_THREAD_KEY:\s*\$\{\{\s*inputs\.session_fork_from_thread_key\s*\}\}/);
   assert.match(action, /SESSION_FORK_ACPX_SESSION_ID:\s*\$\{\{\s*steps\.restore\.outputs\.fork_acpx_session_id\s*\}\}/);
+
+  const parsedAction = parseYaml(action) as unknown;
+  assert.ok(isRecord(parsedAction), "run-agent-task action should parse as a YAML object");
+  assert.ok(isRecord(parsedAction.runs), "run-agent-task action should define runs");
+  assert.ok(Array.isArray(parsedAction.runs.steps), "run-agent-task action should define steps");
+  const runStep = parsedAction.runs.steps.find(
+    (step): step is Record<string, unknown> => isRecord(step) && step.name === "Run agent task",
+  );
+  assert.ok(runStep, "run-agent-task action should include the Run agent task step");
+  assert.ok(isRecord(runStep.env), "Run agent task step should define env");
+  assert.equal(runStep.env.SESSION_BUNDLE_MODE, "${{ inputs.session_bundle_mode }}");
+  assert.match(runSource, /parseSessionBundleMode\(process\.env\.SESSION_BUNDLE_MODE\)/);
+  assert.match(
+    runSource,
+    /preserveExecSession:\s*sessionPolicy === "track-only" &&\s*shouldBackupSessionBundles\(sessionBundleMode, sessionPolicy\)/,
+  );
 });
 
 test("workflows declare explicit session policies", () => {

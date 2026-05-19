@@ -22,9 +22,9 @@ test("parseSessionPolicy rejects empty or invalid values", () => {
   assert.equal(parseSessionPolicy("wat"), null);
 });
 
-test("sessionModeForPolicy derives exec vs persistent explicitly from policy", () => {
+test("sessionModeForPolicy uses persistent sessions only for resume policies", () => {
   assert.equal(sessionModeForPolicy("none"), "exec");
-  assert.equal(sessionModeForPolicy("track-only"), "persistent");
+  assert.equal(sessionModeForPolicy("track-only"), "exec");
   assert.equal(sessionModeForPolicy("resume-best-effort"), "persistent");
   assert.equal(sessionModeForPolicy("resume-required"), "persistent");
 });
