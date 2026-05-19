@@ -19,6 +19,18 @@ The workflow captured the PR head before this agent run:
 
 - Expected head SHA: `${SELF_APPROVE_EXPECTED_HEAD_SHA}`
 
+If this run came from review handoff, the orchestrator also passed:
+
+- Source review verdict: `${SELF_APPROVE_SOURCE_CONCLUSION}`
+- Source recommended next step: `${SELF_APPROVE_SOURCE_RECOMMENDED_NEXT_STEP}`
+
+For `HUMAN_DECISION` review handoffs, make the decision here instead of
+routing back to a human by default. Use `APPROVE` only when the trusted
+current-head review verdict is `SHIP` and approval is safe. For non-`SHIP`
+verdicts, return `REQUEST_CHANGES` when concrete follow-up is needed, or
+`BLOCKED` only when safety checks, missing context, or automation limits prevent
+a reliable decision.
+
 Rules:
 - Do not mutate GitHub state.
 - Do not submit a PR review yourself.
@@ -26,8 +38,8 @@ Rules:
 - Return exactly one JSON object and nothing else.
 - Use `APPROVE` only when agent approval is genuinely appropriate.
 - Use `REQUEST_CHANGES` when follow-up implementation work is appropriate.
-- Use `BLOCKED` when the decision should stay with a human or required context
-  is missing.
+- Use `BLOCKED` only when required context is missing, safety checks fail, or
+  automation cannot make a reliable decision.
 
 Ask and answer concrete questions about the implementation from these dimensions:
 
