@@ -601,6 +601,8 @@ test("agent router supports label-triggered route and skill overrides", () => {
   assert.match(labelWorkflow, /cleanup-label:/);
   assert.match(labelWorkflow, /needs\.agent\.result == 'success'/);
   assert.match(labelWorkflow, /needs\.agent\.outputs\.should_respond == 'true'/);
+  assert.match(labelWorkflow, /AGENT_INSTALL_PAT:\s*\$\{\{\s*secrets\.AGENT_INSTALL_PAT\s*\}\}/);
+  assert.match(entrypointWorkflow, /AGENT_INSTALL_PAT:\s*\$\{\{\s*secrets\.AGENT_INSTALL_PAT\s*\}\}/);
   assert.doesNotMatch(labelWorkflow, /author_association:\s*COLLABORATOR/);
   assert.match(labelWorkflow, /\.\/\.github\/actions\/resolve-github-auth/);
   assert.match(labelWorkflow, /fallback_token:\s*\$\{\{\s*github\.token\s*\}\}/);
@@ -862,11 +864,20 @@ test("skill route uses the composite setup action for path and setup checks", ()
 
   assert.match(skillWorkflow, /\.\/\.github\/actions\/run-skill-setup/);
   assert.match(skillWorkflow, /needs\.portal\.outputs\.route == 'install'/);
+  assert.match(runnerWorkflow, /AGENT_INSTALL_PAT:[\s\S]*Install-route machine-user token/);
+  assert.match(skillWorkflow, /AGENT_INSTALL_PAT_CONFIGURED:\s*\$\{\{\s*secrets\.AGENT_INSTALL_PAT != '' && 'true' \|\| 'false'\s*\}\}/);
+  assert.match(skillWorkflow, /Post install configuration blocked response/);
+  assert.match(skillWorkflow, /Install is not configured/);
+  assert.match(skillWorkflow, /AGENT_INSTALL_PAT/);
   assert.match(skillWorkflow, /route:\s*\$\{\{\s*needs\.portal\.outputs\.route\s*\}\}/);
   assert.match(skillWorkflow, /ROUTE:\s*\$\{\{\s*needs\.portal\.outputs\.route\s*\}\}/);
   assert.match(skillWorkflow, /trusted_ref:\s*\$\{\{ !startsWith\(github\.ref, 'refs\/pull\/'\) \}\}/);
   assert.match(skillWorkflow, /skill_root:\s*\$\{\{ inputs\.skill_root \}\}/);
   assert.match(skillWorkflow, /install_target_repo:\s*\$\{\{\s*needs\.portal\.outputs\.requested_install_target_repo\s*\}\}/);
+  assert.match(
+    skillWorkflow,
+    /github_token:\s*\$\{\{\s*needs\.portal\.outputs\.route == 'install' && secrets\.AGENT_INSTALL_PAT \|\| steps\.auth\.outputs\.token\s*\}\}/,
+  );
   assert.ok(optionalProviderStart >= 0);
   assert.ok(runtimeStart > optionalProviderStart);
   assert.ok(checkStart > runtimeStart);
@@ -1024,6 +1035,9 @@ test("workflow docs record the minimal metadata contract and developer notes", (
   assert.match(supportedWorkflows, /removes[\s\S]*triggering `agent\/\*` label/i);
   assert.match(supportedWorkflows, /strips code blocks[\s\S]*quoted text/i);
   assert.match(supportedWorkflows, /OWNER[\s\S]*MEMBER[\s\S]*COLLABORATOR[\s\S]*CONTRIBUTOR/);
+  assert.match(configurationList, /AGENT_INSTALL_PAT/);
+  assert.match(existingRepoInstall, /`\/install` is the only route that uses `AGENT_INSTALL_PAT`/);
+  assert.match(existingRepoInstall, /Normal routes keep[\s\S]*GitHub auth resolver order/);
   assert.match(memoryArchitecture, /Agent \/ Memory \/ Initialization[\s\S]*\|\s*Auto\s*\|/);
   assert.match(rubricsArchitecture, /agent\/rubrics/);
   assert.match(rubricsArchitecture, /AGENT_RUBRICS_POLICY/);

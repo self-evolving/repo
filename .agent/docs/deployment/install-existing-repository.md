@@ -19,14 +19,16 @@ The `/install` command is a first-class route for authorization, then executes
 the bundled `install-agent` skill. It still requires a target repository slug in
 `owner/repo` form, resolves the install source to the latest non-draft Sepo
 release, and records that source revision in the PR body. If no stable release
-exists yet, the skill may use the latest non-draft prerelease. Opening the PR
-requires the resolved GitHub token to have write access to the target
-repository. The v1 install flow does not switch to a different token or create a
-fork after the skill starts. If Sepo can clone the public repository but the
-already-resolved token cannot push a branch and open a PR, the run should stop
-as blocked. Rerun only after the workflow is configured so the token resolved at
-startup already has target write access, or use a manual/fork-based install path
-outside this v1 command.
+exists yet, the skill may use the latest non-draft prerelease.
+
+`/install` is the only route that uses `AGENT_INSTALL_PAT`. Normal routes keep
+the standard GitHub auth resolver order: GitHub App, hosted OIDC, `AGENT_PAT`,
+then the workflow token. For `/install`, configure the `AGENT_INSTALL_PAT`
+repository secret in the Sepo source repository with a machine-user token that
+can push or open the install PR. If the secret is absent, the route stops before
+the skill runs and posts that install is not configured. If the secret is
+present but cannot push/open the PR for the target repository, the skill should
+report a blocked result with the permission gap and next step.
 
 Use `AGENT_ACCESS_POLICY.route_overrides.install` to restrict who may trigger
 external installs independently from general `/skill` runs:

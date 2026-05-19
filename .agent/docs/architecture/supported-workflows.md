@@ -230,7 +230,9 @@ or cache features.
 slug in `owner/repo` form before it runs the bundled `install-agent` skill.
 Access policy evaluates it as the `install` route, so
 `AGENT_ACCESS_POLICY.route_overrides.install` can restrict external installs
-without blocking general `/skill` runs.
+without blocking general `/skill` runs. The install route requires the
+`AGENT_INSTALL_PAT` secret and passes that token to the install skill; other
+routes continue using the standard GitHub auth resolver.
 
 ### `agent-label.yml`
 

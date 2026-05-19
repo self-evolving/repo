@@ -17,7 +17,8 @@ Confirm these before editing:
 - source agent repo/ref, defaulting to the latest non-draft release from
   `self-evolving/repo`; include prereleases when no stable release exists
 - install branch name, defaulting to `agent/install-agent-infra`
-- resolved GitHub auth identity; it must already have target write access to
+- active install GitHub identity from `GH_TOKEN`; for `@sepo-agent /install`
+  this is the `AGENT_INSTALL_PAT` machine-user token, and it must be able to
   open the install PR
 - model provider secret plan: `OPENAI_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`, or both
 - whether to copy any `.skills/` directories; default is no
@@ -37,15 +38,19 @@ and ends with an alphanumeric character and the repo contains only
 alphanumerics, `.`, `_`, or `-`. Stop if that rule does not identify exactly one
 target or if unrelated prose contains a conflicting repo-like slug.
 
-Current v1 auth contract: `/install` is authorized as the `install` route, then
-this skill uses only the `GH_TOKEN` already resolved for the run. You may clone
-public target repositories, but open an install PR only when that same token can
-push a branch to the target repository and create the PR. Do not switch to a
-different token, create a fork, or assume configuring a new App/PAT during the
-run changes the active token. If the token lacks target write access, stop with
-a blocked result that tells the requester to rerun from a workflow whose
-resolved token already has target write access, or to use a manual/fork-based
-install path outside this v1 command.
+Current auth contract: `/install` is authorized as the `install` route, then the
+router refuses to run this skill unless the source repository has the
+`AGENT_INSTALL_PAT` secret configured. For `/install`, the task receives that
+secret as `GH_TOKEN` instead of the normal GitHub App/OIDC/`AGENT_PAT` resolver
+token. Generic `/skill install-agent` runs keep the normal resolved token, but
+the supported external install path is `/install owner/repo`.
+
+Use only the active `GH_TOKEN` for GitHub operations. Do not read another token
+secret, add an install policy, or assume configuring a new App/PAT during the
+run changes the active token. If `GH_TOKEN` cannot push or open the install PR
+for the target repository, stop with a blocked result that names the permission
+gap and tells the requester to update `AGENT_INSTALL_PAT` or the target
+repository access before rerunning `/install`.
 
 Stop if the target repo, branch, source revision, or active write identity is
 ambiguous.
