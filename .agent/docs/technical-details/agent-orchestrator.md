@@ -92,6 +92,15 @@ checks that the PR is open and rejects PR starts that try to dispatch
 `implement` or `delegate_issue`. The planner may also return `answer`, `stop`,
 or `blocked` when no follow-up workflow should run.
 
+Issue targets labeled `goal` are parent objectives rather than ordinary
+implementation tasks. The planner should use the goal body, success criteria,
+subgoals, linked work, and existing sub-issues to choose one bounded next step.
+When the next step is non-trivial or represents a distinct subgoal, prefer
+`delegate_issue` so the child can run the normal implementation/review/fix
+chain. Use a direct `implement` handoff only when the goal issue itself already
+describes a small, concrete, self-contained change. Stop or block when the goal's
+success criteria or next subgoal require human direction.
+
 For child work, the planner may return `delegate_issue`, which is an internal
 command rather than a public route. The dispatcher creates or reuses one child
 issue for the requested stage and dispatches `agent-orchestrator.yml` for the

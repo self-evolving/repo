@@ -6,6 +6,13 @@ import { BUILT_IN_TRIGGER_LABELS } from "./trigger-labels.js";
 
 const ONBOARDING_TITLE = "Sepo setup check";
 const COMMENT_MARKER = "<!-- sepo-agent-onboarding-check -->";
+const REPOSITORY_MANAGEMENT_LABELS = [
+  {
+    name: "goal",
+    color: "5319e7",
+    description: "Tracks a larger repository objective for sub-issues and orchestration",
+  },
+];
 
 export interface OnboardingOptions {
   repo: string;
@@ -236,6 +243,14 @@ Last checked: ${opts.runUrl || "GitHub Actions"}
 
 export function runOnboardingCheck(opts: OnboardingOptions): number {
   for (const label of BUILT_IN_TRIGGER_LABELS) {
+    ensureLabel({
+      name: label.name,
+      color: label.color,
+      description: label.description,
+      repo: opts.repo,
+    });
+  }
+  for (const label of REPOSITORY_MANAGEMENT_LABELS) {
     ensureLabel({
       name: label.name,
       color: label.color,

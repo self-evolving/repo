@@ -247,7 +247,8 @@ Run `Agent / Onboarding / Check Setup` after installing Sepo to create the
 built-in labels. The workflow also opens or updates a `Sepo setup check` issue
 with auth/provider readiness, memory and rubrics branch status, and copyable
 commands for first test runs. Skill labels still use `agent/s/<skill>` and are
-created per skill as needed.
+created per skill as needed. Onboarding also creates the non-trigger `goal`
+label used by the [repository goals](./goals.md) convention.
 
 After a label-triggered request is accepted by the router, `agent-label.yml` removes the triggering `agent/*` label so label-based runs behave like one-shot queue entries, including policy-denied requests that resolve to `unsupported`.
 

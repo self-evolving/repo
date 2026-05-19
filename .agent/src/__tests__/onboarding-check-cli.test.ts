@@ -94,6 +94,7 @@ exit 1
     const log = readFileSync(logPath, "utf8");
     assert.match(log, /^label create agent\/answer --color 1f883d --description Ask Sepo to answer/m);
     assert.match(log, /^label create agent\/orchestrate --color fb8c00 --description Ask Sepo to run/m);
+    assert.match(log, /^label create goal --color 5319e7 --description Tracks a larger repository objective/m);
     assert.match(log, /^issue create --title Sepo setup check --body-file .+ --repo self-evolving\/repo$/m);
     assert.match(log, /^issue comment 77 --body <!-- sepo-agent-onboarding-check -->/m);
     const issueBody = readOnboardingIssueBody(
