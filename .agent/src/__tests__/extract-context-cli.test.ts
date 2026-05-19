@@ -350,6 +350,23 @@ const weakMentionCollaboratorCases: Array<{
     },
   },
   {
+    name: "discussion",
+    eventName: "discussion",
+    expectedSourceKind: "discussion",
+    payload: {
+      sender: { login: "alice", type: "User" },
+      discussion: {
+        number: 205,
+        title: "Investigate auth",
+        body: "@sepo-agent /answer please check this",
+        html_url: "https://github.com/self-evolving/repo/discussions/205",
+        node_id: "D_205",
+        authorAssociation: "NONE",
+        user: { login: "alice" },
+      },
+    },
+  },
+  {
     name: "pull request review comment",
     eventName: "pull_request_review_comment",
     expectedSourceKind: "pull_request_review_comment",
@@ -409,6 +426,52 @@ for (const testCase of weakMentionCollaboratorCases) {
     assert.equal(outputs.get("requested_route"), "answer");
   });
 }
+
+const nonCollaboratorGhScript = [
+  "#!/usr/bin/env bash",
+  "if [ \"$1\" = \"api\" ] && [ \"$2\" = \"repos/self-evolving/repo/collaborators/alice\" ]; then",
+  "  exit 1",
+  "fi",
+  "if [ \"$1\" = \"api\" ] && [ \"$2\" = \"graphql\" ]; then",
+  "  printf '{\"data\":{\"node\":{\"replyTo\":null}}}\\n'",
+  "  exit 0",
+  "fi",
+  "printf 'unexpected gh args: %s\\n' \"$*\" >&2",
+  "exit 1",
+  "",
+].join("\n");
+
+test("extract-context preserves weak discussion comment association when collaborator lookup fails", () => {
+  const outputs = runExtractContextCli({
+    eventName: "discussion_comment",
+    payload: {
+      sender: { login: "alice", type: "User" },
+      comment: {
+        id: 206,
+        node_id: "DC_206",
+        html_url: "https://github.com/self-evolving/repo/discussions/206#discussioncomment-206",
+        body: "@sepo-agent /answer please check this",
+        authorAssociation: "CONTRIBUTOR",
+        user: { login: "alice" },
+      },
+      discussion: {
+        number: 206,
+        html_url: "https://github.com/self-evolving/repo/discussions/206",
+        node_id: "D_206",
+      },
+    },
+    ghScript: nonCollaboratorGhScript,
+    env: {
+      GITHUB_REPOSITORY: "self-evolving/repo",
+    },
+  });
+
+  assert.equal(outputs.get("should_respond"), "true");
+  assert.equal(outputs.get("association"), "CONTRIBUTOR");
+  assert.equal(outputs.get("source_kind"), "discussion_comment");
+  assert.equal(outputs.get("requested_by"), "alice");
+  assert.equal(outputs.get("requested_route"), "answer");
+});
 
 test("extract-context preserves contributor association when refreshed issue association matches", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-extract-context-"));
