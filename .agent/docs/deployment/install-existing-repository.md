@@ -25,10 +25,18 @@ exists yet, the skill may use the latest non-draft prerelease.
 the standard GitHub auth resolver order: GitHub App, hosted OIDC, `AGENT_PAT`,
 then the workflow token. For `/install`, configure the `AGENT_INSTALL_PAT`
 repository secret in the Sepo source repository with a machine-user token that
-can push or open the install PR. If the secret is absent, the route stops before
-the skill runs and posts that install is not configured. If the secret is
-present but cannot push/open the PR for the target repository, the skill should
-report a blocked result with the permission gap and next step.
+can create or reuse a fork, push a branch, and open pull requests for public
+repositories.
+
+The install skill uses the built-in fork/PR helper to clone the public target,
+create or reuse the token owner's fork, push `agent/install-agent-infra` to that
+fork, and open or reuse a PR against the original target repository. If the
+secret is absent, the route stops before the skill runs and posts that install
+is not configured. If the secret is present but the helper cannot read the
+public target, create/reuse the fork, push the branch, or open/reuse the PR, the
+skill reports a blocked result with the specific permission gap and next step.
+An existing open install PR from the same token owner is reused; an open install
+PR from another owner is treated as a duplicate blocked state.
 
 Use `AGENT_ACCESS_POLICY.route_overrides.install` to restrict who may trigger
 external installs independently from general `/skill` runs:

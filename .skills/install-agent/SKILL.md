@@ -13,13 +13,13 @@ GitHub assets intact.
 
 Confirm these before editing:
 
-- target repository slug and default branch
+- public target repository slug and default branch
 - source agent repo/ref, defaulting to the latest non-draft release from
   `self-evolving/repo`; include prereleases when no stable release exists
 - install branch name, defaulting to `agent/install-agent-infra`
 - active install GitHub identity from `GH_TOKEN`; for `@sepo-agent /install`
   this is the `AGENT_INSTALL_PAT` machine-user token, and it must be able to
-  open the install PR
+  create or reuse its fork, push the install branch, and open or reuse the PR
 - model provider secret plan: `OPENAI_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`, or both
 - whether to copy any `.skills/` directories; default is no
 - whether to copy root `AGENT.md`; default is no
@@ -47,10 +47,13 @@ the supported external install path is `/install owner/repo`.
 
 Use only the active `GH_TOKEN` for GitHub operations. Do not read another token
 secret, add an install policy, or assume configuring a new App/PAT during the
-run changes the active token. If `GH_TOKEN` cannot push or open the install PR
-for the target repository, stop with a blocked result that names the permission
-gap and tells the requester to update `AGENT_INSTALL_PAT` or the target
-repository access before rerunning `/install`.
+run changes the active token. The supported `/install` mechanics are
+fork-backed: clone the public target repo, create or reuse a fork under the
+token owner, push `agent/install-agent-infra` to that fork, and open or reuse a
+PR against the original target repository. If `GH_TOKEN` cannot create/read the
+fork, push the branch, or open/reuse the PR, stop with a blocked result that
+names the permission gap and tells the requester to update `AGENT_INSTALL_PAT`
+or the target repository access before rerunning `/install`.
 
 Stop if the target repo, branch, source revision, or active write identity is
 ambiguous.
@@ -108,25 +111,27 @@ unless explicitly requested.
      the PR body.
 
 3. Prepare the target checkout.
-   - Clone/open the target repo.
-   - Verify the already-resolved `GH_TOKEN` can write to the target repository
-     before editing: check the authenticated identity and target permission with
-     `gh auth status` and `gh api repos/<owner>/<repo> --jq '.viewerPermission // .permissions.push // empty'`.
-   - If the active token cannot push to the target repository, report the
-     install as blocked and do not proceed to commit, push, fork, or open a PR.
-   - Create the install branch from the target default branch.
-   - Check `git status --short`; stop if unrelated local changes would make the
-     install ambiguous.
+   - Use the helper rather than hand-rolling fork mechanics:
+     `GH_TOKEN="$GH_TOKEN" INSTALL_TARGET_REPO="<owner/repo>" node .agent/dist/cli/install-fork-pr.js prepare`.
+   - The helper validates the target slug, requires a public target, identifies
+     the token owner, detects duplicate open install PRs, creates or reuses the
+     token owner's fork, clones the target default branch, and creates the
+     install branch.
+   - Read the helper JSON or GitHub outputs. If `status` is `blocked`, report
+     `blockedCode` and `message` and stop before copying files.
+   - Work only in the returned `workdir`, and carry forward `forkRepo`,
+     `defaultBranch`, `branch`, and any reusable `prUrl` for the publish step.
+   - Check `git status --short` in `workdir`; stop if unrelated local changes
+     would make the install ambiguous.
 
 4. Audit before copying.
    - Inspect every path in **Agent-Owned Scope**.
    - Check related branches/refs:
      `git ls-remote --heads origin agent/memory agent/rubrics 'agent/*'`.
-   - Check for an existing open install PR before continuing toward
-     commit/push/PR creation:
-     `gh pr list --repo <owner>/<repo> --head agent/install-agent-infra --state open --json number,url,state`.
-     If one exists, report its URL and stop unless the user explicitly asks to
-     update or reuse it.
+   - The prepare helper already checks open install PRs for
+     `agent/install-agent-infra`. Reuse an existing PR from the active token
+     owner, and treat an open install PR from another owner as a duplicate
+     blocked state.
    - Check existing secrets/variables/workflows where permissions allow:
      `gh secret list`, `gh variable list`, and `gh workflow list`.
    - Look for legacy or overlapping scaffolds such as `.flows/`, `.claude/`, old
@@ -196,6 +201,13 @@ unless explicitly requested.
      credentials, memory, rubrics, remaining setup, and smoke-test commands.
      Clearly distinguish settings detected during the audit from todos the
      repository owner still needs to complete after merge.
+   - Write the final PR body to a temporary file, then publish through the
+     helper:
+     `GH_TOKEN="$GH_TOKEN" INSTALL_TARGET_REPO="<owner/repo>" INSTALL_WORKDIR="<workdir>" INSTALL_FORK_REPO="<forkRepo>" INSTALL_DEFAULT_BRANCH="<defaultBranch>" INSTALL_BRANCH="<branch>" INSTALL_PR_TITLE="Install Sepo agent infrastructure" INSTALL_PR_BODY_FILE="<body-file>" node .agent/dist/cli/install-fork-pr.js publish`.
+   - The publish helper pushes the current checkout HEAD to the token owner's
+     fork branch, reuses an existing PR from that fork branch when present, or
+     opens a new PR against the original target repo. If it returns `blocked`,
+     report `blockedCode` and `message` clearly.
    - Do not merge the PR unless explicitly asked.
 
 ## Post-Merge Guidance

@@ -232,7 +232,10 @@ Access policy evaluates it as the `install` route, so
 `AGENT_ACCESS_POLICY.route_overrides.install` can restrict external installs
 without blocking general `/skill` runs. The install route requires the
 `AGENT_INSTALL_PAT` secret and passes that token to the install skill; other
-routes continue using the standard GitHub auth resolver.
+routes continue using the standard GitHub auth resolver. The skill uses the
+install fork/PR helper to clone the public target, create or reuse the token
+owner's fork, push `agent/install-agent-infra`, and open or reuse the install
+PR against the original repository.
 
 ### `agent-label.yml`
 
