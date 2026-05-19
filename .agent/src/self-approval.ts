@@ -1,4 +1,4 @@
-import { extractReviewConclusion } from "./handoff.js";
+import { extractReviewConclusion, extractReviewRecommendedNextStep } from "./handoff.js";
 import { extractJsonObject } from "./response.js";
 import {
   extractReviewSynthesisHeadSha,
@@ -124,6 +124,7 @@ export function evaluateSelfApprovalProvenance(input: {
   trustedActorLogin: string;
   expectedHeadSha: string;
   requireShip?: boolean;
+  requiredRecommendedNextStep?: string;
 }): SelfApprovalProvenanceResult {
   const trustedActor = normalizeActorLogin(input.trustedActorLogin);
   const expectedHeadSha = String(input.expectedHeadSha || "").trim();
@@ -152,6 +153,7 @@ export function evaluateSelfApprovalProvenance(input: {
         index,
         createdAtMs: createdAtMs(comment.createdAt),
         conclusion: extractReviewConclusion(body),
+        recommendedNextStep: extractReviewRecommendedNextStep(body),
         reviewedHeadSha: extractReviewSynthesisHeadSha(body),
       };
     })
@@ -159,6 +161,7 @@ export function evaluateSelfApprovalProvenance(input: {
       index: number;
       createdAtMs: number;
       conclusion: string;
+      recommendedNextStep: string;
       reviewedHeadSha: string;
     } => Boolean(signal))
     .sort((left, right) => left.createdAtMs - right.createdAtMs || left.index - right.index);
@@ -186,9 +189,25 @@ export function evaluateSelfApprovalProvenance(input: {
 
   const conclusion = latest.conclusion || "unknown";
   if (input.requireShip === false) {
+    const requiredRecommendedNextStep = normalizeToken(
+      input.requiredRecommendedNextStep || "human_decision",
+    );
+    const recommendedNextStep = normalizeToken(latest.recommendedNextStep || "");
+    if (recommendedNextStep !== requiredRecommendedNextStep) {
+      return {
+        trusted: false,
+        reason: [
+          "latest trusted review synthesis recommended next step is",
+          `${recommendedNextStep || "missing"}, not ${requiredRecommendedNextStep.toUpperCase()}`,
+        ].join(" "),
+      };
+    }
     return {
       trusted: true,
-      reason: `latest trusted review synthesis verdict is ${conclusion} for current head`,
+      reason: [
+        `latest trusted review synthesis verdict is ${conclusion}`,
+        `and recommended next step is ${recommendedNextStep} for current head`,
+      ].join(" "),
     };
   }
 

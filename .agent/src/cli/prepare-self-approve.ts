@@ -101,6 +101,7 @@ if (!allowSelfApprove) {
         trustedActorLogin: authenticatedActorLogin,
         expectedHeadSha: headSha,
         requireShip: !isHumanDecisionGate,
+        requiredRecommendedNextStep: isHumanDecisionGate ? sourceRecommendedNextStep : "",
       });
       if (!provenance.trusted) {
         stop(provenance.reason);

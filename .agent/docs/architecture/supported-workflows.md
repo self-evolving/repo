@@ -253,7 +253,8 @@ Self-approval is disabled unless `AGENT_ALLOW_SELF_APPROVE=true`. The manual
 workflow accepts a pull request number, confirms the target is an open PR, and
 requires the latest trusted review synthesis from the authenticated Sepo actor to
 match the current reviewed-head marker before it runs an approval agent. That
-preflight does not require the verdict to be `SHIP`, so review `HUMAN_DECISION`
+preflight relaxes the `SHIP` requirement only when both the workflow handoff and
+the latest trusted current-head synthesis recommend `HUMAN_DECISION`, so those
 handoffs can use self-approval as a decision gate for `MINOR_ISSUES` and
 `NEEDS_REWORK` too.
 The agent runs with read-approved permissions and returns structured JSON with a

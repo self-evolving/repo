@@ -291,13 +291,47 @@ test("evaluateSelfApprovalProvenance can accept non-SHIP current-head synthesis 
       {
         authorLogin: "app/sepo-agent-app",
         createdAt: "2026-05-07T10:00:00Z",
-        body: "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: abc123 -->\n\n## Final Verdict\n\nMINOR_ISSUES",
+        body: "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: abc123 -->\n\n## Recommended Next Step\n\nHUMAN_DECISION\n\n## Final Verdict\n\nMINOR_ISSUES",
       },
     ],
   });
 
   assert.equal(result.trusted, true);
   assert.match(result.reason, /minor_issues/);
+  assert.match(result.reason, /human_decision/);
+});
+
+test("evaluateSelfApprovalProvenance requires HUMAN_DECISION to relax SHIP", () => {
+  for (const recommendedNextStep of ["FIX_PR", "NO_AUTOMATED_ACTION"]) {
+    const result = evaluateSelfApprovalProvenance({
+      trustedActorLogin: "sepo-agent-app[bot]",
+      expectedHeadSha: "abc123",
+      requireShip: false,
+      requiredRecommendedNextStep: "HUMAN_DECISION",
+      comments: [
+        {
+          authorLogin: "app/sepo-agent-app",
+          createdAt: "2026-05-07T10:00:00Z",
+          body: `## AI Review Synthesis
+
+<!-- sepo-agent-review-synthesis -->
+<!-- sepo-agent-review-synthesis-head: abc123 -->
+
+## Recommended Next Step
+
+${recommendedNextStep}
+
+## Final Verdict
+
+MINOR_ISSUES`,
+        },
+      ],
+    });
+
+    assert.equal(result.trusted, false);
+    assert.match(result.reason, new RegExp(recommendedNextStep.toLowerCase()));
+    assert.match(result.reason, /not HUMAN_DECISION/);
+  }
 });
 
 test("evaluateSelfApprovalProvenance requires review synthesis for the current head", () => {
