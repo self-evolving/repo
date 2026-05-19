@@ -42,7 +42,8 @@ Install only:
 
 - `.agent/`, excluding generated/dependency directories
 - Sepo-owned `.github/` workflows, actions, prompts, and helper assets, merged
-  without deleting target-only content
+  without deleting target-only content; same-path `.github` conflicts block for
+  owner review before copy
 - optional `.skills/<requested-skill>/SKILL.md` or root `AGENT.md` only when
   explicitly requested
 

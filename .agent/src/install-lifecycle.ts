@@ -54,7 +54,7 @@ const TARGET_DEFAULT_BRANCH_SLOT: InstallLifecycleTemplateSlot = {
 
 const SOURCE_CHECKOUT_SLOT: InstallLifecycleTemplateSlot = {
   name: "source_checkout",
-  sourceStep: "checkout-source-release",
+  sourceStep: "prepare-source-checkout-dir",
   description: "Use the clean source checkout created from the selected Sepo release.",
 };
 
@@ -103,10 +103,10 @@ export function buildInstallLifecyclePlan(input: InstallLifecyclePlanInput): Ins
       {
         id: "check-target-write",
         title: "Check target repository access",
-        command: `gh api repos/${targetRepo} --jq '{default_branch: .default_branch, permissions: .permissions}'`,
+        command: `gh api repos/${targetRepo} --jq 'if (.permissions.push == true) then {default_branch: .default_branch, permissions: .permissions} else error("AGENT_INSTALL_PAT lacks push permission for ${targetRepo}") end'`,
         env: INSTALL_TOKEN_ENV,
         description:
-          "Confirm AGENT_INSTALL_PAT can read the target repository and has push/write permission before preparing changes.",
+          "Fail before preparing changes unless AGENT_INSTALL_PAT can read the target repository and has push/write permission.",
       },
       {
         id: "check-existing-install-pr",
@@ -132,6 +132,13 @@ export function buildInstallLifecyclePlan(input: InstallLifecyclePlanInput): Ins
           "Select the latest non-draft stable release, falling back to the latest non-draft prerelease only when no stable release exists.",
       },
       {
+        id: "prepare-source-checkout-dir",
+        title: "Prepare the source checkout directory",
+        command: "mktemp -d",
+        description:
+          "Create an empty temporary directory and record stdout as source_checkout for the selected Sepo source checkout.",
+      },
+      {
         id: "checkout-source-release",
         title: "Check out the selected Sepo source release",
         commandTemplate: `git clone --depth 1 --branch {{source_ref}} https://github.com/${sourceRepo}.git {{source_checkout}}`,
@@ -143,8 +150,8 @@ export function buildInstallLifecyclePlan(input: InstallLifecyclePlanInput): Ins
           },
           {
             name: "source_checkout",
-            sourceStep: "resolve-source-release",
-            description: "Choose an empty temporary directory for the selected Sepo source checkout.",
+            sourceStep: "prepare-source-checkout-dir",
+            description: "Use the empty temporary directory created for the selected Sepo source checkout.",
           },
         ],
         description:
@@ -174,12 +181,20 @@ export function buildInstallLifecyclePlan(input: InstallLifecyclePlanInput): Ins
           "Fill the template slot before running; create or update the install branch from the target repository default branch in a clean target worktree.",
       },
       {
-        id: "copy-install-scope",
-        title: "Copy the approved install scope",
-        commandTemplate: "rsync -a --exclude node_modules --exclude dist --exclude .git {{source_checkout}}/.agent/ {{target_worktree}}/.agent/ && rsync -a --exclude node_modules --exclude dist --exclude .git {{source_checkout}}/.github/ {{target_worktree}}/.github/",
+        id: "audit-github-copy-conflicts",
+        title: "Audit target-owned GitHub asset conflicts",
+        commandTemplate: "bash -lc 'conflicts=$(comm -12 <(cd \"$1\" && { [ ! -d .github ] || find .github -type f; } | sort) <(cd \"$2\" && { [ ! -d .github ] || find .github -type f; } | sort)); if [ -n \"$conflicts\" ]; then printf \"Blocked: target .github files already exist and need owner review before overwrite:\\n%s\\n\" \"$conflicts\" >&2; exit 1; fi' bash {{source_checkout}} {{target_worktree}}",
         templateSlots: [SOURCE_CHECKOUT_SLOT, TARGET_WORKTREE_SLOT],
         description:
-          "Fill the template slots before running the executable copy command; preserve target-owned files by copying only the approved Sepo infrastructure roots.",
+          "Block before copying when source and target have same-path .github files so target-owned workflows, actions, and prompts are reviewed instead of overwritten.",
+      },
+      {
+        id: "copy-install-scope",
+        title: "Copy the approved install scope",
+        commandTemplate: "rsync -a --exclude node_modules --exclude dist --exclude .git {{source_checkout}}/.agent/ {{target_worktree}}/.agent/ && rsync -a --ignore-existing --exclude node_modules --exclude dist --exclude .git {{source_checkout}}/.github/ {{target_worktree}}/.github/",
+        templateSlots: [SOURCE_CHECKOUT_SLOT, TARGET_WORKTREE_SLOT],
+        description:
+          "Fill the template slots before running the executable copy command; preserve target-owned .github files by blocking same-path conflicts before copy and never overwriting existing .github paths.",
       },
       {
         id: "validate-install-diff",
