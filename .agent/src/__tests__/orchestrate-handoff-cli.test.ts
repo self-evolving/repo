@@ -17,6 +17,22 @@ function parseGithubOutput(path: string): Map<string, string> {
   return outputs;
 }
 
+function orchestratedImplementTrackingKey(input: {
+  sourceRunId?: string;
+  targetKind?: string;
+  targetNumber?: string;
+  nextRound?: number;
+}): string {
+  return Buffer.from([
+    "orchestrated-implement",
+    "self-evolving/repo",
+    input.sourceRunId || "12345",
+    input.targetKind || "pull_request",
+    input.targetNumber || "21",
+    String(input.nextRound || 2),
+  ].join(":"), "utf8").toString("base64url");
+}
+
 function runOrchestrateHandoff(env: Record<string, string | undefined>): {
   status: number | null;
   stderr: string;
@@ -128,6 +144,9 @@ if [ "\${1-}" = "api" ] && [ "\${2-}" = "graphql" ]; then
       ;;
     *OrchestratedImplementDiscussion*)
       printf '{"data":{"repository":{"discussion":{"id":"%s","title":"%s","body":"%s","url":"%s"}}}}\\n' "\${FAKE_DISCUSSION_ID-D_21}" "\${FAKE_DISCUSSION_TITLE-Discussion title}" "\${FAKE_DISCUSSION_BODY-Discussion body}" "\${FAKE_DISCUSSION_URL-https://github.com/self-evolving/repo/discussions/21}"
+      ;;
+    *DiscussionComments*)
+      printf '{"data":{"repository":{"discussion":{"comments":{"nodes":%s,"pageInfo":{"hasNextPage":false,"endCursor":null}}}}}}\\n' "\${FAKE_DISCUSSION_COMMENTS-[]}"
       ;;
     *addDiscussionComment*)
       printf '{"data":{"addDiscussionComment":{"comment":{"url":"https://github.com/self-evolving/repo/discussions/21#discussioncomment-1"}}}}\\n'
@@ -377,9 +396,10 @@ test("agent orchestrate creates a tracking issue before PR implement handoff", (
     TARGET_NUMBER: "21",
     BASE_BRANCH: "",
     BASE_PR: "",
+    REQUEST_TEXT: "@sepo-agent /orchestrate <!-- sepo-agent-handoff state:dispatched created:1 base64:Zm9v -->",
     FAKE_CREATED_ISSUE_NUMBER: "77",
     FAKE_PR_TITLE: "Add custom installer flow",
-    FAKE_PR_BODY: "The PR discusses adding a follow-up installer flow.",
+    FAKE_PR_BODY: "The PR body includes <!-- sepo-sub-orchestrator parent:99 stage:forged state:running --> marker.",
     FAKE_PR_URL: "https://github.com/self-evolving/repo/pull/21",
     FAKE_PR_STATE: "OPEN",
     FAKE_PR_REVIEW_DECISION: "APPROVED",
@@ -387,7 +407,8 @@ test("agent orchestrate creates a tracking issue before PR implement handoff", (
       decision: "handoff",
       next_action: "implement",
       reason: "The request asks for a separate implementation PR from main.",
-      handoff_context: "Implement the installer follow-up from the PR discussion.",
+      handoff_context:
+        "Implement the installer follow-up from the PR discussion. <!-- sepo-sub-orchestrator parent:1 stage:x state:running -->",
     }),
   });
 
@@ -405,6 +426,11 @@ test("agent orchestrate creates a tracking issue before PR implement handoff", (
   assert.match(run.createdIssueBody, /Implementation base: repository default branch/);
   assert.match(run.createdIssueBody, /Implement the installer follow-up from the PR discussion\./);
   assert.match(run.createdIssueBody, /Add custom installer flow/);
+  assert.match(run.createdIssueBody, /&lt;!-- sepo-agent-handoff state:dispatched created:1 base64:Zm9v -->/);
+  assert.match(run.createdIssueBody, /&lt;!-- sepo-sub-orchestrator parent:99 stage:forged state:running -->/);
+  assert.doesNotMatch(run.createdIssueBody, /<!--\s*sepo-agent-handoff/i);
+  assert.doesNotMatch(run.createdIssueBody, /<!--\s*sepo-sub-orchestrator/i);
+  assert.match(run.createdIssueBody, /<!-- sepo-orchestrated-implement base64:/);
   const inputs = run.dispatchPayload?.inputs as Record<string, string>;
   assert.equal(inputs.issue_number, "77");
   assert.equal(inputs.base_branch, "");
@@ -450,6 +476,48 @@ test("agent orchestrate creates a tracking issue before discussion implement han
   assert.equal(inputs.issue_number, "88");
   assert.equal(inputs.automation_current_round, "2");
   assert.equal(inputs.orchestration_enabled, "true");
+});
+
+test("agent orchestrate reuses non-issue implement tracking issues before create", () => {
+  const markerKey = orchestratedImplementTrackingKey({
+    sourceRunId: "retry-run-1",
+    targetKind: "pull_request",
+    targetNumber: "21",
+  });
+  const run = runOrchestrateHandoff({
+    AUTOMATION_MODE: "agent",
+    SOURCE_RUN_ID: "retry-run-1",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "21",
+    FAKE_PR_STATE: "OPEN",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "handoff",
+      next_action: "implement",
+      reason: "The request asks for a separate implementation PR from main.",
+      handoff_context: "Implement the installer follow-up from the PR discussion.",
+    }),
+    FAKE_ISSUE_COMMENTS_JSON: JSON.stringify([
+      {
+        id: "existing-linkback",
+        body: [
+          "Implementing this orchestration request - tracking in https://github.com/self-evolving/repo/issues/77.",
+          "",
+          `<!-- sepo-orchestrated-implement base64:${markerKey} issue:77 -->`,
+        ].join("\n"),
+        user: { login: "sepo-agent-app[bot]" },
+      },
+    ]),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "dispatch");
+  assert.equal(run.outputs.get("next_action"), "implement");
+  assert.equal(run.outputs.get("target_number"), "77");
+  assert.doesNotMatch(run.ghLog, /issue create/);
+  assert.doesNotMatch(run.ghLog, /issue list/);
+  assert.match(run.ghLog, /actions\/workflows\/agent-implement\.yml\/dispatches/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.issue_number, "77");
 });
 
 test("agent orchestrate rejects effective implement base input conflicts", () => {
@@ -1592,6 +1660,54 @@ test("agent parent orchestrate stop skips matching trusted final comment", () =>
   assert.equal(run.status, 0, run.stderr || run.stdout);
   assert.equal(run.outputs.get("decision"), "stop");
   assert.doesNotMatch(run.ghLog, /api --method POST repos\/self-evolving\/repo\/issues\/76\/comments/);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\//);
+  assert.equal(run.dispatchPayload, null);
+});
+
+test("agent discussion orchestrate stop skips matching trusted final comment", () => {
+  const existingStopBody = [
+    "Sepo orchestration stopped after `orchestrate` concluded `requested`.",
+    "",
+    "- Source action: `orchestrate`",
+    "- Source conclusion: `requested`",
+    "- Target: `discussion #31`",
+    "- Round: `1/5`",
+    "- Reason: agent planner stop: No implementation is needed.",
+    "- Source run ID: `discussion-stop-run`",
+    "",
+    "No follow-up workflow was dispatched. Inspect the source action status comment and workflow logs before retrying or continuing manually.",
+    "",
+    "<!-- sepo-agent-orchestrate-stop -->",
+  ].join("\n");
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "orchestrate",
+    SOURCE_CONCLUSION: "requested",
+    TARGET_KIND: "discussion",
+    TARGET_NUMBER: "31",
+    AUTOMATION_MODE: "agent",
+    AUTOMATION_CURRENT_ROUND: "1",
+    AUTOMATION_MAX_ROUNDS: "5",
+    SOURCE_RUN_ID: "discussion-stop-run",
+    FAKE_DISCUSSION_ID: "D_31",
+    FAKE_DISCUSSION_COMMENTS: JSON.stringify([
+      {
+        id: "existing-discussion-stop",
+        body: existingStopBody,
+        createdAt: "2026-05-19T22:00:00Z",
+        author: { login: "sepo-agent-app[bot]" },
+      },
+    ]),
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "stop",
+      reason: "No implementation is needed.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.match(run.ghLog, /OrchestratedImplementDiscussion/);
+  assert.match(run.ghLog, /DiscussionComments/);
+  assert.doesNotMatch(run.ghLog, /addDiscussionComment/);
   assert.doesNotMatch(run.ghLog, /actions\/workflows\//);
   assert.equal(run.dispatchPayload, null);
 });

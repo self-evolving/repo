@@ -12,6 +12,7 @@ export interface DiscussionComment {
   id: string;
   body: string;
   created_at: string;
+  authorLogin?: string;
 }
 
 export interface DiscussionCategory {
@@ -67,7 +68,7 @@ export function fetchDiscussionComments(
   number: number,
 ): DiscussionComment[] {
   const query = `
-    query($owner: String!, $repo: String!, $number: Int!, $cursor: String) {
+    query DiscussionComments($owner: String!, $repo: String!, $number: Int!, $cursor: String) {
       repository(owner: $owner, name: $repo) {
         discussion(number: $number) {
           comments(first: 100, after: $cursor) {
@@ -79,6 +80,7 @@ export function fetchDiscussionComments(
               id
               body
               createdAt
+              author { login }
             }
           }
         }
@@ -110,7 +112,12 @@ export function fetchDiscussionComments(
         discussion?: {
           comments?: {
             pageInfo?: { hasNextPage?: boolean; endCursor?: string | null };
-            nodes?: Array<{ id: string; body: string; createdAt: string }>;
+            nodes?: Array<{
+              id: string;
+              body: string;
+              createdAt: string;
+              author?: { login?: string | null } | null;
+            }>;
           };
         };
       };
@@ -123,6 +130,7 @@ export function fetchDiscussionComments(
         id: n.id,
         body: n.body || "",
         created_at: n.createdAt || "",
+        authorLogin: n.author?.login || "",
       });
     }
 
