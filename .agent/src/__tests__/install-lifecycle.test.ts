@@ -17,18 +17,28 @@ test("buildInstallLifecyclePlan emits deterministic install route steps", () => 
       "check-target-write",
       "check-existing-install-pr",
       "resolve-source-release",
+      "setup-target-worktree",
       "prepare-target-branch",
       "copy-install-scope",
       "validate-install-diff",
+      "stage-install-changes",
+      "commit-install-changes",
+      "push-install-branch",
       "open-install-pr",
     ],
   );
   assert.match(plan.steps[0]?.command || "", /gh api repos\/foo\/bar/);
   assert.match(plan.steps[1]?.command || "", /gh pr list --repo foo\/bar --head agent\/install-agent-infra/);
-  assert.equal(plan.steps[3]?.command, undefined);
-  assert.match(plan.steps[3]?.commandTemplate || "", /{{target_default_branch}}/);
-  assert.equal(plan.steps[3]?.templateSlots?.[0]?.sourceStep, "check-target-write");
-  assert.match(plan.steps[6]?.commandTemplate || "", /{{install_pr_body_file}}/);
+  assert.match(plan.steps[3]?.commandTemplate || "", /git clone https:\/\/github\.com\/foo\/bar\.git/);
+  assert.equal(plan.steps[4]?.command, undefined);
+  assert.match(plan.steps[4]?.commandTemplate || "", /{{target_worktree}}/);
+  assert.match(plan.steps[4]?.commandTemplate || "", /{{target_default_branch}}/);
+  assert.equal(plan.steps[4]?.templateSlots?.[0]?.sourceStep, "setup-target-worktree");
+  assert.match(plan.steps[7]?.commandTemplate || "", /git -C {{target_worktree}} add/);
+  assert.match(plan.steps[8]?.commandTemplate || "", /git -C {{target_worktree}} commit/);
+  assert.match(plan.steps[9]?.commandTemplate || "", /git -C {{target_worktree}} push/);
+  assert.match(plan.steps[10]?.commandTemplate || "", /{{install_pr_body_file}}/);
+  assert.equal(plan.steps[10]?.templateSlots?.[1]?.sourceStep, "commit-install-changes");
   assert.doesNotMatch(JSON.stringify(plan), /<target-default-branch>|<install-pr-body\.md>/);
 });
 

@@ -39,6 +39,18 @@ export interface InstallLifecyclePlanInput {
   sourceRepo?: string;
 }
 
+const TARGET_WORKTREE_SLOT: InstallLifecycleTemplateSlot = {
+  name: "target_worktree",
+  sourceStep: "setup-target-worktree",
+  description: "Use the clean target repository worktree created by the setup step.",
+};
+
+const TARGET_DEFAULT_BRANCH_SLOT: InstallLifecycleTemplateSlot = {
+  name: "target_default_branch",
+  sourceStep: "check-target-write",
+  description: "Use the target repository default_branch returned by the access check.",
+};
+
 function cleanInput(value: string | undefined, fallback: string): string {
   const trimmed = String(value || "").trim();
   return trimmed || fallback;
@@ -99,16 +111,24 @@ export function buildInstallLifecyclePlan(input: InstallLifecyclePlanInput): Ins
           "Select the latest non-draft stable release, falling back to the latest non-draft prerelease only when no stable release exists.",
       },
       {
-        id: "prepare-target-branch",
-        title: "Prepare the target install branch",
-        commandTemplate: `git checkout -B ${installBranch} {{target_default_branch}}`,
+        id: "setup-target-worktree",
+        title: "Set up the target worktree",
+        commandTemplate: `git clone https://github.com/${targetRepo}.git {{target_worktree}}`,
         templateSlots: [
           {
-            name: "target_default_branch",
+            name: "target_worktree",
             sourceStep: "check-target-write",
-            description: "Use the target repository default_branch returned by the access check.",
+            description: "Choose an empty temporary directory for the target repository checkout.",
           },
         ],
+        description:
+          "Fill the target_worktree slot before cloning; use this clean target checkout for all later git operations.",
+      },
+      {
+        id: "prepare-target-branch",
+        title: "Prepare the target install branch",
+        commandTemplate: `git -C {{target_worktree}} checkout -B ${installBranch} {{target_default_branch}}`,
+        templateSlots: [TARGET_WORKTREE_SLOT, TARGET_DEFAULT_BRANCH_SLOT],
         description:
           "Fill the template slot before running; create or update the install branch from the target repository default branch in a clean target worktree.",
       },
@@ -122,11 +142,7 @@ export function buildInstallLifecyclePlan(input: InstallLifecyclePlanInput): Ins
             sourceStep: "resolve-source-release",
             description: "Use the checkout for the selected Sepo source revision.",
           },
-          {
-            name: "target_worktree",
-            sourceStep: "prepare-target-branch",
-            description: "Use the clean target worktree on the install branch.",
-          },
+          TARGET_WORKTREE_SLOT,
         ],
         description:
           "Fill the template slots before copying only Sepo-owned infrastructure, preserving target-owned application code and unrelated GitHub assets.",
@@ -134,23 +150,44 @@ export function buildInstallLifecyclePlan(input: InstallLifecyclePlanInput): Ins
       {
         id: "validate-install-diff",
         title: "Validate the install diff",
-        command: "git status --short && git diff --stat",
+        commandTemplate: "git -C {{target_worktree}} status --short && git -C {{target_worktree}} diff --stat",
+        templateSlots: [TARGET_WORKTREE_SLOT],
         description:
           "Confirm the diff is limited to the approved install scope and run lightweight checks that are available in the target worktree.",
+      },
+      {
+        id: "stage-install-changes",
+        title: "Stage the install changes",
+        commandTemplate: "git -C {{target_worktree}} add .agent .github",
+        templateSlots: [TARGET_WORKTREE_SLOT],
+        description:
+          "Stage the required install scope; stage optional approved paths separately only when the requester explicitly included them.",
+      },
+      {
+        id: "commit-install-changes",
+        title: "Commit the install changes",
+        commandTemplate: "git -C {{target_worktree}} commit -m 'chore: install Sepo agent infrastructure'",
+        templateSlots: [TARGET_WORKTREE_SLOT],
+        description:
+          "Create the install commit after validation; if there are no staged changes, stop and report that no install diff was produced.",
+      },
+      {
+        id: "push-install-branch",
+        title: "Push the install branch",
+        commandTemplate: `git -C {{target_worktree}} push --set-upstream origin ${installBranch}`,
+        templateSlots: [TARGET_WORKTREE_SLOT],
+        description:
+          "Push the committed install branch to the target repository before opening the PR.",
       },
       {
         id: "open-install-pr",
         title: "Open the install PR",
         commandTemplate: `gh pr create --repo ${targetRepo} --head ${installBranch} --base {{target_default_branch}} --title 'Install Sepo agent infrastructure' --body-file {{install_pr_body_file}}`,
         templateSlots: [
-          {
-            name: "target_default_branch",
-            sourceStep: "check-target-write",
-            description: "Use the target repository default_branch returned by the access check.",
-          },
+          TARGET_DEFAULT_BRANCH_SLOT,
           {
             name: "install_pr_body_file",
-            sourceStep: "validate-install-diff",
+            sourceStep: "commit-install-changes",
             description: "Use the generated install PR body file after validation.",
           },
         ],
