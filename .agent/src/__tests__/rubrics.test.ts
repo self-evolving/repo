@@ -187,6 +187,25 @@ severity: should
   assert.equal(selected[0]?.rubric.id, "implementation-guidance");
 });
 
+test("selectRubrics applies skill rubrics to install", () => {
+  const root = tempDir();
+  writeRubric(root, "skill.yaml", `
+id: skill-guidance
+title: Skill guidance
+description: Install runs execute a bundled skill.
+applies_to: [skill]
+severity: should
+`);
+
+  const { selected, errors } = selectRubrics({
+    rootDir: root,
+    route: "install",
+    query: "install Sepo into a target repo",
+  });
+  assert.deepEqual(errors, []);
+  assert.equal(selected[0]?.rubric.id, "skill-guidance");
+});
+
 test("selectRubrics can include all routes for rubric review", () => {
   const root = tempDir();
   writeRubric(root, "implementation.yaml", `

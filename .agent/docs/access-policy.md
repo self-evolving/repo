@@ -43,6 +43,18 @@ This policy lets contributors ask questions through the default `answer` behavio
 }
 ```
 
+For cross-repository installs, keep the bundled install skill available while
+restricting the first-class `/install owner/repo` route separately:
+
+```json
+{
+  "allowed_associations": ["OWNER", "MEMBER", "COLLABORATOR", "CONTRIBUTOR"],
+  "route_overrides": {
+    "install": ["OWNER", "MEMBER"]
+  }
+}
+```
+
 ## GitHub author associations
 
 The values match GitHub's [`CommentAuthorAssociation`](https://docs.github.com/graphql/reference/enums#commentauthorassociation) enum:

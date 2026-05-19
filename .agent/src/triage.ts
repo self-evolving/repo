@@ -32,7 +32,8 @@ const EXPLICIT_ROUTE_COMMANDS = ["answer", "implement", "fix-pr", "review", "orc
 const LABEL_ROUTE_PREFIX = "agent/";
 const LABEL_SKILL_PREFIX = "agent/s/";
 const VALID_SKILL_LABEL = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
-const INSTALL_AGENT_SKILL = "install-agent";
+export const INSTALL_ROUTE = "install";
+export const INSTALL_AGENT_SKILL = "install-agent";
 const INVALID_INSTALL_ROUTE = "invalid-install";
 const VALID_INSTALL_TARGET_REPO = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?\/[A-Za-z0-9._-]+$/;
 const DEFAULT_IMPLEMENT_ISSUE_TITLE = "Implement requested change";
@@ -141,7 +142,7 @@ export function extractRequestedRouteDecision(body: string, mention: string): Re
     const installArgs = (installMatch[1] || "").replace(/^[\s.,;:!?)\]}]+/, "");
     const targetToken = normalizeInstallTargetToken(installArgs.trim().split(/\s+/)[0] || "");
     if (VALID_INSTALL_TARGET_REPO.test(targetToken)) {
-      return { route: "skill", skill: INSTALL_AGENT_SKILL, installTargetRepo: targetToken };
+      return { route: INSTALL_ROUTE, skill: INSTALL_AGENT_SKILL, installTargetRepo: targetToken };
     }
     return { route: INVALID_INSTALL_ROUTE, skill: "" };
   }
@@ -173,6 +174,7 @@ export function buildRequestedRouteDecision(
   const normalizedRoute = String(route || "").trim().toLowerCase();
   if (
     normalizedRoute !== "skill" &&
+    normalizedRoute !== INSTALL_ROUTE &&
     normalizedRoute !== INVALID_INSTALL_ROUTE &&
     normalizedRoute !== "unsupported" &&
     !EXPLICIT_ROUTE_COMMANDS.includes(normalizedRoute as (typeof EXPLICIT_ROUTE_COMMANDS)[number])
@@ -261,6 +263,17 @@ export function buildRequestedRouteDecision(
       needsApproval: false,
       confidence: "high",
       summary: "I’ll run the requested skill.",
+      issueTitle: "",
+      issueBody: "",
+    };
+  }
+
+  if (normalizedRoute === INSTALL_ROUTE) {
+    return {
+      route: INSTALL_ROUTE,
+      needsApproval: false,
+      confidence: "high",
+      summary: "I’ll run the install skill for the target repository.",
       issueTitle: "",
       issueBody: "",
     };

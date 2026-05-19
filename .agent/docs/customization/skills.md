@@ -5,8 +5,9 @@ defaults to `.skills`. Invoke one with `@sepo-agent /skill <name>` or the
 `agent/s/<name>` label.
 
 Sepo also ships a dedicated install convenience command:
-`@sepo-agent /install owner/repo`. The router maps it to the bundled
-`install-agent` skill after validating the target repository slug.
+`@sepo-agent /install owner/repo`. The router evaluates it as the first-class
+`install` route for access policy, then runs the bundled `install-agent` skill
+after validating the target repository slug.
 
 ```text
 .skills/<name>/
