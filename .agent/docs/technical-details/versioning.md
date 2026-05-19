@@ -4,6 +4,8 @@ Sepo uses SemVer for public version labels.
 
 `.agent/package.json` is the canonical Sepo package/runtime version.
 
+`.agent/CHANGELOG.md` is the canonical Sepo changelog.
+
 ## Policy
 
 - Use `v0.x.y` tags while the install, update, and bug-report contract is still pre-release.
@@ -29,5 +31,6 @@ Prepare:
   the next version from `.agent/package.json`, recent changes, and this policy.
 - The workflow creates or reuses a release preparation issue, then dispatches the
   existing implementation workflow with the release prompt.
-- The release prompt may update files and open a PR, but must not create git
-  tags, GitHub Releases, or package publications.
+- The release prompt may update files, including `.agent/CHANGELOG.md`, and
+  open a PR, but must not create git tags, GitHub Releases, or package
+  publications.
