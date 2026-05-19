@@ -44,6 +44,14 @@ these policy rules:
 - Issue-level `orchestrate` in agent mode may return `delegate_issue` to
   create, reuse, or adopt one child issue and start the child issue's normal
   orchestrator flow.
+- Issue-level `orchestrate` on an `agent-goal` issue should treat the issue as a
+  parent objective. Use the goal body, success criteria, subgoals, linked work,
+  and existing sub-issues to choose one bounded next step. Prefer
+  `delegate_issue` for distinct subgoals or non-trivial workstreams. Use direct
+  `implement` only when the goal issue already describes a small,
+  self-contained change, and block when the next subgoal or success criteria are
+  unclear. Do not use `agent/goal` for this convention; `agent/*` labels are
+  reserved for route triggers unless a real route is designed.
 - Pull-request-level `orchestrate` in agent mode may return `handoff` with
   `next_action: "review"` or `next_action: "fix-pr"` for open PR targets. Use
   `review` for analysis-only or review-first requests, and `fix-pr` only when
