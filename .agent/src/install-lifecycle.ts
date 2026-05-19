@@ -164,6 +164,14 @@ export function buildInstallLifecyclePlan(input: InstallLifecyclePlanInput): Ins
           "Fill the template slots before running the executable copy command; preserve target-owned .github files by blocking same-path conflicts before copy and never overwriting existing .github paths.",
       },
       {
+        id: "merge-generated-output-gitignore",
+        title: "Merge generated output ignores",
+        commandTemplate: "bash -lc 'gitignore=\"$1/.gitignore\"; touch \"$gitignore\"; for entry in \".agent/dist/\" \".agent/node_modules/\"; do if ! grep -Fxq \"$entry\" \"$gitignore\"; then if [ -s \"$gitignore\" ] && [ \"$(tail -c 1 \"$gitignore\" | od -An -t x1 | tr -d \" \\n\")\" != \"0a\" ]; then printf \"\\n\" >> \"$gitignore\"; fi; printf \"%s\\n\" \"$entry\" >> \"$gitignore\"; fi; done' bash {{target_worktree}}",
+        templateSlots: [TARGET_WORKTREE_SLOT],
+        description:
+          "Create or update the target .gitignore without replacing target-owned entries, appending .agent/dist/ and .agent/node_modules/ only when missing.",
+      },
+      {
         id: "validate-install-diff",
         title: "Validate the install diff",
         commandTemplate: "git -C {{target_worktree}} status --short && git -C {{target_worktree}} diff --stat",
@@ -174,10 +182,10 @@ export function buildInstallLifecyclePlan(input: InstallLifecyclePlanInput): Ins
       {
         id: "stage-install-changes",
         title: "Stage the install changes",
-        commandTemplate: "git -C {{target_worktree}} add .agent .github",
+        commandTemplate: "git -C {{target_worktree}} add .agent .github .gitignore",
         templateSlots: [TARGET_WORKTREE_SLOT],
         description:
-          "Stage the required install scope; stage optional approved paths separately only when the requester explicitly included them.",
+          "Stage the required install scope and generated-output ignore entries; stage optional approved paths separately only when the requester explicitly included them.",
       },
       {
         id: "commit-install-changes",
