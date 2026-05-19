@@ -25,10 +25,12 @@ repository by opening or reusing a focused install PR.
      clarification request using the helper message.
    - Use the normalized `target_repo`, `install_branch`, `source_repo`, and
      ordered `steps` from the plan for all install operations.
-2. Execute the plan steps in order. Treat the step IDs, commands, and
-   descriptions as the deterministic install contract for target write-path
-   probing, existing PR reuse, source release selection, branch preparation,
-   diff validation, and PR creation.
+2. Execute the plan steps in order. Treat the step IDs, commands, command
+   templates, template slots, and descriptions as the deterministic install
+   contract for target write-path probing, existing PR reuse, source release
+   selection, branch preparation, diff validation, and PR creation. Never run a
+   `commandTemplate` until every `templateSlots` entry has been filled from its
+   named `sourceStep`.
 3. If a step cannot be completed, stop and return a blocked result that names
    the failed step and the needed next action. For target write failures, say to
    update `AGENT_INSTALL_PAT` or target repository access before rerunning

@@ -29,7 +29,7 @@ export interface DispatchDecision {
   basePr?: string;
 }
 
-const EXPLICIT_ROUTE_COMMANDS = ["answer", "implement", "fix-pr", "review", "orchestrate", "create-action"] as const;
+const EXPLICIT_ROUTE_COMMANDS = ["answer", "implement", "fix-pr", "review", "orchestrate", "create-action", "install"] as const;
 const LABEL_ROUTE_PREFIX = "agent/";
 const LABEL_SKILL_PREFIX = "agent/s/";
 const VALID_SKILL_LABEL = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
@@ -142,14 +142,6 @@ export function extractRequestedRouteDecision(body: string, mention: string): Re
     return { route: explicitMatch[1].toLowerCase(), skill: "" };
   }
 
-  const installRegex = new RegExp(
-    `(?:^|[\\s(])${escapeRegex(trimmedMention)}\\s+/install(?=$|[\\s.,;:!?)\\]}])`,
-    "im",
-  );
-  if (installRegex.test(sanitized)) {
-    return { route: INSTALL_ROUTE, skill: "" };
-  }
-
   const skillRegex = new RegExp(
     String.raw`(?:^|[\s(])${escapeRegex(trimmedMention)}\s+/skill\s+([A-Za-z0-9][A-Za-z0-9._-]*)(?=$|[\s.,;:!?)\]}])`,
     "im",
@@ -177,7 +169,6 @@ export function buildRequestedRouteDecision(
   const normalizedRoute = String(route || "").trim().toLowerCase();
   if (
     normalizedRoute !== "skill" &&
-    normalizedRoute !== INSTALL_ROUTE &&
     normalizedRoute !== "unsupported" &&
     !EXPLICIT_ROUTE_COMMANDS.includes(normalizedRoute as (typeof EXPLICIT_ROUTE_COMMANDS)[number])
   ) {

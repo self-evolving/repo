@@ -11,7 +11,15 @@ export type InstallLifecycleStatus = InstallTargetResolution["status"];
 export interface InstallLifecycleStep {
   id: string;
   title: string;
-  command: string;
+  command?: string;
+  commandTemplate?: string;
+  templateSlots?: InstallLifecycleTemplateSlot[];
+  description: string;
+}
+
+export interface InstallLifecycleTemplateSlot {
+  name: string;
+  sourceStep: string;
   description: string;
 }
 
@@ -93,16 +101,35 @@ export function buildInstallLifecyclePlan(input: InstallLifecyclePlanInput): Ins
       {
         id: "prepare-target-branch",
         title: "Prepare the target install branch",
-        command: `git checkout -B ${installBranch} <target-default-branch>`,
+        commandTemplate: `git checkout -B ${installBranch} {{target_default_branch}}`,
+        templateSlots: [
+          {
+            name: "target_default_branch",
+            sourceStep: "check-target-write",
+            description: "Use the target repository default_branch returned by the access check.",
+          },
+        ],
         description:
-          "Create or update the install branch from the target repository default branch in a clean target worktree.",
+          "Fill the template slot before running; create or update the install branch from the target repository default branch in a clean target worktree.",
       },
       {
         id: "copy-install-scope",
         title: "Copy the approved install scope",
-        command: "copy .agent/ and Sepo-owned .github assets from the resolved source revision",
+        commandTemplate: "copy .agent/ and Sepo-owned .github assets from {{source_checkout}} into {{target_worktree}}",
+        templateSlots: [
+          {
+            name: "source_checkout",
+            sourceStep: "resolve-source-release",
+            description: "Use the checkout for the selected Sepo source revision.",
+          },
+          {
+            name: "target_worktree",
+            sourceStep: "prepare-target-branch",
+            description: "Use the clean target worktree on the install branch.",
+          },
+        ],
         description:
-          "Copy only Sepo-owned infrastructure, preserving target-owned application code and unrelated GitHub assets.",
+          "Fill the template slots before copying only Sepo-owned infrastructure, preserving target-owned application code and unrelated GitHub assets.",
       },
       {
         id: "validate-install-diff",
@@ -114,9 +141,21 @@ export function buildInstallLifecyclePlan(input: InstallLifecyclePlanInput): Ins
       {
         id: "open-install-pr",
         title: "Open the install PR",
-        command: `gh pr create --repo ${targetRepo} --head ${installBranch} --base <target-default-branch> --title 'Install Sepo agent infrastructure' --body-file <install-pr-body.md>`,
+        commandTemplate: `gh pr create --repo ${targetRepo} --head ${installBranch} --base {{target_default_branch}} --title 'Install Sepo agent infrastructure' --body-file {{install_pr_body_file}}`,
+        templateSlots: [
+          {
+            name: "target_default_branch",
+            sourceStep: "check-target-write",
+            description: "Use the target repository default_branch returned by the access check.",
+          },
+          {
+            name: "install_pr_body_file",
+            sourceStep: "validate-install-diff",
+            description: "Use the generated install PR body file after validation.",
+          },
+        ],
         description:
-          "Open the PR with source revision, installed files, validation, and required setup after merge.",
+          "Fill all template slots before opening the PR with source revision, installed files, validation, and required setup after merge.",
       },
     ],
   };

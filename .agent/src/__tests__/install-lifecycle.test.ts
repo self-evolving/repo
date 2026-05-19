@@ -25,6 +25,11 @@ test("buildInstallLifecyclePlan emits deterministic install route steps", () => 
   );
   assert.match(plan.steps[0]?.command || "", /gh api repos\/foo\/bar/);
   assert.match(plan.steps[1]?.command || "", /gh pr list --repo foo\/bar --head agent\/install-agent-infra/);
+  assert.equal(plan.steps[3]?.command, undefined);
+  assert.match(plan.steps[3]?.commandTemplate || "", /{{target_default_branch}}/);
+  assert.equal(plan.steps[3]?.templateSlots?.[0]?.sourceStep, "check-target-write");
+  assert.match(plan.steps[6]?.commandTemplate || "", /{{install_pr_body_file}}/);
+  assert.doesNotMatch(JSON.stringify(plan), /<target-default-branch>|<install-pr-body\.md>/);
 });
 
 test("buildInstallLifecyclePlan blocks missing and ambiguous install targets", () => {

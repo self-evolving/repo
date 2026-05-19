@@ -894,6 +894,7 @@ test("skill route uses the composite setup action for path and setup checks", ()
   assert.match(installWorkflow, /ROUTE:\s*install/);
   assert.match(installWorkflow, /github_token:\s*\$\{\{\s*secrets\.AGENT_INSTALL_PAT\s*\}\}/);
   assert.match(installWorkflow, /memory_mode_override:\s*disabled/);
+  assert.match(installWorkflow, /rubrics_mode_override:\s*disabled/);
   assert.doesNotMatch(installWorkflow, /memory_policy:\s*\$\{\{\s*vars\.AGENT_MEMORY_POLICY/);
   assert.doesNotMatch(installWorkflow, /github_token:[^\n]*steps\.auth\.outputs\.token/);
   assert.doesNotMatch(installWorkflow, /\.\/\.github\/actions\/run-skill-setup/);

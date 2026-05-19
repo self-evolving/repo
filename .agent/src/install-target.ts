@@ -2,13 +2,18 @@ const OWNER = "[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?";
 const REPO = "[A-Za-z0-9._-]+";
 const SLUG_PATTERN = `${OWNER}/${REPO}`;
 const GITHUB_URL_RE = new RegExp(
-  String.raw`https?://github\.com/(${OWNER})/(${REPO})(?:\.git)?(?=$|[/?#\s.,;:!?)\]}])`,
+  String.raw`https?://github\.com/(${OWNER})/(${REPO})(?:\.git)?(?:[/?#][^\s<>"')\]}]*)?(?=$|[\s.,;:!?)\]}])`,
   "gi",
 );
 const SLUG_RE = new RegExp(
   String.raw`(?:^|[^\w.-])(${SLUG_PATTERN})(?=$|[^\w.-])`,
   "g",
 );
+
+interface Span {
+  start: number;
+  end: number;
+}
 
 export interface InstallTargetResolution {
   status: "clear" | "missing" | "ambiguous";
@@ -36,15 +41,28 @@ function uniqueCandidates(candidates: string[]): string[] {
   return out;
 }
 
+function spanContains(spans: Span[], start: number, end: number): boolean {
+  return spans.some((span) => start >= span.start && end <= span.end);
+}
+
 export function resolveInstallTargetFromText(text: string): InstallTargetResolution {
   const body = String(text || "");
   const candidates: string[] = [];
+  const urlSpans: Span[] = [];
 
   for (const match of body.matchAll(GITHUB_URL_RE)) {
+    const start = match.index ?? 0;
+    urlSpans.push({ start, end: start + match[0].length });
     candidates.push(normalizeRepo(match[1] || "", match[2] || ""));
   }
 
   for (const match of body.matchAll(SLUG_RE)) {
+    const slug = String(match[1] || "");
+    const slugStart = (match.index ?? 0) + String(match[0] || "").indexOf(slug);
+    const slugEnd = slugStart + slug.length;
+    if (spanContains(urlSpans, slugStart, slugEnd)) {
+      continue;
+    }
     const [owner, repo] = String(match[1] || "").split("/");
     candidates.push(normalizeRepo(owner || "", repo || ""));
   }

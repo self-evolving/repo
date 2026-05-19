@@ -19,6 +19,21 @@ test("resolveInstallTargetFromText accepts GitHub URLs", () => {
   assert.equal(result.targetRepo, "foo/bar");
 });
 
+test("resolveInstallTargetFromText does not scan slugs inside GitHub URL paths", () => {
+  const issueUrl = resolveInstallTargetFromText(
+    "@sepo-agent /install https://github.com/foo/bar/issues/123",
+  );
+  assert.equal(issueUrl.status, "clear");
+  assert.equal(issueUrl.targetRepo, "foo/bar");
+  assert.deepEqual(issueUrl.candidates, ["foo/bar"]);
+
+  const treeUrl = resolveInstallTargetFromText(
+    "Install into https://github.com/foo/bar/tree/main and mention foo/bar once.",
+  );
+  assert.equal(treeUrl.status, "clear");
+  assert.deepEqual(treeUrl.candidates, ["foo/bar"]);
+});
+
 test("resolveInstallTargetFromText blocks missing and ambiguous targets", () => {
   assert.equal(resolveInstallTargetFromText("@sepo-agent /install please").status, "missing");
 
