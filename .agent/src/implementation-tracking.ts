@@ -4,7 +4,7 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { addDiscussionComment, fetchDiscussionComments } from "./discussion.js";
+import { addDiscussionComment } from "./discussion.js";
 import {
   createIssue,
   fetchAuthenticatedActorLogin,
@@ -17,6 +17,7 @@ export interface CommentRecord {
   id?: string | number;
   body?: string;
   authorLogin?: string;
+  replyToId?: string | number;
 }
 
 export interface SourceTargetMetadata {
@@ -210,8 +211,10 @@ function parseImplementationTrackingMarker(body: string, key: string): { issueNu
 }
 
 function formatImplementationBase(baseBranchInput: string, basePrInput: string): string {
-  if (basePrInput) return `PR #${basePrInput}`;
-  if (baseBranchInput) return `branch \`${baseBranchInput}\``;
+  const basePr = escapeSepoControlMarkers(basePrInput);
+  const baseBranch = escapeSepoControlMarkers(baseBranchInput);
+  if (basePr) return `PR #${basePr}`;
+  if (baseBranch) return `branch \`${baseBranch}\``;
   return "repository default branch";
 }
 
@@ -331,11 +334,135 @@ export function fetchDiscussionCommentRecords(repoSlug: string, discussionNumber
   const { owner, name } = splitRepoSlug(repoSlug);
   const parsedNumber = parsePositiveTargetNumber(discussionNumber);
   if (!owner || !name || !parsedNumber) return [];
-  return fetchDiscussionComments(owner, name, parsedNumber).map((comment) => ({
-    id: comment.id,
-    body: comment.body,
-    authorLogin: comment.authorLogin || "",
-  }));
+  const query = `
+    query DiscussionComments($owner: String!, $repo: String!, $number: Int!, $cursor: String) {
+      repository(owner: $owner, name: $repo) {
+        discussion(number: $number) {
+          comments(first: 100, after: $cursor) {
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
+            nodes {
+              id
+              body
+              createdAt
+              author { login }
+              replies(first: 100) {
+                nodes {
+                  id
+                  body
+                  createdAt
+                  author { login }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  const records: CommentRecord[] = [];
+  let cursor = "";
+  let hasNextPage = true;
+  while (hasNextPage) {
+    const args = [
+      "api",
+      "graphql",
+      "-f",
+      `query=${query}`,
+      "-f",
+      `owner=${owner}`,
+      "-f",
+      `repo=${name}`,
+      "-F",
+      `number=${parsedNumber}`,
+    ];
+    if (cursor) {
+      args.push("-f", `cursor=${cursor}`);
+    }
+    const raw = gh(args).trim();
+    const parsed = JSON.parse(raw || "{}") as {
+      data?: {
+        repository?: {
+          discussion?: {
+            comments?: {
+              pageInfo?: { hasNextPage?: boolean; endCursor?: string | null };
+              nodes?: Array<{
+                id?: string | number;
+                body?: string | null;
+                author?: { login?: string | null } | null;
+                replies?: {
+                  nodes?: Array<{
+                    id?: string | number;
+                    body?: string | null;
+                    author?: { login?: string | null } | null;
+                  } | null> | null;
+                } | null;
+              } | null> | null;
+            } | null;
+          } | null;
+        } | null;
+      } | null;
+    };
+    const comments = parsed.data?.repository?.discussion?.comments;
+    for (const comment of comments?.nodes || []) {
+      if (!comment) continue;
+      records.push({
+        id: comment.id,
+        body: comment.body || "",
+        authorLogin: comment.author?.login || "",
+      });
+      for (const reply of comment.replies?.nodes || []) {
+        if (!reply) continue;
+        records.push({
+          id: reply.id,
+          body: reply.body || "",
+          authorLogin: reply.author?.login || "",
+          replyToId: comment.id,
+        });
+      }
+    }
+    hasNextPage = comments?.pageInfo?.hasNextPage ?? false;
+    cursor = comments?.pageInfo?.endCursor || "";
+  }
+  return records;
+}
+
+function normalizeCommentRecord(value: unknown): CommentRecord | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  return {
+    id: typeof record.id === "string" || typeof record.id === "number" ? record.id : undefined,
+    body: String(record.body || ""),
+    authorLogin: authorLoginFromRecord(record),
+    replyToId: String(record.in_reply_to_id || record.inReplyToId || ""),
+  };
+}
+
+function fetchPullRequestReviewCommentRecords(repoSlug: string, prNumber: string): CommentRecord[] {
+  const number = parsePositiveTargetNumber(prNumber);
+  if (!number) return [];
+  const raw = gh([
+    "api",
+    "--paginate",
+    "--slurp",
+    `repos/${repoSlug}/pulls/${number}/comments`,
+  ]).trim();
+  const parsed = JSON.parse(raw || "[]") as unknown;
+  const pages = Array.isArray(parsed) && parsed.every((page) => Array.isArray(page))
+    ? parsed as unknown[][]
+    : [parsed];
+  const records: CommentRecord[] = [];
+  for (const page of pages) {
+    if (!Array.isArray(page)) continue;
+    for (const item of page) {
+      const record = normalizeCommentRecord(item);
+      if (record) records.push(record);
+    }
+  }
+  return records;
 }
 
 function formatGeneratedImplementationIssueBody(input: {
@@ -381,7 +508,16 @@ function findTrustedImplementationLinkBack(
   repoSlug: string,
   metadata: SourceTargetMetadata,
   trackingKey: string,
+  responseTarget?: ResponseTarget,
 ): string {
+  const threadedIssueNumber = findTrustedThreadedImplementationLinkBack(
+    repoSlug,
+    metadata,
+    trackingKey,
+    responseTarget,
+  );
+  if (threadedIssueNumber) return threadedIssueNumber;
+
   let comments: CommentRecord[] = [];
   if (metadata.kind === "pull_request") {
     const number = parsePositiveTargetNumber(metadata.number);
@@ -392,6 +528,42 @@ function findTrustedImplementationLinkBack(
   }
 
   for (const comment of [...comments].reverse()) {
+    if (!isTrustedActorLogin(comment.authorLogin || "")) continue;
+    const parsed = parseImplementationTrackingMarker(comment.body || "", trackingKey);
+    const issueNumber = parsed?.issueNumber || "";
+    if (issueNumber) return issueNumber;
+  }
+  return "";
+}
+
+function findTrustedThreadedImplementationLinkBack(
+  repoSlug: string,
+  metadata: SourceTargetMetadata,
+  trackingKey: string,
+  responseTarget?: ResponseTarget,
+): string {
+  if (!responseTarget) return "";
+  let comments: CommentRecord[] = [];
+  let parentId = "";
+  if (
+    metadata.kind === "pull_request" &&
+    responseTarget.responseKind === "review_comment_reply" &&
+    responseTarget.reviewCommentId
+  ) {
+    comments = fetchPullRequestReviewCommentRecords(repoSlug, metadata.number);
+    parentId = String(responseTarget.reviewCommentId);
+  } else if (
+    metadata.kind === "discussion" &&
+    responseTarget.responseKind === "discussion_comment" &&
+    responseTarget.replyToId
+  ) {
+    comments = fetchDiscussionCommentRecords(repoSlug, metadata.number);
+    parentId = String(responseTarget.replyToId);
+  }
+  if (!parentId) return "";
+
+  for (const comment of [...comments].reverse()) {
+    if (String(comment.replyToId || "") !== parentId) continue;
     if (!isTrustedActorLogin(comment.authorLogin || "")) continue;
     const parsed = parseImplementationTrackingMarker(comment.body || "", trackingKey);
     const issueNumber = parsed?.issueNumber || "";
@@ -467,7 +639,7 @@ function postImplementationLinkBack(
   const marker = formatImplementationTrackingMarker({ key: trackingKey, issueNumber });
   const body = `Implementing ${linkBackLabel} - tracking in ${issueUrl}.\n\n${marker}`;
   try {
-    if (findTrustedImplementationLinkBack(repoSlug, metadata, trackingKey)) {
+    if (findTrustedImplementationLinkBack(repoSlug, metadata, trackingKey, responseTarget)) {
       return;
     }
   } catch (err: unknown) {

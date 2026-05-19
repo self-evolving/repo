@@ -19,6 +19,8 @@ const result = ensureImplementationTrackingIssueForTarget({
   issueBody: process.env.ISSUE_BODY || "",
   sourceKind: env("SOURCE_KIND"),
   targetUrl: env("TARGET_URL"),
+  baseBranch: env("BASE_BRANCH"),
+  basePr: env("BASE_PR"),
   discussionId: env("DISCUSSION_ID"),
   responseKind: env("RESPONSE_KIND"),
   reviewCommentId: env("REVIEW_COMMENT_ID"),
