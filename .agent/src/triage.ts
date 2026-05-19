@@ -26,6 +26,7 @@ export interface DispatchDecision {
   summary: string;
   issueTitle: string;
   issueBody: string;
+  basePr?: string;
 }
 
 const EXPLICIT_ROUTE_COMMANDS = ["answer", "implement", "fix-pr", "review", "orchestrate", "create-action"] as const;
@@ -47,6 +48,23 @@ export interface RequestedRouteDecision {
 export interface ImplementIssueMetadata {
   issueTitle: string;
   issueBody: string;
+  basePr?: string;
+}
+
+function normalizeOptionalBasePr(value: unknown): string {
+  if (value === undefined || value === null) {
+    return "";
+  }
+
+  const raw = String(value).trim();
+  if (!raw) {
+    return "";
+  }
+  if (!/^[1-9]\d*$/.test(raw)) {
+    throw new Error("Implement issue metadata base_pr must be a positive integer");
+  }
+
+  return raw;
 }
 
 function fallbackImplementIssueBody(originalRequest: string): string {
@@ -81,6 +99,7 @@ export function normalizeImplementIssueMetadata(raw: string): ImplementIssueMeta
     .replace(/\s+/g, " ")
     .trim();
   const issueBody = String(payload.issue_body || payload.issueBody || "").trim();
+  const basePr = normalizeOptionalBasePr(payload.base_pr ?? payload.basePr);
 
   if (!issueTitle) {
     throw new Error("Implement issue metadata output was missing issue_title");
@@ -89,7 +108,7 @@ export function normalizeImplementIssueMetadata(raw: string): ImplementIssueMeta
     throw new Error("Implement issue metadata output was missing issue_body");
   }
 
-  return { issueTitle, issueBody };
+  return { issueTitle, issueBody, basePr };
 }
 
 /**
@@ -168,6 +187,7 @@ export function buildRequestedRouteDecision(
       summary: "I’ll start implementing this request.",
       issueTitle: metadata?.issueTitle || DEFAULT_IMPLEMENT_ISSUE_TITLE,
       issueBody: metadata?.issueBody || fallbackImplementIssueBody(originalRequest),
+      basePr: metadata?.basePr || "",
     };
   }
 

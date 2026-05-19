@@ -191,25 +191,36 @@ test("buildRequestedRouteDecision uses generated implement issue metadata", () =
     {
       issueTitle: "Fix webhook dispatch retry handling",
       issueBody: "## Goal\nFix webhook dispatch retry handling.\n\n## Acceptance criteria\n- Add regression coverage.",
+      basePr: "268",
     },
   );
   assert.equal(d.issueTitle, "Fix webhook dispatch retry handling");
   assert.doesNotMatch(d.issueTitle, /wrong title/);
   assert.match(d.issueBody, /webhook dispatch retry/);
+  assert.equal(d.basePr, "268");
 });
 
 test("normalizeImplementIssueMetadata reads generated JSON metadata", () => {
   const metadata = normalizeImplementIssueMetadata(
-    '```json\n{"issue_title":"Fix PR tracking issue titles","issue_body":"## Goal\\nGenerate title from context."}\n```',
+    '```json\n{"issue_title":"Fix PR tracking issue titles","issue_body":"## Goal\\nGenerate title from context.","base_pr":"268"}\n```',
   );
   assert.equal(metadata.issueTitle, "Fix PR tracking issue titles");
   assert.match(metadata.issueBody, /Generate title from context/);
+  assert.equal(metadata.basePr, "268");
 });
 
 test("normalizeImplementIssueMetadata rejects malformed generated metadata", () => {
   assert.throws(
     () => normalizeImplementIssueMetadata('{"issue_title":"Missing body"}'),
     /missing issue_body/,
+  );
+  assert.throws(
+    () => normalizeImplementIssueMetadata('{"issue_title":"Bad base","issue_body":"body","base_pr":"#268"}'),
+    /base_pr must be a positive integer/,
+  );
+  assert.throws(
+    () => normalizeImplementIssueMetadata('{"issue_title":"Bad base","issue_body":"body","base_pr":"0"}'),
+    /base_pr must be a positive integer/,
   );
 });
 
