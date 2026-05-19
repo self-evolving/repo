@@ -441,6 +441,34 @@ test("publishInstallForkPr pushes and opens a new install PR", () => {
   }
 });
 
+test("publishInstallForkPr rejects target repo as fork when token owner differs", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "install-fork-pr-"));
+  const bodyFile = join(tempDir, "body.md");
+  writeFileSync(bodyFile, "Install Sepo.\n", "utf8");
+
+  try {
+    const runner = new FakeRunner();
+    runner.repos.set("lm4sci/lm4sci.github.io", repoRecord("lm4sci/lm4sci.github.io"));
+
+    const result = publishInstallForkPr({
+      targetRepo: "lm4sci/lm4sci.github.io",
+      githubToken: "pat-token",
+      workdir: tempDir,
+      forkRepo: "lm4sci/lm4sci.github.io",
+      bodyFile,
+      runner,
+    });
+
+    assert.equal(result.status, "blocked");
+    assert.equal(result.blockedCode, "fork_owner_mismatch");
+    assert.match(result.message, /not owned by the AGENT_INSTALL_PAT token owner sepo-install-bot/);
+    assert.equal(runner.called("git", /push/), false);
+    assert.equal(runner.called("gh", /pr create/), false);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("publishInstallForkPr reruns update an existing fork branch without a non-fast-forward push", () => {
   const root = mkdtempSync(join(tmpdir(), "install-fork-pr-git-"));
   const workdir = join(root, "install-work");

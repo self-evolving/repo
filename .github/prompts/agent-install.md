@@ -11,22 +11,27 @@ repository by opening or reusing a focused install PR.
 - `GH_TOKEN` is the install-only `AGENT_INSTALL_PAT`. Do not use `AGENT_PAT`,
   the workflow token, or any other GitHub token fallback for target repository
   writes.
+- Source repository memory is disabled for this route; do not write `agent/memory`
+  or `agent/rubrics` during install runs.
 - Do not post comments directly; return the reply body and let the workflow post
   it.
 
 ## Required Flow
 
-1. Resolve the target repository with the typed helper:
-   `node .agent/dist/cli/resolve-install-target.js`.
+1. Build the typed lifecycle plan with
+   `node .agent/dist/cli/plan-install-lifecycle.js` and read its JSON from
+   stdout.
    - If it reports `missing` or `ambiguous`, stop and return a concise
-     clarification request.
-   - Use the normalized `target_repo` from the helper for all GitHub operations.
+     clarification request using the helper message.
+   - Use the normalized `target_repo`, `install_branch`, `source_repo`, and
+     ordered `steps` from the plan for all install operations.
 2. Confirm `GH_TOKEN` is present. It must come from `AGENT_INSTALL_PAT`; do not
    read or pass any token through CLI flags.
 3. Prepare the fork-backed target worktree with the helper:
    ```sh
    GH_TOKEN="$GH_TOKEN" node .agent/dist/cli/install-fork-pr.js prepare \
-     --target-repo "<target_repo>"
+     --target-repo "<target_repo>" \
+     --branch "<install_branch>"
    ```
    - Read the helper JSON or GitHub outputs.
    - If `status` is `blocked`, stop and return a concise blocked result with
@@ -36,12 +41,15 @@ repository by opening or reusing a focused install PR.
      `prUrl` for publish.
    - If a reusable PR already exists, update that worktree and PR rather than
      creating a duplicate.
-4. Resolve the Sepo source revision from the latest non-draft release of
-   `self-evolving/repo`; include prereleases only when no stable release exists.
-   If release lookup is unavailable, clearly report the fallback.
-5. Perform the install in the prepared worktree: audit target-owned files, copy
-   only approved Sepo-owned infrastructure, validate the diff, and commit the
-   install changes.
+4. Execute the plan steps in order inside the prepared worktree. Treat the step
+   IDs, commands, and descriptions as the deterministic install contract for
+   target write-path probing, source release selection, copy scope, and diff
+   validation. Use the helper output for the prepared worktree, fork repo,
+   default branch, install branch, and reusable PR state.
+5. If a step cannot be completed, stop and return a blocked result that names
+   the failed step and the needed next action. For target write failures, say to
+   update `AGENT_INSTALL_PAT` or target repository access before rerunning
+   `/install`.
 6. Publish through the helper with flag-style arguments:
    ```sh
    GH_TOKEN="$GH_TOKEN" node .agent/dist/cli/install-fork-pr.js publish \

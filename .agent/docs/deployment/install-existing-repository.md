@@ -40,7 +40,8 @@ cannot read the public target, create/reuse the fork, push the branch, or
 open/reuse the PR, the route reports a blocked result with the specific
 permission gap and next step. An existing open install PR from the same token
 owner is reused; an open install PR from another owner is treated as a duplicate
-blocked state.
+blocked state. Install runs disable source-repo memory writes so this target
+token is not used to update `agent/memory`.
 
 Use `AGENT_ACCESS_POLICY.route_overrides.install` to restrict who may trigger
 external installs independently from general `/skill` runs:

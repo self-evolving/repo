@@ -242,7 +242,8 @@ without blocking general `/skill` runs. The install route requires the
 `AGENT_INSTALL_PAT` secret and passes that token to the install prompt; other
 routes continue using the standard GitHub auth resolver. The prompt uses the
 install fork/PR helper to prepare a fork-backed worktree, then push, reuse, or
-open the install PR.
+open the install PR. Source-repo memory is disabled for install runs so that
+install token cannot write `agent/memory`.
 
 ### `agent-label.yml`
 

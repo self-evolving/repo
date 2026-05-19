@@ -529,7 +529,7 @@ export function publishInstallForkPr(opts: PublishInstallForkPrOptions): Install
     const fork = opts.forkRepo
       ? readRepo(runner, opts.forkRepo)
       : ensureForkRepo(runner, target, tokenOwner, opts.forkPollAttempts || 6);
-    if (!sameLogin(fork.owner, tokenOwner) && !sameRepo(fork.fullName, target.fullName)) {
+    if (!sameLogin(fork.owner, tokenOwner)) {
       throw new InstallForkPrBlocked(
         "fork_owner_mismatch",
         `Fork ${fork.fullName} is not owned by the AGENT_INSTALL_PAT token owner ${tokenOwner}.`,
