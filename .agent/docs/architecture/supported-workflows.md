@@ -83,6 +83,12 @@ set `base_branch` to stack directly on another branch, or `base_pr` to stack on
 an open same-repository PR head branch. The implementation workflow rejects
 ambiguous input when both are set.
 
+For explicit `/implement` requests from pull requests, the router's
+metadata-only prompt may emit `base_pr` when the current user request asks for a
+stacked or follow-up PR. The portal validates that value as a positive integer
+and passes it through to `agent-implement.yml`; the implementation workflow then
+verifies the PR is open and same-repository before using its head branch.
+
 When a new review synthesis, rubrics review, `fix-pr` status comment, or
 orchestrator handoff marker is posted, the workflows minimize prior visible
 matching comments and reviews from the same authenticated agent account as
@@ -213,10 +219,10 @@ Explicit routes are:
 - `@sepo-agent /review`
 - `@sepo-agent /orchestrate`
 - `@sepo-agent /skill <name>`
-- `@sepo-agent /install owner/repo`
+- `@sepo-agent /install ...`
 
 Explicit routes skip dispatch triage and resolve locally, but still go through the same route policy checks afterward.
-When an explicit `/implement` request on a pull request or discussion creates a tracking issue, the router runs a metadata-only agent prompt to synthesize the issue title and body from the request plus target context. The slash command approves the route; it is not copied into the title. If metadata generation is unavailable or invalid, the issue falls back to `Implement requested change`.
+When an explicit `/implement` request on a pull request or discussion creates a tracking issue, the router runs a metadata-only agent prompt to synthesize the issue title and body from the request plus target context. The slash command approves the route; it is not copied into the title. Pull request metadata can also include `base_pr` for stacked or follow-up implementation requests. If metadata generation is unavailable or invalid, the issue falls back to `Implement requested change`.
 
 Mention-based skill requests normalize the skill name to lowercase and run
 `<skill_root>/<name>/SKILL.md` inline through the same `skill` route used by
@@ -226,9 +232,11 @@ skill setup should customize the copied `agent-router.yml` skill job directly
 so repositories can use native GitHub Actions `uses`, `with`, Docker, service,
 or cache features.
 
-`/install owner/repo` is a first-class route that requires a target repository
-slug in `owner/repo` form before it runs the bundled `install-agent` skill.
-Access policy evaluates it as the `install` route, so
+`/install` is a first-class route that passes the full request to the bundled
+`install-agent` skill. The skill resolves the target from an `owner/repo` slug,
+a GitHub URL, or a clear natural-language repository reference, and blocks for
+clarification when the target is missing or ambiguous. Access policy evaluates
+it as the `install` route, so
 `AGENT_ACCESS_POLICY.route_overrides.install` can restrict external installs
 without blocking general `/skill` runs. The install route requires the
 `AGENT_INSTALL_PAT` secret and passes that token to the install skill; other

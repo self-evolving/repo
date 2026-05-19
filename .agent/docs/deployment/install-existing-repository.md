@@ -12,14 +12,18 @@ From `self-evolving/repo`, authorized users can ask Sepo to prepare that PR for
 a public target repository:
 
 ```md
-@sepo-agent /install owner/repo
+@sepo-agent /install can you install Sepo into https://github.com/owner/repo?
 ```
 
 The `/install` command is a first-class route for authorization, then executes
-the bundled `install-agent` skill. It still requires a target repository slug in
-`owner/repo` form, resolves the install source to the latest non-draft Sepo
-release, and records that source revision in the PR body. If no stable release
-exists yet, the skill may use the latest non-draft prerelease.
+the bundled `install-agent` skill. The route detection only recognizes the
+command; the skill resolves the target from the request text, accepting an
+`owner/repo` slug, a GitHub URL, or a clear natural-language repository
+reference. If the target is missing or ambiguous, the skill stops with a
+clarification instead of guessing. When the target is clear, it resolves the
+install source to the latest non-draft Sepo release and records that source
+revision in the PR body. If no stable release exists yet, the skill may use the
+latest non-draft prerelease.
 
 `/install` is the only route that uses `AGENT_INSTALL_PAT`. Normal routes keep
 the standard GitHub auth resolver order: GitHub App, hosted OIDC, `AGENT_PAT`,

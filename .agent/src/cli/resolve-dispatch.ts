@@ -3,7 +3,7 @@
 // Env: RESPONSE_FILE, TARGET_KIND, AUTHOR_ASSOCIATION, REQUESTED_ROUTE, REQUEST_TEXT,
 //      REQUESTED_SKILL, ACCESS_POLICY, REPOSITORY_PRIVATE
 // Outputs: route, needs_approval, confidence, summary, issue_title, issue_body,
-//          skill
+//          skill, base_pr
 
 import { readFileSync } from "node:fs";
 import { type AccessPolicy, parseAccessPolicy } from "../access-policy.js";
@@ -75,6 +75,7 @@ function emitDecision(accessPolicy: AccessPolicy): void {
           ? requestedSkill
           : "",
     );
+    setOutput("base_pr", result.route === "implement" ? result.basePr || "" : "");
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`Dispatch resolution failed: ${msg}`);
@@ -86,6 +87,7 @@ function emitDecision(accessPolicy: AccessPolicy): void {
     setOutput("issue_title", "");
     setOutput("issue_body", "");
     setOutput("skill", "");
+    setOutput("base_pr", "");
   }
 }
 

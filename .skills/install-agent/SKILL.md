@@ -24,26 +24,19 @@ Confirm these before editing:
 - whether to copy any `.skills/` directories; default is no
 - whether to copy root `AGENT.md`; default is no
 
-When invoked through `@sepo-agent /install owner/repo`, the router supplies the
-validated target as `INSTALL_TARGET_REPO`: `${INSTALL_TARGET_REPO}`. Treat that
-target and the defaults above as confirmed. Do not pause for a second
-confirmation unless the target branch, source revision, auth path, or file
-replacement decision is ambiguous.
-
-If `INSTALL_TARGET_REPO` is empty, derive the target from request text using the
-same `/install` parsing rule: take the first non-punctuation token immediately
-after the live `@sepo-agent /install` command, trim trailing `.`, `,`, `;`, `:`,
-`!`, `?`, `)`, `]`, or `}`, and require `owner/repo` form where the owner starts
-and ends with an alphanumeric character and the repo contains only
-alphanumerics, `.`, `_`, or `-`. Stop if that rule does not identify exactly one
-target or if unrelated prose contains a conflicting repo-like slug.
+When invoked through `@sepo-agent /install`, the router authorizes the
+install route and passes the full user request through as `REQUEST_TEXT`.
+Resolve the target from that text, accepting an `owner/repo` slug, a GitHub
+repository URL, or a clear natural-language repository reference. Stop with a
+clarification if the request has no target, multiple plausible targets, or a
+target that cannot be normalized to exactly one GitHub repository slug.
 
 Current auth contract: `/install` is authorized as the `install` route, then the
 router refuses to run this skill unless the source repository has the
 `AGENT_INSTALL_PAT` secret configured. For `/install`, the task receives that
 secret as `GH_TOKEN` instead of the normal GitHub App/OIDC/`AGENT_PAT` resolver
 token. Generic `/skill install-agent` runs keep the normal resolved token, but
-the supported external install path is `/install owner/repo`.
+the supported external install path is `/install` with a clear target request.
 
 Use only the active `GH_TOKEN` for GitHub operations. Do not read another token
 secret, add an install policy, or assume configuring a new App/PAT during the

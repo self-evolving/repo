@@ -122,7 +122,6 @@ jobs:
       requested_by: ${{ steps.context.outputs.requested_by }}
       requested_route: ${{ steps.context.outputs.requested_route }}
       requested_skill: ${{ steps.context.outputs.requested_skill }}
-      requested_install_target_repo: ${{ steps.context.outputs.requested_install_target_repo }}
       route: ${{ steps.dispatch.outputs.route }}
       needs_approval: ${{ steps.dispatch.outputs.needs_approval }}
       confidence: ${{ steps.dispatch.outputs.confidence }}
@@ -130,6 +129,7 @@ jobs:
       issue_title: ${{ steps.dispatch.outputs.issue_title }}
       issue_body: ${{ steps.dispatch.outputs.issue_body }}
       skill: ${{ steps.dispatch.outputs.skill }}
+      base_pr: ${{ steps.dispatch.outputs.base_pr }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -484,17 +484,16 @@ jobs:
           DISCUSSION_ID: ${{ needs.portal.outputs.discussion_node_id }}
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-          INSTALL_TARGET_REPO: ${{ needs.portal.outputs.requested_install_target_repo }}
           REPLY_TO_ID: ${{ needs.portal.outputs.reply_to_id }}
           RESPONSE_KIND: ${{ needs.portal.outputs.response_kind }}
           REVIEW_COMMENT_ID: ${{ needs.portal.outputs.review_comment_id }}
           TARGET_NUMBER: ${{ needs.portal.outputs.target_number }}
         run: |
           printf '%s\n' \
-            "Install is not configured for \`${INSTALL_TARGET_REPO}\`." \
+            "Install is not configured." \
             "" \
             "Required secret: \`AGENT_INSTALL_PAT\`." \
-            "Next step: configure it with a machine-user token that can push or open the install PR, then rerun \`@sepo-agent /install ${INSTALL_TARGET_REPO}\`." \
+            "Next step: configure it with a machine-user token that can push or open the install PR, then rerun \`@sepo-agent /install\` with the target request." \
             > "$BODY_FILE"
           node .agent/dist/cli/post-response.js
 
@@ -600,7 +599,6 @@ jobs:
           session_bundle_mode: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
           session_policy: none
           request_text: ${{ needs.portal.outputs.body }}
-          install_target_repo: ${{ needs.portal.outputs.requested_install_target_repo }}
           requested_by: ${{ needs.portal.outputs.requested_by }}
           source_kind: ${{ needs.portal.outputs.source_kind }}
           target_kind: ${{ needs.portal.outputs.target_kind }}
@@ -729,6 +727,7 @@ jobs:
           REQUESTED_BY: ${{ needs.portal.outputs.requested_by }}
           REQUEST_TEXT: ${{ needs.portal.outputs.body }}
           SESSION_FORK_FROM_THREAD_KEY: ${{ github.repository }}:${{ needs.portal.outputs.target_kind }}:${{ needs.portal.outputs.target_number }}:answer:default
+          BASE_PR: ${{ needs.portal.outputs.base_pr }}
           AUTOMATION_MODE: ${{ inputs.automation_mode }}
           AUTOMATION_MAX_ROUNDS: ${{ inputs.automation_max_rounds }}
         run: node .agent/dist/cli/dispatch-agent-implement.js

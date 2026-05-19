@@ -19,6 +19,50 @@ function parseGithubOutput(path: string): Map<string, string> {
   return outputs;
 }
 
+interface ExtractContextCliOptions {
+  eventName: string;
+  payload: Record<string, unknown>;
+  env?: NodeJS.ProcessEnv;
+  ghScript?: string;
+}
+
+function runExtractContextCli(options: ExtractContextCliOptions): Map<string, string> {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-extract-context-"));
+
+  try {
+    const eventPath = join(tempDir, "event.json");
+    const outputPath = join(tempDir, "github-output.txt");
+    writeFileSync(eventPath, JSON.stringify(options.payload), "utf8");
+    writeFileSync(outputPath, "", "utf8");
+
+    if (options.ghScript) {
+      writeFileSync(join(tempDir, "gh"), options.ghScript, {
+        encoding: "utf8",
+        mode: 0o755,
+      });
+    }
+
+    execFileSync("node", [".agent/dist/cli/extract-context.js"], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        ...(options.ghScript ? { PATH: `${tempDir}:${process.env.PATH || ""}` } : {}),
+        GITHUB_EVENT_PATH: eventPath,
+        GITHUB_EVENT_NAME: options.eventName,
+        GITHUB_OUTPUT: outputPath,
+        INPUT_MENTION: "@sepo-agent",
+        INPUT_TRIGGER_KIND: "mention",
+        ...options.env,
+      },
+      stdio: "pipe",
+    });
+
+    return parseGithubOutput(outputPath);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
 test("extract-context skips approval commands for a configured custom mention", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-extract-context-"));
 
@@ -68,7 +112,7 @@ test("extract-context skips approval commands for a configured custom mention", 
   }
 });
 
-test("extract-context preserves validated install target for install routes", () => {
+test("extract-context preserves permissive install route requests", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-extract-context-"));
 
   try {
@@ -83,7 +127,7 @@ test("extract-context preserves validated install target for install routes", ()
           id: 100,
           node_id: "IC_100",
           html_url: "https://github.com/self-evolving/repo/issues/269#issuecomment-100",
-          body: "@sepo-agent /install self-evolving/example-repo.",
+          body: "@sepo-agent /install can you install Sepo into https://github.com/self-evolving/example-repo?",
           author_association: "MEMBER",
           user: { login: "alice" },
         },
@@ -113,7 +157,7 @@ test("extract-context preserves validated install target for install routes", ()
     assert.equal(outputs.get("should_respond"), "true");
     assert.equal(outputs.get("requested_route"), "install");
     assert.equal(outputs.get("requested_skill"), "install-agent");
-    assert.equal(outputs.get("requested_install_target_repo"), "self-evolving/example-repo");
+    assert.equal(outputs.has("requested_install_target_repo"), false);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
@@ -293,6 +337,191 @@ test("extract-context promotes weak issue author association for repository coll
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
+});
+
+const collaboratorGhScript = [
+  "#!/usr/bin/env bash",
+  "if [ \"$1\" = \"api\" ] && [ \"$2\" = \"repos/self-evolving/repo/collaborators/alice\" ]; then",
+  "  exit 0",
+  "fi",
+  "if [ \"$1\" = \"api\" ] && [ \"$2\" = \"graphql\" ]; then",
+  "  printf '{\"data\":{\"node\":{\"replyTo\":null}}}\\n'",
+  "  exit 0",
+  "fi",
+  "printf 'unexpected gh args: %s\\n' \"$*\" >&2",
+  "exit 1",
+  "",
+].join("\n");
+
+const weakMentionCollaboratorCases: Array<{
+  name: string;
+  eventName: string;
+  expectedSourceKind: string;
+  payload: Record<string, unknown>;
+}> = [
+  {
+    name: "issue comment",
+    eventName: "issue_comment",
+    expectedSourceKind: "issue_comment",
+    payload: {
+      sender: { login: "alice", type: "User" },
+      comment: {
+        id: 201,
+        node_id: "IC_201",
+        html_url: "https://github.com/self-evolving/repo/issues/201#issuecomment-201",
+        body: "@sepo-agent /answer please check this",
+        author_association: "NONE",
+        user: { login: "alice" },
+      },
+      issue: {
+        number: 201,
+        html_url: "https://github.com/self-evolving/repo/issues/201",
+      },
+    },
+  },
+  {
+    name: "discussion comment",
+    eventName: "discussion_comment",
+    expectedSourceKind: "discussion_comment",
+    payload: {
+      sender: { login: "alice", type: "User" },
+      comment: {
+        id: 202,
+        node_id: "DC_202",
+        html_url: "https://github.com/self-evolving/repo/discussions/202#discussioncomment-202",
+        body: "@sepo-agent /answer please check this",
+        authorAssociation: "CONTRIBUTOR",
+        user: { login: "alice" },
+      },
+      discussion: {
+        number: 202,
+        html_url: "https://github.com/self-evolving/repo/discussions/202",
+        node_id: "D_202",
+      },
+    },
+  },
+  {
+    name: "discussion",
+    eventName: "discussion",
+    expectedSourceKind: "discussion",
+    payload: {
+      sender: { login: "alice", type: "User" },
+      discussion: {
+        number: 205,
+        title: "Investigate auth",
+        body: "@sepo-agent /answer please check this",
+        html_url: "https://github.com/self-evolving/repo/discussions/205",
+        node_id: "D_205",
+        authorAssociation: "NONE",
+        user: { login: "alice" },
+      },
+    },
+  },
+  {
+    name: "pull request review comment",
+    eventName: "pull_request_review_comment",
+    expectedSourceKind: "pull_request_review_comment",
+    payload: {
+      sender: { login: "alice", type: "User" },
+      comment: {
+        id: 203,
+        node_id: "PRRC_203",
+        html_url: "https://github.com/self-evolving/repo/pull/203#discussion_r203",
+        body: "@sepo-agent /answer please check this",
+        author_association: "FIRST_TIMER",
+        user: { login: "alice" },
+      },
+      pull_request: {
+        number: 203,
+        html_url: "https://github.com/self-evolving/repo/pull/203",
+      },
+    },
+  },
+  {
+    name: "pull request review",
+    eventName: "pull_request_review",
+    expectedSourceKind: "pull_request_review",
+    payload: {
+      sender: { login: "alice", type: "User" },
+      review: {
+        id: 204,
+        node_id: "PRR_204",
+        html_url: "https://github.com/self-evolving/repo/pull/204#pullrequestreview-204",
+        body: "@sepo-agent /answer please check this",
+        author_association: "FIRST_TIME_CONTRIBUTOR",
+        user: { login: "alice" },
+      },
+      pull_request: {
+        number: 204,
+        html_url: "https://github.com/self-evolving/repo/pull/204",
+      },
+    },
+  },
+];
+
+for (const testCase of weakMentionCollaboratorCases) {
+  test(`extract-context promotes weak ${testCase.name} associations for repository collaborators`, () => {
+    const outputs = runExtractContextCli({
+      eventName: testCase.eventName,
+      payload: testCase.payload,
+      ghScript: collaboratorGhScript,
+      env: {
+        GITHUB_REPOSITORY: "self-evolving/repo",
+      },
+    });
+
+    assert.equal(outputs.get("should_respond"), "true");
+    assert.equal(outputs.get("association"), "COLLABORATOR");
+    assert.equal(outputs.get("source_kind"), testCase.expectedSourceKind);
+    assert.equal(outputs.get("requested_by"), "alice");
+    assert.equal(outputs.get("requested_route"), "answer");
+  });
+}
+
+const nonCollaboratorGhScript = [
+  "#!/usr/bin/env bash",
+  "if [ \"$1\" = \"api\" ] && [ \"$2\" = \"repos/self-evolving/repo/collaborators/alice\" ]; then",
+  "  exit 1",
+  "fi",
+  "if [ \"$1\" = \"api\" ] && [ \"$2\" = \"graphql\" ]; then",
+  "  printf '{\"data\":{\"node\":{\"replyTo\":null}}}\\n'",
+  "  exit 0",
+  "fi",
+  "printf 'unexpected gh args: %s\\n' \"$*\" >&2",
+  "exit 1",
+  "",
+].join("\n");
+
+test("extract-context preserves weak discussion comment association when collaborator lookup fails", () => {
+  const outputs = runExtractContextCli({
+    eventName: "discussion_comment",
+    payload: {
+      sender: { login: "alice", type: "User" },
+      comment: {
+        id: 206,
+        node_id: "DC_206",
+        html_url: "https://github.com/self-evolving/repo/discussions/206#discussioncomment-206",
+        body: "@sepo-agent /answer please check this",
+        authorAssociation: "CONTRIBUTOR",
+        user: { login: "alice" },
+      },
+      discussion: {
+        number: 206,
+        html_url: "https://github.com/self-evolving/repo/discussions/206",
+        node_id: "D_206",
+      },
+    },
+    ghScript: nonCollaboratorGhScript,
+    env: {
+      GITHUB_REPOSITORY: "self-evolving/repo",
+    },
+  });
+
+  assert.equal(outputs.get("should_respond"), "true");
+  assert.equal(outputs.get("association"), "CONTRIBUTOR");
+  assert.equal(outputs.get("source_kind"), "discussion_comment");
+  assert.equal(outputs.get("requested_by"), "alice");
+  assert.equal(outputs.get("requested_route"), "answer");
 });
 
 test("extract-context preserves contributor association when refreshed issue association matches", () => {

@@ -54,6 +54,10 @@ import {
   buildContinuationPrompt,
   selectContinuationPromptForResume,
 } from "./prompt-continuation.js";
+import {
+  parseSessionBundleMode,
+  shouldBackupSessionBundles,
+} from "./session-bundle.js";
 
 // --- Logging ---
 
@@ -70,7 +74,6 @@ const SUPPLEMENTAL_PROMPT_VAR_NAMES = [
   "RUBRICS_DIR",
   "RUBRICS_REF",
   "RUBRICS_CONTEXT_FILE",
-  "INSTALL_TARGET_REPO",
   "REQUEST_COMMENT_ID",
   "REQUEST_COMMENT_URL",
   "REQUEST_SOURCE_KIND",
@@ -534,6 +537,7 @@ function runDirectPath(opts: {
   }
 
   log("info", "Running acpx", { agent, route: envelope.route, permission_mode: permissionMode });
+  const sessionBundleMode = parseSessionBundleMode(process.env.SESSION_BUNDLE_MODE);
 
   const result = runAcpx({
     agent,
@@ -543,6 +547,9 @@ function runDirectPath(opts: {
     threadKey: envelope.thread_key,
     permissionMode,
     thoughtLevel: process.env.MODEL_REASONING_EFFORT,
+    preserveExecSession:
+      sessionPolicy === "track-only" && shouldBackupSessionBundles(sessionBundleMode, sessionPolicy),
+    preserveExecThoughtLevel: sessionPolicy === "track-only",
     resumeSessionId,
     continuationPrompt: continuationPromptAllowed ? continuationPrompt : undefined,
     env: sharedEnv,
