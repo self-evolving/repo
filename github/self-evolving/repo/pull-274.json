@@ -3,9 +3,9 @@
     "is_bot": true,
     "login": "app/sepo-agent-app"
   },
-  "baseRefName": "agent/implement-issue-267/codex-26000028914",
+  "baseRefName": "main",
   "body": "## Summary\n- Split session bundle restore and backup decisions so `track-only` never restores but can back up under `session_bundle_mode: always`.\n- Use fresh per-run exec sessions for debug bundle capture without reusing stable target/lane session names.\n- Mark `track-only` uploaded bundles as debug-only/non-restorable and make restore/fork lookup ignore them.\n- Update session continuity docs and focused tests.\n\n## Tests\n- `cd .agent && npm run build`\n- `cd .agent && node --test dist/__tests__/session-bundle.test.js dist/__tests__/acpx-adapter.test.js dist/__tests__/session-policy.test.js`\n- `git diff --check`\n\nCloses #272\n",
-  "closedAt": null,
+  "closedAt": "2026-05-19T07:26:42Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABCqF2-w",
@@ -154,38 +154,108 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/274#issuecomment-4473450981",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC1lBIg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer what is GitHub-artifact-debug here ",
+      "createdAt": "2026-05-19T07:22:57Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/274#issuecomment-4485366050",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC1l3Bg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "`github-artifact-debug` is an internal Sepo session-bundle backend marker, not a GitHub feature.\n\nIn this PR it means: “this bundle was uploaded as a GitHub Actions artifact for debugging only, but must not be used for future session restore/continuity.”\n\nWhere it’s used:\n\n- Defined next to the normal backend: [`github-artifact` vs `github-artifact-debug`](https://github.com/self-evolving/repo/blob/54a49b22aef628fadbca1f904bdd8304d5d610ed/.agent/src/session-bundle.ts#L20-L21)\n- Registered when backup/upload is allowed but restore is not: [`session-register.ts`](https://github.com/self-evolving/repo/blob/54a49b22aef628fadbca1f904bdd8304d5d610ed/.agent/src/cli/session-register.ts#L82-L84)\n- Explicitly ignored by restore/fork lookup because only `\"\"` and `github-artifact` are restorable: [`isRestorableSessionBundleBackend`](https://github.com/self-evolving/repo/blob/54a49b22aef628fadbca1f904bdd8304d5d610ed/.agent/src/session-bundle.ts#L170-L172)\n\nSo for `track-only + session_bundle_mode: always`, Sepo can still upload a bundle so we can inspect/debug what happened, but it is marked `github-artifact-debug` so a later run will not restore from it and accidentally create conversational continuity from a one-shot run.",
+      "createdAt": "2026-05-19T07:24:49Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/274#issuecomment-4485379846",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC1nTww",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #274.\n\nno rubric changes\n\nI reviewed PR #274, linked issue #272, issue comments, review comments, PR reviews, contributor trust signals, and the active rubric set. The conversation did not contain a trusted maintainer/user preference suitable for durable rubric learning; the substantive feedback was agent-authored and already aligns with existing rubrics like structured inputs, docs sync, reuse, simple implementation, and surgical changes.\n",
+      "createdAt": "2026-05-19T07:27:58Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/274#issuecomment-4485403587",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-18T01:04:28Z",
   "files": [
     {
+      "path": ".agent/docs/customization/creating-your-own-actions.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/key-concepts.md",
+      "additions": 7,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
       "path": ".agent/docs/technical-details/session-continuity.md",
-      "additions": 13,
-      "deletions": 9,
+      "additions": 25,
+      "deletions": 2,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/__tests__/acpx-adapter.test.ts",
-      "additions": 78,
-      "deletions": 0,
+      "additions": 183,
+      "deletions": 1,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/__tests__/envelope.test.ts",
-      "additions": 17,
+      "additions": 18,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/__tests__/session-bundle.test.ts",
       "additions": 27,
-      "deletions": 9,
+      "deletions": 8,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/session-policy.test.ts",
+      "additions": 2,
+      "deletions": 2,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/acpx-adapter.ts",
-      "additions": 11,
-      "deletions": 4,
+      "additions": 124,
+      "deletions": 22,
       "changeType": "MODIFIED"
     },
     {
@@ -208,19 +278,37 @@
     },
     {
       "path": ".agent/src/run.ts",
-      "additions": 7,
+      "additions": 8,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/session-bundle.ts",
-      "additions": 19,
-      "deletions": 3,
+      "additions": 17,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/session-policy.ts",
+      "additions": 1,
+      "deletions": 1,
       "changeType": "MODIFIED"
     },
     {
       "path": ".github/actions/run-agent-task/action.yml",
       "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-create-action.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/review-synthesize.md",
+      "additions": 5,
       "deletions": 0,
       "changeType": "MODIFIED"
     }
@@ -234,7 +322,7 @@
       "color": "0e8a16"
     }
   ],
-  "mergedAt": null,
+  "mergedAt": "2026-05-19T07:26:41Z",
   "number": 274,
   "reviewDecision": "",
   "reviews": [
@@ -254,8 +342,8 @@
       }
     }
   ],
-  "state": "OPEN",
+  "state": "MERGED",
   "title": "Add upload-only track-only session bundles",
-  "updatedAt": "2026-05-18T01:37:08Z",
+  "updatedAt": "2026-05-19T07:27:58Z",
   "url": "https://github.com/self-evolving/repo/pull/274"
 }

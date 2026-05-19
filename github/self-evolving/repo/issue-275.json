@@ -6,7 +6,7 @@
     "name": "Shannon Shen"
   },
   "body": "For example https://github.com/self-evolving/repo/pull/268#issuecomment-4473257306\n\nWhile it says to create a stacked pr, it still merges to main in the end. Can you investigate? \n\n@sepo-agent /answer",
-  "closedAt": null,
+  "closedAt": "2026-05-19T08:44:01Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABCqHc7w",
@@ -22,6 +22,159 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/275#issuecomment-4473347311",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC1oMtg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate",
+      "createdAt": "2026-05-19T07:29:49Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/275#issuecomment-4485418166",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC1pJ3w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | implement | Issue #275 | 2 / 40 | Dispatched |\n\nReason: agent planner selected implement: Issue #275 has a concrete, self-contained router bug with an existing investigation and no open PR; implementation is the useful next action.\n\n<!-- sepo-agent-handoff state:dispatched created:1779175910277 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYwODI5MTc4ODM6b3JjaGVzdHJhdGU6Mjc1OmltcGxlbWVudDoyNzU6Mg -->",
+      "createdAt": "2026-05-19T07:31:50Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/275#issuecomment-4485433823",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC1rswQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-275/codex-26083010784`\n- Pull request: https://github.com/self-evolving/repo/pull/276\n\nImplemented deterministic stacked-PR base derivation for implement dispatches: router and approval paths now pass source target metadata, and dispatch-agent-implement derives base_pr from PR requests that ask for a stacked/follow-up PR unless an explicit base already exists. Updated docs and focused regression tests; verified with build, targeted node tests, and git diff --check.",
+      "createdAt": "2026-05-19T07:37:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/275#issuecomment-4485475521",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC12kzA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer no. #276 is not what i meant. \n\nwe just added implement metadata parser. I thought we could obtain the metadata from that prompt and agent call step and then use it as the base pr. this should be simpler?",
+      "createdAt": "2026-05-19T08:02:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/275#issuecomment-4485653708",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC13crQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, that’s the simpler path, and I agree it’s closer to what you meant.\n\nWe already have an explicit `/implement` metadata agent step for non-issue targets:\n\n- metadata prompt: [`agent-implement-metadata.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-implement-metadata.md)\n- router step: [`agent-router.yml#L252-L281`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L252-L281)\n- parser: [`normalizeImplementIssueMetadata`](https://github.com/self-evolving/repo/blob/main/.agent/src/triage.ts#L63-L94)\n- dispatch resolver: [`resolve-dispatch.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/resolve-dispatch.ts#L33-L63)\n\nSo instead of adding a separate “stacked PR wording parser” in the router, we should extend that metadata contract to include implementation base metadata.\n\nConcretely:\n\n1. Update `agent-implement-metadata.md` JSON contract to allow something like:\n\n```json\n{\n  \"issue_title\": \"...\",\n  \"issue_body\": \"...\",\n  \"base_pr\": \"268\"\n}\n```\n\nFor this case, the prompt can say: when the request is on a pull request and asks for a stacked/follow-up PR, set `base_pr` to the current target PR number.\n\n2. Extend `ImplementIssueMetadata` / `normalizeImplementIssueMetadata` to parse optional `base_pr`.\n\n3. Have `buildRequestedRouteDecision` carry that through the dispatch decision.\n\n4. Have `resolve-dispatch.ts` emit `base_pr` as a GitHub output.\n\n5. Add `base_pr` to the portal job outputs and pass it into the existing implement dispatch env:\n\n```yaml\nBASE_PR: ${{ needs.portal.outputs.base_pr }}\n```\n\nThe rest is already wired: `dispatch-agent-implement.ts` forwards `base_pr`, and `agent-implement.yml` resolves `base_pr` to the PR head branch before branch creation.\n\nImportant guardrail: the metadata parser should only accept a positive integer `base_pr`; the implementation workflow already validates that the PR is open and same-repo in `implementation-base.ts`, so bad model output won’t silently become a dangerous branch target.\n\nSo yes: use the implement metadata prompt/output as the source of the base PR. That should be smaller and more consistent than #276-style deterministic request parsing.",
+      "createdAt": "2026-05-19T08:04:20Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/275#issuecomment-4485668013",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC14MjA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Yes, that’s the simpler path, and I agree it’s closer to what you meant.\n> \n> We already have an explicit `/implement` metadata agent step for non-issue targets:\n> \n> * metadata prompt: [`agent-implement-metadata.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-implement-metadata.md)\n> * router step: [`agent-router.yml#L252-L281`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L252-L281)\n> * parser: [`normalizeImplementIssueMetadata`](https://github.com/self-evolving/repo/blob/main/.agent/src/triage.ts#L63-L94)\n> * dispatch resolver: [`resolve-dispatch.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/resolve-dispatch.ts#L33-L63)\n> \n> So instead of adding a separate “stacked PR wording parser” in the router, we should extend that metadata contract to include implementation base metadata.\n> \n> Concretely:\n> \n> 1. Update `agent-implement-metadata.md` JSON contract to allow something like:\n> \n> {\n>   \"issue_title\": \"...\",\n>   \"issue_body\": \"...\",\n>   \"base_pr\": \"268\"\n> }\n> For this case, the prompt can say: when the request is on a pull request and asks for a stacked/follow-up PR, set `base_pr` to the current target PR number.\n> \n> 2. Extend `ImplementIssueMetadata` / `normalizeImplementIssueMetadata` to parse optional `base_pr`.\n> 3. Have `buildRequestedRouteDecision` carry that through the dispatch decision.\n> 4. Have `resolve-dispatch.ts` emit `base_pr` as a GitHub output.\n> 5. Add `base_pr` to the portal job outputs and pass it into the existing implement dispatch env:\n> \n> BASE_PR: ${{ needs.portal.outputs.base_pr }}\n> The rest is already wired: `dispatch-agent-implement.ts` forwards `base_pr`, and `agent-implement.yml` resolves `base_pr` to the PR head branch before branch creation.\n> \n> Important guardrail: the metadata parser should only accept a positive integer `base_pr`; the implementation workflow already validates that the PR is open and same-repo in `implementation-base.ts`, so bad model output won’t silently become a dangerous branch target.\n> \n> So yes: use the implement metadata prompt/output as the source of the base PR. That should be smaller and more consistent than [#276](https://github.com/self-evolving/repo/pull/276)-style deterministic request parsing.\n\n@sepo-agent /orchestrate ",
+      "createdAt": "2026-05-19T08:05:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/275#issuecomment-4485680268",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC14-hg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | implement | Issue #275 | 2 / 40 | Dispatched |\n\nReason: agent planner selected implement: Issue #275 has a concrete follow-up implementation request that supersedes the prior #276-style deterministic wording parser with a smaller metadata-contract approach.\n\n<!-- sepo-agent-handoff state:dispatched created:1779178056105 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYwODQ1NjMyMjc6b3JjaGVzdHJhdGU6Mjc1OmltcGxlbWVudDoyNzU6Mg -->",
+      "createdAt": "2026-05-19T08:07:36Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/275#issuecomment-4485693062",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC17psg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-275/codex-26084635730`\n- Pull request: https://github.com/self-evolving/repo/pull/280\n\nExtended explicit /implement metadata to parse and validate optional base_pr, carry it through resolve-dispatch and portal outputs into agent-implement, and updated prompt/docs/tests. Verified with npm run build, targeted node tests, and git diff --check.",
+      "createdAt": "2026-05-19T08:13:15Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/275#issuecomment-4485736882",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-18T01:14:40Z",
@@ -34,8 +187,8 @@
     }
   ],
   "number": 275,
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Parse merge head  information from user request from implement request",
-  "updatedAt": "2026-05-18T01:18:52Z",
+  "updatedAt": "2026-05-19T08:44:01Z",
   "url": "https://github.com/self-evolving/repo/issues/275"
 }

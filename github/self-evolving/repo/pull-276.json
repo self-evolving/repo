@@ -1,0 +1,254 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Derive `base_pr` from the source PR when an implement request asks for a stacked or follow-up PR and no base is already provided.\n- Pass source target metadata through router and approval dispatch paths.\n- Document the behavior and add focused regression coverage.\n\n## Tests\n- `cd .agent && npm run build`\n- `cd .agent && node --test dist/__tests__/implementation-base-hint.test.js dist/__tests__/dispatch-agent-implement-cli.test.js dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nCloses #275\n",
+  "closedAt": "2026-05-19T08:06:02Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC1sJ7Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #276 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: Implementation succeeded and produced open PR #276 for issue #275; no automated review has run yet, so review is the next useful action.\n\n<!-- sepo-agent-handoff state:dispatched created:1779176332686 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYwODMwMTA3ODQ6aW1wbGVtZW50OjI3NTpyZXZpZXc6Mjc2OjM -->",
+      "createdAt": "2026-05-19T07:38:53Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/276#issuecomment-4485482989",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC1szeg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 6 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | PR adds `implementation-base-hint.ts` only for deriving the hint, then continues to pass `base_pr` through the existing `dispatch-agent-implement` and `agent-implement.yml` contract, where existing base validation already handles open same-repo PRs. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The workflow passes `TARGET_KIND` and `TARGET_NUMBER` as separate env fields from router/approval paths, and emits structured workflow inputs `base_branch` / `base_pr` rather than encoding base choice into request text after dispatch. |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | The implementation derives `base_pr` from current request context in the dispatch CLI instead of adding a new repo setting or requiring user configuration. It preserves explicit `BASE_BRANCH` / `BASE_PR` precedence. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Docs were updated in `.agent/docs/actions/agent-actions.md`, `.agent/docs/architecture/request-lifecycle.md`, and `.agent/docs/architecture/supported-workflows.md` to describe PR-source stacked/follow-up base derivation. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are limited to the dispatch path, a focused helper, workflow env passthrough, targeted tests, and matching docs. No broad refactor or unrelated formatting appears in the diff. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The new helper uses small pattern checks plus positive PR-number validation, and delegates final base resolution to existing implementation-base behavior. |\n\n## Notes\n\n- The strongest rubric fit is that PR #276 fixes the issue described in #275 by reusing the existing `base_pr` pathway instead of rebuilding PR-head resolution or adding a setting.\n- Regression coverage is focused: helper tests cover stacked/follow-up intent, non-PR targets, explicit base precedence, and a CLI dispatch test verifies `base_pr: \"268\"` is sent.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific concerns found.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-19T07:40:18Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/276#issuecomment-4485493626",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC1wxCA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 5d4cc8395c3122390f1d7e80a7550e0f719c15e2 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #276 addresses issue #275, where `/implement` requests made from a PR could ask for stacked follow-up work but the dispatched implementation PR still targeted `main`.\n- The PR adds deterministic base derivation so explicit stacked/follow-up implement requests on PR targets pass `base_pr=<source PR>` into the existing implementation workflow.\n- It also forwards target metadata through router and approval paths, updates docs, and adds focused regression tests for the happy path.\n- The overall design reuses the existing `base_pr` resolution path, which is the right integration point.\n\n## Review\nThe core approach is sound, but two false-positive paths remain. No material reviewer disagreement: the rubrics review passed, while the code reviews flagged concrete edge cases in the new inference behavior.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Over-broad stacked intent detection | WARNING | The bare `\\bstacked\\b` regex treats ordinary feature text like “stacked layout” as stacked-PR intent. On PR targets, that can silently retarget an implement run to the source PR. |\n| Base inference also runs on label target context | WARNING | For `agent/implement` label triggers on PRs, `REQUEST_TEXT` can be the PR title/body rather than an explicit command. Target prose mentioning “follow-up PR” or “stacked PR” can accidentally derive `base_pr`. |\n\n## Progress\n- PR #276 implements the intended happy path for issue #275 by deriving `base_pr` for explicit stacked/follow-up PR requests.\n- Rubrics review passed with no rubric-specific follow-up.\n- Reviewer verification reported `npm run build`, targeted node tests, and `git diff --check` passing.\n- Posted inline comments for both unresolved warnings: `.agent/src/implementation-base-hint.ts:16` and `.agent/src/cli/dispatch-agent-implement.ts:26`.\n- No existing inline comments or review threads were present before those comments.\n\n## Issue Details\n\n<details>\n<summary>Over-broad stacked intent detection</summary>\n\n**Cause:** [`implementation-base-hint.ts`](https://github.com/self-evolving/repo/blob/5d4cc8395c3122390f1d7e80a7550e0f719c15e2/.agent/src/implementation-base-hint.ts#L16) includes `/\\bstacked\\b/i`, so any standalone “stacked” matches even without PR/base context.\n\n**Candidate solutions:** Require explicit PR/base wording, such as `stacked PR`, `stacked pull request`, `stack on this`, or fold `stacked` into the more contextual pattern. Add negative tests for ordinary uses like “stacked layout” or “stacked cache”.\n\n**Comments:** This is actionable because the helper currently derives `base_pr` whenever the target is a PR and the pattern matches.\n\n</details>\n\n<details>\n<summary>Base inference also runs on label target context</summary>\n\n**Cause:** [`dispatch-agent-implement.ts`](https://github.com/self-evolving/repo/blob/5d4cc8395c3122390f1d7e80a7550e0f719c15e2/.agent/src/cli/dispatch-agent-implement.ts#L26) runs the detector on generic `REQUEST_TEXT`. For label-triggered PR events, context extraction can populate that body from the target PR title/body, not a slash-command request.\n\n**Candidate solutions:** Pass structured trigger/source context into the dispatch CLI and only infer a stacked base for explicit command/comment text, or provide a separate parsed-command field and skip inference for label target context.\n\n**Comments:** This is separate from the regex breadth: even precise “follow-up PR” wording can be accidental when it comes from the target PR body.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the unresolved issues are concrete branch changes and are safe for an automated fix-pr pass with focused negative tests.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Narrow stacked/follow-up intent detection so ordinary “stacked” prose does not derive `base_pr`, and add false-positive tests.\n- [ ] Guard base derivation so it only runs on explicit user command/comment text, not PR title/body context from label-triggered implement runs.",
+      "createdAt": "2026-05-19T07:49:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/276#issuecomment-4485558536",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC1xO7Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #276 | 4 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis for open PR #276 recommends FIX_PR for two concrete unresolved minor issues that require focused branch changes and tests.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Narrow stacked/follow-up intent detection so ordinary “stacked” prose does not derive `base_pr`, and add false-positive tests.\n- Guard base derivation so it only runs on explicit user command/comment text, not PR title/body context from label-triggered implement runs.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1779177006578 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYwODMzMjM1NzY6cmV2aWV3OjI3NjpmaXhfcHI6Mjc2OjQ -->",
+      "createdAt": "2026-05-19T07:50:07Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/276#issuecomment-4485566189",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC10ocQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-275/codex-26083010784`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Narrowed stacked/follow-up base inference so ordinary `stacked` prose no longer sets `base_pr`.\n- Added request source/trigger guards so `agent/implement` label runs on PRs do not derive `base_pr` from PR title/body context.\n- Preserved approved request source metadata, updated docs, and added focused false-positive regressions.\n\n<details><summary>Checks</summary>\n\n- `cd .agent && npm run build`\n- `cd .agent && node --test dist/__tests__/implementation-base-hint.test.js dist/__tests__/dispatch-agent-implement-cli.test.js dist/__tests__/resolve-approval-cli.test.js dist/__tests__/envelope.test.js`\n- `git diff --check`\n\n</details>",
+      "createdAt": "2026-05-19T07:58:03Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/276#issuecomment-4485621873",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC11TiQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #276 | 5 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on open PR #276 after the prior review recommended FIX_PR; another review is warranted to verify the pushed fixes and decide whether the PR now ships or needs more work.\n\n<!-- sepo-agent-handoff state:dispatched created:1779177573570 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYwODM4MzE0NDg6Zml4X3ByOjI3NjpyZXZpZXc6Mjc2OjU -->",
+      "createdAt": "2026-05-19T07:59:34Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/276#issuecomment-4485632905",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC1109A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | PR reuses the existing `base_pr` implementation path by deriving a hint in `.agent/src/implementation-base-hint.ts` and passing it through `dispatch-agent-implement`; it leaves final PR validation/resolution to the existing implementation workflow. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The router/approval workflows pass `REQUEST_SOURCE_KIND`, `TRIGGER_KIND`, `TARGET_KIND`, and `TARGET_NUMBER` as separate fields, and dispatch still sends structured `base_branch` / `base_pr` inputs. |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | The PR encodes the decision in dispatch-time context instead of adding a new repo setting. Explicit `BASE_BRANCH` / `BASE_PR` still take precedence. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Docs were updated in `.agent/docs/actions/agent-actions.md`, `.agent/docs/architecture/request-lifecycle.md`, and `.agent/docs/architecture/supported-workflows.md` to describe stacked/follow-up base derivation and label-trigger exclusions. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are limited to dispatch metadata plumbing, a focused helper, targeted tests, and relevant docs. No broad refactor or unrelated formatting appears in the diff. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The helper uses a small allowlist of contextual stack/follow-up patterns, a positive PR-number parser, and a simple guard that skips label-triggered PR body/title prose. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #276 closes issue #275, whose investigation identified the missing `base_pr` dispatch path and recommended using existing `base_pr` validation. The PR implements that exact path and documents the resulting behavior. |\n\n## Notes\n\n- The current head `5bc720d…` includes follow-up fixes for the earlier review synthesis warnings: ordinary “stacked” prose no longer matches, and label-triggered PR target prose is excluded.\n- The strongest rubric alignment is reuse: the implementation derives only the missing structured hint, then relies on existing same-repo/open-PR base validation.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific concerns found.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-19T08:00:46Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/276#issuecomment-4485641460",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC16h6A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 5bc720dab615684ced2e79b8954a3416ad111895 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #276 tried to fix issue #275 by deriving `base_pr` when `/implement` is invoked from a PR with stacked/follow-up wording.\n- The code path reuses the existing `base_pr` implementation workflow and added guards for ordinary “stacked” prose plus label-triggered PR body/title text.\n- All current review artifacts agree the prior code-level warnings were addressed on head `5bc720d`.\n- However, the linked issue conversation now says PR #276 is not the intended approach; the requester asked for the implement metadata parser path instead, and PR #276 is closed unmerged.\n\n## Review\nThe code-review findings are resolved, with no reviewer disagreement on implementation quality. The remaining blocker is current project direction: this closed PR is superseded by the metadata-contract approach requested in issue #275.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Superseded implementation approach | BLOCKING | Current issue context states that PR #276 is not the intended fix and should be replaced by a metadata-derived `base_pr` approach. PR #276 is closed unmerged, so it should not be advanced as-is. |\n\n## Progress\n- Prior warnings about over-broad `stacked` matching and label-triggered PR prose were fixed on head `5bc720d`.\n- Rubrics review passed with no rubric-specific follow-up.\n- Resolved two stale same-agent inline review threads: `PRRT_kwDOSOhEMM6DExKh` and `PRRT_kwDOSOhEMM6DExRV`.\n- No new inline comments were posted.\n\n## Issue Details\n<details>\n<summary>Superseded implementation approach</summary>\n\n**Cause:** PR #276 implements deterministic stacked/follow-up wording detection in dispatch, but the requester clarified in issue #275 that the preferred fix is to obtain `base_pr` from the implement metadata prompt/parser path.\n\n**Candidate solutions:** Leave PR #276 closed and implement the replacement metadata-contract approach in a new PR: extend implement metadata to include validated positive-integer `base_pr`, propagate it through dispatch resolution/router outputs, and continue relying on the existing implementation workflow validation.\n\n**Comments:** This is not a line-specific code defect in the current diff, so no new inline review comment was appropriate.\n\n</details>\n\n## Recommended Next Step\nHUMAN_DECISION: the remaining blocker is a maintainer-directed approach change on a closed PR, so automation should not run fix-pr against PR #276.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Implement the issue #275 metadata-contract `base_pr` approach in a replacement PR rather than advancing PR #276.",
+      "createdAt": "2026-05-19T08:11:01Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/276#issuecomment-4485718504",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-19T07:37:50Z",
+  "files": [
+    {
+      "path": ".agent/docs/actions/agent-actions.md",
+      "additions": 4,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/request-lifecycle.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 6,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/dispatch-agent-implement-cli.test.ts",
+      "additions": 92,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 8,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/implementation-base-hint.test.ts",
+      "additions": 104,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/resolve-approval-cli.test.ts",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/dispatch-agent-implement.ts",
+      "additions": 20,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/resolve-approval.ts",
+      "additions": 2,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/implementation-base-hint.ts",
+      "additions": 87,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/workflows/agent-approve.yml",
+      "additions": 4,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-router.yml",
+      "additions": 4,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-275/codex-26083010784",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 276,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAU3gLw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-19T07:47:55Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "5d4cc8395c3122390f1d7e80a7550e0f719c15e2"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAU3jHg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-19T07:48:02Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "5d4cc8395c3122390f1d7e80a7550e0f719c15e2"
+      }
+    }
+  ],
+  "state": "CLOSED",
+  "title": "Derive base PR for stacked implement requests",
+  "updatedAt": "2026-05-19T08:11:01Z",
+  "url": "https://github.com/self-evolving/repo/pull/276"
+}

@@ -1,0 +1,178 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "agent/implement-issue-269/codex-26007754542",
+  "body": "## Summary\n- Resolve `@sepo-agent /install owner/repo` as the `install` route while still running the bundled `install-agent` skill.\n- Apply `AGENT_ACCESS_POLICY.route_overrides.install` independently from general `/skill` access.\n- Update install docs and skill guidance with route-policy examples and clear post-merge onboarding todos.\n\n## Notes\n- This intentionally does not add `AGENT_INSTALL_PAT`, fork creation, or cross-repo PR mechanics.\n- Builds on #273.\n\n## Verification\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/triage.test.js .agent/dist/__tests__/resolve-dispatch-cli.test.js .agent/dist/__tests__/extract-context-cli.test.js .agent/dist/__tests__/envelope.test.js .agent/dist/__tests__/rubrics.test.js`\n- `node -e \"const fs=require('fs'); const YAML=require('yaml'); for (const f of ['.github/workflows/agent-router.yml','.github/actions/run-agent-task/action.yml']) YAML.parse(fs.readFileSync(f,'utf8'));\"`\n- `git diff --check`\n\nCloses #279\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC19xqg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #281 | 3 / 40 | Dispatched |\n\nReason: implementation succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1779178667142 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYwODQ2NTIwODU6aW1wbGVtZW50OjI3OTpyZXZpZXc6MjgxOjM -->",
+      "createdAt": "2026-05-19T08:17:47Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/281#issuecomment-4485771690",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC1-ZDA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 96 | PASS | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Validate delegated route authorization | pass | 30/30 | `/install` becomes its own `install` route in `.agent/src/envelope.ts`, `.agent/src/triage.ts`, and workflow routing; policy tests verify `route_overrides.install` can deny a contributor while `/skill` remains allowed. |\n| coding_workflow/generic | Minimal defaults, native escape hatches | pass | 20/20 | Docs and `.skills/install-agent/SKILL.md` explicitly keep v1 install to the already resolved token and avoid adding PAT switching, fork creation, or cross-repo PR mechanics. |\n| coding_workflow/generic | Prefer explicit structured inputs | pass | 20/20 | The implementation adds an explicit `install` route and preserves `requested_install_target_repo`, rather than encoding install authorization into the generic skill route. |\n| coding_workflow/generic | Reuse existing code | pass | 20/20 | The PR reuses existing dispatch, access policy, skill job, provider resolution, and rubric route-matching paths instead of adding a separate install workflow. |\n| coding_workflow/generic | Make surgical changes | pass | 20/20 | Changes are limited to route recognition, workflow route propagation, tests, docs, and install skill instructions. No broad refactor or unrelated cleanup is present in the PR diff. |\n| coding_style/generic | Prefer simple implementations | pass | 20/20 | The core behavior is a small route alias elevation: `install` routes to the existing bundled `install-agent` skill while using the existing skill job. |\n| coding_workflow/generic | Keep docs in sync | pass | 20/20 | `.agent/docs/access-policy.md`, `.agent/docs/actions/agent-actions.md`, `.agent/docs/architecture/supported-workflows.md`, `.agent/docs/customization/skills.md`, and install deployment docs are updated with the new route semantics. |\n| communication/generic | Write audience-first documentation | pass | 18/20 | Install docs lead with the command and practical authorization behavior, then provide the route override example and v1 limitations. |\n| coding_workflow/generic | Generate context-derived artifact metadata | pass | 18/20 | `.skills/install-agent/SKILL.md` now instructs the install PR body to align with onboarding status, include configured state, remaining setup, smoke-test commands, and distinguish detected settings from owner todos. |\n| coding_workflow/generic | Validate preview contracts | not applicable | N/A | This PR does not add or change a dry-run, preview, or read-only execution mode. |\n\n## Notes\n\n- The strongest rubric fit is authorization: `/install owner/repo` is no longer authorized as a generic skill run, and focused tests cover separate install-vs-skill policy behavior.\n- The discussion #271 concern is addressed in scope: the PR avoids adding PAT/fork behavior now, documents the active-token contract, and improves install PR body instructions so onboarding-derived setup state and todos are clear.\n- No rubric-specific follow-up needed beyond ensuring the listed verification commands stay green before merge.\n\n## Findings\n\n- **INFO:** The implementation satisfies the applicable selected rubrics. The route is explicit, policy-scoped, documented, and tested without expanding the install feature into broader credential or fork management.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-19T08:19:15Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/281#issuecomment-4485781772",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC2Cpeg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 7e698f770d1054dc6a08f6e39d1007eb19453b96 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #281 makes `@sepo-agent /install owner/repo` resolve as a first-class `install` route while still executing the bundled `install-agent` skill. This lets `AGENT_ACCESS_POLICY.route_overrides.install` restrict external install requests independently from general `/skill` access. The PR builds on #273’s install parsing and structured target plumbing, and it closes the route-policy child task from #279 under parent #277. It intentionally leaves `AGENT_INSTALL_PAT`, fork creation, and cross-repo PR mechanics for later focused work.\n\n## Review\nThe current reviewer artifacts support shipping this PR. The only reviewer disagreement is a non-blocking maintainability suggestion to add an explicit `install` branch in `applyDispatchPolicy`; current behavior is equivalent through the shared fallback and covered by route-override tests.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable issues | INFO | No current BLOCKING or WARNING finding remains supported by the review artifacts and PR state. |\n\n## Progress\n- Rubrics review passed: the route is explicit, policy-scoped, documented, and tested.\n- Codex review found no blocking or warning issues and verified the intended route-policy behavior.\n- Claude review flagged only optional future-proofing around an explicit `applyDispatchPolicy` branch; synthesis treats that as non-required polish, not a branch-change blocker.\n- PR #281 has no existing inline comments or review threads; no new inline comments were posted.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved required branch changes remain for automation.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-19T08:28:52Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/281#issuecomment-4485851514",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-19T08:17:25Z",
+  "files": [
+    {
+      "path": ".agent/docs/access-policy.md",
+      "additions": 12,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/actions/agent-actions.md",
+      "additions": 2,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 5,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/skills.md",
+      "additions": 3,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/deployment/install-existing-repository.md",
+      "additions": 23,
+      "deletions": 12,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 4,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/extract-context-cli.test.ts",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/resolve-dispatch-cli.test.ts",
+      "additions": 39,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/rubrics.test.ts",
+      "additions": 19,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/triage.test.ts",
+      "additions": 55,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/resolve-dispatch.ts",
+      "additions": 10,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/envelope.ts",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/rubrics.ts",
+      "additions": 5,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/triage.ts",
+      "additions": 15,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/run-agent-task/action.yml",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-router.yml",
+      "additions": 6,
+      "deletions": 6,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".skills/install-agent/SKILL.md",
+      "additions": 11,
+      "deletions": 8,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-279/codex-26084652085",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 281,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "OPEN",
+  "title": "Make /install a first-class route",
+  "updatedAt": "2026-05-19T08:28:52Z",
+  "url": "https://github.com/self-evolving/repo/pull/281"
+}

@@ -1,0 +1,200 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Normalize weak mention author associations through a shared collaborator fallback before route authorization\n- Preserve the existing issue-body live association refresh before collaborator fallback\n- Add regressions for issue comments, discussion comments, PR review comments, and PR reviews\n- Update access policy docs for the broader mention-trigger behavior\n\n## Tests\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/extract-context-cli.test.js`\n\nCloses #270\n",
+  "closedAt": "2026-05-19T08:23:32Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC1z_Ow",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #278 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: Implementation succeeded and produced PR #278 for issue #270, so the next useful automated step is review.\n\n<!-- sepo-agent-handoff state:dispatched created:1779177398212 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYwODM4MDkzMDQ6aW1wbGVtZW50OjI3MDpyZXZpZXc6Mjc4OjM -->",
+      "createdAt": "2026-05-19T07:56:38Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/278#issuecomment-4485611323",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC10wNg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 96 | PASS | 5 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR generalizes existing `extract-context` authorization logic rather than adding workflow glue: it reuses `ghApiOk`, `getRequestedBy`, `getAuthorAssociation`, and the existing CLI test harness in [`.agent/src/cli/extract-context.ts`](https://github.com/self-evolving/repo/pull/278/files) and [`.agent/src/__tests__/extract-context-cli.test.ts`](https://github.com/self-evolving/repo/pull/278/files). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The behavior change is documented by replacing the issue-only “Issue-body association refresh” section with “Weak association normalization” in [`.agent/docs/access-policy.md`](https://github.com/self-evolving/repo/pull/278/files). |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #278 closes issue #270 and implements the specific requested scope: preserve issue-body refresh, add collaborator fallback across issue comments, discussion comments, PR review comments, and PR reviews, and update access-policy docs. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is limited to the relevant source, focused regression tests, and one access-policy doc: 3 files changed, with no unrelated refactor or workflow churn. |\n| coding_style / generic | Prefer simple implementations | partial | 6/7 | The implementation is compact and local to `extract-context`, with a small normalizer and weak-association set. Minor complexity remains because the tests add another local CLI runner helper while older tests still use inline temp-dir setup, but this is not blocking. |\n\n## Notes\n\n- The strongest rubric fit is the authorization consistency issue from #270. The PR keeps the trust boundary conservative by promoting weak associations only after a repository collaborator check succeeds.\n- The docs update is appropriately placed in the canonical access-policy doc and describes the affected mention surfaces.\n- No rubric-specific follow-up needed beyond considering a later test cleanup if the duplicated CLI setup keeps growing.\n\n## Findings\n\n- **INFO:** The implementation satisfies the applicable selected rubrics. I did not score unrelated orchestration, merge strategy, preview, privileged-runtime, or artifact-metadata rubrics because this PR does not change those surfaces.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-19T07:58:18Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/278#issuecomment-4485623862",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC14tFg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 1b56a010e35e477a748dae0547cf0070d4d30c45 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #278 closes #270 by normalizing weak mention `author_association` values before route authorization. It preserves the existing issue-body live refresh, then adds a shared collaborator fallback for supported mention surfaces. The goal is to avoid rejecting real collaborators on comments, discussions, and PR reviews when GitHub reports weak values like `NONE` or `CONTRIBUTOR`. The PR also updates access-policy docs and adds positive-path regression tests.\n\n## Review\nThe implementation is in the right layer and keeps the authorization trust boundary conservative. The remaining concern is test coverage: the new behavior lacks direct negative-path coverage and one documented surface is not tested.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Missing edge-case tests for weak association normalization | WARNING | The new matrix verifies collaborator promotion, but not that non-collaborators remain weak when `GITHUB_REPOSITORY` is set. It also omits top-level `discussion` coverage even though the docs now list discussion bodies. |\n\n## Progress\n- The PR already implements shared weak-association normalization, preserves issue-body refresh, and updates `.agent/docs/access-policy.md`.\n- Codex review reported `npm --prefix .agent ci`, build, and focused extract-context tests passed on head `1b56a010e35e477a748dae0547cf0070d4d30c45`.\n- Rubrics review passed and found the change surgical and aligned with the authorization goal.\n- No existing inline comments or review threads were present before synthesis.\n- Posted one inline comment on `.agent/src/__tests__/extract-context-cli.test.ts` line 411 covering the missing test cases.\n\n## Issue Details\n\n<details>\n<summary>Missing edge-case tests for weak association normalization</summary>\n\n**Cause:** The added `weakMentionCollaboratorCases` all use a collaborator stub that confirms `alice`, so they only prove weak values promote to `COLLABORATOR`. The docs now say normalization applies to discussion bodies, but the matrix covers `discussion_comment`, not the top-level `discussion` event.\n\n**Candidate solutions:** Add a non-issue mention test with `GITHUB_REPOSITORY` set where the collaborator check returns non-204 and the original weak association is preserved. Add a top-level `discussion` event test proving a weak `discussion.authorAssociation` can promote when the collaborator lookup succeeds.\n\n**Comments:** Claude raised these as warnings; Codex and rubrics reviews otherwise considered the implementation sound. The current diff supports treating this as a focused test-only follow-up.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: Add the missing regression coverage in `.agent/src/__tests__/extract-context-cli.test.ts`; the work is concrete and safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Add a non-issue mention negative-path test where `GITHUB_REPOSITORY` is set, collaborator lookup fails, and the weak association is preserved.\n- [ ] Add top-level `discussion` event coverage for weak-association normalization.",
+      "createdAt": "2026-05-19T08:07:01Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/278#issuecomment-4485688598",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC15Odw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #278 | 4 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis for open PR #278 concluded MINOR_ISSUES with Recommended Next Step FIX_PR; the remaining items are concrete test-only gaps safe for automated branch changes.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Add a non-issue mention negative-path test where `GITHUB_REPOSITORY` is set, collaborator lookup fails, and the weak association is preserved.\n- Add top-level `discussion` event coverage for weak-association normalization.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1779178090572 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYwODQxMzEyNDk6cmV2aWV3OjI3ODpmaXhfcHI6Mjc4OjQ -->",
+      "createdAt": "2026-05-19T08:08:11Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/278#issuecomment-4485697143",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC16bGw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-270/codex-26083809304`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Added top-level `discussion` event coverage for weak-association collaborator promotion.\n- Added a discussion-comment negative-path regression where `GITHUB_REPOSITORY` is set, collaborator lookup fails, and `CONTRIBUTOR` is preserved.\n- Checks passed: `npm --prefix .agent run build`; `node --test .agent/dist/__tests__/extract-context-cli.test.js`.",
+      "createdAt": "2026-05-19T08:10:48Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/278#issuecomment-4485716763",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC168jQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #278 | 5 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on open PR #278 and reported that the requested test coverage was added with build and focused tests passing, so one follow-up review is warranted on the updated head.\n\n<!-- sepo-agent-handoff state:dispatched created:1779178311261 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYwODQ2NjEwNDA6Zml4X3ByOjI3ODpyZXZpZXc6Mjc4OjU -->",
+      "createdAt": "2026-05-19T08:11:51Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/278#issuecomment-4485725325",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC17j3g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 5 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The diff keeps the behavior in the existing extraction/auth path, reusing `getAuthorAssociation`, `getRequestedBy`, `ghApiOk`, and the existing `extract-context` CLI test style in [`.agent/src/cli/extract-context.ts`](https://github.com/self-evolving/repo/pull/278/files) and [`.agent/src/__tests__/extract-context-cli.test.ts`](https://github.com/self-evolving/repo/pull/278/files). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The access-policy documentation was updated from issue-only refresh to broader weak association normalization across supported mention surfaces in [`.agent/docs/access-policy.md`](https://github.com/self-evolving/repo/pull/278/files). |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #278 closes issue #270 and implements its requested scope: preserve issue-body refresh, add collaborator fallback for weak associations across comments, discussions, and PR reviews, and update docs. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The PR changes only three relevant files: the extraction CLI, focused regression tests, and the access-policy doc. No unrelated workflow or broad refactor is present. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation adds a small normalization path and weak-association set, with direct collaborator fallback and focused tests including successful promotion and failed-lookup preservation. |\n\n## Notes\n\n- The current head includes the earlier requested follow-up coverage: top-level `discussion` promotion and a negative path where collaborator lookup fails and the weak association remains unchanged.\n- I did not score unrelated selected rubrics for delegated orchestration, preview contracts, merge flow, status comments, privileged runtime, artifact metadata, or review synthesis because this PR does not change those surfaces.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** The implementation satisfies the applicable selected rubrics. The trust boundary remains conservative because weak associations are promoted only after GitHub confirms repository collaborator status.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-19T08:13:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/278#issuecomment-4485735390",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC1-a3A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: fb793d7182ebbc02ee5d1a78c7210ae1746a87ae -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #278 closes #270 by normalizing weak mention `author_association` values before route authorization. It preserves the issue-body live association refresh, then applies a shared collaborator fallback across supported mention surfaces. The goal is to avoid rejecting real collaborators when GitHub reports weak associations such as `NONE` or `CONTRIBUTOR`. The PR updates access-policy docs and adds regression coverage for comments, discussions, and PR reviews.\n\n## Review\nThe current review artifacts agree that the previously requested test gaps are fixed and no branch-change work remains. The implementation is surgical, keeps the trust boundary conservative, and has focused verification reported by reviewers.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues | INFO | Current reviewers found no BLOCKING or WARNING issues. Remaining notes are optional polish only and do not warrant automated branch changes. |\n\n## Progress\n- The earlier synthesis warning about missing negative-path and top-level `discussion` tests was addressed by the fix-pr pass.\n- Current Codex review reports build and focused extract-context tests passed on head `fb793d7182ebbc02ee5d1a78c7210ae1746a87ae`.\n- Rubrics review passed at 100 and found the change surgical, documented, and aligned with the authorization goal.\n- Claude noted `MANNEQUIN` in the weak association set as harmless dead-code polish, not a required fix.\n- Resolved one stale same-agent inline review thread, `PRRT_kwDOSOhEMM6DFDKZ`; no new inline comments were posted.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: No unresolved actionable work remains in the current review artifacts or PR diff.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-19T08:19:18Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/278#issuecomment-4485782236",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC2BISA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #278.\n\nno rubric changes\n\nI found no trusted human maintainer PR feedback that warranted a durable rubric update. PR #278’s conversation was almost entirely bot/agent-authored, and lolipopshock’s substantive linked issue comment had `CONTRIBUTOR` association with no maintain/admin collaborator signal exposed by the API. Existing rubrics already cover the reusable points the PR exercised: surgical changes, docs sync, reuse existing code, and authorization validation.\n",
+      "createdAt": "2026-05-19T08:25:23Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/278#issuecomment-4485826632",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-19T07:55:51Z",
+  "files": [
+    {
+      "path": ".agent/docs/access-policy.md",
+      "additions": 4,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/extract-context-cli.test.ts",
+      "additions": 229,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/extract-context.ts",
+      "additions": 36,
+      "deletions": 15,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-270/codex-26083809304",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": "2026-05-19T08:23:32Z",
+  "number": 278,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAU-_iw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-19T08:06:21Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "1b56a010e35e477a748dae0547cf0070d4d30c45"
+      }
+    }
+  ],
+  "state": "MERGED",
+  "title": "Normalize weak mention associations across triggers",
+  "updatedAt": "2026-05-19T08:25:23Z",
+  "url": "https://github.com/self-evolving/repo/pull/278"
+}

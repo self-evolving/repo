@@ -4,13 +4,131 @@
     "login": "app/sepo-agent-app"
   },
   "body": "## Problem\n\nSepo currently has fallback logic for weak `author_association` values on issue-body mentions, but the same normalization does not consistently apply to other mention-trigger surfaces such as discussion comments, issue comments, PR review comments, and review submissions.\n\nGitHub webhook and GraphQL payloads can report a weak association such as `NONE` or `CONTRIBUTOR` even when the triggering user has repository access. When that weak value is passed directly into route authorization, otherwise valid requests can be rejected by `AGENT_ACCESS_POLICY`.\n\n## Mechanism\n\nThe existing issue path refreshes weak issue author associations from the live issue API and, when needed, checks repository collaborator status before policy evaluation. Non-issue mention surfaces still primarily trust the event payload association.\n\nThis creates inconsistent authorization behavior across surfaces:\n\n- issue-body mentions can be upgraded after a live API/collaborator check\n- discussion/comment/review mentions can remain stuck at a weak payload association\n- dispatch policy then rejects the route even if the actor has repository access\n\n## Proposed solution\n\nGeneralize the existing issue fallback into a shared weak-association normalization step for mention triggers.\n\nSuggested approach:\n\n1. Treat strong associations (`OWNER`, `MEMBER`, `COLLABORATOR`) as trusted without refresh.\n2. For weak associations (`NONE`, `CONTRIBUTOR`, `FIRST_TIMER`, `FIRST_TIME_CONTRIBUTOR`, etc.), identify the triggering actor login for the current event type.\n3. Check repository collaborator/permission status with the GitHub API.\n4. If the actor has repository access, normalize the association to `COLLABORATOR` before route policy evaluation.\n5. Preserve the current issue-specific refresh where useful, but make the final collaborator fallback surface-agnostic.\n6. Add regression tests for `discussion_comment`, `issue_comment`, and PR review/comment events where the payload association is weak but collaborator lookup succeeds.\n7. Update access-policy docs to describe weak-association normalization across mention surfaces, not only issue-body mentions.\n\nThis should keep the trust boundary conservative: weak associations are only promoted when GitHub confirms repository access.",
-  "closedAt": null,
-  "comments": [],
+  "closedAt": "2026-05-19T08:23:34Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC1p2Og",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "I think a more specific issue is:\n\n## Problem\n\nSepo currently has fallback logic for weak `author_association` values on issue-body mentions, but the same normalization does not consistently apply to other mention-trigger surfaces such as discussion comments, issue comments, PR review comments, and review submissions.\n\nGitHub webhook and GraphQL payloads can report a weak association such as `NONE` or `CONTRIBUTOR` even when the triggering user has repository access. When that weak value is passed directly into route authorization, otherwise valid requests can be rejected by `AGENT_ACCESS_POLICY`.\n\n## Mechanism\n\nThe existing issue path refreshes weak issue author associations from the live issue API and, when needed, checks repository collaborator status before policy evaluation. Non-issue mention surfaces still primarily trust the event payload association.\n\nThis creates inconsistent authorization behavior across surfaces:\n\n- issue-body mentions can be upgraded after a live API/collaborator check\n- discussion/comment/review mentions can remain stuck at a weak payload association\n- dispatch policy then rejects the route even if the actor has repository access\n\n## Proposed solution\n\nGeneralize the existing issue fallback into a shared weak-association normalization step for mention triggers.\n\nSuggested approach:\n\n1. Treat strong associations (`OWNER`, `MEMBER`, `COLLABORATOR`) as trusted without refresh.\n2. For weak associations (`NONE`, `CONTRIBUTOR`, `FIRST_TIMER`, `FIRST_TIME_CONTRIBUTOR`, etc.), identify the triggering actor login for the current event type.\n3. Check repository collaborator/permission status with the GitHub API.\n4. If the actor has repository access, normalize the association to `COLLABORATOR` before route policy evaluation.\n5. Preserve the current issue-specific refresh where useful, but make the final collaborator fallback surface-agnostic.\n6. Add regression tests for `discussion_comment`, `issue_comment`, and PR review/comment events where the payload association is weak but collaborator lookup succeeds.\n7. Update access-policy docs to describe weak-association normalization across mention surfaces, not only issue-body mentions.\n\nThis should keep the trust boundary conservative: weak associations are only promoted when GitHub confirms repository access.",
+      "createdAt": "2026-05-19T07:33:29Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/270#issuecomment-4485445178",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC1p86w",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer check the issue ",
+      "createdAt": "2026-05-19T07:33:45Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/270#issuecomment-4485446891",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC1q7KQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Checked. The issue is valid.\n\nCurrent code already has the pieces, but they are scoped inconsistently:\n\n- `extract-context` refreshes/promotes weak associations only inside `refreshIssueAssociation`, and that function returns early unless `eventName === \"issues\"`: https://github.com/self-evolving/repo/blob/main/.agent/src/cli/extract-context.ts#L106-L158\n- Other mention surfaces get the raw payload association via `getAuthorAssociation` for `issue_comment`, `discussion_comment`, PR review comments, and review submissions: https://github.com/self-evolving/repo/blob/main/.agent/src/context.ts#L83-L112\n- That association is then passed directly into dispatch policy resolution: https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L283-L295 and https://github.com/self-evolving/repo/blob/main/.agent/src/cli/resolve-dispatch.ts#L50-L60\n- Tests currently cover issue-body promotion, but also preserve non-issue weak values like `issue_comment` `NONE` for later policy checks: https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/extract-context-cli.test.ts#L180-L245 and https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/extract-context-cli.test.ts#L861-L905\n- Docs also describe the fallback as issue-body-only: https://github.com/self-evolving/repo/blob/main/.agent/docs/access-policy.md#L80-L82\n\nSo the proposed problem statement is accurate. The practical impact appears mainly when a repository tightens `AGENT_ACCESS_POLICY` to exclude weak values such as `CONTRIBUTOR` or `NONE`; a real collaborator can then be rejected on comments/reviews/discussions even though issue-body mentions may be upgraded.\n\nRecommended implementation scope:\n\n1. Add a shared weak-association normalizer in `extract-context.ts`.\n2. Treat `OWNER`, `MEMBER`, and `COLLABORATOR` as strong and return them unchanged.\n3. Preserve the current issue-body REST refresh for `issues` events.\n4. For weak associations on all mention surfaces, resolve the triggering actor with `getRequestedBy(eventName, payload)`.\n5. Check repository permission/collaborator status and promote confirmed access to `COLLABORATOR`.\n6. Add regressions for `issue_comment`, `discussion_comment`, `pull_request_review_comment`, and `pull_request_review`.\n7. Update `access-policy.md` from “Issue-body association refresh” to mention-trigger weak-association normalization.\n\nI recommend approving implementation with that scope.",
+      "createdAt": "2026-05-19T07:36:06Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/270#issuecomment-4485462825",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC1wS9Q",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate ",
+      "createdAt": "2026-05-19T07:47:59Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/270#issuecomment-4485550837",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC1xB3g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | implement | Issue #270 | 2 / 40 | Dispatched |\n\nReason: agent planner selected implement: Issue #270 is a small, self-contained code/test/docs change with no open duplicate PR or broader parent plan requiring child orchestration.\n\n<!-- sepo-agent-handoff state:dispatched created:1779176977547 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYwODM3MzUzNjU6b3JjaGVzdHJhdGU6MjcwOmltcGxlbWVudDoyNzA6Mg -->",
+      "createdAt": "2026-05-19T07:49:37Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/270#issuecomment-4485562846",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC1zrNQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-270/codex-26083809304`\n- Pull request: https://github.com/self-evolving/repo/pull/278\n\nNormalized weak mention author associations through a shared collaborator fallback for non-issue triggers while preserving the issue-body API refresh, added regressions for comments/reviews/discussions, updated access policy docs, and verified with `.agent` build plus the focused extract-context CLI test file.",
+      "createdAt": "2026-05-19T07:55:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/270#issuecomment-4485606197",
+      "viewerDidAuthor": true
+    }
+  ],
   "createdAt": "2026-05-18T00:07:29Z",
-  "labels": [],
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
   "number": 270,
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Normalize weak author associations for non-issue mention triggers",
-  "updatedAt": "2026-05-18T00:07:29Z",
+  "updatedAt": "2026-05-19T08:23:34Z",
   "url": "https://github.com/self-evolving/repo/issues/270"
 }

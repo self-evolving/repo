@@ -1,0 +1,188 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Add optional positive-integer `base_pr` support to implement metadata parsing and dispatch decisions.\n- Emit `base_pr` from `resolve-dispatch` and pass portal output into `dispatch-agent-implement`.\n- Update the metadata prompt, docs, and focused regression coverage.\n\n## Tests\n- `cd .agent && npm run build`\n- `cd .agent && node --test dist/__tests__/triage.test.js dist/__tests__/resolve-dispatch-cli.test.js dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nCloses #275\n",
+  "closedAt": "2026-05-19T08:44:00Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC18EWA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #280 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: Implementation succeeded and produced open PR #280 for issue #275; an automated review is the appropriate next step before human action.\n\n<!-- sepo-agent-handoff state:dispatched created:1779178446903 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYwODQ2MzU3MzA6aW1wbGVtZW50OjI3NTpyZXZpZXc6MjgwOjM -->",
+      "createdAt": "2026-05-19T08:14:07Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/280#issuecomment-4485743704",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC181fA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I’ve got enough to score. The live diff shows a narrow implementation: metadata contract, typed parsing, dispatch output plumbing, workflow env, docs, and focused tests; I’m checking for rubric-specific gaps rather than doing a general bug hunt.## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 96 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 12/12 | Uses the existing metadata-only `/implement` path instead of adding router wording parsing; `agent-implement-metadata.md` now emits optional `base_pr`, and `buildRequestedRouteDecision` carries it. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 12/12 | Adds a separate `base_pr` metadata/output/env field rather than overloading request text or branch strings; parser accepts only positive integer values. |\n| coding_workflow / generic | Reuse existing code | pass | 12/12 | Reuses `normalizeImplementIssueMetadata`, `buildRequestedRouteDecision`, `resolve-dispatch`, portal outputs, and existing `dispatch-agent-implement`/implementation-base behavior. |\n| coding_workflow / generic | Keep docs in sync | pass | 12/12 | Updates `.agent/docs/actions/agent-actions.md`, `.agent/docs/architecture/request-lifecycle.md`, and `.agent/docs/architecture/supported-workflows.md` to describe PR metadata-derived `base_pr`. |\n| coding_workflow / generic | Surgical changes | pass | 12/12 | Diff is limited to metadata prompt, dispatch typing/plumbing, workflow outputs/env, docs, and focused tests for the requested behavior. |\n| coding_style / generic | Prefer simple implementations | pass | 12/12 | Implementation is a small optional parser helper plus direct output propagation; no new deterministic stacked-word parser or broader routing machinery. |\n| coding_workflow / generic | Generate context-derived artifact metadata | pass | 12/12 | Preserves the metadata prompt as the source for tracking issue title/body and extends that same context-derived artifact metadata with optional `base_pr`. |\n| coding_workflow / generic | Validate preview contracts | partial | 5/8 | Adds regression coverage for valid and invalid `base_pr` metadata plus workflow envelope assertions. This is not a preview-mode change, but the structured output contract is tested. |\n\n## Notes\n\n- The strongest rubric fit is that PR #280 follows the requester’s simpler path: extend the existing `/implement` metadata contract instead of adding ad hoc request parsing in the router.\n- The positive-integer guardrail is present in `.agent/src/triage.ts`, and invalid model output falls back to empty `base_pr` in `resolve-dispatch` rather than silently becoming a branch target.\n- Documentation and tests were updated alongside workflow behavior, including `resolve-dispatch-cli`, `triage`, and workflow envelope assertions.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-19T08:15:42Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/280#issuecomment-4485756284",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC1_l6A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 829794804070ae9aadfbe439d5aea2dc1478403f -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- Issue #275 identified that explicit `/implement` requests made from a PR could ask for stacked work but still create the follow-up PR against `main`.\n- The maintainer clarified that the desired fix was to reuse the existing implement metadata prompt rather than add deterministic request-text parsing.\n- PR #280 extends that metadata contract with optional positive-integer `base_pr`, validates and carries it through dispatch outputs, and passes it into `agent-implement.yml`.\n- The PR also updates prompt/docs coverage and adds targeted parser, CLI, and workflow envelope tests.\n\n## Review\nThe current review artifacts and live PR diff support shipping. No unresolved required branch change is grounded in the reviewer outputs, current diff, current PR discussion, inline comments, or review threads.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues | INFO | All reviewers support shipping; one reviewer noted optional INFO-level polish around type consistency, error text, and extra tests, but no required branch change is warranted. |\n\n## Progress\n- Issue #275’s discussion explicitly moved from the earlier #276 deterministic parser approach to the metadata-contract approach implemented here.\n- Reviewer outputs reviewed: Claude verdict `SHIP`, rubrics review `PASS`, Codex verdict `SHIP`.\n- Existing PR conversation, inline review comments, and review threads were checked; there were no inline comments or threads to deduplicate, resolve, reply to, or minimize.\n- No new inline comments were posted because there is no concrete file/line-specific actionable issue.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: No unresolved actionable work remains, so a fix-pr automation pass is not needed.\n\n## Final Verdict\n`SHIP`\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-19T08:22:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/280#issuecomment-4485801448",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC2A1Xw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer double check it only sets base_pr but not base_branch at the same time?",
+      "createdAt": "2026-05-19T08:24:42Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/280#issuecomment-4485821791",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC2CJVA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes. In PR #280’s explicit `/implement` path, it only populates `base_pr`; it does **not** also set `base_branch` non-empty.\n\nEvidence:\n- `agent-router.yml` exposes `base_pr` and passes only `BASE_PR` into `dispatch-agent-implement`; there is no `BASE_BRANCH` env added there: https://github.com/self-evolving/repo/blob/829794804070ae9aadfbe439d5aea2dc1478403f/.github/workflows/agent-router.yml#L129 and https://github.com/self-evolving/repo/blob/829794804070ae9aadfbe439d5aea2dc1478403f/.github/workflows/agent-router.yml#L694-L706\n- `dispatch-agent-implement.ts` always sends both input keys, but `base_branch` comes from `process.env.BASE_BRANCH || \"\"`, so on this path it is an empty string while `base_pr` carries the value: https://github.com/self-evolving/repo/blob/829794804070ae9aadfbe439d5aea2dc1478403f/.agent/src/cli/dispatch-agent-implement.ts#L17-L35\n- The implement workflow resolver still guards the invariant: if both are non-empty, it errors with `set only one of base_branch or base_pr`: https://github.com/self-evolving/repo/blob/829794804070ae9aadfbe439d5aea2dc1478403f/.agent/src/implementation-base.ts#L58-L64\n\nOne nuance: after `base_pr` is accepted, the implementation workflow resolves that PR to its head branch and exports runtime `BASE_BRANCH` for checkout/fetch. That is expected and happens after the mutual-exclusion check; it is not setting the dispatch input `base_branch` alongside `base_pr`.\n\nSmall test gap: the PR tests `base_pr` propagation/validation, but I don’t see a focused assertion that the explicit dispatch payload’s `base_branch` is empty when `base_pr` is set. The code path looks correct; adding that assertion would make the invariant explicit.",
+      "createdAt": "2026-05-19T08:27:44Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/280#issuecomment-4485843284",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC2L94w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nUpdated [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #280.\n\nUpdated one existing rubric, no new duplicate rubric added.\n\nChanged `rubrics/workflow/context-derived-artifact-metadata.yaml` to cover context-derived dispatch metadata as well as tracking artifact metadata, with provenance from the maintainer’s issue comment on #275. This captures the durable preference from PR #280’s context: extend existing metadata contracts with typed validated fields instead of adding ad hoc request parsers.\n\nValidation: `node .agent/dist/cli/rubrics/validate.js` passed for all 24 rubrics.\n",
+      "createdAt": "2026-05-19T08:46:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/280#issuecomment-4486004195",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-19T08:13:11Z",
+  "files": [
+    {
+      "path": ".agent/docs/actions/agent-actions.md",
+      "additions": 3,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/request-lifecycle.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 7,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 7,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/resolve-dispatch-cli.test.ts",
+      "additions": 45,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/triage.test.ts",
+      "additions": 12,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/resolve-dispatch.ts",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/triage.ts",
+      "additions": 21,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-implement-metadata.md",
+      "additions": 5,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-router.yml",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-275/codex-26084635730",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": "2026-05-19T08:43:59Z",
+  "number": 280,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "MERGED",
+  "title": "Pass implement metadata base PR through dispatch",
+  "updatedAt": "2026-05-19T08:46:32Z",
+  "url": "https://github.com/self-evolving/repo/pull/280"
+}

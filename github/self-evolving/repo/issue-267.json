@@ -6,7 +6,7 @@
     "name": "Shannon Shen"
   },
   "body": "## Summary\n\nRepeated review-synthesis runs can accidentally reuse stale agent conversation context when the synthesis lane is backed by a persistent named ACP session. This can cause the synthesizer to emit findings from a previous review run instead of synthesizing the current run's review artifacts.\n\n## High-level failure mode\n\nA typical review pipeline has independent reviewer jobs that write fresh artifacts, followed by a synthesis job that reads those artifacts and posts the final review summary.\n\nIf the synthesis job uses a stable session name for the same target/route/lane, and the runtime creates or ensures that named session even when no explicit resume is requested, the agent backend may attach to an existing conversation for that target. The synthesizer can then answer from stale conversational state rather than re-reading the current artifacts.\n\nThis is especially risky for lanes configured as “track only”: the workflow may intend to record session metadata without resuming prior context, but the implementation can still use a persistent named session under the hood.\n\n## Potential symptoms\n\n- A follow-up synthesis repeats old findings that were already fixed.\n- Fresh individual review artifacts say the PR is ready or only has minor issues, but the synthesis reports older blocking issues.\n- The synthesis performs few or no tool reads of the current review artifacts.\n- Automation dispatches an unnecessary fix pass for already-addressed action items.\n- The subsequent fix pass returns no changes, causing confusing no-op automation or avoidable handoff churn.\n\n## Likely root cause\n\nThe runtime currently conflates two concepts:\n\n1. **Tracking run/session metadata** for observability and backup.\n2. **Running the agent in a persistent named conversation** that may retain prior context.\n\nFor synthesis-style jobs, the first is useful, but the second can be harmful unless an explicit resume was requested and validated.\n\n## Potential fix plan\n\n- Make review-synthesis jobs one-shot by default, e.g. use exec mode / `session_policy: none`, while still allowing artifact/session bundle backup if needed.\n- Or split session policy semantics so `track-only` records metadata but does not use a persistent named ACP session.\n- If persistent sessions are needed, include a freshness discriminator in the session name, such as run id, reviewed head SHA, or review artifact digest.\n- Add a guardrail in synthesis: before posting a blocking/needs-rework result, verify that the cited findings are present in the current reviewer artifacts or current diff, not only in prior PR discussion.\n- Add regression coverage for two consecutive synthesis runs on the same target where the second run's reviewer artifacts contradict the first run's findings.\n\n## Desired outcome\n\nA review synthesis run should always be grounded in the current run's review artifacts and current target state unless explicit session resume is requested. Stale synthesis output should not be able to trigger unnecessary follow-up automation.\n\n@sepo-agent /answer \"check this issue\"\n",
-  "closedAt": null,
+  "closedAt": "2026-05-19T07:26:45Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABCpAu7A",
@@ -92,8 +92,8 @@
     }
   ],
   "number": 267,
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Review synthesis can reuse stale persistent session context",
-  "updatedAt": "2026-05-17T19:14:17Z",
+  "updatedAt": "2026-05-19T07:26:45Z",
   "url": "https://github.com/self-evolving/repo/issues/267"
 }

@@ -1,0 +1,248 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "Given this https://github.com/self-evolving/repo/pull/273\n\ni think the most reasonable next step is the following:\n\n1. we should add a route specific auth policy as well\n2. for the install route we might consider adding a PAT token with some actual github account \n3. that PAT token allows to create a new repo under in that github account \n   - we can use it to fork a repo and then run the skills to install the repo\n   - and finally make a PR to the target user repo?\n\n@sepo-agent /answer does it make sense?",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC1wokQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, it makes sense as the next capability, with one important correction: the bot needs a **fork in the same GitHub fork network**, not just an arbitrary new repo. A random new repo under the PAT account cannot normally be used as the PR head for `target-owner/target-repo`; GitHub’s PR API expects cross-repo PR heads to be in the same network.\n\nWhat PR #273 currently does is narrower: `/install owner/repo` validates the slug and maps to the existing `install-agent` skill, passing `INSTALL_TARGET_REPO` through the router, but it explicitly says v1 does **not** switch tokens or create forks after the skill starts. See PR head:\n- [`triage.ts`](https://github.com/self-evolving/repo/blob/cf4b5636ee175d779b542276c8612e9174c7d165/.agent/src/triage.ts#L135-L145)\n- [`agent-router.yml`](https://github.com/self-evolving/repo/blob/cf4b5636ee175d779b542276c8612e9174c7d165/.github/workflows/agent-router.yml#L560-L575)\n- [`install-agent/SKILL.md`](https://github.com/self-evolving/repo/blob/cf4b5636ee175d779b542276c8612e9174c7d165/.skills/install-agent/SKILL.md#L40-L47)\n\nRecommended follow-up:\n\n1. Add a first-class `install` policy route, while still executing the existing `install-agent` skill.\n   - Today access policy supports `route_overrides`, but PR #273 evaluates `/install` as `skill`, so restricting `install` separately is not possible without changing the route key.\n   - Current policy machinery already supports route-specific checks via `AGENT_ACCESS_POLICY`: [`access-policy.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/access-policy.ts#L77-L108), [`triage.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/triage.ts#L329-L360).\n   - Desired config example:\n     ```json\n     {\n       \"allowed_associations\": [\"OWNER\", \"MEMBER\", \"COLLABORATOR\", \"CONTRIBUTOR\"],\n       \"route_overrides\": {\n         \"install\": [\"OWNER\", \"MEMBER\"]\n       }\n     }\n     ```\n\n2. Add an install-specific GitHub identity, preferably a machine-user token secret such as `AGENT_INSTALL_PAT`.\n   - Do not silently reuse the normal resolver order, because the current auth action prefers App/OIDC before PAT: [`resolve-github-auth/action.yml`](https://github.com/self-evolving/repo/blob/main/.github/actions/resolve-github-auth/action.yml#L81-L90).\n   - For this flow, the install route should intentionally choose the install/fork token after route authorization.\n\n3. Implement the fork-backed PR path:\n   - Clone the public target repo.\n   - Fork it into the bot/machine-user account.\n   - Push `agent/install-agent-infra` to that fork.\n   - Open a PR into the original target repo with `head` like `bot-owner:agent/install-agent-infra`.\n   - If fork creation or PR creation is blocked, report a clear blocked result.\n\n4. Keep permissions explicit and least-privilege.\n   - GitHub’s docs say fine-grained PATs can create forks with Administration write + Contents read, and PR creation needs Pull requests write.\n   - But GitHub also documents fine-grained PAT limitations for contributing to public repos where the user is not a member; for arbitrary public repo contribution, a machine-user classic PAT may still be the practical route.\n   - Sources: [fork endpoint](https://docs.github.com/en/rest/repos/forks#create-a-fork), [PR endpoint](https://docs.github.com/en/rest/pulls/pulls#create-a-pull-request), [PAT guidance](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#types-of-personal-access-tokens).\n\nSo: yes, this is the right next step, but I’d scope it as **install v2: first-class `install` route + install-only machine-user/fork auth + permission probes**, not as just adding PAT support to the existing generic `skill` route.",
+      "createdAt": "2026-05-19T07:48:44Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/277#issuecomment-4485556369",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC1yTCg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\n```\nAdd an install-specific GitHub identity, preferably a machine-user token secret such as AGENT_INSTALL_PAT.\n\nDo not silently reuse the normal resolver order, because the current auth action prefers App/OIDC before PAT: [resolve-github-auth/action.yml](https://github.com/self-evolving/repo/blob/main/.github/actions/resolve-github-auth/action.yml#L81-L90).\nFor this flow, the install route should intentionally choose the install/fork token after route authorization.\n``` \n\nFor this, I'd imagine a more general policy setter (like our other policies) so we can optionally set the install route policy. \n\nWe might not need the existing PR #273 now since i feel that's cosmetic? Does it make sense? \n\nThen what are the sub tasks?",
+      "createdAt": "2026-05-19T07:52:37Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/277#issuecomment-4485583626",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC1zKzA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, it makes sense. I’d separate two concepts:\n\n- **Route authorization:** who is allowed to request `/install`.\n- **Install identity policy:** which GitHub identity Sepo may use to fork/push/open the external PR.\n\nThe existing `AGENT_ACCESS_POLICY` already has the right shape for route-specific auth via `route_overrides` ([docs](https://github.com/self-evolving/repo/blob/main/.agent/docs/access-policy.md#L15-L31), [parser](https://github.com/self-evolving/repo/blob/main/.agent/src/access-policy.ts#L77-L108)). So I would not add a separate “install access policy” variable. I would make `/install` a real route key, then let repos configure:\n\n```json\n{\n  \"allowed_associations\": [\"OWNER\", \"MEMBER\", \"COLLABORATOR\", \"CONTRIBUTOR\"],\n  \"route_overrides\": {\n    \"install\": [\"OWNER\", \"MEMBER\"]\n  }\n}\n```\n\nFor the PAT/fork identity, I would add a separate install-specific setting, because access policy answers “who may ask,” not “which token may create forks.” Something like:\n\n```json\n{\n  \"mode\": \"fork-pat\",\n  \"fork_owner\": \"sepo-install-bot\",\n  \"require_public_target\": true\n}\n```\n\nbacked by a secret like `AGENT_INSTALL_PAT`.\n\nOn PR #273: I would not call it purely cosmetic, but it is only the thin parser/skill-alias layer. The core product capability you want is **external install PR creation via fork-backed identity**. If we pursue that now, #273 should either be superseded or folded into the broader implementation. Its useful pieces are target parsing, structured `owner/repo` propagation, and docs/tests; the “route aliases to skill” part is not enough.\n\nConcrete subtasks:\n\n1. **Define `/install` as a first-class route**\n   - Add `/install owner/repo` parsing in [`triage.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/triage.ts#L107-L136).\n   - Return route `install`, not `skill`, while still setting effective skill `install-agent`.\n   - Preserve validated target as structured context.\n   - Add invalid-target handling for `@sepo-agent /install` with no slug.\n\n2. **Wire route policy**\n   - Ensure dispatch policy checks route `install` through existing `AGENT_ACCESS_POLICY`.\n   - Add tests proving `route_overrides.install` can deny/allow independently from `skill`.\n   - Update access-policy docs with an install example.\n\n3. **Add install identity policy**\n   - Add `AGENT_INSTALL_PAT` as an optional workflow secret.\n   - Add an `AGENT_INSTALL_POLICY` repo variable or similar JSON config for mode, fork owner, public-only guard, and maybe target-owner allowlist.\n   - Do not change the normal auth resolver order globally; it currently prefers App/OIDC before PAT ([action](https://github.com/self-evolving/repo/blob/main/.github/actions/resolve-github-auth/action.yml#L81-L90)).\n   - Resolve install identity only after `/install` route authorization succeeds.\n\n4. **Implement fork-backed PR mechanics**\n   - Probe target repo visibility/default branch.\n   - Clone public target.\n   - Create or reuse a fork under the machine-user/bot account.\n   - Push `agent/install-agent-infra` to the fork.\n   - Open PR against the original target repo.\n   - Detect existing install PRs and report/reuse instead of duplicating.\n\n5. **Update `install-agent` skill contract**\n   - Replace “preferred auth path” prose with explicit active install identity behavior in [`install-agent/SKILL.md`](https://github.com/self-evolving/repo/blob/main/.skills/install-agent/SKILL.md#L12-L25).\n   - Make the skill consume `INSTALL_TARGET_REPO`, install source revision, and fork/PR helper outputs.\n   - Keep copy/audit/validation guardrails from the existing skill.\n\n6. **Add tests and docs**\n   - Triage tests for valid/invalid `/install`.\n   - Dispatch/access-policy tests for `install`.\n   - Workflow envelope tests for `AGENT_INSTALL_PAT` and install context plumbing.\n   - Helper tests for blocked auth, existing fork/PR, and successful fork PR plan.\n   - Docs for required secrets, policy examples, and blocked outcomes.\n\nI’d ask for approval to implement this as one “install v2” issue/PR, using #273 only as salvageable groundwork rather than the final shape.",
+      "createdAt": "2026-05-19T07:54:39Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/277#issuecomment-4485597900",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC10-ZQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "```\nAdd install identity policy\n\nAdd AGENT_INSTALL_PAT as an optional workflow secret.\nAdd an AGENT_INSTALL_POLICY repo variable or similar JSON config for mode, fork owner, public-only guard, and maybe target-owner allowlist.\nDo not change the normal auth resolver order globally; it currently prefers App/OIDC before PAT ([action](https://github.com/self-evolving/repo/blob/main/.github/actions/resolve-github-auth/action.yml#L81-L90)).\nResolve install identity only after /install route authorization succeeds.\n```\n\n@sepo-agent /answer think again maybe this is too complicated and let's not do it for now. we can just hard code with `AGENT_INSTALL_PAT` first and consider implementing it in the future. ",
+      "createdAt": "2026-05-19T07:58:48Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/277#issuecomment-4485627493",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC11snA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, I agree. `AGENT_INSTALL_POLICY` is probably premature. For the first real version, hard-code the behavior around `AGENT_INSTALL_PAT` and keep the policy surface small.\n\nThe clean v1 shape would be:\n\n- `/install owner/repo` is a real route for authorization purposes.\n- `AGENT_ACCESS_POLICY.route_overrides.install` controls who may trigger it.\n- `AGENT_INSTALL_PAT` is the only supported external install identity.\n- If `AGENT_INSTALL_PAT` is missing, `/install` returns a clear blocked response.\n- Do not change the normal auth resolver order; keep App/OIDC/PAT/fallback as-is for normal routes ([resolver](https://github.com/self-evolving/repo/blob/main/.github/actions/resolve-github-auth/action.yml#L81-L90)).\n- Inside the install route only, pass `AGENT_INSTALL_PAT` as the `GH_TOKEN` used to fork/push/open the external PR.\n\nThat means we do **not** need `AGENT_INSTALL_POLICY` yet. The only policy we need now is the existing access policy mechanism, because it already supports route overrides ([docs](https://github.com/self-evolving/repo/blob/main/.agent/docs/access-policy.md#L15-L31)).\n\nOn PR #273: I would not merge it as the final answer to this problem. It is useful groundwork, but the important behavior is not “alias `/install` to skill”; it is “authorized `/install` uses a dedicated install PAT to create an external fork PR.” So I’d either supersede #273 or fold its parser/context pieces into the new implementation.\n\nReduced subtasks:\n\n1. **Add first-class `/install` route parsing**\n   - Extend [`triage.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/triage.ts#L107-L136) to parse `@sepo-agent /install owner/repo`.\n   - Return route `install`, skill `install-agent`, and validated target repo.\n   - Return a clear unsupported response for malformed targets.\n\n2. **Authorize `/install` through existing access policy**\n   - Let [`applyDispatchPolicy`](https://github.com/self-evolving/repo/blob/main/.agent/src/triage.ts#L329-L360) evaluate route `install`.\n   - Document recommended config:\n     ```json\n     {\n       \"route_overrides\": {\n         \"install\": [\"OWNER\", \"MEMBER\"]\n       }\n     }\n     ```\n\n3. **Wire `AGENT_INSTALL_PAT` only into the install path**\n   - Add optional `AGENT_INSTALL_PAT` to [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L71-L80).\n   - For route `install`, run the existing skill execution path but pass `AGENT_INSTALL_PAT` as the task GitHub token.\n   - If the secret is absent, post “install is not configured” instead of falling back to App/OIDC.\n\n4. **Pass structured install target into the skill**\n   - Add `install_target_repo` / `INSTALL_TARGET_REPO` plumbing to `run-agent-task`.\n   - Keep free-form request text as context, but make the validated slug authoritative.\n\n5. **Update `install-agent` skill**\n   - State that `/install` uses `AGENT_INSTALL_PAT` for external fork/PR operations.\n   - Require target public repo, fork/push permission probe, existing PR detection, and blocked-result reporting.\n   - Keep the existing conservative copy/audit guardrails in [`install-agent/SKILL.md`](https://github.com/self-evolving/repo/blob/main/.skills/install-agent/SKILL.md#L65-L133).\n\n6. **Tests and docs**\n   - Triage tests for valid/invalid `/install`.\n   - Access-policy test showing `install` can be restricted independently from `skill`.\n   - Workflow envelope test for `AGENT_INSTALL_PAT`.\n   - Docs for `AGENT_INSTALL_PAT`, recommended route override, and the “missing PAT” blocked state.\n\nThis is the pragmatic version: one new secret, one real route, no install identity policy until we have more than one supported install identity mode.",
+      "createdAt": "2026-05-19T08:00:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/277#issuecomment-4485639324",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC136iQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "Also check https://github.com/self-evolving/repo/discussions/271 ; for the submitted PR message, we should use ideas from the onboarding step as well -- check what's been set, and give a clear instruction of the todos. \n\n@sepo-agent /orchestrate given the discussion, let's create 2-3 focused small prs for the feature? \n",
+      "createdAt": "2026-05-19T08:05:16Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/277#issuecomment-4485675657",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC14-VQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is starting a focused child task for this orchestration.\n\n| Child task | Focus | Parent issue | Status |\n| --- | --- | --- | --- |\n| #279 | install-route-policy | #277 | Running |\n\nI'll report back here when the child task finishes.\n\n<!-- sepo-sub-orchestrator-child parent:277 stage:install-route-policy child:279 -->",
+      "createdAt": "2026-05-19T08:07:36Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/277#issuecomment-4485693013",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC2C0qw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Child task completed.\n\n| Child task | PR | Outcome | Parent round | Next step |\n| --- | --- | --- | --- | --- |\n| #279 | #281 | Ready to ship | 2 / 40 | Resuming parent orchestration |\n\nSummary: review verdict is SHIP\n\n<!-- sepo-sub-orchestrator-report child:279 resume:dispatched -->",
+      "createdAt": "2026-05-19T08:29:11Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/277#issuecomment-4485854379",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC2DhqA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is starting a focused child task for this orchestration.\n\n| Child task | Focus | Parent issue | Status |\n| --- | --- | --- | --- |\n| #282 | install-pat-plumbing | #277 | Running |\n\nI'll report back here when the child task finishes.\n\n<!-- sepo-sub-orchestrator-child parent:277 stage:install-pat-plumbing child:282 -->",
+      "createdAt": "2026-05-19T08:30:35Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/277#issuecomment-4485865896",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC2OFLA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Child task completed.\n\n| Child task | PR | Outcome | Parent round | Next step |\n| --- | --- | --- | --- | --- |\n| #282 | #283 | Ready to ship | 3 / 40 | Resuming parent orchestration |\n\nSummary: review verdict is SHIP\n\n<!-- sepo-sub-orchestrator-report child:282 resume:dispatched -->",
+      "createdAt": "2026-05-19T08:50:54Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/277#issuecomment-4486038828",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC2O0NQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is starting a focused child task for this orchestration.\n\n| Child task | Focus | Parent issue | Status |\n| --- | --- | --- | --- |\n| #284 | install-fork-pr-mechanics | #277 | Running |\n\nI'll report back here when the child task finishes.\n\n<!-- sepo-sub-orchestrator-child parent:277 stage:install-fork-pr-mechanics child:284 -->",
+      "createdAt": "2026-05-19T08:52:26Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/277#issuecomment-4486050869",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC2pW1g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Child task completed.\n\n| Child task | PR | Outcome | Parent round | Next step |\n| --- | --- | --- | --- | --- |\n| #284 | #285 | Ready to ship | 4 / 40 | Resuming parent orchestration |\n\nSummary: review verdict is SHIP\n\n<!-- sepo-sub-orchestrator-report child:284 resume:dispatched -->",
+      "createdAt": "2026-05-19T09:43:25Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/277#issuecomment-4486485718",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC2p7_A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo orchestration stopped after `orchestrate` concluded `done`.\n\n- Source action: `orchestrate`\n- Source conclusion: `done`\n- Target: `issue #277`\n- Round: `4/40`\n- Reason: agent planner stop: Child #284 completed the third planned focused slice for parent #277, and PR #285's latest review synthesis is SHIP with Recommended Next Step NO_AUTOMATED_ACTION. Self-approval is disabled, so no further automatic handoff is allowed or useful.\n- Source run ID: `26088769689`\n\nNo follow-up workflow was dispatched. Inspect the source action status comment and workflow logs before retrying or continuing manually.\n\n<!-- sepo-agent-orchestrate-stop -->",
+      "createdAt": "2026-05-19T09:44:36Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/277#issuecomment-4486495228",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-19T07:45:21Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 277,
+  "state": "OPEN",
+  "title": "/install with PAT token",
+  "updatedAt": "2026-05-19T09:44:36Z",
+  "url": "https://github.com/self-evolving/repo/issues/277"
+}

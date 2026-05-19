@@ -46,8 +46,8 @@
       "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 90 | PARTIAL | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | #265 keeps routing through the existing orchestrator/self-approval workflows and preserves deterministic approval safeguards: `prepare-self-approve.ts` allows non-`SHIP` only to run the gate, while `self-approval.ts` still requires trusted current-head `SHIP` for actual approval. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Compared with #262, #265 carries `source_conclusion`, `source_recommended_next_step`, and `source_handoff_context` into `agent-self-approve.yml` instead of overloading one field. |\n| coding_workflow / generic | Prefer agent-derived decisions | partial | 5/7 | The runtime now routes any review `HUMAN_DECISION` to self-approval when enabled, but the prompt/docs still preserve “block for a human decision” as a normal outcome in several places, which weakens the requested “self-approval decides” behavior from #264 discussion. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The diff extends existing handoff helpers, CLIs, self-approval provenance checks, workflow inputs, prompts, and tests rather than adding a parallel route. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | `agent-self-approve.yml` now has separate optional inputs for source verdict, recommended next step, and handoff context. |\n| coding_workflow / generic | Keep docs in sync | partial | 5/7 | Docs are updated in `.agent/docs/architecture/supported-workflows.md` and `.agent/docs/technical-details/agent-orchestrator.md`, but they still describe blocking “for a human” under self-approval-enabled `HUMAN_DECISION`. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The touched files are scoped to the review-to-self-approval route, prompts/docs, and focused regression tests. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | #265 is smaller and cleaner than #264 in the key path: `prepare-self-approve.ts` adds a `requireShip: false` preflight mode rather than threading broader ad hoc state. |\n| coding_workflow / generic | Read docs and linked context first | partial | 4/6 | #265 clearly incorporates issue #263 and the #262/#264 comparison, but it does not fully address the #264 feedback that self-approval-enabled human decisions should not be routed back to “human decision” wording. |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | For this PR’s new behavior, self-approval non-approval outcomes already post compact PR status comments, and `HUMAN_DECISION` no longer silently stops when self-approval is enabled. |\n\n## Notes\n\n- Compared with #262, #265 correctly broadens the route: any review `HUMAN_DECISION` with self-approval enabled can dispatch `agent-self-approve`, including `MINOR_ISSUES` and `NEEDS_REWORK`.\n- Compared with #264, #265 improves the structured context passed into self-approval and keeps actual GitHub approval gated on trusted current-head `SHIP`.\n- The remaining rubric gap is wording/policy consistency: the PR still says the agent may “block for a human decision,” even though the linked #264 feedback asks to remove that as the normal outcome when self-approval is enabled.\n\n## Findings\n\n- **WARNING:** The implementation still reintroduces “human decision” as a self-approval outcome. In the #265 diff, `handoff.ts`, `agent-orchestrator.md`, `agent-self-approve.md`, and docs all keep language like “block for a human decision” / “decision should stay with a human.” That conflicts with the #264 comparison feedback that, once self-approval is enabled, `HUMAN_DECISION` should activate the self-approval gate to make the decision, with `BLOCKED` reserved for safety or missing-context failures rather than a normal human fallback.\n\n## Final Rubric Verdict\n\nPARTIAL",
       "createdAt": "2026-05-17T18:16:19Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/265#issuecomment-4472050754",
       "viewerDidAuthor": true
@@ -61,10 +61,171 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: ae6c65407965d10627bb46826f3a4284d72aa963 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #265 is stacked on PR #262 and broadens the review handoff so any review synthesis with `Recommended Next Step = HUMAN_DECISION` can route to `agent-self-approve` when self-approval is enabled.\n- It preserves the deterministic resolver guard that actual GitHub approval still requires trusted current-head `SHIP` provenance.\n- It improves on PR #264 by passing source verdict, recommended next step, and handoff context into the self-approval prompt.\n- The remaining gaps are policy wording and preflight scope around when non-`SHIP` self-approval is allowed to run.\n\n## Review\nThe core route is mostly correct, and the live stacked head already has the workflow wiring and disabled-stop return that one reviewer flagged as missing. However, the current prompt/docs still preserve a normal “send this back to a human” outcome, and the relaxed preflight is broader than the requested `HUMAN_DECISION` decision-gate path.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| HUMAN_DECISION still has a normal human fallback | BLOCKING | [`handoff.ts`](https://github.com/self-evolving/repo/blob/ae6c65407965d10627bb46826f3a4284d72aa963/.agent/src/handoff.ts#L89-L92), [`agent-self-approve.md`](https://github.com/self-evolving/repo/blob/ae6c65407965d10627bb46826f3a4284d72aa963/.github/prompts/agent-self-approve.md#L28-L32), and docs still say to block for a human decision. That conflicts with the #264 follow-up direction that self-approval should make the decision when enabled. |\n| Non-SHIP preflight is relaxed for all self-approval runs | WARNING | [`prepare-self-approve.ts`](https://github.com/self-evolving/repo/blob/ae6c65407965d10627bb46826f3a4284d72aa963/.agent/src/cli/prepare-self-approve.ts#L92-L97) now uses `requireShip: false` unconditionally. Approval remains protected later, but manual or accidental non-`HUMAN_DECISION` self-approval runs can now spend an agent run outside the intended route. |\n\n## Progress\n- Existing PR discussion already acknowledges the human-fallback wording concern in the rubrics review.\n- Posted one inline comment for the unscoped preflight relaxation: https://github.com/self-evolving/repo/pull/265#discussion_r3255269940\n- No replies were added, no comments were minimized, and no review threads were resolved.\n- One reviewer’s missing `agent-orchestrator.yml` wiring and fall-through concerns were not carried forward: the live stacked head includes `source_recommended_next_step` wiring and an explicit `HUMAN_DECISION` disabled stop.\n\n## Issue Details\n<details>\n<summary>HUMAN_DECISION still has a normal human fallback</summary>\n\n**Cause:** The implementation routes `HUMAN_DECISION` to self-approval, but the generated context and self-approval prompt still describe “block for a human decision” / “decision should stay with a human” as an ordinary outcome.\n\n**Candidate solutions:** Reword runtime context, prompt, docs, and tests so self-approval decides: `REQUEST_CHANGES` for concrete follow-up, `APPROVE` only for trusted current-head `SHIP`, and `BLOCKED` only for safety, missing-context, or automation-failure cases.\n\n**Comments:** This is not an approval-bypass issue; the resolver safeguard remains intact. The concern is that the agent behavior still permits the exact fallback the requester asked to remove.\n\n</details>\n\n<details>\n<summary>Non-SHIP preflight is relaxed for all self-approval runs</summary>\n\n**Cause:** `prepare-self-approve.ts` passes `requireShip: false` without checking whether the workflow was launched from a review `HUMAN_DECISION` handoff.\n\n**Candidate solutions:** Pass `source_recommended_next_step` into the prepare step and use `requireShip: false` only when it normalizes to `human_decision`; keep the old `SHIP` preflight for ordinary/manual self-approval runs. Add a focused regression test for a non-`SHIP`, non-`HUMAN_DECISION` run stopping in preflight.\n\n**Comments:** Actual approval is still blocked by resolver provenance checks, so this is a scope/control-flow issue rather than a privilege escalation.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the remaining issues are concrete branch changes in prompt/docs/preflight wiring and are safe for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Remove normal “human decision” fallback wording from self-approval context, prompts, docs, and tests; reserve `BLOCKED` for safety, missing-context, or automation-failure cases.\n- [ ] Scope `requireShip: false` in self-approval preflight to review `HUMAN_DECISION` handoffs and add regression coverage.",
       "createdAt": "2026-05-17T18:27:23Z",
       "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/265#issuecomment-4472098402",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC1vZpw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review",
+      "createdAt": "2026-05-19T07:46:00Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/265#issuecomment-4485536167",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC1wxig",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I have enough evidence for the rubric review. I’m not going to mutate GitHub state; the final response will be markdown only and will score the rubrics against the current PR head `ab05c200...`.## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | The PR preserves the review-originated handoff path and passes structured source context into `agent-self-approve`; actual approval remains protected by deterministic trusted-current-head `SHIP` provenance in `.agent/src/self-approval.ts`. |\n| review_quality / generic | Use investigative approval review | pass | 8/8 | `.github/prompts/agent-self-approve.md` instructs the approval agent to inspect functionality, scope, edge cases, permissions, failure handling, tests, and follow-up before returning structured JSON. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The diff extends existing handoff helpers, orchestrator/self-approval CLIs, workflow inputs, prompts, and focused tests instead of adding a parallel route. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | `.agent/docs/architecture/supported-workflows.md` and `.agent/docs/technical-details/agent-orchestrator.md` now describe `HUMAN_DECISION` self-approval routing, non-`SHIP` decision-gate behavior, and the retained `SHIP` approval safeguard. |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | The policy is encoded from current review synthesis fields: `source_recommended_next_step=HUMAN_DECISION` routes to self-approval when enabled, without adding a new repo-level setting. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The PR adds separate `source_conclusion`, `source_recommended_next_step`, and `source_handoff_context` fields through the workflows/prompts rather than overloading a single conclusion string. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | The change keeps the built-in primitive narrow: route review `HUMAN_DECISION` to the existing self-approval gate, while preserving existing workflow customization points. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The implementation matches issue #263 and the linked #262/#264 discussion: any review `HUMAN_DECISION` activates self-approval when enabled, while approval submission still requires trusted `SHIP`. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The touched files are scoped to review handoff routing, self-approval preflight/prompt behavior, docs, and regression tests. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The current head uses one structured recommended-next-step field and a scoped `requireShip: !isHumanDecisionGate` preflight condition, with most added size coming from regression coverage. |\n\n## Notes\n\n- The current PR head addresses the prior review concerns: non-`SHIP` `HUMAN_DECISION` now dispatches `agent-self-approve`, and preflight relaxes `SHIP` only for the human-decision gate.\n- The self-approval prompt no longer treats “send back to a human” as a normal outcome; `BLOCKED` is reserved for safety, missing-context, or automation failure.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific blocking or warning findings on the current head.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-19T07:49:04Z",
+      "includesCreatedEdit": false,
       "isMinimized": false,
       "minimizedReason": "",
       "reactionGroups": [],
-      "url": "https://github.com/self-evolving/repo/pull/265#issuecomment-4472098402",
+      "url": "https://github.com/self-evolving/repo/pull/265#issuecomment-4485558666",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC10W3Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: ab05c200c1633debf78846b815b275ddc1682dde -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #265 broadens review `HUMAN_DECISION` handoffs so they route to `agent-self-approve` whenever self-approval is enabled, including `MINOR_ISSUES` and `NEEDS_REWORK`.\n- It passes source verdict, recommended next step, and handoff context into self-approval.\n- It keeps actual GitHub approval guarded by trusted current-head `SHIP` provenance in deterministic resolver code.\n- This follows the #262/#264 discussion and issue #263’s requirement that `HUMAN_DECISION` activate self-approval as a decision gate.\n\n## Review\nThe core behavior is aligned with the requested design, and the earlier blocking concerns are fixed on current head `ab05c200`. Claude and rubrics found no blocking issues; Codex raised one narrower provenance-control warning that is still supported by the current code.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Trusted synthesis recommended step is not verified | WARNING | [`prepare-self-approve.ts`](https://github.com/self-evolving/repo/blob/ab05c200c1633debf78846b815b275ddc1682dde/.agent/src/cli/prepare-self-approve.ts#L99-L103) relaxes `SHIP` based on workflow input, while [`evaluateSelfApprovalProvenance()`](https://github.com/self-evolving/repo/blob/ab05c200c1633debf78846b815b275ddc1682dde/.agent/src/self-approval.ts#L151-L191) does not verify that the latest trusted synthesis itself recommended `HUMAN_DECISION`. This can run self-approval for a non-`HUMAN_DECISION` non-`SHIP` synthesis via stale/manual input, though actual approval remains protected. |\n| Optional prompt and coverage polish | INFO | Claude noted redundant `HUMAN_DECISION` wording in default handoff context plus minor prompt/test polish. These are not required branch changes for route safety. |\n\n## Progress\n- Current head fixes the old human-fallback wording concern: `BLOCKED` is now reserved for safety, missing context, or automation failure.\n- Current head also fixes the earlier unscoped `requireShip: false` issue by checking `SOURCE_RECOMMENDED_NEXT_STEP`.\n- Rubrics review passes on current head.\n- Posted one new inline comment for the remaining provenance warning: https://github.com/self-evolving/repo/pull/265#discussion_r3264592659\n- The older same-agent inline thread is outdated but unresolved, and `viewerCanResolve` is false; no replies, minimizations, or thread resolutions were performed.\n\n## Issue Details\n<details>\n<summary>Trusted synthesis recommended step is not verified</summary>\n\n**Cause:** `prepare-self-approve.ts` derives `isHumanDecisionGate` only from the workflow input `SOURCE_RECOMMENDED_NEXT_STEP`, then passes `requireShip: !isHumanDecisionGate`. The provenance function validates trusted actor, current head, and verdict, but when `requireShip === false` it accepts any latest trusted current-head verdict without checking that the synthesis recommended `HUMAN_DECISION`.\n\n**Candidate solutions:** Extend trusted synthesis parsing to extract `Recommended Next Step`, and allow non-`SHIP` preflight only when the latest trusted current-head synthesis itself says `HUMAN_DECISION`. Add a regression test where the workflow input says `HUMAN_DECISION` but the trusted synthesis says `FIX_PR` or `NO_AUTOMATED_ACTION`, and preflight stops.\n\n**Comments:** This is not an approval bypass; the resolver still refuses actual approval without trusted current-head `SHIP`. The issue is delegated route control and avoiding unintended self-approval agent runs.\n\n</details>\n\n<details>\n<summary>Optional prompt and coverage polish</summary>\n\n**Cause:** `defaultReviewSelfApprovalHandoffContext()` repeats `HUMAN_DECISION` in consecutive sentences, `source_conclusion` can render lowercase in the prompt, and one prior `REQUEST_CHANGES` provenance variant is no longer explicitly tested.\n\n**Candidate solutions:** Trim the duplicate context prefix, render verdicts consistently, and consider retaining both trusted and untrusted `REQUEST_CHANGES` test variants.\n\n**Comments:** These are polish items only; they should not drive automation unless touched alongside the required provenance fix.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the remaining warning has a concrete, focused branch change and regression test path suitable for automated repair.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Verify the latest trusted current-head review synthesis itself recommends `HUMAN_DECISION` before allowing non-`SHIP` self-approval preflight, and add regression coverage for stale/manual `source_recommended_next_step` input.",
+      "createdAt": "2026-05-19T07:57:29Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/265#issuecomment-4485617373",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC17mTA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate ",
+      "createdAt": "2026-05-19T08:13:10Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/265#issuecomment-4485736012",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC19amg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | fix-pr | PR #265 | 2 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: PR #265 is open and the latest current-head review synthesis for ab05c200 recommends FIX_PR for one concrete MINOR_ISSUES finding.\n\nTask for fix-pr:\nAddress the latest review synthesis finding on PR #265: verify the latest trusted current-head review synthesis itself recommends HUMAN_DECISION before allowing non-SHIP self-approval preflight. In practice, extend trusted synthesis parsing/provenance so requireShip can be relaxed only when both the workflow input and the trusted synthesis recommended next step normalize to HUMAN_DECISION. Add regression coverage where SOURCE_RECOMMENDED_NEXT_STEP says HUMAN_DECISION but the trusted synthesis says FIX_PR or NO_AUTOMATED_ACTION, and preflight stops. Preserve existing safeguards: actual GitHub approval must still require trusted current-head SHIP provenance, requester/author safeguards, and existing structured source context. Avoid unrelated prompt/docs polish unless directly touched by the fix.\n\n<!-- sepo-agent-handoff state:dispatched created:1779178618402 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYwODQ4ODc4MzA6b3JjaGVzdHJhdGU6MjY1OmZpeF9wcjoyNjU6Mg -->",
+      "createdAt": "2026-05-19T08:16:58Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/265#issuecomment-4485765786",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC1_4NQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/fix-pr-262-human-decision-self-approve`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Extended self-approval provenance to parse the trusted review synthesis recommended next step and relax non-`SHIP` preflight only when both workflow input and trusted current-head synthesis are `HUMAN_DECISION`.\n- Added regression coverage for stale/manual `SOURCE_RECOMMENDED_NEXT_STEP=HUMAN_DECISION` with trusted synthesis `FIX_PR` or `NO_AUTOMATED_ACTION`, plus a focused docs update.\n- Verification: `npm --prefix .agent run build`; `node --test .agent/dist/__tests__/handoff.test.js .agent/dist/__tests__/dispatch-agent-orchestrator-cli.test.js .agent/dist/__tests__/orchestrate-handoff-cli.test.js .agent/dist/__tests__/self-approval.test.js .agent/dist/__tests__/prepare-self-approve-cli.test.js .agent/dist/__tests__/envelope.test.js`; `git diff --check`.",
+      "createdAt": "2026-05-19T08:22:39Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/265#issuecomment-4485806133",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC2AXwg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #265 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded after addressing the latest current-head MINOR_ISSUES finding, so one follow-up review is warranted to verify the branch changes before stopping.\n\n<!-- sepo-agent-handoff state:dispatched created:1779179024541 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYwODUwNjE2NjM6Zml4X3ByOjI2NTpyZXZpZXc6MjY1OjM -->",
+      "createdAt": "2026-05-19T08:23:45Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/265#issuecomment-4485814210",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC2BUeQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | The PR keeps the downstream action on the existing review-to-`agent-self-approve` route and preserves deterministic approval safeguards: preflight can relax `SHIP` only for `HUMAN_DECISION`, while actual approval still requires trusted current-head `SHIP` provenance in `.agent/src/self-approval.ts`. |\n| review_quality / generic | Use investigative approval review | pass | 8/8 | `.github/prompts/agent-self-approve.md` instructs the approval agent to inspect scope, edge cases, permissions, failure handling, tests, and follow-up before returning structured JSON. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The diff extends existing handoff helpers, orchestrator/self-approval CLIs, workflow inputs, prompts, docs, and tests rather than adding a parallel route. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | `.agent/docs/architecture/supported-workflows.md` and `.agent/docs/technical-details/agent-orchestrator.md` now describe the broader `HUMAN_DECISION` self-approval gate and retained `SHIP` approval rule. |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | The decision is encoded from current review synthesis fields, especially `source_recommended_next_step`, without adding a new repo-level setting. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The workflow passes separate `source_conclusion`, `source_recommended_next_step`, and `source_handoff_context` fields instead of overloading one string. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | The built-in behavior remains narrow: review `HUMAN_DECISION` routes to the existing self-approval gate when enabled, while advanced customization remains in repo-owned workflows/prompts. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The implementation matches issue #263 and the #262/#264 discussion: any review `HUMAN_DECISION` activates self-approval when enabled, while approval submission remains `SHIP`-gated. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The touched files are scoped to handoff routing, self-approval preflight/provenance, prompt/docs updates, and focused regression tests. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The current head uses a direct structured recommended-next-step check and scoped `requireShip` relaxation, with added complexity mainly in regression coverage. |\n\n## Notes\n\n- The current PR head addresses the prior provenance concern: non-`SHIP` preflight is allowed only when both workflow input and the trusted current-head synthesis recommend `HUMAN_DECISION`.\n- The prompt no longer treats “send back to a human” as a normal outcome when self-approval is enabled; `BLOCKED` is limited to safety, missing-context, or automation-failure cases.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific blocking or warning findings on the current head.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-19T08:25:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/265#issuecomment-4485829753",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC2FGNw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: b312dcab1bf1e13c1e2073871b2f44d5067ea27f -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #265 broadens review `HUMAN_DECISION` handoffs so `agent-self-approve` runs whenever self-approval is enabled, including `SHIP`, `MINOR_ISSUES`, and `NEEDS_REWORK` review verdicts.\n- It keeps actual GitHub approval guarded by trusted current-head `SHIP` provenance.\n- The latest fix adds the missing guard that non-`SHIP` preflight relaxation requires both the workflow input and the trusted current-head synthesis to recommend `HUMAN_DECISION`.\n- This matches issue #263 and the #262/#264 follow-up discussion.\n\n## Review\nAll current reviewer artifacts converge on `SHIP`, and the prior provenance warning is fixed on head `b312dcab`. No meaningful reviewer disagreement remains; Claude noted only minor context-string redundancy that does not require branch work.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable issues | INFO | Current head addresses the earlier preflight/provenance concerns, preserves the approval safeguard, and has passing checks. |\n\n## Progress\n- Current head verifies trusted synthesis `Recommended Next Step = HUMAN_DECISION` before relaxing non-`SHIP` self-approval preflight.\n- Rubrics review passes on current head.\n- `gh pr checks 265` reports passing.\n- `git diff --check refs/remotes/origin/pr-265^ refs/remotes/origin/pr-265` passed.\n- No new inline comments were posted, no replies were added, no comments were minimized, and no threads were resolved.\n- Two older same-agent inline threads appear addressed, but `viewerCanResolve=false`; no inline cleanup was performed.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved required branch-change work remains.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-19T08:33:46Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/265#issuecomment-4485891639",
       "viewerDidAuthor": true
     }
   ],
@@ -72,7 +233,7 @@
   "files": [
     {
       "path": ".agent/docs/architecture/supported-workflows.md",
-      "additions": 16,
+      "additions": 17,
       "deletions": 10,
       "changeType": "MODIFIED"
     },
@@ -108,13 +269,13 @@
     },
     {
       "path": ".agent/src/__tests__/prepare-self-approve-cli.test.ts",
-      "additions": 79,
+      "additions": 124,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/__tests__/self-approval.test.ts",
-      "additions": 20,
+      "additions": 54,
       "deletions": 1,
       "changeType": "MODIFIED"
     },
@@ -132,7 +293,7 @@
     },
     {
       "path": ".agent/src/cli/prepare-self-approve.ts",
-      "additions": 10,
+      "additions": 11,
       "deletions": 2,
       "changeType": "MODIFIED"
     },
@@ -150,8 +311,8 @@
     },
     {
       "path": ".agent/src/self-approval.ts",
-      "additions": 11,
-      "deletions": 2,
+      "additions": 31,
+      "deletions": 3,
       "changeType": "MODIFIED"
     },
     {
@@ -200,10 +361,25 @@
       "commit": {
         "oid": "ae6c65407965d10627bb46826f3a4284d72aa963"
       }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAU629A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-19T07:56:25Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "ab05c200c1633debf78846b815b275ddc1682dde"
+      }
     }
   ],
   "state": "OPEN",
   "title": "Broaden HUMAN_DECISION self-approval gate",
-  "updatedAt": "2026-05-17T18:51:27Z",
+  "updatedAt": "2026-05-19T08:33:46Z",
   "url": "https://github.com/self-evolving/repo/pull/265"
 }

@@ -1,0 +1,305 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "agent/implement-issue-282/codex-26085724882",
+  "body": "## Summary\n- Add an install fork/PR helper and CLI that validates public targets, creates or reuses the token-owner fork, prepares the install branch, pushes to the fork, and opens or reuses the target PR.\n- Return clear blocked states for missing tokens, non-public targets, duplicate install PRs, fork issues, push failures, and PR creation failures.\n- Update the install skill and docs to use the helper while preserving onboarding-aware PR body guidance.\n\n## Verification\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/install-fork-pr.test.js .agent/dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nCloses #284\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC2UZ1A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #285 | 3 / 40 | Dispatched |\n\nReason: implementation succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1779181408024 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYwODY3OTMwMTc6aW1wbGVtZW50OjI4NDpyZXZpZXc6Mjg1OjM -->",
+      "createdAt": "2026-05-19T09:03:28Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/285#issuecomment-4486142420",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC2VeRA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow | Make surgical changes | pass | 8/8 | PR is scoped to the install fork/PR helper, focused CLI, install skill text, docs, and targeted tests. No unrelated workflow/auth surfaces were changed. |\n| coding_workflow | Reuse existing code | pass | 8/8 | The helper reuses existing repo utilities like `buildAuthUrl` and CLI output handling via `setOutput` instead of embedding this in workflow glue. |\n| coding_workflow | Keep docs in sync | pass | 7/7 | Updates `.agent/docs/architecture/supported-workflows.md`, configuration docs, setup/install docs, and `.skills/install-agent/SKILL.md` for the new fork-backed install behavior. |\n| communication | Write audience-first documentation | pass | 7/7 | The install docs lead with what the operator must configure and what blocked states mean, while implementation mechanics stay concise and task-oriented. |\n| coding_workflow | Prefer explicit structured inputs | pass | 7/7 | The CLI uses explicit fields such as `INSTALL_TARGET_REPO`, `INSTALL_WORKDIR`, `INSTALL_FORK_REPO`, `INSTALL_DEFAULT_BRANCH`, and typed outputs like `blocked_code`, `pr_url`, and `reused_pr`. |\n| coding_workflow | Make user-facing automation idempotent | pass | 7/7 | `prepareInstallForkPr` detects existing install PRs, reuses same-token-owner PRs, and blocks duplicates from other owners rather than opening repeated PRs. |\n| coding_workflow | Minimal defaults, native escape hatches | pass | 8/8 | The PR keeps the design to `AGENT_INSTALL_PAT` plus public fork-backed installs and does not add the deferred `AGENT_INSTALL_POLICY` surface. |\n| coding_workflow | Keep privileged workflows on trusted runtime code | pass | 8/8 | Runtime helper/CLI code remains in trusted `.agent/src`; the public target repo is cloned as the install target workdir, not used as the workflow runtime source. |\n| coding_style | Prefer simple implementations | pass | 7/7 | The implementation is a direct helper with clear prepare/publish phases, blocked-code returns, and focused tests rather than a broader install policy framework. |\n\n## Notes\n\n- The implementation matches parent issue #277 and child issue #284: use install-only `AGENT_INSTALL_PAT`, support public target clone/fork/push/open-PR mechanics, reuse existing PRs, and avoid adding `AGENT_INSTALL_POLICY`.\n- Test coverage is focused on public target preparation, non-public blocking, duplicate PR blocking, same-owner PR reuse, and push failure blocking.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-19T09:05:34Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/285#issuecomment-4486159940",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC2Za2Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 1df87d5dcefe3de4e5ed09790c620fa9b036638a -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #285 implements the final focused slice for parent issue #277 via child issue #284: fork-backed external install PR mechanics for `/install owner/repo`.\n- It adds a typed install fork/PR helper and CLI that validate a public target, create or reuse the token owner fork, prepare an install branch, push to the fork, and open or reuse a PR against the original repository.\n- It also updates the install skill and setup/configuration docs to describe `AGENT_INSTALL_PAT`, blocked states, and onboarding-aware PR body expectations.\n- This PR is intentionally stacked on PR #283, which plumbs `AGENT_INSTALL_PAT` into the install route.\n\n## Review\n- The direction and scope match the parent plan, and the rubrics review found the implementation aligned with the requested minimal `AGENT_INSTALL_PAT` design.\n- One reviewer found a concrete idempotency bug in the existing-PR reuse path; current PR code supports that finding, so this needs a branch fix before shipping.\n- A second reviewer found meaningful test coverage gaps around primary publish success and prepare reuse paths.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Existing install PR reuse can fail on rerun | BLOCKING | `prepareInstallForkPr` clones the target default branch, but `publishInstallForkPr` pushes `HEAD:<branch>` directly to the fork. When reusing an existing PR, the new commit is often not a descendant of the existing fork branch tip, so the push can fail as non-fast-forward. |\n| Install helper success/reuse coverage is incomplete | WARNING | Tests cover duplicate blocking, push failure, and publish reuse with a fake runner, but they do not cover new PR creation or the prepare-time same-owner reusable PR output. |\n\n## Progress\n- Reviewed the current PR conversation, issue #284, parent issue #277, all review artifacts, current PR files, existing inline comments, and review threads.\n- Existing inline comments and review threads were empty before synthesis.\n- Posted one new inline comment on `.agent/src/install-fork-pr.ts` line 529 for the blocking reuse-push issue.\n- Rubrics review passed with no rubric-specific follow-up.\n\n## Issue Details\n\n<details>\n<summary>Existing install PR reuse can fail on rerun</summary>\n\n**Cause:** [`prepareInstallForkPr`](https://github.com/self-evolving/repo/blob/1df87d5dcefe3de4e5ed09790c620fa9b036638a/.agent/src/install-fork-pr.ts#L440-L450) records an existing reusable PR but still prepares a fresh branch from the target default branch. Later, [`publishInstallForkPr`](https://github.com/self-evolving/repo/blob/1df87d5dcefe3de4e5ed09790c620fa9b036638a/.agent/src/install-fork-pr.ts#L528-L529) pushes that unrelated local HEAD directly to the fork branch.\n\n**Candidate solutions:** Prepare from the existing fork branch when reusing a PR, or record the expected remote branch OID and push the agent-owned install branch with `--force-with-lease`. Add a real git regression test for rerunning against an existing fork branch with prior commits.\n\n**Comments:** Codex marked this blocking. Claude and the rubrics review did not raise it, but the current code supports the failure mode.\n\n</details>\n\n<details>\n<summary>Install helper success/reuse coverage is incomplete</summary>\n\n**Cause:** [`install-fork-pr.test.ts`](https://github.com/self-evolving/repo/blob/1df87d5dcefe3de4e5ed09790c620fa9b036638a/.agent/src/__tests__/install-fork-pr.test.ts#L155) covers publish reuse, but the fake runner does not model non-fast-forward branch state. The suite also lacks tests for the no-existing-PR `gh pr create` path and for prepare returning `reusedPr: true`.\n\n**Candidate solutions:** Add focused tests for new PR creation, prepare-time same-owner PR reuse, and the rerun/non-fast-forward case using a real git fixture or a runner that accurately models remote branch ancestry.\n\n**Comments:** This is not a separate design blocker, but it should be addressed with the branch fix because the current fake runner let the reuse bug pass.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: the unresolved idempotency bug requires a concrete branch change and is safe for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Fix existing install PR reuse so reruns update the fork branch without non-fast-forward push failures.\n- [ ] Add regression coverage for rerunning against an existing fork branch, plus focused tests for new PR creation and prepare-time same-owner PR reuse.",
+      "createdAt": "2026-05-19T09:13:15Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/285#issuecomment-4486224601",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC2ZnDQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #285 | 4 / 40 | Dispatched |\n\nReason: review verdict is needs_rework; dispatching fix-pr\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Fix existing install PR reuse so reruns update the fork branch without non-fast-forward push failures.\n- Add regression coverage for rerunning against an existing fork branch, plus focused tests for new PR creation and prepare-time same-owner PR reuse.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1779182012640 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYwODczMjQ4NzE6cmV2aWV3OjI4NTpmaXhfcHI6Mjg1OjQ -->",
+      "createdAt": "2026-05-19T09:13:33Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/285#issuecomment-4486227725",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC2cN_w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-284/codex-26086793017`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Fixed install PR reruns by preparing reusable same-owner PRs from the existing fork branch before publish, so the later push fast-forwards instead of failing as non-fast-forward.\n- Added regression coverage for prepare-time same-owner PR reuse, new PR creation, and a real-git rerun against an existing fork branch.\n- Updated the install skill text to match the reuse-branch behavior.\n\n<details><summary>Verification</summary>\n\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/install-fork-pr.test.js`\n- `git diff --check`\n\n</details>",
+      "createdAt": "2026-05-19T09:18:23Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/285#issuecomment-4486270463",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC2cX6Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #285 | 5 / 40 | Dispatched |\n\nReason: PR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1779182320109 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYwODc4MTI4ODQ6Zml4X3ByOjI4NTpyZXZpZXc6Mjg1OjU -->",
+      "createdAt": "2026-05-19T09:18:40Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/285#issuecomment-4486273001",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC2dTpA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow | Make surgical changes | pass | 8/8 | Diff is focused on the install fork/PR helper, CLI, install skill/docs, and focused tests; no unrelated route/auth surfaces were changed. |\n| coding_workflow | Reuse existing code | pass | 8/8 | The new CLI uses existing `setOutput`, and the helper reuses `buildAuthUrl` rather than embedding token URL handling in workflow glue. |\n| coding_workflow | Keep docs in sync | pass | 7/7 | Docs were updated in `.agent/docs/architecture/supported-workflows.md`, configuration docs, setup/install docs, and `.skills/install-agent/SKILL.md` for the new fork-backed install behavior. |\n| communication | Write audience-first documentation | pass | 7/7 | `install-existing-repository.md` leads with the `/install owner/repo` task, required `AGENT_INSTALL_PAT`, blocked outcomes, and next setup steps before deeper mechanics. |\n| coding_workflow | Prefer explicit structured inputs | pass | 7/7 | The CLI exposes explicit env/outputs such as `INSTALL_TARGET_REPO`, `INSTALL_FORK_REPO`, `status`, `blocked_code`, `pr_url`, and `reused_pr` in `.agent/src/cli/install-fork-pr.ts`. |\n| coding_workflow | Make user-facing automation idempotent | pass | 7/7 | The helper reuses same-owner install PRs, blocks duplicate install PRs from other owners, and prepares reusable PRs from the existing fork branch before pushing. |\n| coding_workflow | Minimal defaults, native escape hatches | pass | 8/8 | The PR keeps the install identity model to the requested `AGENT_INSTALL_PAT` path and does not add the deferred `AGENT_INSTALL_POLICY` surface from parent issue #277. |\n| coding_workflow | Keep privileged workflows on trusted runtime code | pass | 8/8 | The runtime helper/CLI remains in trusted `.agent/src`; target repositories are cloned as install workdirs, not used as workflow runtime code. |\n| coding_workflow | Surface stateful failures | pass | 7/7 | Fork creation, non-public targets, duplicate PRs, push failures, and PR creation failures return explicit blocked codes instead of silent success. |\n| coding_style | Prefer simple implementations | pass | 7/7 | The implementation is a direct two-phase `prepare`/`publish` helper with typed blocked results and focused tests, not a broader policy framework. |\n\n## Notes\n\n- The implementation matches child issue #284 and parent issue #277: public target clone, token-owner fork create/reuse, branch push, PR open/reuse, duplicate detection, blocked states, no `AGENT_INSTALL_POLICY`, and onboarding-aware install guidance.\n- The earlier non-fast-forward rerun concern is addressed at the current head: reusable PRs fetch `install-fork` and check out the existing branch before publish, with a real git regression test for reruns.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-19T09:20:29Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/285#issuecomment-4486288292",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC2iHpA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 54564a4fe90e14c423ab68c5d5645c019ffe813c -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #285 implements the final fork-backed `/install owner/repo` slice for parent issue #277 through child issue #284.\n- It adds a typed install fork/PR helper and CLI that validate a public target, create or reuse the token owner fork, prepare the install branch, push to the fork, and open or reuse the target PR.\n- It updates the install skill and docs around `AGENT_INSTALL_PAT`, blocked states, and onboarding-aware install PR guidance.\n- The latest fix-pr pass addressed the prior rerun/non-fast-forward bug and added real-git regression coverage.\n\n## Review\n- Overall, the prior blocking rerun issue is fixed, and the implementation is close to shippable.\n- One concrete idempotency gap remains: the existing install PR lookup only inspects the default `gh pr list` result window.\n- Claude and the rubrics review found no material remaining issues; Codex raised the warning below, and the current PR code supports it.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Existing install PR lookup can miss older PRs | WARNING | `listOpenInstallPrs` calls `gh pr list` without `--limit`, branch-focused filtering, or pagination. Busy targets with more than 30 open PRs can hide an existing install PR, weakening reuse and duplicate detection. |\n\n## Progress\n- Reviewed the current PR conversation, issue #284, parent issue #277, review artifacts, current PR diff, inline comments, and review threads.\n- The prior non-fast-forward rerun issue is addressed by fetching the existing fork branch before checkout and by a real-git rerun regression test.\n- Resolved the obsolete same-agent inline thread for the prior rerun issue.\n- Posted one new inline comment on `.agent/src/install-fork-pr.ts` line 313 for the remaining PR lookup window issue.\n- Rubrics review passed, and Claude’s review verdict was SHIP.\n\n## Issue Details\n\n<details>\n<summary>Existing install PR lookup can miss older PRs</summary>\n\n**Cause:** [`listOpenInstallPrs`](https://github.com/self-evolving/repo/blob/54564a4fe90e14c423ab68c5d5645c019ffe813c/.agent/src/install-fork-pr.ts#L312-L323) calls `gh pr list --state open` and then filters locally by `headRefName`. The installed `gh` help reports `--limit` defaults to 30, so an older `agent/install-agent-infra` PR can be outside the fetched window.\n\n**Candidate solutions:** Use a focused lookup for the install branch, such as a paginated GraphQL/API query filtered by `headRefName`, or otherwise request enough paginated results before deciding reuse or duplicate state. Add a focused test where matching install PRs appear outside the first result window.\n\n**Comments:** This is a new warning from Codex. Claude and the rubrics review did not raise it, but the current code and CLI behavior support the concern.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: the remaining issue is a concrete branch change in the install PR lookup and is safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Make existing install PR detection use a focused or paginated lookup so reuse and duplicate checks do not depend on the default 30-result `gh pr list` window.",
+      "createdAt": "2026-05-19T09:29:22Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/285#issuecomment-4486367140",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC2iQjg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #285 | 6 / 40 | Dispatched |\n\nReason: review verdict is minor_issues; dispatching fix-pr\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Make existing install PR detection use a focused or paginated lookup so reuse and duplicate checks do not depend on the default 30-result `gh pr list` window.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1779182979905 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYwODgwNjE5ODI6cmV2aWV3OjI4NTpmaXhfcHI6Mjg1OjY -->",
+      "createdAt": "2026-05-19T09:29:40Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/285#issuecomment-4486369422",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC2j1Fg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-284/codex-26086793017`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Made install PR detection branch-focused with `gh pr list --head <install-branch>`, so reuse and duplicate checks no longer depend on the default 30-result window.\n- Updated the fake runner to model the default window and added regression tests for reusable and duplicate install PRs appearing after 30 unrelated PRs.\n\n<details><summary>Verification</summary>\n\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/install-fork-pr.test.js`\n- `git diff --check`\n\n</details>",
+      "createdAt": "2026-05-19T09:32:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/285#issuecomment-4486395158",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC2j-qw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #285 | 7 / 40 | Dispatched |\n\nReason: PR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1779183175483 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYwODg2MDQzNDc6Zml4X3ByOjI4NTpyZXZpZXc6Mjg1Ojc -->",
+      "createdAt": "2026-05-19T09:32:55Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/285#issuecomment-4486397611",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC2lFsQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow | Make surgical changes | pass | 8/8 | Diff is limited to the install fork/PR helper, CLI, install skill/docs, and focused tests. No unrelated route/auth surfaces changed. |\n| coding_workflow | Reuse existing code | pass | 8/8 | Helper reuses existing `buildAuthUrl`; CLI reuses `setOutput` for workflow outputs. |\n| coding_workflow | Keep docs in sync | pass | 7/7 | Updated install docs, setup guide, configuration list, supported workflows, and install skill for the new fork-backed flow. |\n| communication | Write audience-first documentation | pass | 7/7 | Install docs lead with `/install owner/repo`, required `AGENT_INSTALL_PAT`, blocked outcomes, and route override guidance before deeper mechanics. |\n| coding_workflow | Prefer explicit structured inputs | pass | 7/7 | CLI uses explicit env/outputs such as `INSTALL_TARGET_REPO`, `INSTALL_FORK_REPO`, `status`, `blocked_code`, `pr_url`, and `reused_pr`. |\n| coding_workflow | Make user-facing automation idempotent | pass | 7/7 | Existing same-owner install PRs are reused, duplicates from other owners block, and PR lookup is branch-focused with `--head`. |\n| coding_workflow | Minimal defaults, native escape hatches | pass | 8/8 | Matches parent issue #277’s simplified `AGENT_INSTALL_PAT` design and does not add the deferred `AGENT_INSTALL_POLICY` surface. |\n| coding_workflow | Keep privileged workflows on trusted runtime code | pass | 8/8 | Runtime helper/CLI live under trusted `.agent/src`; target repositories are cloned as install workdirs, not used as runtime code. |\n| coding_workflow | Surface stateful failures | pass | 7/7 | Missing token, private target, unreadable target, fork creation/name conflicts, clone, push, and PR creation failures return explicit blocked codes/messages. |\n| coding_style | Prefer simple implementations | pass | 7/7 | Implementation is a direct prepare/publish helper with typed blocked results and focused tests, not a broader install policy framework. |\n\n## Notes\n\n- The current head `c5ca80a` addresses the earlier review concerns: same-owner reusable PRs fetch and check out the existing fork branch before publish, and PR detection uses `gh pr list --head <branch>`.\n- Added tests cover public install preparation, same-owner PR reuse, default-window PR lookup regression, duplicate PR blocking, new PR creation, real-git rerun/non-fast-forward behavior, and push failure blocking.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-19T09:35:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/285#issuecomment-4486415793",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC2pOAg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: c5ca80af6e4274092611edabee6673117863e8dc -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #285 implements child issue #284 for parent issue #277: fork-backed `/install owner/repo` PR mechanics using the dedicated `AGENT_INSTALL_PAT` path.\n- It adds a typed helper and CLI to validate public targets, create or reuse the token owner fork, prepare `agent/install-agent-infra`, push it, and open or reuse the target PR.\n- It updates the install skill and docs to describe the fork-backed flow, blocked states, and onboarding-aware install PR guidance.\n- The latest head is `c5ca80af6e4274092611edabee6673117863e8dc`.\n\n## Review\nAll current reviewer artifacts agree the prior material issues are fixed and the PR is shippable. Claude noted two non-blocking INFO observations, while Codex and the rubrics review reported no findings.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | Current reviewers found the non-fast-forward rerun issue and the default `gh pr list` window issue fixed, with regression coverage in place. |\n\n## Progress\n- Reviewed PR conversation, parent issue #277, child issue #284, all three review artifacts, current PR files, existing inline comments, and review threads.\n- Confirmed current code uses `gh pr list --head <branch>` for install PR lookup and fetches the existing fork branch before reuse checkout.\n- Resolved the obsolete same-agent inline review thread on `.agent/src/install-fork-pr.ts` line 313.\n- Posted no new inline comments.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: no unresolved actionable branch-change work remains.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-19T09:43:07Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/285#issuecomment-4486483458",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-19T09:03:06Z",
+  "files": [
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 4,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/deployment/install-existing-repository.md",
+      "additions": 12,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/deployment/setup-guide.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/install-fork-pr.test.ts",
+      "additions": 488,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/install-fork-pr.ts",
+      "additions": 67,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/install-fork-pr.ts",
+      "additions": 605,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".skills/install-agent/SKILL.md",
+      "additions": 32,
+      "deletions": 20,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-284/codex-26086793017",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 285,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAVe5EQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-19T09:12:37Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "1df87d5dcefe3de4e5ed09790c620fa9b036638a"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAVmhwQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-19T09:28:04Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "54564a4fe90e14c423ab68c5d5645c019ffe813c"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Add fork-backed install PR helper",
+  "updatedAt": "2026-05-19T09:43:07Z",
+  "url": "https://github.com/self-evolving/repo/pull/285"
+}
