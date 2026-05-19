@@ -8,6 +8,7 @@ import {
 export type SelfApprovalVerdict = "approve" | "request_changes" | "blocked";
 
 export const SELF_APPROVAL_STATUS_MARKER = "<!-- sepo-agent-self-approval -->";
+const SELF_APPROVAL_HEAD_MARKER_RE = /<!--\s*sepo-agent-self-approval-head:\s*([^\s>]+)\s*-->/i;
 
 export interface SelfApprovalDecision {
   verdict: SelfApprovalVerdict;
@@ -50,6 +51,7 @@ export interface SelfApprovalProvenanceResult {
 export interface SelfApprovalActorResult {
   allowed: boolean;
   reason: string;
+  sameActor?: boolean;
 }
 
 function normalizeToken(value: string): string {
@@ -77,6 +79,7 @@ export function envFlagEnabled(value: string | undefined): boolean {
 export function evaluateSelfApprovalActor(input: {
   approvalActorLogin: string;
   prAuthorLogin: string;
+  allowSameActor?: boolean;
 }): SelfApprovalActorResult {
   const approvalActor = normalizeActorLogin(input.approvalActorLogin);
   const prAuthor = normalizeActorLogin(input.prAuthorLogin);
@@ -93,13 +96,22 @@ export function evaluateSelfApprovalActor(input: {
     };
   }
   if (approvalActor === prAuthor) {
+    if (input.allowSameActor) {
+      return {
+        allowed: true,
+        sameActor: true,
+        reason: "same approval actor is allowed because self-approval and self-merge are both enabled",
+      };
+    }
     return {
       allowed: false,
+      sameActor: true,
       reason: "approval actor matches the pull request author",
     };
   }
   return {
     allowed: true,
+    sameActor: false,
     reason: "approval actor is distinct from pull request author",
   };
 }
@@ -348,12 +360,22 @@ export function resolveSelfApproval(input: SelfApprovalResolveInput): SelfApprov
   };
 }
 
+export function buildSelfApprovalHeadMarker(headSha: string): string {
+  const trimmed = String(headSha || "").trim();
+  return trimmed ? `<!-- sepo-agent-self-approval-head: ${trimmed} -->` : "";
+}
+
+export function extractSelfApprovalHeadSha(body: string): string {
+  return String(body || "").match(SELF_APPROVAL_HEAD_MARKER_RE)?.[1]?.trim() || "";
+}
+
 export function formatSelfApprovalBody(input: {
   conclusion: string;
   reason: string;
   handoffContext?: string;
   approved?: boolean;
   runUrl?: string;
+  headSha?: string;
 }): string {
   const conclusion = input.conclusion || "unknown";
   const status = input.approved
@@ -380,6 +402,10 @@ export function formatSelfApprovalBody(input: {
   }
   if (input.runUrl) {
     lines.push("", `Run: ${input.runUrl}`);
+  }
+  const headSha = String(input.headSha || "").trim();
+  if (headSha) {
+    lines.push("", `Head SHA: \`${headSha}\``, buildSelfApprovalHeadMarker(headSha));
   }
   lines.push("", SELF_APPROVAL_STATUS_MARKER);
   return lines.join("\n");

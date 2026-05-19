@@ -4,6 +4,7 @@ import { strict as assert } from "node:assert";
 import {
   evaluateSelfApprovalActor,
   evaluateSelfApprovalProvenance,
+  extractSelfApprovalHeadSha,
   formatSelfApprovalBody,
   parseSelfApprovalDecision,
   resolveSelfApproval,
@@ -59,6 +60,15 @@ test("formatSelfApprovalBody surfaces blocked and failed conclusions visibly", (
   });
   assert.match(failed, /\| Failed \| `failed` \|/);
   assert.match(failed, /approval submission failed/);
+
+  const approved = formatSelfApprovalBody({
+    conclusion: "approved",
+    reason: "Aligned.",
+    approved: true,
+    headSha: "abc123",
+  });
+  assert.equal(extractSelfApprovalHeadSha(approved), "abc123");
+  assert.match(approved, /Head SHA: `abc123`/);
 });
 
 test("resolveSelfApproval blocks when opt-in flag is disabled", () => {
@@ -105,7 +115,7 @@ test("resolveSelfApproval rejects non-PR and closed PR targets", () => {
   assert.match(closed.reason, /closed/);
 });
 
-test("evaluateSelfApprovalActor requires a distinct approval actor", () => {
+test("evaluateSelfApprovalActor requires a distinct approval actor unless YOLO self-merge is enabled", () => {
   const allowed = evaluateSelfApprovalActor({
     approvalActorLogin: "human-reviewer",
     prAuthorLogin: "app/sepo-agent-app",
@@ -117,7 +127,17 @@ test("evaluateSelfApprovalActor requires a distinct approval actor", () => {
     prAuthorLogin: "app/sepo-agent-app",
   });
   assert.equal(sameApp.allowed, false);
+  assert.equal(sameApp.sameActor, true);
   assert.match(sameApp.reason, /matches the pull request author/);
+
+  const yoloSameApp = evaluateSelfApprovalActor({
+    approvalActorLogin: "sepo-agent-app[bot]",
+    prAuthorLogin: "app/sepo-agent-app",
+    allowSameActor: true,
+  });
+  assert.equal(yoloSameApp.allowed, true);
+  assert.equal(yoloSameApp.sameActor, true);
+  assert.match(yoloSameApp.reason, /self-approval and self-merge are both enabled/);
 
   const missing = evaluateSelfApprovalActor({
     approvalActorLogin: "",

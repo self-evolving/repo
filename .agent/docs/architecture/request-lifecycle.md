@@ -43,10 +43,10 @@ Current route-level `acpx` permission modes:
 | `dispatch` | `approve-all` | classification may gather repo and issue context |
 | `answer` | `approve-all` | may gather context before replying |
 | `orchestrator` | `approve-all` | planner may gather target and repository context before choosing the next route |
-| `agent-self-approve` | `approve-reads` | final approval judgment may inspect PR/repo context, but deterministic resolver code owns approval submission |
+| `agent-self-approve` | `approve-reads` | final approval judgment may inspect PR/repo context, but deterministic resolver code owns approval submission or internal approval recording |
 | `agent-self-merge` | none | deterministic workflow code owns current-head approval validation and merge submission |
 | `implement` | `approve-all` | needs full file system access |
 | `fix-pr` | `approve-all` | needs full file system access |
 | `review` | `approve-all` | reviewers and synthesis may gather PR and repo context |
 
-Dedicated memory and rubric maintenance workflows use the same runtime but are documented with their storage systems rather than the user-request lifecycle. Workflow-level GitHub token scopes are set by each workflow or job and remain separate from route-level `acpx` modes. The self-approval workflow keeps the inspection agent on the read-scoped `github.token`; deterministic resolver code uses the resolved Sepo auth token for approval submission. Self-merge has no model step; its deterministic resolver uses the resolved Sepo auth token only after current-head self-approval, checks, mergeability, and requested-change guards pass.
+Dedicated memory and rubric maintenance workflows use the same runtime but are documented with their storage systems rather than the user-request lifecycle. Workflow-level GitHub token scopes are set by each workflow or job and remain separate from route-level `acpx` modes. The self-approval workflow keeps the inspection agent on the read-scoped `github.token`; deterministic resolver code uses the resolved Sepo auth token for approval submission or for marker-upserted internal approval status when full self-governance mode is enabled. Self-merge has no model step; its deterministic resolver uses the resolved Sepo auth token only after current-head self-approval, checks, mergeability, and requested-change guards pass.

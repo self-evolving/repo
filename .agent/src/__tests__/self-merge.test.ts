@@ -44,6 +44,31 @@ test("evaluateSelfMergeApproval requires a current-head self-approval review", (
   });
   assert.equal(current.approved, true);
 
+  const currentStatusComment = evaluateSelfMergeApproval({
+    trustedActorLogin: "sepo-agent-app[bot]",
+    currentHeadSha: "abc123",
+    reviews: [],
+    comments: [
+      {
+        id: "2",
+        authorLogin: "app/sepo-agent-app",
+        createdAt: "2026-05-10T10:01:00Z",
+        body: [
+          "Sepo self-approval completed.",
+          "",
+          "| Status | Conclusion |",
+          "|---|---|",
+          "| Approved | `approved` |",
+          "",
+          "<!-- sepo-agent-self-approval-head: abc123 -->",
+          "<!-- sepo-agent-self-approval -->",
+        ].join("\n"),
+      },
+    ],
+  });
+  assert.equal(currentStatusComment.approved, true);
+  assert.match(currentStatusComment.reason, /status/);
+
   const stale = evaluateSelfMergeApproval({
     trustedActorLogin: "sepo-agent-app",
     currentHeadSha: "def456",

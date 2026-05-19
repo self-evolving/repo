@@ -1,6 +1,6 @@
 // CLI: preflight self-approval before running the approval agent.
 // Env: GITHUB_REPOSITORY, TARGET_NUMBER, TARGET_KIND, AGENT_ALLOW_SELF_APPROVE,
-//      SOURCE_RECOMMENDED_NEXT_STEP
+//      AGENT_ALLOW_SELF_MERGE, SOURCE_RECOMMENDED_NEXT_STEP
 // Outputs: should_run, head_sha, reason, body_file
 
 import { mkdtempSync, writeFileSync } from "node:fs";
@@ -47,6 +47,8 @@ const repo = process.env.GITHUB_REPOSITORY || "";
 const targetNumber = Number(process.env.TARGET_NUMBER || process.env.PR_NUMBER || "");
 const targetKind = normalizeToken(process.env.TARGET_KIND || "pull_request");
 const allowSelfApprove = envFlagEnabled(process.env.AGENT_ALLOW_SELF_APPROVE);
+const allowSelfMerge = envFlagEnabled(process.env.AGENT_ALLOW_SELF_MERGE);
+const allowSameActorSelfApprove = allowSelfApprove && allowSelfMerge;
 const sourceRecommendedNextStep = normalizeToken(process.env.SOURCE_RECOMMENDED_NEXT_STEP || "");
 const isHumanDecisionGate = sourceRecommendedNextStep === "human_decision";
 
@@ -83,6 +85,7 @@ if (!allowSelfApprove) {
       const approvalActor = evaluateSelfApprovalActor({
         approvalActorLogin: authenticatedActorLogin,
         prAuthorLogin: fetchPrAuthorLogin(targetNumber, repo),
+        allowSameActor: allowSameActorSelfApprove,
       });
       if (!approvalActor.allowed) {
         stop(approvalActor.reason);
