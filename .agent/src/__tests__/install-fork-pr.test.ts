@@ -38,6 +38,7 @@ class FakeRunner implements CommandRunner {
   prs: Array<Record<string, unknown>> = [];
   createdPrUrl = "https://github.com/lm4sci/lm4sci.github.io/pull/77";
   failPush = false;
+  failMerge = false;
 
   constructor(readonly login = "sepo-install-bot") {}
 
@@ -88,6 +89,7 @@ class FakeRunner implements CommandRunner {
       const branch = String(args[3] || "");
       return this.remoteBranches.has(`${repo}#${branch}`) ? `abc123\trefs/heads/${branch}\n` : "";
     }
+    if (this.failMerge && args[0] === "merge") throw new Error("merge conflict");
     if (this.failPush && args[0] === "push") throw new Error("push failed");
     return "";
   }
@@ -632,6 +634,33 @@ test("prepareInstallForkPr merges an advanced target default into an existing fo
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("prepareInstallForkPr reports target default merge conflicts clearly", () => {
+  const runner = new FakeRunner();
+  runner.failMerge = true;
+  runner.repos.set("lm4sci/lm4sci.github.io", repoRecord("lm4sci/lm4sci.github.io"));
+  runner.repos.set(
+    "sepo-install-bot/lm4sci.github.io",
+    repoRecord("sepo-install-bot/lm4sci.github.io", {
+      fork: true,
+      parent: "lm4sci/lm4sci.github.io",
+    }),
+  );
+  runner.remoteBranches.add(`sepo-install-bot/lm4sci.github.io#${DEFAULT_INSTALL_BRANCH}`);
+
+  const result = prepareInstallForkPr({
+    targetRepo: "lm4sci/lm4sci.github.io",
+    githubToken: "pat-token",
+    workdir: "/tmp/lm4sci-conflicting-install",
+    forkPollAttempts: 1,
+    runner,
+  });
+
+  assert.equal(result.status, "blocked");
+  assert.equal(result.blockedCode, "target_default_merge_conflict");
+  assert.match(result.message, /conflicts with current lm4sci\/lm4sci\.github\.io:main/);
+  assert.ok(runner.called("git", /merge --no-edit sepo-target-default/));
 });
 
 test("publishInstallForkPr reports push failures as blocked permission gaps", () => {

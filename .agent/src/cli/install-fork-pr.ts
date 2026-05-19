@@ -63,7 +63,7 @@ export function parseInstallForkPrCliArgs(
     .toLowerCase();
   const common: InstallForkPrOptions = {
     targetRepo: argValue(valueMap["target-repo"]) || env("INSTALL_TARGET_REPO", sourceEnv),
-    githubToken: env("GH_TOKEN", sourceEnv) || env("GITHUB_TOKEN", sourceEnv) || env("INPUT_GITHUB_TOKEN", sourceEnv),
+    githubToken: env("GH_TOKEN", sourceEnv),
     branch: argValue(valueMap.branch) || env("INSTALL_BRANCH", sourceEnv) || undefined,
     workdir: argValue(valueMap.workdir) || env("INSTALL_WORKDIR", sourceEnv) || undefined,
   };

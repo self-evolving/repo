@@ -58,7 +58,7 @@ test("parseInstallForkPrCliArgs maps publish flags", () => {
 test("parseInstallForkPrCliArgs preserves environment fallbacks", () => {
   const input = parseInstallForkPrCliArgs([], {
     INSTALL_FORK_PR_ACTION: "publish",
-    GITHUB_TOKEN: "fallback-token",
+    GH_TOKEN: "install-token",
     INSTALL_TARGET_REPO: "env-owner/env-repo",
     INSTALL_WORKDIR: "/tmp/env-work",
     INSTALL_FORK_REPO: "env-bot/env-repo",
@@ -70,13 +70,23 @@ test("parseInstallForkPrCliArgs preserves environment fallbacks", () => {
 
   assert.equal(input.action, "publish");
   assert.equal(input.publish.targetRepo, "env-owner/env-repo");
-  assert.equal(input.publish.githubToken, "fallback-token");
+  assert.equal(input.publish.githubToken, "install-token");
   assert.equal(input.publish.workdir, "/tmp/env-work");
   assert.equal(input.publish.forkRepo, "env-bot/env-repo");
   assert.equal(input.publish.defaultBranch, "trunk");
   assert.equal(input.publish.branch, "agent/env-install");
   assert.equal(input.publish.title, "Env title");
   assert.equal(input.publish.bodyFile, "/tmp/env-body.md");
+});
+
+test("parseInstallForkPrCliArgs does not fall back to workflow tokens", () => {
+  const input = parseInstallForkPrCliArgs(["prepare"], {
+    GITHUB_TOKEN: "workflow-token",
+    INPUT_GITHUB_TOKEN: "input-token",
+    INSTALL_TARGET_REPO: "env-owner/env-repo",
+  });
+
+  assert.equal(input.common.githubToken, "");
 });
 
 test("parseInstallForkPrCliArgs rejects github token flags", () => {

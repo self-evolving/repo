@@ -13,6 +13,7 @@ export interface InstallLifecycleStep {
   title: string;
   command?: string;
   commandTemplate?: string;
+  env?: Record<string, string>;
   templateSlots?: InstallLifecycleTemplateSlot[];
   description: string;
 }
@@ -38,6 +39,28 @@ export interface InstallLifecyclePlanInput {
   installBranch?: string;
   sourceRepo?: string;
 }
+
+const TARGET_WORKTREE_SLOT: InstallLifecycleTemplateSlot = {
+  name: "target_worktree",
+  sourceStep: "prepare-install-worktree",
+  description: "Use the workdir returned by the helper prepare step.",
+};
+
+const TARGET_DEFAULT_BRANCH_SLOT: InstallLifecycleTemplateSlot = {
+  name: "target_default_branch",
+  sourceStep: "prepare-install-worktree",
+  description: "Use the defaultBranch returned by the helper prepare step.",
+};
+
+const SOURCE_CHECKOUT_SLOT: InstallLifecycleTemplateSlot = {
+  name: "source_checkout",
+  sourceStep: "checkout-source-release",
+  description: "Use the clean source checkout created from the selected Sepo release.",
+};
+
+const INSTALL_TOKEN_ENV = {
+  GH_TOKEN: "AGENT_INSTALL_PAT",
+};
 
 function cleanInput(value: string | undefined, fallback: string): string {
   const trimmed = String(value || "").trim();
@@ -80,7 +103,8 @@ export function buildInstallLifecyclePlan(input: InstallLifecyclePlanInput): Ins
       {
         id: "prepare-install-worktree",
         title: "Prepare the fork-backed install worktree",
-        command: `GH_TOKEN="$GH_TOKEN" node .agent/dist/cli/install-fork-pr.js prepare --target-repo ${targetRepo} --branch ${installBranch}`,
+        command: `node .agent/dist/cli/install-fork-pr.js prepare --target-repo ${targetRepo} --branch ${installBranch}`,
+        env: INSTALL_TOKEN_ENV,
         description:
           "Use the install fork/PR helper to validate the public target, create or reuse the token-owner fork, detect reusable or duplicate install PRs, and prepare the fork branch from the current target default branch.",
       },
@@ -92,46 +116,64 @@ export function buildInstallLifecyclePlan(input: InstallLifecyclePlanInput): Ins
           "Select the latest non-draft stable release, falling back to the latest non-draft prerelease only when no stable release exists.",
       },
       {
-        id: "copy-install-scope",
-        title: "Copy the approved install scope",
-        commandTemplate: "copy .agent/ and Sepo-owned .github assets from {{source_checkout}} into {{target_worktree}}",
+        id: "checkout-source-release",
+        title: "Check out the selected Sepo source release",
+        commandTemplate: `git clone --depth 1 --branch {{source_ref}} https://github.com/${sourceRepo}.git {{source_checkout}}`,
         templateSlots: [
+          {
+            name: "source_ref",
+            sourceStep: "resolve-source-release",
+            description: "Use the selected Sepo release tag or fallback ref.",
+          },
           {
             name: "source_checkout",
             sourceStep: "resolve-source-release",
-            description: "Use the checkout for the selected Sepo source revision.",
-          },
-          {
-            name: "target_worktree",
-            sourceStep: "prepare-install-worktree",
-            description: "Use the helper-returned workdir on the install branch.",
+            description: "Choose an empty temporary directory for the selected Sepo source checkout.",
           },
         ],
         description:
-          "Fill the template slots before copying only Sepo-owned infrastructure, preserving target-owned application code and unrelated GitHub assets.",
+          "Materialize the selected Sepo source revision before copying install files.",
+      },
+      {
+        id: "copy-install-scope",
+        title: "Copy the approved install scope",
+        commandTemplate: "rsync -a --exclude node_modules --exclude dist --exclude .git {{source_checkout}}/.agent/ {{target_worktree}}/.agent/ && rsync -a --exclude node_modules --exclude dist --exclude .git {{source_checkout}}/.github/ {{target_worktree}}/.github/",
+        templateSlots: [SOURCE_CHECKOUT_SLOT, TARGET_WORKTREE_SLOT],
+        description:
+          "Fill the template slots before running the executable copy command; preserve target-owned files by copying only the approved Sepo infrastructure roots.",
       },
       {
         id: "validate-install-diff",
         title: "Validate the install diff",
-        command: "git status --short && git diff --stat",
+        commandTemplate: "git -C {{target_worktree}} status --short && git -C {{target_worktree}} diff --stat",
+        templateSlots: [TARGET_WORKTREE_SLOT],
         description:
           "Confirm the diff is limited to the approved install scope and run lightweight checks that are available in the target worktree.",
       },
       {
+        id: "stage-install-changes",
+        title: "Stage the install changes",
+        commandTemplate: "git -C {{target_worktree}} add .agent .github",
+        templateSlots: [TARGET_WORKTREE_SLOT],
+        description:
+          "Stage the required install scope; stage optional approved paths separately only when the requester explicitly included them.",
+      },
+      {
+        id: "commit-install-changes",
+        title: "Commit the install changes",
+        commandTemplate: "git -C {{target_worktree}} commit -m 'chore: install Sepo agent infrastructure'",
+        templateSlots: [TARGET_WORKTREE_SLOT],
+        description:
+          "Create the install commit after validation; if there are no staged changes, stop and report that no install diff was produced.",
+      },
+      {
         id: "publish-install-pr",
         title: "Publish the install PR",
-        commandTemplate: `GH_TOKEN="$GH_TOKEN" node .agent/dist/cli/install-fork-pr.js publish --target-repo ${targetRepo} --workdir {{target_worktree}} --fork-repo {{fork_repo}} --default-branch {{target_default_branch}} --branch ${installBranch} --pr-title 'Install Sepo agent infrastructure' --pr-body-file {{install_pr_body_file}}`,
+        commandTemplate: `node .agent/dist/cli/install-fork-pr.js publish --target-repo ${targetRepo} --workdir {{target_worktree}} --fork-repo {{fork_repo}} --default-branch {{target_default_branch}} --branch ${installBranch} --pr-title 'Install Sepo agent infrastructure' --pr-body-file {{install_pr_body_file}}`,
+        env: INSTALL_TOKEN_ENV,
         templateSlots: [
-          {
-            name: "target_default_branch",
-            sourceStep: "prepare-install-worktree",
-            description: "Use the defaultBranch returned by the helper prepare step.",
-          },
-          {
-            name: "target_worktree",
-            sourceStep: "prepare-install-worktree",
-            description: "Use the workdir returned by the helper prepare step.",
-          },
+          TARGET_DEFAULT_BRANCH_SLOT,
+          TARGET_WORKTREE_SLOT,
           {
             name: "fork_repo",
             sourceStep: "prepare-install-worktree",
@@ -139,12 +181,12 @@ export function buildInstallLifecyclePlan(input: InstallLifecyclePlanInput): Ins
           },
           {
             name: "install_pr_body_file",
-            sourceStep: "validate-install-diff",
+            sourceStep: "commit-install-changes",
             description: "Use the generated install PR body file after validation.",
           },
         ],
         description:
-          "Fill all template slots before using the helper to push the fork branch and reuse or open the install PR with source revision, installed files, validation, and required setup after merge.",
+          "Fill all template slots after committing the install diff, then use the helper to push the fork branch and reuse or open the install PR with source revision, installed files, validation, and required setup after merge.",
       },
     ],
   };

@@ -16,19 +16,31 @@ test("buildInstallLifecyclePlan emits deterministic install route steps", () => 
     [
       "prepare-install-worktree",
       "resolve-source-release",
+      "checkout-source-release",
       "copy-install-scope",
       "validate-install-diff",
+      "stage-install-changes",
+      "commit-install-changes",
       "publish-install-pr",
     ],
   );
   assert.match(plan.steps[0]?.command || "", /install-fork-pr\.js prepare --target-repo foo\/bar/);
+  assert.equal(plan.steps[0]?.env?.GH_TOKEN, "AGENT_INSTALL_PAT");
   assert.match(plan.steps[0]?.description || "", /current target default branch/);
-  assert.equal(plan.steps[2]?.templateSlots?.[1]?.sourceStep, "prepare-install-worktree");
-  assert.match(plan.steps[4]?.commandTemplate || "", /install-fork-pr\.js publish --target-repo foo\/bar/);
-  assert.match(plan.steps[4]?.commandTemplate || "", /{{target_default_branch}}/);
-  assert.match(plan.steps[4]?.commandTemplate || "", /{{fork_repo}}/);
-  assert.match(plan.steps[4]?.commandTemplate || "", /{{install_pr_body_file}}/);
-  assert.equal(plan.steps[4]?.templateSlots?.[0]?.sourceStep, "prepare-install-worktree");
+  assert.match(plan.steps[2]?.commandTemplate || "", /git clone --depth 1 --branch {{source_ref}}/);
+  assert.match(plan.steps[3]?.commandTemplate || "", /rsync -a/);
+  assert.equal(plan.steps[3]?.templateSlots?.[0]?.sourceStep, "checkout-source-release");
+  assert.equal(plan.steps[3]?.templateSlots?.[1]?.sourceStep, "prepare-install-worktree");
+  assert.match(plan.steps[5]?.commandTemplate || "", /git -C {{target_worktree}} add/);
+  assert.match(plan.steps[6]?.commandTemplate || "", /git -C {{target_worktree}} commit/);
+  assert.match(plan.steps[7]?.commandTemplate || "", /install-fork-pr\.js publish --target-repo foo\/bar/);
+  assert.match(plan.steps[7]?.commandTemplate || "", /{{target_default_branch}}/);
+  assert.match(plan.steps[7]?.commandTemplate || "", /{{fork_repo}}/);
+  assert.match(plan.steps[7]?.commandTemplate || "", /{{install_pr_body_file}}/);
+  assert.equal(plan.steps[7]?.env?.GH_TOKEN, "AGENT_INSTALL_PAT");
+  assert.equal(plan.steps[7]?.templateSlots?.[3]?.sourceStep, "commit-install-changes");
+  assert.doesNotMatch(JSON.stringify(plan), /GITHUB_TOKEN|github\.token|steps\.auth\.outputs\.token/);
+  assert.doesNotMatch(JSON.stringify(plan), /"GH_TOKEN":"AGENT_PAT"/);
   assert.doesNotMatch(JSON.stringify(plan), /<target-default-branch>|<install-pr-body\.md>/);
 });
 

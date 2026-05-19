@@ -42,19 +42,23 @@ repository by opening or reusing a focused install PR.
    - If a reusable PR already exists, update that worktree and PR rather than
      creating a duplicate.
 4. Execute the remaining plan steps in order. Treat the step IDs, commands,
-   command templates, template slots, and descriptions as the deterministic
-   install contract for source release selection, copy scope, diff validation,
-   and helper-owned publishing. Never run a `commandTemplate` until every
-   `templateSlots` entry has been filled from its named `sourceStep`.
+   command templates, environment requirements, template slots, and descriptions
+   as the deterministic install contract for source release selection, copy
+   scope, diff validation, commit creation, and helper-owned publishing. Never
+   run a `commandTemplate` until every `templateSlots` entry has been filled
+   from its named `sourceStep`.
    - Use the helper output for the prepared worktree, fork repo, default branch,
      install branch, and reusable PR state.
    - Do not replace helper-owned fork branch or PR operations with raw
      `git checkout`, `git push`, or `gh pr create` commands.
-5. If a step cannot be completed, stop and return a blocked result that names
+5. Stage and commit the validated install diff before publishing. If no staged
+   changes exist after the copy/validation steps, stop and report that no
+   install diff was produced rather than publishing the previous `HEAD`.
+6. If a step cannot be completed, stop and return a blocked result that names
    the failed step and the needed next action. For target write failures, say to
    update `AGENT_INSTALL_PAT` or target repository access before rerunning
    `/install`.
-6. Publish through the helper with flag-style arguments:
+7. Publish through the helper with flag-style arguments:
    ```sh
    GH_TOKEN="$GH_TOKEN" node .agent/dist/cli/install-fork-pr.js publish \
      --target-repo "<target_repo>" \

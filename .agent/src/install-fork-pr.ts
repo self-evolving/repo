@@ -450,13 +450,21 @@ function cloneTarget(
     if (checkoutExistingBranch) {
       runner.git(["fetch", "install-fork", branch], workdir);
       runner.git(["checkout", "-B", branch, "FETCH_HEAD"], workdir);
-      runner.git(["merge", "--no-edit", targetDefaultRef], workdir);
+      try {
+        runner.git(["merge", "--no-edit", targetDefaultRef], workdir);
+      } catch {
+        throw new InstallForkPrBlocked(
+          "target_default_merge_conflict",
+          `Existing install branch ${fork.fullName}:${branch} conflicts with current ${target.fullName}:${target.defaultBranch}; resolve or close the install PR branch before rerunning /install.`,
+        );
+      }
     } else {
       runner.git(["checkout", "-B", branch], workdir);
     }
     runner.git(["config", "user.name", process.env.GIT_BOT_NAME || DEFAULT_BOT_NAME], workdir);
     runner.git(["config", "user.email", process.env.GIT_BOT_EMAIL || DEFAULT_BOT_EMAIL], workdir);
-  } catch {
+  } catch (err) {
+    if (err instanceof InstallForkPrBlocked) throw err;
     throw new InstallForkPrBlocked(
       "target_clone_failed",
       `Could not clone ${target.fullName} and prepare ${branch}.`,
