@@ -159,3 +159,42 @@ test("resolve-dispatch returns a clear response for invalid install requests", (
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
+
+test("resolve-dispatch emits install route with bundled install skill", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-resolve-dispatch-"));
+
+  try {
+    const outputPath = join(tempDir, "github-output.txt");
+    writeFileSync(outputPath, "", "utf8");
+
+    const result = spawnSync("node", [".agent/dist/cli/resolve-dispatch.js"], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        GITHUB_OUTPUT: outputPath,
+        REQUESTED_ROUTE: "install",
+        REQUESTED_SKILL: "",
+        REQUEST_TEXT: "@sepo-agent /install self-evolving/example-repo",
+        TARGET_KIND: "discussion",
+        AUTHOR_ASSOCIATION: "MEMBER",
+        ACCESS_POLICY: JSON.stringify({
+          allowed_associations: ["OWNER", "MEMBER", "COLLABORATOR", "CONTRIBUTOR"],
+          route_overrides: {
+            install: ["OWNER", "MEMBER"],
+            skill: ["OWNER", "MEMBER", "COLLABORATOR", "CONTRIBUTOR"],
+          },
+        }),
+        REPOSITORY_PRIVATE: "false",
+      },
+      encoding: "utf8",
+    });
+
+    assert.equal(result.status, 0);
+    const outputs = parseGithubOutput(outputPath);
+    assert.equal(outputs.get("route"), "install");
+    assert.equal(outputs.get("needs_approval"), "false");
+    assert.equal(outputs.get("skill"), "install-agent");
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});

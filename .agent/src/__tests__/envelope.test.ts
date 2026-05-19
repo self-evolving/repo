@@ -591,6 +591,7 @@ test("agent router supports label-triggered route and skill overrides", () => {
   assert.match(runnerWorkflow, /label_name:/);
   assert.match(runnerWorkflow, /requested_skill:/);
   assert.match(runnerWorkflow, /needs\.portal\.outputs\.route == 'skill'/);
+  assert.match(runnerWorkflow, /needs\.portal\.outputs\.route == 'install'/);
   assert.match(runnerWorkflow, /workflow_call:[\s\S]*outputs:[\s\S]*should_respond:/);
   assert.doesNotMatch(runnerWorkflow, /clear-trigger-label:/);
   assert.match(runnerWorkflow, /vars\.AGENT_RUNS_ON/);
@@ -860,6 +861,9 @@ test("skill route uses the composite setup action for path and setup checks", ()
   const setupStart = skillWorkflow.indexOf("- name: Run skill setup");
 
   assert.match(skillWorkflow, /\.\/\.github\/actions\/run-skill-setup/);
+  assert.match(skillWorkflow, /needs\.portal\.outputs\.route == 'install'/);
+  assert.match(skillWorkflow, /route:\s*\$\{\{\s*needs\.portal\.outputs\.route\s*\}\}/);
+  assert.match(skillWorkflow, /ROUTE:\s*\$\{\{\s*needs\.portal\.outputs\.route\s*\}\}/);
   assert.match(skillWorkflow, /trusted_ref:\s*\$\{\{ !startsWith\(github\.ref, 'refs\/pull\/'\) \}\}/);
   assert.match(skillWorkflow, /skill_root:\s*\$\{\{ inputs\.skill_root \}\}/);
   assert.match(skillWorkflow, /install_target_repo:\s*\$\{\{\s*needs\.portal\.outputs\.requested_install_target_repo\s*\}\}/);

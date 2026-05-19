@@ -37,14 +37,15 @@ and ends with an alphanumeric character and the repo contains only
 alphanumerics, `.`, `_`, or `-`. Stop if that rule does not identify exactly one
 target or if unrelated prose contains a conflicting repo-like slug.
 
-Current v1 auth contract: use only the `GH_TOKEN` already resolved for this
-skill run. You may clone public target repositories, but open an install PR only
-when that same token can push a branch to the target repository and create the
-PR. Do not switch to a different token, create a fork, or assume configuring a
-new App/PAT during the run changes the active token. If the token lacks target
-write access, stop with a blocked result that tells the requester to rerun from
-a workflow whose resolved token already has target write access, or to use a
-manual/fork-based install path outside this v1 command.
+Current v1 auth contract: `/install` is authorized as the `install` route, then
+this skill uses only the `GH_TOKEN` already resolved for the run. You may clone
+public target repositories, but open an install PR only when that same token can
+push a branch to the target repository and create the PR. Do not switch to a
+different token, create a fork, or assume configuring a new App/PAT during the
+run changes the active token. If the token lacks target write access, stop with
+a blocked result that tells the requester to rerun from a workflow whose
+resolved token already has target write access, or to use a manual/fork-based
+install path outside this v1 command.
 
 Stop if the target repo, branch, source revision, or active write identity is
 ambiguous.
@@ -188,6 +189,8 @@ unless explicitly requested.
      and the structured numbered setup section above. Keep the user-facing copy
      aligned with the onboarding status comment: GitHub App/auth, model
      credentials, memory, rubrics, remaining setup, and smoke-test commands.
+     Clearly distinguish settings detected during the audit from todos the
+     repository owner still needs to complete after merge.
    - Do not merge the PR unless explicitly asked.
 
 ## Post-Merge Guidance

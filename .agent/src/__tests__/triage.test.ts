@@ -151,14 +151,14 @@ test("extractRequestedRouteDecision detects mention-based skill requests", () =>
   );
 });
 
-test("extractRequestedRouteDecision maps install requests to install-agent skill", () => {
+test("extractRequestedRouteDecision maps install requests to install route and skill", () => {
   assert.deepEqual(
     extractRequestedRouteDecision(
       "@sepo-agent /install self-evolving/example-repo",
       "@sepo-agent",
     ),
     {
-      route: "skill",
+      route: "install",
       skill: "install-agent",
       installTargetRepo: "self-evolving/example-repo",
     },
@@ -169,7 +169,7 @@ test("extractRequestedRouteDecision maps install requests to install-agent skill
       "@sepo-agent",
     ),
     {
-      route: "skill",
+      route: "install",
       skill: "install-agent",
       installTargetRepo: "self-evolving/example-repo",
     },
@@ -180,7 +180,7 @@ test("extractRequestedRouteDecision maps install requests to install-agent skill
       "@sepo-agent",
     ),
     {
-      route: "skill",
+      route: "install",
       skill: "install-agent",
       installTargetRepo: "self-evolving/example-repo",
     },
@@ -299,6 +299,13 @@ test("buildRequestedRouteDecision supports skill routes", () => {
   const d = buildRequestedRouteDecision("skill", "agent/s/release-notes");
   assert.equal(d.route, "skill");
   assert.equal(d.needsApproval, false);
+});
+
+test("buildRequestedRouteDecision supports install routes", () => {
+  const d = buildRequestedRouteDecision("install", "@sepo-agent /install owner/repo");
+  assert.equal(d.route, "install");
+  assert.equal(d.needsApproval, false);
+  assert.match(d.summary, /install skill/);
 });
 
 test("resolveRequestedLabel maps built-in and skill labels", () => {
@@ -475,6 +482,50 @@ test("applyDispatchPolicy keeps skill requests as immediate inline runs", () => 
   );
   assert.equal(d.route, "skill");
   assert.equal(d.needsApproval, false);
+});
+
+test("applyDispatchPolicy evaluates install independently from skill overrides", () => {
+  const policy = parseAccessPolicy(
+    JSON.stringify({
+      allowed_associations: ["OWNER", "MEMBER", "COLLABORATOR", "CONTRIBUTOR"],
+      route_overrides: {
+        install: ["OWNER", "MEMBER"],
+        skill: ["OWNER", "MEMBER", "COLLABORATOR", "CONTRIBUTOR"],
+      },
+    }),
+  );
+
+  const deniedInstall = applyDispatchPolicy(
+    buildRequestedRouteDecision("install", "@sepo-agent /install owner/repo"),
+    "discussion",
+    "CONTRIBUTOR",
+    policy,
+    true,
+    true,
+  );
+  assert.equal(deniedInstall.route, "unsupported");
+  assert.match(deniedInstall.summary, /install requests currently require OWNER, MEMBER access/);
+
+  const allowedSkill = applyDispatchPolicy(
+    buildRequestedRouteDecision("skill", "@sepo-agent /skill release-notes"),
+    "discussion",
+    "CONTRIBUTOR",
+    policy,
+    true,
+    true,
+  );
+  assert.equal(allowedSkill.route, "skill");
+
+  const allowedInstall = applyDispatchPolicy(
+    buildRequestedRouteDecision("install", "@sepo-agent /install owner/repo"),
+    "discussion",
+    "MEMBER",
+    policy,
+    true,
+    true,
+  );
+  assert.equal(allowedInstall.route, "install");
+  assert.equal(allowedInstall.needsApproval, false);
 });
 
 test("applyDispatchPolicy rejects routes disallowed by configured access policy", () => {

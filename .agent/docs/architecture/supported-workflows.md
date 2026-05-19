@@ -226,10 +226,11 @@ skill setup should customize the copied `agent-router.yml` skill job directly
 so repositories can use native GitHub Actions `uses`, `with`, Docker, service,
 or cache features.
 
-`/install owner/repo` is a public convenience alias for
-`/skill install-agent`; it requires a target repository slug in `owner/repo`
-form before the skill route runs. Access policy evaluates this alias as the
-`skill` route.
+`/install owner/repo` is a first-class route that requires a target repository
+slug in `owner/repo` form before it runs the bundled `install-agent` skill.
+Access policy evaluates it as the `install` route, so
+`AGENT_ACCESS_POLICY.route_overrides.install` can restrict external installs
+without blocking general `/skill` runs.
 
 ### `agent-label.yml`
 

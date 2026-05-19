@@ -68,7 +68,7 @@ test("extract-context skips approval commands for a configured custom mention", 
   }
 });
 
-test("extract-context preserves validated install target for skill routes", () => {
+test("extract-context preserves validated install target for install routes", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-extract-context-"));
 
   try {
@@ -111,7 +111,7 @@ test("extract-context preserves validated install target for skill routes", () =
 
     const outputs = parseGithubOutput(outputPath);
     assert.equal(outputs.get("should_respond"), "true");
-    assert.equal(outputs.get("requested_route"), "skill");
+    assert.equal(outputs.get("requested_route"), "install");
     assert.equal(outputs.get("requested_skill"), "install-agent");
     assert.equal(outputs.get("requested_install_target_repo"), "self-evolving/example-repo");
   } finally {
