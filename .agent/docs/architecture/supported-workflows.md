@@ -80,10 +80,12 @@ workflow.
 
 Implementation dispatches default to the repository default branch. Callers can
 set `base_branch` to stack directly on another branch, or `base_pr` to stack on
-an open same-repository PR head branch. Explicit or approved implement requests
-on a pull request also derive `base_pr` from that source PR when the request asks
-for a stacked or follow-up PR and no base input is already set. The
-implementation workflow rejects ambiguous input when both are set.
+an open same-repository PR head branch. Explicit or approved implement
+command/comment text on a pull request also derives `base_pr` from that source
+PR when the request asks for a stacked or follow-up PR and no base input is
+already set. Label-triggered implement runs do not infer a base from PR
+title/body prose. The implementation workflow rejects ambiguous input when both
+are set.
 
 When a new review synthesis, rubrics review, `fix-pr` status comment, or
 orchestrator handoff marker is posted, the workflows minimize prior visible

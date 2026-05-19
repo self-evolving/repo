@@ -713,8 +713,10 @@ test("agent router dispatches agent-implement directly for explicit implement re
     implementJob,
     /SESSION_FORK_FROM_THREAD_KEY:\s*\$\{\{ github\.repository \}\}:\$\{\{ needs\.portal\.outputs\.target_kind \}\}:\$\{\{ needs\.portal\.outputs\.target_number \}\}:answer:default/,
   );
+  assert.match(implementJob, /REQUEST_SOURCE_KIND:\s*\$\{\{ needs\.portal\.outputs\.source_kind \}\}/);
   assert.match(implementJob, /TARGET_KIND:\s*\$\{\{ needs\.portal\.outputs\.target_kind \}\}/);
   assert.match(implementJob, /TARGET_NUMBER:\s*\$\{\{ needs\.portal\.outputs\.target_number \}\}/);
+  assert.match(implementJob, /TRIGGER_KIND:\s*\$\{\{ inputs\.trigger_kind \}\}/);
 
   // Link-back comment on the originating PR/discussion points at the
   // tracking issue that was just created.
@@ -726,8 +728,10 @@ test("agent router dispatches agent-implement directly for explicit implement re
   // agent-approve.yml uses the same CLIs — no duplicate inline shell.
   assert.match(approveWorkflow, /node \.agent\/dist\/cli\/create-issue\.js/);
   assert.match(approveWorkflow, /node \.agent\/dist\/cli\/dispatch-agent-implement\.js/);
+  assert.match(approveWorkflow, /REQUEST_SOURCE_KIND:\s*\$\{\{ steps\.approval\.outputs\.source_kind \}\}/);
   assert.match(approveWorkflow, /TARGET_KIND:\s*\$\{\{ steps\.approval\.outputs\.target_kind \}\}/);
   assert.match(approveWorkflow, /TARGET_NUMBER:\s*\$\{\{ steps\.approval\.outputs\.target_number \}\}/);
+  assert.match(approveWorkflow, /TRIGGER_KIND:\s*approval/);
   assert.doesNotMatch(approveWorkflow, /actions\/workflows\/\$\{WORKFLOW\}\/dispatches/);
 });
 

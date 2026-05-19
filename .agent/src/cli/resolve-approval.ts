@@ -5,7 +5,7 @@
 // Outputs: should_dispatch, is_discussion, request_comment_id,
 //          request_comment_body, route, target_kind, target_number,
 //          target_url, workflow, issue_title, issue_body, request_text,
-//          should_create_issue
+//          source_kind, should_create_issue
 
 import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
@@ -152,6 +152,7 @@ function main(): void {
   setOutput("request_comment_id", String(pending.comment.id));
   setOutput("request_comment_body", pending.comment.body);
   setOutput("route", route);
+  setOutput("source_kind", String(pending.request.source_kind || ""));
   setOutput("target_kind", String(pending.request.target_kind || ""));
   setOutput("target_number", String(pending.request.target_number || ""));
   setOutput("target_url", String(pending.request.target_url || ""));

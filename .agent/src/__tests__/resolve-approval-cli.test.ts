@@ -223,6 +223,7 @@ test("resolve-approval permits route approvals allowed by access policy", () => 
     const marker = buildApprovalRequestMarker({
       request_id: "req-d4e5f6",
       route: "implement",
+      source_kind: "issue_comment",
       target_kind: "issue",
       target_number: 139,
       target_url: "https://github.com/self-evolving/repo/issues/139",
@@ -286,6 +287,7 @@ exit 1
     const outputs = parseGithubOutput(outputPath);
     assert.equal(outputs.get("should_dispatch"), "true");
     assert.equal(outputs.get("route"), "implement");
+    assert.equal(outputs.get("source_kind"), "issue_comment");
     assert.equal(outputs.get("workflow"), "agent-implement.yml");
   } finally {
     rmSync(tempDir, { recursive: true, force: true });

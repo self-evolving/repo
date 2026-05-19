@@ -9,6 +9,8 @@ import {
 test("stacked PR language derives base_pr from the source pull request", () => {
   const hint = resolveImplementationBaseHint({
     requestText: "@sepo-agent /implement work on this as a stacked PR?",
+    requestSourceKind: "issue_comment",
+    triggerKind: "mention",
     targetKind: "pull_request",
     targetNumber: "268",
   });
@@ -23,6 +25,8 @@ test("stacked PR language derives base_pr from the source pull request", () => {
 test("follow-up PR language derives base_pr from the source pull request", () => {
   const hint = resolveImplementationBaseHint({
     requestText: "@sepo-agent /implement make this a follow-up PR",
+    requestSourceKind: "issue_comment",
+    triggerKind: "mention",
     targetKind: "pull_request",
     targetNumber: "274",
   });
@@ -34,6 +38,8 @@ test("follow-up PR language derives base_pr from the source pull request", () =>
 test("implementation base hint does not derive without PR stack intent", () => {
   const hint = resolveImplementationBaseHint({
     requestText: "@sepo-agent /implement fix the failing test",
+    requestSourceKind: "issue_comment",
+    triggerKind: "mention",
     targetKind: "pull_request",
     targetNumber: "268",
   });
@@ -42,9 +48,37 @@ test("implementation base hint does not derive without PR stack intent", () => {
   assert.equal(requestImpliesStackedPr("fix the stack trace formatting"), false);
 });
 
+test("implementation base hint ignores ordinary stacked prose", () => {
+  const hint = resolveImplementationBaseHint({
+    requestText: "@sepo-agent /implement update the stacked layout",
+    requestSourceKind: "issue_comment",
+    triggerKind: "mention",
+    targetKind: "pull_request",
+    targetNumber: "268",
+  });
+
+  assert.deepEqual(hint, { baseBranch: "", basePr: "", source: "none" });
+  assert.equal(requestImpliesStackedPr("fix the stacked cache panel"), false);
+  assert.equal(requestImpliesStackedPr("document stacked traces"), false);
+});
+
+test("implementation base hint ignores label-triggered PR target prose", () => {
+  const hint = resolveImplementationBaseHint({
+    requestText: "Follow-up PR\n\nThis should be a stacked PR after the parent lands.",
+    requestSourceKind: "pull_request",
+    triggerKind: "label",
+    targetKind: "pull_request",
+    targetNumber: "268",
+  });
+
+  assert.deepEqual(hint, { baseBranch: "", basePr: "", source: "none" });
+});
+
 test("implementation base hint keeps explicitly provided base inputs", () => {
   const hint = resolveImplementationBaseHint({
     requestText: "@sepo-agent /implement as a stacked PR",
+    requestSourceKind: "issue_comment",
+    triggerKind: "mention",
     targetKind: "pull_request",
     targetNumber: "268",
     baseBranch: "agent/parent",
@@ -60,6 +94,8 @@ test("implementation base hint keeps explicitly provided base inputs", () => {
 test("implementation base hint only derives from pull request targets", () => {
   const hint = resolveImplementationBaseHint({
     requestText: "@sepo-agent /implement as a stacked PR",
+    requestSourceKind: "issue_comment",
+    triggerKind: "mention",
     targetKind: "issue",
     targetNumber: "268",
   });

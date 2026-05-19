@@ -3,7 +3,8 @@
 // Env: GITHUB_REPOSITORY, DEFAULT_BRANCH, ISSUE_NUMBER, REQUESTED_BY,
 //      REQUEST_TEXT, APPROVAL_COMMENT_URL, SESSION_FORK_FROM_THREAD_KEY,
 //      BASE_BRANCH, BASE_PR, IMPLEMENTATION_ROUTE, IMPLEMENTATION_PROMPT,
-//      TARGET_KIND, TARGET_NUMBER, AUTOMATION_MODE, AUTOMATION_MAX_ROUNDS
+//      REQUEST_SOURCE_KIND, TRIGGER_KIND, TARGET_KIND, TARGET_NUMBER,
+//      AUTOMATION_MODE, AUTOMATION_MAX_ROUNDS
 
 import { dispatchWorkflow } from "../github.js";
 import { resolveImplementationBaseHint } from "../implementation-base-hint.js";
@@ -17,6 +18,8 @@ const approvalCommentUrl = process.env.APPROVAL_COMMENT_URL || "";
 const sessionForkFromThreadKey = process.env.SESSION_FORK_FROM_THREAD_KEY || "";
 const baseBranch = process.env.BASE_BRANCH || "";
 const basePr = process.env.BASE_PR || "";
+const requestSourceKind = process.env.REQUEST_SOURCE_KIND || "";
+const triggerKind = process.env.TRIGGER_KIND || "";
 const targetKind = process.env.TARGET_KIND || "";
 const targetNumber = process.env.TARGET_NUMBER || "";
 const implementationRoute = process.env.IMPLEMENTATION_ROUTE || "implement";
@@ -25,6 +28,8 @@ const automationMode = process.env.AUTOMATION_MODE || "disabled";
 const automationMaxRounds = process.env.AUTOMATION_MAX_ROUNDS || "12";
 const baseHint = resolveImplementationBaseHint({
   requestText,
+  requestSourceKind,
+  triggerKind,
   targetKind,
   targetNumber,
   baseBranch,

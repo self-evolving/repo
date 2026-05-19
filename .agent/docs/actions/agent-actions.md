@@ -20,9 +20,10 @@ The orchestrator is now a top-level route. Users start orchestration explicitly 
 Implementation runs can create stacked PRs by receiving either `base_branch` or
 `base_pr`. `base_pr` resolves to the open same-repository PR head branch; when
 neither input is set, implementations branch from the repository default branch.
-For implement requests made on a pull request, stack language such as "stacked
-PR" or "follow-up PR" derives `base_pr` from the source PR number unless a base
-was already supplied.
+For explicit implement command/comment text on a pull request, stack language
+such as "stacked PR" or "follow-up PR" derives `base_pr` from the source PR
+number unless a base was already supplied. Label-triggered implement runs do not
+derive a base from PR title/body prose.
 
 ## Consumption model
 

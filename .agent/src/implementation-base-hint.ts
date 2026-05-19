@@ -1,5 +1,7 @@
 export interface ImplementationBaseHintInput {
   requestText: string;
+  requestSourceKind?: string;
+  triggerKind?: string;
   targetKind: string;
   targetNumber: string;
   baseBranch?: string;
@@ -13,13 +15,23 @@ export interface ImplementationBaseHint {
 }
 
 const STACKED_PR_PATTERNS = [
-  /\bstacked\b/i,
-  /\b(?:stack|stacking)\s+(?:pr|pull request|branch|on|onto|against|this|it)\b/i,
+  /\b(?:stack|stacked|stacking)\s+(?:pr|pull request|branch)\b/i,
+  /\b(?:stack|stacked|stacking)\s+(?:on|onto|against)\s+(?:this|it|the\s+(?:pr|pull request|branch))\b/i,
   /\bon\s+top\s+of\s+(?:this|the)\s+(?:pr|pull request|branch)\b/i,
   /\bbas(?:e|ed|ing)\s+(?:it|this|the\s+work|the\s+implementation|the\s+pr|the\s+pull\s+request)?\s*(?:on|off)\s+(?:this|the)\s+(?:pr|pull request|branch)\b/i,
   /\bfollow[-\s]?up\s+(?:pr|pull request|branch)\b/i,
-  /\bas\s+a\s+follow[-\s]?up\b/i,
+  /\bas\s+a\s+follow[-\s]?up\s+(?:pr|pull request|branch)\b/i,
+  /\bfollow[-\s]?up\s+(?:to|on|against)\s+(?:this|the)\s+(?:pr|pull request|branch)\b/i,
 ];
+
+const COMMENT_SOURCE_KINDS = new Set([
+  "issue_comment",
+  "pull_request_review",
+  "pull_request_review_comment",
+  "discussion_comment",
+]);
+
+const EXPLICIT_IMPLEMENT_COMMAND = /(?:^|[\s(])\/implement(?=$|[\s.,;:!?)\]}])/i;
 
 function parsePositiveTargetNumber(value: string): number | null {
   const trimmed = String(value || "").trim();
@@ -36,6 +48,19 @@ export function requestImpliesStackedPr(requestText: string): boolean {
   return STACKED_PR_PATTERNS.some((pattern) => pattern.test(text));
 }
 
+function canDeriveFromRequestText(input: ImplementationBaseHintInput): boolean {
+  const triggerKind = String(input.triggerKind || "").trim().toLowerCase();
+  if (triggerKind === "label") {
+    return false;
+  }
+
+  const requestSourceKind = String(input.requestSourceKind || "").trim().toLowerCase();
+  return (
+    COMMENT_SOURCE_KINDS.has(requestSourceKind) ||
+    EXPLICIT_IMPLEMENT_COMMAND.test(String(input.requestText || ""))
+  );
+}
+
 export function resolveImplementationBaseHint(
   input: ImplementationBaseHintInput,
 ): ImplementationBaseHint {
@@ -50,7 +75,11 @@ export function resolveImplementationBaseHint(
   }
 
   const targetNumber = parsePositiveTargetNumber(input.targetNumber);
-  if (targetNumber === null || !requestImpliesStackedPr(input.requestText)) {
+  if (
+    targetNumber === null ||
+    !canDeriveFromRequestText(input) ||
+    !requestImpliesStackedPr(input.requestText)
+  ) {
     return { baseBranch: "", basePr: "", source: "none" };
   }
 
