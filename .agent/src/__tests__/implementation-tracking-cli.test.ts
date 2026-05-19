@@ -116,6 +116,11 @@ if [ "\${1-}" = "api" ] && [ "\${2-}" = "--method" ] && [ "\${3-}" = "POST" ] &&
   exit 0
 fi
 
+if [ "\${1-}" = "api" ] && [ "\${2-}" = "--method" ] && [ "\${3-}" = "POST" ] && [[ "\${4-}" == repos/*/pulls/*/comments/*/replies ]]; then
+  printf '%s\\n' "\${FAKE_MARKER_ID-9001}"
+  exit 0
+fi
+
 printf 'unexpected gh args: %s\\n' "$*" >&2
 exit 1
 `,
@@ -207,6 +212,18 @@ test("explicit non-issue implement reuses trusted link-back before creating", ()
   assert.doesNotMatch(run.ghLog, /issue create/);
 });
 
+test("explicit PR review comment implement link-back replies in thread", () => {
+  const run = runEnsureImplementationTracking({
+    RESPONSE_KIND: "review_comment_reply",
+    REVIEW_COMMENT_ID: "1234",
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("issue_number"), "77");
+  assert.match(run.ghLog, /repos\/self-evolving\/repo\/pulls\/21\/comments\/1234\/replies/);
+  assert.doesNotMatch(run.ghLog, /api --method POST repos\/self-evolving\/repo\/issues\/21\/comments/);
+});
+
 test("explicit discussion implement dedupes link-back before addDiscussionComment", () => {
   const markerKey = implementationTrackingKey({
     targetKind: "discussion",
@@ -237,4 +254,21 @@ test("explicit discussion implement dedupes link-back before addDiscussionCommen
   assert.equal(run.outputs.get("reused"), "true");
   assert.doesNotMatch(run.ghLog, /addDiscussionComment/);
   assert.doesNotMatch(run.ghLog, /issue create/);
+});
+
+test("explicit discussion comment implement link-back replies in thread", () => {
+  const run = runEnsureImplementationTracking({
+    TARGET_KIND: "discussion",
+    TARGET_NUMBER: "31",
+    TARGET_URL: "https://github.com/self-evolving/repo/discussions/31",
+    DISCUSSION_ID: "D_31",
+    RESPONSE_KIND: "discussion_comment",
+    REPLY_TO_ID: "DC_parent",
+    FAKE_CREATED_ISSUE_NUMBER: "88",
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("issue_number"), "88");
+  assert.match(run.ghLog, /addDiscussionComment/);
+  assert.match(run.ghLog, /replyToId=DC_parent/);
 });

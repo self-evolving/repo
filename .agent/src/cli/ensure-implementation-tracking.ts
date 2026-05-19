@@ -20,6 +20,9 @@ const result = ensureImplementationTrackingIssueForTarget({
   sourceKind: env("SOURCE_KIND"),
   targetUrl: env("TARGET_URL"),
   discussionId: env("DISCUSSION_ID"),
+  responseKind: env("RESPONSE_KIND"),
+  reviewCommentId: env("REVIEW_COMMENT_ID"),
+  replyToId: env("REPLY_TO_ID"),
   linkBackLabel: env("LINK_BACK_LABEL") || "this request",
 });
 

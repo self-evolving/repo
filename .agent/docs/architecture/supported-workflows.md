@@ -223,7 +223,7 @@ Explicit routes are:
 - `@sepo-agent /skill <name>`
 
 Explicit routes skip dispatch triage and resolve locally, but still go through the same route policy checks afterward.
-When an explicit `/implement` request on a pull request or discussion creates a tracking issue, the router runs a metadata-only agent prompt to synthesize the issue title and body from the request plus target context. A shared implementation tracking helper creates or reuses that issue and posts a deduped link-back to the source surface. The slash command approves the route; it is not copied into the title. Pull request metadata can also include `base_pr` for stacked or follow-up implementation requests. If metadata generation is unavailable or invalid, the issue falls back to `Implement requested change`.
+When an explicit `/implement` request on a pull request or discussion creates a tracking issue, the router runs a metadata-only agent prompt to synthesize the issue title and body from the request plus target context. A shared implementation tracking helper creates or reuses that issue and posts a deduped link-back to the original response surface, preserving PR review comment replies and discussion comment threading when the request came from those surfaces. The slash command approves the route; it is not copied into the title. Pull request metadata can also include `base_pr` for stacked or follow-up implementation requests. If metadata generation is unavailable or invalid, the issue falls back to `Implement requested change`.
 
 Explicit `/orchestrate` requests are valid on issues, pull requests, and
 discussions. Planner-selected `implement` on a pull request or discussion

@@ -11,6 +11,7 @@ import {
   fetchIssueCommentRecords,
   gh,
 } from "./github.js";
+import { postResponse, type ResponseTarget } from "./respond.js";
 
 export interface CommentRecord {
   id?: string | number;
@@ -46,6 +47,9 @@ export interface EnsureImplementationTrackingIssueInput {
   baseBranch?: string;
   basePr?: string;
   discussionId?: string;
+  responseKind?: string;
+  reviewCommentId?: string;
+  replyToId?: string;
   linkBackLabel?: string;
 }
 
@@ -457,6 +461,7 @@ function postImplementationLinkBack(
   issueUrl: string,
   trackingKey: string,
   linkBackLabel: string,
+  responseTarget?: ResponseTarget,
 ): void {
   const issueNumber = parseIssueNumberFromUrl(issueUrl);
   const marker = formatImplementationTrackingMarker({ key: trackingKey, issueNumber });
@@ -469,6 +474,10 @@ function postImplementationLinkBack(
     console.warn(`Could not inspect existing implementation link-back for ${metadata.label}: ${errorText(err)}`);
   }
   try {
+    if (responseTarget) {
+      postResponse(responseTarget, body);
+      return;
+    }
     if (metadata.kind === "pull_request") {
       const number = parsePositiveTargetNumber(metadata.number);
       if (!number) throw new Error(`invalid pull request number: ${metadata.number}`);
@@ -492,6 +501,24 @@ function postImplementationLinkBack(
   } catch (err: unknown) {
     console.warn(`Could not post implementation link-back to ${metadata.label}: ${errorText(err)}`);
   }
+}
+
+function buildLinkBackResponseTarget(
+  input: EnsureImplementationTrackingIssueInput,
+  metadata: SourceTargetMetadata,
+): ResponseTarget | undefined {
+  const responseKind = normalizeInlineText(input.responseKind || "");
+  if (!responseKind) return undefined;
+  const targetNumber = parsePositiveTargetNumber(input.targetNumber);
+  if (!targetNumber) return undefined;
+  return {
+    responseKind,
+    targetNumber,
+    reviewCommentId: parsePositiveTargetNumber(input.reviewCommentId || "") || undefined,
+    discussionNodeId: input.discussionId || metadata.discussionId,
+    replyToId: normalizeInlineText(input.replyToId || "") || undefined,
+    repo: input.repo,
+  };
 }
 
 function withTempBodyFile<T>(body: string, fn: (path: string) => T): T {
@@ -525,9 +552,10 @@ export function ensureImplementationTrackingIssueForTarget(
   const trackingKey = buildImplementationTrackingKey(input);
   const existingIssueNumber = findExistingImplementationTrackingIssue(input.repo, metadata, trackingKey);
   const linkBackLabel = input.linkBackLabel || "this request";
+  const linkBackResponseTarget = buildLinkBackResponseTarget(input, metadata);
   if (existingIssueNumber) {
     const issueUrl = issueUrlFromNumber(input.repo, existingIssueNumber);
-    postImplementationLinkBack(input.repo, metadata, issueUrl, trackingKey, linkBackLabel);
+    postImplementationLinkBack(input.repo, metadata, issueUrl, trackingKey, linkBackLabel, linkBackResponseTarget);
     return {
       issueNumber: existingIssueNumber,
       issueUrl,
@@ -547,7 +575,7 @@ export function ensureImplementationTrackingIssueForTarget(
   }));
   const issueNumber = parseIssueNumberFromUrl(issueUrl);
   if (!issueNumber) throw new Error(`Could not parse implementation tracking issue URL: ${issueUrl}`);
-  postImplementationLinkBack(input.repo, metadata, issueUrl, trackingKey, linkBackLabel);
+  postImplementationLinkBack(input.repo, metadata, issueUrl, trackingKey, linkBackLabel, linkBackResponseTarget);
   return {
     issueNumber,
     issueUrl,

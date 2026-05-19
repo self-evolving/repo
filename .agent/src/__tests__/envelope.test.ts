@@ -708,6 +708,9 @@ test("agent router dispatches agent-implement directly for explicit implement re
     implementJob,
     /- name: Ensure implementation tracking issue[\s\S]*if:\s*needs\.portal\.outputs\.target_kind != 'issue'[\s\S]*node \.agent\/dist\/cli\/ensure-implementation-tracking\.js/,
   );
+  assert.match(implementJob, /RESPONSE_KIND:\s*\$\{\{\s*needs\.portal\.outputs\.response_kind\s*\}\}/);
+  assert.match(implementJob, /REVIEW_COMMENT_ID:\s*\$\{\{\s*needs\.portal\.outputs\.review_comment_id\s*\}\}/);
+  assert.match(implementJob, /REPLY_TO_ID:\s*\$\{\{\s*needs\.portal\.outputs\.reply_to_id\s*\}\}/);
   assert.match(
     implementJob,
     /- name: Dispatch agent-implement[\s\S]*APPROVAL_COMMENT_URL: ""[\s\S]*node \.agent\/dist\/cli\/dispatch-agent-implement\.js/,
