@@ -13,6 +13,7 @@ export interface InstallLifecycleStep {
   title: string;
   command?: string;
   commandTemplate?: string;
+  env?: Record<string, string>;
   templateSlots?: InstallLifecycleTemplateSlot[];
   description: string;
 }
@@ -49,6 +50,16 @@ const TARGET_DEFAULT_BRANCH_SLOT: InstallLifecycleTemplateSlot = {
   name: "target_default_branch",
   sourceStep: "check-target-write",
   description: "Use the target repository default_branch returned by the access check.",
+};
+
+const SOURCE_CHECKOUT_SLOT: InstallLifecycleTemplateSlot = {
+  name: "source_checkout",
+  sourceStep: "checkout-source-release",
+  description: "Use the clean source checkout created from the selected Sepo release.",
+};
+
+const INSTALL_TOKEN_ENV = {
+  GH_TOKEN: "AGENT_INSTALL_PAT",
 };
 
 function cleanInput(value: string | undefined, fallback: string): string {
@@ -93,15 +104,25 @@ export function buildInstallLifecyclePlan(input: InstallLifecyclePlanInput): Ins
         id: "check-target-write",
         title: "Check target repository access",
         command: `gh api repos/${targetRepo} --jq '{default_branch: .default_branch, permissions: .permissions}'`,
+        env: INSTALL_TOKEN_ENV,
         description:
-          "Confirm the install token can read the target repository and has push/write permission before preparing changes.",
+          "Confirm AGENT_INSTALL_PAT can read the target repository and has push/write permission before preparing changes.",
       },
       {
         id: "check-existing-install-pr",
         title: "Check for an existing install PR",
         command: `gh pr list --repo ${targetRepo} --head ${installBranch} --state open --json number,url,state,headRefName`,
+        env: INSTALL_TOKEN_ENV,
         description:
           "Reuse or report the open install PR before committing, pushing, or creating a new PR.",
+      },
+      {
+        id: "configure-target-git-auth",
+        title: "Configure target git authentication",
+        command: "gh auth setup-git --hostname github.com",
+        env: INSTALL_TOKEN_ENV,
+        description:
+          "Configure git credential lookup from GH_TOKEN, which is AGENT_INSTALL_PAT for install runs; do not use the normal repository token.",
       },
       {
         id: "resolve-source-release",
@@ -111,9 +132,29 @@ export function buildInstallLifecyclePlan(input: InstallLifecyclePlanInput): Ins
           "Select the latest non-draft stable release, falling back to the latest non-draft prerelease only when no stable release exists.",
       },
       {
+        id: "checkout-source-release",
+        title: "Check out the selected Sepo source release",
+        commandTemplate: `git clone --depth 1 --branch {{source_ref}} https://github.com/${sourceRepo}.git {{source_checkout}}`,
+        templateSlots: [
+          {
+            name: "source_ref",
+            sourceStep: "resolve-source-release",
+            description: "Use the selected Sepo release tag or fallback ref.",
+          },
+          {
+            name: "source_checkout",
+            sourceStep: "resolve-source-release",
+            description: "Choose an empty temporary directory for the selected Sepo source checkout.",
+          },
+        ],
+        description:
+          "Materialize the selected Sepo source revision before copying install files.",
+      },
+      {
         id: "setup-target-worktree",
         title: "Set up the target worktree",
-        commandTemplate: `git clone https://github.com/${targetRepo}.git {{target_worktree}}`,
+        commandTemplate: `gh repo clone ${targetRepo} {{target_worktree}}`,
+        env: INSTALL_TOKEN_ENV,
         templateSlots: [
           {
             name: "target_worktree",
@@ -135,17 +176,10 @@ export function buildInstallLifecyclePlan(input: InstallLifecyclePlanInput): Ins
       {
         id: "copy-install-scope",
         title: "Copy the approved install scope",
-        commandTemplate: "copy .agent/ and Sepo-owned .github assets from {{source_checkout}} into {{target_worktree}}",
-        templateSlots: [
-          {
-            name: "source_checkout",
-            sourceStep: "resolve-source-release",
-            description: "Use the checkout for the selected Sepo source revision.",
-          },
-          TARGET_WORKTREE_SLOT,
-        ],
+        commandTemplate: "rsync -a --exclude node_modules --exclude dist --exclude .git {{source_checkout}}/.agent/ {{target_worktree}}/.agent/ && rsync -a --exclude node_modules --exclude dist --exclude .git {{source_checkout}}/.github/ {{target_worktree}}/.github/",
+        templateSlots: [SOURCE_CHECKOUT_SLOT, TARGET_WORKTREE_SLOT],
         description:
-          "Fill the template slots before copying only Sepo-owned infrastructure, preserving target-owned application code and unrelated GitHub assets.",
+          "Fill the template slots before running the executable copy command; preserve target-owned files by copying only the approved Sepo infrastructure roots.",
       },
       {
         id: "validate-install-diff",
@@ -175,14 +209,16 @@ export function buildInstallLifecyclePlan(input: InstallLifecyclePlanInput): Ins
         id: "push-install-branch",
         title: "Push the install branch",
         commandTemplate: `git -C {{target_worktree}} push --set-upstream origin ${installBranch}`,
+        env: INSTALL_TOKEN_ENV,
         templateSlots: [TARGET_WORKTREE_SLOT],
         description:
-          "Push the committed install branch to the target repository before opening the PR.",
+          "Push the committed install branch to the target repository with AGENT_INSTALL_PAT before opening the PR.",
       },
       {
         id: "open-install-pr",
         title: "Open the install PR",
         commandTemplate: `gh pr create --repo ${targetRepo} --head ${installBranch} --base {{target_default_branch}} --title 'Install Sepo agent infrastructure' --body-file {{install_pr_body_file}}`,
+        env: INSTALL_TOKEN_ENV,
         templateSlots: [
           TARGET_DEFAULT_BRANCH_SLOT,
           {
