@@ -65,7 +65,12 @@ class FakeRunner implements CommandRunner {
     }
 
     if (args[0] === "pr" && args[1] === "list") {
-      return JSON.stringify(this.prs);
+      const headIndex = args.indexOf("--head");
+      if (headIndex >= 0) {
+        const head = args[headIndex + 1] || "";
+        return JSON.stringify(this.prs.filter((pr) => pr.headRefName === head));
+      }
+      return JSON.stringify(this.prs.slice(0, 30));
     }
 
     if (args[0] === "pr" && args[1] === "create") {
@@ -200,6 +205,44 @@ test("prepareInstallForkPr reuses a same-owner install PR at prepare time", () =
   assert.ok(runner.called("git", /checkout -B agent\/install-agent-infra FETCH_HEAD/));
 });
 
+test("prepareInstallForkPr finds reusable install PRs outside the default list window", () => {
+  const runner = new FakeRunner();
+  runner.repos.set("lm4sci/lm4sci.github.io", repoRecord("lm4sci/lm4sci.github.io"));
+  runner.repos.set(
+    "sepo-install-bot/lm4sci.github.io",
+    repoRecord("sepo-install-bot/lm4sci.github.io", {
+      fork: true,
+      parent: "lm4sci/lm4sci.github.io",
+    }),
+  );
+  runner.prs = [
+    ...Array.from({ length: 30 }, (_, i) => ({
+      number: i + 1,
+      url: `https://github.com/lm4sci/lm4sci.github.io/pull/${i + 1}`,
+      headRefName: `feature-${i + 1}`,
+      headRepositoryOwner: { login: "contributor" },
+    })),
+    {
+      number: 61,
+      url: "https://github.com/lm4sci/lm4sci.github.io/pull/61",
+      headRefName: DEFAULT_INSTALL_BRANCH,
+      headRepositoryOwner: { login: "sepo-install-bot" },
+    },
+  ];
+
+  const result = prepareInstallForkPr({
+    targetRepo: "lm4sci/lm4sci.github.io",
+    githubToken: "pat-token",
+    workdir: "/tmp/lm4sci-install-paginated-reuse",
+    runner,
+  });
+
+  assert.equal(result.status, "prepared");
+  assert.equal(result.reusedPr, true);
+  assert.equal(result.prUrl, "https://github.com/lm4sci/lm4sci.github.io/pull/61");
+  assert.ok(runner.called("gh", /pr list --repo lm4sci\/lm4sci\.github\.io --state open --head agent\/install-agent-infra/));
+});
+
 test("prepareInstallForkPr blocks non-public targets before fork or clone", () => {
   const runner = new FakeRunner();
   runner.repos.set("private-org/private-repo", repoRecord("private-org/private-repo", { private: true }));
@@ -236,6 +279,37 @@ test("prepareInstallForkPr blocks duplicate install PRs from another owner", () 
   assert.equal(result.blockedCode, "duplicate_install_pr");
   assert.match(result.message, /other-bot:agent\/install-agent-infra/);
   assert.equal(runner.called("gh", /forks/), false);
+});
+
+test("prepareInstallForkPr finds duplicate install PRs outside the default list window", () => {
+  const runner = new FakeRunner();
+  runner.repos.set("lm4sci/lm4sci.github.io", repoRecord("lm4sci/lm4sci.github.io"));
+  runner.prs = [
+    ...Array.from({ length: 30 }, (_, i) => ({
+      number: i + 1,
+      url: `https://github.com/lm4sci/lm4sci.github.io/pull/${i + 1}`,
+      headRefName: `feature-${i + 1}`,
+      headRepositoryOwner: { login: "contributor" },
+    })),
+    {
+      number: 62,
+      url: "https://github.com/lm4sci/lm4sci.github.io/pull/62",
+      headRefName: DEFAULT_INSTALL_BRANCH,
+      headRepositoryOwner: { login: "other-bot" },
+    },
+  ];
+
+  const result = prepareInstallForkPr({
+    targetRepo: "lm4sci/lm4sci.github.io",
+    githubToken: "pat-token",
+    runner,
+  });
+
+  assert.equal(result.status, "blocked");
+  assert.equal(result.blockedCode, "duplicate_install_pr");
+  assert.match(result.message, /other-bot:agent\/install-agent-infra/);
+  assert.equal(runner.called("gh", /forks/), false);
+  assert.ok(runner.called("gh", /pr list --repo lm4sci\/lm4sci\.github\.io --state open --head agent\/install-agent-infra/));
 });
 
 test("publishInstallForkPr pushes and reuses an existing install PR from the token owner", () => {

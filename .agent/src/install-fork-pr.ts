@@ -317,6 +317,8 @@ function listOpenInstallPrs(runner: CommandRunner, targetRepo: string, branch: s
     targetRepo,
     "--state",
     "open",
+    "--head",
+    branch,
     "--json",
     "number,url,headRefName,headRepositoryOwner",
   ]);
