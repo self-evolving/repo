@@ -348,6 +348,14 @@ function repoIsForkOf(repo: RepoInfo, targetRepo: string): boolean {
   return sameRepo(repo.parentFullName, targetRepo) || sameRepo(repo.sourceFullName, targetRepo);
 }
 
+function remoteBranchExists(runner: CommandRunner, repo: RepoInfo, branch: string): boolean {
+  try {
+    return Boolean(runner.git(["ls-remote", "--heads", `https://github.com/${repo.fullName}.git`, branch], process.cwd()).trim());
+  } catch {
+    return false;
+  }
+}
+
 function ensureForkRepo(
   runner: CommandRunner,
   target: RepoInfo,
@@ -408,7 +416,7 @@ function cloneTarget(
   target: RepoInfo,
   fork: RepoInfo,
   branch: string,
-  reuseExistingBranch: boolean,
+  checkoutExistingBranch: boolean,
   requestedWorkdir: string | undefined,
 ): string {
   const workdir = requestedWorkdir || join(mkdtempSync(join(tmpdir(), "sepo-install-")), target.name);
@@ -428,7 +436,7 @@ function cloneTarget(
       // Fresh clones will not have this remote.
     }
     runner.git(["remote", "add", "install-fork", `https://github.com/${fork.fullName}.git`], workdir);
-    if (reuseExistingBranch) {
+    if (checkoutExistingBranch) {
       runner.git(["fetch", "--depth", "1", "install-fork", branch], workdir);
       runner.git(["checkout", "-B", branch, "FETCH_HEAD"], workdir);
     } else {
@@ -455,7 +463,8 @@ export function prepareInstallForkPr(opts: InstallForkPrOptions): InstallForkPrR
       tokenOwner,
     );
     const fork = ensureForkRepo(runner, target, tokenOwner, opts.forkPollAttempts || 6);
-    const workdir = cloneTarget(runner, target, fork, branch, Boolean(existingPr), opts.workdir);
+    const existingForkBranch = Boolean(existingPr) || remoteBranchExists(runner, fork, branch);
+    const workdir = cloneTarget(runner, target, fork, branch, existingForkBranch, opts.workdir);
 
     return {
       action: "prepare",

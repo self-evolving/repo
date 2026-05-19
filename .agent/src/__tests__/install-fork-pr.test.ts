@@ -34,6 +34,7 @@ function repoRecord(fullName: string, opts: {
 class FakeRunner implements CommandRunner {
   readonly calls: Array<{ tool: "gh" | "git"; args: string[]; cwd?: string }> = [];
   readonly repos = new Map<string, Record<string, unknown>>();
+  readonly remoteBranches = new Set<string>();
   prs: Array<Record<string, unknown>> = [];
   createdPrUrl = "https://github.com/lm4sci/lm4sci.github.io/pull/77";
   failPush = false;
@@ -82,6 +83,11 @@ class FakeRunner implements CommandRunner {
 
   git(args: string[], cwd: string): string {
     this.calls.push({ tool: "git", args: [...args], cwd });
+    if (args[0] === "ls-remote") {
+      const repo = String(args[2] || "").replace(/^https:\/\/github\.com\//, "").replace(/\.git$/, "");
+      const branch = String(args[3] || "");
+      return this.remoteBranches.has(`${repo}#${branch}`) ? `abc123\trefs/heads/${branch}\n` : "";
+    }
     if (this.failPush && args[0] === "push") throw new Error("push failed");
     return "";
   }
@@ -176,6 +182,51 @@ test("prepareInstallForkPr creates a fork and target checkout for public install
   assert.ok(runner.called("gh", /api --method POST repos\/lm4sci\/lm4sci\.github\.io\/forks/));
   assert.ok(runner.called("git", /clone --depth 1 --branch main https:\/\/github\.com\/lm4sci\/lm4sci\.github\.io\.git/));
   assert.ok(runner.called("git", /checkout -B agent\/install-agent-infra/));
+});
+
+test("prepareInstallForkPr reuses an existing token-owner fork without an open PR", () => {
+  const runner = new FakeRunner();
+  runner.repos.set("lm4sci/lm4sci.github.io", repoRecord("lm4sci/lm4sci.github.io"));
+  runner.repos.set(
+    "sepo-install-bot/lm4sci.github.io",
+    repoRecord("sepo-install-bot/lm4sci.github.io", {
+      fork: true,
+      parent: "lm4sci/lm4sci.github.io",
+    }),
+  );
+
+  const result = prepareInstallForkPr({
+    targetRepo: "lm4sci/lm4sci.github.io",
+    githubToken: "pat-token",
+    workdir: "/tmp/lm4sci-existing-fork-install",
+    runner,
+  });
+
+  assert.equal(result.status, "prepared");
+  assert.equal(result.forkRepo, "sepo-install-bot/lm4sci.github.io");
+  assert.equal(result.reusedPr, false);
+  assert.equal(result.prUrl, "");
+  assert.equal(runner.called("gh", /forks/), false);
+  assert.ok(runner.called("git", /ls-remote --heads https:\/\/github\.com\/sepo-install-bot\/lm4sci\.github\.io\.git agent\/install-agent-infra/));
+  assert.ok(runner.called("git", /checkout -B agent\/install-agent-infra$/));
+});
+
+test("prepareInstallForkPr blocks when the token-owner fork name is occupied", () => {
+  const runner = new FakeRunner();
+  runner.repos.set("lm4sci/lm4sci.github.io", repoRecord("lm4sci/lm4sci.github.io"));
+  runner.repos.set("sepo-install-bot/lm4sci.github.io", repoRecord("sepo-install-bot/lm4sci.github.io"));
+
+  const result = prepareInstallForkPr({
+    targetRepo: "lm4sci/lm4sci.github.io",
+    githubToken: "pat-token",
+    runner,
+  });
+
+  assert.equal(result.status, "blocked");
+  assert.equal(result.blockedCode, "fork_name_occupied");
+  assert.match(result.message, /not a fork of lm4sci\/lm4sci\.github\.io/);
+  assert.equal(runner.called("gh", /forks/), false);
+  assert.equal(runner.called("git", /clone/), false);
 });
 
 test("prepareInstallForkPr reuses a same-owner install PR at prepare time", () => {
@@ -444,6 +495,64 @@ test("publishInstallForkPr reruns update an existing fork branch without a non-f
     assert.equal(published.status, "published");
     assert.equal(published.reusedPr, true);
     assert.equal(published.prUrl, "https://github.com/lm4sci/lm4sci.github.io/pull/34");
+    assert.equal(
+      runGit(["--git-dir", forkBare, "rev-parse", `refs/heads/${DEFAULT_INSTALL_BRANCH}`], root),
+      localHead,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("publishInstallForkPr recovers a stale fork branch when no open PR exists", () => {
+  const root = mkdtempSync(join(tmpdir(), "install-fork-pr-git-"));
+  const workdir = join(root, "install-work");
+  const bodyFile = join(root, "body.md");
+  writeFileSync(bodyFile, "Install Sepo.\n", "utf8");
+
+  try {
+    const { targetBare, forkBare } = createGitFixture(root);
+    const runner = new GitFixtureRunner(new Map([
+      ["lm4sci/lm4sci.github.io", targetBare],
+      ["sepo-install-bot/lm4sci.github.io", forkBare],
+    ]));
+    runner.repos.set("lm4sci/lm4sci.github.io", repoRecord("lm4sci/lm4sci.github.io"));
+    runner.repos.set(
+      "sepo-install-bot/lm4sci.github.io",
+      repoRecord("sepo-install-bot/lm4sci.github.io", {
+        fork: true,
+        parent: "lm4sci/lm4sci.github.io",
+      }),
+    );
+
+    const prepared = prepareInstallForkPr({
+      targetRepo: "lm4sci/lm4sci.github.io",
+      githubToken: "pat-token",
+      workdir,
+      forkPollAttempts: 1,
+      runner,
+    });
+
+    assert.equal(prepared.status, "prepared");
+    assert.equal(prepared.reusedPr, false);
+    assert.ok(runner.called("git", /ls-remote --heads https:\/\/github\.com\/sepo-install-bot\/lm4sci\.github\.io\.git agent\/install-agent-infra/));
+    assert.ok(runner.called("git", /fetch --depth 1 install-fork agent\/install-agent-infra/));
+
+    commitFile(workdir, "agent.txt", "new install after closed pr\n", "Update stale install");
+    const localHead = runGit(["rev-parse", "HEAD"], workdir);
+
+    const published = publishInstallForkPr({
+      targetRepo: "lm4sci/lm4sci.github.io",
+      githubToken: "pat-token",
+      workdir,
+      forkRepo: "sepo-install-bot/lm4sci.github.io",
+      bodyFile,
+      runner,
+    });
+
+    assert.equal(published.status, "published");
+    assert.equal(published.reusedPr, false);
+    assert.equal(published.prUrl, "https://github.com/lm4sci/lm4sci.github.io/pull/77");
     assert.equal(
       runGit(["--git-dir", forkBare, "rev-parse", `refs/heads/${DEFAULT_INSTALL_BRANCH}`], root),
       localHead,
