@@ -112,7 +112,10 @@ unless explicitly requested.
 
 3. Prepare the target checkout.
    - Use the helper rather than hand-rolling fork mechanics:
-     `GH_TOKEN="$GH_TOKEN" INSTALL_TARGET_REPO="<owner/repo>" node .agent/dist/cli/install-fork-pr.js prepare`.
+     ```sh
+     GH_TOKEN="$GH_TOKEN" node .agent/dist/cli/install-fork-pr.js prepare \
+       --target-repo "<owner/repo>"
+     ```
    - The helper validates the target slug, requires a public target, identifies
      the token owner, detects duplicate open install PRs, creates or reuses the
      token owner's fork, and prepares the install branch from the reusable PR
@@ -203,7 +206,16 @@ unless explicitly requested.
      repository owner still needs to complete after merge.
    - Write the final PR body to a temporary file, then publish through the
      helper:
-     `GH_TOKEN="$GH_TOKEN" INSTALL_TARGET_REPO="<owner/repo>" INSTALL_WORKDIR="<workdir>" INSTALL_FORK_REPO="<forkRepo>" INSTALL_DEFAULT_BRANCH="<defaultBranch>" INSTALL_BRANCH="<branch>" INSTALL_PR_TITLE="Install Sepo agent infrastructure" INSTALL_PR_BODY_FILE="<body-file>" node .agent/dist/cli/install-fork-pr.js publish`.
+     ```sh
+     GH_TOKEN="$GH_TOKEN" node .agent/dist/cli/install-fork-pr.js publish \
+       --target-repo "<owner/repo>" \
+       --workdir "<workdir>" \
+       --fork-repo "<forkRepo>" \
+       --default-branch "<defaultBranch>" \
+       --branch "<branch>" \
+       --pr-title "Install Sepo agent infrastructure" \
+       --pr-body-file "<body-file>"
+     ```
    - The publish helper pushes the current checkout HEAD to the token owner's
      fork branch, reuses an existing PR from that fork branch when present, or
      opens a new PR against the original target repo. If it returns `blocked`,
