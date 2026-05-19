@@ -61,6 +61,7 @@ test("resolve-dispatch uses generated metadata for explicit implement tracking i
       JSON.stringify({
         issue_title: "Fix explicit implement issue titles",
         issue_body: "## Goal\nGenerate titles from PR context.\n\n## Acceptance criteria\n- Ignore earlier prose command mentions.",
+        base_pr: "268",
       }),
       "utf8",
     );
@@ -88,6 +89,7 @@ test("resolve-dispatch uses generated metadata for explicit implement tracking i
     assert.equal(outputs.get("issue_title"), "Fix explicit implement issue titles");
     assert.doesNotMatch(outputs.get("issue_title") || "", /stale wording/);
     assert.match(outputs.get("issue_body") || "", /Generate titles from PR context/);
+    assert.equal(outputs.get("base_pr"), "268");
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
@@ -123,44 +125,55 @@ test("resolve-dispatch falls back when generated implement metadata is invalid",
     const outputs = parseGithubOutput(outputPath);
     assert.equal(outputs.get("issue_title"), "Implement requested change");
     assert.match(outputs.get("issue_body") || "", /Original request/);
+    assert.equal(outputs.get("base_pr"), "");
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
-test("resolve-dispatch returns a clear response for invalid install requests", () => {
+test("resolve-dispatch rejects invalid implement base PR metadata", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-resolve-dispatch-"));
 
   try {
     const outputPath = join(tempDir, "github-output.txt");
+    const metadataPath = join(tempDir, "metadata.json");
     writeFileSync(outputPath, "", "utf8");
+    writeFileSync(
+      metadataPath,
+      JSON.stringify({
+        issue_title: "Stack follow-up work",
+        issue_body: "## Goal\nCreate a stacked follow-up PR.",
+        base_pr: "#268",
+      }),
+      "utf8",
+    );
 
     const result = spawnSync("node", [".agent/dist/cli/resolve-dispatch.js"], {
       cwd: repoRoot,
       env: {
         ...process.env,
         GITHUB_OUTPUT: outputPath,
-        REQUESTED_ROUTE: "invalid-install",
-        REQUEST_TEXT: "@sepo-agent /install",
-        TARGET_KIND: "issue",
+        RESPONSE_FILE: metadataPath,
+        REQUESTED_ROUTE: "implement",
+        REQUEST_TEXT: "@sepo-agent /implement work on this as a stacked PR?",
+        TARGET_KIND: "pull_request",
         AUTHOR_ASSOCIATION: "MEMBER",
         ACCESS_POLICY: "",
-        REPOSITORY_PRIVATE: "false",
+        REPOSITORY_PRIVATE: "true",
       },
       encoding: "utf8",
     });
 
     assert.equal(result.status, 0);
+    assert.match(result.stderr, /base_pr must be a positive integer/);
     const outputs = parseGithubOutput(outputPath);
-    assert.equal(outputs.get("route"), "unsupported");
-    assert.equal(outputs.get("needs_approval"), "false");
-    assert.match(outputs.get("summary") || "", /@sepo-agent \/install owner\/repo/);
+    assert.equal(outputs.get("base_pr"), "");
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
-test("resolve-dispatch emits install route with bundled install skill", () => {
+test("resolve-dispatch emits install route without a skill", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-resolve-dispatch-"));
 
   try {
@@ -193,7 +206,7 @@ test("resolve-dispatch emits install route with bundled install skill", () => {
     const outputs = parseGithubOutput(outputPath);
     assert.equal(outputs.get("route"), "install");
     assert.equal(outputs.get("needs_approval"), "false");
-    assert.equal(outputs.get("skill"), "install-agent");
+    assert.equal(outputs.get("skill"), "");
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }

@@ -12,14 +12,18 @@ From `self-evolving/repo`, authorized users can ask Sepo to prepare that PR for
 a public target repository:
 
 ```md
-@sepo-agent /install owner/repo
+@sepo-agent /install can you install Sepo into https://github.com/owner/repo?
 ```
 
-The `/install` command is a first-class route for authorization, then executes
-the bundled `install-agent` skill. It still requires a target repository slug in
-`owner/repo` form, resolves the install source to the latest non-draft Sepo
-release, and records that source revision in the PR body. If no stable release
-exists yet, the skill may use the latest non-draft prerelease.
+The `/install` command is a first-class route for authorization, then runs the
+dedicated `agent-install` prompt. Route detection only recognizes the command;
+install-specific helper code resolves the target from the request text,
+accepting an `owner/repo` slug, a GitHub URL, or a clear natural-language
+repository reference. If the target is missing or ambiguous, the route stops
+with a clarification instead of guessing. When the target is clear, it resolves
+the install source to the latest non-draft Sepo release and records that source
+revision in the PR body. If no stable release exists yet, the route may use the
+latest non-draft prerelease.
 
 `/install` is the only route that uses `AGENT_INSTALL_PAT`. Normal routes keep
 the standard GitHub auth resolver order: GitHub App, hosted OIDC, `AGENT_PAT`,
@@ -28,15 +32,15 @@ repository secret in the Sepo source repository with a machine-user token that
 can create or reuse a fork, push a branch, and open pull requests for public
 repositories.
 
-The install skill uses the built-in fork/PR helper to clone the public target,
-create or reuse the token owner's fork, push `agent/install-agent-infra` to that
-fork, and open or reuse a PR against the original target repository. If the
-secret is absent, the route stops before the skill runs and posts that install
-is not configured. If the secret is present but the helper cannot read the
-public target, create/reuse the fork, push the branch, or open/reuse the PR, the
-skill reports a blocked result with the specific permission gap and next step.
-An existing open install PR from the same token owner is reused; an open install
-PR from another owner is treated as a duplicate blocked state.
+The dedicated install prompt uses the built-in fork/PR helper to prepare a
+fork-backed worktree, push `agent/install-agent-infra`, and reuse or open the
+install PR. If the secret is absent, the route stops before the prompt runs and
+posts that install is not configured. If the secret is present but the helper
+cannot read the public target, create/reuse the fork, push the branch, or
+open/reuse the PR, the route reports a blocked result with the specific
+permission gap and next step. An existing open install PR from the same token
+owner is reused; an open install PR from another owner is treated as a duplicate
+blocked state.
 
 Use `AGENT_ACCESS_POLICY.route_overrides.install` to restrict who may trigger
 external installs independently from general `/skill` runs:
@@ -77,6 +81,22 @@ At minimum, configure:
 - `OPENAI_API_KEY` and/or `CLAUDE_CODE_OAUTH_TOKEN` as repository secrets
 
 See [Setup guide](setup-guide.md) for the auth options and trade-offs.
+
+The helper CLI keeps the token in `GH_TOKEN` and accepts explicit flags:
+
+```sh
+GH_TOKEN="$GH_TOKEN" node .agent/dist/cli/install-fork-pr.js prepare \
+  --target-repo "owner/repo"
+
+GH_TOKEN="$GH_TOKEN" node .agent/dist/cli/install-fork-pr.js publish \
+  --target-repo "owner/repo" \
+  --workdir "<prepared-workdir>" \
+  --fork-repo "<fork-owner/repo>" \
+  --default-branch "<default-branch>" \
+  --branch "agent/install-agent-infra" \
+  --pr-title "Install Sepo agent infrastructure" \
+  --pr-body-file "<body-file>"
+```
 
 Install PRs should include a structured setup section that mirrors the
 onboarding setup check:

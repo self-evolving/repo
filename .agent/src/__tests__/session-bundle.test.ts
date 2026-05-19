@@ -12,9 +12,11 @@ import {
   findSessionBundleArchive,
   formatSessionRestoreNotice,
   hasValidThreadTargetNumber,
+  isRestorableSessionBundleBackend,
   parseSessionBundleMode,
   restoreSessionBundle,
-  shouldUseSessionBundles,
+  shouldBackupSessionBundles,
+  shouldRestoreSessionBundles,
 } from "../session-bundle.js";
 
 function makeTempDir(prefix: string): string {
@@ -28,13 +30,30 @@ test("parseSessionBundleMode defaults to auto", () => {
   assert.equal(parseSessionBundleMode("never"), "never");
 });
 
-test("shouldUseSessionBundles follows auto and explicit mode semantics", () => {
-  assert.equal(shouldUseSessionBundles("auto", "none"), false);
-  assert.equal(shouldUseSessionBundles("auto", "track-only"), false);
-  assert.equal(shouldUseSessionBundles("auto", "resume-best-effort"), true);
-  assert.equal(shouldUseSessionBundles("auto", "resume-required"), true);
-  assert.equal(shouldUseSessionBundles("always", "track-only"), true);
-  assert.equal(shouldUseSessionBundles("never", "resume-required"), false);
+test("session bundle direction helpers separate restore from backup", () => {
+  assert.equal(shouldRestoreSessionBundles("auto", "none"), false);
+  assert.equal(shouldBackupSessionBundles("auto", "none"), false);
+
+  assert.equal(shouldRestoreSessionBundles("auto", "track-only"), false);
+  assert.equal(shouldBackupSessionBundles("auto", "track-only"), false);
+  assert.equal(shouldRestoreSessionBundles("always", "track-only"), false);
+  assert.equal(shouldBackupSessionBundles("always", "track-only"), true);
+  assert.equal(shouldRestoreSessionBundles("never", "track-only"), false);
+  assert.equal(shouldBackupSessionBundles("never", "track-only"), false);
+
+  assert.equal(shouldRestoreSessionBundles("auto", "resume-best-effort"), true);
+  assert.equal(shouldBackupSessionBundles("auto", "resume-best-effort"), true);
+  assert.equal(shouldRestoreSessionBundles("always", "resume-required"), true);
+  assert.equal(shouldBackupSessionBundles("always", "resume-required"), true);
+
+  assert.equal(shouldRestoreSessionBundles("never", "resume-required"), false);
+  assert.equal(shouldBackupSessionBundles("never", "resume-required"), false);
+});
+
+test("debug session bundle backend is non-restorable", () => {
+  assert.equal(isRestorableSessionBundleBackend(""), true);
+  assert.equal(isRestorableSessionBundleBackend("github-artifact"), true);
+  assert.equal(isRestorableSessionBundleBackend("github-artifact-debug"), false);
 });
 
 test("hasValidThreadTargetNumber permits repository target_number=0", () => {

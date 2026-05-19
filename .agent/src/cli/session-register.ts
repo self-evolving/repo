@@ -2,9 +2,12 @@ import { buildThreadKey } from "../envelope.js";
 import { configureBotIdentity } from "../git.js";
 import { setOutput } from "../output.js";
 import {
+  DEBUG_SESSION_BUNDLE_BACKEND,
+  RESTORABLE_SESSION_BUNDLE_BACKEND,
   hasValidThreadTargetNumber,
   parseSessionBundleMode,
-  shouldUseSessionBundles,
+  shouldBackupSessionBundles,
+  shouldRestoreSessionBundles,
 } from "../session-bundle.js";
 import { parseSessionPolicy } from "../session-policy.js";
 import {
@@ -39,7 +42,7 @@ setOutput("registered", "false");
 if (!policy) {
   console.error("Missing or invalid SESSION_POLICY");
   process.exitCode = 2;
-} else if (!shouldUseSessionBundles(bundleMode, policy)) {
+} else if (!shouldBackupSessionBundles(bundleMode, policy)) {
   process.exit(0);
 } else if (
   !artifactId ||
@@ -76,7 +79,9 @@ if (!policy) {
       threadKey,
       repoRoot,
       {
-        session_bundle_backend: "github-artifact",
+        session_bundle_backend: shouldRestoreSessionBundles(bundleMode, policy)
+          ? RESTORABLE_SESSION_BUNDLE_BACKEND
+          : DEBUG_SESSION_BUNDLE_BACKEND,
         session_bundle_artifact_id: artifactId,
         session_bundle_artifact_name: artifactName,
         session_bundle_run_id: runId,

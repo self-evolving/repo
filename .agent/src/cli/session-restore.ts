@@ -9,9 +9,10 @@ import { setOutput } from "../output.js";
 import {
   findSessionBundleArchive,
   hasValidThreadTargetNumber,
+  isRestorableSessionBundleBackend,
   parseSessionBundleMode,
   restoreSessionBundle,
-  shouldUseSessionBundles,
+  shouldRestoreSessionBundles,
 } from "../session-bundle.js";
 import { parseSessionPolicy } from "../session-policy.js";
 import {
@@ -112,8 +113,9 @@ function tryRestoreDestination(args: {
 }): DestinationRestoreStatus {
   const artifactName = args.state?.session_bundle_artifact_name || "";
   const artifactRunId = args.state?.session_bundle_run_id || "";
+  const artifactBackend = args.state?.session_bundle_backend || "";
 
-  if (!artifactName || !artifactRunId) {
+  if (!artifactName || !artifactRunId || !isRestorableSessionBundleBackend(artifactBackend)) {
     markThreadBundleRestore(
       args.threadKey,
       args.repoRoot,
@@ -197,7 +199,8 @@ function tryRestoreForkSource(args: {
 
   const artifactName = state.session_bundle_artifact_name || "";
   const artifactRunId = state.session_bundle_run_id || "";
-  if (!artifactName || !artifactRunId) {
+  const artifactBackend = state.session_bundle_backend || "";
+  if (!artifactName || !artifactRunId || !isRestorableSessionBundleBackend(artifactBackend)) {
     setForkOutputs({
       status: "not_available",
       threadKey: sourceThreadKey,
@@ -267,7 +270,7 @@ if (!policy) {
 ) {
   console.error("Missing repo or thread identity inputs for session restore");
   process.exitCode = 2;
-} else if (!shouldUseSessionBundles(bundleMode, policy)) {
+} else if (!shouldRestoreSessionBundles(bundleMode, policy)) {
   setOutput("restore_status", "not_applicable");
   setForkOutputs({ status: "not_applicable" });
 } else {

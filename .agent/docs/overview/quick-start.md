@@ -35,7 +35,7 @@ Use an explicit slash route when you already know the action:
 | Review | Run the dual-agent PR review flow. | `@sepo-agent /review` |
 | Fix PR | Push fixes to the current PR branch. | `@sepo-agent /fix-pr` |
 | Skill | Run a repository skill from `<skill_root>/<name>/SKILL.md`. | `@sepo-agent /skill <name>` |
-| Install | Run the bundled install skill when Sepo can write to the target repository. | `@sepo-agent /install owner/repo` |
+| Install | Run the dedicated install route when Sepo can write to the target repository. | `@sepo-agent /install ...` |
 
 You can also trigger the same built-in routes with labels:
 

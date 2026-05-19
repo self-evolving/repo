@@ -83,6 +83,12 @@ set `base_branch` to stack directly on another branch, or `base_pr` to stack on
 an open same-repository PR head branch. The implementation workflow rejects
 ambiguous input when both are set.
 
+For explicit `/implement` requests from pull requests, the router's
+metadata-only prompt may emit `base_pr` when the current user request asks for a
+stacked or follow-up PR. The portal validates that value as a positive integer
+and passes it through to `agent-implement.yml`; the implementation workflow then
+verifies the PR is open and same-repository before using its head branch.
+
 When a new review synthesis, rubrics review, `fix-pr` status comment, or
 orchestrator handoff marker is posted, the workflows minimize prior visible
 matching comments and reviews from the same authenticated agent account as
@@ -213,10 +219,10 @@ Explicit routes are:
 - `@sepo-agent /review`
 - `@sepo-agent /orchestrate`
 - `@sepo-agent /skill <name>`
-- `@sepo-agent /install owner/repo`
+- `@sepo-agent /install ...`
 
 Explicit routes skip dispatch triage and resolve locally, but still go through the same route policy checks afterward.
-When an explicit `/implement` request on a pull request or discussion creates a tracking issue, the router runs a metadata-only agent prompt to synthesize the issue title and body from the request plus target context. The slash command approves the route; it is not copied into the title. If metadata generation is unavailable or invalid, the issue falls back to `Implement requested change`.
+When an explicit `/implement` request on a pull request or discussion creates a tracking issue, the router runs a metadata-only agent prompt to synthesize the issue title and body from the request plus target context. The slash command approves the route; it is not copied into the title. Pull request metadata can also include `base_pr` for stacked or follow-up implementation requests. If metadata generation is unavailable or invalid, the issue falls back to `Implement requested change`.
 
 Mention-based skill requests normalize the skill name to lowercase and run
 `<skill_root>/<name>/SKILL.md` inline through the same `skill` route used by
@@ -226,16 +232,17 @@ skill setup should customize the copied `agent-router.yml` skill job directly
 so repositories can use native GitHub Actions `uses`, `with`, Docker, service,
 or cache features.
 
-`/install owner/repo` is a first-class route that requires a target repository
-slug in `owner/repo` form before it runs the bundled `install-agent` skill.
+`/install` is a first-class route that passes the full request to the dedicated
+`agent-install` prompt. Install-specific helper code resolves the target from an
+`owner/repo` slug, a GitHub URL, or a clear natural-language repository
+reference, and blocks for clarification when the target is missing or ambiguous.
 Access policy evaluates it as the `install` route, so
 `AGENT_ACCESS_POLICY.route_overrides.install` can restrict external installs
 without blocking general `/skill` runs. The install route requires the
-`AGENT_INSTALL_PAT` secret and passes that token to the install skill; other
-routes continue using the standard GitHub auth resolver. The skill uses the
-install fork/PR helper to clone the public target, create or reuse the token
-owner's fork, push `agent/install-agent-infra`, and open or reuse the install
-PR against the original repository.
+`AGENT_INSTALL_PAT` secret and passes that token to the install prompt; other
+routes continue using the standard GitHub auth resolver. The prompt uses the
+install fork/PR helper to prepare a fork-backed worktree, then push, reuse, or
+open the install PR.
 
 ### `agent-label.yml`
 
@@ -273,22 +280,27 @@ lowercase names to match consistently across case-sensitive filesystems.
 
 Self-approval is disabled unless `AGENT_ALLOW_SELF_APPROVE=true`. The manual
 workflow accepts a pull request number, confirms the target is an open PR, and
-requires the latest trusted review synthesis from the authenticated Sepo actor
-to be `SHIP` for the current reviewed-head marker before it runs an approval
-agent. The agent runs with read-approved permissions and returns structured JSON
-with a verdict, reason, optional follow-up context, and `inspected_head_sha`.
+requires latest trusted review synthesis from the authenticated Sepo actor for
+the current reviewed-head marker before it runs an approval agent. Normal runs
+require that synthesis to be `SHIP`; orchestrated review `HUMAN_DECISION`
+handoffs may also run the agent as a decision gate for non-`SHIP` verdicts. The
+agent runs with read-approved permissions and returns structured JSON with a
+verdict, reason, optional follow-up context, and `inspected_head_sha`.
 
 Deterministic resolver code is the only part that can submit the GitHub
 approval. It rereads the current PR head, rechecks trusted current-head review
 provenance, verifies the approval actor differs from the pull request author,
 parses the agent verdict, and approves only when the expected, current, and
-inspected head SHAs match. Non-approval outcomes post a compact PR status
-comment. In orchestrated chains, `SHIP` review synthesis can hand off to
-`agent-self-approve`, and a self-approval `REQUEST_CHANGES` result can hand off
-to `fix-pr` with the approval agent's handoff context. Self-approval status
-comments are upserted by marker against comments authored by the authenticated
-Sepo actor, and result artifacts are retained for failed or blocked resolution
-paths where available.
+inspected head SHAs match and the latest trusted current-head review synthesis
+verdict is `SHIP`. Non-approval outcomes post a compact PR status comment. In
+orchestrated chains, `SHIP` review synthesis and review syntheses that recommend
+`HUMAN_DECISION` can hand off to `agent-self-approve`; non-`SHIP`
+`HUMAN_DECISION` runs let self-approval request changes or block, but the
+resolver cannot submit approval without trusted current-head `SHIP` provenance.
+A self-approval `REQUEST_CHANGES` result can hand off to `fix-pr` with the
+approval agent's handoff context. Self-approval status comments are upserted by
+marker against comments authored by the authenticated Sepo actor, and result
+artifacts are retained for failed or blocked resolution paths where available.
 
 ### `agent-self-merge.yml`
 

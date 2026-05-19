@@ -4,7 +4,7 @@
 //      REQUESTED_BY, REQUEST_TEXT, AUTOMATION_CURRENT_ROUND,
 //      AUTOMATION_MAX_ROUNDS, SESSION_BUNDLE_MODE, SOURCE_RUN_ID, TARGET_KIND,
 //      AUTHOR_ASSOCIATION, ACCESS_POLICY, REPOSITORY_PRIVATE, ORCHESTRATION_ENABLED,
-//      SOURCE_HANDOFF_CONTEXT, BASE_BRANCH, BASE_PR
+//      SOURCE_RECOMMENDED_NEXT_STEP, SOURCE_HANDOFF_CONTEXT, BASE_BRANCH, BASE_PR
 
 import { readFileSync } from "node:fs";
 import { dispatchWorkflow } from "../github.js";
@@ -12,7 +12,9 @@ import {
   automationModeAllowsHandoff,
   buildReviewFixPrHandoffContext,
   extractReviewConclusion,
+  extractReviewRecommendedNextStep,
   normalizeConclusion,
+  normalizeRecommendedNextStep,
 } from "../handoff.js";
 
 function readResponseFile(): string {
@@ -25,9 +27,15 @@ function readResponseFile(): string {
   }
 }
 
-function sourceReviewNeedsFixPr(sourceAction: string, sourceConclusion: string): boolean {
+function sourceReviewNeedsFixPr(sourceAction: string, sourceConclusion: string, recommendedNextStep: string): boolean {
   if (sourceAction.trim().toLowerCase() !== "review") return false;
+  if (normalizeRecommendedNextStep(recommendedNextStep) === "human_decision") return false;
   return new Set(["minor_issues", "needs_rework", "changes_requested"]).has(normalizeConclusion(sourceConclusion));
+}
+
+function sourceReviewRecommendedNextStep(sourceAction: string, rawResponse: string): string {
+  if (sourceAction.trim().toLowerCase() !== "review") return "";
+  return extractReviewRecommendedNextStep(rawResponse);
 }
 
 const automationMode = process.env.AUTOMATION_MODE || "disabled";
@@ -46,8 +54,13 @@ const repo = process.env.GITHUB_REPOSITORY || "";
 const ref = process.env.DEFAULT_BRANCH || "";
 const rawResponse = readResponseFile();
 const sourceConclusion = process.env.SOURCE_CONCLUSION || extractReviewConclusion(rawResponse) || "unknown";
+const sourceRecommendedNextStep = normalizeRecommendedNextStep(
+  process.env.SOURCE_RECOMMENDED_NEXT_STEP || sourceReviewRecommendedNextStep(sourceAction, rawResponse),
+);
 const sourceHandoffContext = process.env.SOURCE_HANDOFF_CONTEXT ||
-  (sourceReviewNeedsFixPr(sourceAction, sourceConclusion) ? buildReviewFixPrHandoffContext(rawResponse) : "");
+  (sourceReviewNeedsFixPr(sourceAction, sourceConclusion, sourceRecommendedNextStep)
+    ? buildReviewFixPrHandoffContext(rawResponse)
+    : "");
 const targetNumber = process.env.TARGET_NUMBER || "";
 const targetKind = process.env.TARGET_KIND || "";
 
@@ -62,6 +75,7 @@ dispatchWorkflow(repo, "agent-orchestrator.yml", ref, {
   automation_max_rounds: process.env.AUTOMATION_MAX_ROUNDS || "12",
   source_action: sourceAction,
   source_conclusion: sourceConclusion,
+  source_recommended_next_step: sourceRecommendedNextStep,
   source_run_id: process.env.SOURCE_RUN_ID || process.env.GITHUB_RUN_ID || "",
   target_kind: targetKind,
   target_number: targetNumber,

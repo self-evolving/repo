@@ -151,7 +151,7 @@ test("extractRequestedRouteDecision detects mention-based skill requests", () =>
   );
 });
 
-test("extractRequestedRouteDecision maps install requests to install route and skill", () => {
+test("extractRequestedRouteDecision maps install requests to install route", () => {
   assert.deepEqual(
     extractRequestedRouteDecision(
       "@sepo-agent /install self-evolving/example-repo",
@@ -159,46 +159,36 @@ test("extractRequestedRouteDecision maps install requests to install route and s
     ),
     {
       route: "install",
-      skill: "install-agent",
-      installTargetRepo: "self-evolving/example-repo",
+      skill: "",
     },
   );
   assert.deepEqual(
     extractRequestedRouteDecision(
-      "Please install it.\n\n@sepo-agent /install self-evolving/example-repo.",
+      "Please install it.\n\n@sepo-agent /install https://github.com/self-evolving/example-repo.",
       "@sepo-agent",
     ),
     {
       route: "install",
-      skill: "install-agent",
-      installTargetRepo: "self-evolving/example-repo",
+      skill: "",
     },
   );
   assert.deepEqual(
     extractRequestedRouteDecision(
-      "@sepo-agent /install: self-evolving/example-repo",
+      "@sepo-agent /install: can you install Sepo into foo/bar?",
       "@sepo-agent",
     ),
     {
       route: "install",
-      skill: "install-agent",
-      installTargetRepo: "self-evolving/example-repo",
+      skill: "",
     },
   );
-});
-
-test("extractRequestedRouteDecision rejects malformed install targets before skill runs", () => {
   assert.deepEqual(
     extractRequestedRouteDecision("@sepo-agent /install", "@sepo-agent"),
-    { route: "invalid-install", skill: "" },
+    { route: "install", skill: "" },
   );
   assert.deepEqual(
     extractRequestedRouteDecision("@sepo-agent /install not-a-slug", "@sepo-agent"),
-    { route: "invalid-install", skill: "" },
-  );
-  assert.match(
-    buildRequestedRouteDecision("invalid-install", "@sepo-agent /install").summary,
-    /target repository slug/,
+    { route: "install", skill: "" },
   );
   assert.doesNotMatch(
     buildRequestedRouteDecision("unsupported", "@sepo-agent /deploy").summary,
@@ -246,25 +236,36 @@ test("buildRequestedRouteDecision uses generated implement issue metadata", () =
     {
       issueTitle: "Fix webhook dispatch retry handling",
       issueBody: "## Goal\nFix webhook dispatch retry handling.\n\n## Acceptance criteria\n- Add regression coverage.",
+      basePr: "268",
     },
   );
   assert.equal(d.issueTitle, "Fix webhook dispatch retry handling");
   assert.doesNotMatch(d.issueTitle, /wrong title/);
   assert.match(d.issueBody, /webhook dispatch retry/);
+  assert.equal(d.basePr, "268");
 });
 
 test("normalizeImplementIssueMetadata reads generated JSON metadata", () => {
   const metadata = normalizeImplementIssueMetadata(
-    '```json\n{"issue_title":"Fix PR tracking issue titles","issue_body":"## Goal\\nGenerate title from context."}\n```',
+    '```json\n{"issue_title":"Fix PR tracking issue titles","issue_body":"## Goal\\nGenerate title from context.","base_pr":"268"}\n```',
   );
   assert.equal(metadata.issueTitle, "Fix PR tracking issue titles");
   assert.match(metadata.issueBody, /Generate title from context/);
+  assert.equal(metadata.basePr, "268");
 });
 
 test("normalizeImplementIssueMetadata rejects malformed generated metadata", () => {
   assert.throws(
     () => normalizeImplementIssueMetadata('{"issue_title":"Missing body"}'),
     /missing issue_body/,
+  );
+  assert.throws(
+    () => normalizeImplementIssueMetadata('{"issue_title":"Bad base","issue_body":"body","base_pr":"#268"}'),
+    /base_pr must be a positive integer/,
+  );
+  assert.throws(
+    () => normalizeImplementIssueMetadata('{"issue_title":"Bad base","issue_body":"body","base_pr":"0"}'),
+    /base_pr must be a positive integer/,
   );
 });
 
@@ -305,7 +306,7 @@ test("buildRequestedRouteDecision supports install routes", () => {
   const d = buildRequestedRouteDecision("install", "@sepo-agent /install owner/repo");
   assert.equal(d.route, "install");
   assert.equal(d.needsApproval, false);
-  assert.match(d.summary, /install skill/);
+  assert.match(d.summary, /install route/);
 });
 
 test("resolveRequestedLabel maps built-in and skill labels", () => {

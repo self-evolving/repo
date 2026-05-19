@@ -26,6 +26,7 @@ export interface DispatchDecision {
   summary: string;
   issueTitle: string;
   issueBody: string;
+  basePr?: string;
 }
 
 const EXPLICIT_ROUTE_COMMANDS = ["answer", "implement", "fix-pr", "review", "orchestrate", "create-action"] as const;
@@ -33,9 +34,6 @@ const LABEL_ROUTE_PREFIX = "agent/";
 const LABEL_SKILL_PREFIX = "agent/s/";
 const VALID_SKILL_LABEL = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 export const INSTALL_ROUTE = "install";
-export const INSTALL_AGENT_SKILL = "install-agent";
-const INVALID_INSTALL_ROUTE = "invalid-install";
-const VALID_INSTALL_TARGET_REPO = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?\/[A-Za-z0-9._-]+$/;
 const DEFAULT_IMPLEMENT_ISSUE_TITLE = "Implement requested change";
 
 export interface RequestedLabelDecision {
@@ -46,12 +44,28 @@ export interface RequestedLabelDecision {
 export interface RequestedRouteDecision {
   route: string;
   skill: string;
-  installTargetRepo?: string;
 }
 
 export interface ImplementIssueMetadata {
   issueTitle: string;
   issueBody: string;
+  basePr?: string;
+}
+
+function normalizeOptionalBasePr(value: unknown): string {
+  if (value === undefined || value === null) {
+    return "";
+  }
+
+  const raw = String(value).trim();
+  if (!raw) {
+    return "";
+  }
+  if (!/^[1-9]\d*$/.test(raw)) {
+    throw new Error("Implement issue metadata base_pr must be a positive integer");
+  }
+
+  return raw;
 }
 
 function fallbackImplementIssueBody(originalRequest: string): string {
@@ -67,12 +81,6 @@ function fallbackImplementIssueBody(originalRequest: string): string {
     "- Preserve existing behavior unless the request requires a change.",
     "- Update tests or validation as needed.",
   ].join("\n");
-}
-
-function normalizeInstallTargetToken(token: string): string {
-  return String(token || "")
-    .trim()
-    .replace(/[.,;:!?)\]}]+$/g, "");
 }
 
 export function normalizeImplementIssueMetadata(raw: string): ImplementIssueMetadata {
@@ -92,6 +100,7 @@ export function normalizeImplementIssueMetadata(raw: string): ImplementIssueMeta
     .replace(/\s+/g, " ")
     .trim();
   const issueBody = String(payload.issue_body || payload.issueBody || "").trim();
+  const basePr = normalizeOptionalBasePr(payload.base_pr ?? payload.basePr);
 
   if (!issueTitle) {
     throw new Error("Implement issue metadata output was missing issue_title");
@@ -100,7 +109,7 @@ export function normalizeImplementIssueMetadata(raw: string): ImplementIssueMeta
     throw new Error("Implement issue metadata output was missing issue_body");
   }
 
-  return { issueTitle, issueBody };
+  return { issueTitle, issueBody, basePr };
 }
 
 /**
@@ -113,7 +122,7 @@ export function extractRequestedRoute(body: string, mention: string): string {
 
 /**
  * Extracts an explicit mention slash command decision such as
- * `@sepo-agent /review`, `@sepo-agent /install owner/repo`, or
+ * `@sepo-agent /review`, `@sepo-agent /install`, or
  * `@sepo-agent /skill release-notes`.
  */
 export function extractRequestedRouteDecision(body: string, mention: string): RequestedRouteDecision {
@@ -134,17 +143,11 @@ export function extractRequestedRouteDecision(body: string, mention: string): Re
   }
 
   const installRegex = new RegExp(
-    `(?:^|[\\s(])${escapeRegex(trimmedMention)}\\s+/install(?=$|[\\s.,;:!?)\\]}])([\\s\\S]*)`,
+    `(?:^|[\\s(])${escapeRegex(trimmedMention)}\\s+/install(?=$|[\\s.,;:!?)\\]}])`,
     "im",
   );
-  const installMatch = sanitized.match(installRegex);
-  if (installMatch) {
-    const installArgs = (installMatch[1] || "").replace(/^[\s.,;:!?)\]}]+/, "");
-    const targetToken = normalizeInstallTargetToken(installArgs.trim().split(/\s+/)[0] || "");
-    if (VALID_INSTALL_TARGET_REPO.test(targetToken)) {
-      return { route: INSTALL_ROUTE, skill: INSTALL_AGENT_SKILL, installTargetRepo: targetToken };
-    }
-    return { route: INVALID_INSTALL_ROUTE, skill: "" };
+  if (installRegex.test(sanitized)) {
+    return { route: INSTALL_ROUTE, skill: "" };
   }
 
   const skillRegex = new RegExp(
@@ -175,7 +178,6 @@ export function buildRequestedRouteDecision(
   if (
     normalizedRoute !== "skill" &&
     normalizedRoute !== INSTALL_ROUTE &&
-    normalizedRoute !== INVALID_INSTALL_ROUTE &&
     normalizedRoute !== "unsupported" &&
     !EXPLICIT_ROUTE_COMMANDS.includes(normalizedRoute as (typeof EXPLICIT_ROUTE_COMMANDS)[number])
   ) {
@@ -197,6 +199,7 @@ export function buildRequestedRouteDecision(
       summary: "I’ll start implementing this request.",
       issueTitle: metadata?.issueTitle || DEFAULT_IMPLEMENT_ISSUE_TITLE,
       issueBody: metadata?.issueBody || fallbackImplementIssueBody(originalRequest),
+      basePr: metadata?.basePr || "",
     };
   }
 
@@ -273,18 +276,7 @@ export function buildRequestedRouteDecision(
       route: INSTALL_ROUTE,
       needsApproval: false,
       confidence: "high",
-      summary: "I’ll run the install skill for the target repository.",
-      issueTitle: "",
-      issueBody: "",
-    };
-  }
-
-  if (normalizedRoute === INVALID_INSTALL_ROUTE) {
-    return {
-      route: "unsupported",
-      needsApproval: false,
-      confidence: "high",
-      summary: "Install requests need a target repository slug, for example `@sepo-agent /install owner/repo`.",
+      summary: "I’ll run the install route for the target repository.",
       issueTitle: "",
       issueBody: "",
     };

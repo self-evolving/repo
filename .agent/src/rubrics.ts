@@ -314,9 +314,7 @@ function routeMatches(rubric: Rubric, route: string): boolean {
   // Rubrics for implementation also apply to the PR-fix implementation path
   // unless the author chose a more specific route list.
   if (normalized === "fix-pr" && rubric.applies_to.includes("implement")) return true;
-  // The install route executes a bundled skill, so generic skill rubrics still
-  // apply unless a rubric author targets install more specifically.
-  return normalized === "install" && rubric.applies_to.includes("skill");
+  return false;
 }
 
 function severityScore(severity: RubricSeverity): number {

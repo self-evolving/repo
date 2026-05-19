@@ -6,7 +6,7 @@
 //          target_number, target_url, reaction_subject_id, response_kind,
 //          source_comment_id, source_comment_url, review_comment_id,
 //          discussion_node_id, reply_to_id, requested_by, requested_route,
-//          requested_skill, requested_install_target_repo
+//          requested_skill
 
 import { readFileSync } from "node:fs";
 import { isKnownAuthorAssociation } from "../access-policy.js";
@@ -31,11 +31,21 @@ const triggerKind = String(process.env.INPUT_TRIGGER_KIND || "mention").trim().t
 const labelName = process.env.INPUT_LABEL_NAME || "";
 const authorAssociationOverride = process.env.INPUT_AUTHOR_ASSOCIATION || "";
 const repository = process.env.GITHUB_REPOSITORY || "";
-const ISSUE_ASSOCIATIONS_TRUSTED_WITHOUT_REFRESH = new Set([
+const ASSOCIATIONS_TRUSTED_WITHOUT_REFRESH = new Set([
   "OWNER",
   "MEMBER",
   "COLLABORATOR",
 ]);
+const WEAK_ASSOCIATIONS_FOR_COLLABORATOR_FALLBACK = new Set([
+  "CONTRIBUTOR",
+  "FIRST_TIME_CONTRIBUTOR",
+  "FIRST_TIMER",
+  "NONE",
+]);
+
+function normalizeAssociation(association: string): string {
+  return String(association || "").trim().toUpperCase();
+}
 
 function hasOrgMembership(orgLogin: string, userLogin: string): boolean {
   const membershipState = ghApi([
@@ -107,18 +117,13 @@ function resolveLabelActorAssociation(payload: Record<string, any>): string {
 function refreshIssueAssociation(
   association: string,
   issueNumber: string,
-  issueAuthorLogin: string,
 ): string {
-  const normalized = String(association || "").trim().toUpperCase();
-
   if (
-    authorAssociationOverride ||
     eventName !== "issues" ||
-    ISSUE_ASSOCIATIONS_TRUSTED_WITHOUT_REFRESH.has(normalized) ||
     !repository ||
     !issueNumber
   ) {
-    return normalized || association;
+    return normalizeAssociation(association) || association;
   }
 
   const refreshed = ghApi([
@@ -126,16 +131,33 @@ function refreshIssueAssociation(
     "--jq",
     ".author_association // empty",
   ]).toUpperCase();
-  const resolved = refreshed || normalized || association;
-  if (ISSUE_ASSOCIATIONS_TRUSTED_WITHOUT_REFRESH.has(resolved)) {
-    return resolved;
+  return refreshed || normalizeAssociation(association) || association;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function normalizeMentionAuthorAssociation(association: string, payload: Record<string, any>): string {
+  const normalized = normalizeAssociation(association);
+  if (authorAssociationOverride || ASSOCIATIONS_TRUSTED_WITHOUT_REFRESH.has(normalized)) {
+    return normalized || association;
   }
 
-  if (hasRepositoryCollaborator(issueAuthorLogin)) {
+  const resolved = refreshIssueAssociation(
+    normalized || association,
+    String(payload.issue?.number || ""),
+  );
+  const resolvedNormalized = normalizeAssociation(resolved);
+  if (ASSOCIATIONS_TRUSTED_WITHOUT_REFRESH.has(resolvedNormalized)) {
+    return resolvedNormalized;
+  }
+
+  if (
+    WEAK_ASSOCIATIONS_FOR_COLLABORATOR_FALLBACK.has(resolvedNormalized) &&
+    hasRepositoryCollaborator(getRequestedBy(eventName, payload))
+  ) {
     return "COLLABORATOR";
   }
 
-  return resolved;
+  return resolvedNormalized || resolved;
 }
 
 if (!eventPath || !eventName) {
@@ -152,10 +174,9 @@ if (!eventPath || !eventName) {
     // Gate 2: check author association
     const association = triggerKind === "label"
       ? resolveLabelActorAssociation(payload)
-      : refreshIssueAssociation(
+      : normalizeMentionAuthorAssociation(
         authorAssociationOverride || getAuthorAssociation(eventName, payload),
-        String(payload.issue?.number || ""),
-        String(payload.issue?.user?.login || ""),
+        payload,
       );
     if (!isKnownAuthorAssociation(association)) {
       setOutput("should_respond", "false");
@@ -197,7 +218,6 @@ if (!eventPath || !eventName) {
           : extractRequestedRouteDecision(ctx.body, mention);
         const requestedRoute = requestedLabel?.route || requestedMention.route;
         const requestedSkill = requestedLabel?.skill || requestedMention.skill;
-        const requestedInstallTargetRepo = requestedLabel ? "" : requestedMention.installTargetRepo || "";
 
         if (triggerKind === "label" && !requestedLabel) {
           setOutput("should_respond", "false");
@@ -220,7 +240,6 @@ if (!eventPath || !eventName) {
           setOutput("requested_by", requestedBy);
           setOutput("requested_route", requestedRoute);
           setOutput("requested_skill", requestedSkill);
-          setOutput("requested_install_target_repo", requestedInstallTargetRepo);
         }
       }
     }

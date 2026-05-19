@@ -54,6 +54,10 @@ import {
   buildContinuationPrompt,
   selectContinuationPromptForResume,
 } from "./prompt-continuation.js";
+import {
+  parseSessionBundleMode,
+  shouldBackupSessionBundles,
+} from "./session-bundle.js";
 
 // --- Logging ---
 
@@ -70,7 +74,6 @@ const SUPPLEMENTAL_PROMPT_VAR_NAMES = [
   "RUBRICS_DIR",
   "RUBRICS_REF",
   "RUBRICS_CONTEXT_FILE",
-  "INSTALL_TARGET_REPO",
   "REQUEST_COMMENT_ID",
   "REQUEST_COMMENT_URL",
   "REQUEST_SOURCE_KIND",
@@ -79,6 +82,7 @@ const SUPPLEMENTAL_PROMPT_VAR_NAMES = [
   "CODEX_REVIEW_FILE",
   "ORCHESTRATOR_SOURCE_ACTION",
   "ORCHESTRATOR_SOURCE_CONCLUSION",
+  "ORCHESTRATOR_SOURCE_RECOMMENDED_NEXT_STEP",
   "ORCHESTRATOR_SOURCE_RUN_ID",
   "ORCHESTRATOR_NEXT_TARGET_NUMBER",
   "ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT",
@@ -88,6 +92,8 @@ const SUPPLEMENTAL_PROMPT_VAR_NAMES = [
   "ORCHESTRATOR_CURRENT_ROUND",
   "ORCHESTRATOR_MAX_ROUNDS",
   "SELF_APPROVE_EXPECTED_HEAD_SHA",
+  "SELF_APPROVE_SOURCE_CONCLUSION",
+  "SELF_APPROVE_SOURCE_RECOMMENDED_NEXT_STEP",
 ] as const;
 
 // --- Envelope from env ---
@@ -122,6 +128,7 @@ const PROMPT_TEMPLATES: Record<string, string> = {
   "fix-pr": ".github/prompts/agent-fix-pr.md",
   answer: ".github/prompts/agent-answer.md",
   "create-action": ".github/prompts/agent-create-action.md",
+  "agent-install": ".github/prompts/agent-install.md",
   dispatch: ".github/prompts/agent-dispatch.md",
   "rubrics-review": ".github/prompts/rubrics-review.md",
   "rubrics-initialization": ".github/prompts/rubrics-initialization.md",
@@ -534,6 +541,7 @@ function runDirectPath(opts: {
   }
 
   log("info", "Running acpx", { agent, route: envelope.route, permission_mode: permissionMode });
+  const sessionBundleMode = parseSessionBundleMode(process.env.SESSION_BUNDLE_MODE);
 
   const result = runAcpx({
     agent,
@@ -543,6 +551,9 @@ function runDirectPath(opts: {
     threadKey: envelope.thread_key,
     permissionMode,
     thoughtLevel: process.env.MODEL_REASONING_EFFORT,
+    preserveExecSession:
+      sessionPolicy === "track-only" && shouldBackupSessionBundles(sessionBundleMode, sessionPolicy),
+    preserveExecThoughtLevel: sessionPolicy === "track-only",
     resumeSessionId,
     continuationPrompt: continuationPromptAllowed ? continuationPrompt : undefined,
     env: sharedEnv,
