@@ -43,8 +43,8 @@ This policy lets contributors ask questions through the default `answer` behavio
 }
 ```
 
-For cross-repository installs, keep the bundled install skill available while
-restricting the first-class `/install` route separately:
+For cross-repository installs, restrict the first-class `/install` route
+separately from generic skills:
 
 ```json
 {

@@ -1,4 +1,4 @@
-import { extractReviewConclusion } from "./handoff.js";
+import { extractReviewConclusion, extractReviewRecommendedNextStep } from "./handoff.js";
 import { extractJsonObject } from "./response.js";
 import {
   extractReviewSynthesisHeadSha,
@@ -123,6 +123,7 @@ export function evaluateSelfApprovalProvenance(input: {
   comments: SelfApprovalSignalComment[];
   trustedActorLogin: string;
   expectedHeadSha: string;
+  allowHumanDecisionGate?: boolean;
 }): SelfApprovalProvenanceResult {
   const trustedActor = normalizeActorLogin(input.trustedActorLogin);
   const expectedHeadSha = String(input.expectedHeadSha || "").trim();
@@ -151,6 +152,7 @@ export function evaluateSelfApprovalProvenance(input: {
         index,
         createdAtMs: createdAtMs(comment.createdAt),
         conclusion: extractReviewConclusion(body),
+        recommendedNextStep: extractReviewRecommendedNextStep(body),
         reviewedHeadSha: extractReviewSynthesisHeadSha(body),
       };
     })
@@ -158,6 +160,7 @@ export function evaluateSelfApprovalProvenance(input: {
       index: number;
       createdAtMs: number;
       conclusion: string;
+      recommendedNextStep: string;
       reviewedHeadSha: string;
     } => Boolean(signal))
     .sort((left, right) => left.createdAtMs - right.createdAtMs || left.index - right.index);
@@ -183,16 +186,24 @@ export function evaluateSelfApprovalProvenance(input: {
     };
   }
 
-  if (latest.conclusion === "ship") {
+  const conclusion = latest.conclusion || "unknown";
+  const recommendedNextStep = normalizeToken(latest.recommendedNextStep || "");
+  if (conclusion === "ship") {
     return {
       trusted: true,
       reason: "latest trusted review synthesis verdict is SHIP for current head",
     };
   }
+  if (input.allowHumanDecisionGate && recommendedNextStep === "human_decision") {
+    return {
+      trusted: true,
+      reason: `latest trusted review synthesis recommended HUMAN_DECISION after ${conclusion} for current head`,
+    };
+  }
 
   return {
     trusted: false,
-    reason: `latest trusted review synthesis verdict is ${latest.conclusion || "unknown"}, not SHIP`,
+    reason: `latest trusted review synthesis verdict is ${conclusion}, not SHIP`,
   };
 }
 

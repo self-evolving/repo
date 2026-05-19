@@ -860,10 +860,13 @@ test("skill route uses the composite setup action for path and setup checks", ()
   const runSource = readRepoFile(".agent/src/run.ts");
   const supplementalVars = readSupplementalPromptVarNames(runSource);
   const skillJobStart = runnerWorkflow.indexOf("  skill:\n    needs: portal");
-  const approvalJobStart = runnerWorkflow.indexOf("  approval:", skillJobStart);
+  const installJobStart = runnerWorkflow.indexOf("  install:\n    needs: portal", skillJobStart);
+  const approvalJobStart = runnerWorkflow.indexOf("  approval:", installJobStart);
   assert.ok(skillJobStart >= 0);
+  assert.ok(installJobStart > skillJobStart);
   assert.ok(approvalJobStart > skillJobStart);
-  const skillWorkflow = runnerWorkflow.slice(skillJobStart, approvalJobStart);
+  const skillWorkflow = runnerWorkflow.slice(skillJobStart, installJobStart);
+  const installWorkflow = runnerWorkflow.slice(installJobStart, approvalJobStart);
   const optionalProviderStart = skillWorkflow.indexOf("- name: Resolve skill provider");
   const runtimeStart = skillWorkflow.indexOf("- name: Setup agent runtime");
   const checkStart = skillWorkflow.indexOf("- name: Check skill");
@@ -871,21 +874,27 @@ test("skill route uses the composite setup action for path and setup checks", ()
   const setupStart = skillWorkflow.indexOf("- name: Run skill setup");
 
   assert.match(skillWorkflow, /\.\/\.github\/actions\/run-skill-setup/);
-  assert.match(skillWorkflow, /needs\.portal\.outputs\.route == 'install'/);
+  assert.doesNotMatch(skillWorkflow, /needs\.portal\.outputs\.route == 'install'/);
   assert.match(runnerWorkflow, /AGENT_INSTALL_PAT:[\s\S]*Install-route machine-user token/);
-  assert.match(skillWorkflow, /AGENT_INSTALL_PAT_CONFIGURED:\s*\$\{\{\s*secrets\.AGENT_INSTALL_PAT != '' && 'true' \|\| 'false'\s*\}\}/);
-  assert.match(skillWorkflow, /Post install configuration blocked response/);
-  assert.match(skillWorkflow, /Install is not configured/);
-  assert.match(skillWorkflow, /AGENT_INSTALL_PAT/);
-  assert.match(skillWorkflow, /route:\s*\$\{\{\s*needs\.portal\.outputs\.route\s*\}\}/);
-  assert.match(skillWorkflow, /ROUTE:\s*\$\{\{\s*needs\.portal\.outputs\.route\s*\}\}/);
+  assert.doesNotMatch(skillWorkflow, /AGENT_INSTALL_PAT_CONFIGURED/);
+  assert.doesNotMatch(skillWorkflow, /Post install configuration blocked response/);
+  assert.doesNotMatch(skillWorkflow, /AGENT_INSTALL_PAT/);
+  assert.match(skillWorkflow, /route:\s*skill/);
+  assert.match(skillWorkflow, /ROUTE:\s*skill/);
   assert.match(skillWorkflow, /trusted_ref:\s*\$\{\{ !startsWith\(github\.ref, 'refs\/pull\/'\) \}\}/);
   assert.match(skillWorkflow, /skill_root:\s*\$\{\{ inputs\.skill_root \}\}/);
   assert.doesNotMatch(skillWorkflow, /install_target_repo:/);
-  assert.match(
-    skillWorkflow,
-    /github_token:\s*\$\{\{\s*needs\.portal\.outputs\.route == 'install' && secrets\.AGENT_INSTALL_PAT \|\| steps\.auth\.outputs\.token\s*\}\}/,
-  );
+  assert.match(skillWorkflow, /github_token:\s*\$\{\{\s*steps\.auth\.outputs\.token\s*\}\}/);
+  assert.match(installWorkflow, /needs\.portal\.outputs\.route == 'install'/);
+  assert.match(installWorkflow, /AGENT_INSTALL_PAT_CONFIGURED:\s*\$\{\{\s*secrets\.AGENT_INSTALL_PAT != '' && 'true' \|\| 'false'\s*\}\}/);
+  assert.match(installWorkflow, /Post install configuration blocked response/);
+  assert.match(installWorkflow, /Install is not configured/);
+  assert.match(installWorkflow, /prompt:\s*agent-install/);
+  assert.match(installWorkflow, /route:\s*install/);
+  assert.match(installWorkflow, /ROUTE:\s*install/);
+  assert.match(installWorkflow, /github_token:\s*\$\{\{\s*secrets\.AGENT_INSTALL_PAT\s*\}\}/);
+  assert.doesNotMatch(installWorkflow, /github_token:[^\n]*steps\.auth\.outputs\.token/);
+  assert.doesNotMatch(installWorkflow, /\.\/\.github\/actions\/run-skill-setup/);
   assert.ok(optionalProviderStart >= 0);
   assert.ok(runtimeStart > optionalProviderStart);
   assert.ok(checkStart > runtimeStart);

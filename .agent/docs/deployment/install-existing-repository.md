@@ -15,14 +15,14 @@ a public target repository:
 @sepo-agent /install can you install Sepo into https://github.com/owner/repo?
 ```
 
-The `/install` command is a first-class route for authorization, then executes
-the bundled `install-agent` skill. The route detection only recognizes the
-command; the skill resolves the target from the request text, accepting an
-`owner/repo` slug, a GitHub URL, or a clear natural-language repository
-reference. If the target is missing or ambiguous, the skill stops with a
-clarification instead of guessing. When the target is clear, it resolves the
-install source to the latest non-draft Sepo release and records that source
-revision in the PR body. If no stable release exists yet, the skill may use the
+The `/install` command is a first-class route for authorization, then runs the
+dedicated `agent-install` prompt. Route detection only recognizes the command;
+install-specific helper code resolves the target from the request text,
+accepting an `owner/repo` slug, a GitHub URL, or a clear natural-language
+repository reference. If the target is missing or ambiguous, the route stops
+with a clarification instead of guessing. When the target is clear, it resolves
+the install source to the latest non-draft Sepo release and records that source
+revision in the PR body. If no stable release exists yet, the route may use the
 latest non-draft prerelease.
 
 `/install` is the only route that uses `AGENT_INSTALL_PAT`. Normal routes keep
@@ -30,8 +30,8 @@ the standard GitHub auth resolver order: GitHub App, hosted OIDC, `AGENT_PAT`,
 then the workflow token. For `/install`, configure the `AGENT_INSTALL_PAT`
 repository secret in the Sepo source repository with a machine-user token that
 can push or open the install PR. If the secret is absent, the route stops before
-the skill runs and posts that install is not configured. If the secret is
-present but cannot push/open the PR for the target repository, the skill should
+the prompt runs and posts that install is not configured. If the secret is
+present but cannot push/open the PR for the target repository, the route should
 report a blocked result with the permission gap and next step.
 
 Use `AGENT_ACCESS_POLICY.route_overrides.install` to restrict who may trigger

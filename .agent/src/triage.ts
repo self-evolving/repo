@@ -34,7 +34,6 @@ const LABEL_ROUTE_PREFIX = "agent/";
 const LABEL_SKILL_PREFIX = "agent/s/";
 const VALID_SKILL_LABEL = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 export const INSTALL_ROUTE = "install";
-export const INSTALL_AGENT_SKILL = "install-agent";
 const DEFAULT_IMPLEMENT_ISSUE_TITLE = "Implement requested change";
 
 export interface RequestedLabelDecision {
@@ -148,7 +147,7 @@ export function extractRequestedRouteDecision(body: string, mention: string): Re
     "im",
   );
   if (installRegex.test(sanitized)) {
-    return { route: INSTALL_ROUTE, skill: INSTALL_AGENT_SKILL };
+    return { route: INSTALL_ROUTE, skill: "" };
   }
 
   const skillRegex = new RegExp(
@@ -277,7 +276,7 @@ export function buildRequestedRouteDecision(
       route: INSTALL_ROUTE,
       needsApproval: false,
       confidence: "high",
-      summary: "I’ll run the install skill for the target repository.",
+      summary: "I’ll run the install route for the target repository.",
       issueTitle: "",
       issueBody: "",
     };

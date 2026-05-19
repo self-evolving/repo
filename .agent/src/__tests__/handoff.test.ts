@@ -8,6 +8,7 @@ import {
   decideHandoff,
   defaultFixPrHandoffContext,
   extractReviewConclusion,
+  extractReviewRecommendedNextStep,
   extractReviewActionItems,
   formatHandoffMarkerComment,
   getHandoffMarkerState,
@@ -513,6 +514,75 @@ test("review verdicts dispatch fix-pr or stop", () => {
   assert.match(selfApprove.reason, /dispatching agent-self-approve/);
 });
 
+test("review HUMAN_DECISION dispatches self-approval when enabled", () => {
+  for (const verdict of ["SHIP", "MINOR_ISSUES", "NEEDS_REWORK"]) {
+    const decision = decideHandoff({
+      automationMode: "heuristics",
+      sourceAction: "review",
+      sourceConclusion: verdict,
+      sourceRecommendedNextStep: "HUMAN_DECISION",
+      targetNumber: "99",
+      currentRound: 2,
+      maxRounds: 5,
+      allowSelfApprove: true,
+    });
+
+    assert.equal(decision.decision, "dispatch");
+    assert.equal(decision.nextAction, "agent-self-approve");
+    assert.match(decision.reason, /HUMAN_DECISION/);
+  }
+});
+
+test("review HUMAN_DECISION stops when self-approval is disabled", () => {
+  const decision = decideHandoff({
+    automationMode: "heuristics",
+    sourceAction: "review",
+    sourceConclusion: "MINOR_ISSUES",
+    sourceRecommendedNextStep: "HUMAN_DECISION",
+    targetNumber: "99",
+    currentRound: 2,
+    maxRounds: 5,
+    allowSelfApprove: false,
+  });
+
+  assert.equal(decision.decision, "stop");
+  assert.match(decision.reason, /HUMAN_DECISION/);
+});
+
+test("agent mode validates review HUMAN_DECISION self-approval handoff", () => {
+  const allowed = decideHandoff({
+    automationMode: "agent",
+    sourceAction: "review",
+    sourceConclusion: "MINOR_ISSUES",
+    sourceRecommendedNextStep: "HUMAN_DECISION",
+    targetNumber: "99",
+    currentRound: 2,
+    maxRounds: 5,
+    allowSelfApprove: true,
+    plannerDecision: {
+      decision: "handoff",
+      nextAction: "agent-self-approve",
+      reason: "Review asked for human decision and self-approval is enabled.",
+    },
+  });
+  assert.equal(allowed.decision, "dispatch");
+  assert.equal(allowed.nextAction, "agent-self-approve");
+
+  const wrong = decideHandoff({
+    automationMode: "agent",
+    sourceAction: "review",
+    sourceConclusion: "MINOR_ISSUES",
+    sourceRecommendedNextStep: "HUMAN_DECISION",
+    targetNumber: "99",
+    currentRound: 2,
+    maxRounds: 5,
+    allowSelfApprove: true,
+    plannerDecision: { decision: "handoff", nextAction: "fix-pr", reason: "Fix it instead." },
+  });
+  assert.equal(wrong.decision, "stop");
+  assert.match(wrong.reason, /policy only allows agent-self-approve/);
+});
+
 test("review fix-pr handoffs preserve derived source context", () => {
   const decision = decideHandoff({
     automationMode: "heuristics",
@@ -669,6 +739,18 @@ test("extractReviewConclusion reads final verdict markdown", () => {
   assert.equal(extractReviewConclusion("Final answer\n\n## Final Verdict\nSHIP"), "ship");
   assert.equal(extractReviewConclusion("This needs-rework before another pass"), "needs_rework");
   assert.equal(extractReviewConclusion("No verdict here"), "unknown");
+});
+
+test("extractReviewRecommendedNextStep reads review synthesis recommendation", () => {
+  assert.equal(
+    extractReviewRecommendedNextStep("## Recommended Next Step\nHUMAN_DECISION: Needs gate judgment."),
+    "human_decision",
+  );
+  assert.equal(
+    extractReviewRecommendedNextStep("## Recommended Next Step\n- `FIX_PR`"),
+    "fix_pr",
+  );
+  assert.equal(extractReviewRecommendedNextStep("No recommendation"), "");
 });
 
 test("handoff dedupe markers are deterministic and detectable", () => {

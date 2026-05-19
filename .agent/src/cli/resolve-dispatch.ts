@@ -9,8 +9,6 @@ import { readFileSync } from "node:fs";
 import { type AccessPolicy, parseAccessPolicy } from "../access-policy.js";
 import { setOutput } from "../output.js";
 import {
-  INSTALL_AGENT_SKILL,
-  INSTALL_ROUTE,
   normalizeDispatch,
   applyDispatchPolicy,
   buildRequestedRouteDecision,
@@ -67,14 +65,7 @@ function emitDecision(accessPolicy: AccessPolicy): void {
     setOutput("summary", result.summary);
     setOutput("issue_title", result.issueTitle);
     setOutput("issue_body", result.issueBody);
-    setOutput(
-      "skill",
-      result.route === INSTALL_ROUTE
-        ? INSTALL_AGENT_SKILL
-        : result.route === "skill"
-          ? requestedSkill
-          : "",
-    );
+    setOutput("skill", result.route === "skill" ? requestedSkill : "");
     setOutput("base_pr", result.route === "implement" ? result.basePr || "" : "");
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);

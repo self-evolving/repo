@@ -151,7 +151,7 @@ test("extractRequestedRouteDecision detects mention-based skill requests", () =>
   );
 });
 
-test("extractRequestedRouteDecision maps install requests to install route and skill", () => {
+test("extractRequestedRouteDecision maps install requests to install route", () => {
   assert.deepEqual(
     extractRequestedRouteDecision(
       "@sepo-agent /install self-evolving/example-repo",
@@ -159,7 +159,7 @@ test("extractRequestedRouteDecision maps install requests to install route and s
     ),
     {
       route: "install",
-      skill: "install-agent",
+      skill: "",
     },
   );
   assert.deepEqual(
@@ -169,7 +169,7 @@ test("extractRequestedRouteDecision maps install requests to install route and s
     ),
     {
       route: "install",
-      skill: "install-agent",
+      skill: "",
     },
   );
   assert.deepEqual(
@@ -179,16 +179,16 @@ test("extractRequestedRouteDecision maps install requests to install route and s
     ),
     {
       route: "install",
-      skill: "install-agent",
+      skill: "",
     },
   );
   assert.deepEqual(
     extractRequestedRouteDecision("@sepo-agent /install", "@sepo-agent"),
-    { route: "install", skill: "install-agent" },
+    { route: "install", skill: "" },
   );
   assert.deepEqual(
     extractRequestedRouteDecision("@sepo-agent /install not-a-slug", "@sepo-agent"),
-    { route: "install", skill: "install-agent" },
+    { route: "install", skill: "" },
   );
   assert.doesNotMatch(
     buildRequestedRouteDecision("unsupported", "@sepo-agent /deploy").summary,
@@ -306,7 +306,7 @@ test("buildRequestedRouteDecision supports install routes", () => {
   const d = buildRequestedRouteDecision("install", "@sepo-agent /install owner/repo");
   assert.equal(d.route, "install");
   assert.equal(d.needsApproval, false);
-  assert.match(d.summary, /install skill/);
+  assert.match(d.summary, /install route/);
 });
 
 test("resolveRequestedLabel maps built-in and skill labels", () => {

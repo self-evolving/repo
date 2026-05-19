@@ -156,7 +156,7 @@ test("extract-context preserves permissive install route requests", () => {
     const outputs = parseGithubOutput(outputPath);
     assert.equal(outputs.get("should_respond"), "true");
     assert.equal(outputs.get("requested_route"), "install");
-    assert.equal(outputs.get("requested_skill"), "install-agent");
+    assert.equal(outputs.get("requested_skill"), "");
     assert.equal(outputs.has("requested_install_target_repo"), false);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });

@@ -82,6 +82,7 @@ const SUPPLEMENTAL_PROMPT_VAR_NAMES = [
   "CODEX_REVIEW_FILE",
   "ORCHESTRATOR_SOURCE_ACTION",
   "ORCHESTRATOR_SOURCE_CONCLUSION",
+  "ORCHESTRATOR_SOURCE_RECOMMENDED_NEXT_STEP",
   "ORCHESTRATOR_SOURCE_RUN_ID",
   "ORCHESTRATOR_NEXT_TARGET_NUMBER",
   "ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT",
@@ -91,6 +92,8 @@ const SUPPLEMENTAL_PROMPT_VAR_NAMES = [
   "ORCHESTRATOR_CURRENT_ROUND",
   "ORCHESTRATOR_MAX_ROUNDS",
   "SELF_APPROVE_EXPECTED_HEAD_SHA",
+  "SELF_APPROVE_SOURCE_CONCLUSION",
+  "SELF_APPROVE_SOURCE_RECOMMENDED_NEXT_STEP",
 ] as const;
 
 // --- Envelope from env ---
@@ -125,6 +128,7 @@ const PROMPT_TEMPLATES: Record<string, string> = {
   "fix-pr": ".github/prompts/agent-fix-pr.md",
   answer: ".github/prompts/agent-answer.md",
   "create-action": ".github/prompts/agent-create-action.md",
+  "agent-install": ".github/prompts/agent-install.md",
   dispatch: ".github/prompts/agent-dispatch.md",
   "rubrics-review": ".github/prompts/rubrics-review.md",
   "rubrics-initialization": ".github/prompts/rubrics-initialization.md",

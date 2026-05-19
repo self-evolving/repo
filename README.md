@@ -22,7 +22,7 @@ Sepo turns a repository into a **self-evolving repository**: a codebase that can
 
 ### Install into an existing repository
 
-Check [Install into an existing repository](.agent/docs/deployment/install-existing-repository.md) for the detailed guide. TL;DR: you (or your agent) should copy `.agent/` and `.github/`, configure secrets, run the onboarding setup check, and initialize agent memory from GitHub Actions. From this repository, authorized users can request an install PR for a public target with `@sepo-agent /install owner/repo` when the resolved Sepo token can write to that target.
+Check [Install into an existing repository](.agent/docs/deployment/install-existing-repository.md) for the detailed guide. TL;DR: you (or your agent) should copy `.agent/` and `.github/`, configure secrets, run the onboarding setup check, and initialize agent memory from GitHub Actions. From this repository, authorized users can request an install PR for a public target with `@sepo-agent /install ...` when `AGENT_INSTALL_PAT` can write to that target.
 
 ## What You Can Ask It To Do
 
@@ -39,7 +39,7 @@ Check [Install into an existing repository](.agent/docs/deployment/install-exist
 @sepo-agent /skill <skill-name>
 
 # Prepare an install PR when Sepo can write to the target
-@sepo-agent /install owner/repo
+@sepo-agent /install can you install Sepo into https://github.com/owner/repo?
 
 # Inside a PR
 @sepo-agent /review

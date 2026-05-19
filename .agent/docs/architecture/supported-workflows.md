@@ -232,14 +232,14 @@ skill setup should customize the copied `agent-router.yml` skill job directly
 so repositories can use native GitHub Actions `uses`, `with`, Docker, service,
 or cache features.
 
-`/install` is a first-class route that passes the full request to the bundled
-`install-agent` skill. The skill resolves the target from an `owner/repo` slug,
-a GitHub URL, or a clear natural-language repository reference, and blocks for
-clarification when the target is missing or ambiguous. Access policy evaluates
-it as the `install` route, so
+`/install` is a first-class route that passes the full request to the dedicated
+`agent-install` prompt. Install-specific helper code resolves the target from an
+`owner/repo` slug, a GitHub URL, or a clear natural-language repository
+reference, and blocks for clarification when the target is missing or ambiguous.
+Access policy evaluates it as the `install` route, so
 `AGENT_ACCESS_POLICY.route_overrides.install` can restrict external installs
 without blocking general `/skill` runs. The install route requires the
-`AGENT_INSTALL_PAT` secret and passes that token to the install skill; other
+`AGENT_INSTALL_PAT` secret and passes that token to the install prompt; other
 routes continue using the standard GitHub auth resolver.
 
 ### `agent-label.yml`
@@ -278,22 +278,27 @@ lowercase names to match consistently across case-sensitive filesystems.
 
 Self-approval is disabled unless `AGENT_ALLOW_SELF_APPROVE=true`. The manual
 workflow accepts a pull request number, confirms the target is an open PR, and
-requires the latest trusted review synthesis from the authenticated Sepo actor
-to be `SHIP` for the current reviewed-head marker before it runs an approval
-agent. The agent runs with read-approved permissions and returns structured JSON
-with a verdict, reason, optional follow-up context, and `inspected_head_sha`.
+requires latest trusted review synthesis from the authenticated Sepo actor for
+the current reviewed-head marker before it runs an approval agent. Normal runs
+require that synthesis to be `SHIP`; orchestrated review `HUMAN_DECISION`
+handoffs may also run the agent as a decision gate for non-`SHIP` verdicts. The
+agent runs with read-approved permissions and returns structured JSON with a
+verdict, reason, optional follow-up context, and `inspected_head_sha`.
 
 Deterministic resolver code is the only part that can submit the GitHub
 approval. It rereads the current PR head, rechecks trusted current-head review
 provenance, verifies the approval actor differs from the pull request author,
 parses the agent verdict, and approves only when the expected, current, and
-inspected head SHAs match. Non-approval outcomes post a compact PR status
-comment. In orchestrated chains, `SHIP` review synthesis can hand off to
-`agent-self-approve`, and a self-approval `REQUEST_CHANGES` result can hand off
-to `fix-pr` with the approval agent's handoff context. Self-approval status
-comments are upserted by marker against comments authored by the authenticated
-Sepo actor, and result artifacts are retained for failed or blocked resolution
-paths where available.
+inspected head SHAs match and the latest trusted current-head review synthesis
+verdict is `SHIP`. Non-approval outcomes post a compact PR status comment. In
+orchestrated chains, `SHIP` review synthesis and review syntheses that recommend
+`HUMAN_DECISION` can hand off to `agent-self-approve`; non-`SHIP`
+`HUMAN_DECISION` runs let self-approval request changes or block, but the
+resolver cannot submit approval without trusted current-head `SHIP` provenance.
+A self-approval `REQUEST_CHANGES` result can hand off to `fix-pr` with the
+approval agent's handoff context. Self-approval status comments are upserted by
+marker against comments authored by the authenticated Sepo actor, and result
+artifacts are retained for failed or blocked resolution paths where available.
 
 ### `agent-self-merge.yml`
 

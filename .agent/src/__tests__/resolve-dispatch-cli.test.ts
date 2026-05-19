@@ -173,7 +173,7 @@ test("resolve-dispatch rejects invalid implement base PR metadata", () => {
   }
 });
 
-test("resolve-dispatch emits install route with bundled install skill", () => {
+test("resolve-dispatch emits install route without a skill", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-resolve-dispatch-"));
 
   try {
@@ -206,7 +206,7 @@ test("resolve-dispatch emits install route with bundled install skill", () => {
     const outputs = parseGithubOutput(outputPath);
     assert.equal(outputs.get("route"), "install");
     assert.equal(outputs.get("needs_approval"), "false");
-    assert.equal(outputs.get("skill"), "install-agent");
+    assert.equal(outputs.get("skill"), "");
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }

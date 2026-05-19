@@ -10,6 +10,7 @@ export interface HandoffInput {
   automationMode: string;
   sourceAction: string;
   sourceConclusion: string;
+  sourceRecommendedNextStep?: string;
   sourceHandoffContext?: string;
   targetKind?: string;
   targetNumber: string;
@@ -129,6 +130,14 @@ export function normalizeConclusion(value: string): string {
   if (normalized === "needs_rework") return "needs_rework";
   if (normalized === "changes_requested") return "changes_requested";
   return normalized || "unknown";
+}
+
+export function normalizeRecommendedNextStep(value: string): string {
+  const normalized = normalizeToken(value);
+  if (normalized === "fix_pr") return "fix_pr";
+  if (normalized === "human_decision") return "human_decision";
+  if (normalized === "no_automated_action") return "no_automated_action";
+  return normalized;
 }
 
 export function formatMarkdownTableCell(value: string | number): string {
@@ -281,6 +290,13 @@ export function extractReviewConclusion(markdown: string): string {
 
   const inlineMatch = text.match(/\b(SHIP|MINOR[_ -]ISSUES|NEEDS[_ -]REWORK|CHANGES[_ -]REQUESTED)\b/i);
   return inlineMatch ? normalizeConclusion(inlineMatch[1]) : "unknown";
+}
+
+export function extractReviewRecommendedNextStep(markdown: string): string {
+  const section = extractMarkdownSection(markdown, "Recommended Next Step");
+  const text = section || markdown || "";
+  const match = text.match(/\b(FIX_PR|HUMAN_DECISION|NO_AUTOMATED_ACTION)\b/i);
+  return match ? normalizeRecommendedNextStep(match[1]) : "";
 }
 
 export function buildHandoffDedupeKey(input: HandoffDedupeInput): string {
@@ -459,6 +475,19 @@ function decideHeuristicHandoff(input: HandoffInput): HandoffDecision {
   }
 
   if (sourceAction === "review") {
+    const recommendedNextStep = normalizeRecommendedNextStep(input.sourceRecommendedNextStep || "");
+    if (recommendedNextStep === "human_decision") {
+      if (input.allowSelfApprove) {
+        return {
+          decision: "dispatch",
+          nextAction: "agent-self-approve",
+          targetNumber: nextTarget,
+          reason: `review recommended HUMAN_DECISION after ${conclusion}; dispatching agent-self-approve`,
+          nextRound,
+        };
+      }
+      return { decision: "stop", reason: `review recommended HUMAN_DECISION after ${conclusion}`, nextRound };
+    }
     if (conclusion === "ship") {
       if (input.allowSelfApprove) {
         return {
