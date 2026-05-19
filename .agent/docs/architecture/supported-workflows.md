@@ -219,6 +219,7 @@ Explicit routes are:
 - `@sepo-agent /review`
 - `@sepo-agent /orchestrate`
 - `@sepo-agent /skill <name>`
+- `@sepo-agent /install ...`
 
 Explicit routes skip dispatch triage and resolve locally, but still go through the same route policy checks afterward.
 When an explicit `/implement` request on a pull request or discussion creates a tracking issue, the router runs a metadata-only agent prompt to synthesize the issue title and body from the request plus target context. The slash command approves the route; it is not copied into the title. Pull request metadata can also include `base_pr` for stacked or follow-up implementation requests. If metadata generation is unavailable or invalid, the issue falls back to `Implement requested change`.
@@ -230,6 +231,19 @@ job runs it from the repository root before the agent task starts. More complex
 skill setup should customize the copied `agent-router.yml` skill job directly
 so repositories can use native GitHub Actions `uses`, `with`, Docker, service,
 or cache features.
+
+`/install` is a first-class route that passes the full request to the dedicated
+`agent-install` prompt. Install-specific helper code resolves the target from an
+`owner/repo` slug, a GitHub URL, or a clear natural-language repository
+reference, and blocks for clarification when the target is missing or ambiguous.
+Access policy evaluates it as the `install` route, so
+`AGENT_ACCESS_POLICY.route_overrides.install` can restrict external installs
+without blocking general `/skill` runs. The install route requires the
+`AGENT_INSTALL_PAT` secret and passes that token to the install prompt; other
+routes continue using the standard GitHub auth resolver. The prompt uses the
+install fork/PR helper to prepare a fork-backed worktree, then push, reuse, or
+open the install PR. Source-repo memory is disabled for install runs so that
+install token cannot write `agent/memory`.
 
 ### `agent-label.yml`
 

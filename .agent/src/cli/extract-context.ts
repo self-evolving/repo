@@ -5,7 +5,8 @@
 // Outputs: should_respond, association, body, source_kind, target_kind,
 //          target_number, target_url, reaction_subject_id, response_kind,
 //          source_comment_id, source_comment_url, review_comment_id,
-//          discussion_node_id, reply_to_id, requested_by, requested_route, requested_skill
+//          discussion_node_id, reply_to_id, requested_by, requested_route,
+//          requested_skill
 
 import { readFileSync } from "node:fs";
 import { isKnownAuthorAssociation } from "../access-policy.js";
