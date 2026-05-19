@@ -8,10 +8,11 @@ Instructions:
 3. Validate the version against `.agent/docs/technical-details/versioning.md`.
 4. Update `.agent/package.json`; it is the canonical Sepo package/runtime version.
 5. Update `.agent/package-lock.json` if package metadata changes require it.
-6. Update docs or checklist entries that should change for this version.
-7. Run lightweight, directly relevant checks when applicable.
-8. Do not create git tags. Do not create or edit GitHub Releases. Do not publish packages.
-9. Do not commit. Leave changes in the working tree.
+6. Update `.agent/CHANGELOG.md` with release notes for this version.
+7. Update docs or checklist entries that should change for this version.
+8. Run lightweight, directly relevant checks when applicable.
+9. Do not create git tags. Do not create or edit GitHub Releases. Do not publish packages.
+10. Do not commit. Leave changes in the working tree.
 
 Return exactly one JSON object and nothing else:
 

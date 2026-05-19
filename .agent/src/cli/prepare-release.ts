@@ -37,6 +37,7 @@ function issueBody(version: string, requestedBy: string): string {
     "- Keep `.agent/package.json` as the canonical Sepo package/runtime version.",
     "- Validate the release version against `.agent/docs/technical-details/versioning.md`.",
     "- Update `.agent/package-lock.json` if package metadata changes require it.",
+    "- Update `.agent/CHANGELOG.md` with release notes for the version.",
     "- Update docs or checklist content changed by this release.",
     "- Open a pull request.",
     "- Do not create git tags, GitHub Releases, or package publications.",

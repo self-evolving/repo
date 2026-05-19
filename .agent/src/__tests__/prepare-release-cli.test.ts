@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
@@ -109,6 +109,11 @@ exit 1
     assert.equal(outputs.get("issue_number"), "77");
     assert.equal(outputs.get("issue_action"), "created");
     assert.equal(outputs.get("issue_url"), "https://github.com/self-evolving/repo/issues/77");
+
+    const bodyFile = readdirSync(tempDir).find((name) => /^release-prepare-[a-f0-9]+\.md$/.test(name));
+    assert.ok(bodyFile);
+    const issueBody = readFileSync(join(tempDir, bodyFile), "utf8");
+    assert.match(issueBody, /`\.agent\/CHANGELOG\.md`/);
 
     const calls = readFileSync(callsPath, "utf8");
     assert.match(calls, /issue create/);
