@@ -83,3 +83,4 @@
 - `/install` uses only `AGENT_INSTALL_PAT` for external install identity; normal routes keep App/OIDC/AGENT_PAT resolver order.
 - Non-SHIP self-approval preflight may run only for trusted current-head HUMAN_DECISION syntheses; resolver approval stays SHIP-only.
 - Sepo release notes live in .agent/CHANGELOG.md; do not recreate a root CHANGELOG.md for Sepo releases.
+- Use agent-goal for repository goal issues; reserve agent/* labels for route triggers unless a real route exists.
