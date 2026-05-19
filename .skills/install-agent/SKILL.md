@@ -115,8 +115,8 @@ unless explicitly requested.
      `GH_TOKEN="$GH_TOKEN" INSTALL_TARGET_REPO="<owner/repo>" node .agent/dist/cli/install-fork-pr.js prepare`.
    - The helper validates the target slug, requires a public target, identifies
      the token owner, detects duplicate open install PRs, creates or reuses the
-     token owner's fork, clones the target default branch, and creates the
-     install branch.
+     token owner's fork, and prepares the install branch from the reusable PR
+     branch when present or the target default branch otherwise.
    - Read the helper JSON or GitHub outputs. If `status` is `blocked`, report
      `blockedCode` and `message` and stop before copying files.
    - Work only in the returned `workdir`, and carry forward `forkRepo`,
