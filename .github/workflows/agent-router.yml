@@ -675,16 +675,23 @@ jobs:
         id: runtime
         uses: ./.github/actions/setup-agent-runtime
 
-      - name: Create implementation issue
+      - name: Ensure implementation tracking issue
         if: needs.portal.outputs.target_kind != 'issue'
         id: create_issue
         env:
+          DISCUSSION_ID: ${{ needs.portal.outputs.discussion_node_id }}
           GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
           ISSUE_BODY: ${{ needs.portal.outputs.issue_body }}
           ISSUE_TITLE: ${{ needs.portal.outputs.issue_title }}
+          LINK_BACK_LABEL: this request
+          SOURCE_RUN_ID: ${{ github.run_id }}
           SOURCE_KIND: ${{ needs.portal.outputs.source_kind }}
+          TARGET_KIND: ${{ needs.portal.outputs.target_kind }}
+          TARGET_NUMBER: ${{ needs.portal.outputs.target_number }}
           TARGET_URL: ${{ needs.portal.outputs.target_url }}
-        run: node .agent/dist/cli/create-issue.js
+          TRACKING_SCOPE: explicit
+        run: node .agent/dist/cli/ensure-implementation-tracking.js
 
       - name: Dispatch agent-implement
         env:
@@ -704,35 +711,6 @@ jobs:
           AUTOMATION_MODE: ${{ inputs.automation_mode }}
           AUTOMATION_MAX_ROUNDS: ${{ inputs.automation_max_rounds }}
         run: node .agent/dist/cli/dispatch-agent-implement.js
-
-      - name: Prepare link-back body
-        if: needs.portal.outputs.target_kind != 'issue'
-        id: linkback_body
-        env:
-          BODY_FILE: ${{ runner.temp }}/implement-linkback.md
-          ISSUE_URL: ${{ steps.create_issue.outputs.issue_url }}
-        run: |
-          set -euo pipefail
-          # No workflow-run link: agent-implement.yml is dispatched
-          # fire-and-forget, so its run URL isn't known here. The tracking
-          # issue is where the final status comment lands.
-          printf '%s\n' \
-            "Implementing this request — tracking in ${ISSUE_URL}." \
-            > "${BODY_FILE}"
-          echo "body_file=${BODY_FILE}" >> "$GITHUB_OUTPUT"
-
-      - name: Post link-back to original surface
-        if: needs.portal.outputs.target_kind != 'issue'
-        env:
-          BODY_FILE: ${{ steps.linkback_body.outputs.body_file }}
-          DISCUSSION_ID: ${{ needs.portal.outputs.discussion_node_id }}
-          GH_TOKEN: ${{ steps.auth.outputs.token }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          REPLY_TO_ID: ${{ needs.portal.outputs.reply_to_id }}
-          RESPONSE_KIND: ${{ needs.portal.outputs.response_kind }}
-          REVIEW_COMMENT_ID: ${{ needs.portal.outputs.review_comment_id }}
-          TARGET_NUMBER: ${{ needs.portal.outputs.target_number }}
-        run: node .agent/dist/cli/post-response.js
 
       - name: React with thumbs up
         if: github.event.action != 'edited'

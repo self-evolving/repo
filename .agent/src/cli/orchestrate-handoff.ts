@@ -9,8 +9,13 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { addDiscussionComment, fetchDiscussionComments } from "../discussion.js";
+import { addDiscussionComment } from "../discussion.js";
 import { dispatchWorkflow, gh } from "../github.js";
+import {
+  ensureImplementationTrackingIssueForTarget,
+  fetchDiscussionCommentRecords,
+  fetchDiscussionSourceTargetMetadata,
+} from "../implementation-tracking.js";
 import { setOutput } from "../output.js";
 import {
   type HandoffDecision,
@@ -61,16 +66,6 @@ interface IssueRecord {
   url?: string;
 }
 
-interface SourceTargetMetadata {
-  kind: "pull_request" | "discussion";
-  number: string;
-  label: string;
-  title: string;
-  body: string;
-  url: string;
-  discussionId?: string;
-}
-
 interface TrustedSubOrchestratorMarkerRecord {
   marker: SubOrchestratorMarker;
   sourceKind: "body" | "comment";
@@ -98,10 +93,8 @@ type TerminalChildResolution =
 const SUB_ORCHESTRATION_ADOPTION_COMMENT_MARKER = "<!-- sepo-sub-orchestrator-adoption -->";
 const ORCHESTRATE_STOP_MARKER = "<!-- sepo-agent-orchestrate-stop -->";
 const TERMINAL_SUB_ORCHESTRATION_STOP_MARKER_PREFIX = "sepo-sub-orchestrator-terminal-stop";
-const ORCHESTRATED_IMPLEMENT_MARKER_PREFIX = "sepo-orchestrated-implement";
 const PENDING_MARKER_TTL_MS = 60 * 60 * 1000;
 const UNSATISFACTORY_ACTION_CONCLUSIONS = new Set(["no_changes", "failed", "verify_failed", "unsupported"]);
-const SEPO_CONTROL_MARKER_RE = /<!--\s*sepo-[\s\S]*?-->/gi;
 
 function positiveInt(value: string, fallback: number): number {
   const parsed = Number.parseInt(value, 10);
@@ -426,398 +419,6 @@ function createIssueFromBody(repoSlug: string, title: string, body: string): str
 function parseIssueNumberFromUrl(url: string): string {
   const match = String(url || "").trim().match(/\/issues\/(\d+)(?:\D*)?$/);
   return match ? match[1] : "";
-}
-
-function issueUrlFromNumber(repoSlug: string, issueNumber: string): string {
-  return repoSlug && issueNumber ? `https://github.com/${repoSlug}/issues/${issueNumber}` : "";
-}
-
-function escapeRegexText(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function splitRepoSlug(repoSlug: string): { owner: string; name: string } {
-  const [owner = "", name = ""] = String(repoSlug || "").split("/");
-  return { owner, name };
-}
-
-function fallbackTargetUrl(repoSlug: string, kind: "pull_request" | "discussion", number: string): string {
-  if (!repoSlug || !number) return "";
-  const path = kind === "pull_request" ? "pull" : "discussions";
-  return `https://github.com/${repoSlug}/${path}/${number}`;
-}
-
-function normalizeInlineText(value: string): string {
-  return String(value || "").replace(/[\r\n]+/g, " ").replace(/\s+/g, " ").trim();
-}
-
-function truncateText(value: string, maxLength: number): string {
-  const text = String(value || "").trim();
-  if (text.length <= maxLength) return text;
-  return `${text.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
-}
-
-function escapeSepoControlMarkers(value: string): string {
-  return String(value || "").replace(SEPO_CONTROL_MARKER_RE, (marker) => marker.replace(/<!--/i, "&lt;!--"));
-}
-
-function formatTrackingIssueTitle(metadata: SourceTargetMetadata): string {
-  const targetTitle = normalizeInlineText(metadata.title);
-  const fallback = `Implement ${metadata.label} orchestration request`;
-  const raw = targetTitle ? `Implement ${metadata.label}: ${targetTitle}` : fallback;
-  return truncateText(raw, 70) || fallback;
-}
-
-function appendMarkdownSection(lines: string[], title: string, value: string, maxLength: number): void {
-  const text = truncateText(escapeSepoControlMarkers(value), maxLength);
-  if (!text) return;
-  lines.push("", `## ${title}`, "", text);
-}
-
-function encodeStableMarkerKey(key: string): string {
-  return Buffer.from(key, "utf8").toString("base64url");
-}
-
-function buildOrchestratedImplementationTrackingKey(decision: HandoffDecision): string {
-  return [
-    "orchestrated-implement",
-    repo.trim().toLowerCase(),
-    sourceRunId.trim() || "unknown-run",
-    normalizeToken(sourceTargetKind),
-    targetNumber.trim(),
-    String(decision.nextRound),
-  ].join(":");
-}
-
-function formatOrchestratedImplementationTrackingMarker(input: {
-  key: string;
-  issueNumber?: string;
-}): string {
-  const parts = [
-    ORCHESTRATED_IMPLEMENT_MARKER_PREFIX,
-    `base64:${encodeStableMarkerKey(input.key)}`,
-  ];
-  if (input.issueNumber) {
-    parts.push(`issue:${input.issueNumber}`);
-  }
-  return `<!-- ${parts.join(" ")} -->`;
-}
-
-function parseOrchestratedImplementationTrackingMarker(
-  body: string,
-  key: string,
-): { issueNumber: string } | null {
-  const encoded = escapeRegexText(encodeStableMarkerKey(key));
-  const markerRe = new RegExp(
-    `<!--\\s*${ORCHESTRATED_IMPLEMENT_MARKER_PREFIX}\\s+base64:${encoded}(?:\\s+issue:(\\d+))?\\s*-->`,
-    "i",
-  );
-  const match = String(body || "").match(markerRe);
-  if (!match) return null;
-  return { issueNumber: match[1] || "" };
-}
-
-function formatImplementationBase(baseBranchInput: string, basePrInput: string): string {
-  if (basePrInput) return `PR #${basePrInput}`;
-  if (baseBranchInput) return `branch \`${baseBranchInput}\``;
-  return "repository default branch";
-}
-
-function fallbackSourceTargetMetadata(kind: "pull_request" | "discussion", number: string): SourceTargetMetadata {
-  const label = kind === "pull_request" ? `PR #${number || "unknown"}` : `discussion #${number || "unknown"}`;
-  return {
-    kind,
-    number,
-    label,
-    title: "",
-    body: "",
-    url: fallbackTargetUrl(repo, kind, number),
-  };
-}
-
-function fetchPullRequestSourceTargetMetadata(repoSlug: string, prNumber: string): SourceTargetMetadata {
-  const fallback = fallbackSourceTargetMetadata("pull_request", prNumber);
-  try {
-    const raw = gh([
-      "pr",
-      "view",
-      prNumber,
-      "--repo",
-      repoSlug,
-      "--json",
-      "title,body,url",
-    ]).trim();
-    if (!raw) return fallback;
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-    return {
-      ...fallback,
-      title: String(parsed.title || ""),
-      body: String(parsed.body || ""),
-      url: String(parsed.url || "") || fallback.url,
-    };
-  } catch (err: unknown) {
-    console.warn(`Could not read pull request #${prNumber} for tracking issue metadata: ${errorText(err)}`);
-    return fallback;
-  }
-}
-
-function fetchDiscussionSourceTargetMetadata(repoSlug: string, discussionNumber: string): SourceTargetMetadata {
-  const fallback = fallbackSourceTargetMetadata("discussion", discussionNumber);
-  const { owner, name } = splitRepoSlug(repoSlug);
-  const parsedNumber = parsePositiveTargetNumber(discussionNumber);
-  if (!owner || !name || !parsedNumber) return fallback;
-
-  try {
-    const query = `
-      query OrchestratedImplementDiscussion($owner: String!, $repo: String!, $number: Int!) {
-        repository(owner: $owner, name: $repo) {
-          discussion(number: $number) {
-            id
-            title
-            body
-            url
-          }
-        }
-      }
-    `;
-    const raw = gh([
-      "api",
-      "graphql",
-      "-f",
-      `query=${query}`,
-      "-f",
-      `owner=${owner}`,
-      "-f",
-      `repo=${name}`,
-      "-F",
-      `number=${parsedNumber}`,
-    ]).trim();
-    const parsed = JSON.parse(raw || "{}") as {
-      data?: {
-        repository?: {
-          discussion?: {
-            id?: unknown;
-            title?: unknown;
-            body?: unknown;
-            url?: unknown;
-          } | null;
-        } | null;
-      } | null;
-    };
-    const discussion = parsed.data?.repository?.discussion;
-    if (!discussion) return fallback;
-    return {
-      ...fallback,
-      title: String(discussion.title || ""),
-      body: String(discussion.body || ""),
-      url: String(discussion.url || "") || fallback.url,
-      discussionId: String(discussion.id || "") || undefined,
-    };
-  } catch (err: unknown) {
-    console.warn(`Could not read discussion #${discussionNumber} for tracking issue metadata: ${errorText(err)}`);
-    return fallback;
-  }
-}
-
-function fetchSourceTargetMetadata(kind: string, number: string): SourceTargetMetadata | null {
-  const normalizedKind = normalizeToken(kind);
-  if (normalizedKind === "pull_request") {
-    return fetchPullRequestSourceTargetMetadata(repo, number);
-  }
-  if (normalizedKind === "discussion") {
-    return fetchDiscussionSourceTargetMetadata(repo, number);
-  }
-  return null;
-}
-
-function formatOrchestratedImplementationIssueBody(input: {
-  decision: HandoffDecision;
-  metadata: SourceTargetMetadata;
-  baseBranch: string;
-  basePr: string;
-  trackingKey: string;
-}): string {
-  const plannerReason = escapeSepoControlMarkers(input.decision.reason);
-  const lines = [
-    "## Goal",
-    "",
-    `Implement the follow-up selected by \`/orchestrate\` for ${input.metadata.label}.`,
-    "",
-    "## Source target",
-    "",
-    `- Target kind: \`${input.metadata.kind}\``,
-    `- Target number: \`${input.metadata.number || "unknown"}\``,
-    `- Target URL: ${input.metadata.url || "unknown"}`,
-    `- Requested by: \`${requestedBy || "unknown"}\``,
-    `- Implementation base: ${formatImplementationBase(input.baseBranch, input.basePr)}`,
-    `- Planner reason: ${plannerReason}`,
-  ];
-
-  appendMarkdownSection(lines, "Request", requestText, 4000);
-  appendMarkdownSection(lines, "Orchestrator context", input.decision.handoffContext || input.decision.reason, 4000);
-  appendMarkdownSection(lines, "Target title", input.metadata.title, 500);
-  appendMarkdownSection(lines, "Target body", input.metadata.body, 4000);
-  lines.push("", formatOrchestratedImplementationTrackingMarker({ key: input.trackingKey }));
-
-  return `${lines.join("\n").trim()}\n`;
-}
-
-function fetchDiscussionCommentRecords(repoSlug: string, discussionNumber: string): CommentRecord[] {
-  const { owner, name } = splitRepoSlug(repoSlug);
-  const parsedNumber = parsePositiveTargetNumber(discussionNumber);
-  if (!owner || !name || !parsedNumber) return [];
-  return fetchDiscussionComments(owner, name, parsedNumber).map((comment) => ({
-    id: comment.id,
-    body: comment.body,
-    authorLogin: comment.authorLogin || "",
-  }));
-}
-
-function findTrustedOrchestratedImplementationLinkBack(
-  metadata: SourceTargetMetadata,
-  trackingKey: string,
-): string {
-  let comments: CommentRecord[] = [];
-  if (metadata.kind === "pull_request") {
-    const number = parsePositiveTargetNumber(metadata.number);
-    if (!number) return "";
-    comments = fetchIssueComments(repo, number);
-  } else {
-    comments = fetchDiscussionCommentRecords(repo, metadata.number);
-  }
-
-  for (const comment of [...comments].reverse()) {
-    if (!isTrustedActorLogin(comment.authorLogin || "")) continue;
-    const parsed = parseOrchestratedImplementationTrackingMarker(comment.body || "", trackingKey);
-    const issueNumber = parsed?.issueNumber || "";
-    if (issueNumber) return issueNumber;
-  }
-  return "";
-}
-
-function findTrustedOrchestratedImplementationIssueByBody(repoSlug: string, trackingKey: string): string {
-  const raw = gh([
-    "issue",
-    "list",
-    "--repo",
-    repoSlug,
-    "--state",
-    "all",
-    "--search",
-    `${ORCHESTRATED_IMPLEMENT_MARKER_PREFIX} in:body`,
-    "--json",
-    "number,title,body,author",
-    "--limit",
-    "100",
-  ]).trim();
-  const parsed = JSON.parse(raw || "[]") as unknown;
-  if (!Array.isArray(parsed)) {
-    throw new Error("could not parse orchestrated implement tracking issue search results");
-  }
-
-  for (const entry of parsed) {
-    if (!entry || typeof entry !== "object") continue;
-    const record = entry as Record<string, unknown>;
-    const number = parsePositiveTargetNumber(String(record.number || ""));
-    const issue: IssueRecord = {
-      number,
-      title: String(record.title || ""),
-      body: String(record.body || ""),
-      authorLogin: authorLoginFromRecord(record),
-    };
-    if (
-      number &&
-      parseOrchestratedImplementationTrackingMarker(issue.body, trackingKey) &&
-      isTrustedIssueRecord(issue)
-    ) {
-      return String(number);
-    }
-  }
-  return "";
-}
-
-function findExistingOrchestratedImplementationTrackingIssue(
-  metadata: SourceTargetMetadata,
-  trackingKey: string,
-): string {
-  try {
-    const linkBackIssueNumber = findTrustedOrchestratedImplementationLinkBack(metadata, trackingKey);
-    if (linkBackIssueNumber) return linkBackIssueNumber;
-  } catch (err: unknown) {
-    console.warn(`Could not inspect existing orchestrated implement link-backs: ${errorText(err)}`);
-  }
-  try {
-    return findTrustedOrchestratedImplementationIssueByBody(repo, trackingKey);
-  } catch (err: unknown) {
-    console.warn(`Could not inspect existing orchestrated implement tracking issues: ${errorText(err)}`);
-    return "";
-  }
-}
-
-function postOrchestratedImplementationLinkBack(
-  metadata: SourceTargetMetadata,
-  issueUrl: string,
-  trackingKey: string,
-): void {
-  const issueNumber = parseIssueNumberFromUrl(issueUrl);
-  const marker = formatOrchestratedImplementationTrackingMarker({ key: trackingKey, issueNumber });
-  const body = `Implementing this orchestration request - tracking in ${issueUrl}.\n\n${marker}`;
-  try {
-    if (findTrustedOrchestratedImplementationLinkBack(metadata, trackingKey)) {
-      return;
-    }
-  } catch (err: unknown) {
-    console.warn(`Could not inspect existing orchestrated implement link-back for ${metadata.label}: ${errorText(err)}`);
-  }
-  try {
-    if (metadata.kind === "pull_request") {
-      const number = parsePositiveTargetNumber(metadata.number);
-      if (!number) throw new Error(`invalid pull request number: ${metadata.number}`);
-      createIssueComment(repo, number, body);
-      return;
-    }
-    if (!metadata.discussionId) {
-      console.warn(`Could not post discussion link-back for ${metadata.label}: missing discussion node ID`);
-      return;
-    }
-    addDiscussionComment(metadata.discussionId, body);
-  } catch (err: unknown) {
-    console.warn(`Could not post orchestrated implement link-back to ${metadata.label}: ${errorText(err)}`);
-  }
-}
-
-function ensureImplementationTrackingIssue(
-  decision: HandoffDecision,
-  effectiveBaseBranch: string,
-  effectiveBasePr: string,
-): string {
-  if (normalizeToken(sourceTargetKind) === "issue") {
-    return decision.targetNumber || targetNumber;
-  }
-  const metadata = fetchSourceTargetMetadata(sourceTargetKind, targetNumber);
-  if (!metadata) {
-    throw new Error(`orchestrated implement cannot create tracking issue for ${sourceTargetKind || "missing"} targets`);
-  }
-  const trackingKey = buildOrchestratedImplementationTrackingKey(decision);
-  const existingIssueNumber = findExistingOrchestratedImplementationTrackingIssue(metadata, trackingKey);
-  if (existingIssueNumber) {
-    postOrchestratedImplementationLinkBack(metadata, issueUrlFromNumber(repo, existingIssueNumber), trackingKey);
-    return existingIssueNumber;
-  }
-
-  const title = formatTrackingIssueTitle(metadata);
-  const body = formatOrchestratedImplementationIssueBody({
-    decision,
-    metadata,
-    baseBranch: effectiveBaseBranch,
-    basePr: effectiveBasePr,
-    trackingKey,
-  });
-  const issueUrl = createIssueFromBody(repo, title, body);
-  const issueNumber = parseIssueNumberFromUrl(issueUrl);
-  if (!issueNumber) throw new Error(`Could not parse orchestrated implement tracking issue URL: ${issueUrl}`);
-  postOrchestratedImplementationLinkBack(metadata, issueUrl, trackingKey);
-  return issueNumber;
 }
 
 function trustedSubOrchestratorMarkerFromBody(issue: IssueRecord): TrustedSubOrchestratorMarkerRecord | null {
@@ -1902,7 +1503,21 @@ if (decision.nextAction === "implement" && effectiveBaseBranch && effectiveBaseP
 
 if (decision.nextAction === "implement" && normalizeToken(sourceTargetKind) !== "issue") {
   try {
-    dispatchTargetNumber = ensureImplementationTrackingIssue(decision, effectiveBaseBranch, effectiveBasePr);
+    dispatchTargetNumber = ensureImplementationTrackingIssueForTarget({
+      repo,
+      targetKind: sourceTargetKind,
+      targetNumber,
+      sourceRunId,
+      trackingScope: "orchestrate",
+      nextRound: decision.nextRound,
+      requestedBy,
+      requestText,
+      plannerReason: decision.reason,
+      handoffContext: decision.handoffContext || "",
+      baseBranch: effectiveBaseBranch,
+      basePr: effectiveBasePr,
+      linkBackLabel: "this orchestration request",
+    }).issueNumber;
     decision.targetNumber = dispatchTargetNumber;
     setOutput("target_number", dispatchTargetNumber);
   } catch (err: unknown) {

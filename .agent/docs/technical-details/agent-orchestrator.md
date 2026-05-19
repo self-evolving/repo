@@ -97,10 +97,13 @@ creates a tracking issue first and posts a best-effort link-back to the
 discussion. The planner may also return `answer`, `stop`, or `blocked` when no
 follow-up workflow should run.
 
-Non-issue `implement` tracking issues include a generated marker keyed to the
-source PR/discussion, source run, and next round. Retries reuse that marker
-before creating another issue, and copied request/target markdown escapes Sepo
-control markers so source text cannot become trusted orchestration state.
+Non-issue `implement` tracking issues are created through the shared
+implementation tracking helper used by explicit `/implement` and orchestrated
+`implement` handoffs. They include a generated marker keyed to the source
+PR/discussion, source run, tracking scope, and next round when present. Retries
+reuse that marker before creating another issue, duplicate link-backs are
+skipped, and copied request/target markdown escapes Sepo control markers so
+source text cannot become trusted orchestration state.
 
 For child work, the planner may return `delegate_issue`, which is an internal
 command rather than a public route. The dispatcher creates or reuses one child

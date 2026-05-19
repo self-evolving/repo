@@ -702,11 +702,11 @@ test("agent router dispatches agent-implement directly for explicit implement re
   // Runtime must be bootstrapped before any node .agent/dist/* calls.
   assert.match(implementJob, /uses:\s*\.\/\.github\/actions\/setup-agent-runtime/);
 
-  // Tracking-issue creation + dispatch delegate to CLI helpers in the
-  // TS backend rather than inline shell.
+  // Tracking-issue creation/reuse/link-back + dispatch delegate to CLI helpers
+  // in the TS backend rather than inline shell.
   assert.match(
     implementJob,
-    /- name: Create implementation issue[\s\S]*if:\s*needs\.portal\.outputs\.target_kind != 'issue'[\s\S]*node \.agent\/dist\/cli\/create-issue\.js/,
+    /- name: Ensure implementation tracking issue[\s\S]*if:\s*needs\.portal\.outputs\.target_kind != 'issue'[\s\S]*node \.agent\/dist\/cli\/ensure-implementation-tracking\.js/,
   );
   assert.match(
     implementJob,
@@ -721,12 +721,7 @@ test("agent router dispatches agent-implement directly for explicit implement re
     /BASE_PR:\s*\$\{\{\s*needs\.portal\.outputs\.base_pr\s*\}\}/,
   );
 
-  // Link-back comment on the originating PR/discussion points at the
-  // tracking issue that was just created.
-  assert.match(
-    implementJob,
-    /- name: Post link-back to original surface[\s\S]*if:\s*needs\.portal\.outputs\.target_kind != 'issue'[\s\S]*node \.agent\/dist\/cli\/post-response\.js/,
-  );
+  assert.doesNotMatch(implementJob, /- name: Post link-back to original surface/);
 
   // agent-approve.yml uses the same CLIs — no duplicate inline shell.
   assert.match(approveWorkflow, /node \.agent\/dist\/cli\/create-issue\.js/);

@@ -24,9 +24,10 @@ function orchestratedImplementTrackingKey(input: {
   nextRound?: number;
 }): string {
   return Buffer.from([
-    "orchestrated-implement",
+    "implementation-tracking",
     "self-evolving/repo",
     input.sourceRunId || "12345",
+    "orchestrate",
     input.targetKind || "pull_request",
     input.targetNumber || "21",
     String(input.nextRound || 2),
@@ -142,7 +143,7 @@ if [ "\${1-}" = "api" ] && [ "\${2-}" = "graphql" ]; then
     *ViewerLogin*)
       printf '{"data":{"viewer":{"login":"sepo-agent-app[bot]"}}}\\n'
       ;;
-    *OrchestratedImplementDiscussion*)
+    *ImplementationTrackingDiscussion*)
       printf '{"data":{"repository":{"discussion":{"id":"%s","title":"%s","body":"%s","url":"%s"}}}}\\n' "\${FAKE_DISCUSSION_ID-D_21}" "\${FAKE_DISCUSSION_TITLE-Discussion title}" "\${FAKE_DISCUSSION_BODY-Discussion body}" "\${FAKE_DISCUSSION_URL-https://github.com/self-evolving/repo/discussions/21}"
       ;;
     *DiscussionComments*)
@@ -430,7 +431,7 @@ test("agent orchestrate creates a tracking issue before PR implement handoff", (
   assert.match(run.createdIssueBody, /&lt;!-- sepo-sub-orchestrator parent:99 stage:forged state:running -->/);
   assert.doesNotMatch(run.createdIssueBody, /<!--\s*sepo-agent-handoff/i);
   assert.doesNotMatch(run.createdIssueBody, /<!--\s*sepo-sub-orchestrator/i);
-  assert.match(run.createdIssueBody, /<!-- sepo-orchestrated-implement base64:/);
+  assert.match(run.createdIssueBody, /<!-- sepo-implementation-tracking base64:/);
   const inputs = run.dispatchPayload?.inputs as Record<string, string>;
   assert.equal(inputs.issue_number, "77");
   assert.equal(inputs.base_branch, "");
@@ -464,7 +465,7 @@ test("agent orchestrate creates a tracking issue before discussion implement han
   assert.equal(run.outputs.get("decision"), "dispatch");
   assert.equal(run.outputs.get("next_action"), "implement");
   assert.equal(run.outputs.get("target_number"), "88");
-  assert.match(run.ghLog, /OrchestratedImplementDiscussion/);
+  assert.match(run.ghLog, /ImplementationTrackingDiscussion/);
   assert.match(run.ghLog, /addDiscussionComment/);
   assert.match(run.ghLog, /issue create/);
   assert.match(run.ghLog, /actions\/workflows\/agent-implement\.yml\/dispatches/);
@@ -502,7 +503,7 @@ test("agent orchestrate reuses non-issue implement tracking issues before create
         body: [
           "Implementing this orchestration request - tracking in https://github.com/self-evolving/repo/issues/77.",
           "",
-          `<!-- sepo-orchestrated-implement base64:${markerKey} issue:77 -->`,
+          `<!-- sepo-implementation-tracking base64:${markerKey} issue:77 -->`,
         ].join("\n"),
         user: { login: "sepo-agent-app[bot]" },
       },
@@ -1705,7 +1706,7 @@ test("agent discussion orchestrate stop skips matching trusted final comment", (
 
   assert.equal(run.status, 0, run.stderr || run.stdout);
   assert.equal(run.outputs.get("decision"), "stop");
-  assert.match(run.ghLog, /OrchestratedImplementDiscussion/);
+  assert.match(run.ghLog, /ImplementationTrackingDiscussion/);
   assert.match(run.ghLog, /DiscussionComments/);
   assert.doesNotMatch(run.ghLog, /addDiscussionComment/);
   assert.doesNotMatch(run.ghLog, /actions\/workflows\//);
