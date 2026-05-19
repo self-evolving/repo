@@ -32,7 +32,9 @@ repository secret in the Sepo source repository with a machine-user token that
 can push or open the install PR. If the secret is absent, the route stops before
 the prompt runs and posts that install is not configured. If the secret is
 present but cannot push/open the PR for the target repository, the route should
-report a blocked result with the permission gap and next step.
+report a blocked result with the permission gap and next step. Install runs
+disable source-repo memory writes so this target token is not used to update
+`agent/memory`.
 
 Use `AGENT_ACCESS_POLICY.route_overrides.install` to restrict who may trigger
 external installs independently from general `/skill` runs:

@@ -239,8 +239,10 @@ reference, and blocks for clarification when the target is missing or ambiguous.
 Access policy evaluates it as the `install` route, so
 `AGENT_ACCESS_POLICY.route_overrides.install` can restrict external installs
 without blocking general `/skill` runs. The install route requires the
-`AGENT_INSTALL_PAT` secret and passes that token to the install prompt; other
-routes continue using the standard GitHub auth resolver.
+`AGENT_INSTALL_PAT` secret and passes that token to the install prompt for
+target repository operations. Source-repo memory is disabled for install runs so
+that install token cannot write `agent/memory`; other routes continue using the
+standard GitHub auth resolver.
 
 ### `agent-label.yml`
 

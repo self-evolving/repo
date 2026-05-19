@@ -11,30 +11,28 @@ repository by opening or reusing a focused install PR.
 - `GH_TOKEN` is the install-only `AGENT_INSTALL_PAT`. Do not use `AGENT_PAT`,
   the workflow token, or any other GitHub token fallback for target repository
   writes.
+- Source repository memory is disabled for this route; do not write `agent/memory`
+  or `agent/rubrics` during install runs.
 - Do not post comments directly; return the reply body and let the workflow post
   it.
 
 ## Required Flow
 
-1. Resolve the target repository with the typed helper:
-   `node .agent/dist/cli/resolve-install-target.js`.
+1. Build the typed lifecycle plan with
+   `node .agent/dist/cli/plan-install-lifecycle.js` and read its JSON from
+   stdout.
    - If it reports `missing` or `ambiguous`, stop and return a concise
-     clarification request.
-   - Use the normalized `target_repo` from the helper for all GitHub operations.
-2. Confirm the active `GH_TOKEN` identity and target write path before editing.
-   If the token cannot push a branch or open a PR for the target repository,
-   return a blocked result that names the permission gap and says to update
-   `AGENT_INSTALL_PAT` or target repository access before rerunning `/install`.
-3. Check for an existing open install PR before commit, push, or PR creation:
-   `gh pr list --repo <target_repo> --head agent/install-agent-infra --state open --json number,url,state`.
-   If one exists, report the PR URL and stop unless the requester explicitly
-   asked to update or reuse it.
-4. Resolve the Sepo source revision from the latest non-draft release of
-   `self-evolving/repo`; include prereleases only when no stable release exists.
-   If release lookup is unavailable, clearly report the fallback.
-5. Prepare a target worktree from the target default branch, copy only approved
-   Sepo-owned infrastructure, and preserve target-owned files.
-6. Validate the diff and open a PR from `agent/install-agent-infra`.
+     clarification request using the helper message.
+   - Use the normalized `target_repo`, `install_branch`, `source_repo`, and
+     ordered `steps` from the plan for all install operations.
+2. Execute the plan steps in order. Treat the step IDs, commands, and
+   descriptions as the deterministic install contract for target write-path
+   probing, existing PR reuse, source release selection, branch preparation,
+   diff validation, and PR creation.
+3. If a step cannot be completed, stop and return a blocked result that names
+   the failed step and the needed next action. For target write failures, say to
+   update `AGENT_INSTALL_PAT` or target repository access before rerunning
+   `/install`.
 
 ## Scope
 
