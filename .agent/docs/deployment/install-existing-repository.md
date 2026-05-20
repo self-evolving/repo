@@ -15,9 +15,9 @@ a public target repository:
 @sepo-agent /install can you install Sepo into https://github.com/owner/repo?
 ```
 
-They can also open the **Install Sepo into another repository** issue template,
-which starts with `@sepo-agent /install` and leaves a field for the public target
-repository URL.
+They can also open the **Install Sepo into another repository** issue form,
+which includes an `@sepo-agent /install` command field and a required public
+target repository URL field.
 
 The `/install` command is a first-class route for authorization, then runs the
 dedicated `agent-install` prompt. Route detection only recognizes the command;

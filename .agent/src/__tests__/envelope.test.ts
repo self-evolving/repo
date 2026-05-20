@@ -1049,7 +1049,8 @@ test("workflow docs record the minimal metadata contract and developer notes", (
   const configurationList = readRepoFile(".agent/docs/customization/configuration-list.md");
   const skillsDocs = readRepoFile(".agent/docs/customization/skills.md");
   const existingRepoInstall = readRepoFile(".agent/docs/deployment/install-existing-repository.md");
-  const installIssueTemplate = readRepoFile(".github/ISSUE_TEMPLATE/install-sepo.md");
+  const installIssueTemplate = readRepoFile(".github/ISSUE_TEMPLATE/install-sepo.yml");
+  const installIssueTemplateForm = parseYaml(installIssueTemplate) as unknown;
   const developerNotes = readRepoFile(".agent/docs/technical-details/developer-notes.md");
 
   assert.match(keyConcepts, /### RuntimeEnvelope/);
@@ -1084,8 +1085,27 @@ test("workflow docs record the minimal metadata contract and developer notes", (
   assert.match(existingRepoInstall, /Normal routes keep[\s\S]*GitHub auth resolver order/);
   assert.match(existingRepoInstall, /Install Sepo into another repository/);
   assert.match(existingRepoInstall, /source request issue[\s\S]*comment linking the install PR/);
-  assert.match(installIssueTemplate, /^@sepo-agent \/install/m);
-  assert.match(installIssueTemplate, /Target public repository URL/);
+  assert.ok(isRecord(installIssueTemplateForm), "install issue form should parse as YAML");
+  assert.equal(installIssueTemplateForm.title, "Install Sepo into target repository");
+  assert.doesNotMatch(String(installIssueTemplateForm.title || ""), /owner\/repo|OWNER\/REPO|<owner\/repo>/);
+  assert.ok(Array.isArray(installIssueTemplateForm.body), "install issue form should define body fields");
+  const installIssueFields = installIssueTemplateForm.body as unknown[];
+  const commandField = installIssueFields.find(
+    (field): field is Record<string, unknown> => isRecord(field) && field.id === "agent-command",
+  );
+  assert.ok(commandField, "install issue form should submit an agent command field");
+  assert.ok(isRecord(commandField.attributes), "agent command field should define attributes");
+  assert.equal(commandField.attributes.value, "@sepo-agent /install");
+  const targetRepoField = installIssueFields.find(
+    (field): field is Record<string, unknown> => isRecord(field) && field.id === "target-repository",
+  );
+  assert.ok(targetRepoField, "install issue form should submit a target repository field");
+  assert.equal(targetRepoField.type, "input");
+  assert.ok(isRecord(targetRepoField.attributes), "target repository field should define attributes");
+  assert.equal(targetRepoField.attributes.label, "Target public repository URL");
+  assert.equal(targetRepoField.attributes.placeholder, "https://github.com/owner/repo");
+  assert.ok(isRecord(targetRepoField.validations), "target repository field should define validations");
+  assert.equal(targetRepoField.validations.required, true);
   assert.match(memoryArchitecture, /Agent \/ Memory \/ Initialization[\s\S]*\|\s*Auto\s*\|/);
   assert.match(rubricsArchitecture, /agent\/rubrics/);
   assert.match(rubricsArchitecture, /AGENT_RUBRICS_POLICY/);

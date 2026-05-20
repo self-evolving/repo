@@ -244,9 +244,9 @@ routes continue using the standard GitHub auth resolver. The prompt uses the
 install fork/PR helper to prepare a fork-backed worktree, then push, reuse, or
 open the install PR. Source-repo memory is disabled for install runs so that
 install token cannot write `agent/memory`. Issue-backed install requests can
-start from the install request issue template; when publish succeeds, the target
-PR body links the source issue and the source issue is closed best-effort after
-the install response is posted.
+start from the install request issue form; when publish succeeds, the target PR
+body links the source issue and the source issue is closed best-effort after the
+install response is posted.
 
 ### `agent-label.yml`
 
