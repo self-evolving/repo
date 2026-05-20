@@ -81,6 +81,9 @@ on:
       AGENT_INSTALL_PAT:
         description: "Install-route machine-user token for external install PRs"
         required: false
+      AGENT_CROSS_REPO_PAT:
+        description: "Optional secondary token for explicit cross-repo agent access"
+        required: false
       OPENAI_API_KEY:
         description: "OpenAI API key for Codex agent"
         required: false
@@ -235,6 +238,7 @@ jobs:
         with:
           agent: ${{ steps.dispatch_provider.outputs.provider }}
           github_token: ${{ steps.auth.outputs.token }}
+          secondary_github_token: ${{ secrets.AGENT_CROSS_REPO_PAT }}
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           permission_mode: approve-all
@@ -266,6 +270,7 @@ jobs:
         with:
           agent: ${{ steps.provider.outputs.provider }}
           github_token: ${{ steps.auth.outputs.token }}
+          secondary_github_token: ${{ secrets.AGENT_CROSS_REPO_PAT }}
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           permission_mode: approve-all
@@ -383,6 +388,7 @@ jobs:
         with:
           agent: ${{ steps.provider.outputs.provider }}
           github_token: ${{ steps.auth.outputs.token }}
+          secondary_github_token: ${{ secrets.AGENT_CROSS_REPO_PAT }}
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           permission_mode: approve-all
@@ -564,6 +570,7 @@ jobs:
         with:
           agent: ${{ steps.skill_provider.outputs.provider }}
           github_token: ${{ steps.auth.outputs.token }}
+          secondary_github_token: ${{ secrets.AGENT_CROSS_REPO_PAT }}
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           permission_mode: approve-all
@@ -674,6 +681,7 @@ jobs:
         with:
           agent: ${{ steps.provider.outputs.provider }}
           github_token: ${{ secrets.AGENT_INSTALL_PAT }}
+          secondary_github_token: ${{ secrets.AGENT_CROSS_REPO_PAT }}
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           permission_mode: approve-all

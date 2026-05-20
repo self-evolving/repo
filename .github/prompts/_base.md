@@ -24,3 +24,7 @@ Request: ${REQUEST_TEXT}
   - You have full permission to run commands given it's a sandbox environment.
   - When you draft a message and when you want to refer to files, please use links for github files rather than local file references.
   - Do not run destructive cleanup commands as there are followup steps that handle this.
+- GitHub authentication:
+  - The default `GH_TOKEN`, `GITHUB_TOKEN`, and `INPUT_GITHUB_TOKEN` are reserved for this repository's normal agent operations.
+  - `INPUT_SECONDARY_GITHUB_TOKEN` may be configured as an explicit opt-in credential for external GitHub repositories. Use it only for cross-repository operations that need it, for example by setting `GH_TOKEN="$INPUT_SECONDARY_GITHUB_TOKEN"` on that specific `gh` command.
+  - Do not print token values. Prefer read-only external inspection unless the user request clearly requires an external write and the token is intentionally scoped for that write.

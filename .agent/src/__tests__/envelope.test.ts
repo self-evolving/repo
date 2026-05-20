@@ -609,6 +609,9 @@ test("agent router supports label-triggered route and skill overrides", () => {
   assert.match(labelWorkflow, /needs\.agent\.outputs\.should_respond == 'true'/);
   assert.match(labelWorkflow, /AGENT_INSTALL_PAT:\s*\$\{\{\s*secrets\.AGENT_INSTALL_PAT\s*\}\}/);
   assert.match(entrypointWorkflow, /AGENT_INSTALL_PAT:\s*\$\{\{\s*secrets\.AGENT_INSTALL_PAT\s*\}\}/);
+  assert.match(labelWorkflow, /AGENT_CROSS_REPO_PAT:\s*\$\{\{\s*secrets\.AGENT_CROSS_REPO_PAT\s*\}\}/);
+  assert.match(entrypointWorkflow, /AGENT_CROSS_REPO_PAT:\s*\$\{\{\s*secrets\.AGENT_CROSS_REPO_PAT\s*\}\}/);
+  assert.match(runnerWorkflow, /AGENT_CROSS_REPO_PAT:[\s\S]*Optional secondary token/);
   assert.doesNotMatch(labelWorkflow, /author_association:\s*COLLABORATOR/);
   assert.match(labelWorkflow, /\.\/\.github\/actions\/resolve-github-auth/);
   assert.match(labelWorkflow, /fallback_token:\s*\$\{\{\s*github\.token\s*\}\}/);
@@ -842,6 +845,78 @@ test("shared run-agent-task action exists and requires explicit prompt/skill/lan
   assert.match(action, /LANE/);
   assert.match(action, /SESSION_POLICY/);
   assert.match(action, /\.agent\/dist\/run\.js/);
+});
+
+test("shared run-agent-task exposes an optional secondary GitHub token", () => {
+  const action = readRepoFile(".github/actions/run-agent-task/action.yml");
+  const runSource = readRepoFile(".agent/src/run.ts");
+  const basePrompt = readRepoFile(".github/prompts/_base.md");
+  const parsedAction = parseYaml(action) as unknown;
+
+  assert.ok(isRecord(parsedAction), "run-agent-task action should parse");
+  assert.ok(isRecord(parsedAction.inputs), "run-agent-task should define inputs");
+  const secondaryInput = parsedAction.inputs.secondary_github_token;
+  assert.ok(isRecord(secondaryInput), "run-agent-task should define secondary_github_token");
+  assert.equal(secondaryInput.required, false);
+  assert.equal(secondaryInput.default, "");
+
+  assert.ok(isRecord(parsedAction.runs), "run-agent-task should define runs");
+  assert.ok(Array.isArray(parsedAction.runs.steps), "run-agent-task should define steps");
+  const runStep = parsedAction.runs.steps.find(
+    (step): step is Record<string, unknown> => isRecord(step) && step.name === "Run agent task",
+  );
+  assert.ok(runStep, "run-agent-task action should include the Run agent task step");
+  assert.ok(isRecord(runStep.env), "Run agent task step should define env");
+  assert.equal(
+    runStep.env.INPUT_SECONDARY_GITHUB_TOKEN,
+    "${{ inputs.secondary_github_token }}",
+  );
+  assert.equal(runStep.env.INPUT_GITHUB_TOKEN, "${{ inputs.github_token }}");
+
+  assert.match(runSource, /INPUT_SECONDARY_GITHUB_TOKEN/);
+  assert.doesNotMatch(
+    runSource,
+    /env\.GH_TOKEN\s*=\s*process\.env\.INPUT_SECONDARY_GITHUB_TOKEN/,
+  );
+  assert.match(basePrompt, /INPUT_SECONDARY_GITHUB_TOKEN/);
+  assert.match(basePrompt, /Do not print token values/);
+});
+
+test("run-agent-task callers pass secondary token without replacing primary auth", () => {
+  const workflowPaths = readdirSync(path.join(repoRoot, ".github/workflows"))
+    .filter((file) => file.endsWith(".yml"))
+    .map((file) => `.github/workflows/${file}`)
+    .concat(".agent/action-templates/agent-action-template.yml");
+  let runTaskCount = 0;
+
+  for (const workflowPath of workflowPaths) {
+    const workflow = parseYaml(readRepoFile(workflowPath)) as unknown;
+    assert.ok(isRecord(workflow), `${workflowPath} should parse as a YAML object`);
+    const jobs = workflow.jobs;
+    if (!isRecord(jobs)) continue;
+
+    for (const [jobId, job] of Object.entries(jobs)) {
+      if (!isRecord(job) || !Array.isArray(job.steps)) continue;
+      for (const step of job.steps) {
+        if (!isRecord(step) || step.uses !== "./.github/actions/run-agent-task") continue;
+        runTaskCount += 1;
+        assert.ok(isRecord(step.with), `${workflowPath} job ${jobId} run-agent-task needs with`);
+        assert.ok(step.with.github_token, `${workflowPath} job ${jobId} keeps primary token`);
+        assert.notEqual(
+          step.with.github_token,
+          "${{ secrets.AGENT_CROSS_REPO_PAT }}",
+          `${workflowPath} job ${jobId} must not replace primary auth with secondary token`,
+        );
+        assert.equal(
+          step.with.secondary_github_token,
+          "${{ secrets.AGENT_CROSS_REPO_PAT }}",
+          `${workflowPath} job ${jobId} should pass optional secondary token`,
+        );
+      }
+    }
+  }
+
+  assert.ok(runTaskCount > 0);
 });
 
 test("shared setup-agent-runtime action exists and is referenced by reusable workflows", () => {
@@ -1082,6 +1157,10 @@ test("workflow docs record the minimal metadata contract and developer notes", (
   assert.match(supportedWorkflows, /strips code blocks[\s\S]*quoted text/i);
   assert.match(supportedWorkflows, /OWNER[\s\S]*MEMBER[\s\S]*COLLABORATOR[\s\S]*CONTRIBUTOR/);
   assert.doesNotMatch(configurationList, /AGENT_INSTALL_PAT/);
+  assert.match(configurationList, /AGENT_CROSS_REPO_PAT/);
+  assert.match(configurationList, /INPUT_SECONDARY_GITHUB_TOKEN/);
+  assert.match(supportedWorkflows, /INPUT_SECONDARY_GITHUB_TOKEN/);
+  assert.match(supportedWorkflows, /does not replace the primary same-repository\s+token/);
   assert.match(developerNotes, /AGENT_INSTALL_PAT/);
   assert.doesNotMatch(existingRepoInstall, /AGENT_INSTALL_PAT/);
   assert.match(existingRepoInstall, /public `\/install` route uses a dedicated install credential/);
@@ -1361,6 +1440,12 @@ test("workflow docs cover hosted auth and self-hosting paths", () => {
   assert.match(setupGuide, /Bring your own GitHub App/);
   assert.match(setupGuide, /`AGENT_PAT`/);
   assert.doesNotMatch(setupGuide, /AGENT_INSTALL_PAT/);
+  assert.match(setupGuide, /`AGENT_CROSS_REPO_PAT`/);
+  assert.match(setupGuide, /`INPUT_SECONDARY_GITHUB_TOKEN`/);
+  assert.match(setupGuide, /does not replace the primary `GH_TOKEN`/);
+  assert.match(setupGuide, /For read-only context gathering/);
+  assert.match(setupGuide, /For write-capable cross-repository tasks/);
+  assert.match(setupGuide, /Keep repository allowlists\s+narrow/);
   assert.match(setupGuide, /Public install requests use a separate install credential/);
   assert.match(setupGuide, /Contents:\*\* read and write/);
   assert.match(setupGuide, /### Auth priority/);

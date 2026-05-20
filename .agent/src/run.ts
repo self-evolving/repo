@@ -283,6 +283,7 @@ function buildSharedEnv(): Record<string, string> {
     env.GH_TOKEN = process.env.INPUT_GITHUB_TOKEN;
     env.GITHUB_TOKEN = process.env.INPUT_GITHUB_TOKEN;
   }
+  env.INPUT_SECONDARY_GITHUB_TOKEN = process.env.INPUT_SECONDARY_GITHUB_TOKEN || "";
   if (process.env.INPUT_OPENAI_API_KEY) {
     env.OPENAI_API_KEY = process.env.INPUT_OPENAI_API_KEY;
   }
