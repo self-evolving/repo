@@ -1463,6 +1463,10 @@ test("workflow docs cover hosted auth and self-hosting paths", () => {
   assert.match(setupGuide, /read access only to the needed surfaces/);
   assert.match(setupGuide, /read-only external inspection/);
   assert.match(setupGuide, /External writes need a route-specific credential/);
+  assert.match(setupGuide, /non-public external repository read access is still\s+sensitive/);
+  assert.match(setupGuide, /only trusted requesters/);
+  assert.match(setupGuide, /tighten\s+`AGENT_ACCESS_POLICY`/);
+  assert.match(setupGuide, /avoid granting private repository\s+scopes/);
   assert.match(setupGuide, /Public install requests use a separate install credential/);
   assert.match(setupGuide, /Contents:\*\* read and write/);
   assert.match(setupGuide, /### Auth priority/);

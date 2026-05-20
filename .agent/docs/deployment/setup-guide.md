@@ -94,6 +94,12 @@ read-only external inspection; do not configure it as a write-capable external
 credential. External writes need a route-specific credential and a deterministic
 write authorization guard documented and tested with that route.
 
+Private or otherwise non-public external repository read access is still
+sensitive. If `AGENT_SECONDARY_GITHUB_TOKEN` can read those repositories, allow
+only trusted requesters to trigger routes that receive it, tighten
+`AGENT_ACCESS_POLICY` for those routes, or avoid granting private repository
+scopes to the token.
+
 The public `/install` route is separate: it continues to use the dedicated
 install-only primary token described in developer notes. `AGENT_SECONDARY_GITHUB_TOKEN`
 is a read-only secondary credential for explicit agent opt-in, not the install
