@@ -8,6 +8,7 @@ import { join } from "node:path";
 import {
   enablePullRequestAutoMerge,
   fetchAuthenticatedActorLogin,
+  fetchIssueCommentRecords,
   fetchPrMergeMeta,
   fetchPrReviewRecords,
   markPullRequestReady,
@@ -86,18 +87,39 @@ function resolveCurrentSelfMerge(): {
   try {
     const meta = fetchPrMergeMeta(prNumber, repo);
     let approval: SelfMergeApprovalResult;
+    let reviews: ReturnType<typeof fetchPrReviewRecords> = [];
+    let comments: ReturnType<typeof fetchIssueCommentRecords> = [];
+    let reviewReadFailed = false;
+    let commentReadFailed = false;
     try {
-      approval = evaluateSelfMergeApproval({
-        reviews: fetchPrReviewRecords(prNumber, repo),
-        trustedActorLogin: fetchAuthenticatedActorLogin(),
-        currentHeadSha: meta.headOid,
-      });
+      reviews = fetchPrReviewRecords(prNumber, repo);
     } catch {
+      reviewReadFailed = true;
+    }
+    try {
+      comments = fetchIssueCommentRecords(prNumber, repo);
+    } catch {
+      commentReadFailed = true;
+    }
+    if (reviewReadFailed && commentReadFailed) {
       approval = {
         approved: false,
         approvedHeadSha: "",
-        reason: "could not read current-head self-approval reviews",
+        reason: "could not read current-head self-approval reviews or status comments",
       };
+    } else {
+      approval = evaluateSelfMergeApproval({
+        reviews,
+        comments,
+        trustedActorLogin: fetchAuthenticatedActorLogin(),
+        currentHeadSha: meta.headOid,
+      });
+      if (!approval.approved && reviewReadFailed) {
+        approval = { ...approval, reason: `${approval.reason}; could not read self-approval reviews` };
+      }
+      if (!approval.approved && commentReadFailed) {
+        approval = { ...approval, reason: `${approval.reason}; could not read self-approval status comments` };
+      }
     }
 
     const result = resolveSelfMerge({

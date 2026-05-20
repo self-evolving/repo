@@ -26,10 +26,12 @@ If this run came from review handoff, the orchestrator also passed:
 
 For `HUMAN_DECISION` review handoffs, make the decision here instead of
 routing back to a human by default. Use `APPROVE` only when the trusted
-current-head review verdict is `SHIP` and approval is safe. For non-`SHIP`
-verdicts, return `REQUEST_CHANGES` when concrete follow-up is needed, or
-`BLOCKED` only when safety checks, missing context, or automation limits prevent
-a reliable decision.
+current-head review verdict is `SHIP`, or when a current-head review synthesis
+explicitly recommended `HUMAN_DECISION` and you judge the remaining concerns to
+be acceptable product/maintenance tradeoffs. For other non-`SHIP` verdicts,
+return `REQUEST_CHANGES` when concrete follow-up is needed, or `BLOCKED` only
+when safety checks, missing context, or automation limits prevent a reliable
+decision.
 
 Rules:
 - Do not mutate GitHub state.
