@@ -87,3 +87,4 @@
 - For /install, typed fork helpers own target fork/branch/PR mechanics; the prompt orchestrates instead of raw git/gh lifecycle.
 - Install publish helpers must confirm the worktree is on the prepared branch before pushing HEAD:<branch>.
 - Issue-backed /install requests link source issues in target PRs and close the source issue best-effort after publish/reuse.
+- INPUT_SECONDARY_GITHUB_TOKEN is additive and read-only for external repo inspection; external writes need route-specific auth.
