@@ -57,6 +57,7 @@ export const VALID_ROUTES = new Set([
   "implement",
   "fix-pr",
   "answer",
+  "config",
   "create-action",
   "dispatch",
   "orchestrator",

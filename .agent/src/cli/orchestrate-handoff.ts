@@ -4,7 +4,7 @@
 //      GITHUB_REPOSITORY, DEFAULT_BRANCH, REQUESTED_BY, REQUEST_TEXT,
 //      SESSION_BUNDLE_MODE, SOURCE_RUN_ID, PLANNER_RESPONSE_FILE, TARGET_KIND,
 //      BASE_BRANCH, BASE_PR, AGENT_COLLAPSE_OLD_REVIEWS, AGENT_ALLOW_SELF_APPROVE,
-//      AGENT_ALLOW_SELF_MERGE
+//      AGENT_ALLOW_SELF_MERGE, SOURCE_REQUIRED_BRANCH_WORK
 
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -857,6 +857,7 @@ const sourceAction = process.env.SOURCE_ACTION || "";
 const sourceConclusion = process.env.SOURCE_CONCLUSION || "unknown";
 const sourceRunId = process.env.SOURCE_RUN_ID || process.env.GITHUB_RUN_ID || "";
 const sourceRecommendedNextStep = process.env.SOURCE_RECOMMENDED_NEXT_STEP || "";
+const sourceRequiredBranchWork = process.env.SOURCE_REQUIRED_BRANCH_WORK || "";
 const sourceHandoffContext = process.env.SOURCE_HANDOFF_CONTEXT || "";
 const sourceTargetKind = process.env.TARGET_KIND || "";
 const sourceAssociationRaw = process.env.AUTHOR_ASSOCIATION || "";
@@ -1332,6 +1333,7 @@ function decidePlannerOrchestration(): HandoffDecision {
     sourceAction,
     sourceConclusion,
     sourceRecommendedNextStep,
+    sourceRequiredBranchWork,
     targetKind: sourceTargetKind,
     targetNumber,
     nextTargetNumber: process.env.NEXT_TARGET_NUMBER || "",
@@ -1369,6 +1371,7 @@ const routeDecision = authorizationStop || (normalizeToken(sourceAction) === "or
     sourceAction,
     sourceConclusion,
     sourceRecommendedNextStep,
+    sourceRequiredBranchWork,
     targetKind: sourceTargetKind,
     targetNumber,
     nextTargetNumber: process.env.NEXT_TARGET_NUMBER || "",

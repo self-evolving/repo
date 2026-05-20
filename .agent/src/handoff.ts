@@ -11,6 +11,7 @@ export interface HandoffInput {
   sourceAction: string;
   sourceConclusion: string;
   sourceRecommendedNextStep?: string;
+  sourceRequiredBranchWork?: string;
   sourceHandoffContext?: string;
   targetKind?: string;
   targetNumber: string;
@@ -86,6 +87,11 @@ const DEFAULT_SELF_APPROVAL_FIX_PR_HANDOFF_CONTEXT = [
   "Address only the self-approval REQUEST_CHANGES findings.",
   "Preserve the reviewed-head and deterministic approval safeguards; avoid unrelated changes.",
 ].join(" ");
+const NO_REQUIRED_BRANCH_WORK_PATTERNS = [
+  /^no (?:unresolved )?(?:required )?(?:actionable )?(?:branch(?:[- ]change)? )?(?:work|issues|findings|action items)(?: remains)?$/,
+  /^no (?:branch(?:[- ]change)? )?(?:work|changes?) (?:is |are )?required$/,
+  /^no required branch(?:[- ]change)? work remains$/,
+];
 const ANY_HANDOFF_MARKER_RE = new RegExp(
   `<!--\\s*${HANDOFF_MARKER_PREFIX}(?:\\s+state:(pending|dispatched|failed))?(?:\\s+created:(\\d+))?\\s+base64:[A-Za-z0-9_-]+\\s*-->`,
   "i",
@@ -140,6 +146,17 @@ export function normalizeRecommendedNextStep(value: string): string {
   return normalized;
 }
 
+export function normalizeRequiredBranchWork(value: string): "true" | "false" | "unknown" {
+  const normalized = normalizeToken(value);
+  if (["true", "1", "yes", "on", "required", "has_required_branch_work"].includes(normalized)) {
+    return "true";
+  }
+  if (["false", "0", "no", "off", "none", "no_required_branch_work"].includes(normalized)) {
+    return "false";
+  }
+  return "unknown";
+}
+
 export function formatMarkdownTableCell(value: string | number): string {
   return String(value)
     .replace(/\r?\n/g, " ")
@@ -182,6 +199,19 @@ function normalizeReviewActionItem(line: string): string {
     .trim();
 }
 
+function normalizeReviewActionItemForClassification(line: string): string {
+  return normalizeReviewActionItem(line)
+    .replace(/[`*_]/g, "")
+    .replace(/[.!?:;]+$/g, "")
+    .toLowerCase();
+}
+
+export function isNoRequiredBranchWorkActionItem(line: string): boolean {
+  const normalized = normalizeReviewActionItemForClassification(line);
+  if (!normalized) return false;
+  return NO_REQUIRED_BRANCH_WORK_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
 export function extractReviewActionItems(markdown: string): string[] {
   const section = extractMarkdownSection(markdown, "Action Items");
   if (!section) return [];
@@ -203,8 +233,18 @@ export function extractReviewActionItems(markdown: string): string[] {
   return items;
 }
 
+export function extractRequiredReviewActionItems(markdown: string): string[] {
+  return extractReviewActionItems(markdown).filter((item) => !isNoRequiredBranchWorkActionItem(item));
+}
+
+export function deriveReviewRequiredBranchWork(markdown: string): "true" | "false" | "unknown" {
+  const section = extractMarkdownSection(markdown, "Action Items");
+  if (!section) return "unknown";
+  return extractRequiredReviewActionItems(markdown).length ? "true" : "false";
+}
+
 export function buildReviewFixPrHandoffContext(markdown: string): string {
-  const items = extractReviewActionItems(markdown).slice(0, 5);
+  const items = extractRequiredReviewActionItems(markdown).slice(0, 5);
   if (!items.length) return defaultFixPrHandoffContext();
   return [
     "Address only the latest review synthesis action items:",
@@ -476,6 +516,7 @@ function decideHeuristicHandoff(input: HandoffInput): HandoffDecision {
 
   if (sourceAction === "review") {
     const recommendedNextStep = normalizeRecommendedNextStep(input.sourceRecommendedNextStep || "");
+    const requiredBranchWork = normalizeRequiredBranchWork(input.sourceRequiredBranchWork || "");
     if (recommendedNextStep === "human_decision") {
       if (input.allowSelfApprove) {
         return {
@@ -499,6 +540,39 @@ function decideHeuristicHandoff(input: HandoffInput): HandoffDecision {
         };
       }
       return { decision: "stop", reason: "review verdict is SHIP", nextRound };
+    }
+    if (recommendedNextStep === "no_automated_action") {
+      if (conclusion === "minor_issues" && requiredBranchWork === "false") {
+        if (input.allowSelfApprove) {
+          return {
+            decision: "dispatch",
+            nextAction: "agent-self-approve",
+            targetNumber: nextTarget,
+            reason: "review found no required branch-change work after MINOR_ISSUES; dispatching agent-self-approve",
+            nextRound,
+          };
+        }
+        return {
+          decision: "stop",
+          reason: "review found no required branch-change work after MINOR_ISSUES; self-approval disabled",
+          nextRound,
+        };
+      }
+      if (requiredBranchWork === "true" && REVIEW_TO_FIX_PR.has(conclusion)) {
+        return {
+          decision: "dispatch",
+          nextAction: "fix-pr",
+          targetNumber: nextTarget,
+          reason: `review action items require branch changes after ${conclusion}; dispatching fix-pr`,
+          nextRound,
+          handoffContext: resolveFixPrHandoffContext(input),
+        };
+      }
+      return {
+        decision: "stop",
+        reason: `review recommended NO_AUTOMATED_ACTION after ${conclusion}`,
+        nextRound,
+      };
     }
     if (REVIEW_TO_FIX_PR.has(conclusion)) {
       return {

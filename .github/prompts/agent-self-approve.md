@@ -25,12 +25,16 @@ If this run came from review handoff, the orchestrator also passed:
 - Source recommended next step: `${SELF_APPROVE_SOURCE_RECOMMENDED_NEXT_STEP}`
 
 For `HUMAN_DECISION` review handoffs, make the decision here instead of
-routing back to a human by default. Use `APPROVE` only when the trusted
-current-head review verdict is `SHIP`, or when a current-head review synthesis
-explicitly recommended `HUMAN_DECISION` and you judge the remaining concerns to
-be acceptable product/maintenance tradeoffs. For other non-`SHIP` verdicts,
-return `REQUEST_CHANGES` when concrete follow-up is needed, or `BLOCKED` only
-when safety checks, missing context, or automation limits prevent a reliable
+routing back to a human by default. For `NO_AUTOMATED_ACTION` review handoffs,
+the preflight has already verified a trusted current-head `MINOR_ISSUES`
+synthesis with no required branch-change work; decide whether the remaining
+minor concerns are acceptable. Use `APPROVE` only when the trusted current-head
+review verdict is `SHIP`, when a current-head review synthesis explicitly
+recommended `HUMAN_DECISION` and you judge the remaining concerns acceptable,
+or when `NO_AUTOMATED_ACTION` means no branch work remains and self-governance
+approval is appropriate. For other non-`SHIP` verdicts, return
+`REQUEST_CHANGES` when concrete follow-up is needed, or `BLOCKED` only when
+safety checks, missing context, or automation limits prevent a reliable
 decision.
 
 Rules:

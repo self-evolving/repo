@@ -954,12 +954,15 @@ test("skill route uses the composite setup action for path and setup checks", ()
   const supplementalVars = readSupplementalPromptVarNames(runSource);
   const skillJobStart = runnerWorkflow.indexOf("  skill:\n    needs: portal");
   const installJobStart = runnerWorkflow.indexOf("  install:\n    needs: portal", skillJobStart);
-  const approvalJobStart = runnerWorkflow.indexOf("  approval:", installJobStart);
+  const configJobStart = runnerWorkflow.indexOf("  config:\n    needs: portal", installJobStart);
+  const approvalJobStart = runnerWorkflow.indexOf("  approval:", configJobStart);
   assert.ok(skillJobStart >= 0);
   assert.ok(installJobStart > skillJobStart);
+  assert.ok(configJobStart > installJobStart);
   assert.ok(approvalJobStart > skillJobStart);
   const skillWorkflow = runnerWorkflow.slice(skillJobStart, installJobStart);
-  const installWorkflow = runnerWorkflow.slice(installJobStart, approvalJobStart);
+  const installWorkflow = runnerWorkflow.slice(installJobStart, configJobStart);
+  const configWorkflow = runnerWorkflow.slice(configJobStart, approvalJobStart);
   const optionalProviderStart = skillWorkflow.indexOf("- name: Resolve skill provider");
   const runtimeStart = skillWorkflow.indexOf("- name: Setup agent runtime");
   const checkStart = skillWorkflow.indexOf("- name: Check skill");
@@ -996,6 +999,13 @@ test("skill route uses the composite setup action for path and setup checks", ()
   assert.doesNotMatch(installWorkflow, /memory_policy:\s*\$\{\{\s*vars\.AGENT_MEMORY_POLICY/);
   assert.doesNotMatch(installWorkflow, /github_token:[^\n]*steps\.auth\.outputs\.token/);
   assert.doesNotMatch(installWorkflow, /\.\/\.github\/actions\/run-skill-setup/);
+  assert.match(configWorkflow, /needs\.portal\.outputs\.route == 'config'/);
+  assert.match(configWorkflow, /\.\/\.github\/workflows\/agent-config\.yml/);
+  assert.match(configWorkflow, /apply:\s*"true"/);
+  assert.match(configWorkflow, /request_text:\s*\$\{\{\s*needs\.portal\.outputs\.body\s*\}\}/);
+  const configActionWorkflow = readRepoFile(".github/workflows/agent-config.yml");
+  assert.match(configActionWorkflow, /permission_mode:\s*approve-reads/);
+  assert.match(configActionWorkflow, /node \.agent\/dist\/cli\/apply-repo-config\.js/);
   assert.ok(optionalProviderStart >= 0);
   assert.ok(runtimeStart > optionalProviderStart);
   assert.ok(checkStart > runtimeStart);
@@ -1384,9 +1394,12 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestratorWorkflow, /base_branch:/);
   assert.match(orchestratorWorkflow, /base_pr:/);
   assert.match(orchestratorWorkflow, /source_handoff_context:/);
+  assert.match(orchestratorWorkflow, /source_required_branch_work:/);
   assert.match(orchestratorWorkflow, /AGENT_COLLAPSE_OLD_REVIEWS:\s*\$\{\{ vars\.AGENT_COLLAPSE_OLD_REVIEWS \}\}/);
   assert.match(orchestratorWorkflow, /BASE_BRANCH:\s*\$\{\{ inputs\.base_branch \}\}/);
+  assert.match(orchestratorWorkflow, /SOURCE_REQUIRED_BRANCH_WORK:\s*\$\{\{ inputs\.source_required_branch_work \}\}/);
   assert.match(orchestratorWorkflow, /SOURCE_HANDOFF_CONTEXT:\s*\$\{\{ inputs\.source_handoff_context \}\}/);
+  assert.match(orchestratorWorkflow, /ORCHESTRATOR_SOURCE_REQUIRED_BRANCH_WORK:\s*\$\{\{ inputs\.source_required_branch_work \}\}/);
   assert.match(orchestratorWorkflow, /ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT:\s*\$\{\{ inputs\.source_handoff_context \}\}/);
   assert.match(orchestrateHandoffCli, /resolveEffectiveBaseInputs/);
   assert.match(orchestrateHandoffCli, /baseBranch:\s*decision\.baseBranch \|\| baseBranch/);
@@ -1410,6 +1423,7 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(fixPrPrompt, /\$\{ORCHESTRATOR_CONTEXT\}/);
   assert.match(orchestratorPrompt, /"handoff_context"/);
   assert.match(orchestratorPrompt, /ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT/);
+  assert.match(orchestratorPrompt, /ORCHESTRATOR_SOURCE_REQUIRED_BRANCH_WORK/);
   assert.match(orchestratorPrompt, /ORCHESTRATOR_SELF_APPROVE_ENABLED/);
   assert.match(orchestratorPrompt, /ORCHESTRATOR_SELF_MERGE_ENABLED/);
   assert.match(orchestratorPrompt, /"user_message"/);
@@ -1432,11 +1446,17 @@ test("orchestrator source handoff context is renderable in planner prompts", () 
   const runSource = readRepoFile(".agent/src/run.ts");
   const orchestratorPrompt = readRepoFile(".github/prompts/agent-orchestrator.md");
   const sourceContextName = "ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT";
+  const sourceRequiredWorkName = "ORCHESTRATOR_SOURCE_REQUIRED_BRANCH_WORK";
 
   assert.match(orchestratorPrompt, /\$\{ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT\}/);
+  assert.match(orchestratorPrompt, /\$\{ORCHESTRATOR_SOURCE_REQUIRED_BRANCH_WORK\}/);
   assert.ok(
     readSupplementalPromptVarNames(runSource).has(sourceContextName),
     `${sourceContextName} must be allowlisted for runtime prompt rendering`,
+  );
+  assert.ok(
+    readSupplementalPromptVarNames(runSource).has(sourceRequiredWorkName),
+    `${sourceRequiredWorkName} must be allowlisted for runtime prompt rendering`,
   );
 });
 
@@ -1542,6 +1562,7 @@ test("validateEnvelope catches invalid route", () => {
 test("validateEnvelope accepts dispatch, action, self-approval, and rubrics routes", () => {
   for (const route of [
     "dispatch",
+    "config",
     "create-action",
     "agent-self-approve",
     "agent-self-merge",

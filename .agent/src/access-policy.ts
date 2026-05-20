@@ -25,6 +25,10 @@ const DEFAULT_PUBLIC_ALLOWED_ASSOCIATIONS = [
   "CONTRIBUTOR",
 ] as const;
 
+const DEFAULT_ROUTE_ALLOWED_ASSOCIATIONS: Record<string, readonly string[]> = {
+  config: ["OWNER", "MEMBER", "COLLABORATOR"],
+};
+
 export interface AccessPolicy {
   defaultAllowedAssociations?: readonly string[];
   routeOverrides: Record<string, readonly string[]>;
@@ -109,7 +113,23 @@ export function getAllowedAssociationsForRoute(
   }
 
   if (policy.defaultAllowedAssociations) {
+    const builtInRouteDefault = normalizedRoute
+      ? DEFAULT_ROUTE_ALLOWED_ASSOCIATIONS[normalizedRoute]
+      : undefined;
+    if (builtInRouteDefault) {
+      const builtInAllowed = new Set(builtInRouteDefault);
+      return [...policy.defaultAllowedAssociations].filter((association) => (
+        builtInAllowed.has(association)
+      ));
+    }
     return [...policy.defaultAllowedAssociations];
+  }
+
+  const builtInRouteDefault = normalizedRoute
+    ? DEFAULT_ROUTE_ALLOWED_ASSOCIATIONS[normalizedRoute]
+    : undefined;
+  if (builtInRouteDefault) {
+    return [...builtInRouteDefault];
   }
 
   return isPublicRepo

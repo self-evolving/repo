@@ -76,6 +76,7 @@ const allowSelfMerge = envFlagEnabled(process.env.AGENT_ALLOW_SELF_MERGE);
 const allowSameActorSelfApprove = allowSelfApprove && allowSelfMerge;
 const sourceRecommendedNextStep = normalizeToken(process.env.SOURCE_RECOMMENDED_NEXT_STEP || "");
 const isHumanDecisionGate = sourceRecommendedNextStep === "human_decision";
+const isNoBranchWorkGate = sourceRecommendedNextStep === "no_automated_action";
 const decision = parseSelfApprovalDecision(readResponse());
 
 let prState = "";
@@ -118,6 +119,7 @@ if (allowSelfApprove && normalizeToken(targetKind) === "pull_request" && repo &&
       trustedActorLogin,
       expectedHeadSha,
       allowHumanDecisionGate: isHumanDecisionGate,
+      allowNoBranchWorkGate: isNoBranchWorkGate,
     });
     approvalProvenanceTrusted = provenance.trusted;
     approvalProvenanceReason = provenance.reason;

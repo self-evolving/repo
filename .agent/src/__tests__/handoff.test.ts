@@ -5,8 +5,10 @@ import {
   buildReviewFixPrHandoffContext,
   buildHandoffDedupeKey,
   buildHandoffMarker,
+  deriveReviewRequiredBranchWork,
   decideHandoff,
   defaultFixPrHandoffContext,
+  extractRequiredReviewActionItems,
   extractReviewConclusion,
   extractReviewRecommendedNextStep,
   extractReviewActionItems,
@@ -549,6 +551,77 @@ test("review HUMAN_DECISION stops when self-approval is disabled", () => {
   assert.match(decision.reason, /HUMAN_DECISION/);
 });
 
+test("review NO_AUTOMATED_ACTION dispatches self-approval for minor issues with no required branch work", () => {
+  const decision = decideHandoff({
+    automationMode: "heuristics",
+    sourceAction: "review",
+    sourceConclusion: "MINOR_ISSUES",
+    sourceRecommendedNextStep: "NO_AUTOMATED_ACTION",
+    sourceRequiredBranchWork: "false",
+    targetNumber: "99",
+    currentRound: 2,
+    maxRounds: 5,
+    allowSelfApprove: true,
+  });
+
+  assert.equal(decision.decision, "dispatch");
+  assert.equal(decision.nextAction, "agent-self-approve");
+  assert.equal(decision.targetNumber, "99");
+  assert.match(decision.reason, /no required branch-change work/);
+});
+
+test("review NO_AUTOMATED_ACTION stops cleanly when self-approval is disabled", () => {
+  const decision = decideHandoff({
+    automationMode: "heuristics",
+    sourceAction: "review",
+    sourceConclusion: "MINOR_ISSUES",
+    sourceRecommendedNextStep: "NO_AUTOMATED_ACTION",
+    sourceRequiredBranchWork: "false",
+    targetNumber: "99",
+    currentRound: 2,
+    maxRounds: 5,
+    allowSelfApprove: false,
+  });
+
+  assert.equal(decision.decision, "stop");
+  assert.equal(decision.nextAction, undefined);
+  assert.match(decision.reason, /self-approval disabled/);
+});
+
+test("review NO_AUTOMATED_ACTION does not self-approve blocking or required-work outcomes", () => {
+  const requiredWork = decideHandoff({
+    automationMode: "heuristics",
+    sourceAction: "review",
+    sourceConclusion: "MINOR_ISSUES",
+    sourceRecommendedNextStep: "NO_AUTOMATED_ACTION",
+    sourceRequiredBranchWork: "true",
+    sourceHandoffContext: "Address the required review action item.",
+    targetNumber: "99",
+    currentRound: 2,
+    maxRounds: 5,
+    allowSelfApprove: true,
+  });
+  assert.equal(requiredWork.decision, "dispatch");
+  assert.equal(requiredWork.nextAction, "fix-pr");
+  assert.equal(requiredWork.handoffContext, "Address the required review action item.");
+  assert.match(requiredWork.reason, /require branch changes/);
+
+  const blocking = decideHandoff({
+    automationMode: "heuristics",
+    sourceAction: "review",
+    sourceConclusion: "NEEDS_REWORK",
+    sourceRecommendedNextStep: "NO_AUTOMATED_ACTION",
+    sourceRequiredBranchWork: "false",
+    targetNumber: "99",
+    currentRound: 2,
+    maxRounds: 5,
+    allowSelfApprove: true,
+  });
+  assert.equal(blocking.decision, "stop");
+  assert.equal(blocking.nextAction, undefined);
+  assert.match(blocking.reason, /NO_AUTOMATED_ACTION/);
+});
+
 test("agent mode validates review HUMAN_DECISION self-approval handoff", () => {
   const allowed = decideHandoff({
     automationMode: "agent",
@@ -581,6 +654,46 @@ test("agent mode validates review HUMAN_DECISION self-approval handoff", () => {
   });
   assert.equal(wrong.decision, "stop");
   assert.match(wrong.reason, /policy only allows agent-self-approve/);
+});
+
+test("agent mode validates review NO_AUTOMATED_ACTION self-approval handoff", () => {
+  const allowed = decideHandoff({
+    automationMode: "agent",
+    sourceAction: "review",
+    sourceConclusion: "MINOR_ISSUES",
+    sourceRecommendedNextStep: "NO_AUTOMATED_ACTION",
+    sourceRequiredBranchWork: "false",
+    targetNumber: "99",
+    currentRound: 2,
+    maxRounds: 5,
+    allowSelfApprove: true,
+    plannerDecision: {
+      decision: "handoff",
+      nextAction: "agent-self-approve",
+      reason: "No required branch-change work remains and self-approval is enabled.",
+    },
+  });
+  assert.equal(allowed.decision, "dispatch");
+  assert.equal(allowed.nextAction, "agent-self-approve");
+
+  const requiredWork = decideHandoff({
+    automationMode: "agent",
+    sourceAction: "review",
+    sourceConclusion: "MINOR_ISSUES",
+    sourceRecommendedNextStep: "NO_AUTOMATED_ACTION",
+    sourceRequiredBranchWork: "true",
+    targetNumber: "99",
+    currentRound: 2,
+    maxRounds: 5,
+    allowSelfApprove: true,
+    plannerDecision: {
+      decision: "handoff",
+      nextAction: "agent-self-approve",
+      reason: "Try to approve despite required branch work.",
+    },
+  });
+  assert.equal(requiredWork.decision, "stop");
+  assert.match(requiredWork.reason, /policy only allows fix-pr/);
 });
 
 test("review fix-pr handoffs preserve derived source context", () => {
@@ -944,4 +1057,25 @@ test("review fix-pr context extracts unchecked review synthesis action items", (
       "Constraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.",
     ].join("\n"),
   );
+});
+
+test("review required branch-work extraction ignores no-op action item sentinels", () => {
+  const noWork = [
+    "## Action Items",
+    "- [ ] No required branch-change work remains.",
+  ].join("\n");
+  assert.deepEqual(extractReviewActionItems(noWork), ["No required branch-change work remains."]);
+  assert.deepEqual(extractRequiredReviewActionItems(noWork), []);
+  assert.equal(deriveReviewRequiredBranchWork(noWork), "false");
+
+  const required = [
+    "## Action Items",
+    "- [ ] Update the self-approval provenance check.",
+    "- [ ] No required branch-change work remains.",
+  ].join("\n");
+  assert.deepEqual(extractRequiredReviewActionItems(required), [
+    "Update the self-approval provenance check.",
+  ]);
+  assert.equal(deriveReviewRequiredBranchWork(required), "true");
+  assert.equal(deriveReviewRequiredBranchWork("## Review\nNo action section."), "unknown");
 });
