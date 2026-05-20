@@ -89,3 +89,4 @@
 - Issue-backed /install requests link source issues in target PRs and close the source issue best-effort after publish/reuse.
 - INPUT_SECONDARY_GITHUB_TOKEN is additive and read-only for external repo inspection; external writes need route-specific auth.
 - Onboarding and /install setup guidance should be prominent and use target-repo links for workflows, secrets, app install, and docs.
+- Self-approval uses ACPX approve-all for PR inspection but read-scoped github.token; resolver owns approval.
