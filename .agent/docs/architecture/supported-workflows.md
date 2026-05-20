@@ -248,6 +248,14 @@ start from the install request issue form; when publish succeeds, the target PR
 body links the source issue and the source issue is closed best-effort after the
 install response is posted.
 
+Non-install agent runs can also receive the optional
+`AGENT_SECONDARY_GITHUB_TOKEN` secret as `INPUT_SECONDARY_GITHUB_TOKEN`. This
+secondary credential is for explicit read-only external repository inspection
+and does not replace the primary same-repository token, including the dedicated
+`/install` primary token described above. External writes need a route-specific
+credential and deterministic write authorization before a route exposes them to
+the agent.
+
 ### `agent-label.yml`
 
 Applying one of these labels triggers the same downstream routing stack without requiring a live mention:

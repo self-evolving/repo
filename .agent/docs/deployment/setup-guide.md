@@ -78,6 +78,33 @@ If you use a fine-grained PAT, start with these repository permissions:
 - **Discussions:** read and write, only if you use discussion triggers
 - **Actions:** read and write, for approval dispatch and review artifact flows
 
+## Optional secondary external-repo token
+
+Set `AGENT_SECONDARY_GITHUB_TOKEN` as a repository secret only when a
+non-install agent run needs explicit access to repositories outside the current
+Sepo repository. Bundled non-install workflows pass this secret to the agent as
+`INPUT_SECONDARY_GITHUB_TOKEN`; it is additive and does not replace the primary
+`GH_TOKEN`, `GITHUB_TOKEN`, or `INPUT_GITHUB_TOKEN` used for same-repository
+comments, labels, workflow dispatches, memory, and rubrics.
+
+Use a fine-grained PAT scoped only to the intended external repositories and
+grant read access only to the needed surfaces, such as metadata, contents,
+issues, pull requests, and discussions. The bundled secondary-token contract is
+read-only external inspection; do not configure it as a write-capable external
+credential. External writes need a route-specific credential and a deterministic
+write authorization guard documented and tested with that route.
+
+Private or otherwise non-public external repository read access is still
+sensitive. If `AGENT_SECONDARY_GITHUB_TOKEN` can read those repositories, allow
+only trusted requesters to trigger routes that receive it, tighten
+`AGENT_ACCESS_POLICY` for those routes, or avoid granting private repository
+scopes to the token.
+
+The public `/install` route is separate: it continues to use the dedicated
+install-only primary token described in developer notes. `AGENT_SECONDARY_GITHUB_TOKEN`
+is a read-only secondary credential for explicit agent opt-in, not the install
+replacement token.
+
 ## Workflow token fallback
 
 If no higher-priority auth mode is configured, the backend can still fall back to `github.token`. This is useful as a lowest-friction fallback, but it should not be treated as the preferred long-term setup for more advanced automation.
