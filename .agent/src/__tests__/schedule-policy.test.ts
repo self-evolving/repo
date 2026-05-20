@@ -14,7 +14,7 @@ test("parseSchedulePolicy falls back to skip_no_updates when unset", () => {
   assert.equal(policy.defaultMode, DEFAULT_SCHEDULE_MODE);
   assert.equal(DEFAULT_SCHEDULE_MODE, "skip_no_updates");
   assert.deepEqual(policy.workflowOverrides, DEFAULT_SCHEDULE_WORKFLOW_OVERRIDES);
-  assert.equal(policy.workflowOverrides["agent-daily-summary.yml"], "disabled");
+  assert.equal(getScheduleModeForWorkflow(policy, "agent-daily-summary.yml"), "skip_no_updates");
   assert.equal(policy.workflowOverrides["agent-memory-sync.yml"], "always_run");
 });
 
@@ -27,17 +27,17 @@ test("parseSchedulePolicy accepts workflow overrides", () => {
   assert.equal(policy.workflowOverrides["agent-daily-summary.yml"], "disabled");
 });
 
-test("parseSchedulePolicy keeps daily summary disabled for unrelated policies", () => {
+test("parseSchedulePolicy uses the default mode for unrelated policies", () => {
   const policy = parseSchedulePolicy(
     '{"workflow_overrides":{"agent-update.yml":"always_run"}}',
   );
-  assert.equal(getScheduleModeForWorkflow(policy, "agent-daily-summary.yml"), "disabled");
+  assert.equal(getScheduleModeForWorkflow(policy, "agent-daily-summary.yml"), "skip_no_updates");
   assert.equal(getScheduleModeForWorkflow(policy, "agent-update.yml"), "always_run");
 
-  const enabled = parseSchedulePolicy(
-    '{"workflow_overrides":{"agent-daily-summary.yml":"skip_no_updates"}}',
+  const disabled = parseSchedulePolicy(
+    '{"workflow_overrides":{"agent-daily-summary.yml":"disabled"}}',
   );
-  assert.equal(getScheduleModeForWorkflow(enabled, "agent-daily-summary.yml"), "skip_no_updates");
+  assert.equal(getScheduleModeForWorkflow(disabled, "agent-daily-summary.yml"), "disabled");
 });
 
 test("parseSchedulePolicy normalizes workflow keys", () => {

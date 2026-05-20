@@ -367,6 +367,10 @@ test("scheduled workflows evaluate skip gates before provider-dependent jobs", (
     dailySummaryWorkflow,
     /DISCUSSION_CATEGORY:\s*\$\{\{\s*inputs\.discussion_category \|\| vars\.AGENT_PROJECT_MANAGEMENT_DISCUSSION_CATEGORY \|\| 'General'\s*\}\}/,
   );
+  assert.match(
+    dailySummaryWorkflow,
+    /DISCUSSION_FOOTER:\s*\|[\s\S]*gh variable set AGENT_SCHEDULE_POLICY[\s\S]*--repo \$\{\{ github\.repository \}\}[\s\S]*--body '\{"workflow_overrides":\{"agent-daily-summary\.yml":"disabled"\}\}'/,
+  );
   assert.doesNotMatch(dailySummaryWorkflow, /if: steps\.pre_gate\.outputs\.skip != 'true' && steps\.gate\.outputs\.skip != 'true'/);
 });
 

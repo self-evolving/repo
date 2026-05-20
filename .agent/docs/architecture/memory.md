@@ -125,7 +125,7 @@ The dedicated memory workflows can still bootstrap the memory tree when the bran
 
 `AGENT_SCHEDULE_POLICY` is an optional repository variable that controls scheduled workflow runs. It applies only to `schedule` events; manual `workflow_dispatch` runs remain available for debugging and recovery.
 
-**Default**: scheduled workflows use `skip_no_updates`, with `agent-daily-summary.yml` set to `disabled` and `agent-memory-sync.yml` set to `always_run`.
+**Default**: scheduled workflows use `skip_no_updates`, with `agent-memory-sync.yml` set to `always_run`.
 
 **Modes**:
 
@@ -139,13 +139,12 @@ The dedicated memory workflows can still bootstrap the memory tree when the bran
 {
   "default_mode": "skip_no_updates",
   "workflow_overrides": {
-    "agent-daily-summary.yml": "disabled",
     "agent-memory-sync.yml": "always_run"
   }
 }
 ```
 
-Workflow overrides are keyed by workflow filename. Today, `agent-memory-scan.yml` compares `refs/agent-memory-state/sync.last_activity_at` with `refs/agent-memory-state/scan.last_scan_at` and records the scan cursor only after a successful scan. After the sync state has an initial baseline, the sync activity cursor advances only when issue, pull request, or discussion activity is mirrored, so no-op sync runs do not force a scan. `agent-daily-summary.yml` is disabled for scheduled runs by default; when enabled, it currently counts issue, pull request, and discussion signals in its lookback window and skips when that count is zero. It also checks discussion posting availability before signal collection so repositories without discussions, or without the configured discussion category, skip summary generation early. Commit-only activity is not counted yet. `agent-memory-sync.yml` has no external detector, so it should usually be set to `always_run`; if the policy resolves it to `disabled`, the cron run stops before sync work begins.
+Workflow overrides are keyed by workflow filename. Today, `agent-memory-scan.yml` compares `refs/agent-memory-state/sync.last_activity_at` with `refs/agent-memory-state/scan.last_scan_at` and records the scan cursor only after a successful scan. After the sync state has an initial baseline, the sync activity cursor advances only when issue, pull request, or discussion activity is mirrored, so no-op sync runs do not force a scan. `agent-daily-summary.yml` runs for scheduled events by default, counts issue, pull request, and discussion signals in its lookback window, and skips when that count is zero. It also checks discussion posting availability before signal collection so repositories without discussions, or without the configured discussion category, skip summary generation early. Commit-only activity is not counted yet. To disable scheduled daily summaries while preserving manual dispatch, set `{"workflow_overrides":{"agent-daily-summary.yml":"disabled"}}`. `agent-memory-sync.yml` has no external detector, so it should usually be set to `always_run`; if the policy resolves it to `disabled`, the cron run stops before sync work begins.
 
 ## Access policy: `AGENT_MEMORY_POLICY`
 
