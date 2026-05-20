@@ -54,7 +54,7 @@ Check [Install into an existing repository](.agent/docs/deployment/install-exist
 ```
 
 > [!WARNING]
-> Only authorized repository users can trigger Sepo. By default, repositories allow `OWNER`, `MEMBER`, `COLLABORATOR`, and `CONTRIBUTOR` associations; public repositories can tighten this with `AGENT_ACCESS_POLICY`. See [Trigger access policy](.agent/docs/access-policy.md) to customize that behavior.
+> Only authorized repository users can trigger Sepo. By default, repositories allow `OWNER`, `MEMBER`, `COLLABORATOR`, and `CONTRIBUTOR` associations; public repositories can tighten this with `AGENT_ACCESS_POLICY`. See [Trigger access policy](.agent/docs/customization/access-policy.md) to customize that behavior.
 
 
 ### You can also trigger the same built-in routes by adding `agent/*` labels to PRs

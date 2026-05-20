@@ -34,9 +34,8 @@ title: ".agent docs"
 
 - [Configurations list](customization/configuration-list.md)
 - [Repository skills](customization/skills.md)
-- [Trigger access policy](access-policy.md)
+- [Trigger access policy](customization/access-policy.md)
 - [Creating your own actions](customization/creating-your-own-actions.md)
-- [Creating your own workflows](customization/creating-your-own-workflows.md)
 
 ## Deployment
 
