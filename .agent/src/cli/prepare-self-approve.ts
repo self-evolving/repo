@@ -1,6 +1,6 @@
 // CLI: preflight self-approval before running the approval agent.
-// Env: GITHUB_REPOSITORY, TARGET_NUMBER, TARGET_KIND, REQUESTED_BY, WORKFLOW_ACTOR,
-//      ORCHESTRATION_ENABLED,
+// Env: GITHUB_REPOSITORY, TARGET_NUMBER, TARGET_KIND, REQUESTED_BY, SOURCE_ACTOR,
+//      WORKFLOW_ACTOR, ORCHESTRATION_ENABLED,
 //      AGENT_ALLOW_SELF_APPROVE, AGENT_ALLOW_SELF_MERGE, SOURCE_RECOMMENDED_NEXT_STEP
 // Outputs: should_run, head_sha, reason, body_file
 
@@ -52,6 +52,7 @@ const targetKind = normalizeToken(process.env.TARGET_KIND || "pull_request");
 const workflowActor = process.env.WORKFLOW_ACTOR || process.env.GITHUB_ACTOR || "";
 const requestedByLogins = resolveTrustedSelfApprovalRequesters({
   requestedByLogin: process.env.REQUESTED_BY || "",
+  sourceActorLogin: process.env.SOURCE_ACTOR || "",
   workflowActorLogin: workflowActor,
   orchestrationEnabled: envFlagEnabled(process.env.ORCHESTRATION_ENABLED),
 });

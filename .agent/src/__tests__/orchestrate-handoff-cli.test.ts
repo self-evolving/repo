@@ -1072,6 +1072,28 @@ test("review SHIP dispatches self-approval when enabled", () => {
   assert.equal(inputs.automation_current_round, "3");
 });
 
+test("review SHIP self-approval handoff forwards orchestrator source actor", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "128",
+    REQUESTED_BY: "maintainer",
+    WORKFLOW_ACTOR: "lolipopshock",
+    AUTOMATION_CURRENT_ROUND: "2",
+    AUTOMATION_MAX_ROUNDS: "5",
+    AGENT_ALLOW_SELF_APPROVE: "true",
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("next_action"), "agent-self-approve");
+  assert.match(run.ghLog, /actions\/workflows\/agent-self-approve\.yml\/dispatches/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.requested_by, "maintainer");
+  assert.equal(inputs.source_actor, "lolipopshock");
+  assert.equal(inputs.orchestration_enabled, "true");
+});
+
 test("review HUMAN_DECISION dispatches self-approval with source fields", () => {
   const run = runOrchestrateHandoff({
     SOURCE_ACTION: "review",

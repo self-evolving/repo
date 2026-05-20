@@ -9,6 +9,10 @@ on:
       requested_by:
         description: "GitHub login that requested the run"
         required: false
+      source_actor:
+        description: "GitHub actor that dispatched the source orchestrator handoff"
+        required: false
+        default: ""
       request_text:
         description: "Original request text"
         required: false
@@ -82,6 +86,7 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           ORCHESTRATION_ENABLED: ${{ inputs.orchestration_enabled }}
           REQUESTED_BY: ${{ inputs.orchestration_enabled == 'true' && inputs.requested_by || github.actor }}
+          SOURCE_ACTOR: ${{ inputs.orchestration_enabled == 'true' && inputs.source_actor || '' }}
           SOURCE_RECOMMENDED_NEXT_STEP: ${{ inputs.source_recommended_next_step }}
           TARGET_KIND: pull_request
           TARGET_NUMBER: ${{ inputs.pr_number }}
@@ -178,6 +183,7 @@ jobs:
           GITHUB_SERVER_URL: ${{ github.server_url }}
           ORCHESTRATION_ENABLED: ${{ inputs.orchestration_enabled }}
           REQUESTED_BY: ${{ inputs.orchestration_enabled == 'true' && inputs.requested_by || github.actor }}
+          SOURCE_ACTOR: ${{ inputs.orchestration_enabled == 'true' && inputs.source_actor || '' }}
           RESPONSE_FILE: ${{ steps.agent.outputs.response_file }}
           SOURCE_RECOMMENDED_NEXT_STEP: ${{ inputs.source_recommended_next_step }}
           TARGET_KIND: pull_request

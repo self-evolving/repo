@@ -494,6 +494,7 @@ test("self-approval requester guard checks workflow actor for spoofed orchestrat
   assert.ok(isRecord(workflowDispatch), "self-approval workflow should define workflow_dispatch");
   assert.ok(isRecord(workflowDispatch.inputs), "workflow_dispatch should define inputs");
   assert.ok(isRecord(workflowDispatch.inputs.requested_by), "workflow_dispatch keeps requested_by for orchestrated handoffs");
+  assert.ok(isRecord(workflowDispatch.inputs.source_actor), "workflow_dispatch keeps source_actor for orchestrated handoffs");
   assert.ok(isRecord(workflowDispatch.inputs.orchestration_enabled), "workflow_dispatch should define orchestration_enabled");
   assert.equal(workflowDispatch.inputs.orchestration_enabled.default, "false");
   assert.ok(isRecord(workflow.jobs), "self-approval workflow should define jobs");
@@ -522,9 +523,11 @@ test("self-approval requester guard checks workflow actor for spoofed orchestrat
   assert.ok(isRecord(runStep.with), "run step should define inputs");
   assert.equal(prepareStep.env.ORCHESTRATION_ENABLED, "${{ inputs.orchestration_enabled }}");
   assert.equal(prepareStep.env.REQUESTED_BY, trustedRequesterExpression);
+  assert.equal(prepareStep.env.SOURCE_ACTOR, "${{ inputs.orchestration_enabled == 'true' && inputs.source_actor || '' }}");
   assert.equal(prepareStep.env.WORKFLOW_ACTOR, "${{ github.actor }}");
   assert.equal(resolveStep.env.ORCHESTRATION_ENABLED, "${{ inputs.orchestration_enabled }}");
   assert.equal(resolveStep.env.REQUESTED_BY, trustedRequesterExpression);
+  assert.equal(resolveStep.env.SOURCE_ACTOR, "${{ inputs.orchestration_enabled == 'true' && inputs.source_actor || '' }}");
   assert.equal(resolveStep.env.WORKFLOW_ACTOR, "${{ github.actor }}");
   assert.equal(runStep.with.requested_by, trustedRequesterExpression);
   assert.doesNotMatch(workflowText, /REQUESTED_BY:\s*\$\{\{\s*inputs\.requested_by \|\| github\.actor\s*\}\}/);
@@ -1371,6 +1374,7 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestratorWorkflow, /target_kind:/);
   assert.match(orchestratorWorkflow, /TARGET_KIND:/);
   assert.match(orchestrateHandoffCli, /orchestration_enabled:\s*"true"/);
+  assert.match(orchestrateHandoffCli, /source_actor:\s*workflowActor/);
   assert.match(orchestrateHandoffCli, /automationMode === "disabled" \? "heuristics" : automationMode/);
   assert.match(orchestrateHandoffCli, /orchestrator_context:\s*decision\.handoffContext/);
   assert.match(orchestrateHandoffCli, /agent-self-approve\.yml/);
@@ -1402,7 +1406,7 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestratorDoc, /minimizes older visible handoff marker comments/);
 });
 
-test("orchestrator direct starts derive requester from workflow actor", () => {
+test("orchestrator self-approval handoffs include the workflow actor", () => {
   const workflowText = readRepoFile(".github/workflows/agent-orchestrator.yml");
   const workflow = parseYaml(workflowText) as unknown;
   assert.ok(isRecord(workflow), "orchestrator workflow should parse as a YAML object");
@@ -1426,6 +1430,7 @@ test("orchestrator direct starts derive requester from workflow actor", () => {
   assert.ok(isRecord(dispatchStep.env), "dispatch step should define env");
   assert.equal(plannerStep.with.requested_by, trustedRequesterExpression);
   assert.equal(dispatchStep.env.REQUESTED_BY, trustedRequesterExpression);
+  assert.equal(dispatchStep.env.WORKFLOW_ACTOR, "${{ github.actor }}");
   assert.doesNotMatch(workflowText, /requested_by:\s*\$\{\{\s*inputs\.requested_by \|\| github\.actor\s*\}\}/);
   assert.doesNotMatch(workflowText, /REQUESTED_BY:\s*\$\{\{\s*inputs\.requested_by \|\| github\.actor\s*\}\}/);
 });

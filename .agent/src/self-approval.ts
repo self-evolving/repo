@@ -169,10 +169,12 @@ export function evaluateSelfApprovalRequester(input: {
 
 export function resolveTrustedSelfApprovalRequesters(input: {
   requestedByLogin: string;
+  sourceActorLogin?: string;
   workflowActorLogin: string;
   orchestrationEnabled?: boolean;
 }): string[] {
   const requestedBy = String(input.requestedByLogin || "").trim();
+  const sourceActor = String(input.sourceActorLogin || "").trim();
   const workflowActor = String(input.workflowActorLogin || "").trim();
   const requesters: string[] = [];
   const seen = new Set<string>();
@@ -187,6 +189,9 @@ export function resolveTrustedSelfApprovalRequesters(input: {
   if (input.orchestrationEnabled === true && requestedBy) {
     addRequester(requestedBy);
   }
+  if (input.orchestrationEnabled === true && sourceActor) {
+    addRequester(sourceActor);
+  }
   if (!input.orchestrationEnabled || !requestedBy || !isAutomationActorLogin(workflowActor)) {
     addRequester(workflowActor);
   }
@@ -198,6 +203,7 @@ export function resolveTrustedSelfApprovalRequesters(input: {
 
 export function resolveTrustedSelfApprovalRequester(input: {
   requestedByLogin: string;
+  sourceActorLogin?: string;
   workflowActorLogin: string;
   orchestrationEnabled?: boolean;
 }): string {

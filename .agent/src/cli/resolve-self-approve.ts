@@ -1,6 +1,6 @@
 // CLI: resolve a self-approval agent response and optionally approve a PR.
-// Env: RESPONSE_FILE, GITHUB_REPOSITORY, TARGET_NUMBER, TARGET_KIND, REQUESTED_BY, WORKFLOW_ACTOR,
-//      ORCHESTRATION_ENABLED,
+// Env: RESPONSE_FILE, GITHUB_REPOSITORY, TARGET_NUMBER, TARGET_KIND, REQUESTED_BY,
+//      SOURCE_ACTOR, WORKFLOW_ACTOR, ORCHESTRATION_ENABLED,
 //      EXPECTED_HEAD_SHA, AGENT_ALLOW_SELF_APPROVE, AGENT_ALLOW_SELF_MERGE,
 //      SOURCE_RECOMMENDED_NEXT_STEP
 // Outputs: conclusion, approved, status_post, handoff_context, reason, body_file
@@ -77,6 +77,7 @@ const expectedHeadSha = process.env.EXPECTED_HEAD_SHA || "";
 const workflowActor = process.env.WORKFLOW_ACTOR || process.env.GITHUB_ACTOR || "";
 const requestedByLogins = resolveTrustedSelfApprovalRequesters({
   requestedByLogin: process.env.REQUESTED_BY || "",
+  sourceActorLogin: process.env.SOURCE_ACTOR || "",
   workflowActorLogin: workflowActor,
   orchestrationEnabled: envFlagEnabled(process.env.ORCHESTRATION_ENABLED),
 });

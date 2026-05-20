@@ -2,9 +2,10 @@
 // Env: AUTOMATION_MODE, SOURCE_ACTION, SOURCE_CONCLUSION, TARGET_NUMBER,
 //      NEXT_TARGET_NUMBER, AUTOMATION_CURRENT_ROUND, AUTOMATION_MAX_ROUNDS,
 //      GITHUB_REPOSITORY, DEFAULT_BRANCH, REQUESTED_BY, REQUEST_TEXT,
-//      SESSION_BUNDLE_MODE, SOURCE_RUN_ID, PLANNER_RESPONSE_FILE, TARGET_KIND,
-//      BASE_BRANCH, BASE_PR, AGENT_COLLAPSE_OLD_REVIEWS, AGENT_ALLOW_SELF_APPROVE,
-//      AGENT_ALLOW_SELF_MERGE, SOURCE_REQUIRED_BRANCH_WORK
+//      WORKFLOW_ACTOR, SESSION_BUNDLE_MODE, SOURCE_RUN_ID, PLANNER_RESPONSE_FILE,
+//      TARGET_KIND, BASE_BRANCH, BASE_PR, AGENT_COLLAPSE_OLD_REVIEWS,
+//      AGENT_ALLOW_SELF_APPROVE, AGENT_ALLOW_SELF_MERGE,
+//      SOURCE_REQUIRED_BRANCH_WORK
 
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -866,6 +867,7 @@ const isPublicRepo = String(process.env.REPOSITORY_PRIVATE || "").trim().toLower
 const targetNumber = process.env.TARGET_NUMBER || "";
 const requestedBy = process.env.REQUESTED_BY || "";
 const requestText = process.env.REQUEST_TEXT || "";
+const workflowActor = process.env.WORKFLOW_ACTOR || process.env.GITHUB_ACTOR || "";
 const sessionBundleMode = process.env.SESSION_BUNDLE_MODE || "";
 const baseBranch = process.env.BASE_BRANCH || "";
 const basePr = process.env.BASE_PR || "";
@@ -1556,6 +1558,7 @@ try {
     dispatchWorkflow(repo, "agent-self-approve.yml", ref, {
       ...commonInputs,
       pr_number: decision.targetNumber,
+      source_actor: workflowActor,
       source_conclusion: sourceConclusion,
       source_recommended_next_step: sourceRecommendedNextStep,
     });
