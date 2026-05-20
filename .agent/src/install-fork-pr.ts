@@ -441,6 +441,24 @@ function validatePrepareState(
   }
 }
 
+function validatePreparedBranch(runner: CommandRunner, workdir: string, branch: string): void {
+  let currentBranch = "";
+  try {
+    currentBranch = runner.git(["symbolic-ref", "--quiet", "--short", "HEAD"], workdir).trim();
+  } catch {
+    throw new InstallForkPrBlocked(
+      "workdir_branch_mismatch",
+      `Publish requires the prepared install worktree to be on ${branch}, but HEAD is detached or unreadable; checkout the install branch or rerun prepare.`,
+    );
+  }
+  if (currentBranch !== branch) {
+    throw new InstallForkPrBlocked(
+      "workdir_branch_mismatch",
+      `Publish requires the prepared install worktree to be on ${branch}, but it is on ${currentBranch || "an unknown branch"}; checkout the install branch or rerun prepare.`,
+    );
+  }
+}
+
 function remoteBranchExists(runner: CommandRunner, repo: RepoInfo, branch: string): boolean {
   try {
     return Boolean(runner.git(["ls-remote", "--heads", `https://github.com/${repo.fullName}.git`, branch], process.cwd()).trim());
@@ -669,6 +687,7 @@ export function publishInstallForkPr(opts: PublishInstallForkPrOptions): Install
       tokenOwner,
       forkRepo: fork.fullName,
     });
+    validatePreparedBranch(runner, workdir, branch);
 
     try {
       runner.git(["push", buildAuthUrl(opts.githubToken, fork.fullName), `HEAD:${branch}`], workdir);

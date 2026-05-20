@@ -40,6 +40,7 @@ class FakeRunner implements CommandRunner {
   createdPrUrl = "https://github.com/lm4sci/lm4sci.github.io/pull/77";
   failPush = false;
   failMerge = false;
+  currentBranch = DEFAULT_INSTALL_BRANCH;
 
   constructor(readonly login = "sepo-install-bot") {}
 
@@ -89,6 +90,9 @@ class FakeRunner implements CommandRunner {
       const repo = String(args[2] || "").replace(/^https:\/\/github\.com\//, "").replace(/\.git$/, "");
       const branch = String(args[3] || "");
       return this.remoteBranches.has(`${repo}#${branch}`) ? `abc123\trefs/heads/${branch}\n` : "";
+    }
+    if (args.join(" ") === "symbolic-ref --quiet --short HEAD") {
+      return `${this.currentBranch}\n`;
     }
     if (this.failMerge && args[0] === "merge") throw new Error("merge conflict");
     if (this.failPush && args[0] === "push") throw new Error("push failed");
@@ -559,6 +563,57 @@ test("publishInstallForkPr rejects mismatched prepare state before pushing", () 
     assert.equal(runner.called("gh", /pr create/), false);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("publishInstallForkPr blocks when prepared workdir is on the wrong branch", () => {
+  const root = mkdtempSync(join(tmpdir(), "install-fork-pr-git-"));
+  const workdir = join(root, "install-work");
+  const bodyFile = join(root, "body.md");
+  writeFileSync(bodyFile, "Install Sepo.\n", "utf8");
+
+  try {
+    const { targetBare, forkBare } = createGitFixture(root);
+    const runner = new GitFixtureRunner(new Map([
+      ["lm4sci/lm4sci.github.io", targetBare],
+      ["sepo-install-bot/lm4sci.github.io", forkBare],
+    ]));
+    runner.repos.set("lm4sci/lm4sci.github.io", repoRecord("lm4sci/lm4sci.github.io"));
+    runner.repos.set(
+      "sepo-install-bot/lm4sci.github.io",
+      repoRecord("sepo-install-bot/lm4sci.github.io", {
+        fork: true,
+        parent: "lm4sci/lm4sci.github.io",
+      }),
+    );
+
+    const prepared = prepareInstallForkPr({
+      targetRepo: "lm4sci/lm4sci.github.io",
+      githubToken: "pat-token",
+      workdir,
+      forkPollAttempts: 1,
+      runner,
+    });
+
+    assert.equal(prepared.status, "prepared");
+    runGit(["checkout", "-B", "not-the-install-branch"], workdir);
+
+    const published = publishInstallForkPr({
+      targetRepo: "lm4sci/lm4sci.github.io",
+      githubToken: "pat-token",
+      workdir,
+      forkRepo: "sepo-install-bot/lm4sci.github.io",
+      bodyFile,
+      runner,
+    });
+
+    assert.equal(published.status, "blocked");
+    assert.equal(published.blockedCode, "workdir_branch_mismatch");
+    assert.match(published.message, /not-the-install-branch/);
+    assert.equal(runner.called("git", /push/), false);
+    assert.equal(runner.called("gh", /pr create/), false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
   }
 });
 
