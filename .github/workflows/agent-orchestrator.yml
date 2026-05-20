@@ -189,7 +189,7 @@ jobs:
           session_bundle_mode: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
           session_policy: resume-best-effort
           request_text: ${{ inputs.request_text }}
-          requested_by: ${{ inputs.source_action == 'orchestrate' && github.actor || inputs.requested_by || github.actor }}
+          requested_by: ${{ (inputs.source_action == 'orchestrate' || inputs.source_run_id == '') && github.actor || inputs.requested_by || github.actor }}
           route: orchestrator
           source_kind: workflow_dispatch
           target_kind: ${{ inputs.target_kind || (inputs.source_action == 'implement' && 'issue' || 'pull_request') }}
@@ -209,7 +209,7 @@ jobs:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           NEXT_TARGET_NUMBER: ${{ inputs.next_target_number }}
-          REQUESTED_BY: ${{ inputs.source_action == 'orchestrate' && github.actor || inputs.requested_by || github.actor }}
+          REQUESTED_BY: ${{ (inputs.source_action == 'orchestrate' || inputs.source_run_id == '') && github.actor || inputs.requested_by || github.actor }}
           REQUEST_TEXT: ${{ inputs.request_text }}
           SESSION_BUNDLE_MODE: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
           SOURCE_ACTION: ${{ inputs.source_action }}

@@ -75,14 +75,13 @@ user-launched orchestrate requests validate the requester against the delegated
 route capability set up front. `agent-self-approve` is included in that check
 only when `AGENT_ALLOW_SELF_APPROVE=true`; `agent-self-merge` is included only
 when both `AGENT_ALLOW_SELF_APPROVE=true` and `AGENT_ALLOW_SELF_MERGE=true`.
-Direct `source_action=orchestrate` starts derive requester identity from
-`github.actor` even when a `requested_by` input is supplied. Internal child and
-parent resume dispatches carry `requested_by` for audit, display, and
-route-specific guards such as self-approval's requester-author check. When the
-orchestrator dispatches self-approval, it also forwards the orchestrator
-workflow actor so self-approval can reject spoofed direct/manual source-action
-inputs. Other child workflows do not need route authorization inputs threaded
-through every child workflow.
+Direct starts without a source run derive requester identity from `github.actor`
+even when a `requested_by` input is supplied. Internal child and parent resume
+dispatches carry `requested_by` for audit, display, and route-specific guards
+such as self-approval's requester-author check. When the orchestrator dispatches
+self-approval, it also forwards the orchestrator workflow actor so self-approval
+can reject spoofed direct/manual source-action inputs. Other child workflows do
+not need route authorization inputs threaded through every child workflow.
 
 Implementation dispatches default to the repository default branch. Callers can
 set `base_branch` to stack directly on another branch, or `base_pr` to stack on

@@ -1048,6 +1048,28 @@ test("review handoff dispatches fix-pr with visible task context", () => {
   assert.equal(inputs.orchestrator_context, run.outputs.get("handoff_context"));
 });
 
+test("fix-pr success review handoff preserves sanitized requester for self-approval chain", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "fix-pr",
+    SOURCE_CONCLUSION: "success",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "128",
+    REQUESTED_BY: "lolipopshock",
+    WORKFLOW_ACTOR: "sepo-agent-app[bot]",
+    AUTOMATION_CURRENT_ROUND: "4",
+    AUTOMATION_MAX_ROUNDS: "8",
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "dispatch");
+  assert.equal(run.outputs.get("next_action"), "review");
+  assert.match(run.ghLog, /actions\/workflows\/agent-review\.yml\/dispatches/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.requested_by, "lolipopshock");
+  assert.equal(inputs.orchestration_enabled, "true");
+  assert.equal(inputs.automation_current_round, "5");
+});
+
 test("review SHIP dispatches self-approval when enabled", () => {
   const run = runOrchestrateHandoff({
     SOURCE_ACTION: "review",

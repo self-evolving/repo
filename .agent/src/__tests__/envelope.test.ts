@@ -1415,7 +1415,7 @@ test("orchestrator self-approval handoffs include the workflow actor", () => {
   assert.ok(isRecord(job), "orchestrator workflow should define orchestrate job");
   assert.ok(Array.isArray(job.steps), "orchestrator job should define steps");
 
-  const trustedRequesterExpression = "${{ inputs.source_action == 'orchestrate' && github.actor || inputs.requested_by || github.actor }}";
+  const trustedRequesterExpression = "${{ (inputs.source_action == 'orchestrate' || inputs.source_run_id == '') && github.actor || inputs.requested_by || github.actor }}";
   const plannerStep = job.steps.find(
     (step): step is Record<string, unknown> =>
       isRecord(step) && step.name === "Plan next action with agent",
@@ -1431,6 +1431,11 @@ test("orchestrator self-approval handoffs include the workflow actor", () => {
   assert.equal(plannerStep.with.requested_by, trustedRequesterExpression);
   assert.equal(dispatchStep.env.REQUESTED_BY, trustedRequesterExpression);
   assert.equal(dispatchStep.env.WORKFLOW_ACTOR, "${{ github.actor }}");
+  assert.match(
+    trustedRequesterExpression,
+    /inputs\.source_run_id == ''/,
+    "direct non-orchestrate workflow_dispatch starts must use github.actor before intermediate handoffs",
+  );
   assert.doesNotMatch(workflowText, /requested_by:\s*\$\{\{\s*inputs\.requested_by \|\| github\.actor\s*\}\}/);
   assert.doesNotMatch(workflowText, /REQUESTED_BY:\s*\$\{\{\s*inputs\.requested_by \|\| github\.actor\s*\}\}/);
 });
