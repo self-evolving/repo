@@ -16,8 +16,8 @@
       "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #321 | 3 / 40 | Dispatched |\n\nReason: implementation succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1779270321697 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxNTM3ODE5OTM6aW1wbGVtZW50OjMxNjpyZXZpZXc6MzIxOjM -->",
       "createdAt": "2026-05-20T09:45:22Z",
       "includesCreatedEdit": true,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/321#issuecomment-4496925431",
       "viewerDidAuthor": true
@@ -31,10 +31,100 @@
       "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 96 | PASS | 11 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR links `Closes #316` and `Part of #314`; issue #316 requested natural-language repo variable changes through an Actions page and mentions, and the PR implements exactly that path. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The route reuses existing `resolve-github-auth`, `resolve-agent-provider`, `setup-agent-runtime`, `run-agent-task`, `post-response.js`, and typed `.agent/src` helpers instead of embedding raw workflow logic. |\n| coding_workflow / generic | Keep privileged workflows on trusted runtime code | pass | 8/8 | `.github/workflows/agent-config.yml` checks out `github.event.repository.default_branch` with `persist-credentials: false` before using local actions/scripts, keeping repo-variable mutation runtime on trusted default-branch code. |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | `/config` mention routing goes through the portal route policy, then delegates to `agent-config.yml`; tests cover default denial for `CONTRIBUTOR`, allowance for `COLLABORATOR`, explicit route override widening, and global policy narrowing. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The agent emits an `operations` array with explicit `action`, `name`, `value`, and `reason`; `.agent/src/repo-config.ts` validates action, name allowlist, value shape, duplicate operations, and unset/set semantics. |\n| coding_workflow / generic | Validate preview contracts | pass | 7/7 | Dry-run still parses and validates the plan, rejects empty/invalid operations, writes an error summary, and tests assert dry-run makes no `gh` calls while invalid dry-run fails clearly. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | The feature supports only documented Sepo repository Actions variables, excludes secrets/org/env/multi-repo changes, and allows access customization through existing `AGENT_ACCESS_POLICY.route_overrides.config`. |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | The PR avoids adding a new repo-level setting for route choice; explicit `/config` and `/configure` route decisions are encoded in triage and guarded by existing policy. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates cover access policy, agent actions, supported workflows, configuration list, and quick start docs for the new config route and stricter default access. |\n| coding_workflow / generic | Surgical changes | pass | 8/8 | The diff is scoped to the new config route, parser/apply helpers, workflow wiring, tests, and related docs; no unrelated refactors are apparent. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | `apply-repo-config` writes a failure summary, sets outputs to non-applied/zero operations, logs the error, and the workflow fails the job when plan validation/application fails. |\n\n## Notes\n\n- The strongest rubric fit is the separation between model interpretation and deterministic mutation: the prompt only produces JSON, while `.agent/src/repo-config.ts` validates an allowlisted plan and applies through GitHub’s Actions variables API.\n- Access is handled conservatively: `/config` defaults to `OWNER`, `MEMBER`, and `COLLABORATOR`, intersects with global policy, and can only be widened with a route-specific override.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** The implementation satisfies the applicable selected rubrics. The only notable tradeoff is that ambiguous natural-language plans intentionally become failed validation rather than a successful no-op, which matches the preview-contract rubric’s preference to fail clearly.\n\n## Final Rubric Verdict\n\nPASS",
       "createdAt": "2026-05-20T09:47:21Z",
       "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/321#issuecomment-4496948494",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDAuynA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: b37c622f0e2676a1f8ee90a507c1486fd0042f29 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #321 adds a natural-language repo configuration route for Sepo, closing #316 as part of the broader #314 small-fixes orchestration.\n- The intended shape is a GitHub Actions page workflow plus explicit `/config` and `/configure` mention routing.\n- The design has the right trust boundary: the agent emits a structured JSON plan, and deterministic code validates and applies repository Actions variable changes.\n- The implementation also adds stricter route access, docs, workflow wiring, and tests, but two mutation-safety gaps remain.\n\n## Review\nThe architecture and rubric fit are strong, but the current PR should not ship until the deterministic apply path is safer. Claude and rubrics reviews were broadly positive; the Codex blocking findings are supported by the current PR head and are concrete enough for automated follow-up.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Config values lack per-variable validation | BLOCKING | [`repo-config.ts`](https://github.com/self-evolving/repo/blob/b37c622f0e2676a1f8ee90a507c1486fd0042f29/.agent/src/repo-config.ts#L99) accepts any non-empty string/boolean/number for every allowlisted variable. Malformed JSON, enum, boolean, or policy values can be persisted and break later Sepo workflows. |\n| Partial apply failures can report no changes | BLOCKING | [`apply-repo-config.ts`](https://github.com/self-evolving/repo/blob/b37c622f0e2676a1f8ee90a507c1486fd0042f29/.agent/src/cli/apply-repo-config.ts#L52) applies operations sequentially, then the catch path always reports that no variables changed. A later failure can therefore hide earlier successful mutations. |\n| Prompt/code allowlist sync is unguarded | WARNING | The prompt, docs, and code allowlist are currently synchronized, but tests only compare code with docs. Future drift could make the model unable to plan variables that the CLI accepts. |\n| Dispatch denial summary guard lacks regression coverage | WARNING | The empty-allowlist denial summary fix is valid, but it changes global dispatch-policy messaging without a regression test for ordinary denied-route summaries. |\n\n## Progress\n- Confirmed PR #321 targets the natural-language config route requested in #316 and is part of the #314 stacked small-fixes sequence.\n- Rubrics review passed, including trusted runtime checkout, delegated authorization, structured plan validation, docs sync, and surgical scope.\n- Posted inline comments on `.agent/src/repo-config.ts:99` and `.agent/src/cli/apply-repo-config.ts:52`.\n- No existing inline comments or review threads needed resolution or minimization.\n\n## Issue Details\n\n<details>\n<summary>Config values lack per-variable validation</summary>\n\n**Cause:** `normalizeVariableValue` only checks generic type, emptiness, NUL, and length, while the allowlist includes variables with stricter runtime contracts such as `AGENT_RUNS_ON`, JSON policy variables, booleans, and provider/session enums.\n\n**Candidate solutions:** Add a per-variable validator map and reuse existing typed parsers where available. At minimum, validate JSON policies, runner JSON, booleans, numeric limits, and enum-like settings before any mutation, or narrow the first-pass allowlist to safely validated variables.\n\n**Comments:** This is the main reviewer disagreement: the design reviews considered name allowlisting enough, but the current diff shows the deterministic safety boundary does not validate the values it can write.\n\n</details>\n\n<details>\n<summary>Partial apply failures can report no changes</summary>\n\n**Cause:** `applyRepoConfigPlan` is non-transactional and can mutate earlier variables before a later operation throws. The CLI catch path then discards partial state and formats every error as “No repository variables were changed.”\n\n**Candidate solutions:** Apply in an explicit loop that accumulates results, throw a typed partial-apply error containing completed operations and the failed operation, and render a failure summary that distinguishes applied, skipped, and failed rows. Add a fake-`gh` regression test where operation 1 succeeds and operation 2 fails.\n\n</details>\n\n<details>\n<summary>Prompt/code allowlist sync is unguarded</summary>\n\n**Cause:** `.github/prompts/agent-config.md` duplicates the variable list, but the current sync test only compares `DEFAULT_REPO_CONFIG_VARIABLES` with `configuration-list.md`.\n\n**Candidate solutions:** Extend the allowlist sync test to extract `AGENT_*` names from the prompt and compare them with both docs and code.\n\n</details>\n\n<details>\n<summary>Dispatch denial summary guard lacks regression coverage</summary>\n\n**Cause:** `applyDispatchPolicy` now handles empty allowed lists for config/global-policy intersections, but no test locks the pre-existing denied-route message for standard non-empty allowlists.\n\n**Candidate solutions:** Add one config empty-intersection assertion and one ordinary denied-route assertion so future access-policy changes do not regress either message.\n\n</details>\n\n## Recommended Next Step\nFIX_PR\n\nTwo blocking implementation issues require concrete code and test changes, and the scope is suitable for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Add per-variable validation, or narrow the config-route allowlist, so every settable variable is validated before mutation.\n- [ ] Track and report partial apply results when a later repository-variable operation fails after earlier operations already changed state.",
+      "createdAt": "2026-05-20T09:57:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/321#issuecomment-4497060508",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDAu-xA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #321 | 4 / 40 | Dispatched |\n\nReason: review verdict is needs_rework; dispatching fix-pr\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Add per-variable validation, or narrow the config-route allowlist, so every settable variable is validated before mutation.\n- Track and report partial apply results when a later repository-variable operation fails after earlier operations already changed state.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1779271037505 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxNTQ2NTc4MDY6cmV2aWV3OjMyMTpmaXhfcHI6MzIxOjQ -->",
+      "createdAt": "2026-05-20T09:57:17Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/321#issuecomment-4497063620",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDA0rqQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-316/codex-26153781993`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Added deterministic per-variable validation for all config-route settable repo variables, covering JSON policies, runner labels, booleans, enums, positive integers, refs, handles, and email/text fields.\n- Changed repository variable application to accumulate result rows and report partial apply failures with created/updated/deleted/failed statuses instead of claiming no changes.\n- Added regression tests for variable-specific validation and later-operation failure after an earlier mutation.\n- Verified with `npm --prefix .agent run build`, targeted `node --test ...`, and `git diff --check`.",
+      "createdAt": "2026-05-20T10:05:25Z",
+      "includesCreatedEdit": false,
       "isMinimized": false,
       "minimizedReason": "",
       "reactionGroups": [],
-      "url": "https://github.com/self-evolving/repo/pull/321#issuecomment-4496948494",
+      "url": "https://github.com/self-evolving/repo/pull/321#issuecomment-4497157033",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDA03nQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #321 | 5 / 40 | Dispatched |\n\nReason: PR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1779271541596 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxNTUyNDQwNDA6Zml4X3ByOjMyMTpyZXZpZXc6MzIxOjU -->",
+      "createdAt": "2026-05-20T10:05:42Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/321#issuecomment-4497160093",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDA2OEw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 13 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #321 closes #316 and is part of #314; #316 requested a natural-language Actions-page plus mention route for repo variable changes, after child #318 finished in the stack. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | `agent-config.yml` reuses existing auth/provider/runtime/task/post-response actions, while mutation logic lives in typed `.agent/src` helpers. |\n| coding_workflow / generic | Keep privileged workflows on trusted runtime code | pass | 8/8 | The config workflow checks out `github.event.repository.default_branch` with `persist-credentials: false` before using repo-local actions/scripts. |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | `/config` goes through portal access policy before delegating to `agent-config.yml`; `access-policy.ts` adds a stricter config default and tests cover contributor denial, collaborator allow, override widening, and global narrowing. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The model emits an `operations` array with `action`, `name`, `value`, and `reason`; `repo-config.ts` validates actions, duplicate names, allowlisted variables, unset semantics, and per-variable values. |\n| coding_workflow / generic | Validate preview contracts | pass | 7/7 | Dry-run still parses and validates the same plan, rejects empty/invalid operations, writes a summary, and tests assert no `gh` calls happen in dry-run. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | Scope is limited to documented Sepo repository Actions variables; secrets/org/env/multi-repo changes are excluded, with access customization through existing `AGENT_ACCESS_POLICY.route_overrides.config`. |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | Route behavior is encoded in existing triage and workflow dispatch paths rather than a new repo setting. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Apply logic checks existence, updates or creates variables, deletes only existing variables, and treats absent deletes as `absent`, making reruns stable. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Docs were updated in access policy, agent actions, supported workflows, configuration list, and quick start. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Partial apply failures accumulate completed and failed operation rows via `RepoConfigPartialApplyError`; the CLI writes a failure summary and fails the workflow. |\n| communication / generic | Keep status comments compact | pass | 6/6 | The config response uses a concise `Repository Configuration` summary and a compact operations table instead of raw logs. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is scoped to the new config route, validation/apply helpers, workflow wiring, focused tests, and related docs. |\n\n## Notes\n\n- The main rubric strength is the trust boundary: the agent only produces a structured plan, while deterministic code validates and applies allowlisted variable changes.\n- The prior review blockers appear addressed at the current head: per-variable value validation was added, and partial apply failures now report changed state instead of claiming no changes.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** Applicable rubrics are satisfied. I did not identify a rubric-specific blocker in the current PR head.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-20T10:07:36Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/321#issuecomment-4497182227",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDA8Xeg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 30b8d44570ee0ee5b3ae05328b581bf88af53327 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #321 adds a natural-language Sepo repository configuration route, closing #316 as part of the broader #314 small-fixes orchestration.\n- The new path supports the `Agent / Repo Config` workflow plus explicit `/config` and `/configure` mention routing.\n- The intended trust boundary is preserved: the agent produces a structured JSON plan, while deterministic TypeScript validates and applies only allowlisted repository Actions variable changes.\n- The follow-up fix-pr pass addressed the prior mutation-safety blockers around per-variable validation and partial apply failure reporting.\n\n## Review\nThe current reviewer artifacts agree that the prior blockers are fixed and that no required branch-change work remains. Rubrics review passed, and the remaining notes are optional follow-up/test-hardening items rather than merge blockers.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | Current review artifacts did not identify unresolved required branch changes. Prior inline findings were addressed at the current PR head. |\n\n## Progress\n- Read PR #321, linked issue #316, and parent orchestration issue #314 for current context.\n- Used all three review artifacts: Claude, Codex, and rubrics review.\n- Confirmed the prior per-variable validation concern is addressed by `VARIABLE_VALUE_VALIDATORS` in `.agent/src/repo-config.ts`.\n- Confirmed the prior partial-apply reporting concern is addressed by `RepoConfigPartialApplyError` and the CLI catch path.\n- Resolved two older same-agent inline review threads that were confirmed addressed: `.agent/src/repo-config.ts:292` and `.agent/src/cli/apply-repo-config.ts:54`.\n- Posted no new inline comments.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION\n\nNo unresolved actionable branch-change work remains, so no automated fix-pr pass is needed.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-20T10:16:15Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/321#issuecomment-4497282938",
       "viewerDidAuthor": true
     }
   ],
@@ -72,7 +162,7 @@
     },
     {
       "path": ".agent/src/__tests__/apply-repo-config-cli.test.ts",
-      "additions": 234,
+      "additions": 297,
       "deletions": 0,
       "changeType": "ADDED"
     },
@@ -84,7 +174,7 @@
     },
     {
       "path": ".agent/src/__tests__/repo-config.test.ts",
-      "additions": 110,
+      "additions": 176,
       "deletions": 0,
       "changeType": "ADDED"
     },
@@ -102,7 +192,7 @@
     },
     {
       "path": ".agent/src/cli/apply-repo-config.ts",
-      "additions": 74,
+      "additions": 88,
       "deletions": 0,
       "changeType": "ADDED"
     },
@@ -114,7 +204,7 @@
     },
     {
       "path": ".agent/src/repo-config.ts",
-      "additions": 342,
+      "additions": 607,
       "deletions": 0,
       "changeType": "ADDED"
     },
@@ -167,9 +257,40 @@
   "mergedAt": null,
   "number": 321,
   "reviewDecision": "",
-  "reviews": [],
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAe0kQQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-20T09:55:23Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "b37c622f0e2676a1f8ee90a507c1486fd0042f29"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAe0ppQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-20T09:55:32Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "b37c622f0e2676a1f8ee90a507c1486fd0042f29"
+      }
+    }
+  ],
   "state": "OPEN",
   "title": "Add natural-language repo config route",
-  "updatedAt": "2026-05-20T09:47:22Z",
+  "updatedAt": "2026-05-20T10:16:16Z",
   "url": "https://github.com/self-evolving/repo/pull/321"
 }

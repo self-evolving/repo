@@ -1,0 +1,881 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "agent/implement-issue-310/codex-26158458001",
+  "body": "## Summary\n\n- Pass the trusted requester into self-approval preflight and resolution, using `github.actor` when the workflow input is absent.\n- Block approval when `requested_by` normalizes to the pull request author, alongside the existing approval actor guard.\n- Add focused requester-author regression coverage and update self-approval docs.\n\n## Verification\n\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/self-approval.test.js .agent/dist/__tests__/prepare-self-approve-cli.test.js .agent/dist/__tests__/resolve-self-approve-cli.test.js .agent/dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nCloses #224\n\nPart of #314\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDBjTKQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #325 | 3 / 40 | Dispatched |\n\nReason: implementation succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1779276674576 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxNTkyOTkwNDI6aW1wbGVtZW50OjIyNDpyZXZpZXc6MzI1OjM -->",
+      "createdAt": "2026-05-20T11:31:15Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4497920809",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDBkPBg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 96 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | The workflow passes `REQUESTED_BY: ${{ inputs.requested_by || github.actor }}` into both preflight and resolution in [agent-self-approve.yml](https://github.com/self-evolving/repo/blob/72fa8e3847a378004ff7a90bfedd7867e8b3478d/.github/workflows/agent-self-approve.yml), and the resolver blocks when requester matches PR author. |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | The PR keeps the agent decision separate from deterministic approval: `resolveSelfApproval` now checks requester authorization before provenance and approval submission in [self-approval.ts](https://github.com/self-evolving/repo/blob/72fa8e3847a378004ff7a90bfedd7867e8b3478d/.agent/src/self-approval.ts). |\n| coding_workflow / generic | Keep privileged workflows on trusted runtime code | pass | 8/8 | The privileged workflow still checks out `github.event.repository.default_branch` before using repo-local actions, and the PR only threads requester context through trusted workflow/runtime code. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The implementation uses the existing structured `requested_by` workflow input and explicit `REQUESTED_BY` env var instead of parsing request text. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Missing or unverifiable requester state blocks with explicit reasons like `could not verify self-approval requester differs from pull request author`, with CLI regression tests covering blocked paths. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The PR updates self-approval behavior in [supported-workflows.md](https://github.com/self-evolving/repo/blob/72fa8e3847a378004ff7a90bfedd7867e8b3478d/.agent/docs/architecture/supported-workflows.md), [configuration-list.md](https://github.com/self-evolving/repo/blob/72fa8e3847a378004ff7a90bfedd7867e8b3478d/.agent/docs/customization/configuration-list.md), and [agent-orchestrator.md](https://github.com/self-evolving/repo/blob/72fa8e3847a378004ff7a90bfedd7867e8b3478d/.agent/docs/technical-details/agent-orchestrator.md). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR extends existing self-approval helpers and CLI flows rather than adding parallel approval logic. `normalizeActorLogin` is reused for actor/requester comparisons. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is tightly scoped to self-approval requester checks, focused tests, workflow env threading, and matching docs. No unrelated refactors or broad formatting changes are present. |\n\n## Notes\n\n- The strongest rubric fit is authorization: issue #224 asked for the initiating requester to be part of the self-approval authority boundary, and the PR implements that in both preflight and final resolution.\n- Regression coverage is focused: unit tests cover requester normalization, resolver blocking, preflight blocking, resolution blocking, and workflow envelope propagation.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** I found no rubric-specific blocking or warning issues. The implementation satisfies the applicable authorization, documentation, reuse, and scope rubrics.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-20T11:32:55Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4497936134",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDBnK1g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 72fa8e3847a378004ff7a90bfedd7867e8b3478d -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #325 addresses #224 as part of the #314 small-fixes batch. It threads a trusted requester into self-approval preflight and resolution so Sepo blocks approval when the requester authored the PR. The goal is to close a self-approval policy gap where the approval token actor could differ from the PR author even though the initiating human was the author. The implementation adds requester checks, focused tests, and matching docs.\n\n## Review\nThe core guard is the right direction, but one trust-boundary issue remains. The current workflow still lets a direct manual `workflow_dispatch` caller provide an arbitrary `requested_by`, so the new requester-author guard can be spoofed.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Direct manual self-approval can spoof `requested_by` | BLOCKING | `.github/workflows/agent-self-approve.yml` passes `${{ inputs.requested_by || github.actor }}` into deterministic self-approval checks, so a PR author manually dispatching the workflow can enter another login and bypass the requester-author comparison. |\n\n## Progress\n- The PR already adds `evaluateSelfApprovalRequester`, fail-closed resolver handling, CLI checks, docs, and requester-author regression tests.\n- Rubrics review passed, and one code reviewer found no issues; the blocking finding is grounded in the current workflow diff and the Codex review artifact.\n- Posted one inline comment on `.github/workflows/agent-self-approve.yml` line 83: https://github.com/self-evolving/repo/pull/325#discussion_r3273585409\n- Existing inline comments and review threads were empty before posting, so no comments were minimized and no threads were resolved.\n\n## Issue Details\n\n<details>\n<summary>Direct manual self-approval can spoof `requested_by`</summary>\n\n**Cause:** The PR head sets `REQUESTED_BY: ${{ inputs.requested_by || github.actor }}` in both prepare and resolve, including direct manual runs: https://github.com/self-evolving/repo/blob/72fa8e3847a378004ff7a90bfedd7867e8b3478d/.github/workflows/agent-self-approve.yml#L83 and https://github.com/self-evolving/repo/blob/72fa8e3847a378004ff7a90bfedd7867e8b3478d/.github/workflows/agent-self-approve.yml#L177. Because `requested_by` is a public workflow input, it is not trustworthy for direct dispatches.\n\n**Candidate solutions:** Use `github.actor` for non-orchestrated self-approval runs, and only honor `inputs.requested_by` when `inputs.orchestration_enabled == 'true'`. Mirror the same expression in the resolve step and add workflow/envelope coverage for direct dispatch with a spoofed `requested_by`.\n\n**Comments:** Orchestrated handoffs already set `orchestration_enabled: \"true\"` and forward the original requester, so this can preserve the intended child-chain behavior while closing the direct-dispatch spoof path.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: The remaining issue is a concrete branch change in the self-approval workflow and tests, and it is safe for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Derive the deterministic self-approval requester from `github.actor` for non-orchestrated runs, only trust `inputs.requested_by` for `orchestration_enabled == 'true'`, and add regression coverage for the direct-dispatch spoof case.",
+      "createdAt": "2026-05-20T11:39:09Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4497984214",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDBnSvg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #325 | 4 / 40 | Dispatched |\n\nReason: review verdict is needs_rework; dispatching fix-pr\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Derive the deterministic self-approval requester from `github.actor` for non-orchestrated runs, only trust `inputs.requested_by` for `orchestration_enabled == 'true'`, and add regression coverage for the direct-dispatch spoof case.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1779277164954 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxNTk3MTgyNjA6cmV2aWV3OjMyNTpmaXhfcHI6MzI1OjQ -->",
+      "createdAt": "2026-05-20T11:39:25Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4497986238",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDBpfUA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-224/codex-26159299042`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Updated [agent-self-approve.yml](https://github.com/self-evolving/repo/blob/agent/implement-issue-224/codex-26159299042/.github/workflows/agent-self-approve.yml) so self-approval requester context uses `github.actor` unless `inputs.orchestration_enabled == 'true'`.\n- Added envelope regression coverage for direct-dispatch `requested_by` spoofing and synced the self-approval trust-boundary docs.\n- Verified with `npm --prefix .agent run build`, focused self-approval/envelope `node --test`, and `git diff --check`.",
+      "createdAt": "2026-05-20T11:44:22Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4498022224",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDBpn-A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #325 | 5 / 40 | Dispatched |\n\nReason: PR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1779277478520 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxNjAxMDk1MDY6Zml4X3ByOjMyNTpyZXZpZXc6MzI1OjU -->",
+      "createdAt": "2026-05-20T11:44:38Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4498024440",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDBqZGQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | The current diff preserves the original requester only for orchestrated runs via `inputs.orchestration_enabled == 'true' && inputs.requested_by || github.actor`, then validates that requester in self-approval preflight/resolution. |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | The PR keeps judgment in the self-approval agent path while deterministic resolver code blocks unsafe approval before submitting, including requester-author, actor-author, provenance, and head-SHA checks in `.agent/src/self-approval.ts`. |\n| coding_workflow / generic | Keep privileged workflows on trusted runtime code | pass | 8/8 | The privileged workflow continues to use the trusted default-branch runtime checkout, while the PR only threads requester context through `.github/workflows/agent-self-approve.yml` and deterministic `.agent/src` CLIs. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The implementation uses existing structured `requested_by` and `orchestration_enabled` workflow inputs plus explicit `REQUESTED_BY` env propagation, not request-text parsing. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Missing or unverifiable requester state fails closed with explicit blocked reasons such as “could not verify self-approval requester differs from pull request author,” with focused CLI tests. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The PR updates self-approval behavior in `supported-workflows.md`, `configuration-list.md`, and `agent-orchestrator.md`, including the direct-dispatch spoofing boundary. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The change extends existing self-approval helpers and CLI flows, reusing actor normalization and resolver patterns instead of adding a parallel approval path. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is tightly scoped to requester checks, workflow propagation, focused tests, and matching docs for issue #224 as part of #314. |\n\n## Notes\n\n- The prior blocking concern about manual self-approval spoofing is addressed in the current diff: direct/non-orchestrated runs now derive requester identity from `github.actor`, while orchestrated handoffs may preserve `inputs.requested_by`.\n- Issue #310 appears to be a separate completed child in the broader #314 batch; this PR’s rubric fit is correctly judged against #224 and the #314 orchestration context.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific blocking or warning findings. The implementation satisfies the applicable authorization, trust-boundary, documentation, reuse, and scope rubrics.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-20T11:46:13Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4498037017",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDBuo-Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 3866f81c79d14881d780cdda75012d24ec23f19b -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #325 addresses #224 as part of the #314 small-fixes batch. It adds a requester-author guard to self-approval so the initiating requester is checked alongside the approval token actor. The goal is to prevent a PR author from initiating privileged self-approval through the Sepo app/PAT actor. The first fix closed the simple `requested_by` spoof, but the current PR head still trusts another manually set workflow input as the switch for that forwarded requester.\n\n## Review\nThe implementation improves the self-approval guard, but one authorization gap remains. The reviewer outputs disagree on severity: Claude calls the residual spoof a warning due to other defense-in-depth checks, while Codex treats it as blocking; I agree it is blocking because it defeats the specific requester-author invariant this PR is meant to enforce.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Manual self-approval can still spoof requester identity | BLOCKING | `.github/workflows/agent-self-approve.yml` trusts `inputs.requested_by` whenever `inputs.orchestration_enabled == 'true'`, but both are manual `workflow_dispatch` inputs. A PR author who can run the workflow can set both and bypass the requester-author comparison. |\n\n## Progress\n- The prior direct `requested_by || github.actor` spoof path was fixed for default non-orchestrated runs.\n- The PR already adds requester checks in prepare/resolve CLIs, self-approval unit coverage, focused CLI tests, and docs.\n- Posted one new inline comment on `.github/workflows/agent-self-approve.yml` line 83: https://github.com/self-evolving/repo/pull/325#discussion_r3273674067\n- Resolved the older same-agent thread `PRRT_kwDOSOhEMM6DdsgH` because its requested change was superseded by the current expression; no comments were minimized and no replies were added.\n\n## Issue Details\n\n<details>\n<summary>Manual self-approval can still spoof requester identity</summary>\n\n**Cause:** At current head `3866f81c79d14881d780cdda75012d24ec23f19b`, the workflow uses `${{ inputs.orchestration_enabled == 'true' && inputs.requested_by || github.actor }}` at `.github/workflows/agent-self-approve.yml` lines 83, 152, 177, and 226. Since `orchestration_enabled` is itself a `workflow_dispatch` input, it is not proof that the run came from trusted orchestration.\n\n**Candidate solutions:** Only honor forwarded `requested_by` when the run is proven to come from trusted orchestrator dispatch, or otherwise derive the requester from `github.actor`. Add regression coverage for a manual self-approval dispatch that sets both `orchestration_enabled=true` and a spoofed `requested_by`.\n\n**Comments:** Rubrics review passed, but the delegated-route authorization rubric depends on preserving trusted requester context, not trusting user-controlled provenance bits.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: The remaining issue is a concrete workflow trust-boundary bug with a clear automated fix path and focused test target.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Ensure manual self-approval cannot spoof requester identity by setting `orchestration_enabled=true`; only use forwarded `requested_by` when orchestration provenance is trusted, and add regression coverage for the spoofed true case.",
+      "createdAt": "2026-05-20T11:53:56Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4498106617",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDBu0Dg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #325 | 6 / 40 | Dispatched |\n\nReason: review verdict is needs_rework; dispatching fix-pr\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Ensure manual self-approval cannot spoof requester identity by setting `orchestration_enabled=true`; only use forwarded `requested_by` when orchestration provenance is trusted, and add regression coverage for the spoofed true case.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1779278053651 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxNjAzNTkyNzg6cmV2aWV3OjMyNTpmaXhfcHI6MzI1OjY -->",
+      "createdAt": "2026-05-20T11:54:14Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4498109454",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDBy9eg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-224/codex-26159299042`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Derived the effective self-approval requester in the CLIs: forwarded `requested_by` is trusted only when orchestration is enabled **and** the workflow actor is an automation identity; otherwise `github.actor` wins.\n- Passed `ORCHESTRATION_ENABLED` and `WORKFLOW_ACTOR` into prepare/resolve in [agent-self-approve.yml](https://github.com/self-evolving/repo/blob/agent/implement-issue-224/codex-26159299042/.github/workflows/agent-self-approve.yml).\n- Added regression coverage for spoofed `orchestration_enabled=true` manual dispatches in prepare/resolve and updated the trust-boundary docs.\n- Verified with `npm --prefix .agent run build`, focused self-approval/envelope `node --test`, and `git diff --check`.",
+      "createdAt": "2026-05-20T12:02:15Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4498177402",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDBzGrQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #325 | 7 / 40 | Dispatched |\n\nReason: PR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1779278551790 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxNjA4MTg5OTA6Zml4X3ByOjMyNTpyZXZpZXc6MzI1Ojc -->",
+      "createdAt": "2026-05-20T12:02:32Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4498179757",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDBzw-g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | The current diff preserves forwarded `requested_by` only when orchestration is enabled and the workflow actor is an automation identity, then validates that requester before approval in `.agent/src/cli/prepare-self-approve.ts`, `.agent/src/cli/resolve-self-approve.ts`, and `.agent/src/self-approval.ts`. |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | The agent remains read-only for judgment; deterministic resolver code performs approval only after requester, actor, provenance, and head-SHA checks in `.agent/src/self-approval.ts`. |\n| coding_workflow / generic | Keep privileged workflows on trusted runtime code | pass | 8/8 | `.github/workflows/agent-self-approve.yml` still uses the default-branch runtime checkout pattern, while the PR only threads requester context into existing trusted workflow/CLI paths. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The implementation uses explicit workflow/env fields: `requested_by`, `orchestration_enabled`, `REQUESTED_BY`, `ORCHESTRATION_ENABLED`, and `WORKFLOW_ACTOR`; it does not parse free-form request text. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Missing or unverifiable requester state fails closed with explicit blocked reasons such as “could not verify self-approval requester differs from pull request author,” with focused preflight and resolver tests. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The PR updates `.agent/docs/architecture/supported-workflows.md`, `.agent/docs/customization/configuration-list.md`, and `.agent/docs/technical-details/agent-orchestrator.md` for the requester-author guard and spoofing boundary. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR extends existing self-approval helpers, CLI flows, and actor normalization rather than adding a parallel approval mechanism. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is scoped to self-approval requester trust, focused workflow propagation, tests, and matching docs; no unrelated refactors are present. |\n\n## Notes\n\n- The broader context checks line up: #310 completed as a prior child of #314, while this PR addresses #224 as the next small-fix child in the same stacked batch.\n- The previous spoofing concern is addressed in the current head: manual dispatch cannot gain trusted forwarded requester status merely by setting `orchestration_enabled=true`; the workflow actor must also be an automation identity.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific blocking or warning findings. The implementation satisfies the applicable authorization, trust-boundary, documentation, reuse, and scope rubrics.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-20T12:03:49Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4498190586",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDB4h2A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 02b7debeff204c5e6e0b1d395108beee98230551 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #325 addresses #224 as part of the #314 small-fixes batch.\n- It adds a requester-author guard to self-approval so the initiating requester is checked alongside the approval token actor before privileged approval can happen.\n- The current head fixes the earlier direct manual `requested_by` spoof by deriving the effective requester from `github.actor` unless the workflow actor looks automated.\n- The remaining risk is in supported PAT-backed orchestration, where the original requester can still be dropped before the requester-author comparison.\n\n## Review\nThe implementation is close, and the direct human spoof path from prior review rounds is addressed. The reviewers disagree on final severity: Claude and rubrics are comfortable shipping with notes, while Codex flags a PAT-backed authorization gap; the current code and docs support carrying that forward as blocking.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| PAT-backed orchestration can drop the original requester | BLOCKING | `resolveTrustedSelfApprovalRequester` only trusts forwarded `requested_by` when `github.actor` looks like an app/bot, but Sepo supports `AGENT_PAT` dispatch. A normal PAT actor can replace the original PR-author requester in the guard, allowing the requester-author check to pass incorrectly. |\n\n## Progress\n- The previous manual `orchestration_enabled=true` spoof case is fixed for human workflow actors by adding `WORKFLOW_ACTOR` and CLI-side requester derivation.\n- Current head is `02b7debeff204c5e6e0b1d395108beee98230551`.\n- Rubrics review passed, and Claude’s review recommended SHIP with non-blocking notes.\n- Added a same-agent inline reply on the existing unresolved trust-boundary thread: https://github.com/self-evolving/repo/pull/325#discussion_r3273794897\n- No comments were minimized and no threads were resolved.\n\n## Issue Details\n\n<details>\n<summary>PAT-backed orchestration can drop the original requester</summary>\n\n**Cause:** The helper returns forwarded `requested_by` only when `orchestrationEnabled` is true and `workflowActorLogin` is considered automated: https://github.com/self-evolving/repo/blob/02b7debeff204c5e6e0b1d395108beee98230551/.agent/src/self-approval.ts#L170-L180. Orchestrator handoffs do forward `requested_by` with `orchestration_enabled: \"true\"`: https://github.com/self-evolving/repo/blob/02b7debeff204c5e6e0b1d395108beee98230551/.agent/src/cli/orchestrate-handoff.ts#L1539-L1558. But the shared auth resolver explicitly supports `AGENT_PAT`, including normal machine-user tokens: https://github.com/self-evolving/repo/blob/02b7debeff204c5e6e0b1d395108beee98230551/.github/actions/resolve-github-auth/action.yml#L16-L18.\n\n**Candidate solutions:** Preserve the original forwarded requester for trusted orchestrated handoffs even when the dispatch actor is PAT-backed, or make the guard check both the forwarded requester and the workflow actor before approval. Add prepare/resolve regression coverage where `orchestrationEnabled=true`, `requestedByLogin` equals the PR author, and `workflowActorLogin` is a distinct non-bot PAT owner.\n\n**Comments:** This is the invariant requested in #224: self-approval should block when either the approval actor or the trusted initiating requester matches the PR author.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: The remaining issue is a concrete self-approval authorization bug with a focused helper and test change path.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Preserve or independently check the forwarded original requester for PAT-backed orchestrated self-approval, and add regression coverage where the forwarded requester is the PR author but the PAT workflow actor is distinct.",
+      "createdAt": "2026-05-20T12:13:16Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4498268632",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDB4rJQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #325 | 8 / 40 | Dispatched |\n\nReason: review verdict is needs_rework; dispatching fix-pr\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Preserve or independently check the forwarded original requester for PAT-backed orchestrated self-approval, and add regression coverage where the forwarded requester is the PR author but the PAT workflow actor is distinct.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1779279213112 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxNjEyMzQ1Mjc6cmV2aWV3OjMyNTpmaXhfcHI6MzI1Ojg -->",
+      "createdAt": "2026-05-20T12:13:33Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4498271013",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDB6rng",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-224/codex-26159299042`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Preserved PAT-backed orchestrated self-approval requester checks by evaluating the forwarded requester and any non-automation workflow actor.\n- Added regression coverage for PAT-backed orchestration where `requested_by` is the PR author and `github.actor` is a distinct machine user.\n- Updated self-approval workflow docs to describe forwarded requester and workflow actor guard behavior.\n- Verified with `npm --prefix .agent run build`, targeted `node --test ...`, and `git diff --check`.",
+      "createdAt": "2026-05-20T12:18:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4498303902",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDB60vQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #325 | 9 / 40 | Dispatched |\n\nReason: PR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1779279501040 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxNjE3Nzc2NTU6Zml4X3ByOjMyNTpyZXZpZXc6MzI1Ojk -->",
+      "createdAt": "2026-05-20T12:18:21Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4498306237",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDB_kvQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: e62576404c1d0558c45c3e9fd0ea5436f780b876 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #325 addresses #224 as part of the #314 small-fixes batch. It adds a requester-author guard to self-approval so privileged approval is blocked when the trusted initiating requester authored the PR, not only when the approval token actor did. The latest head fixes the direct self-approval spoof cases and the PAT-backed forwarded-requester gap. One upstream orchestrator path still lets a manual caller spoof the requester before the self-approval workflow receives it.\n\n## Review\nThe reviewers disagree: Claude recommends SHIP with only INFO cleanup notes, while Codex flags a remaining authorization gap. The current PR state supports Codex’s blocker because `agent-orchestrator.yml` can still forward caller-controlled requester identity into the now-trusted orchestrated self-approval path.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Manual orchestrator dispatch can spoof requester identity | BLOCKING | A PR author can manually dispatch `agent-orchestrator.yml` with a fake `requested_by`; `orchestrate-handoff` forwards that value with `orchestration_enabled=true`, so downstream self-approval checks the spoofed requester instead of the real manual caller. |\n\n## Progress\n- The earlier direct `agent-self-approve.yml` spoof paths are addressed in the current head.\n- The PAT-backed orchestrated case where the forwarded requester is the PR author is also addressed by checking forwarded requester plus non-automation workflow actor.\n- Claude’s INFO notes about a dead singular export and a redundant fallback fetch are non-blocking.\n- Added one same-agent inline reply: https://github.com/self-evolving/repo/pull/325#discussion_r3273886146\n- No comments were minimized and no review threads were resolved.\n\n## Issue Details\n\n<details>\n<summary>Manual orchestrator dispatch can spoof requester identity</summary>\n\n**Cause:** `agent-orchestrator.yml` still derives orchestrator `REQUESTED_BY` from `${{ inputs.requested_by || github.actor }}` for direct workflow dispatches: https://github.com/self-evolving/repo/blob/e62576404c1d0558c45c3e9fd0ea5436f780b876/.github/workflows/agent-orchestrator.yml#L212. `orchestrate-handoff` then forwards that value to `agent-self-approve.yml` with `orchestration_enabled: \"true\"`: https://github.com/self-evolving/repo/blob/e62576404c1d0558c45c3e9fd0ea5436f780b876/.agent/src/cli/orchestrate-handoff.ts#L1539-L1561. Downstream, self-approval treats forwarded requester identity as trusted for orchestrated runs: https://github.com/self-evolving/repo/blob/e62576404c1d0558c45c3e9fd0ea5436f780b876/.agent/src/self-approval.ts#L187-L191.\n\n**Candidate solutions:** Derive orchestrator requester identity from `github.actor` for direct/manual orchestrator starts, or add trusted handoff provenance before downstream self-approval honors forwarded `requested_by`. Add regression coverage for manual `agent-orchestrator.yml` dispatch with spoofed `requested_by` leading to self-approval.\n\n**Comments:** This is the same authority-boundary invariant from #224: the real initiating requester must not be able to author the PR being approved.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: The remaining issue is a concrete authorization bug with a focused workflow/CLI test path.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Prevent direct/manual orchestrator dispatch from spoofing requester identity before self-approval, and add regression coverage for that orchestrator-to-self-approval spoof path.",
+      "createdAt": "2026-05-20T12:28:23Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4498384061",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDB_tzg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #325 | 10 / 40 | Dispatched |\n\nReason: review verdict is needs_rework; dispatching fix-pr\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Prevent direct/manual orchestrator dispatch from spoofing requester identity before self-approval, and add regression coverage for that orchestrator-to-self-approval spoof path.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1779280121198 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxNjIwMTA4NDI6cmV2aWV3OjMyNTpmaXhfcHI6MzI1OjEw -->",
+      "createdAt": "2026-05-20T12:28:41Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4498386382",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDCB5tw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-224/codex-26159299042`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Updated `agent-orchestrator.yml` so direct user-launched orchestrator starts derive requester identity from `github.actor` before planner/dispatch, preventing spoofed `requested_by` from reaching self-approval.\n- Added envelope regression coverage for the orchestrator requester expression used by both the planner envelope and dispatch env.\n- Updated orchestrator docs to document the direct-start requester boundary.\n- Verified with `npm --prefix .agent run build`, targeted `node --test ...`, and `git diff --check`.",
+      "createdAt": "2026-05-20T12:33:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4498422199",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDCCPPQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #325 | 11 / 40 | Dispatched |\n\nReason: PR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1779280422437 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxNjI1Mjc3ODI6Zml4X3ByOjMyNTpyZXZpZXc6MzI1OjEx -->",
+      "createdAt": "2026-05-20T12:33:43Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4498427709",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDCDrEg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 80 | FAIL | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | fail | 0/8 | The direct orchestrator requester fix only uses `github.actor` when `inputs.source_action == 'orchestrate'`; manual `workflow_dispatch` can still set `source_action=review`, `source_conclusion=ship`, and spoof `requested_by`, which is then forwarded to self-approval with `orchestration_enabled: \"true\"`. See `.github/workflows/agent-orchestrator.yml` lines 192/212 and `.agent/src/cli/orchestrate-handoff.ts` lines 1539-1561 at `7ba3073`. |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | The agent remains a read-only judgment gate, while deterministic resolver code blocks approval unless requester, approval actor, provenance, and head-SHA checks pass in `.agent/src/self-approval.ts`. |\n| coding_workflow / generic | Keep privileged workflows on trusted runtime code | pass | 8/8 | `agent-self-approve.yml` continues checking out `github.event.repository.default_branch` before using repo-local actions and scripts. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The change uses explicit `requested_by`, `orchestration_enabled`, `REQUESTED_BY`, `WORKFLOW_ACTOR`, and `ORCHESTRATION_ENABLED` fields instead of parsing free-form text. |\n| coding_workflow / generic | Surface stateful failures | partial | 5/7 | Self-approval prepare/resolve now fail closed with explicit requester mismatch reasons, but the remaining manual orchestrator spoof path is not surfaced or covered. |\n| coding_workflow / generic | Keep docs in sync | partial | 5/7 | Docs were updated for requester-author checks, but the claim that direct user-launched orchestrator starts derive requester from `github.actor` is incomplete because only `source_action == 'orchestrate'` gets that treatment. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR extends existing self-approval helpers, workflow inputs, and orchestrator dispatch flow rather than adding a parallel approval mechanism. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The PR diff is scoped to self-approval requester authorization, workflow propagation, focused tests, and matching docs. |\n\n## Notes\n\n- The latest PR head closes several earlier spoof paths: direct self-approval, manual `orchestration_enabled=true` with a human actor, and PAT-backed orchestrated checks where the forwarded requester is the PR author.\n- One rubric-blocking authorization gap remains in the orchestrator entrypoint: manual workflow-dispatch inputs that impersonate an internal `review` handoff can still carry spoofed `requested_by` into the trusted self-approval path.\n- Smallest useful follow-up: derive requester from `github.actor` for any direct/manual orchestrator workflow-dispatch start, or otherwise prove the source handoff is trusted before honoring forwarded `requested_by`; add regression coverage for `source_action=review` manual dispatch.\n\n## Findings\n\n- **BLOCKING:** Manual `agent-orchestrator.yml` dispatch can still spoof requester identity for self-approval. The workflow only replaces `requested_by` with `github.actor` when `inputs.source_action == 'orchestrate'`, but the same workflow accepts arbitrary `source_action` values. A PR author can dispatch with `source_action=review`, `source_conclusion=ship`, and a fake `requested_by`; `decideHeuristicHandoff` can dispatch `agent-self-approve`, and `orchestrate-handoff` forwards the spoofed requester with `orchestration_enabled: \"true\"`. This violates the delegated authorization rubric and the #224 requester-author invariant.\n\n## Final Rubric Verdict\n\nFAIL",
+      "createdAt": "2026-05-20T12:36:35Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4498451218",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDCJltg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 7ba307323f4ffde59a089a4230e4c9676b580113 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #325 addresses #224 as part of the #314 small-fixes batch. It adds requester-author checks to self-approval so the initiating requester is evaluated alongside the approval token actor. The PR has already fixed earlier direct self-approval spoof paths and PAT-backed forwarded-requester checks. The current head still leaves one upstream orchestrator entrypoint path where a manual caller can spoof requester identity before self-approval receives it.\n\n## Review\nThe current review artifacts converge on one blocking delegated-authorization issue. The remaining gap defeats the requester-author invariant this PR is meant to enforce, so it should be fixed before shipping.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Manual orchestrator dispatch can spoof requester identity | BLOCKING | `.github/workflows/agent-orchestrator.yml` only pins requester identity to `github.actor` when `source_action == 'orchestrate'`, but `source_action` is a free-form manual input. A caller can use another source action such as `review`, spoof `requested_by`, and have that value forwarded into self-approval as trusted orchestration context. |\n\n## Progress\n- Current PR head verified: `7ba307323f4ffde59a089a4230e4c9676b580113`.\n- The earlier direct `agent-self-approve.yml` spoof paths are addressed in the current diff.\n- The PAT-backed orchestrated case where the forwarded requester is the PR author is also addressed by checking forwarded requester plus non-automation workflow actor.\n- Existing same-agent inline discussion already covers the current issue: https://github.com/self-evolving/repo/pull/325#discussion_r3273886146\n- No new inline comments were posted, no comments were minimized, and no review threads were resolved.\n\n## Issue Details\n\n<details>\n<summary>Manual orchestrator dispatch can spoof requester identity</summary>\n\n**Cause:** `source_action` is a required but free-form workflow input, and the orchestrator only derives requester identity from `github.actor` for `source_action == 'orchestrate'`: https://github.com/self-evolving/repo/blob/7ba307323f4ffde59a089a4230e4c9676b580113/.github/workflows/agent-orchestrator.yml#L6-L8 and https://github.com/self-evolving/repo/blob/7ba307323f4ffde59a089a4230e4c9676b580113/.github/workflows/agent-orchestrator.yml#L192-L212. `orchestrate-handoff` then forwards `requested_by` with `orchestration_enabled: \"true\"` to self-approval: https://github.com/self-evolving/repo/blob/7ba307323f4ffde59a089a4230e4c9676b580113/.agent/src/cli/orchestrate-handoff.ts#L1539-L1561.\n\n**Candidate solutions:** Derive orchestrator requester identity from `github.actor` for all direct/manual orchestrator starts, or add trusted handoff provenance before downstream self-approval honors forwarded `requested_by`. Add regression coverage for a manual `agent-orchestrator.yml` dispatch using a non-`orchestrate` `source_action`, self-approval-eligible source metadata, and a spoofed `requested_by`.\n\n**Comments:** Claude also noted optional cleanup around the unused singular requester helper export and a redundant fallback fetch, but those are non-blocking compared with the authorization gap.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: The unresolved issue requires a concrete branch change to orchestrator requester derivation or handoff provenance, plus focused regression coverage.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Prevent direct/manual `agent-orchestrator.yml` dispatch from spoofing requester identity before self-approval, and add regression coverage for the non-`orchestrate` source-action spoof path.",
+      "createdAt": "2026-05-20T12:49:07Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4498548150",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDCJuWQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #325 | 12 / 40 | Dispatched |\n\nReason: review verdict is needs_rework; dispatching fix-pr\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Prevent direct/manual `agent-orchestrator.yml` dispatch from spoofing requester identity before self-approval, and add regression coverage for the non-`orchestrate` source-action spoof path.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1779281364864 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxNjI3OTAxNTg6cmV2aWV3OjMyNTpmaXhfcHI6MzI1OjEy -->",
+      "createdAt": "2026-05-20T12:49:25Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4498550361",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDCNoqQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-224/codex-26159299042`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Forwarded the orchestrator workflow actor to `agent-self-approve.yml` only for self-approval handoffs, so spoofed manual `source_action=review` dispatches are checked against the real orchestrator caller.\n- Extended self-approval requester resolution to evaluate `requested_by`, `source_actor`, and relevant workflow actors before approval.\n- Added regression coverage for the non-`orchestrate` source-action spoof path in orchestrator handoff, prepare, resolve, and helper tests.\n- Verified with `npm --prefix .agent run build`, targeted `node --test ...`, and `git diff --check`.",
+      "createdAt": "2026-05-20T12:57:09Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4498614441",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDCN1SQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #325 | 13 / 40 | Dispatched |\n\nReason: PR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1779281851343 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxNjM1OTM5MDE6Zml4X3ByOjMyNTpyZXZpZXc6MzI1OjEz -->",
+      "createdAt": "2026-05-20T12:57:31Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4498617673",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDCO3rw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | The current diff preserves requester context through orchestrated self-approval and adds `source_actor` so downstream self-approval can validate the real orchestrator caller as well as forwarded `requested_by`. Evidence: `.agent/src/cli/orchestrate-handoff.ts`, `.github/workflows/agent-self-approve.yml`, `.agent/src/self-approval.ts` at head `a5264bc`. |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | The self-approval agent remains a judgment step, while deterministic prepare/resolve code enforces requester, approval actor, provenance, and head-SHA checks before any approval submission. |\n| coding_workflow / generic | Keep privileged workflows on trusted runtime code | pass | 8/8 | The privileged self-approval workflow continues to use the trusted default-branch runtime checkout pattern; the PR only threads additional requester/source actor context through existing trusted workflow and CLI paths. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The implementation uses typed workflow/env fields: `requested_by`, `source_actor`, `ORCHESTRATION_ENABLED`, `REQUESTED_BY`, `SOURCE_ACTOR`, and `WORKFLOW_ACTOR`, rather than parsing request text. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Preflight and resolution fail closed with explicit reasons such as requester matching the PR author or requester verification failure, and tests cover those blocked states. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The PR updates self-approval and orchestrator docs in `.agent/docs/architecture/supported-workflows.md`, `.agent/docs/customization/configuration-list.md`, and `.agent/docs/technical-details/agent-orchestrator.md`. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The change extends existing self-approval helpers, prepare/resolve CLIs, and orchestrator handoff flow instead of adding a parallel approval mechanism. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is scoped to issue #224’s requester-author guard, workflow propagation, focused regression tests, and matching docs. |\n\n## Notes\n\n- The current head addresses the earlier spoof paths by checking forwarded requester, source actor, and workflow actor where relevant.\n- This fits the #314 stacked small-fixes context after child #310 shipped, while remaining scoped to #224’s self-approval authority boundary.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific blocking or warning findings. The implementation satisfies the applicable authorization, trust-boundary, documentation, reuse, and scope rubrics.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-20T12:59:27Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4498634671",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDCVd4Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: a5264bcde0fb2be880f7d712d584cee2c132cf4b -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #325 implements issue #224 as part of the #314 stacked small-fixes batch.\n- It tightens self-approval so the deterministic approval path checks not only the approval token actor, but also the trusted initiating requester.\n- The current head adds requester/source-actor plumbing, requester-author checks in self-approval prepare/resolve, focused tests, and documentation updates.\n- The intent is to prevent a PR author from requesting Sepo approval while the actual GitHub approval is submitted by the app or PAT actor.\n\n## Review\nThe direct self-approval spoof paths and the direct orchestrator-to-self-approval path are mostly addressed, but one authorization gap remains. Codex identified a multi-hop path that is still supported by the current diff; Claude and the rubrics review considered the direct `source_actor` path sound, but did not close this intermediate-review variant.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Multi-hop manual orchestrator spoof can bypass requester guard | BLOCKING | `.github/workflows/agent-orchestrator.yml` still trusts `inputs.requested_by` for non-`orchestrate` manual source actions, letting the real caller disappear before a later review-to-self-approval handoff. |\n\n## Progress\n- The PR already added requester-author checks in self-approval, `source_actor` forwarding for direct self-approval handoffs, and tests/docs for earlier spoof cases.\n- Rubrics review passed and Claude found the direct self-approval path sound, but Codex found the current multi-hop requester-provenance gap.\n- Posted one new inline comment on `.github/workflows/agent-orchestrator.yml` line 212: https://github.com/self-evolving/repo/pull/325#discussion_r3274172713\n- No comments were minimized and no review threads were resolved; the existing same-agent self-approval thread remains relevant to requester provenance.\n\n## Issue Details\n\n<details>\n<summary>Multi-hop manual orchestrator spoof can bypass requester guard</summary>\n\n**Cause:** Current head still derives orchestrator `REQUESTED_BY` from `inputs.requested_by` for manual non-`orchestrate` starts: https://github.com/self-evolving/repo/blob/a5264bcde0fb2be880f7d712d584cee2c132cf4b/.github/workflows/agent-orchestrator.yml#L212. A PR author can manually start `source_action=fix-pr` with spoofed `requested_by`; the fix-pr success path dispatches review, review forwards only `REQUESTED_BY`, and `source_actor` is only added when `orchestrate-handoff` dispatches self-approval directly: https://github.com/self-evolving/repo/blob/a5264bcde0fb2be880f7d712d584cee2c132cf4b/.agent/src/handoff.ts#L500, https://github.com/self-evolving/repo/blob/a5264bcde0fb2be880f7d712d584cee2c132cf4b/.github/workflows/agent-review.yml#L382, https://github.com/self-evolving/repo/blob/a5264bcde0fb2be880f7d712d584cee2c132cf4b/.agent/src/cli/orchestrate-handoff.ts#L1557.\n\n**Candidate solutions:** Derive requester from `github.actor` for all direct/manual `agent-orchestrator.yml` starts unless trusted handoff provenance proves the run is internal, or carry a trusted origin actor through every downstream handoff and include it in self-approval requester evaluation. Add regression coverage for an `implement` or `fix-pr` -> `review` -> `agent-self-approve` chain with spoofed `requested_by`.\n\n**Comments:** This is a narrower follow-up to the prior direct orchestrator spoof finding: the latest `source_actor` fix protects direct self-approval handoffs, but intermediate review handoffs still drop the real manual caller.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: The unresolved issue is a concrete authorization/provenance bug with a clear workflow and test change path.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Prevent direct/manual orchestrator starts from preserving spoofed `requested_by` across intermediate handoffs, and add regression coverage for an implement/fix-pr -> review -> self-approve spoof chain.",
+      "createdAt": "2026-05-20T13:12:35Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4498742753",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDCVxMA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #325 | 14 / 40 | Dispatched |\n\nReason: review verdict is needs_rework; dispatching fix-pr\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Prevent direct/manual orchestrator starts from preserving spoofed `requested_by` across intermediate handoffs, and add regression coverage for an implement/fix-pr -> review -> self-approve spoof chain.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1779282789549 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxNjQwMjI2OTU6cmV2aWV3OjMyNTpmaXhfcHI6MzI1OjE0 -->",
+      "createdAt": "2026-05-20T13:13:09Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4498747696",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDCYwyg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-224/codex-26159299042`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Updated `agent-orchestrator.yml` so direct/manual starts with no source run use `github.actor` as the requester before planner/dispatch handoffs, preventing spoofed `requested_by` from surviving into review/self-approval chains.\n- Added regression coverage for the sanitized fix-pr -> review -> self-approve requester path and updated orchestrator trust-boundary docs.\n- Verified with `npm --prefix .agent run build`, focused `node --test` self-approval/orchestrator suites, and `git diff --check`.",
+      "createdAt": "2026-05-20T13:19:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4498796746",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDCY7EQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #325 | 15 / 40 | Dispatched |\n\nReason: PR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1779283164151 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxNjQ4NTAzMTg6Zml4X3ByOjMyNTpyZXZpZXc6MzI1OjE1 -->",
+      "createdAt": "2026-05-20T13:19:24Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4498799377",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDCaF0w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 80 | FAIL | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | fail | 0/8 | `agent-orchestrator.yml` still trusts `inputs.requested_by` when `inputs.source_run_id` is non-empty, but `source_run_id` is also a manual `workflow_dispatch` input. See `source_run_id` input and requester expression at [agent-orchestrator.yml#L20-L23](https://github.com/self-evolving/repo/blob/95169aa2d14023d246d7f471d9bd7d8564990eb4/.github/workflows/agent-orchestrator.yml#L20-L23), [#L192](https://github.com/self-evolving/repo/blob/95169aa2d14023d246d7f471d9bd7d8564990eb4/.github/workflows/agent-orchestrator.yml#L192), and [#L212](https://github.com/self-evolving/repo/blob/95169aa2d14023d246d7f471d9bd7d8564990eb4/.github/workflows/agent-orchestrator.yml#L212). |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | The self-approval agent remains read-only, while deterministic resolver code blocks before approval when requester, approval actor, provenance, or head SHA checks fail. See [self-approval.ts#L438-L456](https://github.com/self-evolving/repo/blob/95169aa2d14023d246d7f471d9bd7d8564990eb4/.agent/src/self-approval.ts#L438-L456). |\n| coding_workflow / generic | Keep privileged workflows on trusted runtime code | pass | 8/8 | `agent-self-approve.yml` checks out the repository default branch before using local actions/scripts. See [agent-self-approve.yml#L62-L66](https://github.com/self-evolving/repo/blob/95169aa2d14023d246d7f471d9bd7d8564990eb4/.github/workflows/agent-self-approve.yml#L62-L66). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The PR uses structured fields such as `requested_by`, `source_actor`, `orchestration_enabled`, `REQUESTED_BY`, `SOURCE_ACTOR`, and `WORKFLOW_ACTOR`, instead of parsing request text. See [agent-self-approve.yml#L87-L93](https://github.com/self-evolving/repo/blob/95169aa2d14023d246d7f471d9bd7d8564990eb4/.github/workflows/agent-self-approve.yml#L87-L93). |\n| coding_workflow / generic | Surface stateful failures | partial | 5/7 | Self-approval fails closed for requester mismatches, but the remaining manual orchestrator spoof path is not detected as an invalid provenance state before forwarding. See requester evaluation in [self-approval.ts#L138-L168](https://github.com/self-evolving/repo/blob/95169aa2d14023d246d7f471d9bd7d8564990eb4/.agent/src/self-approval.ts#L138-L168). |\n| coding_workflow / generic | Keep docs in sync | partial | 5/7 | Docs mention direct starts without a source run deriving requester from `github.actor`, but they do not cover that `source_run_id` is user-supplied on manual workflow dispatch and can flip the workflow back to trusting `requested_by`. See [supported-workflows.md#L78-L84](https://github.com/self-evolving/repo/blob/95169aa2d14023d246d7f471d9bd7d8564990eb4/.agent/docs/architecture/supported-workflows.md#L78-L84). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The implementation extends existing self-approval helpers and orchestrator handoff flow rather than adding a parallel approval path. See [self-approval.ts#L170-L202](https://github.com/self-evolving/repo/blob/95169aa2d14023d246d7f471d9bd7d8564990eb4/.agent/src/self-approval.ts#L170-L202). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is scoped to requester-author self-approval checks, workflow propagation, focused tests, and matching docs for #224 within the #314 stacked batch. |\n\n## Notes\n\n- The PR addresses the core #224 direction by checking requester identity in self-approval preflight/resolution and preserving source actor context for direct self-approval handoffs.\n- The remaining issue is specifically rubric-relevant: delegated privileged authorization still depends on a user-controlled workflow input as provenance.\n- Smallest useful follow-up: treat all direct/manual `agent-orchestrator.yml` starts as `github.actor` unless source-run provenance is independently trusted, and add regression coverage for manual dispatch with spoofed `source_run_id` plus spoofed `requested_by`.\n\n## Findings\n\n- **BLOCKING:** Manual orchestrator dispatch can still spoof requester identity by setting `source_run_id`. The workflow expression only forces `github.actor` when `inputs.source_action == 'orchestrate'` or `inputs.source_run_id == ''`; because `source_run_id` is a workflow input, a PR author with workflow-dispatch permission can provide a fake non-empty value and a different `requested_by`, allowing that spoofed requester to flow into later review/self-approval handoffs. This violates `validate-delegated-route-authorization`.\n\n## Final Rubric Verdict\n\nFAIL",
+      "createdAt": "2026-05-20T13:21:46Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4498818515",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDCiCyg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 95169aa2d14023d246d7f471d9bd7d8564990eb4 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #325 addresses #224 as part of the #314 stacked small-fixes batch. It adds a requester-author guard so self-approval checks the initiating requester, not only the app/PAT actor that submits the GitHub approval. The current head threads `requested_by`, `source_actor`, and workflow actor context through self-approval prepare/resolve paths with focused tests and docs. The goal is to prevent PR authors from causing Sepo to approve their own PRs through delegated automation.\n\n## Review\nThe core self-approval requester guard is in place, but one trust-boundary gap remains in the orchestrator handoff path. Codex and the rubrics review treat this as blocking; Claude identified the same residual spoof path but considered it deferrable.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Manual orchestrator `source_run_id` can spoof requester identity | BLOCKING | `.github/workflows/agent-orchestrator.yml` trusts `inputs.requested_by` whenever manual input `source_run_id` is non-empty. A manual caller can provide any non-empty `source_run_id`, preserve a spoofed requester through review, and reach self-approval without the real caller in the requester set. |\n\n## Progress\n- Current head already fixes earlier direct `agent-self-approve.yml` spoof cases and direct orchestrator-to-self-approval source actor handling.\n- The PR includes requester checks in prepare/resolve, source actor plumbing, focused tests, and docs updates for #224.\n- Added one reply to the existing same-agent inline thread: https://github.com/self-evolving/repo/pull/325#discussion_r3274348763\n- No comments were minimized and no review threads were resolved.\n\n## Issue Details\n\n<details>\n<summary>Manual orchestrator `source_run_id` can spoof requester identity</summary>\n\n**Cause:** `source_run_id` is a `workflow_dispatch` input, but the orchestrator uses its non-empty presence as part of the trust switch: https://github.com/self-evolving/repo/blob/95169aa2d14023d246d7f471d9bd7d8564990eb4/.github/workflows/agent-orchestrator.yml#L20 and https://github.com/self-evolving/repo/blob/95169aa2d14023d246d7f471d9bd7d8564990eb4/.github/workflows/agent-orchestrator.yml#L212. A caller can set `source_action=fix-pr`, `source_conclusion=success`, `source_run_id=<anything>`, and `requested_by=<other login>`; the review handoff then preserves only that spoofed requester before self-approval.\n\n**Candidate solutions:** Derive requester identity from `github.actor` for all direct/manual orchestrator starts unless source-run provenance is independently validated, or carry a trusted origin actor through every downstream handoff and include it in self-approval requester evaluation. Add regression coverage for a manual non-`orchestrate` dispatch with a fake non-empty `source_run_id` and spoofed `requested_by`.\n\n**Comments:** This is narrower than the previous orchestrator finding: the empty `source_run_id` case was fixed, but non-empty input is still user-controlled.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: The remaining issue is a concrete authorization/provenance bug with a focused workflow and test change path.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Stop treating non-empty manual `source_run_id` as trusted requester provenance in `agent-orchestrator.yml`, and add regression coverage for the spoofed non-empty `source_run_id` path.",
+      "createdAt": "2026-05-20T13:37:03Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4498948810",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDCiOEg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #325 | 16 / 40 | Dispatched |\n\nReason: review verdict is needs_rework; dispatching fix-pr\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Stop treating non-empty manual `source_run_id` as trusted requester provenance in `agent-orchestrator.yml`, and add regression coverage for the spoofed non-empty `source_run_id` path.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1779284242383 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxNjUxOTExMzA6cmV2aWV3OjMyNTpmaXhfcHI6MzI1OjE2 -->",
+      "createdAt": "2026-05-20T13:37:22Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4498951698",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDCl33g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-224/codex-26159299042`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Removed `source_run_id` from orchestrator requester trust logic; it remains a dedupe key, not requester provenance.\n- Added an append-only `source_actor` chain through orchestrator, implement, fix-pr, review, and self-approval handoffs so manual spoof attempts still carry the real workflow actor into requester-author checks.\n- Added regression coverage for spoofed non-empty `source_run_id` handoffs and source-actor requester evaluation.\n- Verified with `npm --prefix .agent run build`, focused `node --test` suites, and `git diff --check`.",
+      "createdAt": "2026-05-20T13:43:52Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4499011550",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDCmD1w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #325 | 17 / 40 | Dispatched |\n\nReason: PR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1779284652217 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxNjYyMDAxMzE6Zml4X3ByOjMyNTpyZXZpZXc6MzI1OjE3 -->",
+      "createdAt": "2026-05-20T13:44:12Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4499014615",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDCnlaw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Current head carries requester provenance through delegated handoffs with `SOURCE_ACTOR` while treating `source_run_id` only as dedupe context, and self-approval evaluates all trusted requester actors before approval. See [`agent-orchestrator.yml#L216-L226`](https://github.com/self-evolving/repo/blob/8c1a4b102a97488fc0556fd747e359fe2ad3d58a/.github/workflows/agent-orchestrator.yml#L216-L226), [`self-approval.ts#L170-L205`](https://github.com/self-evolving/repo/blob/8c1a4b102a97488fc0556fd747e359fe2ad3d58a/.agent/src/self-approval.ts#L170-L205). |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | The agent remains read-only for judgment, and deterministic resolver code blocks approval unless requester, approval actor, provenance, and head-SHA checks pass. See [`agent-self-approve.yml#L139-L165`](https://github.com/self-evolving/repo/blob/8c1a4b102a97488fc0556fd747e359fe2ad3d58a/.github/workflows/agent-self-approve.yml#L139-L165), [`self-approval.ts#L444-L469`](https://github.com/self-evolving/repo/blob/8c1a4b102a97488fc0556fd747e359fe2ad3d58a/.agent/src/self-approval.ts#L444-L469). |\n| coding_workflow / generic | Keep privileged workflows on trusted runtime code | pass | 8/8 | The privileged self-approval workflow checks out the repository default branch before using local actions/scripts, preserving trusted runtime behavior. See [`agent-self-approve.yml#L58-L64`](https://github.com/self-evolving/repo/blob/8c1a4b102a97488fc0556fd747e359fe2ad3d58a/.github/workflows/agent-self-approve.yml#L58-L64). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The change uses typed workflow/env fields such as `requested_by`, `source_actor`, `orchestration_enabled`, `REQUESTED_BY`, `SOURCE_ACTOR`, and `WORKFLOW_ACTOR`, not request-text parsing. See [`agent-self-approve.yml#L87-L93`](https://github.com/self-evolving/repo/blob/8c1a4b102a97488fc0556fd747e359fe2ad3d58a/.github/workflows/agent-self-approve.yml#L87-L93). |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Self-approval preflight and resolution fail closed when requester identity cannot be verified or matches the PR author. See [`prepare-self-approve.ts#L94-L111`](https://github.com/self-evolving/repo/blob/8c1a4b102a97488fc0556fd747e359fe2ad3d58a/.agent/src/cli/prepare-self-approve.ts#L94-L111), [`resolve-self-approve.ts#L113-L125`](https://github.com/self-evolving/repo/blob/8c1a4b102a97488fc0556fd747e359fe2ad3d58a/.agent/src/cli/resolve-self-approve.ts#L113-L125). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Docs now describe direct starts, `source_run_id` as dedupe-only, source-actor chaining, and requester-author checks. See [`supported-workflows.md#L78-L83`](https://github.com/self-evolving/repo/blob/8c1a4b102a97488fc0556fd747e359fe2ad3d58a/.agent/docs/architecture/supported-workflows.md#L78-L83), [`supported-workflows.md#L316-L327`](https://github.com/self-evolving/repo/blob/8c1a4b102a97488fc0556fd747e359fe2ad3d58a/.agent/docs/architecture/supported-workflows.md#L316-L327). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR extends existing self-approval CLIs/helpers and orchestrator handoff inputs instead of adding a parallel approval path. See [`prepare-self-approve.ts#L52-L58`](https://github.com/self-evolving/repo/blob/8c1a4b102a97488fc0556fd747e359fe2ad3d58a/.agent/src/cli/prepare-self-approve.ts#L52-L58), [`resolve-self-approve.ts#L77-L83`](https://github.com/self-evolving/repo/blob/8c1a4b102a97488fc0556fd747e359fe2ad3d58a/.agent/src/cli/resolve-self-approve.ts#L77-L83). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The live PR file list is scoped to self-approval requester checks, source-actor propagation, focused tests, and matching docs for #224 within the #314 batch. |\n\n## Notes\n\n- The earlier spoof paths are addressed in the current head: manual/direct self-approval includes the real workflow actor, orchestrator handoffs append the real workflow actor into `source_actor`, and self-approval checks every resolved requester.\n- Focused regression coverage now covers requester-authored PR blocks, spoofed orchestration input, source-actor propagation, and spoofed `source_run_id` handoff chains. See [`prepare-self-approve-cli.test.ts#L216-L280`](https://github.com/self-evolving/repo/blob/8c1a4b102a97488fc0556fd747e359fe2ad3d58a/.agent/src/__tests__/prepare-self-approve-cli.test.ts#L216-L280), [`orchestrate-handoff-cli.test.ts#L1051-L1119`](https://github.com/self-evolving/repo/blob/8c1a4b102a97488fc0556fd747e359fe2ad3d58a/.agent/src/__tests__/orchestrate-handoff-cli.test.ts#L1051-L1119).\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific blocking or warning findings. The implementation satisfies the applicable authorization, trust-boundary, documentation, reuse, and scope rubrics.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-20T13:46:59Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4499039595",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDCvY4w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 8c1a4b102a97488fc0556fd747e359fe2ad3d58a -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #325 addresses #224 as part of the #314 stacked small-fixes batch. It adds a self-approval requester guard so Sepo checks the initiating requester in addition to the app/PAT actor that submits approval. The current head carries `requested_by`, `source_actor`, and workflow actor context through orchestrator, review, and self-approval paths. The main goal is to prevent a PR author from routing through delegated automation to approve their own PR.\n\n## Review\nThe prior requester-spoofing issues are addressed at current head `8c1a4b102a97488fc0556fd747e359fe2ad3d58a`. One non-blocking but concrete false-positive risk remains in the requester resolver.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Automation actors in `source_actor` can block valid self-approval | WARNING | `resolveTrustedSelfApprovalRequesters` adds every `source_actor` entry as a requester, including app/bot actors appended by workflow hops. In full self-governance mode, that can block bot-authored PRs before the existing same-actor/self-merge exception can apply. |\n\n## Progress\n- Current head fixes earlier direct self-approval, `orchestration_enabled=true`, PAT-backed, and manual orchestrator `source_run_id` spoof paths.\n- Codex and rubrics review found no current blocking or warning issues; Claude raised the remaining warning, and synthesis agrees it is actionable but not blocking.\n- Posted one inline comment on `.agent/src/self-approval.ts` line 199: https://github.com/self-evolving/repo/pull/325#discussion_r3274536789\n- Resolved older same-agent threads `PRRT_kwDOSOhEMM6Dd8hc` and `PRRT_kwDOSOhEMM6DfW6Z`; no comments were minimized and no replies were added.\n- Claude’s dead-export and unreachable-fallback notes are optional cleanup and left out of required action items.\n\n## Issue Details\n\n<details>\n<summary>Automation actors in `source_actor` can block valid self-approval</summary>\n\n**Cause:** `addRequesterList(sourceActor)` at https://github.com/self-evolving/repo/blob/8c1a4b102a97488fc0556fd747e359fe2ad3d58a/.agent/src/self-approval.ts#L198-L199 adds all source actors, while `prepare-self-approve` rejects if any resolved requester matches the PR author. Workflow handoffs append automation actors into `SOURCE_ACTOR`, so `sepo-agent-app[bot]` can become a requester for an app-authored PR.\n\n**Candidate solutions:** Filter automation actors from the `source_actor` requester list while preserving human entries. Keep the non-automation `WORKFLOW_ACTOR` spoof check, and add regression coverage for `source_actor=maintainer,sepo-agent-app[bot]` with an app-authored PR.\n\n**Comments:** This does not reopen the earlier spoof paths; it narrows the requester set so runtime automation identities are not treated as initiating requesters.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: The remaining warning is a focused resolver/test change that is safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Filter automation actors out of the `source_actor` requester list and add regression coverage for a bot-authored PR with a human requester plus appended app/bot source actor.",
+      "createdAt": "2026-05-20T14:01:06Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4499167459",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDCvkxg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #325 | 18 / 40 | Dispatched |\n\nReason: review verdict is minor_issues; dispatching fix-pr\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Filter automation actors out of the `source_actor` requester list and add regression coverage for a bot-authored PR with a human requester plus appended app/bot source actor.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1779285685589 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxNjY1ODczMjQ6cmV2aWV3OjMyNTpmaXhfcHI6MzI1OjE4 -->",
+      "createdAt": "2026-05-20T14:01:26Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4499170502",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDCxWgg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-224/codex-26159299042`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Filtered automation/app/bot actors out of `source_actor` requester expansion while preserving human requester/source entries.\n- Added regression coverage for bot-authored PR self-approval with a human requester plus appended app/bot source actor.\n- Verified with `npm --prefix .agent run build`, `node --test .agent/dist/__tests__/self-approval.test.js .agent/dist/__tests__/prepare-self-approve-cli.test.js`, and `git diff --check`.",
+      "createdAt": "2026-05-20T14:04:51Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4499199618",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDCxjOw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #325 | 19 / 40 | Dispatched |\n\nReason: PR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1779285913352 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxNjc1ODUxOTc6Zml4X3ByOjMyNTpyZXZpZXc6MzI1OjE5 -->",
+      "createdAt": "2026-05-20T14:05:13Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4499202875",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDCyUAQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Current head threads requester provenance through delegated handoffs with `source_actor`, treats `source_run_id` as dedupe-only, and validates trusted requesters before self-approval in `.agent/src/self-approval.ts` and the prepare/resolve CLIs. |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | The agent remains a judgment gate; deterministic resolver code performs approval only after requester, approval actor, provenance, and head-SHA checks pass. |\n| coding_workflow / generic | Keep privileged workflows on trusted runtime code | pass | 8/8 | `agent-self-approve.yml` preserves the default-branch trusted runtime checkout pattern while only passing additional requester/source actor context into existing trusted CLIs. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The change uses explicit workflow/env fields such as `requested_by`, `source_actor`, `orchestration_enabled`, `REQUESTED_BY`, `SOURCE_ACTOR`, and `WORKFLOW_ACTOR` rather than parsing request text. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Self-approval preflight/resolution fail closed when requester identity is missing, unverifiable, or matches the PR author, with focused regression tests for blocked paths. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The PR updates self-approval/orchestration docs in `.agent/docs/architecture/supported-workflows.md`, `.agent/docs/customization/configuration-list.md`, and `.agent/docs/technical-details/agent-orchestrator.md`. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The implementation extends existing self-approval helpers, CLIs, handoff inputs, and actor normalization instead of adding a parallel approval path. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The live file list is scoped to self-approval requester checks, source-actor propagation, focused tests, workflow env plumbing, and matching docs for #224 within parent batch #314. |\n\n## Notes\n\n- The current PR addresses the #224 policy gap in the #314 stacked small-fixes context: self-approval now treats the trusted initiating requester as part of the approval authority boundary, not just the app/PAT approval actor.\n- The referenced child issue #310 is prior stacked work that completed with SHIP and PR #324; this PR correctly continues the batch by stacking the self-approval requester-author guard work.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific blocking or warning findings. The implementation satisfies the applicable authorization, trust-boundary, documentation, reuse, and scope rubrics.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-20T14:06:40Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4499215361",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDDEGBA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 77489fb1fa73a47d4e439bf1d7a80d9f1385d4cf -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #325 addresses #224 as part of the #314 small-fixes batch. It tightens self-approval by treating the trusted requester as part of the approval authority boundary, not just the app/PAT actor that submits the review. The current head carries `requested_by`, `source_actor`, and `workflowActor` context through orchestrated handoffs and checks requesters before self-approval can proceed. It also documents the trust model and adds regression coverage for spoofed requester paths and bot-authored PR self-governance.\n\n## Review\nThe current PR head resolves the prior requester-spoofing and automation-actor false-positive concerns. The remaining reviewer notes are optional cleanup/readability observations, not required branch changes.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable issues | INFO | Claude’s latest review concluded SHIP, and the rubrics review passed. The only concrete thread cleanup was resolved during synthesis after confirming the current code and tests address it. |\n\n## Progress\n- Current head `77489fb1fa73a47d4e439bf1d7a80d9f1385d4cf` filters automation actors from `source_actor` in [`self-approval.ts`](https://github.com/self-evolving/repo/blob/77489fb1fa73a47d4e439bf1d7a80d9f1385d4cf/.agent/src/self-approval.ts#L189-L203).\n- Regression coverage includes the bot-authored PR case in [`prepare-self-approve-cli.test.ts`](https://github.com/self-evolving/repo/blob/77489fb1fa73a47d4e439bf1d7a80d9f1385d4cf/.agent/src/__tests__/prepare-self-approve-cli.test.ts#L362-L400).\n- Resolved same-agent thread `PRRT_kwDOSOhEMM6DgY1-`; no new inline comments were posted, no replies were added, and no comments were minimized.\n- Optional INFO notes about readability/export cleanup were left out of automation action items.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: No unresolved required branch-change work remains.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-20T14:39:57Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/325#issuecomment-4499506692",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-20T11:30:56Z",
+  "files": [
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 16,
+      "deletions": 7,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/agent-orchestrator.md",
+      "additions": 6,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/dispatch-agent-orchestrator-cli.test.ts",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 101,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrate-handoff-cli.test.ts",
+      "additions": 47,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/prepare-self-approve-cli.test.ts",
+      "additions": 187,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/resolve-self-approve-cli.test.ts",
+      "additions": 115,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/self-approval.test.ts",
+      "additions": 94,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/dispatch-agent-orchestrator.ts",
+      "additions": 2,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrate-handoff.ts",
+      "additions": 8,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/prepare-self-approve.ts",
+      "additions": 34,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/resolve-self-approve.ts",
+      "additions": 37,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/self-approval.ts",
+      "additions": 105,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-fix-pr.yml",
+      "additions": 9,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-implement.yml",
+      "additions": 9,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-orchestrator.yml",
+      "additions": 8,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-review.yml",
+      "additions": 9,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-self-approve.yml",
+      "additions": 14,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-224/codex-26159299042",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 325,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAfkY4A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-20T11:38:31Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "72fa8e3847a378004ff7a90bfedd7867e8b3478d"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAfqreg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-20T11:53:15Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "3866f81c79d14881d780cdda75012d24ec23f19b"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAfzyaA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-20T12:12:27Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "02b7debeff204c5e6e0b1d395108beee98230551"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAf6QSA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-20T12:27:28Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "e62576404c1d0558c45c3e9fd0ea5436f780b876"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAgO0_A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-20T13:11:21Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "a5264bcde0fb2be880f7d712d584cee2c132cf4b"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAgbTvg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-20T13:35:53Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "95169aa2d14023d246d7f471d9bd7d8564990eb4"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAgofPA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-20T14:00:05Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "8c1a4b102a97488fc0556fd747e359fe2ad3d58a"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Guard self-approval against requester-authored PRs",
+  "updatedAt": "2026-05-20T14:39:57Z",
+  "url": "https://github.com/self-evolving/repo/pull/325"
+}

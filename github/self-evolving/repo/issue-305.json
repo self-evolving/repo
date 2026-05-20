@@ -7,12 +7,80 @@
   },
   "body": "An `/implement` request made from a closed PR can incorrectly carry that PR forward as `base_pr`. In the #303 case, the request came from closed PR #293, so the implement workflow dispatched with `BASE_PR=293` and failed immediately because the base resolver requires `base_pr` to be open. Failure comment: https://github.com/self-evolving/repo/issues/303#issuecomment-4493642383\n\nThat is too strict for “make a new version of this” requests. A closed PR should be usable as context, but it should not automatically become a required stacking base. When the base PR was inferred from the source surface and that PR is closed, the implement flow should fall back to the default branch, usually `main`, while preserving a link to the closed PR as context.\n\nOpen inferred base PRs should continue to work as stack bases. If a user explicitly asks to base work on a closed PR, the agent should give a clear warning or clarification rather than failing with the low-level `base_pr #NNN must be open` message.",
   "closedAt": null,
-  "comments": [],
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDA9_Ug",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo adopted this issue as a sub-orchestrator child of #314.\n\n| Parent issue | Stage | Parent round | Status |\n| --- | --- | --- | --- |\n| #314 | closed-inferred-base-pr-fallback | 5 | Running |\n\n<!-- sepo-sub-orchestrator parent:314 stage:closed-inferred-base-pr-fallback state:done parent_round:5 -->\n<!-- sepo-sub-orchestrator-adoption -->",
+      "createdAt": "2026-05-20T10:18:33Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/305#issuecomment-4497309522",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDA-Bjg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | delegate_issue | Issue #305 | 5 / 40 | Dispatched |\n\nReason: agent planner selected child issue delegation: Issue #314 is a parent batch with remaining open sub-issues. Child #316 finished with SHIP and opened unmerged PR #321, so continue with the next bounded unhandled sub-issue, #305, stacked on PR #321 to keep the batch conflict-minimized.\n\n<!-- sepo-agent-handoff state:dispatched created:1779272316003 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxNTU2NTU4NDY6b3JjaGVzdHJhdGU6MzE0OmRlbGVnYXRlX2lzc3VlOjMwNTo1 -->",
+      "createdAt": "2026-05-20T10:18:36Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/305#issuecomment-4497310094",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDA-LWg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | implement | Issue #305 | 2 / 40 | Dispatched |\n\nReason: manual orchestrate start on issue; dispatching implement\n\n<!-- sepo-agent-handoff state:dispatched created:1779272330467 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxNTU2NTU4NDY6b3JjaGVzdHJhdGU6MzA1OmltcGxlbWVudDozMDU6Mg -->",
+      "createdAt": "2026-05-20T10:18:50Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/305#issuecomment-4497312602",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDBDaEg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-305/codex-26156276718`\n- Pull request: https://github.com/self-evolving/repo/pull/322\n\nAdded a deterministic dispatch guard that drops an inferred `base_pr` when an explicit `/implement` request comes from a closed or merged source PR, adds a tracking-issue note, and improves explicit closed-base error text; updated prompt/docs and regression coverage. Verified with `npm --prefix .agent run build`, targeted node tests, YAML parsing, and `git diff --check`.",
+      "createdAt": "2026-05-20T10:26:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/305#issuecomment-4497398290",
+      "viewerDidAuthor": true
+    }
+  ],
   "createdAt": "2026-05-20T02:34:15Z",
-  "labels": [],
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
   "number": 305,
   "state": "OPEN",
   "title": "Fall back when inferred implement base PR is closed",
-  "updatedAt": "2026-05-20T02:34:15Z",
+  "updatedAt": "2026-05-20T10:35:16Z",
   "url": "https://github.com/self-evolving/repo/issues/305"
 }

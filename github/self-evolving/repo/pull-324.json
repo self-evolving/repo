@@ -1,0 +1,88 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "agent/implement-issue-121/codex-26157128277",
+  "body": "## Summary\n\n- Rewrite docs index links to use `../docs/...` targets so Quartz published slugs stay under `/docs/...` instead of `/overview/...`.\n- Add a docs-index link test that checks each internal index link stays under the docs namespace and points at an existing source file.\n\n## Verification\n\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/docs-index-links.test.js`\n- `git diff --check -- .agent/docs/README.md`\n- `git diff --no-index --check /dev/null .agent/src/__tests__/docs-index-links.test.ts`\n\nCloses #310\n\nPart of #314\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDBZPuA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #324 | 3 / 40 | Dispatched |\n\nReason: implementation succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1779275519099 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxNTg0NTgwMDE6aW1wbGVtZW50OjMxMDpyZXZpZXc6MzI0OjM -->",
+      "createdAt": "2026-05-20T11:11:59Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/324#issuecomment-4497756088",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDBZ-OA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 6 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR body links `Closes #310` and `Part of #314`; issue #310 acceptance asks to fix generated `/overview/...` links and check similar README links. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The changed behavior is entirely docs-facing, and `.agent/docs/README.md` is updated directly to publish links under `../docs/...`. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff touches only `.agent/docs/README.md` link targets and adds one focused regression test; no unrelated docs restructuring. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The test follows existing `.agent/src/__tests__` Node test patterns and uses built-in `fs`, `path`, and `assert` rather than adding new dependencies. |\n| communication / generic | Write audience-first documentation | pass | 7/7 | The docs index remains a concise task-oriented list; the change fixes navigation without front-loading publishing internals. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | The PR preserves the existing sectioned docs index and does not add file inventory tables. |\n\n## Notes\n\n- The implementation matches issue #310’s acceptance criteria: README links now target the `/docs/...` namespace while the new test verifies every internal index link still resolves to an existing `.agent/docs` source file.\n- Most selected route, authorization, self-approval, orchestration, and preview-contract rubrics are not scored because this PR only changes docs links and a docs-link regression test.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific blockers or warnings found.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-20T11:13:17Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/324#issuecomment-4497767992",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDBduww",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: a433aaa2b88316f75238c2768010784910a6e045 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #324 fixes issue #310, a child task in the #314 batch of small fixes.\n- The docs index previously used source-valid relative links such as `overview/...`, which Quartz published as root-level `/overview/...` links instead of `/docs/overview/...`.\n- The PR updates the index links in [`.agent/docs/README.md`](https://github.com/self-evolving/repo/blob/a433aaa2b88316f75238c2768010784910a6e045/.agent/docs/README.md) to use `../docs/...` targets.\n- It also adds [`.agent/src/__tests__/docs-index-links.test.ts`](https://github.com/self-evolving/repo/blob/a433aaa2b88316f75238c2768010784910a6e045/.agent/src/__tests__/docs-index-links.test.ts), which checks that docs-index links publish under `/docs/...` and still resolve to existing source files.\n\n## Review\nAll reviewer outputs agree the PR is narrowly scoped and satisfies the issue acceptance criteria. No reviewer raised a blocking or warning-level issue; one reviewer noted a deferrable INFO follow-up that broader docs cross-link coverage remains outside this PR’s scope.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues | INFO | The current review artifacts and PR diff support shipping as-is. Broader checks for non-index docs cross-links are optional follow-up, not required branch work for this PR. |\n\n## Progress\n- Synthesized the Claude, Codex, and rubrics review outputs.\n- Confirmed current PR conversation, inline review comments, and review threads; there are no existing inline comments or unresolved review threads.\n- No inline comments were posted because there are no concrete line-specific actionable findings.\n- Codex review reported successful verification on head `a433aaa2b88316f75238c2768010784910a6e045`: build, focused docs-index test, full `.agent` test suite, and diff whitespace check.\n- Rubrics review passed, including surgical scope, docs sync, reuse of existing test patterns, and audience-first docs.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: No unresolved required branch changes remain, so automation should not launch a fix pass.\n\n## Final Verdict\n`SHIP`\n\n## Action Items\n- [ ] No required branch changes.",
+      "createdAt": "2026-05-20T11:20:23Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/324#issuecomment-4497829571",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-20T11:11:40Z",
+  "files": [
+    {
+      "path": ".agent/docs/README.md",
+      "additions": 26,
+      "deletions": 26,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/docs-index-links.test.ts",
+      "additions": 52,
+      "deletions": 0,
+      "changeType": "ADDED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-310/codex-26158458001",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 324,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "OPEN",
+  "title": "Fix generated docs index links",
+  "updatedAt": "2026-05-20T11:20:23Z",
+  "url": "https://github.com/self-evolving/repo/pull/324"
+}

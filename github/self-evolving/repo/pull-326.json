@@ -1,0 +1,136 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "agent/implement-issue-224/codex-26159299042",
+  "body": "## Summary\n\n- Enable `agent-daily-summary.yml` scheduled runs by default while keeping explicit disable overrides.\n- Add a discussion footer command that disables future scheduled daily summaries for the current repository.\n- Update docs and focused tests for the new default.\n\n## Verification\n\n- `npm --prefix .agent run build`\n- `node --test dist/__tests__/schedule-policy.test.js dist/__tests__/scheduled-activity.test.js dist/__tests__/envelope.test.js` from `.agent`\n- `git diff --check`\n\nCloses #286\n\nPart of #314\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDDJGEQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #326 | 3 / 40 | Dispatched |\n\nReason: implementation succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1779288564489 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxNzAwMTcyNzY6aW1wbGVtZW50OjI4NjpyZXZpZXc6MzI2OjM -->",
+      "createdAt": "2026-05-20T14:49:25Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/326#issuecomment-4499588625",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDDJ4dQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 95 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is scoped to schedule-policy defaults, the daily-summary workflow footer, focused tests, and matching docs. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Uses existing `AGENT_SCHEDULE_POLICY`, `parseSchedulePolicy`, `getScheduleModeForWorkflow`, and scheduled activity gate paths instead of adding a parallel enable/disable mechanism. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Removes the special daily-summary default override in `.agent/src/schedule-policy.ts` and the shell resolver, letting the existing default `skip_no_updates` mode apply. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates `README.md`, `.agent/docs/architecture/memory.md`, `.agent/docs/architecture/supported-workflows.md`, and `.agent/docs/customization/configuration-list.md` to describe the new default and disable override. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | Default becomes activity-aware scheduled execution; the escape hatch remains the native repository variable `AGENT_SCHEDULE_POLICY` with a workflow override. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Disable guidance uses the existing typed JSON contract: `{\"workflow_overrides\":{\"agent-daily-summary.yml\":\"disabled\"}}`. |\n| coding_workflow / generic | Make user-facing automation idempotent | partial | 5/7 | The footer command uses `gh variable set`, which is rerunnable, but it replaces the full `AGENT_SCHEDULE_POLICY` body and does not warn users with existing schedule policy overrides that copy-pasting may overwrite them. |\n| communication / generic | Write audience-first documentation | pass | 6/7 | README and workflow docs lead with the operational behavior: daily summaries run by default, skip when there is no activity, and can be disabled via policy. |\n\n## Notes\n\n- The implementation matches issue #286’s requested behavior: scheduled daily summaries are enabled by default, use activity-aware skipping, and posted discussions include a current-repository disable command.\n- The strongest rubric alignment is reuse of the existing schedule policy abstraction and synchronized documentation/test coverage.\n- Smallest useful follow-up: make the disable footer mention that repositories with an existing `AGENT_SCHEDULE_POLICY` should merge the `agent-daily-summary.yml` override into their current JSON rather than blindly replacing the variable.\n\n## Findings\n\n- **WARNING:** The discussion footer’s `gh variable set AGENT_SCHEDULE_POLICY --body '{\"workflow_overrides\":{\"agent-daily-summary.yml\":\"disabled\"}}'` is idempotent for repeated disable attempts, but it can overwrite unrelated existing schedule policy settings. This is a rubric-specific concern under “Make user-facing automation idempotent,” not a blocker because the command matches the issue’s requested example and uses the current repository slug.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-20T14:51:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/326#issuecomment-4499601525",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDDM_Jg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: eebdf06f7cdf48381080c815746c8d55f9049d81 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #326 implements issue #286 as part of the stacked small-fixes orchestration in #314. It enables scheduled daily summaries by default while preserving the existing `skip_no_updates` behavior so empty activity windows still skip posting. It also adds a repository-specific `gh variable set AGENT_SCHEDULE_POLICY` command to daily summary discussion footers so users can disable future scheduled summaries. The diff updates the TypeScript and shell schedule-policy paths, focused tests, and matching user-facing docs.\n\n## Review\nOverall, the implementation is narrow, well-tested, and matches the requested behavior. Codex and Claude found no blockers; the rubrics review passed with one non-blocking warning about the disable command replacing the whole schedule policy value.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Disable command can overwrite existing schedule policy | WARNING | The footer command disables daily summaries by setting the full `AGENT_SCHEDULE_POLICY` body, which can replace unrelated existing schedule-policy overrides if copied as-is. |\n| Empty base override constant is vestigial | INFO | `BASE_SCHEDULE_WORKFLOW_OVERRIDES` is now an empty object after removing the daily-summary default override; this is harmless cleanup, not required follow-up. |\n\n## Progress\n- The PR is grounded in issue #286 and parent orchestration issue #314.\n- Existing reviewers verified the runtime behavior, docs, and tests; Codex reported `npm --prefix .agent run build`, focused `node --test` suites, and `git diff --check` passing.\n- Current PR inline comments and review threads are empty, so there was nothing to resolve or minimize.\n- No new inline comment was posted because the only warning is already clearly covered in the existing rubrics review comment.\n\n## Issue Details\n<details>\n<summary>Disable command can overwrite existing schedule policy</summary>\n\n**Cause:** The new discussion footer suggests `gh variable set AGENT_SCHEDULE_POLICY --body '{\"workflow_overrides\":{\"agent-daily-summary.yml\":\"disabled\"}}'`, which replaces the entire variable value rather than merging with any existing JSON.\n\n**Candidate solutions:** Leave as-is because it matches the issue’s requested example, or add a short note telling users with an existing `AGENT_SCHEDULE_POLICY` to merge the `agent-daily-summary.yml` override into their current JSON.\n\n**Comments:** This is a product/docs judgment rather than a correctness blocker; the command is rerunnable and repository-specific.\n\n</details>\n\n<details>\n<summary>Empty base override constant is vestigial</summary>\n\n**Cause:** Removing the daily-summary disabled default leaves `BASE_SCHEDULE_WORKFLOW_OVERRIDES` empty while `DEFAULT_SCHEDULE_WORKFLOW_OVERRIDES` still spreads it.\n\n**Candidate solutions:** Keep it for structural consistency, or inline/remove it in a later cleanup.\n\n**Comments:** Claude explicitly marked this harmless and not worth a follow-up unless the split becomes confusing.\n\n</details>\n\n## Recommended Next Step\nHUMAN_DECISION: the remaining concern is optional user-facing guidance about whether the disable command should warn about existing schedule-policy values, not required branch work.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] No required branch-change work.",
+      "createdAt": "2026-05-20T14:57:13Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/326#issuecomment-4499652390",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-20T14:48:55Z",
+  "files": [
+    {
+      "path": ".agent/docs/architecture/memory.md",
+      "additions": 2,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 6,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/scripts/resolve-scheduled-activity-gate.sh",
+      "additions": 1,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 4,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/schedule-policy.test.ts",
+      "additions": 6,
+      "deletions": 6,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/scheduled-activity.test.ts",
+      "additions": 25,
+      "deletions": 12,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/schedule-policy.ts",
+      "additions": 1,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-daily-summary.yml",
+      "additions": 10,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": "README.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-286/codex-26170017276",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 326,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "OPEN",
+  "title": "Enable scheduled daily summaries by default",
+  "updatedAt": "2026-05-20T14:57:13Z",
+  "url": "https://github.com/self-evolving/repo/pull/326"
+}

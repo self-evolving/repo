@@ -1,0 +1,199 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "agent/implement-issue-305/codex-26156276718",
+  "body": "## Summary\n\n- Add `npm --prefix .agent run prepare:local-agent` to clone local memory/rubrics context into ignored `.agent/local/`.\n- Generate `.agent/local/AGENT_CONTEXT.md` with `MEMORY_DIR` / `RUBRICS_DIR` guidance, memory/rubrics rules, checks, and sub-agent review notes.\n- Update `AGENT.md`, install docs, and memory/rubrics architecture docs for local coding agents.\n\n## Verification\n\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/prepare-local-agent-context-cli.test.js .agent/dist/__tests__/envelope.test.js`\n- `node --test .agent/dist/__tests__/prepare-local-agent-context-cli.test.js`\n- `git diff --check`\n\nCloses #121\n\nPart of #314\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDBLq6w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #323 | 3 / 40 | Dispatched |\n\nReason: implementation succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1779273818888 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxNTcxMjgyNzc6aW1wbGVtZW50OjEyMTpyZXZpZXc6MzIzOjM -->",
+      "createdAt": "2026-05-20T10:43:39Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/323#issuecomment-4497533675",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDBM4SQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 94 | PASS | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Scope is limited to the requested local-agent context helper, docs, `.gitignore`, package script, and focused tests. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Reuses `git()` and `parseGitHubRepoSlugFromRemoteUrl` instead of rebuilding repo-root and slug parsing logic. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Adds one CLI with direct git operations and a single generated context file; no broad new framework. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | CLI exposes typed flags for `--repo`, `--dir`, `--remote`, `--memory-ref`, and `--rubrics-ref`, with strict parsing and repo slug validation. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | Defaults to `.agent/local`, `origin`, `agent/memory`, and `agent/rubrics`, while allowing explicit overrides. |\n| coding_workflow / generic | Make user-facing automation idempotent | partial | 4/7 | Available branches are refreshed by deleting and recloning the checkout, but missing branches return early without removing any stale prior checkout. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates `AGENT.md`, install docs, memory docs, and rubrics docs for the new command and local context behavior. |\n| communication / generic | Write audience-first documentation | pass | 7/7 | `AGENT.md` leads with the local agent task and commands before deeper memory/rubrics mechanics. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | Docs describe the local workspace and command, without adding stale file inventory tables. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | Implementation matches the linked issue #121 plan: ignored `.agent/local`, memory/rubrics checkout helper, generated context, docs, and sub-agent guidance. |\n\n## Notes\n\n- The implementation satisfies the core request: `.agent/local/` is ignored, `prepare:local-agent` is added, memory/rubrics are cloned into local context, docs explain the workflow, and tests cover success plus missing rubrics.\n- The main rubric-specific gap is rerun behavior when a previously available branch becomes unavailable. The generated context reports the branch as unavailable, but the stale checkout remains on disk and may still be picked up by a local agent.\n\n## Findings\n\n- **WARNING:** Under the idempotency rubric, `refreshCheckout()` only deletes the target checkout after `branchExists()` succeeds. If `agent/rubrics` or `agent/memory` existed during an earlier run and later becomes unavailable or the user points to a missing ref, the function returns an unavailable result without removing the old `.agent/local/rubrics` or `.agent/local/memory` directory. Evidence: early return at [`prepare-agent-context.ts` lines 130-145](https://github.com/self-evolving/repo/blob/989b1210de07199be6645dbaea0fe229e0d8e6eb/.agent/src/cli/local/prepare-agent-context.ts#L130-L145), cleanup only on the available path at [lines 147-151](https://github.com/self-evolving/repo/blob/989b1210de07199be6645dbaea0fe229e0d8e6eb/.agent/src/cli/local/prepare-agent-context.ts#L147-L151). A focused follow-up test should cover “first clone rubrics, rerun with missing rubrics ref, stale rubrics dir is removed.”\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-20T10:45:56Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/323#issuecomment-4497553481",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDBP5Ow",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 989b1210de07199be6645dbaea0fe229e0d8e6eb -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #323 adds local-agent support for the `agent/memory` and `agent/rubrics` branches requested in #121. It creates an ignored `.agent/local/` workspace, adds `prepare:local-agent`, generates `.agent/local/AGENT_CONTEXT.md`, and updates entry docs so local Codex/Claude-style agents can read memory and rubrics before work. This is part of the #314 stacked small-fixes batch and is currently stacked on the #305 branch. The overall design matches the requested shape, but one refresh edge case can leave stale local context behind.\n\n## Review\nThe reviewers agree the implementation is mostly well-scoped and fits the issue, but two current review artifacts identify a stale-checkout refresh bug. I verified the current PR head still returns before clearing the destination on the missing-branch path.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Stale local context remains when a branch disappears | BLOCKING | `refreshCheckout()` checks branch existence before deleting `.agent/local/<name>`, so a rerun with a missing ref can report unavailable while leaving the prior checkout on disk. |\n| Unavailable checkout exports stay in `AGENT_CONTEXT.md` | WARNING | The generated environment block always includes both `MEMORY_DIR` and `RUBRICS_DIR`, even when one checkout is unavailable; the surrounding prose mitigates this, but conditional output would be clearer. |\n\n## Progress\n- The core request is implemented: ignored `.agent/local/`, a `prepare:local-agent` script, memory/rubrics clone logic, generated context, docs, and focused tests are present.\n- Rubrics review scored the PR as PASS overall but flagged the stale-checkout behavior as an idempotency gap.\n- Codex review reproduced the stale-checkout case and treated it as blocking because local agents could consume stale normative rubrics.\n- No new inline comment was posted because the stale-checkout finding is already clearly covered in the current PR discussion by the rubrics review comment.\n\n## Issue Details\n<details>\n<summary>Stale local context remains when a branch disappears</summary>\n\n**Cause:** In [`prepare-agent-context.ts`](https://github.com/self-evolving/repo/blob/989b1210de07199be6645dbaea0fe229e0d8e6eb/.agent/src/cli/local/prepare-agent-context.ts#L130), the missing-branch path returns before the cleanup at line 147. A previous `.agent/local/rubrics` or `.agent/local/memory` checkout can therefore survive while the generated context says that checkout is unavailable.\n\n**Candidate solutions:** Clear `opts.dir` before returning the missing-branch result, then add a regression test that first creates a checkout, reruns with a missing ref, and asserts the stale directory is removed.\n\n**Comments:** Reviewer severity differed: rubrics review marked this WARNING, while Codex marked it BLOCKING after reproduction. The synthesis treats it as BLOCKING because stale rubrics can mislead local agents on normative guidance.\n\n</details>\n\n<details>\n<summary>Unavailable checkout exports stay in `AGENT_CONTEXT.md`</summary>\n\n**Cause:** [`buildAgentContextMarkdown`](https://github.com/self-evolving/repo/blob/989b1210de07199be6645dbaea0fe229e0d8e6eb/.agent/src/cli/local/prepare-agent-context.ts#L210) emits both export lines unconditionally, while availability is only described in the checkouts and missing-branches sections.\n\n**Candidate solutions:** Emit only available checkout exports, or comment out unavailable exports with an inline unavailable note.\n\n**Comments:** This is advisory. The current text says to set only available variables, so it should not block the branch fix.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the stale-checkout bug is a concrete branch change with a straightforward automated fix and regression test.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Clear stale `.agent/local/<name>` directories when the corresponding memory or rubrics branch/ref is unavailable.\n- [ ] Add a regression test covering clone-then-rerun-with-missing-ref so stale local context cannot remain.",
+      "createdAt": "2026-05-20T10:52:07Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/323#issuecomment-4497602875",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDBQDJw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #323 | 4 / 40 | Dispatched |\n\nReason: review verdict is needs_rework; dispatching fix-pr\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Clear stale `.agent/local/<name>` directories when the corresponding memory or rubrics branch/ref is unavailable.\n- Add a regression test covering clone-then-rerun-with-missing-ref so stale local context cannot remain.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1779274343962 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxNTc0NDA3MzQ6cmV2aWV3OjMyMzpmaXhfcHI6MzIzOjQ -->",
+      "createdAt": "2026-05-20T10:52:24Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/323#issuecomment-4497605415",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDBRSow",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-121/codex-26157128277`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Cleared stale `.agent/local/<name>` checkout directories when the requested memory/rubrics ref is unavailable.\n- Added a clone-then-rerun regression test for a missing rubrics ref so stale local context cannot remain.\n- Verified with `npm --prefix .agent run build`, `node --test .agent/dist/__tests__/prepare-local-agent-context-cli.test.js`, and `git diff --check`.",
+      "createdAt": "2026-05-20T10:55:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/323#issuecomment-4497625763",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDBRaaA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #323 | 5 / 40 | Dispatched |\n\nReason: PR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1779274517791 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxNTc4NTgzNDY6Zml4X3ByOjMyMzpyZXZpZXc6MzIzOjU -->",
+      "createdAt": "2026-05-20T10:55:18Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/323#issuecomment-4497627752",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDBSFQQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "The local checkout is not currently on the PR head, so I’m using the live diff as the source of truth for the review. I don’t need to modify the branch to finish the rubric scoring.## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Scope stays on the local-agent context helper, focused tests, `.gitignore`, package script, and matching docs. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The CLI reuses existing repo slug parsing from `bootstrap-branch.js` and the existing `git()` helper instead of adding parallel parsing infrastructure. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Adds one direct CLI, one npm script, one ignored workspace, and focused tests; no unnecessary workflow or service layer. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | `prepare-agent-context.ts` exposes typed flags for `--repo`, `--dir`, `--remote`, `--memory-ref`, and `--rubrics-ref`, with strict `parseArgs` handling. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | Defaults cover `.agent/local`, `origin`, `agent/memory`, and `agent/rubrics`, while still allowing explicit overrides. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Reruns refresh cloned checkouts, regenerate `AGENT_CONTEXT.md`, and the latest diff removes stale checkout dirs when a ref becomes unavailable. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates `AGENT.md`, install docs, memory architecture docs, and rubrics architecture docs for the new local-agent command. |\n| communication / generic | Write audience-first documentation | pass | 7/7 | `AGENT.md` leads with the local user task and commands before deeper memory/rubrics mechanics. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | Documentation describes the local context workspace and command without adding per-file inventory tables. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The implementation follows the linked #121 plan and fits the #314 stacked small-fixes context: ignored local workspace, memory/rubrics checkout helper, generated context, docs, and tests. |\n\n## Notes\n\n- The earlier idempotency gap is addressed in the current PR diff: `refreshCheckout()` now removes the target checkout directory before returning the missing-branch result, and the new regression test covers clone-then-rerun-with-missing-ref behavior.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-20T10:56:51Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/323#issuecomment-4497638721",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDBU3Ng",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 3f32e1f58757c1bbffb661da98fb0b4094c0a36e -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #323 implements #121 by adding local Codex/Claude-style agent context for the `agent/memory` and `agent/rubrics` branches. It adds an ignored `.agent/local/` workspace, a `prepare:local-agent` script, a generated `AGENT_CONTEXT.md`, focused tests, and matching docs. This is part of the #314 stacked small-fixes batch. The earlier stale-checkout issue from prior review has been fixed at the current PR head.\n\n## Review\nThe current reviewer outputs converge on ship-ready behavior. Claude raised optional polish around generated environment exports, while Codex and rubrics review found no blocking or warning issues; the remaining notes do not require branch changes.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | The prior stale local-context blocker is fixed and covered by regression testing; remaining reviewer notes are optional clarity or cleanup only. |\n\n## Progress\n- Verified linked context: #121 asks for ignored local memory/rubrics context, and #314 is the parent stacked small-fixes orchestration.\n- The stale-checkout fix is present: missing refs now remove the stale `.agent/local/<name>` directory before returning unavailable.\n- Regression coverage is present for clone-then-rerun-with-missing-rubrics-ref.\n- Existing inline review comments and review threads are empty; no inline comments were posted, replied to, minimized, or resolved.\n- Current PR check is passing.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved actionable branch work remains.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-20T11:03:01Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/323#issuecomment-4497684278",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-20T10:43:20Z",
+  "files": [
+    {
+      "path": ".agent/docs/architecture/memory.md",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/rubrics.md",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/deployment/install-existing-repository.md",
+      "additions": 14,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/package.json",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/prepare-local-agent-context-cli.test.ts",
+      "additions": 171,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/local/prepare-agent-context.ts",
+      "additions": 368,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".gitignore",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": "AGENT.md",
+      "additions": 14,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-121/codex-26157128277",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 323,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "OPEN",
+  "title": "Prepare local agent memory and rubrics context",
+  "updatedAt": "2026-05-20T11:03:01Z",
+  "url": "https://github.com/self-evolving/repo/pull/323"
+}

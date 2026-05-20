@@ -7,7 +7,68 @@
   },
   "body": "## Problem\n\nThe self-approval guard currently verifies that the authenticated approval actor is distinct from the pull request author, but it does not also verify that the initiating requester is distinct from the pull request author.\n\nThat leaves a policy gap for orchestrated or manually dispatched self-approval runs:\n\n1. A human opens a PR.\n2. The same human requests Sepo self-approval, directly or through an orchestrator handoff.\n3. The workflow submits approval using the Sepo app/PAT actor.\n4. The current same-author guard passes because the approval token actor differs from the PR author, even though the requesting human authored the PR.\n\nFor a privileged self-approval gate, the requester should also be treated as part of the approval authority boundary.\n\n## Desired behavior\n\nBlock self-approval when either of these normalized logins matches the PR author:\n\n- the authenticated approval token actor, or\n- the trusted initiating requester.\n\n## Suggested implementation\n\n- Preserve trusted requester context through self-approval:\n  - direct/manual `agent-self-approve.yml` runs should use `github.actor` when `requested_by` is not provided;\n  - orchestrator handoffs should continue forwarding the original `requested_by` value.\n- Pass the requester into self-approval preflight/resolution.\n- Extend the actor guard so it blocks when `requested_by` matches the PR author, with a clear status reason.\n- Add focused tests for:\n  - requester equals PR author -> blocked;\n  - approval actor equals PR author -> blocked;\n  - requester and approval actor both distinct from PR author -> existing approval path remains allowed.\n\n## Notes\n\nThis is a small follow-up to the self-approval safety boundary. The existing architecture still keeps the agent read-only and performs deterministic approval submission; this issue tightens who is allowed to initiate that deterministic approval.\n",
   "closedAt": null,
-  "comments": [],
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDBeswQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo adopted this issue as a sub-orchestrator child of #314.\n\n| Parent issue | Stage | Parent round | Status |\n| --- | --- | --- | --- |\n| #314 | self-approval-requester-author-guard | 8 | Running |\n\n<!-- sepo-sub-orchestrator parent:314 stage:self-approval-requester-author-guard state:done parent_round:8 -->\n<!-- sepo-sub-orchestrator-adoption -->",
+      "createdAt": "2026-05-20T11:22:16Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/224#issuecomment-4497845441",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDBeuqA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | delegate_issue | Issue #224 | 8 / 40 | Dispatched |\n\nReason: agent planner selected child issue delegation: Issue #314 is continuing the sequential small-fixes batch. Child #310 completed with SHIP and open PR #324, and #224 is a bounded low-effort safety bug, so continue by stacking it on #324.\n\n<!-- sepo-agent-handoff state:dispatched created:1779276139051 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxNTg3OTM2ODc6b3JjaGVzdHJhdGU6MzE0OmRlbGVnYXRlX2lzc3VlOjIyNDo4 -->",
+      "createdAt": "2026-05-20T11:22:19Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/224#issuecomment-4497845928",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDBe2gg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | implement | Issue #224 | 2 / 40 | Dispatched |\n\nReason: manual orchestrate start on issue; dispatching implement\n\n<!-- sepo-agent-handoff state:dispatched created:1779276153598 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxNTg3OTM2ODc6b3JjaGVzdHJhdGU6MjI0OmltcGxlbWVudDoyMjQ6Mg -->",
+      "createdAt": "2026-05-20T11:22:34Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/224#issuecomment-4497847938",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDBjLHQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-224/codex-26159299042`\n- Pull request: https://github.com/self-evolving/repo/pull/325\n\nImplemented a requester-author guard for self-approval by threading `REQUESTED_BY` into preflight and resolution, blocking approvals when the requester normalizes to the PR author, and updating docs/tests. Verified with `npm --prefix .agent run build`, focused self-approval/envelope tests, and `git diff --check`.",
+      "createdAt": "2026-05-20T11:31:00Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/224#issuecomment-4497918749",
+      "viewerDidAuthor": true
+    }
+  ],
   "createdAt": "2026-05-13T04:00:08Z",
   "labels": [
     {
@@ -38,6 +99,6 @@
   "number": 224,
   "state": "OPEN",
   "title": "Block self-approval when requester authored the PR",
-  "updatedAt": "2026-05-13T04:00:08Z",
+  "updatedAt": "2026-05-20T14:40:27Z",
   "url": "https://github.com/self-evolving/repo/issues/224"
 }
