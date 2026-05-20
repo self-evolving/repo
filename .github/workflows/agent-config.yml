@@ -1,0 +1,210 @@
+name: Agent / Repo Config
+
+on:
+  workflow_dispatch:
+    inputs:
+      request_text:
+        description: "Natural-language Sepo repository variable change request"
+        required: true
+      apply:
+        description: "Set true to apply the validated plan. Defaults to dry run."
+        required: false
+        default: "false"
+  workflow_call:
+    inputs:
+      request_text:
+        description: "Natural-language Sepo repository variable change request"
+        type: string
+        required: true
+      apply:
+        description: "Set true to apply the validated plan"
+        type: string
+        required: false
+        default: "false"
+      runs_on:
+        description: "Runner labels as JSON array"
+        type: string
+        required: false
+        default: ""
+      session_bundle_mode:
+        description: "Session bundle persistence mode"
+        type: string
+        required: false
+        default: ""
+      requested_by:
+        description: "GitHub login that requested the run"
+        type: string
+        required: false
+        default: ""
+      source_kind:
+        description: "Source kind"
+        type: string
+        required: false
+        default: "workflow_dispatch"
+      target_kind:
+        description: "Target kind"
+        type: string
+        required: false
+        default: "repository"
+      target_number:
+        description: "Target number"
+        type: string
+        required: false
+        default: "0"
+      target_url:
+        description: "Target URL"
+        type: string
+        required: false
+        default: ""
+      response_kind:
+        description: "Response surface for mention-triggered runs"
+        type: string
+        required: false
+        default: ""
+      review_comment_id:
+        description: "Review comment id for review-comment replies"
+        type: string
+        required: false
+        default: ""
+      discussion_id:
+        description: "Discussion node id for discussion responses"
+        type: string
+        required: false
+        default: ""
+      reply_to_id:
+        description: "Discussion reply target id"
+        type: string
+        required: false
+        default: ""
+    secrets:
+      AGENT_APP_ID:
+        required: false
+      AGENT_APP_PRIVATE_KEY:
+        required: false
+      AGENT_PAT:
+        required: false
+      OPENAI_API_KEY:
+        required: false
+      CLAUDE_CODE_OAUTH_TOKEN:
+        required: false
+
+permissions:
+  actions: write
+  contents: read
+  discussions: write
+  issues: write
+  pull-requests: write
+  id-token: write # required for GitHub Actions OIDC broker exchange
+
+concurrency:
+  group: agent-config-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  config:
+    runs-on: ${{ fromJson(inputs.runs_on || vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          ref: ${{ github.event.repository.default_branch }}
+          token: ${{ github.token }}
+
+      - name: Resolve GitHub auth
+        id: auth
+        uses: ./.github/actions/resolve-github-auth
+        with:
+          app_id: ${{ secrets.AGENT_APP_ID }}
+          app_private_key: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
+          pat: ${{ secrets.AGENT_PAT }}
+          fallback_token: ${{ github.token }}
+
+      - name: Resolve config provider
+        id: provider
+        uses: ./.github/actions/resolve-agent-provider
+        with:
+          route: config
+          default_provider: ${{ vars.AGENT_DEFAULT_PROVIDER || 'auto' }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+      - name: Setup agent runtime
+        id: runtime
+        uses: ./.github/actions/setup-agent-runtime
+        with:
+          install_codex: ${{ steps.provider.outputs.install_codex }}
+          install_claude: ${{ steps.provider.outputs.install_claude }}
+
+      - name: Resolve task timeout
+        id: task_timeout
+        env:
+          AGENT_TASK_TIMEOUT_POLICY: ${{ vars.AGENT_TASK_TIMEOUT_POLICY || '' }}
+          ROUTE: config
+        run: node .agent/dist/cli/resolve-task-timeout.js
+
+      - name: Run config agent
+        id: config_agent
+        timeout-minutes: ${{ fromJson(steps.task_timeout.outputs.minutes || '30') }}
+        uses: ./.github/actions/run-agent-task
+        with:
+          agent: ${{ steps.provider.outputs.provider }}
+          github_token: ${{ steps.auth.outputs.token }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          permission_mode: approve-reads
+          prompt: agent-config
+          route: config
+          memory_mode_override: disabled
+          rubrics_mode_override: disabled
+          session_bundle_mode: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
+          session_policy: none
+          request_text: ${{ inputs.request_text }}
+          requested_by: ${{ inputs.requested_by || github.actor }}
+          source_kind: ${{ inputs.source_kind || 'workflow_dispatch' }}
+          target_kind: ${{ inputs.target_kind || 'repository' }}
+          target_number: ${{ inputs.target_number || '0' }}
+          target_url: ${{ inputs.target_url || format('{0}/{1}', github.server_url, github.repository) }}
+          reasoning_effort: medium
+          workflow: agent-config.yml
+
+      - name: Apply repository config plan
+        id: repo_config
+        continue-on-error: true
+        env:
+          AGENT_CONFIG_APPLY: ${{ inputs.apply }}
+          BODY_FILE: ${{ steps.config_agent.outputs.response_file }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ steps.auth.outputs.token }}
+          SUMMARY_FILE: ${{ runner.temp }}/repo-config-summary.md
+        run: node .agent/dist/cli/apply-repo-config.js
+
+      - name: Write config summary
+        if: always() && steps.repo_config.outputs.body_file != ''
+        shell: bash
+        env:
+          BODY_FILE: ${{ steps.repo_config.outputs.body_file }}
+        run: cat "$BODY_FILE" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Post config response
+        if: >-
+          always() &&
+          steps.repo_config.outputs.body_file != '' &&
+          inputs.response_kind != '' &&
+          inputs.target_number != '' &&
+          inputs.target_number != '0'
+        env:
+          BODY_FILE: ${{ steps.repo_config.outputs.body_file }}
+          DISCUSSION_ID: ${{ inputs.discussion_id }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          REPLY_TO_ID: ${{ inputs.reply_to_id }}
+          RESPONSE_KIND: ${{ inputs.response_kind }}
+          REVIEW_COMMENT_ID: ${{ inputs.review_comment_id }}
+          TARGET_NUMBER: ${{ inputs.target_number }}
+        run: node .agent/dist/cli/post-response.js
+
+      - name: Fail invalid repository config plan
+        if: steps.repo_config.outcome == 'failure'
+        run: exit 1

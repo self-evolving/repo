@@ -29,7 +29,17 @@ export interface DispatchDecision {
   basePr?: string;
 }
 
-const EXPLICIT_ROUTE_COMMANDS = ["answer", "implement", "fix-pr", "review", "orchestrate", "create-action", "install"] as const;
+const EXPLICIT_ROUTE_COMMANDS = [
+  "answer",
+  "implement",
+  "fix-pr",
+  "review",
+  "orchestrate",
+  "create-action",
+  "install",
+  "config",
+  "configure",
+] as const;
 const LABEL_ROUTE_PREFIX = "agent/";
 const LABEL_SKILL_PREFIX = "agent/s/";
 const VALID_SKILL_LABEL = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
@@ -166,7 +176,8 @@ export function buildRequestedRouteDecision(
   requestText: string,
   implementMetadata?: ImplementIssueMetadata | null,
 ): DispatchDecision {
-  const normalizedRoute = String(route || "").trim().toLowerCase();
+  const rawRoute = String(route || "").trim().toLowerCase();
+  const normalizedRoute = rawRoute === "configure" ? "config" : rawRoute;
   if (
     normalizedRoute !== "skill" &&
     normalizedRoute !== "unsupported" &&
@@ -268,6 +279,17 @@ export function buildRequestedRouteDecision(
       needsApproval: false,
       confidence: "high",
       summary: "I’ll run the install route for the target repository.",
+      issueTitle: "",
+      issueBody: "",
+    };
+  }
+
+  if (normalizedRoute === "config") {
+    return {
+      route: "config",
+      needsApproval: false,
+      confidence: "high",
+      summary: "I’ll interpret and apply the requested repository configuration change.",
       issueTitle: "",
       issueBody: "",
     };
@@ -395,11 +417,14 @@ export function applyDispatchPolicy(
       normalized.route,
       isPublicRepo,
     );
+    const summary = allowed.length > 0
+      ? `${normalized.route} requests currently require ${allowed.join(", ")} access.`
+      : `${normalized.route} requests are not allowed by the current access policy.`;
     return {
       ...normalized,
       route: "unsupported",
       needsApproval: false,
-      summary: `${normalized.route} requests currently require ${allowed.join(", ")} access.`,
+      summary,
       issueTitle: "",
       issueBody: "",
     };
@@ -482,6 +507,13 @@ export function applyDispatchPolicy(
   }
 
   if (normalized.route === "skill") {
+    normalized.needsApproval = false;
+    normalized.issueTitle = "";
+    normalized.issueBody = "";
+    return normalized;
+  }
+
+  if (normalized.route === "config") {
     normalized.needsApproval = false;
     normalized.issueTitle = "";
     normalized.issueBody = "";

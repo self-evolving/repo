@@ -28,7 +28,7 @@ Both keys are optional:
 - `allowed_associations`: fallback allowlist for routes without an override
 - `route_overrides`: map of route name to route-specific allowlist
 
-Route override keys are matched after route resolution, so future routes can use the same policy shape without changing this schema. If a route has no override, it uses `allowed_associations`; if `allowed_associations` is also unset, it uses the repository visibility default below.
+Route override keys are matched after route resolution, so future routes can use the same policy shape without changing this schema. If a route has no override, it uses `allowed_associations`; if `allowed_associations` is also unset, it uses the repository visibility default below. The `/config` route is the exception: without `route_overrides.config`, it intersects any global allowlist with its stricter built-in default.
 
 ## Example
 
@@ -55,6 +55,20 @@ separately from generic skills:
 }
 ```
 
+The first-class `/config` route has a stricter built-in default because it can
+change repository Actions variables: `OWNER`, `MEMBER`, and `COLLABORATOR`.
+A global `allowed_associations` list can narrow that default; use an explicit
+route override if your repository intentionally wants a wider or different
+allowlist:
+
+```json
+{
+  "route_overrides": {
+    "config": ["OWNER", "MEMBER"]
+  }
+}
+```
+
 ## GitHub author associations
 
 The values match GitHub's [`CommentAuthorAssociation`](https://docs.github.com/graphql/reference/enums#commentauthorassociation) enum:
@@ -74,6 +88,7 @@ If `AGENT_ACCESS_POLICY` is unset:
 
 - private repositories allow `OWNER`, `MEMBER`, `COLLABORATOR`, and `CONTRIBUTOR`
 - public repositories also allow `OWNER`, `MEMBER`, `COLLABORATOR`, and `CONTRIBUTOR`
+- `/config` allows only `OWNER`, `MEMBER`, and `COLLABORATOR`
 
 Known limitation: GitHub can report private organization members as `CONTRIBUTOR` in public repository issue payloads when the token or payload cannot see private membership. Sepo therefore includes `CONTRIBUTOR` in the public default allowlist as a pragmatic compatibility choice. Repositories that need stricter public access should set `AGENT_ACCESS_POLICY`, for example `{"allowed_associations":["OWNER","MEMBER","COLLABORATOR"]}`.
 

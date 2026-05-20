@@ -863,12 +863,15 @@ test("skill route uses the composite setup action for path and setup checks", ()
   const supplementalVars = readSupplementalPromptVarNames(runSource);
   const skillJobStart = runnerWorkflow.indexOf("  skill:\n    needs: portal");
   const installJobStart = runnerWorkflow.indexOf("  install:\n    needs: portal", skillJobStart);
-  const approvalJobStart = runnerWorkflow.indexOf("  approval:", installJobStart);
+  const configJobStart = runnerWorkflow.indexOf("  config:\n    needs: portal", installJobStart);
+  const approvalJobStart = runnerWorkflow.indexOf("  approval:", configJobStart);
   assert.ok(skillJobStart >= 0);
   assert.ok(installJobStart > skillJobStart);
+  assert.ok(configJobStart > installJobStart);
   assert.ok(approvalJobStart > skillJobStart);
   const skillWorkflow = runnerWorkflow.slice(skillJobStart, installJobStart);
-  const installWorkflow = runnerWorkflow.slice(installJobStart, approvalJobStart);
+  const installWorkflow = runnerWorkflow.slice(installJobStart, configJobStart);
+  const configWorkflow = runnerWorkflow.slice(configJobStart, approvalJobStart);
   const optionalProviderStart = skillWorkflow.indexOf("- name: Resolve skill provider");
   const runtimeStart = skillWorkflow.indexOf("- name: Setup agent runtime");
   const checkStart = skillWorkflow.indexOf("- name: Check skill");
@@ -905,6 +908,13 @@ test("skill route uses the composite setup action for path and setup checks", ()
   assert.doesNotMatch(installWorkflow, /memory_policy:\s*\$\{\{\s*vars\.AGENT_MEMORY_POLICY/);
   assert.doesNotMatch(installWorkflow, /github_token:[^\n]*steps\.auth\.outputs\.token/);
   assert.doesNotMatch(installWorkflow, /\.\/\.github\/actions\/run-skill-setup/);
+  assert.match(configWorkflow, /needs\.portal\.outputs\.route == 'config'/);
+  assert.match(configWorkflow, /\.\/\.github\/workflows\/agent-config\.yml/);
+  assert.match(configWorkflow, /apply:\s*"true"/);
+  assert.match(configWorkflow, /request_text:\s*\$\{\{\s*needs\.portal\.outputs\.body\s*\}\}/);
+  const configActionWorkflow = readRepoFile(".github/workflows/agent-config.yml");
+  assert.match(configActionWorkflow, /permission_mode:\s*approve-reads/);
+  assert.match(configActionWorkflow, /node \.agent\/dist\/cli\/apply-repo-config\.js/);
   assert.ok(optionalProviderStart >= 0);
   assert.ok(runtimeStart > optionalProviderStart);
   assert.ok(checkStart > runtimeStart);
@@ -1445,6 +1455,7 @@ test("validateEnvelope catches invalid route", () => {
 test("validateEnvelope accepts dispatch, action, self-approval, and rubrics routes", () => {
   for (const route of [
     "dispatch",
+    "config",
     "create-action",
     "agent-self-approve",
     "agent-self-merge",

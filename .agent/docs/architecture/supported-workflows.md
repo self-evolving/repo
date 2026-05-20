@@ -16,6 +16,7 @@
 | `agent-implement.yml` | `workflow_dispatch` | Implementation flow: branch, commit, draft PR; supports `base_branch` or `base_pr` for stacked PRs | Auto |
 | `agent-fix-pr.yml` | `workflow_dispatch`, `workflow_call` | PR fix flow: update existing PR branch, verify, push | Auto |
 | `agent-review.yml` | `workflow_dispatch`, `workflow_call` | Parallel Claude and Codex review with resolved-provider synthesis, captured reviewed-head provenance, plus a separate rubric review comment | Claude + Codex reviewers; configurable synthesis |
+| `agent-config.yml` | `workflow_dispatch`, `workflow_call` | Natural-language Sepo repository Actions variable updates with deterministic plan validation and optional apply | Auto |
 | `agent-branch-cleanup.yml` | `pull_request_target.closed` | Event-driven cleanup of merged agent-created branches after retargeting open stacked PRs. Excludes the shared `agent/memory` and `agent/rubrics` branches. | None |
 | `agent-close-stale-issues.yml` | `schedule` (daily), `workflow_dispatch` | Closes open `agent` issues that have had no activity for 30 days by default | None |
 | `agent-daily-summary.yml` | `schedule` (daily, disabled by default), `workflow_dispatch` | Generates a concise repository activity summary and posts it as a Discussion | Auto |
@@ -165,6 +166,16 @@ step finds today's `Daily Summary — YYYY-MM-DD` discussion in the configured
 discussion category and comments there. If that discussion does not exist yet,
 it leaves only the Actions step summary.
 
+`agent-config.yml` can be run from the Actions page with a natural-language
+`request_text`; it defaults to dry run unless `apply=true`. The explicit
+`/config` and `/configure` mention routes call the same workflow with apply
+enabled after route authorization. The agent returns only a structured
+`operations` plan, and `.agent/dist/cli/apply-repo-config.js` validates the
+documented Sepo variable allowlist before using GitHub's repository Actions
+variables API to create, update, or delete variables. The route does not expose
+secrets, organization variables, environment variables, or multi-repository
+writes.
+
 `agent-daily-summary.yml` checks repository discussion settings before gathering
 activity signals or resolving an agent provider. If discussions are disabled, or
 the configured summary discussion category does not exist, the workflow skips
@@ -220,6 +231,8 @@ Explicit routes are:
 - `@sepo-agent /orchestrate`
 - `@sepo-agent /skill <name>`
 - `@sepo-agent /install ...`
+- `@sepo-agent /config ...`
+- `@sepo-agent /configure ...`
 
 Explicit routes skip dispatch triage and resolve locally, but still go through the same route policy checks afterward.
 When an explicit `/implement` request on a pull request or discussion creates a tracking issue, the router runs a metadata-only agent prompt to synthesize the issue title and body from the request plus target context. The slash command approves the route; it is not copied into the title. Pull request metadata can also include `base_pr` for stacked or follow-up implementation requests. If metadata generation is unavailable or invalid, the issue falls back to `Implement requested change`.

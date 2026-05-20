@@ -36,6 +36,7 @@ Use an explicit slash route when you already know the action:
 | Fix PR | Push fixes to the current PR branch. | `@sepo-agent /fix-pr` |
 | Skill | Run a repository skill from `<skill_root>/<name>/SKILL.md`. | `@sepo-agent /skill <name>` |
 | Install | Run the dedicated install route when Sepo can write to the target repository. | `@sepo-agent /install ...` |
+| Config | Change documented Sepo repository variables from natural language. | `@sepo-agent /config ...` or `@sepo-agent /configure ...` |
 
 You can also trigger the same built-in routes with labels:
 

@@ -2,6 +2,11 @@
 
 ## Repository variables
 
+Use GitHub repository Actions variables for these Sepo settings. You can edit
+them manually in repository settings, run `Agent / Repo Config` from GitHub
+Actions for a dry-run or apply pass, or ask `@sepo-agent /config ...` from an
+authorized issue, pull request, or discussion thread.
+
 | Variable | Purpose |
 |---|---|
 | `AGENT_HANDLE` | Override the mention handle. Defaults to `@sepo-agent`. |
