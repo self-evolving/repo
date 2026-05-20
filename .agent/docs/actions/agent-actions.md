@@ -23,7 +23,9 @@ Implementation runs can create stacked PRs by receiving either `base_branch` or
 neither input is set, implementations branch from the repository default branch.
 For explicit `/implement` requests on pull requests, the router can obtain
 `base_pr` from the metadata-only tracking issue prompt when the current request
-asks for stacked or follow-up implementation work.
+asks for stacked or follow-up implementation work. If that inferred source PR is
+closed or merged, the router drops `base_pr` so the implementation starts from
+the default branch; the tracking issue still links the closed PR as context.
 
 ## Consumption model
 
