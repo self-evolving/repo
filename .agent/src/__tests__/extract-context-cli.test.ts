@@ -112,6 +112,57 @@ test("extract-context skips approval commands for a configured custom mention", 
   }
 });
 
+test("extract-context preserves permissive install route requests", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-extract-context-"));
+
+  try {
+    const eventPath = join(tempDir, "event.json");
+    const outputPath = join(tempDir, "github-output.txt");
+
+    writeFileSync(
+      eventPath,
+      JSON.stringify({
+        sender: { login: "alice", type: "User" },
+        comment: {
+          id: 100,
+          node_id: "IC_100",
+          html_url: "https://github.com/self-evolving/repo/issues/269#issuecomment-100",
+          body: "@sepo-agent /install can you install Sepo into https://github.com/self-evolving/example-repo?",
+          author_association: "MEMBER",
+          user: { login: "alice" },
+        },
+        issue: {
+          number: 269,
+          html_url: "https://github.com/self-evolving/repo/issues/269",
+        },
+      }),
+      "utf8",
+    );
+    writeFileSync(outputPath, "", "utf8");
+
+    execFileSync("node", [".agent/dist/cli/extract-context.js"], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        GITHUB_EVENT_PATH: eventPath,
+        GITHUB_EVENT_NAME: "issue_comment",
+        GITHUB_OUTPUT: outputPath,
+        INPUT_MENTION: "@sepo-agent",
+        INPUT_TRIGGER_KIND: "mention",
+      },
+      stdio: "pipe",
+    });
+
+    const outputs = parseGithubOutput(outputPath);
+    assert.equal(outputs.get("should_respond"), "true");
+    assert.equal(outputs.get("requested_route"), "install");
+    assert.equal(outputs.get("requested_skill"), "");
+    assert.equal(outputs.has("requested_install_target_repo"), false);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("extract-context refreshes issue author association from the GitHub API", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-extract-context-"));
 

@@ -37,6 +37,7 @@ export const RUBRIC_ROUTE_NAMES = [
   "fix-pr",
   "review",
   "skill",
+  "install",
   "rubrics-review",
   "rubrics-initialization",
   "rubrics-update",
@@ -312,7 +313,8 @@ function routeMatches(rubric: Rubric, route: string): boolean {
   if (rubric.applies_to.includes(normalized as RubricRouteName)) return true;
   // Rubrics for implementation also apply to the PR-fix implementation path
   // unless the author chose a more specific route list.
-  return normalized === "fix-pr" && rubric.applies_to.includes("implement");
+  if (normalized === "fix-pr" && rubric.applies_to.includes("implement")) return true;
+  return false;
 }
 
 function severityScore(severity: RubricSeverity): number {
