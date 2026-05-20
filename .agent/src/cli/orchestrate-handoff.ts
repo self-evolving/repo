@@ -9,7 +9,7 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { addDiscussionComment } from "../discussion.js";
+import { addDiscussionComment, fetchDiscussionComments } from "../discussion.js";
 import { dispatchWorkflow, gh } from "../github.js";
 import { setOutput } from "../output.js";
 import {
@@ -426,6 +426,10 @@ function parseIssueNumberFromUrl(url: string): string {
   return match ? match[1] : "";
 }
 
+function escapeRegExp(value: string): string {
+  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function splitRepoSlug(repoSlug: string): { owner: string; name: string } {
   const [owner = "", name = ""] = String(repoSlug || "").split("/");
   return { owner, name };
@@ -582,6 +586,12 @@ function buildOrchestratedImplementationTrackingKey(metadata: SourceTargetMetada
   return `<!-- sepo-agent-orchestrated-implement target:${metadata.kind}:${metadata.number || "unknown"} run:${runPart} -->`;
 }
 
+function parseLinkedImplementationIssueNumber(repoSlug: string, body: string): string {
+  const escapedRepo = escapeRegExp(repoSlug);
+  const match = String(body || "").match(new RegExp(`https://github\\.com/${escapedRepo}/issues/(\\d+)\\b`));
+  return match ? match[1] : "";
+}
+
 function findExistingOrchestratedImplementationIssue(repoSlug: string, trackingKey: string): string {
   try {
     const raw = gh([
@@ -612,6 +622,38 @@ function findExistingOrchestratedImplementationIssue(repoSlug: string, trackingK
     console.warn(`Could not search for existing orchestrated implementation issue: ${errorText(err)}`);
   }
   return "";
+}
+
+function findExistingOrchestratedImplementationLinkBack(
+  repoSlug: string,
+  metadata: SourceTargetMetadata,
+  trackingKey: string,
+): string {
+  const findInComments = (comments: CommentRecord[]): string => {
+    for (const comment of [...comments].reverse()) {
+      const body = String(comment.body || "");
+      if (!body.includes(trackingKey) || !isTrustedActorLogin(comment.authorLogin || "")) {
+        continue;
+      }
+      const issueNumber = parseLinkedImplementationIssueNumber(repoSlug, body);
+      if (issueNumber) return issueNumber;
+    }
+    return "";
+  };
+
+  try {
+    if (metadata.kind === "pull_request") {
+      const number = parsePositiveTargetNumber(metadata.number);
+      return number ? findInComments(fetchIssueComments(repoSlug, number)) : "";
+    }
+    const { owner, name } = splitRepoSlug(repoSlug);
+    const number = parsePositiveTargetNumber(metadata.number);
+    if (!owner || !name || !number) return "";
+    return findInComments(fetchDiscussionComments(owner, name, number));
+  } catch (err: unknown) {
+    console.warn(`Could not inspect existing orchestrated implementation link-backs: ${errorText(err)}`);
+    return "";
+  }
 }
 
 function formatOrchestratedImplementationIssueBody(input: {
@@ -646,8 +688,20 @@ function formatOrchestratedImplementationIssueBody(input: {
   return `${lines.join("\n").trim()}\n`;
 }
 
-function postOrchestratedImplementationLinkBack(metadata: SourceTargetMetadata, issueUrl: string): void {
-  const body = `Implementing this orchestration request — tracking in ${issueUrl}.`;
+function formatOrchestratedImplementationLinkBack(issueUrl: string, trackingKey: string): string {
+  return [
+    `Implementing this orchestration request - tracking in ${issueUrl}.`,
+    "",
+    trackingKey,
+  ].join("\n");
+}
+
+function postOrchestratedImplementationLinkBack(
+  metadata: SourceTargetMetadata,
+  issueUrl: string,
+  trackingKey: string,
+): void {
+  const body = formatOrchestratedImplementationLinkBack(issueUrl, trackingKey);
   try {
     if (metadata.kind === "pull_request") {
       const number = parsePositiveTargetNumber(metadata.number);
@@ -679,8 +733,17 @@ function ensureOrchestratedImplementationIssue(
   }
 
   const trackingKey = buildOrchestratedImplementationTrackingKey(metadata);
+  const existingLinkedIssueNumber = findExistingOrchestratedImplementationLinkBack(repo, metadata, trackingKey);
+  if (existingLinkedIssueNumber) {
+    return existingLinkedIssueNumber;
+  }
   const existingIssueNumber = findExistingOrchestratedImplementationIssue(repo, trackingKey);
   if (existingIssueNumber) {
+    postOrchestratedImplementationLinkBack(
+      metadata,
+      `https://github.com/${repo}/issues/${existingIssueNumber}`,
+      trackingKey,
+    );
     return existingIssueNumber;
   }
 
@@ -695,7 +758,7 @@ function ensureOrchestratedImplementationIssue(
   const issueUrl = createIssueFromBody(repo, title, body);
   const issueNumber = parseIssueNumberFromUrl(issueUrl);
   if (!issueNumber) throw new Error(`Could not parse orchestrated implement tracking issue URL: ${issueUrl}`);
-  postOrchestratedImplementationLinkBack(metadata, issueUrl);
+  postOrchestratedImplementationLinkBack(metadata, issueUrl, trackingKey);
   return issueNumber;
 }
 
@@ -1479,6 +1542,25 @@ function hasMatchingOrchestrateStopComment(repoSlug: string, issueNumber: number
   }
 }
 
+function hasMatchingDiscussionOrchestrateStopComment(repoSlug: string, discussionNumber: number, body: string): boolean {
+  try {
+    const { owner, name } = splitRepoSlug(repoSlug);
+    if (!owner || !name) return false;
+    const expectedBody = body.trim();
+    return fetchDiscussionComments(owner, name, discussionNumber).some((comment) => {
+      const commentBody = String(comment.body || "");
+      return (
+        commentBody.includes(ORCHESTRATE_STOP_MARKER) &&
+        commentBody.trim() === expectedBody &&
+        isTrustedActorLogin(comment.authorLogin || "")
+      );
+    });
+  } catch (err: unknown) {
+    console.warn(`Failed to inspect existing discussion orchestrator stop comments: ${errorText(err)}`);
+    return false;
+  }
+}
+
 function createOrchestrateStopComment(decision: HandoffDecision): void {
   const target = parsePositiveTargetNumber(targetNumber);
   const normalizedKind = normalizeToken(sourceTargetKind);
@@ -1487,6 +1569,9 @@ function createOrchestrateStopComment(decision: HandoffDecision): void {
   }
   const body = formatOrchestrateStopComment(decision);
   if (normalizedKind === "discussion") {
+    if (hasMatchingDiscussionOrchestrateStopComment(repo, target, body)) {
+      return;
+    }
     const metadata = fetchDiscussionSourceTargetMetadata(repo, targetNumber);
     if (!metadata.discussionId) {
       console.warn(`Could not post orchestrator stop to discussion #${targetNumber}: missing discussion node ID`);

@@ -46,7 +46,7 @@ stateDiagram-v2
 When the route starts, the router dispatches `agent-orchestrator.yml` with:
 
 - source action (`orchestrate`)
-- target kind (`issue` or `pull_request`)
+- target kind (`issue`, `pull_request`, or `discussion`)
 - target number
 - requester and request text
 - current round and max rounds
@@ -67,7 +67,7 @@ When an action-originated handoff is used, the orchestrator also accepts:
 - source action
 - source conclusion
 - source recommended next step, when the source is review synthesis
-- target issue or pull request number
+- target issue, pull request, or discussion number
 - next target number when implementation opened a pull request
 - source workflow run ID for duplicate-dispatch detection
 - optional source handoff context for downstream task text
@@ -86,11 +86,21 @@ directly for a small, self-contained change on the current issue, or act as a
 meta-orchestrator when a separate child issue materially helps. For direct
 implementation, the planner returns `handoff` with `next_action: "implement"`,
 and the dispatcher launches `agent-implement.yml` for the current issue. For PR
-targets, the planner can return `handoff` with `next_action: "review"` or
-`next_action: "fix-pr"` after parsing the user's request text; runtime policy
-checks that the PR is open and rejects PR starts that try to dispatch
-`implement` or `delegate_issue`. The planner may also return `answer`, `stop`,
+targets, the planner can return `handoff` with `next_action: "review"`,
+`next_action: "fix-pr"`, or `next_action: "implement"` after parsing the user's
+request text; runtime policy checks that the PR is open and rejects PR starts
+that try to dispatch `delegate_issue`. For discussion targets, the planner can
+return `handoff` with `next_action: "implement"` when the discussion contains an
+actionable implementation request. The planner may also return `answer`, `stop`,
 or `blocked` when no follow-up workflow should run.
+
+When PR or discussion orchestration chooses `implement`, the dispatcher creates
+or reuses a context-derived tracking issue before it dispatches
+`agent-implement.yml`. The tracking issue captures the source target, requester,
+planner reason, request text, target title/body, and any base input. The
+dispatcher writes a trusted link-back comment to the source PR or discussion and
+checks both trusted issue markers and trusted link-backs on rerun before
+creating another issue.
 
 Issue targets labeled `agent-goal` are parent objectives rather than ordinary
 implementation tasks. The planner should use the goal body, success criteria,
@@ -163,22 +173,23 @@ traceability, but they do not need to thread requester association and route
 policy through every downstream workflow.
 
 When an orchestrator dispatches `implement`, it forwards any planner-provided
-or explicit `base_branch` or `base_pr` input. `agent-implement.yml` then
-resolves a single base branch: `base_branch` is used when set, `base_pr`
-resolves to the open same-repository PR head branch, and the repository default
-branch is used when neither input is present. Setting both base inputs is
-rejected.
+or explicit `base_branch` or `base_pr` input. Issue targets dispatch directly
+against the issue. PR and discussion targets dispatch against the created or
+reused tracking issue. `agent-implement.yml` then resolves a single base branch:
+`base_branch` is used when set, `base_pr` resolves to the open same-repository
+PR head branch, and the repository default branch is used when neither input is
+present. Setting both base inputs is rejected.
 
 Manual pull request starts are deterministic only in `heuristics` mode. In
-`agent` mode, issue-level and pull-request-level manual starts may invoke the
-planner for the first orchestration step, and action-originated handoff
-envelopes use the planner path when enabled.
+`agent` mode, issue-level, pull-request-level, and discussion-level manual starts
+may invoke the planner for the first orchestration step, and action-originated
+handoff envelopes use the planner path when enabled.
 
 In `heuristics` mode, action-originated handoff decisions still use the fixed transition policy and round budget checks.
 
 Review-originated `fix-pr` handoffs carry explicit task context when available. The review dispatcher derives it from the latest review synthesis action items, and heuristic mode falls back to a conservative instruction to address only unresolved review synthesis action items while ignoring optional INFO notes and metadata-only polish. When a review synthesis recommends `HUMAN_DECISION`, self-approval-enabled orchestration routes to `agent-self-approve` instead of `fix-pr` or a human stop; self-approval then decides whether to approve, request changes, or block. Manual PR `/orchestrate` starts with a `CHANGES_REQUESTED` review decision use separate context that tells `fix-pr` to address the latest unresolved requested-change review comments instead of the review-synthesis fallback. Self-approval `REQUEST_CHANGES` handoffs preserve the approval agent's handoff context as the `fix-pr` task. Self-approval `APPROVED` handoffs dispatch `agent-self-merge` only when `AGENT_ALLOW_SELF_MERGE=true`.
 
-In `agent` mode, the orchestrator first runs a scoped planner prompt through the same resolved-provider runtime used by other agent actions. The planner has its own `orchestrator` route and `planner` lane, so session continuation is separate from implement, review, and fix-pr sessions. The planner runs with `approve-all` tool permission so it can gather current GitHub and repository context in non-interactive workflows. It still receives read-only repository memory, selected read-only rubrics, the handoff envelope, any source handoff context, and original request, and returns JSON describing whether to stop, block, delegate a child issue, or hand off. For blocked decisions, the planner may return `user_message` or `clarification_request` to ask for missing context in the visible stop comment. For handoffs, the planner may also return `handoff_context`: explicit, action-oriented instructions for the next workflow. When the next action is `fix-pr`, the dispatcher passes that context into `agent-fix-pr.yml`, and the fix-pr prompt treats it as the selected task and constraints for the automated fix pass. The workflow uses the runtime preflight CLI to skip this planner when the max-round budget is already exhausted or the initial requester lacks delegated-route capability, and the runtime still validates planner JSON against the fixed transition policy, the issue-only direct-implement rule, and max-round budget before dispatching anything.
+In `agent` mode, the orchestrator first runs a scoped planner prompt through the same resolved-provider runtime used by other agent actions. The planner has its own `orchestrator` route and `planner` lane, so session continuation is separate from implement, review, and fix-pr sessions. The planner runs with `approve-all` tool permission so it can gather current GitHub and repository context in non-interactive workflows. It still receives read-only repository memory, selected read-only rubrics, the handoff envelope, any source handoff context, and original request, and returns JSON describing whether to stop, block, delegate a child issue, or hand off. For blocked decisions, the planner may return `user_message` or `clarification_request` to ask for missing context in the visible stop comment. For handoffs, the planner may also return `handoff_context`: explicit, action-oriented instructions for the next workflow. When the next action is `fix-pr`, the dispatcher passes that context into `agent-fix-pr.yml`, and the fix-pr prompt treats it as the selected task and constraints for the automated fix pass. The workflow uses the runtime preflight CLI to skip this planner when the max-round budget is already exhausted or the initial requester lacks delegated-route capability, and the runtime still validates planner JSON against the fixed transition policy, the allowed target kinds for `implement`, and max-round budget before dispatching anything.
 
 When an orchestrator-launched `implement` or `fix-pr` run reports
 `no_changes`, `failed`, `verify_failed`, or `unsupported`, the dispatcher stops
@@ -188,11 +199,28 @@ parent stops use the same structured stop format. For `fix-pr`, the runtime does
 not re-review automatically after those conclusions; `fix-pr` must succeed
 before the chain can hand back to `review`.
 
-Before dispatching, the orchestrator checks for a hidden handoff marker on the destination issue or pull request. It then writes a compact visible status comment with a transposed table for source, next action, target, round, and status, plus an explicit `Task for fix-pr` block for fix-pr handoffs. The hidden marker still records the current source run, source action, destination action, target, and round. The orchestrator writes a `pending` marker, dispatches the next workflow, and updates the marker to `dispatched` after `workflow_dispatch` succeeds. After a successful dispatch, it minimizes older visible handoff marker comments from the same authenticated agent account as outdated unless `AGENT_COLLAPSE_OLD_REVIEWS=false` is set. If dispatch fails, the marker is updated to `failed` so a rerun can retry. Rerunning the same source action or orchestrator run skips fresh `pending` or `dispatched` markers instead of enqueueing a duplicate next action. A `pending` marker records its creation time; if it is older than the one-hour stale threshold, the orchestrator marks it `failed` and retries so cancelled runs do not permanently block handoff. Non-success statuses and unsupported verdicts stop the chain.
+Before dispatching, the orchestrator checks for a hidden handoff marker on the
+destination issue, pull request, or tracking issue. PR and discussion
+`implement` handoffs use their tracking issue as the destination. It then writes
+a compact visible status comment with a transposed table for source, next
+action, target, round, and status, plus an explicit `Task for fix-pr` block for
+fix-pr handoffs. The hidden
+marker still records the current source run, source action, destination action,
+target, and round. The orchestrator writes a `pending` marker, dispatches the
+next workflow, and updates the marker to `dispatched` after `workflow_dispatch`
+succeeds. After a successful dispatch, it minimizes older visible handoff marker
+comments from the same authenticated agent account as outdated unless
+`AGENT_COLLAPSE_OLD_REVIEWS=false` is set. If dispatch fails, the marker is
+updated to `failed` so a rerun can retry. Rerunning the same source action or
+orchestrator run skips fresh `pending` or `dispatched` markers instead of
+enqueueing a duplicate next action. A `pending` marker records its creation time;
+if it is older than the one-hour stale threshold, the orchestrator marks it
+`failed` and retries so cancelled runs do not permanently block handoff.
+Non-success statuses and unsupported verdicts stop the chain.
 
 ## Permission note
 
-`agent-orchestrator.yml` requests `actions: write` because `workflow_dispatch` requires it, and `issues: write` to persist dedupe markers on destination issues or pull requests.
+`agent-orchestrator.yml` requests `actions: write` because `workflow_dispatch` requires it, `issues: write` to persist dedupe markers and tracking issues, and `discussions: write` to post discussion link-backs and stop comments.
 
 ## Extension path
 

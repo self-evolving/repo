@@ -25,20 +25,24 @@
 | `test-scripts.yml` | `pull_request`, `workflow_dispatch` | CI for helper tests, YAML parsing, and shell syntax | None |
 
 `agent-orchestrator.yml` is started explicitly through `/orchestrate` or
-`agent/orchestrate`. Dispatch triage can also select `orchestrate` for issue and
-pull request requests that ask for orchestration, follow-up automation, or
-bounded multi-step agent work. On start, it inspects the current target state and
-dispatches one built-in action (`implement`, `review`, `fix-pr`,
+`agent/orchestrate`. Dispatch triage can also select `orchestrate` for issue,
+pull request, and discussion requests that ask for orchestration, follow-up
+automation, or bounded multi-step agent work. On start, it inspects the current
+target state and dispatches one built-in action (`implement`, `review`, `fix-pr`,
 `agent-self-approve`, or `agent-self-merge`) when useful.
 That dispatch includes explicit orchestration context; only those orchestrator
 launched action runs hand back to `agent-orchestrator.yml` after post-processing.
 Direct `/implement`, `/review`, and `/fix-pr` runs remain one-shot. Pull request
 orchestrate starts remain deterministic in `heuristics` mode. In `agent` mode,
-issue-level and pull-request-level orchestrate starts may use the planner. For
+issue-level, pull-request-level, and discussion-level orchestrate starts may use the planner. For
 small self-contained issue work, the planner can return a normal handoff to
 `implement` on the current issue. For PR work, the planner can choose
-review-first, fix-the-PR, answer-only, or stop behavior; runtime policy validates
-that PR starts dispatch only `review` or `fix-pr` workflows. For
+review-first, fix-the-PR, separate implementation, answer-only, or stop
+behavior; runtime policy validates that PR starts dispatch only `review`,
+`fix-pr`, or `implement` workflows. Discussion orchestration can dispatch
+separate implementation work, answer, stop, or block. Non-issue `implement`
+handoffs create or reuse a tracking issue first, then dispatch
+`agent-implement.yml` against that issue. For
 meta-orchestration, the planner can return an internal `delegate_issue` command
 instead of adding a new public route. That command creates or reuses a child
 issue with parent/stage metadata, dispatches the child issue through the normal
@@ -82,6 +86,14 @@ Implementation dispatches default to the repository default branch. Callers can
 set `base_branch` to stack directly on another branch, or `base_pr` to stack on
 an open same-repository PR head branch. The implementation workflow rejects
 ambiguous input when both are set.
+
+When PR or discussion orchestration dispatches `implement`, the orchestrator
+normalizes the request through a context-derived tracking issue. The tracking
+issue body records the original target, requester, planner reason, request text,
+and any base input, while copied target/request markdown escapes Sepo control
+markers. Trusted issue markers and source link-back comments are checked before
+creating another tracking issue, and discussion stop comments use the same
+trusted exact-body dedupe pattern as issue and PR stop comments.
 
 For explicit `/implement` requests from pull requests, the router's
 metadata-only prompt may emit `base_pr` when the current user request asks for a
