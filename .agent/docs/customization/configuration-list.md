@@ -30,7 +30,7 @@ authorized issue, pull request, or discussion thread.
 | `AGENT_TASK_TIMEOUT_POLICY` | JSON policy for GitHub Actions step timeouts on agent tasks. Defaults to `{"default_minutes":30}` and accepts route overrides, for example `{"default_minutes":30,"route_overrides":{"implement":60,"review":45}}`. Values must be 1-360 minutes. |
 | `AGENT_MEMORY_POLICY` | JSON policy controlling which routes can read or write repository memory. See [Repository memory](../architecture/memory.md). |
 | `AGENT_MEMORY_REF` | Default branch name used when workflows mount repository memory. Defaults to `agent/memory`. |
-| `AGENT_SCHEDULE_POLICY` | JSON policy controlling scheduled workflow runs. By default, scheduled daily summaries are disabled while manual dispatch remains available. See [Repository memory](../architecture/memory.md#scheduled-workflow-policy-agent_schedule_policy). |
+| `AGENT_SCHEDULE_POLICY` | JSON policy controlling scheduled workflow runs. By default, scheduled daily summaries use `skip_no_updates` and can be disabled with a workflow override. See [Repository memory](../architecture/memory.md#scheduled-workflow-policy-agent_schedule_policy). |
 | `AGENT_RUBRICS_POLICY` | JSON policy controlling which routes can read or write user/team rubrics. Defaults to read-only. See [User/team rubrics](../architecture/rubrics.md). |
 | `AGENT_RUBRICS_REF` | Default branch name used when workflows mount user/team rubrics. Defaults to `agent/rubrics`. |
 | `AGENT_RUBRICS_LIMIT` | Maximum selected rubrics injected into an agent prompt. Defaults to `10`. |

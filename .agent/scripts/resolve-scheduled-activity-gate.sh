@@ -72,9 +72,7 @@ resolve_mode() {
   override_mode=""
 
   if [ -z "$policy_text" ]; then
-    if [ "$workflow" = "agent-daily-summary.yml" ]; then
-      printf 'disabled'
-    elif [ "$workflow" = "agent-memory-sync.yml" ]; then
+    if [ "$workflow" = "agent-memory-sync.yml" ]; then
       printf 'always_run'
     else
       printf '%s' "$DEFAULT_SCHEDULE_MODE"
@@ -120,8 +118,6 @@ resolve_mode() {
 
   if [ -n "$override_mode" ]; then
     printf '%s' "$override_mode"
-  elif [ "$workflow" = "agent-daily-summary.yml" ]; then
-    printf 'disabled'
   else
     printf '%s' "$default_mode"
   fi
