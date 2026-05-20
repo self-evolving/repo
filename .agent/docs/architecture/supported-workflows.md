@@ -289,8 +289,10 @@ requires latest trusted review synthesis from the authenticated Sepo actor for
 the current reviewed-head marker before it runs an approval agent. Normal runs
 require that synthesis to be `SHIP`; orchestrated review `HUMAN_DECISION`
 handoffs may also run the agent as a decision gate for non-`SHIP` verdicts. The
-agent runs with read-approved permissions and returns structured JSON with a
-verdict, reason, optional follow-up context, and `inspected_head_sha`.
+agent runs with `approve-all` ACPX tool permissions so it can perform required
+read-only `gh` and `git` PR investigation commands. The workflow still passes a
+read-scoped `github.token` to the agent, and the agent returns structured JSON
+with a verdict, reason, optional follow-up context, and `inspected_head_sha`.
 
 Deterministic resolver code is the only part that can submit or record the
 approval. It rereads the current PR head, rechecks trusted current-head review
