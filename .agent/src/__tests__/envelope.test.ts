@@ -1402,6 +1402,34 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestratorDoc, /minimizes older visible handoff marker comments/);
 });
 
+test("orchestrator direct starts derive requester from workflow actor", () => {
+  const workflowText = readRepoFile(".github/workflows/agent-orchestrator.yml");
+  const workflow = parseYaml(workflowText) as unknown;
+  assert.ok(isRecord(workflow), "orchestrator workflow should parse as a YAML object");
+  assert.ok(isRecord(workflow.jobs), "orchestrator workflow should define jobs");
+  const job = workflow.jobs.orchestrate;
+  assert.ok(isRecord(job), "orchestrator workflow should define orchestrate job");
+  assert.ok(Array.isArray(job.steps), "orchestrator job should define steps");
+
+  const trustedRequesterExpression = "${{ inputs.source_action == 'orchestrate' && github.actor || inputs.requested_by || github.actor }}";
+  const plannerStep = job.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Plan next action with agent",
+  );
+  const dispatchStep = job.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Decide and dispatch next action",
+  );
+  assert.ok(plannerStep, "orchestrator workflow should plan");
+  assert.ok(dispatchStep, "orchestrator workflow should dispatch");
+  assert.ok(isRecord(plannerStep.with), "planner step should define inputs");
+  assert.ok(isRecord(dispatchStep.env), "dispatch step should define env");
+  assert.equal(plannerStep.with.requested_by, trustedRequesterExpression);
+  assert.equal(dispatchStep.env.REQUESTED_BY, trustedRequesterExpression);
+  assert.doesNotMatch(workflowText, /requested_by:\s*\$\{\{\s*inputs\.requested_by \|\| github\.actor\s*\}\}/);
+  assert.doesNotMatch(workflowText, /REQUESTED_BY:\s*\$\{\{\s*inputs\.requested_by \|\| github\.actor\s*\}\}/);
+});
+
 test("orchestrator source handoff context is renderable in planner prompts", () => {
   const runSource = readRepoFile(".agent/src/run.ts");
   const orchestratorPrompt = readRepoFile(".github/prompts/agent-orchestrator.md");
