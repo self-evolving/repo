@@ -125,3 +125,47 @@ test("runPrepareLocalAgentContextCli treats missing rubrics branch as non-fatal"
     rmSync(base, { recursive: true, force: true });
   }
 });
+
+test("runPrepareLocalAgentContextCli removes stale checkout when ref becomes unavailable", () => {
+  const { base, workDir, seedDir } = seedRepo("prepare-local-agent-stale-");
+
+  try {
+    seedBranch(seedDir, "agent/memory", {
+      "PROJECT.md": "Project context\n",
+    });
+    seedBranch(seedDir, "agent/rubrics", {
+      "README.md": "# Rubrics\n",
+    });
+    gitIn(workDir, ["fetch", "origin"]);
+
+    const firstStdout = outputBuffer();
+    const firstStderr = outputBuffer();
+    const firstExitCode = runPrepareLocalAgentContextCli(
+      ["--repo", "self-evolving/repo"],
+      { cwd: workDir, stdout: firstStdout, stderr: firstStderr },
+    );
+
+    assert.equal(firstExitCode, 0);
+    assert.equal(firstStderr.read(), "");
+    assert.ok(existsSync(join(workDir, ".agent", "local", "rubrics", "README.md")));
+
+    const secondStdout = outputBuffer();
+    const secondStderr = outputBuffer();
+    const secondExitCode = runPrepareLocalAgentContextCli(
+      ["--repo", "self-evolving/repo", "--rubrics-ref", "agent/missing-rubrics"],
+      { cwd: workDir, stdout: secondStdout, stderr: secondStderr },
+    );
+
+    assert.equal(secondExitCode, 0);
+    assert.equal(secondStderr.read(), "");
+    assert.ok(!existsSync(join(workDir, ".agent", "local", "rubrics")));
+    assert.ok(existsSync(join(workDir, ".agent", "local", "memory", "PROJECT.md")));
+
+    const context = readFileSync(join(workDir, ".agent", "local", "AGENT_CONTEXT.md"), "utf8");
+    assert.match(context, /rubrics: unavailable/);
+    assert.match(context, /agent\/missing-rubrics/);
+    assert.match(secondStdout.read(), /"available": false/);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});

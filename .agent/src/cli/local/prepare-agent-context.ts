@@ -128,6 +128,7 @@ function refreshCheckout(opts: {
   repoRoot: string;
 }): CheckoutResult {
   if (!branchExists(opts.remoteUrl, opts.ref, opts.repoRoot)) {
+    rmSync(opts.dir, { recursive: true, force: true });
     const workflow = opts.name === "memory"
       ? "Agent / Memory / Initialization"
       : "Agent / Rubrics / Initialization";
