@@ -400,10 +400,20 @@ test("applyDispatchPolicy dispatches orchestrate on issue without approval", () 
   assert.equal(d.needsApproval, false);
 });
 
-test("applyDispatchPolicy rejects orchestrate requests outside issues and pull requests", () => {
+test("applyDispatchPolicy dispatches orchestrate on discussions without approval", () => {
   const d = applyDispatchPolicy(
     normalizeDispatch('{"route":"orchestrate","summary":"orchestrate"}'),
     "discussion",
+    "MEMBER",
+  );
+  assert.equal(d.route, "orchestrate");
+  assert.equal(d.needsApproval, false);
+});
+
+test("applyDispatchPolicy rejects orchestrate requests outside issues, pull requests, and discussions", () => {
+  const d = applyDispatchPolicy(
+    normalizeDispatch('{"route":"orchestrate","summary":"orchestrate"}'),
+    "commit",
   );
   assert.equal(d.route, "unsupported");
 });
