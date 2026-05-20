@@ -208,8 +208,8 @@ fix-pr handoffs. The hidden
 marker still records the current source run, source action, destination action,
 target, and round. The orchestrator writes a `pending` marker, dispatches the
 next workflow, and updates the marker to `dispatched` after `workflow_dispatch`
-succeeds. After a successful dispatch, it minimizes older visible handoff marker
-comments from the same authenticated agent account as outdated unless
+succeeds. After a successful dispatch, it minimizes older visible handoff marker comments
+from the same authenticated agent account as outdated unless
 `AGENT_COLLAPSE_OLD_REVIEWS=false` is set. If dispatch fails, the marker is
 updated to `failed` so a rerun can retry. Rerunning the same source action or
 orchestrator run skips fresh `pending` or `dispatched` markers instead of
