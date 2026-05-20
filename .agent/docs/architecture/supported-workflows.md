@@ -238,12 +238,12 @@ or cache features.
 reference, and blocks for clarification when the target is missing or ambiguous.
 Access policy evaluates it as the `install` route, so
 `AGENT_ACCESS_POLICY.route_overrides.install` can restrict external installs
-without blocking general `/skill` runs. The install route requires the
-`AGENT_INSTALL_PAT` secret and passes that token to the install prompt; other
-routes continue using the standard GitHub auth resolver. The prompt uses the
-install fork/PR helper to prepare a fork-backed worktree, then push, reuse, or
-open the install PR. Source-repo memory is disabled for install runs so that
-install token cannot write `agent/memory`. Issue-backed install requests can
+without blocking general `/skill` runs. The install route uses a dedicated
+source-repo install credential; other routes continue using the standard GitHub
+auth resolver. The prompt uses the install fork/PR helper to prepare a
+fork-backed worktree, then push, reuse, or open the install PR. Source-repo
+memory is disabled for install runs so that install credentials cannot write
+`agent/memory`. Issue-backed install requests can
 start from the install request issue form; when publish succeeds, the target PR
 body links the source issue and the source issue is closed best-effort after the
 install response is posted.

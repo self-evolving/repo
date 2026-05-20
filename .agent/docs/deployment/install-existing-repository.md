@@ -41,12 +41,11 @@ the install source to the latest non-draft Sepo release and records that source
 revision in the PR body. If no stable release exists yet, the route may use the
 latest non-draft prerelease.
 
-`/install` is the only route that uses `AGENT_INSTALL_PAT`. Normal routes keep
-the standard GitHub auth resolver order: GitHub App, hosted OIDC, `AGENT_PAT`,
-then the workflow token. For `/install`, configure the `AGENT_INSTALL_PAT`
-repository secret in the Sepo source repository with a machine-user token that
-can create or reuse a fork, push a branch, and open pull requests for public
-repositories.
+The public `/install` route uses a dedicated install credential in the Sepo
+source repository. Normal routes keep the standard GitHub auth resolver order:
+GitHub App, hosted OIDC, `AGENT_PAT`, then the workflow token. The install
+credential must be able to create or reuse a fork, push a branch, and open pull
+requests for public repositories.
 
 The dedicated install prompt uses the built-in fork/PR helper to prepare a
 fork-backed worktree, push `agent/install-agent-infra`, and reuse or open the

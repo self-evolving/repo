@@ -24,7 +24,7 @@ Sepo turns a repository into a **self-evolving repository**: a codebase that can
 
 Check [Install into an existing repository](.agent/docs/deployment/install-existing-repository.md) for the detailed guide.
 
-- **Public repositories:** the quickest path is to open the **Install Sepo into another repository** issue form in `self-evolving/repo` and paste the target URL. Authorized users can also request the same install PR with `@sepo-agent /install ...` when `AGENT_INSTALL_PAT` can write to that target.
+- **Public repositories:** the quickest path is to open the **Install Sepo into another repository** issue form in `self-evolving/repo` and paste the target URL.
 - **Private repositories:** run an agent locally, give it access to this source checkout and the private target repository, and ask it to use the `.skills/install-agent` skill so private access stays in your trusted environment.
 
 ## What You Can Ask It To Do

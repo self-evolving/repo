@@ -1080,8 +1080,10 @@ test("workflow docs record the minimal metadata contract and developer notes", (
   assert.match(supportedWorkflows, /removes[\s\S]*triggering `agent\/\*` label/i);
   assert.match(supportedWorkflows, /strips code blocks[\s\S]*quoted text/i);
   assert.match(supportedWorkflows, /OWNER[\s\S]*MEMBER[\s\S]*COLLABORATOR[\s\S]*CONTRIBUTOR/);
-  assert.match(configurationList, /AGENT_INSTALL_PAT/);
-  assert.match(existingRepoInstall, /`\/install` is the only route that uses `AGENT_INSTALL_PAT`/);
+  assert.doesNotMatch(configurationList, /AGENT_INSTALL_PAT/);
+  assert.match(developerNotes, /AGENT_INSTALL_PAT/);
+  assert.doesNotMatch(existingRepoInstall, /AGENT_INSTALL_PAT/);
+  assert.match(existingRepoInstall, /public `\/install` route uses a dedicated install credential/);
   assert.match(existingRepoInstall, /Normal routes keep[\s\S]*GitHub auth resolver order/);
   assert.match(existingRepoInstall, /Install Sepo into another repository/);
   assert.match(existingRepoInstall, /source request issue[\s\S]*comment linking the install PR/);
@@ -1357,6 +1359,8 @@ test("workflow docs cover hosted auth and self-hosting paths", () => {
   assert.doesNotMatch(setupGuide, /AGENT_OIDC_AUDIENCE/);
   assert.match(setupGuide, /Bring your own GitHub App/);
   assert.match(setupGuide, /`AGENT_PAT`/);
+  assert.doesNotMatch(setupGuide, /AGENT_INSTALL_PAT/);
+  assert.match(setupGuide, /Public install requests use a separate install credential/);
   assert.match(setupGuide, /Contents:\*\* read and write/);
   assert.match(setupGuide, /### Auth priority/);
   assert.match(
