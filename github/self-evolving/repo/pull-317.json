@@ -21,6 +21,251 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/317#issuecomment-4496224614",
       "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDFdehw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer so this is just adding the secret there but does it tell the agent to use it in the prompt or?",
+      "createdAt": "2026-05-20T19:43:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/317#issuecomment-4502019719",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDFeM3Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, this PR does both:\n\n- It plumbs the secret into the runtime as `INPUT_SECONDARY_GITHUB_TOKEN`: [action input/env](https://github.com/self-evolving/repo/blob/076f2a7ae13b64cee9e00d44fc2cd7ae00280798/.github/actions/run-agent-task/action.yml#L66-L69), [run env](https://github.com/self-evolving/repo/blob/076f2a7ae13b64cee9e00d44fc2cd7ae00280798/.agent/src/run.ts#L282-L286).\n- It also updates the base prompt to tell the agent how to use it: keep normal `GH_TOKEN`/`GITHUB_TOKEN` for this repo, and only opt into the secondary token for explicit cross-repo operations, e.g. `GH_TOKEN=\"$INPUT_SECONDARY_GITHUB_TOKEN\" gh ...`: [prompt lines](https://github.com/self-evolving/repo/blob/076f2a7ae13b64cee9e00d44fc2cd7ae00280798/.github/prompts/_base.md#L27-L30).\n\nSo it does **not** automatically replace the agent’s default GitHub auth. The agent has to intentionally use the secondary token for a specific external-repo command.",
+      "createdAt": "2026-05-20T19:44:58Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/317#issuecomment-4502031581",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDFjYTA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate launch a review first then consider fix the variable name and others",
+      "createdAt": "2026-05-20T19:55:19Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/317#issuecomment-4502116428",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDFkrfQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | review | PR #317 | 2 / 40 | Dispatched |\n\nReason: agent planner selected review: PR #317 is open with no review synthesis yet, and the requester explicitly asked to launch a review first before considering fixes.\n\n<!-- sepo-agent-handoff state:dispatched created:1779307089259 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxODYzOTkzNTA6b3JjaGVzdHJhdGU6MzE3OnJldmlldzozMTc6Mg -->",
+      "createdAt": "2026-05-20T19:58:09Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/317#issuecomment-4502137725",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDFlWlw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I have the linked issue and the live diff now. The main implementation shape is clear: an optional action input, a fixed secret wired through shared workflows, explicit prompt instructions, and doc/test coverage; the one real rubric tension is the still-specific `AGENT_CROSS_REPO_PAT` naming and the breadth of where the credential is exposed.## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 87 | PARTIAL | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | Reuses the shared [`run-agent-task`](https://github.com/self-evolving/repo/blob/076f2a7ae13b64cee9e00d44fc2cd7ae00280798/.github/actions/run-agent-task/action.yml) action and existing [`buildSharedEnv`](https://github.com/self-evolving/repo/blob/076f2a7ae13b64cee9e00d44fc2cd7ae00280798/.agent/src/run.ts) environment plumbing instead of adding route-specific token handling. |\n| coding_workflow/generic | Make surgical changes | partial | 6/8 | The change is mostly bounded to token plumbing, docs, and tests, but it wires `AGENT_CROSS_REPO_PAT` into every agent workflow, including privileged/specialized workflows, rather than only the routes that currently need external repo access. |\n| coding_style/generic | Prefer simple implementations | pass | 7/7 | Adds one optional action input, one env passthrough, and caller wiring without introducing new token resolver logic or extra config layers. |\n| coding_workflow/generic | Prefer explicit structured inputs | pass | 7/7 | Adds a typed `secondary_github_token` action input with `required: false` and `default: \"\"`, rather than overloading `github_token`. |\n| coding_workflow/generic | Minimal defaults, native escape hatches | partial | 6/8 | The implementation keeps the primitive minimal, but the public secret name `AGENT_CROSS_REPO_PAT` is narrower than the exposed concept of a general secondary GitHub credential and already drew maintainer feedback requesting a more general name. |\n| coding_workflow/generic | Keep docs in sync | pass | 7/7 | Updates setup, configuration, supported workflow docs, and base prompt guidance for `INPUT_SECONDARY_GITHUB_TOKEN` and read/write cross-repo usage. |\n| communication/generic | Write audience-first documentation | pass | 7/7 | The setup guide leads with when to set the optional token and gives practical fine-grained PAT guidance before implementation details. |\n| coding_workflow/generic | Keep privileged workflows on trusted runtime code | partial | 5/8 | The token remains additive and prompt-gated, but passing the same secondary credential to all workflows broadens the credential surface for privileged runs such as review synthesis, self-approve, update, memory, and rubrics jobs. |\n\n## Notes\n\n- The PR satisfies the core issue #312 acceptance criteria: primary same-repo auth remains separate, `/install` still uses its own primary token path, and tests assert the secondary token does not replace `github_token`.\n- The strongest rubric concern is naming/scope: `secondary_github_token` is general, while `AGENT_CROSS_REPO_PAT` is specific to one expected use. The maintainer comment asks to rename it to something more general, which aligns with the rubric tension.\n- Smallest useful follow-up: rename the repository secret/config surface to a general secondary-token name, while keeping backward compatibility or migration docs if existing users may have adopted `AGENT_CROSS_REPO_PAT`.\n\n## Findings\n\n- **WARNING:** The implementation exposes `AGENT_CROSS_REPO_PAT` to every shared agent run. This is simple and consistent, but it expands the blast radius for a powerful optional credential. If the intended model is truly “general secondary GitHub token,” rename the secret accordingly and consider whether all routes need it by default.\n\n## Final Rubric Verdict\n\nPARTIAL",
+      "createdAt": "2026-05-20T19:59:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/317#issuecomment-4502148759",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDFq7cA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 076f2a7ae13b64cee9e00d44fc2cd7ae00280798 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #317 implements issue #312 by adding an optional additive GitHub credential exposed as `INPUT_SECONDARY_GITHUB_TOKEN`.\n- The primary `GH_TOKEN` / `GITHUB_TOKEN` behavior remains separate, and tests now guard that the secondary token does not replace primary auth.\n- The PR also documents setup and recommended fine-grained PAT permissions for external repository access.\n- The remaining concerns are around authorization scope and public configuration naming before this becomes a stable user-facing surface.\n\n## Review\nThe core plumbing is sound, but the current PR is not ready to merge because it makes write-capable external repository access available through broad prompt-driven routes without a deterministic authorization check. Reviewers broadly agreed on the naming concern; the main severity difference was that one reviewer treated the broad auth surface as blocking, while others framed it as scope/rubric risk.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| External writes are only prompt-authorized | BLOCKING | `.github/prompts/_base.md` allows external writes when the prompt judges the user request requires them, while the secondary token is passed into broad routes such as `answer`. There is no deterministic target-repo or route-level write authorization check. |\n| Install receives the general secondary token | WARNING | The `/install` job already uses `AGENT_INSTALL_PAT` as its dedicated primary token, but now also receives the broader secondary credential. That weakens the install route’s intentionally narrow credential boundary. |\n| Secret name is too narrow | WARNING | The public secret is named `AGENT_CROSS_REPO_PAT`, while the runtime contract is the more general `secondary_github_token` / `INPUT_SECONDARY_GITHUB_TOKEN`. The maintainer already asked for a more general name. |\n| Prompt omits empty-token guidance | INFO | The action defaults `INPUT_SECONDARY_GITHUB_TOKEN` to an empty string when unset, but the base prompt does not tell agents to check for that before using it. |\n\n## Progress\n- Core additive token plumbing, primary-token separation, docs, and tests are present.\n- Issue #312’s non-goal of not replacing `GH_TOKEN` is covered by the implementation and tests.\n- Maintainer feedback already acknowledges the naming problem, so I did not duplicate that as a new inline comment.\n- Posted two inline comments: one on `.github/prompts/_base.md` for prompt-only external write authorization, and one on `.github/workflows/agent-router.yml` for the install-route secondary token.\n- No existing inline comments or review threads were present before posting; nothing was resolved or minimized.\n\n## Issue Details\n\n<details>\n<summary>External writes are only prompt-authorized</summary>\n\n**Cause:** The base prompt says the agent may use `INPUT_SECONDARY_GITHUB_TOKEN` for external writes when the user request clearly requires it, and workflows pass the token into broad routes such as `answer`. Sepo’s default access policy can allow `CONTRIBUTOR`, so a write-capable external token could be used without a deterministic external target authorization gate.\n\n**Candidate solutions:** Restrict the generic secondary token to read-only external inspection for now, or add a small policy/helper that validates external write intent, requester authorization, and target repository before the prompt may use the credential for writes.\n\n**Comments:** Issue #312 intentionally allows write-capable external access when configured, so the fix should preserve that capability behind a deterministic guard rather than remove the feature entirely.\n\n</details>\n\n<details>\n<summary>Install receives the general secondary token</summary>\n\n**Cause:** `.github/workflows/agent-router.yml` passes `secondary_github_token: ${{ secrets.AGENT_CROSS_REPO_PAT }}` to the install job even though the same job uses `AGENT_INSTALL_PAT` as its dedicated install primary token.\n\n**Candidate solutions:** Pass an empty secondary token for `/install`, omit the input there, or document and test a specific reason install needs both credentials.\n\n**Comments:** This is tied to the selected authorization rubric: the install route should not silently gain a broader downstream credential surface.\n\n</details>\n\n<details>\n<summary>Secret name is too narrow</summary>\n\n**Cause:** The public configuration name `AGENT_CROSS_REPO_PAT` bakes in both “cross-repo” and “PAT”, while the action/runtime API is a generic secondary GitHub token.\n\n**Candidate solutions:** Rename the secret to something like `AGENT_SECONDARY_GITHUB_TOKEN` or `AGENT_EXTERNAL_GITHUB_TOKEN`, and update workflows, docs, templates, and envelope tests consistently.\n\n**Comments:** The maintainer explicitly requested this rename in the PR discussion.\n\n</details>\n\n<details>\n<summary>Prompt omits empty-token guidance</summary>\n\n**Cause:** The action and runtime default `INPUT_SECONDARY_GITHUB_TOKEN` to `\"\"`, but `_base.md` only says the token “may be configured.”\n\n**Candidate solutions:** Add one prompt bullet telling agents that an empty value means the secondary credential is unavailable and should not be used.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: The unresolved authorization and naming issues are concrete branch changes and are safe for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Add a deterministic guard or narrower contract for secondary-token external writes before agents may use a write-capable token outside the current repo.\n- [ ] Stop passing the general secondary token into the `/install` route unless a specific install-route need is documented and tested.\n- [ ] Rename `AGENT_CROSS_REPO_PAT` to a more general secondary-token secret name across workflows, docs, templates, and tests.",
+      "createdAt": "2026-05-20T20:09:36Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/317#issuecomment-4502240112",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDFrbaA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #317 | 3 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review concluded needs_rework and recommended FIX_PR with concrete branch changes still required.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Add a deterministic guard or narrower contract for secondary-token external writes before agents may use a write-capable token outside the current repo.\n- Stop passing the general secondary token into the `/install` route unless a specific install-route need is documented and tested.\n- Rename `AGENT_CROSS_REPO_PAT` to a more general secondary-token secret name across workflows, docs, templates, and tests.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1779307823826 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxODY1MzkwMTg6cmV2aWV3OjMxNzpmaXhfcHI6MzE3OjM -->",
+      "createdAt": "2026-05-20T20:10:24Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/317#issuecomment-4502248296",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDFt0EA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-312/codex-26150122911`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Renamed the secondary secret surface from `AGENT_CROSS_REPO_PAT` to `AGENT_SECONDARY_GITHUB_TOKEN` across workflows, docs, templates, and tests.\n- Removed `secondary_github_token` from the `/install` route so it keeps only `AGENT_INSTALL_PAT`.\n- Narrowed the secondary token contract to read-only external repo inspection; external writes now require a route-specific credential plus deterministic authorization guard.\n- Verification: `npm --prefix .agent run build`, `node --test .agent/dist/__tests__/envelope.test.js`, `git diff --check`.",
+      "createdAt": "2026-05-20T20:15:11Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/317#issuecomment-4502287376",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDFuTuQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #317 | 4 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on open PR #317 after addressing the prior review action items, so one follow-up review is warranted on the updated head.\n\n<!-- sepo-agent-handoff state:dispatched created:1779308170301 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxODcxNDczMzc6Zml4X3ByOjMxNzpyZXZpZXc6MzE3OjQ -->",
+      "createdAt": "2026-05-20T20:16:10Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/317#issuecomment-4502295481",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDFvDHw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 94 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | Reuses shared `run-agent-task` input/env plumbing and existing workflow callers rather than adding route-specific shell logic. |\n| coding_workflow/generic | Make surgical changes | pass | 8/8 | The diff is limited to secondary-token wiring, prompt/docs updates, and focused workflow contract tests. |\n| coding_style/generic | Prefer simple implementations | pass | 7/7 | Adds one optional `secondary_github_token` input and one runtime env passthrough without new resolver layers. |\n| coding_workflow/generic | Prefer explicit structured inputs | pass | 7/7 | Defines `secondary_github_token` as a separate optional action input with `required: false` and `default: \"\"`. |\n| coding_workflow/generic | Minimal defaults, native escape hatches | pass | 8/8 | The current contract is minimal and read-only; docs state external writes require a route-specific credential and deterministic write authorization. |\n| coding_workflow/generic | Keep docs in sync | pass | 7/7 | Updates setup, configuration, supported workflows, and base prompt docs for `AGENT_SECONDARY_GITHUB_TOKEN` / `INPUT_SECONDARY_GITHUB_TOKEN`. |\n| communication/generic | Write audience-first documentation | pass | 7/7 | Setup docs lead with when to configure the optional token, recommended fine-grained PAT scoping, and what it does not replace. |\n| coding_workflow/generic | Keep privileged workflows on trusted runtime code | partial | 6/8 | The PR avoids write-capable secondary-token use and keeps `/install` isolated, but still exposes the optional secondary secret broadly to privileged agent jobs such as review, update, memory, and self-approve. |\n\n## Notes\n\n- The current PR head addresses the earlier naming and install-route concerns: the public secret is now `AGENT_SECONDARY_GITHUB_TOKEN`, and `/install` no longer receives `secondary_github_token`.\n- The strongest positive score driver is that the secondary token remains additive: primary same-repo `GH_TOKEN` / `GITHUB_TOKEN` behavior is explicitly preserved in code, prompt, docs, and tests.\n- Smallest useful follow-up: update the PR body summary if desired, since it still mentions the old `AGENT_CROSS_REPO_PAT` name even though the diff has been renamed.\n\n## Findings\n\n- **INFO:** The broad workflow exposure of `AGENT_SECONDARY_GITHUB_TOKEN` is acceptable under the new read-only contract, but it remains the main residual risk. The docs and prompt now clearly require route-specific credentials plus deterministic authorization before any external write path exists.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-20T20:17:44Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/317#issuecomment-4502307615",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDFyRlw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 0ca081d6ff239b7f36a02fe833f2f6b285bd46ad -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #317 adds an optional additive secondary GitHub token for non-install agent runs.\n- The current head exposes it as `INPUT_SECONDARY_GITHUB_TOKEN` without replacing primary same-repo `GH_TOKEN` / `GITHUB_TOKEN` behavior.\n- The fix-pr pass addressed the prior blocking review: the public secret is now `AGENT_SECONDARY_GITHUB_TOKEN`, `/install` no longer receives the secondary token, and the prompt/docs now restrict the bundled contract to read-only external inspection.\n- The remaining review concern is documentation around who is allowed to request reads from private or non-public external repositories.\n\n## Review\nThe core plumbing is sound, tested, and the earlier NEEDS_REWORK items are resolved at head `0ca081d6ff239b7f36a02fe833f2f6b285bd46ad`. Reviewers differ only on residual severity: rubrics treats broad read-only exposure as acceptable, while Codex flags one missing setup-guide warning as a small security-docs gap.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Private external read access needs requester-scope guidance | WARNING | The setup guide recommends read-only external PAT scopes, but does not say that private-repo read access is still sensitive when exposed to all non-install routes. Users should be told to tighten `AGENT_ACCESS_POLICY` or avoid private scopes unless requesters are trusted. |\n| Prompt does not guard empty secondary token | INFO | `_base.md` shows setting `GH_TOKEN=\"$INPUT_SECONDARY_GITHUB_TOKEN\"` for external reads, but does not explicitly say to skip that path when the value is empty. This is a minor prompt hardening point already noted in the earlier synthesis. |\n\n## Progress\n- Prior external-write, install-route, and secret-name findings are fixed on the current PR head.\n- Resolved two superseded same-agent inline threads: `.github/prompts/_base.md` external-write concern and `.github/workflows/agent-router.yml` install-route concern.\n- Posted one new inline comment on `.agent/docs/deployment/setup-guide.md` line 90 for the private/non-public read-access guidance gap.\n- No comments were minimized, deleted, or replied to.\n\n## Issue Details\n\n<details>\n<summary>Private external read access needs requester-scope guidance</summary>\n\n**Cause:** The setup guide says to use a read-only fine-grained PAT for external repositories, and bundled non-install workflows pass that token broadly as `INPUT_SECONDARY_GITHUB_TOKEN`. If that PAT can read private or non-public repositories, any actor allowed to trigger those routes by `AGENT_ACCESS_POLICY` could ask the agent to inspect and quote that context.\n\n**Candidate solutions:** Add a short setup-guide note that private/non-public external repo scopes require trusted requesters, a tightened `AGENT_ACCESS_POLICY`, or avoiding private scopes entirely.\n\n**Comments:** This is docs-only and safe for an automated fix-pr pass.\n\n</details>\n\n<details>\n<summary>Prompt does not guard empty secondary token</summary>\n\n**Cause:** The prompt example uses `GH_TOKEN=\"$INPUT_SECONDARY_GITHUB_TOKEN\"` but the action defaults the input to an empty string when the secret is unset.\n\n**Candidate solutions:** Add one sentence telling agents to skip secondary-token external inspection when `INPUT_SECONDARY_GITHUB_TOKEN` is empty.\n\n**Comments:** This is INFO severity and was already covered in the prior synthesis, so I did not duplicate it with another inline comment.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: One unresolved security-docs warning is a concrete branch change and is safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Add setup-guide guidance that private or non-public external repository read access through `AGENT_SECONDARY_GITHUB_TOKEN` requires trusted requesters, tightened `AGENT_ACCESS_POLICY`, or avoiding private scopes.",
+      "createdAt": "2026-05-20T20:25:18Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/317#issuecomment-4502360471",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDFygFw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #317 | 5 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review concluded MINOR_ISSUES with a concrete FIX_PR recommendation, and the remaining item is a safe documentation change on the PR branch.\n\nTask for fix-pr:\nAddress only the latest review synthesis action item:\n- Add setup-guide guidance that private or non-public external repository read access through `AGENT_SECONDARY_GITHUB_TOKEN` requires trusted requesters, tightened `AGENT_ACCESS_POLICY`, or avoiding private scopes.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by this action item.\n\n<!-- sepo-agent-handoff state:dispatched created:1779308752101 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxODc0NDA5NDA6cmV2aWV3OjMxNzpmaXhfcHI6MzE3OjU -->",
+      "createdAt": "2026-05-20T20:25:52Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/317#issuecomment-4502364183",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDFzRYg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-312/codex-26150122911`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Added setup-guide guidance that private/non-public external reads through `AGENT_SECONDARY_GITHUB_TOKEN` are sensitive.\n- Documented the expected mitigations: trusted requesters, tighter `AGENT_ACCESS_POLICY`, or avoiding private repository scopes.\n- Added focused docs assertions in `envelope.test.ts`.\n- Verification: `npm --prefix .agent run build`, `node --test .agent/dist/__tests__/envelope.test.js`, `git diff --check`.",
+      "createdAt": "2026-05-20T20:27:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/317#issuecomment-4502376802",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDFzpuQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #317 | 6 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on open PR #317 after addressing the latest MINOR_ISSUES docs finding, so one follow-up review of the updated head is warranted.\n\n<!-- sepo-agent-handoff state:dispatched created:1779308927059 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxODc5MzI1OTc6Zml4X3ByOjMxNzpyZXZpZXc6MzE3OjY -->",
+      "createdAt": "2026-05-20T20:28:47Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/317#issuecomment-4502383033",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDF0Giw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 97 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | Reuses the shared [`run-agent-task`](https://github.com/self-evolving/repo/blob/9a9e12923fbf69e484cb7c78d02622afb60f34ad/.github/actions/run-agent-task/action.yml) input/env path and existing workflow callers rather than adding new route-specific token machinery. |\n| coding_workflow/generic | Make surgical changes | pass | 8/8 | The diff is bounded to secondary-token plumbing, prompt/docs, workflow wiring, and focused contract tests. |\n| coding_style/generic | Prefer simple implementations | pass | 7/7 | Adds one optional `secondary_github_token` input and one `INPUT_SECONDARY_GITHUB_TOKEN` env passthrough in [`run.ts`](https://github.com/self-evolving/repo/blob/9a9e12923fbf69e484cb7c78d02622afb60f34ad/.agent/src/run.ts). |\n| coding_workflow/generic | Prefer explicit structured inputs | pass | 7/7 | Defines `secondary_github_token` as a separate optional action input with `required: false` and `default: \"\"`. |\n| coding_workflow/generic | Minimal defaults, native escape hatches | pass | 8/8 | The public secret is now the general `AGENT_SECONDARY_GITHUB_TOKEN`, and docs keep the bundled contract to read-only external inspection while pointing external writes to route-specific credentials and deterministic authorization. |\n| coding_workflow/generic | Keep docs in sync | pass | 7/7 | Updates setup, configuration, supported workflow docs, and base prompt guidance for `AGENT_SECONDARY_GITHUB_TOKEN` / `INPUT_SECONDARY_GITHUB_TOKEN`. |\n| communication/generic | Write audience-first documentation | pass | 7/7 | The setup guide leads with when to configure the optional token, recommended PAT scope, same-repo auth separation, and private-repo risk guidance. |\n| coding_workflow/generic | Keep privileged workflows on trusted runtime code | partial | 6/8 | `/install` remains isolated and the secondary token is read-only, but the optional credential is still broadly exposed to many privileged non-install agent jobs. |\n\n## Notes\n\n- Current head `9a9e12923fbf69e484cb7c78d02622afb60f34ad` addresses the prior rubric concerns: the old `AGENT_CROSS_REPO_PAT` name is gone, `/install` does not receive the general secondary token, and private/non-public read access is documented as sensitive.\n- The implementation preserves issue #312’s core invariant: primary same-repo auth remains unchanged, while the secondary token is additive and explicit.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** Broad read-only exposure of `AGENT_SECONDARY_GITHUB_TOKEN` remains the main residual risk, but the current prompt and docs constrain it to explicit external inspection and document requester-scope mitigations.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-20T20:29:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/317#issuecomment-4502390411",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-20T08:22:16Z",
@@ -33,7 +278,7 @@
     },
     {
       "path": ".agent/docs/architecture/supported-workflows.md",
-      "additions": 5,
+      "additions": 8,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
@@ -45,13 +290,13 @@
     },
     {
       "path": ".agent/docs/deployment/setup-guide.md",
-      "additions": 23,
+      "additions": 27,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/__tests__/envelope.test.ts",
-      "additions": 85,
+      "additions": 106,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
@@ -141,7 +386,7 @@
     },
     {
       "path": ".github/workflows/agent-router.yml",
-      "additions": 8,
+      "additions": 7,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
@@ -188,9 +433,55 @@
   "mergedAt": null,
   "number": 317,
   "reviewDecision": "",
-  "reviews": [],
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAjM89A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-20T20:08:40Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "076f2a7ae13b64cee9e00d44fc2cd7ae00280798"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAjNB8g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-20T20:08:48Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "076f2a7ae13b64cee9e00d44fc2cd7ae00280798"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAjToeQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-20T20:24:18Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "0ca081d6ff239b7f36a02fe833f2f6b285bd46ad"
+      }
+    }
+  ],
   "state": "OPEN",
   "title": "Add secondary GitHub token plumbing",
-  "updatedAt": "2026-05-20T08:28:07Z",
+  "updatedAt": "2026-05-20T20:29:54Z",
   "url": "https://github.com/self-evolving/repo/pull/317"
 }

@@ -1,0 +1,18 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "## Summary\n\nA downstream Sepo install hit a self-approval dead-end because `agent-self-approve.yml` runs the ACPX agent with `permission_mode: approve-reads`, while the self-approval prompt requires independent PR investigation via terminal commands such as:\n\n- `gh pr view <pr> --repo <repo> ...`\n- `gh pr diff <pr> --repo <repo>`\n- occasionally `git fetch` to inspect the PR head\n\nWith `approve-reads`, the runner/ACPX tool permission system refused these commands. The self-approval agent correctly returned `BLOCKED` instead of approving without concrete evidence.\n\nObserved on downstream PR: self-evolving/benchmark-frontier-cs#7\nRun: https://github.com/self-evolving/benchmark-frontier-cs/actions/runs/26179466871\n\n## Proposed fix\n\nChange the self-approval agent invocation from:\n\n```yaml\npermission_mode: approve-reads\n```\n\nto:\n\n```yaml\npermission_mode: approve-all\n```\n\nwhile keeping the workflow/job GitHub token permissions read-only for the agent step. This widens only the ACPX tool-approval mode so the agent can run the read-only `gh`/`git` inspection commands required by the prompt; it should not grant repository write capability to the agent.\n\n## Acceptance criteria\n\n- `agent-self-approve.yml` uses `permission_mode: approve-all` for the `run-agent-task` step.\n- GitHub workflow permissions for the self-approval job remain read-only except for OIDC (`actions: read`, `contents: read`, `pull-requests: read`, `id-token: write`).\n- Regression tests that assert the self-approval workflow contract are updated.\n- A rerun of downstream self-approval can inspect `gh pr view` / `gh pr diff` and no longer blocks solely due to refused read-only terminal commands.\n\n## Related note\n\nThe same downstream run also logged a non-fatal thread-state push failure (`Write access to repository not granted`). That appears separate from the ACPX command refusal and may be a transient GitHub/auth-write issue or expected when track-only state persistence is attempted with a read-only token. It did not directly cause the self-approval verdict, but logs could be clarified if needed.\n",
+  "closedAt": null,
+  "comments": [],
+  "createdAt": "2026-05-20T18:55:50Z",
+  "labels": [],
+  "number": 328,
+  "state": "OPEN",
+  "title": "Self-approval agent cannot inspect PR diffs under approve-reads",
+  "updatedAt": "2026-05-20T18:55:50Z",
+  "url": "https://github.com/self-evolving/repo/issues/328"
+}

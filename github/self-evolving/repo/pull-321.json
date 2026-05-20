@@ -126,6 +126,43 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/321#issuecomment-4497282938",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDFfO4Q",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer I don't like it. It feels too big... but is it for security concerns? ",
+      "createdAt": "2026-05-20T19:46:59Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/321#issuecomment-4502048481",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDFghhw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, mostly security and mutation-safety concerns, but also because this PR implements two entry points at once: the Actions page workflow plus direct `/config` mentions.\n\nThe risky part is that this route can change repo Actions variables, including access policy, self-approval, runners, provider, and scheduling. That is why it adds:\n- stricter route access: `/config` defaults to `OWNER`, `MEMBER`, `COLLABORATOR`, not `CONTRIBUTOR` ([access-policy.ts](https://github.com/self-evolving/repo/blob/30b8d44570ee0ee5b3ae05328b581bf88af53327/.agent/src/access-policy.ts#L28)).\n- a scoped prompt that excludes secrets, org/env variables, repo settings, branch protection, and multi-repo writes ([agent-config.md](https://github.com/self-evolving/repo/blob/30b8d44570ee0ee5b3ae05328b581bf88af53327/.github/prompts/agent-config.md#L9)).\n- model only produces JSON; deterministic code validates/applies it ([agent-config.yml](https://github.com/self-evolving/repo/blob/30b8d44570ee0ee5b3ae05328b581bf88af53327/.github/workflows/agent-config.yml#L146), [apply-repo-config.ts](https://github.com/self-evolving/repo/blob/30b8d44570ee0ee5b3ae05328b581bf88af53327/.agent/src/cli/apply-repo-config.ts#L47)).\n- per-variable validation for booleans, enums, JSON policies, refs, runner labels, etc. ([repo-config.ts](https://github.com/self-evolving/repo/blob/30b8d44570ee0ee5b3ae05328b581bf88af53327/.agent/src/repo-config.ts#L243)).\n- partial failure reporting so it does not claim “nothing changed” after an earlier mutation succeeded ([repo-config.ts](https://github.com/self-evolving/repo/blob/30b8d44570ee0ee5b3ae05328b581bf88af53327/.agent/src/repo-config.ts#L486)).\n\nSo I would not remove the deterministic validation/apply layer. That is the part that makes natural-language repo mutation acceptable.\n\nIf it feels too big for first ship, the cleanest reduction is product scope, not safety scope: ship only `Agent / Repo Config` from the Actions page first, default dry-run/apply there, and defer direct `/config` mention routing in [agent-router.yml](https://github.com/self-evolving/repo/blob/30b8d44570ee0ee5b3ae05328b581bf88af53327/.github/workflows/agent-router.yml#L728). That would keep the security boundary while reducing the user-facing surface.",
+      "createdAt": "2026-05-20T19:49:35Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/321#issuecomment-4502069639",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-20T09:45:00Z",
@@ -291,6 +328,6 @@
   ],
   "state": "OPEN",
   "title": "Add natural-language repo config route",
-  "updatedAt": "2026-05-20T10:16:16Z",
+  "updatedAt": "2026-05-20T19:49:36Z",
   "url": "https://github.com/self-evolving/repo/pull/321"
 }

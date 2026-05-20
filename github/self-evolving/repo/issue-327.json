@@ -1,0 +1,31 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "## Summary\n\nWhen an agent-triggered workflow fails before the agent can produce a normal response, the requester may receive no explanation on the issue or PR where they invoked the agent.\n\nThis leaves users with a silent failure unless they know to inspect the Actions logs.\n\n## Problem\n\nSome failures happen during setup rather than during the agent's actual response generation, for example:\n\n- provider setup or authentication failures\n- runtime/bootstrap failures\n- invalid request/envelope metadata\n- timeout or infrastructure failures before a response is posted\n\nIn these cases, the workflow can fail without posting a user-facing status comment back to the original thread.\n\n## Expected behavior\n\nIf an agent workflow fails after accepting a request, it should post a short, sanitized failure notice to the target issue or PR.\n\nThe notice should include:\n\n- that the agent could not complete the request\n- a broad failure category, if known\n- a link to the workflow run for maintainers\n- suggested maintainer action when safe to include\n\nThe notice should not include secrets, raw environment variables, full stderr dumps, or provider-specific sensitive configuration details.\n\n## Proposed fix\n\nAdd a best-effort failure-reporting step/action to agent workflows or to the shared agent runner path. It should run after the agent task fails and post a sanitized comment to the target thread when a target issue or PR is known.\n\nPossible failure categories:\n\n- provider authentication/setup failed\n- runtime setup failed\n- request metadata validation failed\n- agent timed out\n- agent exited with an error\n- unknown infrastructure failure\n\n## Acceptance criteria\n\n- A failed accepted agent request produces a clear user-facing comment on the target issue/PR.\n- The comment is sanitized and does not expose secrets or detailed internal configuration.\n- The workflow still fails in Actions so maintainers can investigate.\n- The behavior is covered by a regression test or workflow-level test fixture.\n",
+  "closedAt": null,
+  "comments": [],
+  "createdAt": "2026-05-20T17:56:49Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDIDhw",
+      "name": "bug",
+      "description": "Something isn't working",
+      "color": "d73a4a"
+    },
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 327,
+  "state": "OPEN",
+  "title": "Post sanitized user-facing comments when accepted agent runs fail before responding",
+  "updatedAt": "2026-05-20T17:56:49Z",
+  "url": "https://github.com/self-evolving/repo/issues/327"
+}
