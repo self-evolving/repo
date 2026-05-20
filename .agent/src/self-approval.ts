@@ -9,6 +9,7 @@ export type SelfApprovalVerdict = "approve" | "request_changes" | "blocked";
 
 export const SELF_APPROVAL_STATUS_MARKER = "<!-- sepo-agent-self-approval -->";
 const SELF_APPROVAL_HEAD_MARKER_RE = /<!--\s*sepo-agent-self-approval-head:\s*([^\s>]+)\s*-->/i;
+const SELF_APPROVAL_APPROVED_HEAD_MARKER_RE = /<!--\s*sepo-agent-self-approval-approved-head:\s*([^\s>]+)\s*-->/i;
 
 export interface SelfApprovalDecision {
   verdict: SelfApprovalVerdict;
@@ -369,6 +370,27 @@ export function extractSelfApprovalHeadSha(body: string): string {
   return String(body || "").match(SELF_APPROVAL_HEAD_MARKER_RE)?.[1]?.trim() || "";
 }
 
+export function buildSelfApprovalApprovedHeadMarker(headSha: string): string {
+  const trimmed = String(headSha || "").trim();
+  return trimmed ? `<!-- sepo-agent-self-approval-approved-head: ${trimmed} -->` : "";
+}
+
+export function extractSelfApprovalApprovedHeadSha(body: string): string {
+  const text = String(body || "");
+  const footerIndex = text.lastIndexOf(SELF_APPROVAL_STATUS_MARKER);
+  if (footerIndex < 0) return "";
+
+  const footerLines = text
+    .slice(footerIndex)
+    .trim()
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (footerLines[0] !== SELF_APPROVAL_STATUS_MARKER) return "";
+
+  return footerLines[1]?.match(SELF_APPROVAL_APPROVED_HEAD_MARKER_RE)?.[1]?.trim() || "";
+}
+
 export function formatSelfApprovalBody(input: {
   conclusion: string;
   reason: string;
@@ -408,5 +430,8 @@ export function formatSelfApprovalBody(input: {
     lines.push("", `Head SHA: \`${headSha}\``, buildSelfApprovalHeadMarker(headSha));
   }
   lines.push("", SELF_APPROVAL_STATUS_MARKER);
+  if (input.approved && headSha) {
+    lines.push(buildSelfApprovalApprovedHeadMarker(headSha));
+  }
   return lines.join("\n");
 }

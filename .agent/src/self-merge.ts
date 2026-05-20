@@ -1,6 +1,6 @@
 import { type IssueCommentRecord, type PrReviewRecord, type PrStatusCheckRecord } from "./github.js";
 import {
-  extractSelfApprovalHeadSha,
+  extractSelfApprovalApprovedHeadSha,
   SELF_APPROVAL_STATUS_MARKER,
 } from "./self-approval.js";
 
@@ -112,11 +112,6 @@ export function summarizeStatusChecks(checks: PrStatusCheckRecord[]): SelfMergeS
   };
 }
 
-function isApprovedSelfApprovalBody(body: string): boolean {
-  const text = String(body || "");
-  return text.includes(SELF_APPROVAL_STATUS_MARKER) && /\|\s*Approved\s*\|\s*`approved`\s*\|/i.test(text);
-}
-
 export function evaluateSelfMergeApproval(input: {
   reviews: PrReviewRecord[];
   comments?: IssueCommentRecord[];
@@ -161,13 +156,12 @@ export function evaluateSelfMergeApproval(input: {
       index: input.reviews.length + index,
       source: "status" as const,
       author: normalizeActorLogin(comment.authorLogin),
-      body: String(comment.body || ""),
-      commitId: extractSelfApprovalHeadSha(comment.body || ""),
+      commitId: extractSelfApprovalApprovedHeadSha(comment.body || ""),
       submittedAtMs: createdAtMs(comment.createdAt),
     }))
     .filter((comment) => (
       comment.author === trustedActor &&
-      isApprovedSelfApprovalBody(comment.body)
+      Boolean(comment.commitId)
     ));
 
   const selfApprovals = [...reviewApprovals, ...commentApprovals]

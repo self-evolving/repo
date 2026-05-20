@@ -63,7 +63,7 @@ function submitApproval(repo: string, prNumber: number, headSha: string, body: s
   ]);
 }
 
-function normalizeTargetKind(value: string): string {
+function normalizeToken(value: string): string {
   return String(value || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
 }
 
@@ -74,7 +74,7 @@ const expectedHeadSha = process.env.EXPECTED_HEAD_SHA || "";
 const allowSelfApprove = envFlagEnabled(process.env.AGENT_ALLOW_SELF_APPROVE);
 const allowSelfMerge = envFlagEnabled(process.env.AGENT_ALLOW_SELF_MERGE);
 const allowSameActorSelfApprove = allowSelfApprove && allowSelfMerge;
-const sourceRecommendedNextStep = normalizeTargetKind(process.env.SOURCE_RECOMMENDED_NEXT_STEP || "");
+const sourceRecommendedNextStep = normalizeToken(process.env.SOURCE_RECOMMENDED_NEXT_STEP || "");
 const isHumanDecisionGate = sourceRecommendedNextStep === "human_decision";
 const decision = parseSelfApprovalDecision(readResponse());
 
@@ -86,7 +86,7 @@ let approvalActorReason = "approval actor could not be verified as distinct from
 let approvalActorSameAsAuthor = false;
 let approvalProvenanceTrusted = false;
 let approvalProvenanceReason = "missing trusted review synthesis for self-approval";
-if (allowSelfApprove && normalizeTargetKind(targetKind) === "pull_request" && repo && prNumber) {
+if (allowSelfApprove && normalizeToken(targetKind) === "pull_request" && repo && prNumber) {
   let authenticatedActorLogin = "";
   try {
     const meta = fetchPrMeta(prNumber, repo);
@@ -125,7 +125,7 @@ if (allowSelfApprove && normalizeTargetKind(targetKind) === "pull_request" && re
     approvalProvenanceTrusted = false;
     approvalProvenanceReason = "could not read trusted review synthesis";
   }
-} else if (allowSelfApprove && normalizeTargetKind(targetKind) === "pull_request") {
+} else if (allowSelfApprove && normalizeToken(targetKind) === "pull_request") {
   metadataReadReason = "missing pull request target";
 }
 
