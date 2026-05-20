@@ -2,18 +2,34 @@
 
 This page documents the minimal path for adding the Sepo agent backend to a repository that did not start from this template. If you are starting from this repository as a template, use the main [README quick start](../../../README.md) instead.
 
-In practice, the cleanest install path is:
+## Choose an install path
+
+### Public repositories
+
+For public repositories, the quickest path is to open the [Install Sepo into another repository](https://github.com/self-evolving/repo/issues/new?template=install-sepo.yml) issue form in `self-evolving/repo` and paste the target GitHub URL. Sepo prepares or reuses a focused install PR in that repo, comments with the PR link, and closes the request issue when the PR is ready.
+
+Authorized users can also make the same request with `/install`:
+
+```md
+@sepo-agent /install can you install Sepo into https://github.com/owner/repo?
+```
+
+### Private repositories
+
+For private target repositories, keep the install in a trusted local
+environment. Run an agent locally with access to this source checkout and the
+private target repository, then ask it to use the `.skills/install-agent` skill.
+That skill opens a normal PR in the target repository while preserving
+target-owned files and following the validation/setup checklist below. Do not put
+private repository URLs or private setup details in a public Sepo issue.
+
+Both paths produce the same target-repository outcome:
 
 1. open a normal PR in the target repository that adds the agent backend files
 2. merge that PR
 3. use the repository's own GitHub Actions workflows to bootstrap `agent/memory` and, optionally, `agent/rubrics`
 
-From `self-evolving/repo`, authorized users can ask Sepo to prepare that PR for
-a public target repository:
-
-```md
-@sepo-agent /install can you install Sepo into https://github.com/owner/repo?
-```
+## Public `/install` route details
 
 The `/install` command is a first-class route for authorization, then runs the
 dedicated `agent-install` prompt. Route detection only recognizes the command;
@@ -25,12 +41,11 @@ the install source to the latest non-draft Sepo release and records that source
 revision in the PR body. If no stable release exists yet, the route may use the
 latest non-draft prerelease.
 
-`/install` is the only route that uses `AGENT_INSTALL_PAT`. Normal routes keep
-the standard GitHub auth resolver order: GitHub App, hosted OIDC, `AGENT_PAT`,
-then the workflow token. For `/install`, configure the `AGENT_INSTALL_PAT`
-repository secret in the Sepo source repository with a machine-user token that
-can create or reuse a fork, push a branch, and open pull requests for public
-repositories.
+The public `/install` route uses a dedicated install credential in the Sepo
+source repository. Normal routes keep the standard GitHub auth resolver order:
+GitHub App, hosted OIDC, `AGENT_PAT`, then the workflow token. The install
+credential must be able to create or reuse a fork, push a branch, and open pull
+requests for public repositories.
 
 The dedicated install prompt uses the built-in fork/PR helper to prepare a
 fork-backed worktree, push `agent/install-agent-infra`, and reuse or open the
@@ -41,7 +56,12 @@ open/reuse the PR, the route reports a blocked result with the specific
 permission gap and next step. An existing open install PR from the same token
 owner is reused; an open install PR from another owner is treated as a duplicate
 blocked state. Install runs disable source-repo memory writes so this target
-token is not used to update `agent/memory`.
+token is not used to update `agent/memory`. When `/install` is requested from an
+issue, the target install PR body links back to the source request. After the
+publish helper creates or reuses the target PR and the install response is
+posted, the workflow best-effort closes that source request issue with a short
+comment linking the install PR. If that close step fails, the install PR remains
+the source of truth and the workflow does not undo it.
 
 Use `AGENT_ACCESS_POLICY.route_overrides.install` to restrict who may trigger
 external installs independently from general `/skill` runs:
@@ -101,7 +121,9 @@ GH_TOKEN="$GH_TOKEN" node .agent/dist/cli/install-fork-pr.js publish \
 
 The publish command requires the prepare-state file written into the returned
 workdir by the prepare command, so rerun prepare instead of substituting an
-arbitrary checkout path.
+arbitrary checkout path. For issue-backed install requests, the helper derives
+the source request URL from the runtime envelope and adds it to the install PR
+body before opening or updating the PR.
 
 Install PRs should include a structured setup section that mirrors the
 onboarding setup check:

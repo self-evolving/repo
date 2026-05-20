@@ -8,7 +8,8 @@
 // Env:
 //   GH_TOKEN
 //   INSTALL_TARGET_REPO, INSTALL_BRANCH, INSTALL_WORKDIR, INSTALL_FORK_REPO,
-//   INSTALL_DEFAULT_BRANCH, INSTALL_PR_TITLE, INSTALL_PR_BODY_FILE as fallbacks
+//   INSTALL_DEFAULT_BRANCH, INSTALL_PR_TITLE, INSTALL_PR_BODY_FILE,
+//   INSTALL_SOURCE_REQUEST_URL as fallbacks
 
 import { parseArgs, type ParseArgsConfig } from "node:util";
 import {
@@ -29,6 +30,7 @@ const ARG_CONFIG = {
     "default-branch": { type: "string" },
     "pr-title": { type: "string" },
     "pr-body-file": { type: "string" },
+    "source-request-url": { type: "string" },
   },
   allowPositionals: true,
   strict: true,
@@ -46,6 +48,12 @@ function env(name: string, source: NodeJS.ProcessEnv = process.env): string {
 
 function argValue(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function sourceRequestUrl(sourceEnv: NodeJS.ProcessEnv, valueMap: Record<string, unknown>): string | undefined {
+  const explicit = argValue(valueMap["source-request-url"]) || env("INSTALL_SOURCE_REQUEST_URL", sourceEnv);
+  if (explicit) return explicit;
+  return env("TARGET_KIND", sourceEnv) === "issue" ? env("TARGET_URL", sourceEnv) || undefined : undefined;
 }
 
 export function parseInstallForkPrCliArgs(
@@ -77,6 +85,7 @@ export function parseInstallForkPrCliArgs(
       defaultBranch: argValue(valueMap["default-branch"]) || env("INSTALL_DEFAULT_BRANCH", sourceEnv) || undefined,
       title: argValue(valueMap["pr-title"]) || env("INSTALL_PR_TITLE", sourceEnv) || undefined,
       bodyFile: argValue(valueMap["pr-body-file"]) || env("INSTALL_PR_BODY_FILE", sourceEnv) || undefined,
+      sourceRequestUrl: sourceRequestUrl(sourceEnv, valueMap),
     },
   };
 }
@@ -95,6 +104,8 @@ function writeOutputs(result: InstallForkPrResult): void {
   setOutput("reused_pr", result.reusedPr ? "true" : "false");
   setOutput("blocked_code", result.blockedCode);
   setOutput("message", result.message);
+  setOutput("install_status", result.status);
+  setOutput("install_pr_url", result.prUrl);
 }
 
 export function runInstallForkPrCli(argv: string[], sourceEnv: NodeJS.ProcessEnv = process.env): number {

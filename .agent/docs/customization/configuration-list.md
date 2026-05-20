@@ -45,7 +45,6 @@ The bundled workflows intentionally expose one global provider variable. If a re
 | `AGENT_APP_ID` | Self-managed GitHub App ID for the bring-your-own-app path; set only with `AGENT_APP_PRIVATE_KEY`. The public Sepo App ID `3527007` is informational for hosted/OIDC usage. |
 | `AGENT_APP_PRIVATE_KEY` | Self-managed GitHub App private key for the bring-your-own-app path |
 | `AGENT_PAT` | PAT fallback for environments where app-based auth is not practical |
-| `AGENT_INSTALL_PAT` | Install-route machine-user token used only for `@sepo-agent /install owner/repo`; it must be able to create/reuse a fork, push the install branch, and open/reuse the public-target PR while normal routes keep the standard auth resolver order |
 
 
 See [Setup guide](../deployment/setup-guide.md) for how token secrets are used.

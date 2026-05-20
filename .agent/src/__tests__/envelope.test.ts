@@ -898,6 +898,10 @@ test("skill route uses the composite setup action for path and setup checks", ()
   assert.match(installWorkflow, /github_token:\s*\$\{\{\s*secrets\.AGENT_INSTALL_PAT\s*\}\}/);
   assert.match(installWorkflow, /memory_mode_override:\s*disabled/);
   assert.match(installWorkflow, /rubrics_mode_override:\s*disabled/);
+  assert.match(installWorkflow, /id:\s*post_install_response/);
+  assert.match(installWorkflow, /steps\.install\.outputs\.install_status == 'published'/);
+  assert.match(installWorkflow, /node \.agent\/dist\/cli\/complete-install-request\.js/);
+  assert.match(installWorkflow, /continue-on-error:\s*true/);
   assert.doesNotMatch(installWorkflow, /memory_policy:\s*\$\{\{\s*vars\.AGENT_MEMORY_POLICY/);
   assert.doesNotMatch(installWorkflow, /github_token:[^\n]*steps\.auth\.outputs\.token/);
   assert.doesNotMatch(installWorkflow, /\.\/\.github\/actions\/run-skill-setup/);
@@ -1046,6 +1050,8 @@ test("workflow docs record the minimal metadata contract and developer notes", (
   const configurationList = readRepoFile(".agent/docs/customization/configuration-list.md");
   const skillsDocs = readRepoFile(".agent/docs/customization/skills.md");
   const existingRepoInstall = readRepoFile(".agent/docs/deployment/install-existing-repository.md");
+  const installIssueTemplate = readRepoFile(".github/ISSUE_TEMPLATE/install-sepo.yml");
+  const installIssueTemplateForm = parseYaml(installIssueTemplate) as unknown;
   const developerNotes = readRepoFile(".agent/docs/technical-details/developer-notes.md");
 
   assert.match(keyConcepts, /### RuntimeEnvelope/);
@@ -1075,9 +1081,34 @@ test("workflow docs record the minimal metadata contract and developer notes", (
   assert.match(supportedWorkflows, /removes[\s\S]*triggering `agent\/\*` label/i);
   assert.match(supportedWorkflows, /strips code blocks[\s\S]*quoted text/i);
   assert.match(supportedWorkflows, /OWNER[\s\S]*MEMBER[\s\S]*COLLABORATOR[\s\S]*CONTRIBUTOR/);
-  assert.match(configurationList, /AGENT_INSTALL_PAT/);
-  assert.match(existingRepoInstall, /`\/install` is the only route that uses `AGENT_INSTALL_PAT`/);
+  assert.doesNotMatch(configurationList, /AGENT_INSTALL_PAT/);
+  assert.match(developerNotes, /AGENT_INSTALL_PAT/);
+  assert.doesNotMatch(existingRepoInstall, /AGENT_INSTALL_PAT/);
+  assert.match(existingRepoInstall, /public `\/install` route uses a dedicated install credential/);
   assert.match(existingRepoInstall, /Normal routes keep[\s\S]*GitHub auth resolver order/);
+  assert.match(existingRepoInstall, /Install Sepo into another repository/);
+  assert.match(existingRepoInstall, /source request issue[\s\S]*comment linking the install PR/);
+  assert.ok(isRecord(installIssueTemplateForm), "install issue form should parse as YAML");
+  assert.equal(installIssueTemplateForm.title, "Install Sepo into target repository");
+  assert.doesNotMatch(String(installIssueTemplateForm.title || ""), /owner\/repo|OWNER\/REPO|<owner\/repo>/);
+  assert.ok(Array.isArray(installIssueTemplateForm.body), "install issue form should define body fields");
+  const installIssueFields = installIssueTemplateForm.body as unknown[];
+  const commandField = installIssueFields.find(
+    (field): field is Record<string, unknown> => isRecord(field) && field.id === "agent-command",
+  );
+  assert.ok(commandField, "install issue form should submit an agent command field");
+  assert.ok(isRecord(commandField.attributes), "agent command field should define attributes");
+  assert.equal(commandField.attributes.value, "@sepo-agent /install");
+  const targetRepoField = installIssueFields.find(
+    (field): field is Record<string, unknown> => isRecord(field) && field.id === "target-repository",
+  );
+  assert.ok(targetRepoField, "install issue form should submit a target repository field");
+  assert.equal(targetRepoField.type, "input");
+  assert.ok(isRecord(targetRepoField.attributes), "target repository field should define attributes");
+  assert.equal(targetRepoField.attributes.label, "Target public repository URL");
+  assert.equal(targetRepoField.attributes.placeholder, "https://github.com/owner/repo");
+  assert.ok(isRecord(targetRepoField.validations), "target repository field should define validations");
+  assert.equal(targetRepoField.validations.required, true);
   assert.match(memoryArchitecture, /Agent \/ Memory \/ Initialization[\s\S]*\|\s*Auto\s*\|/);
   assert.match(rubricsArchitecture, /agent\/rubrics/);
   assert.match(rubricsArchitecture, /AGENT_RUBRICS_POLICY/);
@@ -1329,6 +1360,8 @@ test("workflow docs cover hosted auth and self-hosting paths", () => {
   assert.doesNotMatch(setupGuide, /AGENT_OIDC_AUDIENCE/);
   assert.match(setupGuide, /Bring your own GitHub App/);
   assert.match(setupGuide, /`AGENT_PAT`/);
+  assert.doesNotMatch(setupGuide, /AGENT_INSTALL_PAT/);
+  assert.match(setupGuide, /Public install requests use a separate install credential/);
   assert.match(setupGuide, /Contents:\*\* read and write/);
   assert.match(setupGuide, /### Auth priority/);
   assert.match(
