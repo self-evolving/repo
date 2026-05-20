@@ -159,14 +159,12 @@ access to the delegated route capability set before dispatching work. When
 both `AGENT_ALLOW_SELF_APPROVE=true` and `AGENT_ALLOW_SELF_MERGE=true`, it also
 includes `agent-self-merge`. Disabled self-approval or self-merge routes are not
 part of the delegated capability check. This keeps authorization at the user
-boundary: direct starts without a source run derive requester identity from
-`github.actor` even when a `requested_by` input is supplied. Child and parent
-resume dispatches preserve `requested_by` for traceability and for route-specific
-guards such as self-approval's requester-author check. When the orchestrator
-dispatches self-approval, it also forwards the orchestrator workflow actor so
-self-approval can reject spoofed direct/manual source-action inputs. Other
-downstream workflows do not need requester association and route policy threaded
-through every handoff.
+boundary: direct starts derive the origin actor from `github.actor`; non-empty
+`source_run_id` is only a dedupe key, not requester provenance. Child and parent
+resume dispatches preserve `requested_by` for traceability and carry an
+append-only source-actor chain for route-specific guards such as self-approval's
+requester-author check. Other downstream workflows do not need requester
+association and route policy threaded through every handoff.
 
 When an orchestrator dispatches `implement`, it forwards any planner-provided
 or explicit `base_branch` or `base_pr` input. `agent-implement.yml` then

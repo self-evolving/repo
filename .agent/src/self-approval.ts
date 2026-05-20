@@ -186,11 +186,17 @@ export function resolveTrustedSelfApprovalRequesters(input: {
     requesters.push(login.trim());
   }
 
+  function addRequesterList(logins: string): void {
+    for (const login of logins.split(/[,\n]+/)) {
+      addRequester(login);
+    }
+  }
+
   if (input.orchestrationEnabled === true && requestedBy) {
     addRequester(requestedBy);
   }
   if (input.orchestrationEnabled === true && sourceActor) {
-    addRequester(sourceActor);
+    addRequesterList(sourceActor);
   }
   if (!input.orchestrationEnabled || !requestedBy || !isAutomationActorLogin(workflowActor)) {
     addRequester(workflowActor);

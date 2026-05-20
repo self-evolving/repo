@@ -2,8 +2,8 @@
 // Env: AUTOMATION_MODE, SOURCE_ACTION, SOURCE_CONCLUSION, TARGET_NUMBER,
 //      NEXT_TARGET_NUMBER, AUTOMATION_CURRENT_ROUND, AUTOMATION_MAX_ROUNDS,
 //      GITHUB_REPOSITORY, DEFAULT_BRANCH, REQUESTED_BY, REQUEST_TEXT,
-//      WORKFLOW_ACTOR, SESSION_BUNDLE_MODE, SOURCE_RUN_ID, PLANNER_RESPONSE_FILE,
-//      TARGET_KIND, BASE_BRANCH, BASE_PR, AGENT_COLLAPSE_OLD_REVIEWS,
+//      WORKFLOW_ACTOR, SOURCE_ACTOR, SESSION_BUNDLE_MODE, SOURCE_RUN_ID,
+//      PLANNER_RESPONSE_FILE, TARGET_KIND, BASE_BRANCH, BASE_PR, AGENT_COLLAPSE_OLD_REVIEWS,
 //      AGENT_ALLOW_SELF_APPROVE, AGENT_ALLOW_SELF_MERGE,
 //      SOURCE_REQUIRED_BRANCH_WORK
 
@@ -868,6 +868,7 @@ const targetNumber = process.env.TARGET_NUMBER || "";
 const requestedBy = process.env.REQUESTED_BY || "";
 const requestText = process.env.REQUEST_TEXT || "";
 const workflowActor = process.env.WORKFLOW_ACTOR || process.env.GITHUB_ACTOR || "";
+const sourceActor = process.env.SOURCE_ACTOR || workflowActor;
 const sessionBundleMode = process.env.SESSION_BUNDLE_MODE || "";
 const baseBranch = process.env.BASE_BRANCH || "";
 const basePr = process.env.BASE_PR || "";
@@ -1540,6 +1541,7 @@ setOutput("marker_comment_id", markerCommentId);
 
 const commonInputs = {
   requested_by: requestedBy,
+  source_actor: sourceActor,
   request_text: requestText,
   orchestration_enabled: "true",
   automation_mode: automationMode === "disabled" ? "heuristics" : automationMode,
@@ -1558,7 +1560,6 @@ try {
     dispatchWorkflow(repo, "agent-self-approve.yml", ref, {
       ...commonInputs,
       pr_number: decision.targetNumber,
-      source_actor: workflowActor,
       source_conclusion: sourceConclusion,
       source_recommended_next_step: sourceRecommendedNextStep,
     });
@@ -1587,6 +1588,7 @@ try {
   } else if (decision.decision === "delegate_issue") {
     dispatchWorkflow(repo, "agent-orchestrator.yml", ref, {
       requested_by: requestedBy,
+      source_actor: sourceActor,
       request_text: requestText,
       automation_max_rounds: String(maxRounds),
       session_bundle_mode: sessionBundleMode,

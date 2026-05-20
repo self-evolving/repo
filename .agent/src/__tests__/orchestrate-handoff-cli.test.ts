@@ -1052,9 +1052,11 @@ test("fix-pr success review handoff preserves sanitized requester for self-appro
   const run = runOrchestrateHandoff({
     SOURCE_ACTION: "fix-pr",
     SOURCE_CONCLUSION: "success",
+    SOURCE_RUN_ID: "spoofed-run-id",
     TARGET_KIND: "pull_request",
     TARGET_NUMBER: "128",
-    REQUESTED_BY: "lolipopshock",
+    REQUESTED_BY: "maintainer",
+    SOURCE_ACTOR: "lolipopshock",
     WORKFLOW_ACTOR: "sepo-agent-app[bot]",
     AUTOMATION_CURRENT_ROUND: "4",
     AUTOMATION_MAX_ROUNDS: "8",
@@ -1065,7 +1067,8 @@ test("fix-pr success review handoff preserves sanitized requester for self-appro
   assert.equal(run.outputs.get("next_action"), "review");
   assert.match(run.ghLog, /actions\/workflows\/agent-review\.yml\/dispatches/);
   const inputs = run.dispatchPayload?.inputs as Record<string, string>;
-  assert.equal(inputs.requested_by, "lolipopshock");
+  assert.equal(inputs.requested_by, "maintainer");
+  assert.equal(inputs.source_actor, "lolipopshock");
   assert.equal(inputs.orchestration_enabled, "true");
   assert.equal(inputs.automation_current_round, "5");
 });

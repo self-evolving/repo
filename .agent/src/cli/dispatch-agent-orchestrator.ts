@@ -2,7 +2,7 @@
 // Env: GITHUB_REPOSITORY, DEFAULT_BRANCH, AUTOMATION_MODE, SOURCE_ACTION,
 //      SOURCE_CONCLUSION, RESPONSE_FILE, TARGET_NUMBER, NEXT_TARGET_NUMBER,
 //      REQUESTED_BY, REQUEST_TEXT, AUTOMATION_CURRENT_ROUND,
-//      AUTOMATION_MAX_ROUNDS, SESSION_BUNDLE_MODE, SOURCE_RUN_ID, TARGET_KIND,
+//      AUTOMATION_MAX_ROUNDS, SESSION_BUNDLE_MODE, SOURCE_RUN_ID, SOURCE_ACTOR, TARGET_KIND,
 //      AUTHOR_ASSOCIATION, ACCESS_POLICY, REPOSITORY_PRIVATE, ORCHESTRATION_ENABLED,
 //      SOURCE_RECOMMENDED_NEXT_STEP, SOURCE_REQUIRED_BRANCH_WORK,
 //      SOURCE_HANDOFF_CONTEXT, BASE_BRANCH, BASE_PR
@@ -101,6 +101,7 @@ dispatchWorkflow(repo, "agent-orchestrator.yml", ref, {
   source_recommended_next_step: sourceRecommendedNextStep,
   source_required_branch_work: sourceRequiredBranchWork,
   source_run_id: process.env.SOURCE_RUN_ID || process.env.GITHUB_RUN_ID || "",
+  source_actor: process.env.SOURCE_ACTOR || process.env.GITHUB_ACTOR || "",
   target_kind: targetKind,
   target_number: targetNumber,
   author_association: process.env.AUTHOR_ASSOCIATION || "",

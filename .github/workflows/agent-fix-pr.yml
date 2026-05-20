@@ -9,6 +9,10 @@ on:
       requested_by:
         description: "GitHub login that approved the run"
         required: false
+      source_actor:
+        description: "Trusted origin actor carried through orchestrated handoffs"
+        required: false
+        default: ""
       approval_comment_url:
         description: "Approval comment URL"
         required: false
@@ -56,6 +60,10 @@ on:
       requested_by:
         type: string
         required: false
+      source_actor:
+        type: string
+        required: false
+        default: ""
       approval_comment_url:
         type: string
         required: false
@@ -301,6 +309,7 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           ORCHESTRATION_ENABLED: ${{ inputs.orchestration_enabled }}
           REQUESTED_BY: ${{ inputs.requested_by || github.actor }}
+          SOURCE_ACTOR: ${{ inputs.source_actor && format('{0},{1}', inputs.source_actor, github.actor) || github.actor }}
           REQUEST_TEXT: ${{ inputs.request_text }}
           SESSION_BUNDLE_MODE: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
           SOURCE_ACTION: fix-pr

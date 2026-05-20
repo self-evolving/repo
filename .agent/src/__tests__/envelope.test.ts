@@ -1362,6 +1362,11 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestratorWorkflow, /BASE_BRANCH:\s*\$\{\{ inputs\.base_branch \}\}/);
   assert.match(orchestratorWorkflow, /SOURCE_REQUIRED_BRANCH_WORK:\s*\$\{\{ inputs\.source_required_branch_work \}\}/);
   assert.match(orchestratorWorkflow, /SOURCE_HANDOFF_CONTEXT:\s*\$\{\{ inputs\.source_handoff_context \}\}/);
+  assert.match(orchestratorWorkflow, /SOURCE_ACTOR:\s*\$\{\{\s*inputs\.source_actor && format\('\{0\},\{1\}', inputs\.source_actor, github\.actor\) \|\| github\.actor\s*\}\}/);
+  for (const workflow of [reviewWorkflow, fixPrWorkflow, implementWorkflow]) {
+    assert.match(workflow, /source_actor:/);
+    assert.match(workflow, /SOURCE_ACTOR:\s*\$\{\{\s*inputs\.source_actor && format\('\{0\},\{1\}', inputs\.source_actor, github\.actor\) \|\| github\.actor\s*\}\}/);
+  }
   assert.match(orchestratorWorkflow, /ORCHESTRATOR_SOURCE_REQUIRED_BRANCH_WORK:\s*\$\{\{ inputs\.source_required_branch_work \}\}/);
   assert.match(orchestratorWorkflow, /ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT:\s*\$\{\{ inputs\.source_handoff_context \}\}/);
   assert.match(orchestrateHandoffCli, /resolveEffectiveBaseInputs/);
@@ -1374,7 +1379,7 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestratorWorkflow, /target_kind:/);
   assert.match(orchestratorWorkflow, /TARGET_KIND:/);
   assert.match(orchestrateHandoffCli, /orchestration_enabled:\s*"true"/);
-  assert.match(orchestrateHandoffCli, /source_actor:\s*workflowActor/);
+  assert.match(orchestrateHandoffCli, /source_actor:\s*sourceActor/);
   assert.match(orchestrateHandoffCli, /automationMode === "disabled" \? "heuristics" : automationMode/);
   assert.match(orchestrateHandoffCli, /orchestrator_context:\s*decision\.handoffContext/);
   assert.match(orchestrateHandoffCli, /agent-self-approve\.yml/);
@@ -1414,8 +1419,13 @@ test("orchestrator self-approval handoffs include the workflow actor", () => {
   const job = workflow.jobs.orchestrate;
   assert.ok(isRecord(job), "orchestrator workflow should define orchestrate job");
   assert.ok(Array.isArray(job.steps), "orchestrator job should define steps");
+  assert.ok(isRecord(workflow.on), "orchestrator workflow should define triggers");
+  const workflowDispatch = workflow.on.workflow_dispatch;
+  assert.ok(isRecord(workflowDispatch), "orchestrator workflow should define workflow_dispatch");
+  assert.ok(isRecord(workflowDispatch.inputs), "orchestrator workflow should define inputs");
+  assert.ok(isRecord(workflowDispatch.inputs.source_actor), "orchestrator workflow should accept carried source_actor");
 
-  const trustedRequesterExpression = "${{ (inputs.source_action == 'orchestrate' || inputs.source_run_id == '') && github.actor || inputs.requested_by || github.actor }}";
+  const trustedRequesterExpression = "${{ inputs.source_action == 'orchestrate' && github.actor || inputs.requested_by || github.actor }}";
   const plannerStep = job.steps.find(
     (step): step is Record<string, unknown> =>
       isRecord(step) && step.name === "Plan next action with agent",
@@ -1430,12 +1440,9 @@ test("orchestrator self-approval handoffs include the workflow actor", () => {
   assert.ok(isRecord(dispatchStep.env), "dispatch step should define env");
   assert.equal(plannerStep.with.requested_by, trustedRequesterExpression);
   assert.equal(dispatchStep.env.REQUESTED_BY, trustedRequesterExpression);
+  assert.equal(dispatchStep.env.SOURCE_ACTOR, "${{ inputs.source_actor && format('{0},{1}', inputs.source_actor, github.actor) || github.actor }}");
   assert.equal(dispatchStep.env.WORKFLOW_ACTOR, "${{ github.actor }}");
-  assert.match(
-    trustedRequesterExpression,
-    /inputs\.source_run_id == ''/,
-    "direct non-orchestrate workflow_dispatch starts must use github.actor before intermediate handoffs",
-  );
+  assert.doesNotMatch(trustedRequesterExpression, /source_run_id/);
   assert.doesNotMatch(workflowText, /requested_by:\s*\$\{\{\s*inputs\.requested_by \|\| github\.actor\s*\}\}/);
   assert.doesNotMatch(workflowText, /REQUESTED_BY:\s*\$\{\{\s*inputs\.requested_by \|\| github\.actor\s*\}\}/);
 });

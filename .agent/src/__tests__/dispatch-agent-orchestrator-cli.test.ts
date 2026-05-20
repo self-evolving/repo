@@ -34,6 +34,7 @@ exit 1
         TARGET_KIND: "issue",
         TARGET_NUMBER: "30",
         REQUESTED_BY: "lolipopshock",
+        SOURCE_ACTOR: "lolipopshock",
         REQUEST_TEXT: "@sepo-agent /orchestrate",
         AUTOMATION_MODE: "agent",
       },
@@ -46,6 +47,7 @@ exit 1
     assert.equal(payload.inputs.automation_max_rounds, "12");
     assert.equal(payload.inputs.automation_current_round, "1");
     assert.equal(payload.inputs.source_action, "orchestrate");
+    assert.equal(payload.inputs.source_actor, "lolipopshock");
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }

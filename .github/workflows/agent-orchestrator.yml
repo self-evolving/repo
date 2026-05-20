@@ -21,6 +21,10 @@ on:
         description: "Workflow run ID of the source action, used for handoff dedupe"
         required: false
         default: ""
+      source_actor:
+        description: "Trusted origin actor carried through orchestrated handoffs"
+        required: false
+        default: ""
       target_number:
         description: "Issue or pull request number currently being handled"
         required: true
@@ -189,7 +193,7 @@ jobs:
           session_bundle_mode: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
           session_policy: resume-best-effort
           request_text: ${{ inputs.request_text }}
-          requested_by: ${{ (inputs.source_action == 'orchestrate' || inputs.source_run_id == '') && github.actor || inputs.requested_by || github.actor }}
+          requested_by: ${{ inputs.source_action == 'orchestrate' && github.actor || inputs.requested_by || github.actor }}
           route: orchestrator
           source_kind: workflow_dispatch
           target_kind: ${{ inputs.target_kind || (inputs.source_action == 'implement' && 'issue' || 'pull_request') }}
@@ -209,7 +213,7 @@ jobs:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           NEXT_TARGET_NUMBER: ${{ inputs.next_target_number }}
-          REQUESTED_BY: ${{ (inputs.source_action == 'orchestrate' || inputs.source_run_id == '') && github.actor || inputs.requested_by || github.actor }}
+          REQUESTED_BY: ${{ inputs.source_action == 'orchestrate' && github.actor || inputs.requested_by || github.actor }}
           REQUEST_TEXT: ${{ inputs.request_text }}
           SESSION_BUNDLE_MODE: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
           SOURCE_ACTION: ${{ inputs.source_action }}
@@ -218,6 +222,7 @@ jobs:
           SOURCE_REQUIRED_BRANCH_WORK: ${{ inputs.source_required_branch_work }}
           SOURCE_HANDOFF_CONTEXT: ${{ inputs.source_handoff_context }}
           SOURCE_RUN_ID: ${{ inputs.source_run_id || github.run_id }}
+          SOURCE_ACTOR: ${{ inputs.source_actor && format('{0},{1}', inputs.source_actor, github.actor) || github.actor }}
           WORKFLOW_ACTOR: ${{ github.actor }}
           AGENT_ALLOW_SELF_APPROVE: ${{ vars.AGENT_ALLOW_SELF_APPROVE || 'false' }}
           AGENT_ALLOW_SELF_MERGE: ${{ vars.AGENT_ALLOW_SELF_MERGE || 'false' }}
