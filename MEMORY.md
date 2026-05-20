@@ -71,7 +71,7 @@
 - Self-approval/self-merge requires trusted SHIP reviewed-head provenance matching the current PR head.
 - Full self-governance allows same-token-actor self-approval only with self-merge enabled; requester must not author the PR.
 - Self-merge should favor a simple core path: mark drafts ready, merge into configured base, rely on current-head approval/check guards.
-- When self-approval is enabled, SHIP, HUMAN_DECISION, or no-required-branch-work review handoffs may dispatch agent-self-approve.
+- When self-approval is enabled, SHIP or HUMAN_DECISION review handoffs may dispatch agent-self-approve.
 - Keep entry docs reader-first; put setup trade-offs, auth internals, and limitations in setup/technical docs.
 - Memory GitHub mirrors live under github/<owner>/<repo>/; old flat artifacts are manual cleanup, not auto-migrated.
 - Scheduled daily summaries run by default with skip_no_updates; disable agent-daily-summary.yml via AGENT_SCHEDULE_POLICY override.
@@ -81,7 +81,7 @@
 - track-only session bundles are debug-only: never restore; only always may upload non-restorable github-artifact-debug bundles.
 - Stacked PR /implement base_pr should flow through implement metadata, not ad hoc request-text parsing.
 - `/install` uses only `AGENT_INSTALL_PAT` for external install identity; normal routes keep App/OIDC/AGENT_PAT resolver order.
-- Non-SHIP self-approval preflight may run for trusted current-head HUMAN_DECISION or no-required-branch-work syntheses.
+- Non-SHIP self-approval preflight may run for trusted current-head HUMAN_DECISION syntheses.
 - Sepo release notes live in .agent/CHANGELOG.md; do not recreate a root CHANGELOG.md for Sepo releases.
 - Use agent-goal for repository goal issues; reserve agent/* labels for route triggers unless a real route exists.
 - For /install, typed fork helpers own target fork/branch/PR mechanics; the prompt orchestrates instead of raw git/gh lifecycle.
