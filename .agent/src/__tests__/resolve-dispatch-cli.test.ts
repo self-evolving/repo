@@ -19,6 +19,18 @@ function parseGithubOutput(path: string): Map<string, string> {
   return outputs;
 }
 
+function writeFakePrViewGh(tempDir: string): void {
+  writeFileSync(join(tempDir, "gh"), `#!/usr/bin/env bash
+set -euo pipefail
+if [ "\${1-}" = "pr" ] && [ "\${2-}" = "view" ]; then
+  printf '{"headRefName":"agent/source","headRefOid":"abc123","isCrossRepository":false,"state":"%s"}\\n' "\${FAKE_PR_STATE-OPEN}"
+  exit 0
+fi
+printf 'unexpected gh args: %s\\n' "$*" >&2
+exit 1
+`, { encoding: "utf8", mode: 0o755 });
+}
+
 test("resolve-dispatch reports invalid AGENT_ACCESS_POLICY cleanly", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-resolve-dispatch-"));
 
@@ -44,6 +56,102 @@ test("resolve-dispatch reports invalid AGENT_ACCESS_POLICY cleanly", () => {
     assert.equal(result.status, 2);
     assert.match(result.stderr, /Invalid AGENT_ACCESS_POLICY:/);
     assert.doesNotMatch(result.stderr, /at parseAccessPolicy/);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("resolve-dispatch keeps open inferred base PR metadata", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-resolve-dispatch-"));
+
+  try {
+    const outputPath = join(tempDir, "github-output.txt");
+    const metadataPath = join(tempDir, "metadata.json");
+    writeFileSync(outputPath, "", "utf8");
+    writeFakePrViewGh(tempDir);
+    writeFileSync(
+      metadataPath,
+      JSON.stringify({
+        issue_title: "Add follow-up on open PR",
+        issue_body: "## Goal\nCreate a follow-up stacked on the open PR.",
+        base_pr: "268",
+      }),
+      "utf8",
+    );
+
+    const result = spawnSync("node", [".agent/dist/cli/resolve-dispatch.js"], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        PATH: `${tempDir}:${process.env.PATH || ""}`,
+        FAKE_PR_STATE: "OPEN",
+        GITHUB_OUTPUT: outputPath,
+        RESPONSE_FILE: metadataPath,
+        REQUESTED_ROUTE: "implement",
+        REQUEST_TEXT: "@sepo-agent /implement create a stacked follow-up",
+        TARGET_KIND: "pull_request",
+        TARGET_NUMBER: "268",
+        GITHUB_REPOSITORY: "self-evolving/repo",
+        AUTHOR_ASSOCIATION: "MEMBER",
+        ACCESS_POLICY: "",
+        REPOSITORY_PRIVATE: "true",
+      },
+      encoding: "utf8",
+    });
+
+    assert.equal(result.status, 0);
+    assert.doesNotMatch(result.stderr, /Dropping inferred base_pr/);
+    const outputs = parseGithubOutput(outputPath);
+    assert.equal(outputs.get("base_pr"), "268");
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("resolve-dispatch drops closed inferred base PR metadata", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-resolve-dispatch-"));
+
+  try {
+    const outputPath = join(tempDir, "github-output.txt");
+    const metadataPath = join(tempDir, "metadata.json");
+    writeFileSync(outputPath, "", "utf8");
+    writeFakePrViewGh(tempDir);
+    writeFileSync(
+      metadataPath,
+      JSON.stringify({
+        issue_title: "Recreate closed PR work",
+        issue_body: "## Goal\nRecreate the useful change from the closed PR.",
+        base_pr: "293",
+      }),
+      "utf8",
+    );
+
+    const result = spawnSync("node", [".agent/dist/cli/resolve-dispatch.js"], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        PATH: `${tempDir}:${process.env.PATH || ""}`,
+        FAKE_PR_STATE: "CLOSED",
+        GITHUB_OUTPUT: outputPath,
+        RESPONSE_FILE: metadataPath,
+        REQUESTED_ROUTE: "implement",
+        REQUEST_TEXT: "@sepo-agent /implement try making this again",
+        TARGET_KIND: "pull_request",
+        TARGET_NUMBER: "293",
+        GITHUB_REPOSITORY: "self-evolving/repo",
+        AUTHOR_ASSOCIATION: "MEMBER",
+        ACCESS_POLICY: "",
+        REPOSITORY_PRIVATE: "true",
+      },
+      encoding: "utf8",
+    });
+
+    assert.equal(result.status, 0);
+    assert.match(result.stderr, /Dropping inferred base_pr #293 because source PR is closed/);
+    const outputs = parseGithubOutput(outputPath);
+    assert.equal(outputs.get("base_pr"), "");
+    assert.match(outputs.get("issue_body") || "", /Base branch note/);
+    assert.match(outputs.get("issue_body") || "", /repository default branch/);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }

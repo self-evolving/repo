@@ -76,8 +76,12 @@ export function resolveImplementationBase(
     if (meta.isCrossRepository) {
       throw new Error(`base_pr #${basePr} is from a fork; only same-repository PR heads are supported`);
     }
-    if (meta.state.toUpperCase() !== "OPEN") {
-      throw new Error(`base_pr #${basePr} must be open`);
+    const prState = meta.state.toUpperCase();
+    if (prState !== "OPEN") {
+      const stateLabel = prState ? prState.toLowerCase() : "not open";
+      throw new Error(
+        `base_pr #${basePr} is ${stateLabel}; choose an open same-repository PR to stack on, or omit base_pr to use the default branch`,
+      );
     }
     return {
       baseBranch: validateBaseBranch(meta.headRef),
