@@ -2,9 +2,10 @@
 // Env: AUTOMATION_MODE, SOURCE_ACTION, SOURCE_CONCLUSION, TARGET_NUMBER,
 //      NEXT_TARGET_NUMBER, AUTOMATION_CURRENT_ROUND, AUTOMATION_MAX_ROUNDS,
 //      GITHUB_REPOSITORY, DEFAULT_BRANCH, REQUESTED_BY, REQUEST_TEXT,
-//      SESSION_BUNDLE_MODE, SOURCE_RUN_ID, PLANNER_RESPONSE_FILE, TARGET_KIND,
-//      BASE_BRANCH, BASE_PR, AGENT_COLLAPSE_OLD_REVIEWS, AGENT_ALLOW_SELF_APPROVE,
-//      AGENT_ALLOW_SELF_MERGE
+//      WORKFLOW_ACTOR, SOURCE_ACTOR, SESSION_BUNDLE_MODE, SOURCE_RUN_ID,
+//      PLANNER_RESPONSE_FILE, TARGET_KIND, BASE_BRANCH, BASE_PR, AGENT_COLLAPSE_OLD_REVIEWS,
+//      AGENT_ALLOW_SELF_APPROVE, AGENT_ALLOW_SELF_MERGE,
+//      SOURCE_REQUIRED_BRANCH_WORK
 
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -857,6 +858,7 @@ const sourceAction = process.env.SOURCE_ACTION || "";
 const sourceConclusion = process.env.SOURCE_CONCLUSION || "unknown";
 const sourceRunId = process.env.SOURCE_RUN_ID || process.env.GITHUB_RUN_ID || "";
 const sourceRecommendedNextStep = process.env.SOURCE_RECOMMENDED_NEXT_STEP || "";
+const sourceRequiredBranchWork = process.env.SOURCE_REQUIRED_BRANCH_WORK || "";
 const sourceHandoffContext = process.env.SOURCE_HANDOFF_CONTEXT || "";
 const sourceTargetKind = process.env.TARGET_KIND || "";
 const sourceAssociationRaw = process.env.AUTHOR_ASSOCIATION || "";
@@ -865,6 +867,8 @@ const isPublicRepo = String(process.env.REPOSITORY_PRIVATE || "").trim().toLower
 const targetNumber = process.env.TARGET_NUMBER || "";
 const requestedBy = process.env.REQUESTED_BY || "";
 const requestText = process.env.REQUEST_TEXT || "";
+const workflowActor = process.env.WORKFLOW_ACTOR || process.env.GITHUB_ACTOR || "";
+const sourceActor = process.env.SOURCE_ACTOR || workflowActor;
 const sessionBundleMode = process.env.SESSION_BUNDLE_MODE || "";
 const baseBranch = process.env.BASE_BRANCH || "";
 const basePr = process.env.BASE_PR || "";
@@ -1332,6 +1336,7 @@ function decidePlannerOrchestration(): HandoffDecision {
     sourceAction,
     sourceConclusion,
     sourceRecommendedNextStep,
+    sourceRequiredBranchWork,
     targetKind: sourceTargetKind,
     targetNumber,
     nextTargetNumber: process.env.NEXT_TARGET_NUMBER || "",
@@ -1369,6 +1374,7 @@ const routeDecision = authorizationStop || (normalizeToken(sourceAction) === "or
     sourceAction,
     sourceConclusion,
     sourceRecommendedNextStep,
+    sourceRequiredBranchWork,
     targetKind: sourceTargetKind,
     targetNumber,
     nextTargetNumber: process.env.NEXT_TARGET_NUMBER || "",
@@ -1535,6 +1541,7 @@ setOutput("marker_comment_id", markerCommentId);
 
 const commonInputs = {
   requested_by: requestedBy,
+  source_actor: sourceActor,
   request_text: requestText,
   orchestration_enabled: "true",
   automation_mode: automationMode === "disabled" ? "heuristics" : automationMode,
@@ -1581,6 +1588,7 @@ try {
   } else if (decision.decision === "delegate_issue") {
     dispatchWorkflow(repo, "agent-orchestrator.yml", ref, {
       requested_by: requestedBy,
+      source_actor: sourceActor,
       request_text: requestText,
       automation_max_rounds: String(maxRounds),
       session_bundle_mode: sessionBundleMode,

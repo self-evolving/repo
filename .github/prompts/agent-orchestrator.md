@@ -8,6 +8,7 @@ chain should stop or hand off to exactly one allowed next action.
 - Source action: `${ORCHESTRATOR_SOURCE_ACTION}`
 - Source conclusion: `${ORCHESTRATOR_SOURCE_CONCLUSION}`
 - Source recommended next step: `${ORCHESTRATOR_SOURCE_RECOMMENDED_NEXT_STEP}`
+- Source required branch-change work: `${ORCHESTRATOR_SOURCE_REQUIRED_BRANCH_WORK}`
 - Source run ID: `${ORCHESTRATOR_SOURCE_RUN_ID}`
 - Current round: `${ORCHESTRATOR_CURRENT_ROUND}`
 - Max rounds: `${ORCHESTRATOR_MAX_ROUNDS}`
@@ -27,10 +28,13 @@ these policy rules:
   produced a pull request target.
 - `review` may hand off to `agent-self-approve` when self-approval is enabled
   and either the verdict is `SHIP` or the source recommended next step is
-  `HUMAN_DECISION`.
+  `HUMAN_DECISION`, or when the verdict is `MINOR_ISSUES`, the source
+  recommended next step is `NO_AUTOMATED_ACTION`, and the source reports no
+  required branch-change work.
 - `review` may hand off to `fix-pr` only for `MINOR_ISSUES`,
   `NEEDS_REWORK`, or `CHANGES_REQUESTED` when the source recommended next step
-  is not `HUMAN_DECISION`.
+  is not `HUMAN_DECISION` and either the source did not recommend
+  `NO_AUTOMATED_ACTION` or it still reports required branch-change work.
 - `agent-self-approve` may hand off to `fix-pr` only for `REQUEST_CHANGES`.
   `APPROVED` may hand off to `agent-self-merge` only when self-merge is
   enabled; otherwise `APPROVED`, `BLOCKED`, and `FAILED` stop.
@@ -59,8 +63,8 @@ these policy rules:
   `blocked` when no follow-up workflow should run.
 - Duplicate handoffs are skipped by the orchestrator marker dedupe logic.
 - You may choose to stop when another automatic action is not useful, except
-  that enabled self-approval should receive `SHIP` and review `HUMAN_DECISION`
-  handoffs.
+  that enabled self-approval should receive `SHIP`, review `HUMAN_DECISION`,
+  and eligible no-required-branch-work `NO_AUTOMATED_ACTION` handoffs.
 
 ## Instructions
 
@@ -88,7 +92,10 @@ Rules:
 - If the latest review synthesis includes a `Recommended Next Step`, treat it
   as the primary automation signal: hand off on `FIX_PR`, hand off to
   `agent-self-approve` on `HUMAN_DECISION` when self-approval is enabled, and
-  stop on `HUMAN_DECISION` or `NO_AUTOMATED_ACTION` otherwise.
+  treat `NO_AUTOMATED_ACTION` as no more branch mutation/review loop. For
+  `MINOR_ISSUES` with no required branch-change work and self-approval
+  enabled, hand off to `agent-self-approve`; otherwise stop on
+  `NO_AUTOMATED_ACTION` unless required branch-change work remains.
 - Use `handoff` only when one more automatic action is clearly warranted.
 - For issue-level `orchestrate`, prefer `handoff` with `next_action:
   "implement"` when the requested work fits in the current issue. Use

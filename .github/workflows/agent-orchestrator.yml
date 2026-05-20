@@ -13,8 +13,16 @@ on:
         description: "Optional source action recommended next step"
         required: false
         default: ""
+      source_required_branch_work:
+        description: "Whether the source review reported required branch-change work"
+        required: false
+        default: ""
       source_run_id:
         description: "Workflow run ID of the source action, used for handoff dedupe"
+        required: false
+        default: ""
+      source_actor:
+        description: "Trusted origin actor carried through orchestrated handoffs"
         required: false
         default: ""
       target_number:
@@ -158,6 +166,7 @@ jobs:
           ORCHESTRATOR_SOURCE_ACTION: ${{ inputs.source_action }}
           ORCHESTRATOR_SOURCE_CONCLUSION: ${{ inputs.source_conclusion }}
           ORCHESTRATOR_SOURCE_RECOMMENDED_NEXT_STEP: ${{ inputs.source_recommended_next_step }}
+          ORCHESTRATOR_SOURCE_REQUIRED_BRANCH_WORK: ${{ inputs.source_required_branch_work }}
           ORCHESTRATOR_SOURCE_RUN_ID: ${{ inputs.source_run_id || github.run_id }}
           ORCHESTRATOR_NEXT_TARGET_NUMBER: ${{ inputs.next_target_number }}
           ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT: ${{ inputs.source_handoff_context }}
@@ -185,7 +194,7 @@ jobs:
           session_bundle_mode: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
           session_policy: resume-best-effort
           request_text: ${{ inputs.request_text }}
-          requested_by: ${{ inputs.requested_by || github.actor }}
+          requested_by: ${{ inputs.source_action == 'orchestrate' && github.actor || inputs.requested_by || github.actor }}
           route: orchestrator
           source_kind: workflow_dispatch
           target_kind: ${{ inputs.target_kind || (inputs.source_action == 'implement' && 'issue' || 'pull_request') }}
@@ -205,14 +214,17 @@ jobs:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           NEXT_TARGET_NUMBER: ${{ inputs.next_target_number }}
-          REQUESTED_BY: ${{ inputs.requested_by || github.actor }}
+          REQUESTED_BY: ${{ inputs.source_action == 'orchestrate' && github.actor || inputs.requested_by || github.actor }}
           REQUEST_TEXT: ${{ inputs.request_text }}
           SESSION_BUNDLE_MODE: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
           SOURCE_ACTION: ${{ inputs.source_action }}
           SOURCE_CONCLUSION: ${{ inputs.source_conclusion }}
           SOURCE_RECOMMENDED_NEXT_STEP: ${{ inputs.source_recommended_next_step }}
+          SOURCE_REQUIRED_BRANCH_WORK: ${{ inputs.source_required_branch_work }}
           SOURCE_HANDOFF_CONTEXT: ${{ inputs.source_handoff_context }}
           SOURCE_RUN_ID: ${{ inputs.source_run_id || github.run_id }}
+          SOURCE_ACTOR: ${{ inputs.source_actor && format('{0},{1}', inputs.source_actor, github.actor) || github.actor }}
+          WORKFLOW_ACTOR: ${{ github.actor }}
           AGENT_ALLOW_SELF_APPROVE: ${{ vars.AGENT_ALLOW_SELF_APPROVE || 'false' }}
           AGENT_ALLOW_SELF_MERGE: ${{ vars.AGENT_ALLOW_SELF_MERGE || 'false' }}
           AUTHOR_ASSOCIATION: ${{ inputs.author_association }}

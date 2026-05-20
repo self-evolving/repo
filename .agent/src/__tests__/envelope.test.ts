@@ -459,8 +459,19 @@ test("self-approval workflow stays opt-in and read-only until deterministic reso
   assert.equal(runStep.with.permission_mode, "approve-reads");
   assert.equal(runStep.with.route, "agent-self-approve");
   assert.equal(runStep.with.github_token, "${{ github.token }}");
+  assert.equal(
+    runStep.with.requested_by,
+    "${{ inputs.orchestration_enabled == 'true' && inputs.requested_by || github.actor }}",
+  );
   assert.match(workflowText, /AGENT_ALLOW_SELF_APPROVE:\s*\$\{\{\s*vars\.AGENT_ALLOW_SELF_APPROVE \|\| 'false'\s*\}\}/);
   assert.match(workflowText, /AGENT_ALLOW_SELF_MERGE:\s*\$\{\{\s*vars\.AGENT_ALLOW_SELF_MERGE \|\| 'false'\s*\}\}/);
+  assert.match(workflowText, /Prepare self-approval[\s\S]*ORCHESTRATION_ENABLED:\s*\$\{\{\s*inputs\.orchestration_enabled\s*\}\}/);
+  assert.match(workflowText, /Prepare self-approval[\s\S]*REQUESTED_BY:\s*\$\{\{\s*inputs\.orchestration_enabled == 'true' && inputs\.requested_by \|\| github\.actor\s*\}\}/);
+  assert.match(workflowText, /Prepare self-approval[\s\S]*WORKFLOW_ACTOR:\s*\$\{\{\s*github\.actor\s*\}\}/);
+  assert.match(workflowText, /Resolve self-approval result[\s\S]*ORCHESTRATION_ENABLED:\s*\$\{\{\s*inputs\.orchestration_enabled\s*\}\}/);
+  assert.match(workflowText, /Resolve self-approval result[\s\S]*REQUESTED_BY:\s*\$\{\{\s*inputs\.orchestration_enabled == 'true' && inputs\.requested_by \|\| github\.actor\s*\}\}/);
+  assert.match(workflowText, /Resolve self-approval result[\s\S]*WORKFLOW_ACTOR:\s*\$\{\{\s*github\.actor\s*\}\}/);
+  assert.doesNotMatch(workflowText, /REQUESTED_BY:\s*\$\{\{\s*inputs\.requested_by \|\| github\.actor\s*\}\}/);
   assert.match(workflowText, /node \.agent\/dist\/cli\/prepare-self-approve\.js/);
   assert.match(workflowText, /node \.agent\/dist\/cli\/resolve-self-approve\.js/);
   assert.match(workflowText, /Post self-approval stop[\s\S]*always\(\)[\s\S]*steps\.prepare\.outcome == 'success'[\s\S]*steps\.prepare\.outputs\.should_run != 'true'[\s\S]*steps\.prepare\.outputs\.body_file != ''/);
@@ -472,6 +483,54 @@ test("self-approval workflow stays opt-in and read-only until deterministic reso
   assert.doesNotMatch(workflowText, /steps\.result\.outputs\.conclusion == 'request_changes'/);
   assert.match(workflowText, /steps\.result\.outcome == 'success' &&\s+inputs\.orchestration_enabled == 'true'/);
   assert.match(workflowText, /node \.agent\/dist\/cli\/dispatch-agent-orchestrator\.js/);
+});
+
+test("self-approval requester guard checks workflow actor for spoofed orchestration inputs", () => {
+  const workflowText = readRepoFile(".github/workflows/agent-self-approve.yml");
+  const workflow = parseYaml(workflowText) as unknown;
+  assert.ok(isRecord(workflow), "self-approval workflow should parse as a YAML object");
+  assert.ok(isRecord(workflow.on), "self-approval workflow should define triggers");
+  const workflowDispatch = workflow.on.workflow_dispatch;
+  assert.ok(isRecord(workflowDispatch), "self-approval workflow should define workflow_dispatch");
+  assert.ok(isRecord(workflowDispatch.inputs), "workflow_dispatch should define inputs");
+  assert.ok(isRecord(workflowDispatch.inputs.requested_by), "workflow_dispatch keeps requested_by for orchestrated handoffs");
+  assert.ok(isRecord(workflowDispatch.inputs.source_actor), "workflow_dispatch keeps source_actor for orchestrated handoffs");
+  assert.ok(isRecord(workflowDispatch.inputs.orchestration_enabled), "workflow_dispatch should define orchestration_enabled");
+  assert.equal(workflowDispatch.inputs.orchestration_enabled.default, "false");
+  assert.ok(isRecord(workflow.jobs), "self-approval workflow should define jobs");
+  const job = workflow.jobs["self-approve"];
+  assert.ok(isRecord(job), "self-approval workflow should define self-approve job");
+  assert.ok(Array.isArray(job.steps), "self-approval job should define steps");
+
+  const trustedRequesterExpression = "${{ inputs.orchestration_enabled == 'true' && inputs.requested_by || github.actor }}";
+  const prepareStep = job.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Prepare self-approval",
+  );
+  const resolveStep = job.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Resolve self-approval result",
+  );
+  const runStep = job.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Run self-approval agent",
+  );
+  assert.ok(prepareStep, "self-approval workflow should prepare");
+  assert.ok(resolveStep, "self-approval workflow should resolve");
+  assert.ok(runStep, "self-approval workflow should run the agent");
+  assert.ok(isRecord(prepareStep.env), "prepare step should define env");
+  assert.ok(isRecord(resolveStep.env), "resolve step should define env");
+  assert.ok(isRecord(runStep.with), "run step should define inputs");
+  assert.equal(prepareStep.env.ORCHESTRATION_ENABLED, "${{ inputs.orchestration_enabled }}");
+  assert.equal(prepareStep.env.REQUESTED_BY, trustedRequesterExpression);
+  assert.equal(prepareStep.env.SOURCE_ACTOR, "${{ inputs.orchestration_enabled == 'true' && inputs.source_actor || '' }}");
+  assert.equal(prepareStep.env.WORKFLOW_ACTOR, "${{ github.actor }}");
+  assert.equal(resolveStep.env.ORCHESTRATION_ENABLED, "${{ inputs.orchestration_enabled }}");
+  assert.equal(resolveStep.env.REQUESTED_BY, trustedRequesterExpression);
+  assert.equal(resolveStep.env.SOURCE_ACTOR, "${{ inputs.orchestration_enabled == 'true' && inputs.source_actor || '' }}");
+  assert.equal(resolveStep.env.WORKFLOW_ACTOR, "${{ github.actor }}");
+  assert.equal(runStep.with.requested_by, trustedRequesterExpression);
+  assert.doesNotMatch(workflowText, /REQUESTED_BY:\s*\$\{\{\s*inputs\.requested_by \|\| github\.actor\s*\}\}/);
 });
 
 test("self-merge workflow stays opt-in and deterministic", () => {
@@ -580,6 +639,7 @@ test("agent router bypasses dispatch triage for explicit mention slash routes", 
   assert.match(implementMetadataPrompt, /Do not derive the title by copying the literal text after `\/implement`/);
   assert.match(implementMetadataPrompt, /Ignore earlier prose mentions of `\/implement`/);
   assert.match(implementMetadataPrompt, /Omit `base_pr` unless `TARGET_KIND` is `pull_request`/);
+  assert.match(implementMetadataPrompt, /If the current target pull request is closed or merged, omit `base_pr`/);
   assert.match(implementMetadataPrompt, /digits only, with no `#` prefix/);
   assert.doesNotMatch(extractContext, /requested_install_target_repo/);
   assert.doesNotMatch(runnerWorkflow, /requested_install_target_repo:/);
@@ -953,12 +1013,15 @@ test("skill route uses the composite setup action for path and setup checks", ()
   const supplementalVars = readSupplementalPromptVarNames(runSource);
   const skillJobStart = runnerWorkflow.indexOf("  skill:\n    needs: portal");
   const installJobStart = runnerWorkflow.indexOf("  install:\n    needs: portal", skillJobStart);
-  const approvalJobStart = runnerWorkflow.indexOf("  approval:", installJobStart);
+  const configJobStart = runnerWorkflow.indexOf("  config:\n    needs: portal", installJobStart);
+  const approvalJobStart = runnerWorkflow.indexOf("  approval:", configJobStart);
   assert.ok(skillJobStart >= 0);
   assert.ok(installJobStart > skillJobStart);
+  assert.ok(configJobStart > installJobStart);
   assert.ok(approvalJobStart > skillJobStart);
   const skillWorkflow = runnerWorkflow.slice(skillJobStart, installJobStart);
-  const installWorkflow = runnerWorkflow.slice(installJobStart, approvalJobStart);
+  const installWorkflow = runnerWorkflow.slice(installJobStart, configJobStart);
+  const configWorkflow = runnerWorkflow.slice(configJobStart, approvalJobStart);
   const optionalProviderStart = skillWorkflow.indexOf("- name: Resolve skill provider");
   const runtimeStart = skillWorkflow.indexOf("- name: Setup agent runtime");
   const checkStart = skillWorkflow.indexOf("- name: Check skill");
@@ -995,6 +1058,13 @@ test("skill route uses the composite setup action for path and setup checks", ()
   assert.doesNotMatch(installWorkflow, /memory_policy:\s*\$\{\{\s*vars\.AGENT_MEMORY_POLICY/);
   assert.doesNotMatch(installWorkflow, /github_token:[^\n]*steps\.auth\.outputs\.token/);
   assert.doesNotMatch(installWorkflow, /\.\/\.github\/actions\/run-skill-setup/);
+  assert.match(configWorkflow, /needs\.portal\.outputs\.route == 'config'/);
+  assert.match(configWorkflow, /\.\/\.github\/workflows\/agent-config\.yml/);
+  assert.match(configWorkflow, /apply:\s*"true"/);
+  assert.match(configWorkflow, /request_text:\s*\$\{\{\s*needs\.portal\.outputs\.body\s*\}\}/);
+  const configActionWorkflow = readRepoFile(".github/workflows/agent-config.yml");
+  assert.match(configActionWorkflow, /permission_mode:\s*approve-reads/);
+  assert.match(configActionWorkflow, /node \.agent\/dist\/cli\/apply-repo-config\.js/);
   assert.ok(optionalProviderStart >= 0);
   assert.ok(runtimeStart > optionalProviderStart);
   assert.ok(checkStart > runtimeStart);
@@ -1383,9 +1453,17 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestratorWorkflow, /base_branch:/);
   assert.match(orchestratorWorkflow, /base_pr:/);
   assert.match(orchestratorWorkflow, /source_handoff_context:/);
+  assert.match(orchestratorWorkflow, /source_required_branch_work:/);
   assert.match(orchestratorWorkflow, /AGENT_COLLAPSE_OLD_REVIEWS:\s*\$\{\{ vars\.AGENT_COLLAPSE_OLD_REVIEWS \}\}/);
   assert.match(orchestratorWorkflow, /BASE_BRANCH:\s*\$\{\{ inputs\.base_branch \}\}/);
+  assert.match(orchestratorWorkflow, /SOURCE_REQUIRED_BRANCH_WORK:\s*\$\{\{ inputs\.source_required_branch_work \}\}/);
   assert.match(orchestratorWorkflow, /SOURCE_HANDOFF_CONTEXT:\s*\$\{\{ inputs\.source_handoff_context \}\}/);
+  assert.match(orchestratorWorkflow, /SOURCE_ACTOR:\s*\$\{\{\s*inputs\.source_actor && format\('\{0\},\{1\}', inputs\.source_actor, github\.actor\) \|\| github\.actor\s*\}\}/);
+  for (const workflow of [reviewWorkflow, fixPrWorkflow, implementWorkflow]) {
+    assert.match(workflow, /source_actor:/);
+    assert.match(workflow, /SOURCE_ACTOR:\s*\$\{\{\s*inputs\.source_actor && format\('\{0\},\{1\}', inputs\.source_actor, github\.actor\) \|\| github\.actor\s*\}\}/);
+  }
+  assert.match(orchestratorWorkflow, /ORCHESTRATOR_SOURCE_REQUIRED_BRANCH_WORK:\s*\$\{\{ inputs\.source_required_branch_work \}\}/);
   assert.match(orchestratorWorkflow, /ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT:\s*\$\{\{ inputs\.source_handoff_context \}\}/);
   assert.match(orchestrateHandoffCli, /resolveEffectiveBaseInputs/);
   assert.match(orchestrateHandoffCli, /baseBranch:\s*decision\.baseBranch \|\| baseBranch/);
@@ -1397,6 +1475,7 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestratorWorkflow, /target_kind:/);
   assert.match(orchestratorWorkflow, /TARGET_KIND:/);
   assert.match(orchestrateHandoffCli, /orchestration_enabled:\s*"true"/);
+  assert.match(orchestrateHandoffCli, /source_actor:\s*sourceActor/);
   assert.match(orchestrateHandoffCli, /automationMode === "disabled" \? "heuristics" : automationMode/);
   assert.match(orchestrateHandoffCli, /orchestrator_context:\s*decision\.handoffContext/);
   assert.match(orchestrateHandoffCli, /agent-self-approve\.yml/);
@@ -1409,6 +1488,7 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(fixPrPrompt, /\$\{ORCHESTRATOR_CONTEXT\}/);
   assert.match(orchestratorPrompt, /"handoff_context"/);
   assert.match(orchestratorPrompt, /ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT/);
+  assert.match(orchestratorPrompt, /ORCHESTRATOR_SOURCE_REQUIRED_BRANCH_WORK/);
   assert.match(orchestratorPrompt, /ORCHESTRATOR_SELF_APPROVE_ENABLED/);
   assert.match(orchestratorPrompt, /ORCHESTRATOR_SELF_MERGE_ENABLED/);
   assert.match(orchestratorPrompt, /"user_message"/);
@@ -1427,15 +1507,57 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestratorDoc, /minimizes older visible handoff marker comments/);
 });
 
+test("orchestrator self-approval handoffs include the workflow actor", () => {
+  const workflowText = readRepoFile(".github/workflows/agent-orchestrator.yml");
+  const workflow = parseYaml(workflowText) as unknown;
+  assert.ok(isRecord(workflow), "orchestrator workflow should parse as a YAML object");
+  assert.ok(isRecord(workflow.jobs), "orchestrator workflow should define jobs");
+  const job = workflow.jobs.orchestrate;
+  assert.ok(isRecord(job), "orchestrator workflow should define orchestrate job");
+  assert.ok(Array.isArray(job.steps), "orchestrator job should define steps");
+  assert.ok(isRecord(workflow.on), "orchestrator workflow should define triggers");
+  const workflowDispatch = workflow.on.workflow_dispatch;
+  assert.ok(isRecord(workflowDispatch), "orchestrator workflow should define workflow_dispatch");
+  assert.ok(isRecord(workflowDispatch.inputs), "orchestrator workflow should define inputs");
+  assert.ok(isRecord(workflowDispatch.inputs.source_actor), "orchestrator workflow should accept carried source_actor");
+
+  const trustedRequesterExpression = "${{ inputs.source_action == 'orchestrate' && github.actor || inputs.requested_by || github.actor }}";
+  const plannerStep = job.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Plan next action with agent",
+  );
+  const dispatchStep = job.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Decide and dispatch next action",
+  );
+  assert.ok(plannerStep, "orchestrator workflow should plan");
+  assert.ok(dispatchStep, "orchestrator workflow should dispatch");
+  assert.ok(isRecord(plannerStep.with), "planner step should define inputs");
+  assert.ok(isRecord(dispatchStep.env), "dispatch step should define env");
+  assert.equal(plannerStep.with.requested_by, trustedRequesterExpression);
+  assert.equal(dispatchStep.env.REQUESTED_BY, trustedRequesterExpression);
+  assert.equal(dispatchStep.env.SOURCE_ACTOR, "${{ inputs.source_actor && format('{0},{1}', inputs.source_actor, github.actor) || github.actor }}");
+  assert.equal(dispatchStep.env.WORKFLOW_ACTOR, "${{ github.actor }}");
+  assert.doesNotMatch(trustedRequesterExpression, /source_run_id/);
+  assert.doesNotMatch(workflowText, /requested_by:\s*\$\{\{\s*inputs\.requested_by \|\| github\.actor\s*\}\}/);
+  assert.doesNotMatch(workflowText, /REQUESTED_BY:\s*\$\{\{\s*inputs\.requested_by \|\| github\.actor\s*\}\}/);
+});
+
 test("orchestrator source handoff context is renderable in planner prompts", () => {
   const runSource = readRepoFile(".agent/src/run.ts");
   const orchestratorPrompt = readRepoFile(".github/prompts/agent-orchestrator.md");
   const sourceContextName = "ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT";
+  const sourceRequiredWorkName = "ORCHESTRATOR_SOURCE_REQUIRED_BRANCH_WORK";
 
   assert.match(orchestratorPrompt, /\$\{ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT\}/);
+  assert.match(orchestratorPrompt, /\$\{ORCHESTRATOR_SOURCE_REQUIRED_BRANCH_WORK\}/);
   assert.ok(
     readSupplementalPromptVarNames(runSource).has(sourceContextName),
     `${sourceContextName} must be allowlisted for runtime prompt rendering`,
+  );
+  assert.ok(
+    readSupplementalPromptVarNames(runSource).has(sourceRequiredWorkName),
+    `${sourceRequiredWorkName} must be allowlisted for runtime prompt rendering`,
   );
 });
 
@@ -1541,6 +1663,7 @@ test("validateEnvelope catches invalid route", () => {
 test("validateEnvelope accepts dispatch, action, self-approval, and rubrics routes", () => {
   for (const route of [
     "dispatch",
+    "config",
     "create-action",
     "agent-self-approve",
     "agent-self-merge",

@@ -1,4 +1,8 @@
-import { extractReviewConclusion, extractReviewRecommendedNextStep } from "./handoff.js";
+import {
+  deriveReviewRequiredBranchWork,
+  extractReviewConclusion,
+  extractReviewRecommendedNextStep,
+} from "./handoff.js";
 import { extractJsonObject } from "./response.js";
 import {
   extractReviewSynthesisHeadSha,
@@ -27,6 +31,8 @@ export interface SelfApprovalResolveInput {
   decision: SelfApprovalDecision | null;
   approvalActorAllowed?: boolean;
   approvalActorReason?: string;
+  requesterAllowed?: boolean;
+  requesterReason?: string;
   approvalProvenanceTrusted?: boolean;
   approvalProvenanceReason?: string;
 }
@@ -55,6 +61,12 @@ export interface SelfApprovalActorResult {
   sameActor?: boolean;
 }
 
+export interface SelfApprovalRequesterResult {
+  allowed: boolean;
+  reason: string;
+  sameRequester?: boolean;
+}
+
 function normalizeToken(value: string): string {
   return String(value || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
 }
@@ -63,8 +75,14 @@ function normalizeActorLogin(value: string): string {
   return String(value || "")
     .trim()
     .toLowerCase()
+    .replace(/^@/, "")
     .replace(/^app\//i, "")
     .replace(/\[bot\]$/i, "");
+}
+
+function isAutomationActorLogin(value: string): boolean {
+  const text = String(value || "").trim().toLowerCase();
+  return text.startsWith("app/") || text.endsWith("[bot]") || text === "github-actions";
 }
 
 function createdAtMs(value: string | number | null | undefined): number {
@@ -117,6 +135,88 @@ export function evaluateSelfApprovalActor(input: {
   };
 }
 
+export function evaluateSelfApprovalRequester(input: {
+  requestedByLogin: string;
+  prAuthorLogin: string;
+}): SelfApprovalRequesterResult {
+  const requestedBy = normalizeActorLogin(input.requestedByLogin);
+  const prAuthor = normalizeActorLogin(input.prAuthorLogin);
+  if (!requestedBy) {
+    return {
+      allowed: false,
+      reason: "could not resolve self-approval requester",
+    };
+  }
+  if (!prAuthor) {
+    return {
+      allowed: false,
+      reason: "could not resolve pull request author for self-approval",
+    };
+  }
+  if (requestedBy === prAuthor) {
+    return {
+      allowed: false,
+      sameRequester: true,
+      reason: "self-approval requester matches the pull request author",
+    };
+  }
+  return {
+    allowed: true,
+    sameRequester: false,
+    reason: "self-approval requester is distinct from pull request author",
+  };
+}
+
+export function resolveTrustedSelfApprovalRequesters(input: {
+  requestedByLogin: string;
+  sourceActorLogin?: string;
+  workflowActorLogin: string;
+  orchestrationEnabled?: boolean;
+}): string[] {
+  const requestedBy = String(input.requestedByLogin || "").trim();
+  const sourceActor = String(input.sourceActorLogin || "").trim();
+  const workflowActor = String(input.workflowActorLogin || "").trim();
+  const requesters: string[] = [];
+  const seen = new Set<string>();
+
+  function addRequester(login: string): void {
+    const normalized = normalizeActorLogin(login);
+    if (!normalized || seen.has(normalized)) return;
+    seen.add(normalized);
+    requesters.push(login.trim());
+  }
+
+  function addRequesterList(logins: string, options: { skipAutomationActors?: boolean } = {}): void {
+    for (const login of logins.split(/[,\n]+/)) {
+      if (options.skipAutomationActors && isAutomationActorLogin(login)) continue;
+      addRequester(login);
+    }
+  }
+
+  if (input.orchestrationEnabled === true && requestedBy) {
+    addRequester(requestedBy);
+  }
+  if (input.orchestrationEnabled === true && sourceActor) {
+    addRequesterList(sourceActor, { skipAutomationActors: true });
+  }
+  if (!input.orchestrationEnabled || !requestedBy || !isAutomationActorLogin(workflowActor)) {
+    addRequester(workflowActor);
+  }
+  if (!requesters.length) {
+    addRequester(requestedBy);
+  }
+  return requesters;
+}
+
+export function resolveTrustedSelfApprovalRequester(input: {
+  requestedByLogin: string;
+  sourceActorLogin?: string;
+  workflowActorLogin: string;
+  orchestrationEnabled?: boolean;
+}): string {
+  return resolveTrustedSelfApprovalRequesters(input)[0] || "";
+}
+
 function normalizeVerdict(value: string): SelfApprovalVerdict | null {
   const normalized = normalizeToken(value);
   if (normalized === "approve" || normalized === "approved") return "approve";
@@ -137,6 +237,7 @@ export function evaluateSelfApprovalProvenance(input: {
   trustedActorLogin: string;
   expectedHeadSha: string;
   allowHumanDecisionGate?: boolean;
+  allowNoBranchWorkGate?: boolean;
 }): SelfApprovalProvenanceResult {
   const trustedActor = normalizeActorLogin(input.trustedActorLogin);
   const expectedHeadSha = String(input.expectedHeadSha || "").trim();
@@ -166,6 +267,7 @@ export function evaluateSelfApprovalProvenance(input: {
         createdAtMs: createdAtMs(comment.createdAt),
         conclusion: extractReviewConclusion(body),
         recommendedNextStep: extractReviewRecommendedNextStep(body),
+        requiredBranchWork: deriveReviewRequiredBranchWork(body),
         reviewedHeadSha: extractReviewSynthesisHeadSha(body),
       };
     })
@@ -174,6 +276,7 @@ export function evaluateSelfApprovalProvenance(input: {
       createdAtMs: number;
       conclusion: string;
       recommendedNextStep: string;
+      requiredBranchWork: "true" | "false" | "unknown";
       reviewedHeadSha: string;
     } => Boolean(signal))
     .sort((left, right) => left.createdAtMs - right.createdAtMs || left.index - right.index);
@@ -211,6 +314,27 @@ export function evaluateSelfApprovalProvenance(input: {
     return {
       trusted: true,
       reason: `latest trusted review synthesis recommended HUMAN_DECISION after ${conclusion} for current head`,
+    };
+  }
+  if (
+    input.allowNoBranchWorkGate &&
+    conclusion === "minor_issues" &&
+    recommendedNextStep === "no_automated_action" &&
+    latest.requiredBranchWork === "false"
+  ) {
+    return {
+      trusted: true,
+      reason: "latest trusted review synthesis found no required branch-change work after MINOR_ISSUES for current head",
+    };
+  }
+  if (
+    input.allowNoBranchWorkGate &&
+    conclusion === "minor_issues" &&
+    recommendedNextStep === "no_automated_action"
+  ) {
+    return {
+      trusted: false,
+      reason: "latest trusted review synthesis did not confirm no required branch-change work remains",
     };
   }
 
@@ -323,6 +447,15 @@ export function resolveSelfApproval(input: SelfApprovalResolveInput): SelfApprov
         conclusion: "blocked",
         shouldApprove: false,
         reason: input.approvalActorReason || "approval actor could not be verified as distinct from pull request author",
+        handoffContext: input.decision.handoffContext,
+      };
+    }
+
+    if (input.requesterAllowed !== true) {
+      return {
+        conclusion: "blocked",
+        shouldApprove: false,
+        reason: input.requesterReason || "self-approval requester could not be verified as distinct from pull request author",
         handoffContext: input.decision.handoffContext,
       };
     }

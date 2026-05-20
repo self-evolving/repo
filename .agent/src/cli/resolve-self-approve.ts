@@ -1,5 +1,6 @@
 // CLI: resolve a self-approval agent response and optionally approve a PR.
-// Env: RESPONSE_FILE, GITHUB_REPOSITORY, TARGET_NUMBER, TARGET_KIND,
+// Env: RESPONSE_FILE, GITHUB_REPOSITORY, TARGET_NUMBER, TARGET_KIND, REQUESTED_BY,
+//      SOURCE_ACTOR, WORKFLOW_ACTOR, ORCHESTRATION_ENABLED,
 //      EXPECTED_HEAD_SHA, AGENT_ALLOW_SELF_APPROVE, AGENT_ALLOW_SELF_MERGE,
 //      SOURCE_RECOMMENDED_NEXT_STEP
 // Outputs: conclusion, approved, status_post, handoff_context, reason, body_file
@@ -19,9 +20,11 @@ import {
   envFlagEnabled,
   evaluateSelfApprovalActor,
   evaluateSelfApprovalProvenance,
+  evaluateSelfApprovalRequester,
   formatSelfApprovalBody,
   parseSelfApprovalDecision,
   resolveSelfApproval,
+  resolveTrustedSelfApprovalRequesters,
 } from "../self-approval.js";
 
 function writeBodyFile(body: string): string {
@@ -71,11 +74,19 @@ const repo = process.env.GITHUB_REPOSITORY || "";
 const prNumber = Number(process.env.TARGET_NUMBER || process.env.PR_NUMBER || "");
 const targetKind = process.env.TARGET_KIND || "pull_request";
 const expectedHeadSha = process.env.EXPECTED_HEAD_SHA || "";
+const workflowActor = process.env.WORKFLOW_ACTOR || process.env.GITHUB_ACTOR || "";
+const requestedByLogins = resolveTrustedSelfApprovalRequesters({
+  requestedByLogin: process.env.REQUESTED_BY || "",
+  sourceActorLogin: process.env.SOURCE_ACTOR || "",
+  workflowActorLogin: workflowActor,
+  orchestrationEnabled: envFlagEnabled(process.env.ORCHESTRATION_ENABLED),
+});
 const allowSelfApprove = envFlagEnabled(process.env.AGENT_ALLOW_SELF_APPROVE);
 const allowSelfMerge = envFlagEnabled(process.env.AGENT_ALLOW_SELF_MERGE);
 const allowSameActorSelfApprove = allowSelfApprove && allowSelfMerge;
 const sourceRecommendedNextStep = normalizeToken(process.env.SOURCE_RECOMMENDED_NEXT_STEP || "");
 const isHumanDecisionGate = sourceRecommendedNextStep === "human_decision";
+const isNoBranchWorkGate = sourceRecommendedNextStep === "no_automated_action";
 const decision = parseSelfApprovalDecision(readResponse());
 
 let prState = "";
@@ -84,10 +95,13 @@ let metadataReadReason = "";
 let approvalActorAllowed = false;
 let approvalActorReason = "approval actor could not be verified as distinct from pull request author";
 let approvalActorSameAsAuthor = false;
+let requesterAllowed = false;
+let requesterReason = "self-approval requester could not be verified as distinct from pull request author";
 let approvalProvenanceTrusted = false;
 let approvalProvenanceReason = "missing trusted review synthesis for self-approval";
 if (allowSelfApprove && normalizeToken(targetKind) === "pull_request" && repo && prNumber) {
   let authenticatedActorLogin = "";
+  let prAuthorLogin = "";
   try {
     const meta = fetchPrMeta(prNumber, repo);
     prState = meta.state;
@@ -97,10 +111,30 @@ if (allowSelfApprove && normalizeToken(targetKind) === "pull_request" && repo &&
   }
 
   try {
+    prAuthorLogin = fetchPrAuthorLogin(prNumber, repo);
+    requesterAllowed = true;
+    requesterReason = "self-approval requesters are distinct from pull request author";
+    for (const requestedByLogin of requestedByLogins.length ? requestedByLogins : [""]) {
+      const requester = evaluateSelfApprovalRequester({
+        requestedByLogin,
+        prAuthorLogin,
+      });
+      if (!requester.allowed) {
+        requesterAllowed = false;
+        requesterReason = requester.reason;
+        break;
+      }
+    }
+  } catch {
+    requesterAllowed = false;
+    requesterReason = "could not verify self-approval requester differs from pull request author";
+  }
+
+  try {
     authenticatedActorLogin = fetchAuthenticatedActorLogin();
     const approvalActor = evaluateSelfApprovalActor({
       approvalActorLogin: authenticatedActorLogin,
-      prAuthorLogin: fetchPrAuthorLogin(prNumber, repo),
+      prAuthorLogin: prAuthorLogin || fetchPrAuthorLogin(prNumber, repo),
       allowSameActor: allowSameActorSelfApprove,
     });
     approvalActorAllowed = approvalActor.allowed;
@@ -118,6 +152,7 @@ if (allowSelfApprove && normalizeToken(targetKind) === "pull_request" && repo &&
       trustedActorLogin,
       expectedHeadSha,
       allowHumanDecisionGate: isHumanDecisionGate,
+      allowNoBranchWorkGate: isNoBranchWorkGate,
     });
     approvalProvenanceTrusted = provenance.trusted;
     approvalProvenanceReason = provenance.reason;
@@ -145,6 +180,8 @@ let result = metadataReadReason
     decision,
     approvalActorAllowed,
     approvalActorReason,
+    requesterAllowed,
+    requesterReason,
     approvalProvenanceTrusted,
     approvalProvenanceReason,
   });

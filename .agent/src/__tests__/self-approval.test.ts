@@ -4,11 +4,13 @@ import { strict as assert } from "node:assert";
 import {
   evaluateSelfApprovalActor,
   evaluateSelfApprovalProvenance,
+  evaluateSelfApprovalRequester,
   extractSelfApprovalApprovedHeadSha,
   extractSelfApprovalHeadSha,
   formatSelfApprovalBody,
   parseSelfApprovalDecision,
   resolveSelfApproval,
+  resolveTrustedSelfApprovalRequesters,
 } from "../self-approval.js";
 
 const approveDecision = {
@@ -21,6 +23,11 @@ const approveDecision = {
 const distinctApprovalActor = {
   approvalActorAllowed: true,
   approvalActorReason: "approval actor is distinct from pull request author",
+};
+
+const distinctRequester = {
+  requesterAllowed: true,
+  requesterReason: "self-approval requester is distinct from pull request author",
 };
 
 test("parseSelfApprovalDecision accepts structured verdict JSON", () => {
@@ -161,6 +168,71 @@ test("evaluateSelfApprovalActor requires a distinct approval actor unless YOLO s
   assert.match(missing.reason, /could not resolve approval actor/);
 });
 
+test("resolveTrustedSelfApprovalRequesters preserves forwarded and runtime requesters", () => {
+  assert.deepEqual(resolveTrustedSelfApprovalRequesters({
+    requestedByLogin: "maintainer",
+    workflowActorLogin: "lolipopshock",
+    orchestrationEnabled: true,
+  }), ["maintainer", "lolipopshock"]);
+  assert.deepEqual(resolveTrustedSelfApprovalRequesters({
+    requestedByLogin: "maintainer",
+    workflowActorLogin: "lolipopshock",
+    orchestrationEnabled: false,
+  }), ["lolipopshock"]);
+  assert.deepEqual(resolveTrustedSelfApprovalRequesters({
+    requestedByLogin: "maintainer",
+    workflowActorLogin: "sepo-agent-app[bot]",
+    orchestrationEnabled: true,
+  }), ["maintainer"]);
+  assert.deepEqual(resolveTrustedSelfApprovalRequesters({
+    requestedByLogin: "lolipopshock",
+    workflowActorLogin: "machine-user",
+    orchestrationEnabled: true,
+  }), ["lolipopshock", "machine-user"]);
+  assert.deepEqual(resolveTrustedSelfApprovalRequesters({
+    requestedByLogin: "maintainer",
+    sourceActorLogin: "lolipopshock",
+    workflowActorLogin: "sepo-agent-app[bot]",
+    orchestrationEnabled: true,
+  }), ["maintainer", "lolipopshock"]);
+  assert.deepEqual(resolveTrustedSelfApprovalRequesters({
+    requestedByLogin: "maintainer",
+    sourceActorLogin: "spoofed-maintainer,lolipopshock",
+    workflowActorLogin: "sepo-agent-app[bot]",
+    orchestrationEnabled: true,
+  }), ["maintainer", "spoofed-maintainer", "lolipopshock"]);
+  assert.deepEqual(resolveTrustedSelfApprovalRequesters({
+    requestedByLogin: "maintainer",
+    sourceActorLogin: "maintainer,sepo-agent-app[bot],github-actions,app/sepo-agent-app",
+    workflowActorLogin: "sepo-agent-app[bot]",
+    orchestrationEnabled: true,
+  }), ["maintainer"]);
+});
+
+test("evaluateSelfApprovalRequester requires a distinct initiating requester", () => {
+  const allowed = evaluateSelfApprovalRequester({
+    requestedByLogin: "maintainer",
+    prAuthorLogin: "lolipopshock",
+  });
+  assert.equal(allowed.allowed, true);
+  assert.equal(allowed.sameRequester, false);
+
+  const sameRequester = evaluateSelfApprovalRequester({
+    requestedByLogin: "@lolipopshock",
+    prAuthorLogin: "lolipopshock",
+  });
+  assert.equal(sameRequester.allowed, false);
+  assert.equal(sameRequester.sameRequester, true);
+  assert.match(sameRequester.reason, /requester matches the pull request author/);
+
+  const missing = evaluateSelfApprovalRequester({
+    requestedByLogin: "",
+    prAuthorLogin: "lolipopshock",
+  });
+  assert.equal(missing.allowed, false);
+  assert.match(missing.reason, /could not resolve self-approval requester/);
+});
+
 test("resolveSelfApproval approves only matching open PR heads with trusted provenance", () => {
   const result = resolveSelfApproval({
     allowSelfApprove: true,
@@ -170,6 +242,7 @@ test("resolveSelfApproval approves only matching open PR heads with trusted prov
     currentHeadSha: "abc123",
     decision: approveDecision,
     ...distinctApprovalActor,
+    ...distinctRequester,
     approvalProvenanceTrusted: true,
   });
 
@@ -187,12 +260,32 @@ test("resolveSelfApproval blocks approval by the pull request author", () => {
     decision: approveDecision,
     approvalActorAllowed: false,
     approvalActorReason: "approval actor matches the pull request author",
+    ...distinctRequester,
     approvalProvenanceTrusted: true,
   });
 
   assert.equal(result.shouldApprove, false);
   assert.equal(result.conclusion, "blocked");
   assert.match(result.reason, /matches the pull request author/);
+});
+
+test("resolveSelfApproval blocks approval requested by the pull request author", () => {
+  const result = resolveSelfApproval({
+    allowSelfApprove: true,
+    targetKind: "pull_request",
+    prState: "OPEN",
+    expectedHeadSha: "abc123",
+    currentHeadSha: "abc123",
+    decision: approveDecision,
+    ...distinctApprovalActor,
+    requesterAllowed: false,
+    requesterReason: "self-approval requester matches the pull request author",
+    approvalProvenanceTrusted: true,
+  });
+
+  assert.equal(result.shouldApprove, false);
+  assert.equal(result.conclusion, "blocked");
+  assert.match(result.reason, /requester matches the pull request author/);
 });
 
 test("resolveSelfApproval rejects stale or mismatched head SHAs", () => {
@@ -249,6 +342,7 @@ test("resolveSelfApproval blocks approval without trusted review provenance", ()
     expectedHeadSha: "abc123",
     currentHeadSha: "abc123",
     ...distinctApprovalActor,
+    ...distinctRequester,
     approvalProvenanceTrusted: false,
     approvalProvenanceReason: "latest trusted review synthesis verdict is needs_rework, not SHIP",
     decision: approveDecision,
@@ -355,6 +449,92 @@ test("evaluateSelfApprovalProvenance can allow trusted HUMAN_DECISION gate", () 
   });
   assert.equal(fixPr.trusted, false);
   assert.match(fixPr.reason, /not SHIP/);
+});
+
+test("evaluateSelfApprovalProvenance can allow no-required-branch-work gate", () => {
+  const trusted = evaluateSelfApprovalProvenance({
+    trustedActorLogin: "sepo-agent-app[bot]",
+    expectedHeadSha: "abc123",
+    allowNoBranchWorkGate: true,
+    comments: [
+      {
+        authorLogin: "sepo-agent-app",
+        createdAt: "2026-05-07T10:00:00Z",
+        body: [
+          "## AI Review Synthesis",
+          "<!-- sepo-agent-review-synthesis -->",
+          "<!-- sepo-agent-review-synthesis-head: abc123 -->",
+          "",
+          "## Recommended Next Step",
+          "NO_AUTOMATED_ACTION: no unresolved branch work remains.",
+          "",
+          "## Final Verdict",
+          "MINOR_ISSUES",
+          "",
+          "## Action Items",
+          "- [ ] No required branch-change work remains.",
+        ].join("\n"),
+      },
+    ],
+  });
+  assert.equal(trusted.trusted, true);
+  assert.match(trusted.reason, /no required branch-change work/);
+
+  const requiredWork = evaluateSelfApprovalProvenance({
+    trustedActorLogin: "sepo-agent-app[bot]",
+    expectedHeadSha: "abc123",
+    allowNoBranchWorkGate: true,
+    comments: [
+      {
+        authorLogin: "sepo-agent-app",
+        createdAt: "2026-05-07T10:00:00Z",
+        body: [
+          "## AI Review Synthesis",
+          "<!-- sepo-agent-review-synthesis -->",
+          "<!-- sepo-agent-review-synthesis-head: abc123 -->",
+          "",
+          "## Recommended Next Step",
+          "NO_AUTOMATED_ACTION",
+          "",
+          "## Final Verdict",
+          "MINOR_ISSUES",
+          "",
+          "## Action Items",
+          "- [ ] Add the missing provenance regression test.",
+        ].join("\n"),
+      },
+    ],
+  });
+  assert.equal(requiredWork.trusted, false);
+  assert.match(requiredWork.reason, /did not confirm no required branch-change work/);
+
+  const blocking = evaluateSelfApprovalProvenance({
+    trustedActorLogin: "sepo-agent-app[bot]",
+    expectedHeadSha: "abc123",
+    allowNoBranchWorkGate: true,
+    comments: [
+      {
+        authorLogin: "sepo-agent-app",
+        createdAt: "2026-05-07T10:00:00Z",
+        body: [
+          "## AI Review Synthesis",
+          "<!-- sepo-agent-review-synthesis -->",
+          "<!-- sepo-agent-review-synthesis-head: abc123 -->",
+          "",
+          "## Recommended Next Step",
+          "NO_AUTOMATED_ACTION",
+          "",
+          "## Final Verdict",
+          "NEEDS_REWORK",
+          "",
+          "## Action Items",
+          "- [ ] No required branch-change work remains.",
+        ].join("\n"),
+      },
+    ],
+  });
+  assert.equal(blocking.trusted, false);
+  assert.match(blocking.reason, /not SHIP/);
 });
 
 test("evaluateSelfApprovalProvenance requires review synthesis for the current head", () => {

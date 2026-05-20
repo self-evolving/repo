@@ -43,6 +43,8 @@ Main routes mount the memory branch at `$MEMORY_DIR` and expose two CLIs to the 
 
 The agent can read and edit files under `$MEMORY_DIR` with normal tools. For standard bullet-oriented changes, `memory/update.js` is the preferred helper because it keeps section placement, formatting, and dedup consistent. The outer workflow commits any resulting diff to `agent/memory` using the workflow's token — the agent never needs push access.
 
+For local Codex/Claude-style work, run `npm --prefix .agent run prepare:local-agent -- --repo <owner/repo>` after building `.agent`. The helper clones `agent/memory` into the ignored `.agent/local/memory` workspace and writes `.agent/local/AGENT_CONTEXT.md` with the local `MEMORY_DIR` path and read/write guidance.
+
 ### How `memory/update.js` changes files
 
 ```mermaid

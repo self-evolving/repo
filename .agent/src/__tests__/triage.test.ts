@@ -139,6 +139,14 @@ test("extractRequestedRoute detects explicit slash routes after the agent mentio
     extractRequestedRoute("@sepo-agent /create-action monitor flaky tests", "@sepo-agent"),
     "create-action",
   );
+  assert.equal(
+    extractRequestedRoute("@sepo-agent /config disable auto update", "@sepo-agent"),
+    "config",
+  );
+  assert.equal(
+    extractRequestedRoute("@sepo-agent /configure enable project management", "@sepo-agent"),
+    "configure",
+  );
 });
 
 test("extractRequestedRouteDecision detects mention-based skill requests", () => {
@@ -307,6 +315,16 @@ test("buildRequestedRouteDecision supports install routes", () => {
   assert.equal(d.route, "install");
   assert.equal(d.needsApproval, false);
   assert.match(d.summary, /install route/);
+});
+
+test("buildRequestedRouteDecision supports config routes and aliases", () => {
+  const d = buildRequestedRouteDecision("config", "@sepo-agent /config disable auto update");
+  assert.equal(d.route, "config");
+  assert.equal(d.needsApproval, false);
+  assert.match(d.summary, /configuration change/);
+
+  const alias = buildRequestedRouteDecision("configure", "@sepo-agent /configure enable project management");
+  assert.equal(alias.route, "config");
 });
 
 test("resolveRequestedLabel maps built-in and skill labels", () => {
@@ -527,6 +545,80 @@ test("applyDispatchPolicy evaluates install independently from skill overrides",
   );
   assert.equal(allowedInstall.route, "install");
   assert.equal(allowedInstall.needsApproval, false);
+});
+
+test("applyDispatchPolicy defaults config route to collaborator-or-stronger access", () => {
+  const denied = applyDispatchPolicy(
+    buildRequestedRouteDecision("config", "@sepo-agent /config disable auto update"),
+    "issue",
+    "CONTRIBUTOR",
+    parseAccessPolicy(""),
+    true,
+    true,
+  );
+  assert.equal(denied.route, "unsupported");
+  assert.match(denied.summary, /OWNER, MEMBER, COLLABORATOR/);
+
+  const allowed = applyDispatchPolicy(
+    buildRequestedRouteDecision("config", "@sepo-agent /config disable auto update"),
+    "issue",
+    "COLLABORATOR",
+    parseAccessPolicy(""),
+    true,
+    true,
+  );
+  assert.equal(allowed.route, "config");
+  assert.equal(allowed.needsApproval, false);
+});
+
+test("applyDispatchPolicy lets explicit config route overrides widen access", () => {
+  const d = applyDispatchPolicy(
+    buildRequestedRouteDecision("config", "@sepo-agent /config disable auto update"),
+    "issue",
+    "CONTRIBUTOR",
+    parseAccessPolicy(
+      JSON.stringify({
+        route_overrides: {
+          config: ["OWNER", "MEMBER", "COLLABORATOR", "CONTRIBUTOR"],
+        },
+      }),
+    ),
+    true,
+    true,
+  );
+  assert.equal(d.route, "config");
+});
+
+test("applyDispatchPolicy intersects config default with global access policy", () => {
+  const ownerOnly = applyDispatchPolicy(
+    buildRequestedRouteDecision("config", "@sepo-agent /config disable auto update"),
+    "issue",
+    "MEMBER",
+    parseAccessPolicy(
+      JSON.stringify({
+        allowed_associations: ["OWNER"],
+      }),
+    ),
+    true,
+    true,
+  );
+  assert.equal(ownerOnly.route, "unsupported");
+  assert.match(ownerOnly.summary, /OWNER access/);
+
+  const noAllowedIntersection = applyDispatchPolicy(
+    buildRequestedRouteDecision("config", "@sepo-agent /config disable auto update"),
+    "issue",
+    "CONTRIBUTOR",
+    parseAccessPolicy(
+      JSON.stringify({
+        allowed_associations: ["CONTRIBUTOR"],
+      }),
+    ),
+    true,
+    true,
+  );
+  assert.equal(noAllowedIntersection.route, "unsupported");
+  assert.match(noAllowedIntersection.summary, /not allowed by the current access policy/);
 });
 
 test("applyDispatchPolicy rejects routes disallowed by configured access policy", () => {

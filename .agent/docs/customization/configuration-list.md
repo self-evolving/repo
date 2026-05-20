@@ -2,6 +2,11 @@
 
 ## Repository variables
 
+Use GitHub repository Actions variables for these Sepo settings. You can edit
+them manually in repository settings, run `Agent / Repo Config` from GitHub
+Actions for a dry-run or apply pass, or ask `@sepo-agent /config ...` from an
+authorized issue, pull request, or discussion thread.
+
 | Variable | Purpose |
 |---|---|
 | `AGENT_HANDLE` | Override the mention handle. Defaults to `@sepo-agent`. |
@@ -10,8 +15,8 @@
 | `AGENT_SESSION_BUNDLE_MODE` | Default session-bundle behavior: `auto`, `always`, or `never`. For the trade-offs behind this setting, see [Session continuity](../technical-details/session-continuity.md). |
 | `AGENT_AUTOMATION_MODE` | Orchestrator decision mode. Defaults to `agent` for planner-backed orchestration validated by runtime policy. Set to `heuristics` for deterministic status-based routing with lower model cost. Compatibility alias: `true` = `heuristics`; explicit `false` or legacy `disabled` values fall back to `heuristics` for explicit `/orchestrate` chains. See [Agent orchestrator](../technical-details/agent-orchestrator.md). |
 | `AGENT_AUTOMATION_MAX_ROUNDS` | Maximum number of explicit orchestration handoff rounds. Defaults to `12`. |
-| `AGENT_ALLOW_SELF_APPROVE` | Opt-in gate for `agent-self-approve.yml`. Defaults to `false`; when enabled, the workflow can approve only an open pull request whose current head matches trusted review synthesis provenance and the self-approval agent's inspected head. Same-actor approval is still blocked unless `AGENT_ALLOW_SELF_MERGE=true` is also enabled for full self-governance mode. |
-| `AGENT_ALLOW_SELF_MERGE` | Opt-in gate for `agent-self-merge.yml`. Defaults to `false`; when enabled with self-approval, trusted current-head self-approved PRs can be marked ready and merged into their configured base with `--match-head-commit`. Together with `AGENT_ALLOW_SELF_APPROVE=true`, this allows Sepo-authored PRs to use an internal current-head self-approval status when GitHub review approval would be same-actor. |
+| `AGENT_ALLOW_SELF_APPROVE` | Opt-in gate for `agent-self-approve.yml`. Defaults to `false`; when enabled, the workflow can approve only an open pull request whose current head matches trusted review synthesis provenance and the self-approval agent's inspected head. The trusted requester must differ from the pull request author. Same-token-actor approval is still blocked unless `AGENT_ALLOW_SELF_MERGE=true` is also enabled for full self-governance mode. |
+| `AGENT_ALLOW_SELF_MERGE` | Opt-in gate for `agent-self-merge.yml`. Defaults to `false`; when enabled with self-approval, trusted current-head self-approved PRs can be marked ready and merged into their configured base with `--match-head-commit`. Together with `AGENT_ALLOW_SELF_APPROVE=true`, this allows Sepo-authored PRs to use an internal current-head self-approval status when GitHub review approval would be same-token-actor, but it does not bypass the requester-author guard. |
 | `AGENT_COLLAPSE_OLD_REVIEWS` | Generated comment cleanup toggle. Defaults to enabled; set to `false` to leave older AI review synthesis, rubrics review, `fix-pr` status, and orchestrator handoff comments visible instead of minimizing them as outdated. |
 | `AGENT_STATUS_LABEL_ENABLED` | Set to `true` to apply the fixed `agent` status label to handled issues and pull requests. |
 | `AGENT_PROJECT_MANAGEMENT_ENABLED` | Set to `true` to enable scheduled prompt-driven project-management runs. Manual runs can also use the workflow's `enabled` input. Defaults off. |

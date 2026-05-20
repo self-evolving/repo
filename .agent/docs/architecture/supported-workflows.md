@@ -16,6 +16,7 @@
 | `agent-implement.yml` | `workflow_dispatch` | Implementation flow: branch, commit, draft PR; supports `base_branch` or `base_pr` for stacked PRs | Auto |
 | `agent-fix-pr.yml` | `workflow_dispatch`, `workflow_call` | PR fix flow: update existing PR branch, verify, push | Auto |
 | `agent-review.yml` | `workflow_dispatch`, `workflow_call` | Parallel Claude and Codex review with resolved-provider synthesis, captured reviewed-head provenance, plus a separate rubric review comment | Claude + Codex reviewers; configurable synthesis |
+| `agent-config.yml` | `workflow_dispatch`, `workflow_call` | Natural-language Sepo repository Actions variable updates with deterministic plan validation and optional apply | Auto |
 | `agent-branch-cleanup.yml` | `pull_request_target.closed` | Event-driven cleanup of merged agent-created branches after retargeting open stacked PRs. Excludes the shared `agent/memory` and `agent/rubrics` branches. | None |
 | `agent-close-stale-issues.yml` | `schedule` (daily), `workflow_dispatch` | Closes open `agent` issues that have had no activity for 30 days by default | None |
 | `agent-daily-summary.yml` | `schedule` (daily, disabled by default), `workflow_dispatch` | Generates a concise repository activity summary and posts it as a Discussion | Auto |
@@ -74,9 +75,12 @@ user-launched orchestrate requests validate the requester against the delegated
 route capability set up front. `agent-self-approve` is included in that check
 only when `AGENT_ALLOW_SELF_APPROVE=true`; `agent-self-merge` is included only
 when both `AGENT_ALLOW_SELF_APPROVE=true` and `AGENT_ALLOW_SELF_MERGE=true`.
-Internal child and parent resume dispatches carry `requested_by` for audit and
-display, but they do not thread route authorization inputs through every child
-workflow.
+Direct starts derive the origin actor from `github.actor`; non-empty
+`source_run_id` is only a dedupe key, not requester provenance. Internal child
+and parent resume dispatches carry `requested_by` for audit and display, plus an
+append-only source-actor chain for route-specific guards such as self-approval's
+requester-author check. Other child workflows do not need route authorization
+inputs threaded through every child workflow.
 
 Implementation dispatches default to the repository default branch. Callers can
 set `base_branch` to stack directly on another branch, or `base_pr` to stack on
@@ -87,7 +91,10 @@ For explicit `/implement` requests from pull requests, the router's
 metadata-only prompt may emit `base_pr` when the current user request asks for a
 stacked or follow-up PR. The portal validates that value as a positive integer
 and passes it through to `agent-implement.yml`; the implementation workflow then
-verifies the PR is open and same-repository before using its head branch.
+verifies the PR is open and same-repository before using its head branch. If
+the inferred source PR is closed or merged, the router omits `base_pr` before
+dispatch and leaves the closed PR link in the tracking issue context so the run
+starts from the default branch.
 
 When a new review synthesis, rubrics review, `fix-pr` status comment, or
 orchestrator handoff marker is posted, the workflows minimize prior visible
@@ -165,6 +172,16 @@ step finds today's `Daily Summary — YYYY-MM-DD` discussion in the configured
 discussion category and comments there. If that discussion does not exist yet,
 it leaves only the Actions step summary.
 
+`agent-config.yml` can be run from the Actions page with a natural-language
+`request_text`; it defaults to dry run unless `apply=true`. The explicit
+`/config` and `/configure` mention routes call the same workflow with apply
+enabled after route authorization. The agent returns only a structured
+`operations` plan, and `.agent/dist/cli/apply-repo-config.js` validates the
+documented Sepo variable allowlist before using GitHub's repository Actions
+variables API to create, update, or delete variables. The route does not expose
+secrets, organization variables, environment variables, or multi-repository
+writes.
+
 `agent-daily-summary.yml` checks repository discussion settings before gathering
 activity signals or resolving an agent provider. If discussions are disabled, or
 the configured summary discussion category does not exist, the workflow skips
@@ -220,6 +237,8 @@ Explicit routes are:
 - `@sepo-agent /orchestrate`
 - `@sepo-agent /skill <name>`
 - `@sepo-agent /install ...`
+- `@sepo-agent /config ...`
+- `@sepo-agent /configure ...`
 
 Explicit routes skip dispatch triage and resolve locally, but still go through the same route policy checks afterward.
 When an explicit `/implement` request on a pull request or discussion creates a tracking issue, the router runs a metadata-only agent prompt to synthesize the issue title and body from the request plus target context. The slash command approves the route; it is not copied into the title. Pull request metadata can also include `base_pr` for stacked or follow-up implementation requests. If metadata generation is unavailable or invalid, the issue falls back to `Implement requested change`.
@@ -296,24 +315,35 @@ workflow accepts a pull request number, confirms the target is an open PR, and
 requires latest trusted review synthesis from the authenticated Sepo actor for
 the current reviewed-head marker before it runs an approval agent. Normal runs
 require that synthesis to be `SHIP`; orchestrated review `HUMAN_DECISION`
-handoffs may also run the agent as a decision gate for non-`SHIP` verdicts. The
-agent runs with read-approved permissions and returns structured JSON with a
-verdict, reason, optional follow-up context, and `inspected_head_sha`.
+handoffs may also run the agent as a decision gate for non-`SHIP` verdicts, and
+orchestrated `MINOR_ISSUES` reviews that recommend `NO_AUTOMATED_ACTION` may run
+the gate when no required branch-change work remains. The agent runs with
+read-approved permissions and returns structured JSON with a verdict, reason,
+optional follow-up context, and `inspected_head_sha`.
 
 Deterministic resolver code is the only part that can submit or record the
 approval. It rereads the current PR head, rechecks trusted current-head review
-provenance, verifies the approval actor differs from the pull request author
-unless both `AGENT_ALLOW_SELF_APPROVE=true` and `AGENT_ALLOW_SELF_MERGE=true`
-are enabled, parses the agent verdict, and approves only when the expected,
-current, and inspected head SHAs match. Normal handoffs require trusted
+provenance, verifies the trusted requester differs from the pull request author,
+verifies the approval actor differs from the pull request author unless both
+`AGENT_ALLOW_SELF_APPROVE=true` and `AGENT_ALLOW_SELF_MERGE=true` are enabled,
+parses the agent verdict, and approves only when the expected, current, and
+inspected head SHAs match. Manual and other non-orchestrated runs use
+`github.actor` as the deterministic requester even when `requested_by` is
+supplied. Orchestrated handoffs preserve and check the original requester even
+when a PAT-backed machine user is the workflow actor; non-automation workflow
+actors are also checked so a PR author cannot spoof orchestration by setting
+`orchestration_enabled=true`. Normal handoffs require trusted
 current-head `SHIP` review synthesis; orchestrated review `HUMAN_DECISION`
-handoffs also trust the matching current-head synthesis as the decision gate.
-Non-approval outcomes post a compact PR status comment. In full
+handoffs also trust the matching current-head synthesis as the decision gate,
+and `MINOR_ISSUES` plus `NO_AUTOMATED_ACTION` is trusted only when the matching
+synthesis action items show no required branch-change work. Non-approval
+outcomes post a compact PR status comment. In full
 self-governance mode, same-actor approvals are recorded as a current-head
 self-approval status comment rather than a GitHub review approval. In
-orchestrated chains, `SHIP` review synthesis and review syntheses that recommend
-`HUMAN_DECISION` can hand off to `agent-self-approve`; non-`SHIP`
-`HUMAN_DECISION` runs let self-approval approve, request changes, or block. A
+orchestrated chains, `SHIP` review synthesis, review syntheses that recommend
+`HUMAN_DECISION`, and no-required-branch-work `MINOR_ISSUES` syntheses that
+recommend `NO_AUTOMATED_ACTION` can hand off to `agent-self-approve`; non-`SHIP`
+handoffs let self-approval approve, request changes, or block. A
 self-approval `REQUEST_CHANGES` result can hand off to `fix-pr` with the
 approval agent's handoff context. Self-approval status comments are upserted by
 marker against comments authored by the authenticated Sepo actor, and result
