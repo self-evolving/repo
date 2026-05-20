@@ -97,6 +97,7 @@ function runResolveSelfApprove(tempDir: string, responseBody: string, env: Recor
       RESPONSE_FILE: responseFile,
       TARGET_KIND: "pull_request",
       TARGET_NUMBER: "42",
+      WORKFLOW_ACTOR: "maintainer",
       ...env,
     },
     encoding: "utf8",
@@ -171,7 +172,37 @@ test("resolve-self-approve blocks approval requested by the pull request author"
       reason: "Aligned.",
       inspected_head_sha: "abc123",
     }), {
+      ORCHESTRATION_ENABLED: "true",
       REQUESTED_BY: "lolipopshock",
+      WORKFLOW_ACTOR: "sepo-agent-app[bot]",
+    });
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.output, /approved<<[^\n]+\nfalse/);
+    assert.match(result.output, /conclusion<<[^\n]+\nblocked/);
+    assert.match(result.output, /self-approval requester matches the pull request author/);
+    assert.doesNotMatch(result.log, /^api --method POST repos\/self-evolving\/repo\/pulls\/42\/reviews /m);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("resolve-self-approve blocks spoofed requester from manual orchestration input", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-self-approve-cli-"));
+  try {
+    writeFakeGh(tempDir, "abc123", {
+      prAuthorLogin: "lolipopshock",
+      viewerLogin: "sepo-agent-app",
+    });
+
+    const result = runResolveSelfApprove(tempDir, JSON.stringify({
+      verdict: "APPROVE",
+      reason: "Aligned.",
+      inspected_head_sha: "abc123",
+    }), {
+      REQUESTED_BY: "maintainer",
+      ORCHESTRATION_ENABLED: "true",
+      WORKFLOW_ACTOR: "lolipopshock",
     });
 
     assert.equal(result.status, 0, result.stderr);

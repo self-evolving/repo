@@ -465,8 +465,12 @@ test("self-approval workflow stays opt-in and read-only until deterministic reso
   );
   assert.match(workflowText, /AGENT_ALLOW_SELF_APPROVE:\s*\$\{\{\s*vars\.AGENT_ALLOW_SELF_APPROVE \|\| 'false'\s*\}\}/);
   assert.match(workflowText, /AGENT_ALLOW_SELF_MERGE:\s*\$\{\{\s*vars\.AGENT_ALLOW_SELF_MERGE \|\| 'false'\s*\}\}/);
+  assert.match(workflowText, /Prepare self-approval[\s\S]*ORCHESTRATION_ENABLED:\s*\$\{\{\s*inputs\.orchestration_enabled\s*\}\}/);
   assert.match(workflowText, /Prepare self-approval[\s\S]*REQUESTED_BY:\s*\$\{\{\s*inputs\.orchestration_enabled == 'true' && inputs\.requested_by \|\| github\.actor\s*\}\}/);
+  assert.match(workflowText, /Prepare self-approval[\s\S]*WORKFLOW_ACTOR:\s*\$\{\{\s*github\.actor\s*\}\}/);
+  assert.match(workflowText, /Resolve self-approval result[\s\S]*ORCHESTRATION_ENABLED:\s*\$\{\{\s*inputs\.orchestration_enabled\s*\}\}/);
   assert.match(workflowText, /Resolve self-approval result[\s\S]*REQUESTED_BY:\s*\$\{\{\s*inputs\.orchestration_enabled == 'true' && inputs\.requested_by \|\| github\.actor\s*\}\}/);
+  assert.match(workflowText, /Resolve self-approval result[\s\S]*WORKFLOW_ACTOR:\s*\$\{\{\s*github\.actor\s*\}\}/);
   assert.doesNotMatch(workflowText, /REQUESTED_BY:\s*\$\{\{\s*inputs\.requested_by \|\| github\.actor\s*\}\}/);
   assert.match(workflowText, /node \.agent\/dist\/cli\/prepare-self-approve\.js/);
   assert.match(workflowText, /node \.agent\/dist\/cli\/resolve-self-approve\.js/);
@@ -481,7 +485,7 @@ test("self-approval workflow stays opt-in and read-only until deterministic reso
   assert.match(workflowText, /node \.agent\/dist\/cli\/dispatch-agent-orchestrator\.js/);
 });
 
-test("self-approval requester guard ignores spoofed requested_by on direct dispatches", () => {
+test("self-approval requester guard checks workflow actor for spoofed orchestration inputs", () => {
   const workflowText = readRepoFile(".github/workflows/agent-self-approve.yml");
   const workflow = parseYaml(workflowText) as unknown;
   assert.ok(isRecord(workflow), "self-approval workflow should parse as a YAML object");
@@ -516,8 +520,12 @@ test("self-approval requester guard ignores spoofed requested_by on direct dispa
   assert.ok(isRecord(prepareStep.env), "prepare step should define env");
   assert.ok(isRecord(resolveStep.env), "resolve step should define env");
   assert.ok(isRecord(runStep.with), "run step should define inputs");
+  assert.equal(prepareStep.env.ORCHESTRATION_ENABLED, "${{ inputs.orchestration_enabled }}");
   assert.equal(prepareStep.env.REQUESTED_BY, trustedRequesterExpression);
+  assert.equal(prepareStep.env.WORKFLOW_ACTOR, "${{ github.actor }}");
+  assert.equal(resolveStep.env.ORCHESTRATION_ENABLED, "${{ inputs.orchestration_enabled }}");
   assert.equal(resolveStep.env.REQUESTED_BY, trustedRequesterExpression);
+  assert.equal(resolveStep.env.WORKFLOW_ACTOR, "${{ github.actor }}");
   assert.equal(runStep.with.requested_by, trustedRequesterExpression);
   assert.doesNotMatch(workflowText, /REQUESTED_BY:\s*\$\{\{\s*inputs\.requested_by \|\| github\.actor\s*\}\}/);
 });

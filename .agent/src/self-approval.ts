@@ -80,6 +80,11 @@ function normalizeActorLogin(value: string): string {
     .replace(/\[bot\]$/i, "");
 }
 
+function isAutomationActorLogin(value: string): boolean {
+  const text = String(value || "").trim().toLowerCase();
+  return text.startsWith("app/") || text.endsWith("[bot]") || text === "github-actions";
+}
+
 function createdAtMs(value: string | number | null | undefined): number {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   const parsed = Date.parse(String(value || ""));
@@ -160,6 +165,19 @@ export function evaluateSelfApprovalRequester(input: {
     sameRequester: false,
     reason: "self-approval requester is distinct from pull request author",
   };
+}
+
+export function resolveTrustedSelfApprovalRequester(input: {
+  requestedByLogin: string;
+  workflowActorLogin: string;
+  orchestrationEnabled?: boolean;
+}): string {
+  const requestedBy = String(input.requestedByLogin || "").trim();
+  const workflowActor = String(input.workflowActorLogin || "").trim();
+  if (input.orchestrationEnabled === true && requestedBy && isAutomationActorLogin(workflowActor)) {
+    return requestedBy;
+  }
+  return workflowActor || requestedBy;
 }
 
 function normalizeVerdict(value: string): SelfApprovalVerdict | null {

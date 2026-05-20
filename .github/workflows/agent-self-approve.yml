@@ -80,10 +80,12 @@ jobs:
           AGENT_ALLOW_SELF_MERGE: ${{ vars.AGENT_ALLOW_SELF_MERGE || 'false' }}
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          ORCHESTRATION_ENABLED: ${{ inputs.orchestration_enabled }}
           REQUESTED_BY: ${{ inputs.orchestration_enabled == 'true' && inputs.requested_by || github.actor }}
           SOURCE_RECOMMENDED_NEXT_STEP: ${{ inputs.source_recommended_next_step }}
           TARGET_KIND: pull_request
           TARGET_NUMBER: ${{ inputs.pr_number }}
+          WORKFLOW_ACTOR: ${{ github.actor }}
         run: node .agent/dist/cli/prepare-self-approve.js
 
       - name: Post self-approval stop
@@ -174,11 +176,13 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_RUN_ID: ${{ github.run_id }}
           GITHUB_SERVER_URL: ${{ github.server_url }}
+          ORCHESTRATION_ENABLED: ${{ inputs.orchestration_enabled }}
           REQUESTED_BY: ${{ inputs.orchestration_enabled == 'true' && inputs.requested_by || github.actor }}
           RESPONSE_FILE: ${{ steps.agent.outputs.response_file }}
           SOURCE_RECOMMENDED_NEXT_STEP: ${{ inputs.source_recommended_next_step }}
           TARGET_KIND: pull_request
           TARGET_NUMBER: ${{ inputs.pr_number }}
+          WORKFLOW_ACTOR: ${{ github.actor }}
         run: node .agent/dist/cli/resolve-self-approve.js
 
       - name: Post self-approval status

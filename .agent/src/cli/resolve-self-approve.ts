@@ -1,5 +1,6 @@
 // CLI: resolve a self-approval agent response and optionally approve a PR.
-// Env: RESPONSE_FILE, GITHUB_REPOSITORY, TARGET_NUMBER, TARGET_KIND, REQUESTED_BY,
+// Env: RESPONSE_FILE, GITHUB_REPOSITORY, TARGET_NUMBER, TARGET_KIND, REQUESTED_BY, WORKFLOW_ACTOR,
+//      ORCHESTRATION_ENABLED,
 //      EXPECTED_HEAD_SHA, AGENT_ALLOW_SELF_APPROVE, AGENT_ALLOW_SELF_MERGE,
 //      SOURCE_RECOMMENDED_NEXT_STEP
 // Outputs: conclusion, approved, status_post, handoff_context, reason, body_file
@@ -23,6 +24,7 @@ import {
   formatSelfApprovalBody,
   parseSelfApprovalDecision,
   resolveSelfApproval,
+  resolveTrustedSelfApprovalRequester,
 } from "../self-approval.js";
 
 function writeBodyFile(body: string): string {
@@ -72,7 +74,12 @@ const repo = process.env.GITHUB_REPOSITORY || "";
 const prNumber = Number(process.env.TARGET_NUMBER || process.env.PR_NUMBER || "");
 const targetKind = process.env.TARGET_KIND || "pull_request";
 const expectedHeadSha = process.env.EXPECTED_HEAD_SHA || "";
-const requestedBy = process.env.REQUESTED_BY || process.env.GITHUB_ACTOR || "";
+const workflowActor = process.env.WORKFLOW_ACTOR || process.env.GITHUB_ACTOR || "";
+const requestedBy = resolveTrustedSelfApprovalRequester({
+  requestedByLogin: process.env.REQUESTED_BY || "",
+  workflowActorLogin: workflowActor,
+  orchestrationEnabled: envFlagEnabled(process.env.ORCHESTRATION_ENABLED),
+});
 const allowSelfApprove = envFlagEnabled(process.env.AGENT_ALLOW_SELF_APPROVE);
 const allowSelfMerge = envFlagEnabled(process.env.AGENT_ALLOW_SELF_MERGE);
 const allowSameActorSelfApprove = allowSelfApprove && allowSelfMerge;

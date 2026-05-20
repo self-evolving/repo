@@ -10,6 +10,7 @@ import {
   formatSelfApprovalBody,
   parseSelfApprovalDecision,
   resolveSelfApproval,
+  resolveTrustedSelfApprovalRequester,
 } from "../self-approval.js";
 
 const approveDecision = {
@@ -165,6 +166,24 @@ test("evaluateSelfApprovalActor requires a distinct approval actor unless YOLO s
   });
   assert.equal(missing.allowed, false);
   assert.match(missing.reason, /could not resolve approval actor/);
+});
+
+test("resolveTrustedSelfApprovalRequester trusts forwarded requester only for automation dispatches", () => {
+  assert.equal(resolveTrustedSelfApprovalRequester({
+    requestedByLogin: "maintainer",
+    workflowActorLogin: "lolipopshock",
+    orchestrationEnabled: true,
+  }), "lolipopshock");
+  assert.equal(resolveTrustedSelfApprovalRequester({
+    requestedByLogin: "maintainer",
+    workflowActorLogin: "lolipopshock",
+    orchestrationEnabled: false,
+  }), "lolipopshock");
+  assert.equal(resolveTrustedSelfApprovalRequester({
+    requestedByLogin: "maintainer",
+    workflowActorLogin: "sepo-agent-app[bot]",
+    orchestrationEnabled: true,
+  }), "maintainer");
 });
 
 test("evaluateSelfApprovalRequester requires a distinct initiating requester", () => {
