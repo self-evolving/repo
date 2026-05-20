@@ -84,3 +84,4 @@
 - Non-SHIP self-approval preflight may run only for trusted current-head HUMAN_DECISION syntheses; resolver approval stays SHIP-only.
 - Sepo release notes live in .agent/CHANGELOG.md; do not recreate a root CHANGELOG.md for Sepo releases.
 - Use agent-goal for repository goal issues; reserve agent/* labels for route triggers unless a real route exists.
+- For /install, typed fork helpers own target fork/branch/PR mechanics; the prompt orchestrates instead of raw git/gh lifecycle.
