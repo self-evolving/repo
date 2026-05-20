@@ -1,7 +1,8 @@
 // CLI: resolve a self-approval agent response and optionally approve a PR.
 // Env: RESPONSE_FILE, GITHUB_REPOSITORY, TARGET_NUMBER, TARGET_KIND,
-//      EXPECTED_HEAD_SHA, AGENT_ALLOW_SELF_APPROVE
-// Outputs: conclusion, approved, handoff_context, reason, body_file
+//      EXPECTED_HEAD_SHA, AGENT_ALLOW_SELF_APPROVE, AGENT_ALLOW_SELF_MERGE,
+//      SOURCE_RECOMMENDED_NEXT_STEP
+// Outputs: conclusion, approved, status_post, handoff_context, reason, body_file
 
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -62,7 +63,7 @@ function submitApproval(repo: string, prNumber: number, headSha: string, body: s
   ]);
 }
 
-function normalizeTargetKind(value: string): string {
+function normalizeToken(value: string): string {
   return String(value || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
 }
 
@@ -71,6 +72,10 @@ const prNumber = Number(process.env.TARGET_NUMBER || process.env.PR_NUMBER || ""
 const targetKind = process.env.TARGET_KIND || "pull_request";
 const expectedHeadSha = process.env.EXPECTED_HEAD_SHA || "";
 const allowSelfApprove = envFlagEnabled(process.env.AGENT_ALLOW_SELF_APPROVE);
+const allowSelfMerge = envFlagEnabled(process.env.AGENT_ALLOW_SELF_MERGE);
+const allowSameActorSelfApprove = allowSelfApprove && allowSelfMerge;
+const sourceRecommendedNextStep = normalizeToken(process.env.SOURCE_RECOMMENDED_NEXT_STEP || "");
+const isHumanDecisionGate = sourceRecommendedNextStep === "human_decision";
 const decision = parseSelfApprovalDecision(readResponse());
 
 let prState = "";
@@ -78,9 +83,10 @@ let currentHeadSha = "";
 let metadataReadReason = "";
 let approvalActorAllowed = false;
 let approvalActorReason = "approval actor could not be verified as distinct from pull request author";
+let approvalActorSameAsAuthor = false;
 let approvalProvenanceTrusted = false;
 let approvalProvenanceReason = "missing trusted review synthesis for self-approval";
-if (allowSelfApprove && normalizeTargetKind(targetKind) === "pull_request" && repo && prNumber) {
+if (allowSelfApprove && normalizeToken(targetKind) === "pull_request" && repo && prNumber) {
   let authenticatedActorLogin = "";
   try {
     const meta = fetchPrMeta(prNumber, repo);
@@ -95,9 +101,11 @@ if (allowSelfApprove && normalizeTargetKind(targetKind) === "pull_request" && re
     const approvalActor = evaluateSelfApprovalActor({
       approvalActorLogin: authenticatedActorLogin,
       prAuthorLogin: fetchPrAuthorLogin(prNumber, repo),
+      allowSameActor: allowSameActorSelfApprove,
     });
     approvalActorAllowed = approvalActor.allowed;
     approvalActorReason = approvalActor.reason;
+    approvalActorSameAsAuthor = approvalActor.sameActor === true;
   } catch {
     approvalActorAllowed = false;
     approvalActorReason = "could not verify approval actor differs from pull request author";
@@ -109,6 +117,7 @@ if (allowSelfApprove && normalizeTargetKind(targetKind) === "pull_request" && re
       comments: fetchIssueCommentRecords(prNumber, repo),
       trustedActorLogin,
       expectedHeadSha,
+      allowHumanDecisionGate: isHumanDecisionGate,
     });
     approvalProvenanceTrusted = provenance.trusted;
     approvalProvenanceReason = provenance.reason;
@@ -116,7 +125,7 @@ if (allowSelfApprove && normalizeTargetKind(targetKind) === "pull_request" && re
     approvalProvenanceTrusted = false;
     approvalProvenanceReason = "could not read trusted review synthesis";
   }
-} else if (allowSelfApprove && normalizeTargetKind(targetKind) === "pull_request") {
+} else if (allowSelfApprove && normalizeToken(targetKind) === "pull_request") {
   metadataReadReason = "missing pull request target";
 }
 
@@ -141,24 +150,31 @@ let result = metadataReadReason
   });
 
 let approved = false;
+let statusPost = true;
 if (result.shouldApprove) {
-  try {
-    submitApproval(repo, prNumber, expectedHeadSha, formatSelfApprovalBody({
-      conclusion: result.conclusion,
-      reason: result.reason,
-      handoffContext: result.handoffContext,
-      approved: true,
-      runUrl: currentRunUrl(),
-    }));
+  if (approvalActorSameAsAuthor) {
     approved = true;
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    result = {
-      conclusion: "failed",
-      shouldApprove: false,
-      reason: `approval submission failed: ${message || "unknown error"}`,
-      handoffContext: result.handoffContext,
-    };
+  } else {
+    try {
+      submitApproval(repo, prNumber, expectedHeadSha, formatSelfApprovalBody({
+        conclusion: result.conclusion,
+        reason: result.reason,
+        handoffContext: result.handoffContext,
+        approved: true,
+        runUrl: currentRunUrl(),
+        headSha: expectedHeadSha,
+      }));
+      approved = true;
+      statusPost = false;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      result = {
+        conclusion: "failed",
+        shouldApprove: false,
+        reason: `approval submission failed: ${message || "unknown error"}`,
+        handoffContext: result.handoffContext,
+      };
+    }
   }
 }
 
@@ -168,10 +184,12 @@ const body = formatSelfApprovalBody({
   handoffContext: result.handoffContext,
   approved,
   runUrl: currentRunUrl(),
+  headSha: expectedHeadSha,
 });
 const bodyFile = writeBodyFile(body);
 setOutput("conclusion", result.conclusion);
 setOutput("approved", String(approved));
+setOutput("status_post", String(statusPost));
 setOutput("handoff_context", result.handoffContext);
 setOutput("reason", result.reason);
 setOutput("body_file", bodyFile);

@@ -2,11 +2,77 @@
 
 This page documents the minimal path for adding the Sepo agent backend to a repository that did not start from this template. If you are starting from this repository as a template, use the main [README quick start](../../../README.md) instead.
 
-In practice, the cleanest install path is:
+## Choose an install path
+
+### Public repositories
+
+For public repositories, the quickest path is to open the [Install Sepo into another repository](https://github.com/self-evolving/repo/issues/new?template=install-sepo.yml) issue form in `self-evolving/repo` and paste the target GitHub URL. Sepo prepares or reuses a focused install PR in that repo, comments with the PR link, and closes the request issue when the PR is ready.
+
+Authorized users can also make the same request with `/install`:
+
+```md
+@sepo-agent /install can you install Sepo into https://github.com/owner/repo?
+```
+
+### Private repositories
+
+For private target repositories, keep the install in a trusted local
+environment. Run an agent locally with access to this source checkout and the
+private target repository, then ask it to use the `.skills/install-agent` skill.
+That skill opens a normal PR in the target repository while preserving
+target-owned files and following the validation/setup checklist below. Do not put
+private repository URLs or private setup details in a public Sepo issue.
+
+Both paths produce the same target-repository outcome:
 
 1. open a normal PR in the target repository that adds the agent backend files
 2. merge that PR
 3. use the repository's own GitHub Actions workflows to bootstrap `agent/memory` and, optionally, `agent/rubrics`
+
+## Public `/install` route details
+
+The `/install` command is a first-class route for authorization, then runs the
+dedicated `agent-install` prompt. Route detection only recognizes the command;
+install-specific helper code resolves the target from the request text,
+accepting an `owner/repo` slug, a GitHub URL, or a clear natural-language
+repository reference. If the target is missing or ambiguous, the route stops
+with a clarification instead of guessing. When the target is clear, it resolves
+the install source to the latest non-draft Sepo release and records that source
+revision in the PR body. If no stable release exists yet, the route may use the
+latest non-draft prerelease.
+
+The public `/install` route uses a dedicated install credential in the Sepo
+source repository. Normal routes keep the standard GitHub auth resolver order:
+GitHub App, hosted OIDC, `AGENT_PAT`, then the workflow token. The install
+credential must be able to create or reuse a fork, push a branch, and open pull
+requests for public repositories.
+
+The dedicated install prompt uses the built-in fork/PR helper to prepare a
+fork-backed worktree, push `agent/install-agent-infra`, and reuse or open the
+install PR. If the secret is absent, the route stops before the prompt runs and
+posts that install is not configured. If the secret is present but the helper
+cannot read the public target, create/reuse the fork, push the branch, or
+open/reuse the PR, the route reports a blocked result with the specific
+permission gap and next step. An existing open install PR from the same token
+owner is reused; an open install PR from another owner is treated as a duplicate
+blocked state. Install runs disable source-repo memory writes so this target
+token is not used to update `agent/memory`. When `/install` is requested from an
+issue, the target install PR body links back to the source request. After the
+publish helper creates or reuses the target PR and the install response is
+posted, the workflow best-effort closes that source request issue with a short
+comment linking the install PR. If that close step fails, the install PR remains
+the source of truth and the workflow does not undo it.
+
+Use `AGENT_ACCESS_POLICY.route_overrides.install` to restrict who may trigger
+external installs independently from general `/skill` runs:
+
+```json
+{
+  "route_overrides": {
+    "install": ["OWNER", "MEMBER"]
+  }
+}
+```
 
 ## Minimal file layout
 
@@ -36,6 +102,41 @@ At minimum, configure:
 - `OPENAI_API_KEY` and/or `CLAUDE_CODE_OAUTH_TOKEN` as repository secrets
 
 See [Setup guide](setup-guide.md) for the auth options and trade-offs.
+
+The helper CLI keeps the token in `GH_TOKEN` and accepts explicit flags:
+
+```sh
+GH_TOKEN="$GH_TOKEN" node .agent/dist/cli/install-fork-pr.js prepare \
+  --target-repo "owner/repo"
+
+GH_TOKEN="$GH_TOKEN" node .agent/dist/cli/install-fork-pr.js publish \
+  --target-repo "owner/repo" \
+  --workdir "<prepared-workdir>" \
+  --fork-repo "<fork-owner/repo>" \
+  --default-branch "<default-branch>" \
+  --branch "agent/install-agent-infra" \
+  --pr-title "Install Sepo agent infrastructure" \
+  --pr-body-file "<body-file>"
+```
+
+The publish command requires the prepare-state file written into the returned
+workdir by the prepare command, so rerun prepare instead of substituting an
+arbitrary checkout path. For issue-backed install requests, the helper derives
+the source request URL from the runtime envelope and adds it to the install PR
+body before opening or updating the PR.
+
+Install PRs should include a structured setup section that mirrors the
+onboarding setup check:
+
+1. install the Sepo GitHub App on the target repository, or choose another auth
+   path from the setup guide
+2. add at least one provider credential secret: `OPENAI_API_KEY` and/or
+   `CLAUDE_CODE_OAUTH_TOKEN`
+3. run `Agent / Onboarding / Check Setup`
+4. review the `Sepo setup check` issue and complete any remaining setup it
+   reports
+5. initialize `agent/memory` if missing
+6. optionally initialize `agent/rubrics` if the repo wants rubric steering
 
 ## First verification
 

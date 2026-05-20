@@ -460,11 +460,12 @@ test("self-approval workflow stays opt-in and read-only until deterministic reso
   assert.equal(runStep.with.route, "agent-self-approve");
   assert.equal(runStep.with.github_token, "${{ github.token }}");
   assert.match(workflowText, /AGENT_ALLOW_SELF_APPROVE:\s*\$\{\{\s*vars\.AGENT_ALLOW_SELF_APPROVE \|\| 'false'\s*\}\}/);
+  assert.match(workflowText, /AGENT_ALLOW_SELF_MERGE:\s*\$\{\{\s*vars\.AGENT_ALLOW_SELF_MERGE \|\| 'false'\s*\}\}/);
   assert.match(workflowText, /node \.agent\/dist\/cli\/prepare-self-approve\.js/);
   assert.match(workflowText, /node \.agent\/dist\/cli\/resolve-self-approve\.js/);
   assert.match(workflowText, /Post self-approval stop[\s\S]*always\(\)[\s\S]*steps\.prepare\.outcome == 'success'[\s\S]*steps\.prepare\.outputs\.should_run != 'true'[\s\S]*steps\.prepare\.outputs\.body_file != ''/);
   assert.match(workflowText, /Resolve self-approval result[\s\S]*always\(\)/);
-  assert.match(workflowText, /Post self-approval status[\s\S]*always\(\)[\s\S]*steps\.result\.outcome == 'failure'/);
+  assert.match(workflowText, /Post self-approval status[\s\S]*always\(\)[\s\S]*steps\.result\.outcome == 'failure'[\s\S]*steps\.result\.outputs\.status_post == 'true'/);
   assert.match(workflowText, /actions\/upload-artifact@v4/);
   assert.match(workflowText, /agent-self-approve-result-\$\{\{ inputs\.pr_number \}\}/);
   assert.match(workflowText, /if-no-files-found:\s*ignore/);
@@ -580,6 +581,8 @@ test("agent router bypasses dispatch triage for explicit mention slash routes", 
   assert.match(implementMetadataPrompt, /Ignore earlier prose mentions of `\/implement`/);
   assert.match(implementMetadataPrompt, /Omit `base_pr` unless `TARGET_KIND` is `pull_request`/);
   assert.match(implementMetadataPrompt, /digits only, with no `#` prefix/);
+  assert.doesNotMatch(extractContext, /requested_install_target_repo/);
+  assert.doesNotMatch(runnerWorkflow, /requested_install_target_repo:/);
 });
 
 test("agent router supports label-triggered route and skill overrides", () => {
@@ -593,6 +596,7 @@ test("agent router supports label-triggered route and skill overrides", () => {
   assert.match(runnerWorkflow, /label_name:/);
   assert.match(runnerWorkflow, /requested_skill:/);
   assert.match(runnerWorkflow, /needs\.portal\.outputs\.route == 'skill'/);
+  assert.match(runnerWorkflow, /needs\.portal\.outputs\.route == 'install'/);
   assert.match(runnerWorkflow, /workflow_call:[\s\S]*outputs:[\s\S]*should_respond:/);
   assert.doesNotMatch(runnerWorkflow, /clear-trigger-label:/);
   assert.match(runnerWorkflow, /vars\.AGENT_RUNS_ON/);
@@ -603,6 +607,8 @@ test("agent router supports label-triggered route and skill overrides", () => {
   assert.match(labelWorkflow, /cleanup-label:/);
   assert.match(labelWorkflow, /needs\.agent\.result == 'success'/);
   assert.match(labelWorkflow, /needs\.agent\.outputs\.should_respond == 'true'/);
+  assert.match(labelWorkflow, /AGENT_INSTALL_PAT:\s*\$\{\{\s*secrets\.AGENT_INSTALL_PAT\s*\}\}/);
+  assert.match(entrypointWorkflow, /AGENT_INSTALL_PAT:\s*\$\{\{\s*secrets\.AGENT_INSTALL_PAT\s*\}\}/);
   assert.doesNotMatch(labelWorkflow, /author_association:\s*COLLABORATOR/);
   assert.match(labelWorkflow, /\.\/\.github\/actions\/resolve-github-auth/);
   assert.match(labelWorkflow, /fallback_token:\s*\$\{\{\s*github\.token\s*\}\}/);
@@ -852,11 +858,17 @@ test("shared setup-agent-runtime action exists and is referenced by reusable wor
 test("skill route uses the composite setup action for path and setup checks", () => {
   const runnerWorkflow = readRepoFile(".github/workflows/agent-router.yml");
   const setupAction = readRepoFile(".github/actions/run-skill-setup/action.yml");
+  const runAgentTaskAction = readRepoFile(".github/actions/run-agent-task/action.yml");
+  const runSource = readRepoFile(".agent/src/run.ts");
+  const supplementalVars = readSupplementalPromptVarNames(runSource);
   const skillJobStart = runnerWorkflow.indexOf("  skill:\n    needs: portal");
-  const approvalJobStart = runnerWorkflow.indexOf("  approval:", skillJobStart);
+  const installJobStart = runnerWorkflow.indexOf("  install:\n    needs: portal", skillJobStart);
+  const approvalJobStart = runnerWorkflow.indexOf("  approval:", installJobStart);
   assert.ok(skillJobStart >= 0);
+  assert.ok(installJobStart > skillJobStart);
   assert.ok(approvalJobStart > skillJobStart);
-  const skillWorkflow = runnerWorkflow.slice(skillJobStart, approvalJobStart);
+  const skillWorkflow = runnerWorkflow.slice(skillJobStart, installJobStart);
+  const installWorkflow = runnerWorkflow.slice(installJobStart, approvalJobStart);
   const optionalProviderStart = skillWorkflow.indexOf("- name: Resolve skill provider");
   const runtimeStart = skillWorkflow.indexOf("- name: Setup agent runtime");
   const checkStart = skillWorkflow.indexOf("- name: Check skill");
@@ -864,8 +876,35 @@ test("skill route uses the composite setup action for path and setup checks", ()
   const setupStart = skillWorkflow.indexOf("- name: Run skill setup");
 
   assert.match(skillWorkflow, /\.\/\.github\/actions\/run-skill-setup/);
+  assert.doesNotMatch(skillWorkflow, /needs\.portal\.outputs\.route == 'install'/);
+  assert.match(runnerWorkflow, /AGENT_INSTALL_PAT:[\s\S]*Install-route machine-user token/);
+  assert.doesNotMatch(skillWorkflow, /AGENT_INSTALL_PAT_CONFIGURED/);
+  assert.doesNotMatch(skillWorkflow, /Post install configuration blocked response/);
+  assert.doesNotMatch(skillWorkflow, /AGENT_INSTALL_PAT/);
+  assert.match(skillWorkflow, /route:\s*skill/);
+  assert.match(skillWorkflow, /ROUTE:\s*skill/);
   assert.match(skillWorkflow, /trusted_ref:\s*\$\{\{ !startsWith\(github\.ref, 'refs\/pull\/'\) \}\}/);
   assert.match(skillWorkflow, /skill_root:\s*\$\{\{ inputs\.skill_root \}\}/);
+  assert.doesNotMatch(skillWorkflow, /install_target_repo:/);
+  assert.match(skillWorkflow, /github_token:\s*\$\{\{\s*steps\.auth\.outputs\.token\s*\}\}/);
+  assert.match(installWorkflow, /needs\.portal\.outputs\.route == 'install'/);
+  assert.match(installWorkflow, /persist-credentials:\s*false/);
+  assert.match(installWorkflow, /AGENT_INSTALL_PAT_CONFIGURED:\s*\$\{\{\s*secrets\.AGENT_INSTALL_PAT != '' && 'true' \|\| 'false'\s*\}\}/);
+  assert.match(installWorkflow, /Post install configuration blocked response/);
+  assert.match(installWorkflow, /Install is not configured/);
+  assert.match(installWorkflow, /prompt:\s*agent-install/);
+  assert.match(installWorkflow, /route:\s*install/);
+  assert.match(installWorkflow, /ROUTE:\s*install/);
+  assert.match(installWorkflow, /github_token:\s*\$\{\{\s*secrets\.AGENT_INSTALL_PAT\s*\}\}/);
+  assert.match(installWorkflow, /memory_mode_override:\s*disabled/);
+  assert.match(installWorkflow, /rubrics_mode_override:\s*disabled/);
+  assert.match(installWorkflow, /id:\s*post_install_response/);
+  assert.match(installWorkflow, /steps\.install\.outputs\.install_status == 'published'/);
+  assert.match(installWorkflow, /node \.agent\/dist\/cli\/complete-install-request\.js/);
+  assert.match(installWorkflow, /continue-on-error:\s*true/);
+  assert.doesNotMatch(installWorkflow, /memory_policy:\s*\$\{\{\s*vars\.AGENT_MEMORY_POLICY/);
+  assert.doesNotMatch(installWorkflow, /github_token:[^\n]*steps\.auth\.outputs\.token/);
+  assert.doesNotMatch(installWorkflow, /\.\/\.github\/actions\/run-skill-setup/);
   assert.ok(optionalProviderStart >= 0);
   assert.ok(runtimeStart > optionalProviderStart);
   assert.ok(checkStart > runtimeStart);
@@ -884,6 +923,8 @@ test("skill route uses the composite setup action for path and setup checks", ()
   assert.match(setupAction, /if \[ ! -f "\$setup_file" \]/);
   assert.match(setupAction, /Refusing to run .*untrusted PR checkout/);
   assert.match(setupAction, /bash "\$setup_file"/);
+  assert.doesNotMatch(runAgentTaskAction, /install_target_repo:/);
+  assert.equal(supplementalVars.has("INSTALL_TARGET_REPO"), false);
 });
 
 test("shared auth action supports the built-in hosted OIDC broker mode", () => {
@@ -1009,6 +1050,8 @@ test("workflow docs record the minimal metadata contract and developer notes", (
   const configurationList = readRepoFile(".agent/docs/customization/configuration-list.md");
   const skillsDocs = readRepoFile(".agent/docs/customization/skills.md");
   const existingRepoInstall = readRepoFile(".agent/docs/deployment/install-existing-repository.md");
+  const installIssueTemplate = readRepoFile(".github/ISSUE_TEMPLATE/install-sepo.yml");
+  const installIssueTemplateForm = parseYaml(installIssueTemplate) as unknown;
   const developerNotes = readRepoFile(".agent/docs/technical-details/developer-notes.md");
 
   assert.match(keyConcepts, /### RuntimeEnvelope/);
@@ -1038,6 +1081,34 @@ test("workflow docs record the minimal metadata contract and developer notes", (
   assert.match(supportedWorkflows, /removes[\s\S]*triggering `agent\/\*` label/i);
   assert.match(supportedWorkflows, /strips code blocks[\s\S]*quoted text/i);
   assert.match(supportedWorkflows, /OWNER[\s\S]*MEMBER[\s\S]*COLLABORATOR[\s\S]*CONTRIBUTOR/);
+  assert.doesNotMatch(configurationList, /AGENT_INSTALL_PAT/);
+  assert.match(developerNotes, /AGENT_INSTALL_PAT/);
+  assert.doesNotMatch(existingRepoInstall, /AGENT_INSTALL_PAT/);
+  assert.match(existingRepoInstall, /public `\/install` route uses a dedicated install credential/);
+  assert.match(existingRepoInstall, /Normal routes keep[\s\S]*GitHub auth resolver order/);
+  assert.match(existingRepoInstall, /Install Sepo into another repository/);
+  assert.match(existingRepoInstall, /source request issue[\s\S]*comment linking the install PR/);
+  assert.ok(isRecord(installIssueTemplateForm), "install issue form should parse as YAML");
+  assert.equal(installIssueTemplateForm.title, "Install Sepo into target repository");
+  assert.doesNotMatch(String(installIssueTemplateForm.title || ""), /owner\/repo|OWNER\/REPO|<owner\/repo>/);
+  assert.ok(Array.isArray(installIssueTemplateForm.body), "install issue form should define body fields");
+  const installIssueFields = installIssueTemplateForm.body as unknown[];
+  const commandField = installIssueFields.find(
+    (field): field is Record<string, unknown> => isRecord(field) && field.id === "agent-command",
+  );
+  assert.ok(commandField, "install issue form should submit an agent command field");
+  assert.ok(isRecord(commandField.attributes), "agent command field should define attributes");
+  assert.equal(commandField.attributes.value, "@sepo-agent /install");
+  const targetRepoField = installIssueFields.find(
+    (field): field is Record<string, unknown> => isRecord(field) && field.id === "target-repository",
+  );
+  assert.ok(targetRepoField, "install issue form should submit a target repository field");
+  assert.equal(targetRepoField.type, "input");
+  assert.ok(isRecord(targetRepoField.attributes), "target repository field should define attributes");
+  assert.equal(targetRepoField.attributes.label, "Target public repository URL");
+  assert.equal(targetRepoField.attributes.placeholder, "https://github.com/owner/repo");
+  assert.ok(isRecord(targetRepoField.validations), "target repository field should define validations");
+  assert.equal(targetRepoField.validations.required, true);
   assert.match(memoryArchitecture, /Agent \/ Memory \/ Initialization[\s\S]*\|\s*Auto\s*\|/);
   assert.match(rubricsArchitecture, /agent\/rubrics/);
   assert.match(rubricsArchitecture, /AGENT_RUBRICS_POLICY/);
@@ -1289,6 +1360,8 @@ test("workflow docs cover hosted auth and self-hosting paths", () => {
   assert.doesNotMatch(setupGuide, /AGENT_OIDC_AUDIENCE/);
   assert.match(setupGuide, /Bring your own GitHub App/);
   assert.match(setupGuide, /`AGENT_PAT`/);
+  assert.doesNotMatch(setupGuide, /AGENT_INSTALL_PAT/);
+  assert.match(setupGuide, /Public install requests use a separate install credential/);
   assert.match(setupGuide, /Contents:\*\* read and write/);
   assert.match(setupGuide, /### Auth priority/);
   assert.match(

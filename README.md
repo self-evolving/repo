@@ -22,7 +22,10 @@ Sepo turns a repository into a **self-evolving repository**: a codebase that can
 
 ### Install into an existing repository
 
-Check [Install into an existing repository](.agent/docs/deployment/install-existing-repository.md) for the detailed guide. TL;DR: you (or your agent) should copy `.agent/` and `.github/`, configure secrets, run the onboarding setup check, and initialize agent memory from GitHub Actions.
+Check [Install into an existing repository](.agent/docs/deployment/install-existing-repository.md) for the detailed guide.
+
+- **Public repositories:** the quickest path is to open the [Install Sepo into another repository](https://github.com/self-evolving/repo/issues/new?template=install-sepo.yml) issue form in `self-evolving/repo` and paste the target URL.
+- **Private repositories:** run an agent locally, give it access to this source checkout and the private target repository, and ask it to use the `.skills/install-agent` skill so private access stays in your trusted environment.
 
 ## What You Can Ask It To Do
 
@@ -37,6 +40,12 @@ Check [Install into an existing repository](.agent/docs/deployment/install-exist
 
 # Invoke arbitrary skills
 @sepo-agent /skill <skill-name>
+
+# Public repo: open the "Install Sepo into another repository" issue form,
+# or ask for the install PR directly when Sepo can write to the repo
+@sepo-agent /install can you install Sepo into https://github.com/owner/repo?
+
+# Private repo: run a local/trusted agent session with the install-agent skill
 
 # Inside a PR
 @sepo-agent /review

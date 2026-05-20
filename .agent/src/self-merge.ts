@@ -1,4 +1,8 @@
-import { type PrReviewRecord, type PrStatusCheckRecord } from "./github.js";
+import { type IssueCommentRecord, type PrReviewRecord, type PrStatusCheckRecord } from "./github.js";
+import {
+  extractSelfApprovalApprovedHeadSha,
+  SELF_APPROVAL_STATUS_MARKER,
+} from "./self-approval.js";
 
 export type SelfMergeConclusion = "merged" | "auto_merge_enabled" | "blocked" | "failed";
 export type SelfMergeNextStep = "merge" | "enable_auto_merge" | "none";
@@ -110,6 +114,7 @@ export function summarizeStatusChecks(checks: PrStatusCheckRecord[]): SelfMergeS
 
 export function evaluateSelfMergeApproval(input: {
   reviews: PrReviewRecord[];
+  comments?: IssueCommentRecord[];
   trustedActorLogin: string;
   currentHeadSha: string;
 }): SelfMergeApprovalResult {
@@ -130,9 +135,10 @@ export function evaluateSelfMergeApproval(input: {
     };
   }
 
-  const selfApprovals = input.reviews
+  const reviewApprovals = input.reviews
     .map((review, index) => ({
       index,
+      source: "review" as const,
       state: normalizeToken(review.state),
       author: normalizeActorLogin(review.authorLogin),
       body: String(review.body || ""),
@@ -142,8 +148,23 @@ export function evaluateSelfMergeApproval(input: {
     .filter((review) => (
       review.state === "approved" &&
       review.author === trustedActor &&
-      review.body.includes("sepo-agent-self-approval")
-    ))
+      review.body.includes(SELF_APPROVAL_STATUS_MARKER)
+    ));
+
+  const commentApprovals = (input.comments || [])
+    .map((comment, index) => ({
+      index: input.reviews.length + index,
+      source: "status" as const,
+      author: normalizeActorLogin(comment.authorLogin),
+      commitId: extractSelfApprovalApprovedHeadSha(comment.body || ""),
+      submittedAtMs: createdAtMs(comment.createdAt),
+    }))
+    .filter((comment) => (
+      comment.author === trustedActor &&
+      Boolean(comment.commitId)
+    ));
+
+  const selfApprovals = [...reviewApprovals, ...commentApprovals]
     .sort((left, right) => left.submittedAtMs - right.submittedAtMs || left.index - right.index);
 
   const currentHeadApproval = [...selfApprovals].reverse().find((review) => review.commitId === currentHeadSha);
@@ -151,7 +172,9 @@ export function evaluateSelfMergeApproval(input: {
     return {
       approved: true,
       approvedHeadSha: currentHeadApproval.commitId,
-      reason: "found current-head self-approval from the authenticated Sepo actor",
+      reason: currentHeadApproval.source === "status"
+        ? "found current-head self-approval status from the authenticated Sepo actor"
+        : "found current-head self-approval review from the authenticated Sepo actor",
     };
   }
 

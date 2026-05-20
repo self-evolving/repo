@@ -231,6 +231,7 @@ Explicit routes are:
 - `@sepo-agent /review`
 - `@sepo-agent /orchestrate`
 - `@sepo-agent /skill <name>`
+- `@sepo-agent /install ...`
 
 Explicit routes skip dispatch triage and resolve locally, but still go through the same route policy checks afterward.
 When an explicit `/implement` request on a pull request or discussion creates a tracking issue, the router runs a metadata-only agent prompt to synthesize the issue title and body from the request plus target context. The slash command approves the route; it is not copied into the title. Pull request metadata can also include `base_pr` for stacked or follow-up implementation requests. If metadata generation is unavailable or invalid, the issue falls back to `Implement requested change`.
@@ -242,6 +243,22 @@ job runs it from the repository root before the agent task starts. More complex
 skill setup should customize the copied `agent-router.yml` skill job directly
 so repositories can use native GitHub Actions `uses`, `with`, Docker, service,
 or cache features.
+
+`/install` is a first-class route that passes the full request to the dedicated
+`agent-install` prompt. Install-specific helper code resolves the target from an
+`owner/repo` slug, a GitHub URL, or a clear natural-language repository
+reference, and blocks for clarification when the target is missing or ambiguous.
+Access policy evaluates it as the `install` route, so
+`AGENT_ACCESS_POLICY.route_overrides.install` can restrict external installs
+without blocking general `/skill` runs. The install route uses a dedicated
+source-repo install credential; other routes continue using the standard GitHub
+auth resolver. The prompt uses the install fork/PR helper to prepare a
+fork-backed worktree, then push, reuse, or open the install PR. Source-repo
+memory is disabled for install runs so that install credentials cannot write
+`agent/memory`. Issue-backed install requests can
+start from the install request issue form; when publish succeeds, the target PR
+body links the source issue and the source issue is closed best-effort after the
+install response is posted.
 
 ### `agent-label.yml`
 
@@ -287,17 +304,21 @@ handoffs may also run the agent as a decision gate for non-`SHIP` verdicts. The
 agent runs with read-approved permissions and returns structured JSON with a
 verdict, reason, optional follow-up context, and `inspected_head_sha`.
 
-Deterministic resolver code is the only part that can submit the GitHub
+Deterministic resolver code is the only part that can submit or record the
 approval. It rereads the current PR head, rechecks trusted current-head review
-provenance, verifies the approval actor differs from the pull request author,
-parses the agent verdict, and approves only when the expected, current, and
-inspected head SHAs match and the latest trusted current-head review synthesis
-verdict is `SHIP`. Non-approval outcomes post a compact PR status comment. In
+provenance, verifies the approval actor differs from the pull request author
+unless both `AGENT_ALLOW_SELF_APPROVE=true` and `AGENT_ALLOW_SELF_MERGE=true`
+are enabled, parses the agent verdict, and approves only when the expected,
+current, and inspected head SHAs match. Normal handoffs require trusted
+current-head `SHIP` review synthesis; orchestrated review `HUMAN_DECISION`
+handoffs also trust the matching current-head synthesis as the decision gate.
+Non-approval outcomes post a compact PR status comment. In full
+self-governance mode, same-actor approvals are recorded as a current-head
+self-approval status comment rather than a GitHub review approval. In
 orchestrated chains, `SHIP` review synthesis and review syntheses that recommend
 `HUMAN_DECISION` can hand off to `agent-self-approve`; non-`SHIP`
-`HUMAN_DECISION` runs let self-approval request changes or block, but the
-resolver cannot submit approval without trusted current-head `SHIP` provenance.
-A self-approval `REQUEST_CHANGES` result can hand off to `fix-pr` with the
+`HUMAN_DECISION` runs let self-approval approve, request changes, or block. A
+self-approval `REQUEST_CHANGES` result can hand off to `fix-pr` with the
 approval agent's handoff context. Self-approval status comments are upserted by
 marker against comments authored by the authenticated Sepo actor, and result
 artifacts are retained for failed or blocked resolution paths where available.
@@ -306,10 +327,11 @@ artifacts are retained for failed or blocked resolution paths where available.
 
 Self-merge is disabled unless `AGENT_ALLOW_SELF_MERGE=true`. The workflow is
 deterministic: it reads the current PR metadata, requires a trusted Sepo
-self-approval review for the current head SHA, blocks requested-changes and
-failed-check states, marks draft PRs ready, then merges into the PR's configured
-base when GitHub reports it mergeable. If checks are still pending and GitHub
-reports an eligible merge state, it enables GitHub auto-merge instead.
+self-approval review or self-approval status comment for the current head SHA,
+blocks requested-changes and failed-check states, marks draft PRs ready, then
+merges into the PR's configured base when GitHub reports it mergeable. If checks
+are still pending and GitHub reports an eligible merge state, it enables GitHub
+auto-merge instead.
 
 The final merge and auto-merge commands use `--match-head-commit` with the
 approved head SHA, so a push after preflight cannot merge an unapproved head.
