@@ -114,6 +114,15 @@ if [ "\${1-}" = "api" ] && [ "\${2-}" = "graphql" ]; then
     *PullRequestReviewSummaryComments*)
       printf '{"data":{"repository":{"pullRequest":{"comments":{"nodes":%s,"pageInfo":{"hasNextPage":false,"endCursor":null}}}}}}\\n' "\${FAKE_GRAPHQL_PR_COMMENTS-[]}"
       ;;
+    *OrchestratedImplementDiscussion*)
+      printf '{"data":{"repository":{"discussion":{"id":"%s","title":"%s","body":"%s","url":"https://github.com/self-evolving/repo/discussions/%s"}}}}\\n' "\${FAKE_DISCUSSION_ID-D_kwDISC}" "\${FAKE_DISCUSSION_TITLE-Discussion title}" "\${FAKE_DISCUSSION_BODY-Discussion body}" "\${TARGET_NUMBER-12}"
+      ;;
+    *DiscussionComments*)
+      printf '{"data":{"repository":{"discussion":{"comments":{"nodes":%s,"pageInfo":{"hasNextPage":false,"endCursor":null}}}}}}\\n' "\${FAKE_DISCUSSION_COMMENTS_JSON-[]}"
+      ;;
+    *addDiscussionComment*)
+      printf '{"data":{"addDiscussionComment":{"comment":{"url":"https://github.com/self-evolving/repo/discussions/%s#discussioncomment-1"}}}}\\n' "\${TARGET_NUMBER-12}"
+      ;;
     *MinimizeReviewSummary*)
       printf '{"data":{"minimizeComment":{"minimizedComment":{"isMinimized":true}}}}\\n'
       ;;
@@ -334,6 +343,154 @@ test("agent orchestrate dispatches implement directly for self-contained issue t
   assert.equal(inputs.automation_current_round, "2");
   assert.equal(inputs.orchestration_enabled, "true");
   assert.equal(inputs.base_branch, "planner-base");
+});
+
+test("agent orchestrate creates a tracking issue for PR implement handoffs", () => {
+  const run = runOrchestrateHandoff({
+    AUTOMATION_MODE: "agent",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "66",
+    FAKE_PR_BODY: "Existing PR context",
+    FAKE_CREATED_ISSUE_NUMBER: "77",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "handoff",
+      next_action: "implement",
+      reason: "Open a separate implementation PR from this review discussion.",
+      handoff_context: "Implement the requested follow-up separately.",
+      base_pr: "66",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "dispatch");
+  assert.equal(run.outputs.get("next_action"), "implement");
+  assert.equal(run.outputs.get("target_number"), "77");
+  assert.match(run.ghLog, /issue list/);
+  assert.match(run.ghLog, /issue create/);
+  assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/66\/comments/);
+  assert.match(run.ghLog, /actions\/workflows\/agent-implement\.yml\/dispatches/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.issue_number, "77");
+  assert.equal(inputs.base_pr, "66");
+});
+
+test("agent orchestrate reuses an existing PR tracking issue before dispatch", () => {
+  const run = runOrchestrateHandoff({
+    AUTOMATION_MODE: "agent",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "66",
+    FAKE_ISSUE_LIST_JSON: JSON.stringify([
+      {
+        number: 88,
+        body: "<!-- sepo-agent-orchestrated-implement target:pull_request:66 run:12345 -->",
+        author: { login: "sepo-agent-app[bot]" },
+      },
+    ]),
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "handoff",
+      next_action: "implement",
+      reason: "Open a separate implementation PR.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("target_number"), "88");
+  assert.doesNotMatch(run.ghLog, /issue create/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.issue_number, "88");
+});
+
+test("agent orchestrate reuses a trusted PR link-back before creating tracking issue", () => {
+  const run = runOrchestrateHandoff({
+    AUTOMATION_MODE: "agent",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "66",
+    FAKE_ISSUE_COMMENTS_JSON: JSON.stringify([
+      {
+        id: "tracking-link",
+        body: [
+          "Implementing this orchestration request - tracking in https://github.com/self-evolving/repo/issues/88.",
+          "",
+          "<!-- sepo-agent-orchestrated-implement target:pull_request:66 run:12345 -->",
+        ].join("\n"),
+        user: { login: "sepo-agent-app[bot]" },
+      },
+    ]),
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "handoff",
+      next_action: "implement",
+      reason: "Open a separate implementation PR.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("target_number"), "88");
+  assert.doesNotMatch(run.ghLog, /issue list/);
+  assert.doesNotMatch(run.ghLog, /issue create/);
+  assert.match(run.ghLog, /repos\/self-evolving\/repo\/issues\/66\/comments/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.issue_number, "88");
+});
+
+test("agent orchestrate creates a tracking issue for discussion implement handoffs", () => {
+  const run = runOrchestrateHandoff({
+    AUTOMATION_MODE: "agent",
+    TARGET_KIND: "discussion",
+    TARGET_NUMBER: "12",
+    FAKE_CREATED_ISSUE_NUMBER: "78",
+    FAKE_DISCUSSION_TITLE: "Add an onboarding check",
+    FAKE_DISCUSSION_BODY: "Please implement this follow-up.",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "handoff",
+      next_action: "implement",
+      reason: "The discussion contains a concrete implementation request.",
+      handoff_context: "Implement the discussed onboarding check.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "dispatch");
+  assert.equal(run.outputs.get("next_action"), "implement");
+  assert.equal(run.outputs.get("target_number"), "78");
+  assert.match(run.ghLog, /OrchestratedImplementDiscussion/);
+  assert.match(run.ghLog, /addDiscussionComment/);
+  assert.match(run.ghLog, /actions\/workflows\/agent-implement\.yml\/dispatches/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.issue_number, "78");
+});
+
+test("agent orchestrate reuses a trusted discussion link-back before creating tracking issue", () => {
+  const run = runOrchestrateHandoff({
+    AUTOMATION_MODE: "agent",
+    TARGET_KIND: "discussion",
+    TARGET_NUMBER: "12",
+    FAKE_DISCUSSION_COMMENTS_JSON: JSON.stringify([
+      {
+        id: "tracking-link",
+        body: [
+          "Implementing this orchestration request - tracking in https://github.com/self-evolving/repo/issues/89.",
+          "",
+          "<!-- sepo-agent-orchestrated-implement target:discussion:12 run:12345 -->",
+        ].join("\n"),
+        author: { login: "sepo-agent-app[bot]" },
+        createdAt: "2026-05-20T00:00:00Z",
+      },
+    ]),
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "handoff",
+      next_action: "implement",
+      reason: "The discussion contains a concrete implementation request.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("target_number"), "89");
+  assert.match(run.ghLog, /DiscussionComments/);
+  assert.doesNotMatch(run.ghLog, /issue list/);
+  assert.doesNotMatch(run.ghLog, /issue create/);
+  assert.doesNotMatch(run.ghLog, /addDiscussionComment/);
+  const inputs = run.dispatchPayload?.inputs as Record<string, string>;
+  assert.equal(inputs.issue_number, "89");
 });
 
 test("agent orchestrate rejects effective implement base input conflicts", () => {
@@ -1476,6 +1633,47 @@ test("agent parent orchestrate stop skips matching trusted final comment", () =>
   assert.equal(run.status, 0, run.stderr || run.stdout);
   assert.equal(run.outputs.get("decision"), "stop");
   assert.doesNotMatch(run.ghLog, /api --method POST repos\/self-evolving\/repo\/issues\/76\/comments/);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\//);
+  assert.equal(run.dispatchPayload, null);
+});
+
+test("initial discussion orchestrate stop skips matching trusted final comment", () => {
+  const existingStopBody = [
+    "Sepo orchestration stopped after `orchestrate` concluded `requested`.",
+    "",
+    "- Source action: `orchestrate`",
+    "- Source conclusion: `requested`",
+    "- Target: `discussion #12`",
+    "- Round: `1/5`",
+    "- Reason: agent planner stop: Nothing else to do.",
+    "- Source run ID: `12345`",
+    "",
+    "No follow-up workflow was dispatched. Inspect the source action status comment and workflow logs before retrying or continuing manually.",
+    "",
+    "<!-- sepo-agent-orchestrate-stop -->",
+  ].join("\n");
+  const run = runOrchestrateHandoff({
+    TARGET_KIND: "discussion",
+    TARGET_NUMBER: "12",
+    AUTOMATION_MODE: "agent",
+    FAKE_DISCUSSION_COMMENTS_JSON: JSON.stringify([
+      {
+        id: "existing-stop",
+        body: existingStopBody,
+        author: { login: "sepo-agent-app[bot]" },
+        createdAt: "2026-05-20T00:00:00Z",
+      },
+    ]),
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "stop",
+      reason: "Nothing else to do.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.match(run.ghLog, /DiscussionComments/);
+  assert.doesNotMatch(run.ghLog, /addDiscussionComment/);
   assert.doesNotMatch(run.ghLog, /actions\/workflows\//);
   assert.equal(run.dispatchPayload, null);
 });

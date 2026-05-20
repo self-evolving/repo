@@ -41,7 +41,7 @@ const initialOrchestrate = sourceAction === "orchestrate";
 const plannerEnabled = !authorizationStopReason &&
   automationMode === "agent" &&
   currentRound < maxRounds &&
-  (!initialOrchestrate || targetKind === "issue" || targetKind === "pull_request");
+  (!initialOrchestrate || targetKind === "issue" || targetKind === "pull_request" || targetKind === "discussion");
 
 setOutput("automation_mode", automationMode);
 setOutput("current_round", String(currentRound));

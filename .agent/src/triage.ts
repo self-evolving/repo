@@ -463,13 +463,13 @@ export function applyDispatchPolicy(
   }
 
   if (normalized.route === "orchestrate") {
-    if (targetKind !== "issue" && targetKind !== "pull_request") {
+    if (targetKind !== "issue" && targetKind !== "pull_request" && targetKind !== "discussion") {
       return {
         ...normalized,
         route: "unsupported",
         needsApproval: false,
         summary:
-          "Orchestration requests are currently supported on issues and pull requests only.",
+          "Orchestration requests are currently supported on issues, pull requests, and discussions only.",
         issueTitle: "",
         issueBody: "",
       };

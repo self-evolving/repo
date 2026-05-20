@@ -160,3 +160,13 @@ test("preflight keeps planner enabled for authorized PR orchestration", () => {
   assert.equal(run.outputs.get("planner_enabled"), "true");
   assert.equal(run.outputs.get("authorization_stop"), "false");
 });
+
+test("preflight keeps planner enabled for authorized discussion orchestration", () => {
+  const run = runPreflight({
+    TARGET_KIND: "discussion",
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("planner_enabled"), "true");
+  assert.equal(run.outputs.get("authorization_stop"), "false");
+});

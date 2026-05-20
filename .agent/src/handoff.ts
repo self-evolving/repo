@@ -613,8 +613,12 @@ function decideAgentHandoff(input: HandoffInput): HandoffDecision {
   const sourceAction = normalizeToken(input.sourceAction);
   const targetKind = normalizeToken(input.targetKind || "");
   if (sourceAction === "orchestrate" && plannerDecision.nextAction === "implement") {
-    if (targetKind && targetKind !== "issue") {
-      return { decision: "stop", reason: "issue orchestration can dispatch implement only for issue targets", nextRound };
+    if (targetKind && !["issue", "pull_request", "discussion"].includes(targetKind)) {
+      return {
+        decision: "stop",
+        reason: "orchestration can dispatch implement only for issue, pull request, or discussion targets",
+        nextRound,
+      };
     }
     if (plannerDecision.baseBranch && plannerDecision.basePr) {
       return { decision: "stop", reason: "agent planner set both base_branch and base_pr", nextRound };
@@ -628,6 +632,13 @@ function decideAgentHandoff(input: HandoffInput): HandoffDecision {
       handoffContext: plannerDecision.handoffContext,
       baseBranch: plannerDecision.baseBranch,
       basePr: plannerDecision.basePr,
+    };
+  }
+  if (sourceAction === "orchestrate" && targetKind === "discussion") {
+    return {
+      decision: "stop",
+      reason: `agent planner requested ${plannerDecision.nextAction}, but discussion orchestration can dispatch only implement`,
+      nextRound,
     };
   }
   if (sourceAction === "orchestrate" && targetKind === "pull_request") {

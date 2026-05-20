@@ -62,7 +62,7 @@ Check [Install into an existing repository](.agent/docs/deployment/install-exist
 For example, adding the `agent/review` label will run the review agent. The `Agent / Onboarding / Check Setup` workflow creates the built-in trigger labels on first run.
 
 ### Task Orchestration Route
-Use `@sepo-agent /orchestrate` (or `agent/orchestrate`) to run the orchestration route explicitly. It checks current target state, dispatches the right built-in action (`implement`, `review`, or `fix-pr`), and keeps that explicitly started chain moving through bounded follow-up handoffs until a stop condition is reached. Direct `/implement`, `/review`, and `/fix-pr` requests remain one-shot.
+Use `@sepo-agent /orchestrate` (or `agent/orchestrate`) to run the orchestration route explicitly. It checks current target state, dispatches the right built-in action (`implement`, `review`, or `fix-pr`), and keeps that explicitly started chain moving through bounded follow-up handoffs until a stop condition is reached. PR and discussion orchestration can launch separate implementation work by creating a tracking issue first. Direct `/implement`, `/review`, and `/fix-pr` requests remain one-shot.
 
 ### Tracking Workspace Memory and Rubrics
 Sepo persists long-lived context in `agent/memory` and preference rules in `agent/rubrics`, both as repository-owned branches. This lets later runs resume with durable project context and team-specific guidance.
