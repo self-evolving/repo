@@ -1,0 +1,118 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n\n- Link onboarding setup actions to target repository workflows, secrets/settings, the setup guide, the Sepo app install page, and the latest Actions run.\n- Normalize `/install` PR bodies so **Required setup after merge** appears near the top with target-specific setup links.\n- Update install prompt, docs, skill guidance, and focused tests.\n\n## Verification\n\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/onboarding-check-cli.test.js .agent/dist/__tests__/install-fork-pr.test.js`\n- `git diff --check`\n\nCloses #313\n\nPart of #314\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDAGYDg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #319 | 3 / 40 | Dispatched |\n\nReason: implementation succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1779266942823 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxNTE0MzM3NDY6aW1wbGVtZW50OjMxMzpyZXZpZXc6MzE5OjM -->",
+      "createdAt": "2026-05-20T08:49:03Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/319#issuecomment-4496398350",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDAHFSQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 97 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read Docs And Linked Context First | pass | 6/6 | PR body explicitly closes #313 and is part of #314; #313 defines the onboarding/install guidance acceptance criteria that this diff implements. |\n| coding_workflow / generic | Reuse Existing Code | partial | 7/8 | The change extends existing deterministic helpers in `.agent/src/onboarding.ts` and `.agent/src/install-fork-pr.ts`, including the existing source-request preservation path. Minor duplication remains in local URL/link helper functions across the two modules. |\n| coding_workflow / generic | Keep Docs In Sync | pass | 7/7 | Updates `.agent/docs/deployment/install-existing-repository.md`, `.github/prompts/agent-install.md`, and `.skills/install-agent/SKILL.md` alongside runtime behavior. |\n| communication / generic | Audience-First Documentation | pass | 7/7 | Install guidance now leads with summary and required setup before source/audit details, matching the repo owner’s immediate post-merge task. |\n| communication / generic | Compact User-Facing Status Comments | pass | 6/6 | Onboarding status keeps the existing checklist format while replacing raw or vague destinations with focused links for secrets, workflows, setup guide, and run URL. |\n| coding_workflow / generic | Make User-Facing Automation Idempotent | pass | 7/7 | Existing onboarding marker comment remains the update target, and install PR normalization removes old `Required setup after merge` sections before inserting the canonical one; source request links remain deduped. |\n| coding_workflow / generic | Make Surgical Changes | pass | 8/8 | Diff is limited to onboarding/install PR body generation, focused tests, and matching docs/prompt/skill guidance. |\n| coding_style / generic | Prefer Simple Implementations | pass | 7/7 | Uses small local Markdown/link builders and section normalization rather than introducing new configuration or broader architecture. |\n\n## Notes\n\n- The strongest rubric fit is docs/runtime alignment: the deterministic publish helper now normalizes the install PR body, and docs/prompt/skill guidance describe the same order and setup checklist.\n- The only small deduction is duplicated URL/link helper logic between onboarding and install PR code. It is low-risk and locally scoped, but a future shared helper could reduce drift if more setup-link surfaces are added.\n\n## Findings\n\n- **INFO:** Under `reuse-existing-code`, consider extracting common GitHub repo URL and Markdown link helpers only if another surface needs the same setup links. No blocking rubric-specific follow-up needed for this PR.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-20T08:50:34Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/319#issuecomment-4496409929",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDAKRAw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 17010aa61f073c6f3a3383ddcd610d50a95612f6 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #319 closes #313 and is part of the broader #314 batch of small fixes. It improves Sepo first-run guidance by turning onboarding setup actions into target-repository links for workflows, secrets/settings, the setup guide, the Sepo app install page, and the latest Actions run. It also normalizes `/install` PR bodies so **Required setup after merge** appears near the top with target-specific setup links. Matching docs, prompt, skill guidance, and focused tests were updated.\n\n## Review\nOverall judgment: the PR is safe to ship. The reviewers agree the implementation meets the core onboarding/install guidance goal; the only disagreement is priority, where one reviewer flagged helper duplication and fallback-path test specificity as minor concerns while the other reviews treated them as non-blocking or future cleanup.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable issues | INFO | Codex found no blocking/warning issues, rubrics passed, and Claude’s concerns are optional cleanup or coverage refinements rather than required branch changes. |\n\n## Progress\n- Reviewed live PR #319 conversation plus linked #313 and #314 context.\n- Used all three review artifacts: Codex review, rubrics review, and Claude review.\n- Existing inline review comments and review threads are empty; no inline comments were posted, resolved, replied to, or minimized.\n- Current diff is whitespace-clean; Codex review reports build and targeted onboarding/install tests passed.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: no unresolved actionable branch work remains, and the remaining notes are optional maintainer follow-up rather than automation-required fixes.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work.",
+      "createdAt": "2026-05-20T08:57:22Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/319#issuecomment-4496462083",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-20T08:47:51Z",
+  "files": [
+    {
+      "path": ".agent/docs/deployment/install-existing-repository.md",
+      "additions": 19,
+      "deletions": 8,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/install-fork-pr.test.ts",
+      "additions": 36,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/onboarding-check-cli.test.ts",
+      "additions": 21,
+      "deletions": 6,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/install-fork-pr.ts",
+      "additions": 107,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/onboarding.ts",
+      "additions": 77,
+      "deletions": 17,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-install.md",
+      "additions": 23,
+      "deletions": 12,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".skills/install-agent/SKILL.md",
+      "additions": 7,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-313/codex-26151433746",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 319,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "OPEN",
+  "title": "Link onboarding and install setup steps",
+  "updatedAt": "2026-05-20T08:57:22Z",
+  "url": "https://github.com/self-evolving/repo/pull/319"
+}

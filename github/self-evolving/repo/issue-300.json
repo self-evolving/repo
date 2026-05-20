@@ -4,7 +4,7 @@
     "login": "app/sepo-agent-app"
   },
   "body": "## Goal\n\nRevise the `/install` implementation from PR #298 so the deterministic helper owns GitHub mechanics only, while the install prompt/skill owns target-specific install judgment.\n\n## Context\n\nPR #298 implements issue #296 with first-class `/install` routing, route-specific authorization, `AGENT_INSTALL_PAT`-only execution, disabled memory/rubrics for install runs, typed target resolution, and a fork-backed prepare/publish helper.\n\nReview and maintainer feedback found that `.agent/src/install-lifecycle.ts` and `.agent/src/cli/plan-install-lifecycle.ts` add a second orchestration contract for the middle install flow. That conflicts with the intended design from #296 and the paused #285 prototype:\n\n```text\nroute auth + AGENT_INSTALL_PAT\n-> helper prepare fork/worktree\n-> install prompt/skill investigates target and installs files\n-> helper publish fork branch / target PR\n```\n\nThe simplified direction is to keep the route/auth/token isolation, typed target resolver, and `install-fork-pr.ts` prepare/publish mechanics, but remove the lifecycle planner and move the middle install checklist back into the install prompt/skill.\n\n## Acceptance Criteria\n\n- Keep `/install` as a first-class route with route-specific authorization.\n- Keep `AGENT_INSTALL_PAT` as the only install execution token, with memory/rubrics disabled for install runs.\n- Keep the typed install target resolver and its focused coverage.\n- Keep `install-fork-pr.ts` as the deterministic owner of fork creation/reuse, branch/worktree preparation, push, and target PR create/reuse.\n- Remove `.agent/src/install-lifecycle.ts` and `.agent/src/cli/plan-install-lifecycle.ts`.\n- Remove or rewrite lifecycle-specific tests and docs so they no longer describe a separate lifecycle planner contract.\n- Update `.github/prompts/agent-install.md` so it directly instructs the install agent to resolve the target, run helper `prepare`, inspect/copy approved Sepo files, preserve target-owned files, update `.gitignore`, validate, commit, write a PR body, and run helper `publish`.\n- Preserve the prior safety fixes where still relevant: checkout credential isolation, prepare-state validation before publish, stale fork branch handling, and clear blocked states.\n- Ensure tests/build/docs reflect the simplified helper/prompt boundary.\n\n---\n\nRequested via issue_comment at https://github.com/self-evolving/repo/pull/298\n",
-  "closedAt": null,
+  "closedAt": "2026-05-20T08:11:04Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABC9K-cw",
@@ -32,8 +32,8 @@
     }
   ],
   "number": 300,
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Simplify install flow around fork helper",
-  "updatedAt": "2026-05-20T00:18:38Z",
+  "updatedAt": "2026-05-20T08:11:04Z",
   "url": "https://github.com/self-evolving/repo/issues/300"
 }

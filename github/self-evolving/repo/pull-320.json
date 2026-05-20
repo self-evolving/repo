@@ -1,0 +1,190 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "agent/implement-issue-313/codex-26151433746",
+  "body": "## Summary\n\n- Add structured review required-branch-work metadata to orchestrator handoffs.\n- Route MINOR_ISSUES + NO_AUTOMATED_ACTION + no required branch work to agent-self-approve when self-approval is enabled.\n- Extend self-approval provenance checks, prompts, docs, and regression coverage for disabled, required-work, and blocking cases.\n\n## Verification\n\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/prepare-self-approve-cli.test.js .agent/dist/__tests__/resolve-self-approve-cli.test.js .agent/dist/__tests__/self-approval.test.js .agent/dist/__tests__/handoff.test.js .agent/dist/__tests__/dispatch-agent-orchestrator-cli.test.js .agent/dist/__tests__/orchestrate-handoff-cli.test.js .agent/dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nCloses #318\n\nPart of #314\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDATJuQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #320 | 3 / 40 | Dispatched |\n\nReason: implementation succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1779268491593 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxNTIzNzg4MDU6aW1wbGVtZW50OjMxODpyZXZpZXc6MzIwOjM -->",
+      "createdAt": "2026-05-20T09:14:52Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/320#issuecomment-4496607673",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDAVCrQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 95 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | Review `NO_AUTOMATED_ACTION` now routes eligible no-required-work cases to `agent-self-approve`, while approval still depends on self-approval provenance and resolver checks: [handoff.ts](https://github.com/self-evolving/repo/blob/926f279393b2668b8542208494fc8b6fc1d306df/.agent/src/handoff.ts#L544-L575), [self-approval.ts](https://github.com/self-evolving/repo/blob/926f279393b2668b8542208494fc8b6fc1d306df/.agent/src/self-approval.ts#L223-L248). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Adds a typed `source_required_branch_work` workflow input and passes it into both planner and deterministic dispatch paths: [agent-orchestrator.yml](https://github.com/self-evolving/repo/blob/926f279393b2668b8542208494fc8b6fc1d306df/.github/workflows/agent-orchestrator.yml#L16-L19), [agent-orchestrator.yml](https://github.com/self-evolving/repo/blob/926f279393b2668b8542208494fc8b6fc1d306df/.github/workflows/agent-orchestrator.yml#L162-L218). |\n| review_quality / generic | Ground review synthesis in current artifacts | partial | 6/8 | Self-approval provenance still requires trusted current-head review synthesis before trusting the new gate: [self-approval.ts](https://github.com/self-evolving/repo/blob/926f279393b2668b8542208494fc8b6fc1d306df/.agent/src/self-approval.ts#L161-L207). Minor caveat: `deriveReviewRequiredBranchWork()` returns `false` for any present Action Items section with no extracted required items, not only an explicit no-work sentinel: [handoff.ts](https://github.com/self-evolving/repo/blob/926f279393b2668b8542208494fc8b6fc1d306df/.agent/src/handoff.ts#L240-L244). |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | The new delegated route is constrained to review-originated `MINOR_ISSUES + NO_AUTOMATED_ACTION + false required work` and keeps required-work paths on `fix-pr`; tests cover allowed and denied planner handoffs: [handoff.test.ts](https://github.com/self-evolving/repo/blob/926f279393b2668b8542208494fc8b6fc1d306df/.agent/src/__tests__/handoff.test.ts#L591-L697). |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | Uses existing planner/deterministic handoff policy and current source metadata rather than adding a new repo-level setting; the planner prompt receives the new source fact directly: [agent-orchestrator.md](https://github.com/self-evolving/repo/blob/926f279393b2668b8542208494fc8b6fc1d306df/.github/prompts/agent-orchestrator.md#L29-L38). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates architecture and technical docs to clarify that review `NO_AUTOMATED_ACTION` can still mean an approval gate is useful: [agent-orchestrator.md](https://github.com/self-evolving/repo/blob/926f279393b2668b8542208494fc8b6fc1d306df/.agent/docs/technical-details/agent-orchestrator.md#L27-L30), [agent-orchestrator.md](https://github.com/self-evolving/repo/blob/926f279393b2668b8542208494fc8b6fc1d306df/.agent/docs/technical-details/agent-orchestrator.md#L180-L182). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Extends existing handoff parsing/building helpers and self-approval provenance evaluation instead of creating a parallel parser or route mechanism: [dispatch-agent-orchestrator.ts](https://github.com/self-evolving/repo/blob/926f279393b2668b8542208494fc8b6fc1d306df/.agent/src/cli/dispatch-agent-orchestrator.ts#L56-L85). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are scoped to orchestrator handoff metadata, self-approval provenance, prompts/docs, workflow plumbing, and focused regression tests for the requested behavior. |\n\n## Notes\n\n- The PR satisfies the core #318 acceptance criteria: enabled self-approval receives eligible no-branch-work review outcomes, disabled self-approval stops cleanly, and required-work or blocking outcomes do not use the approval shortcut.\n- The strongest evidence is the combination of deterministic policy tests, planner validation tests, prepare/resolve self-approval provenance tests, and docs updates.\n- Smallest useful follow-up: tighten `deriveReviewRequiredBranchWork()` so `false` requires either an explicit no-required-work sentinel or another clearly validated no-work signal, rather than an empty Action Items section.\n\n## Findings\n\n- **WARNING:** The new no-required-work classifier can treat an empty present `## Action Items` section as `source_required_branch_work=false` because `deriveReviewRequiredBranchWork()` returns `false` when the section exists and `extractRequiredReviewActionItems()` is empty. That is probably acceptable given the self-approval agent still performs the final decision, but it is slightly looser than the issue language requiring the synthesis/action items to say no required branch-change work remains.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-20T09:18:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/320#issuecomment-4496638637",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDAZWEA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 926f279393b2668b8542208494fc8b6fc1d306df -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #320 implements #318 as part of the stacked #314 batch. It teaches orchestration that review `NO_AUTOMATED_ACTION` means no more branch mutation/review loop is useful, while still allowing `agent-self-approve` when self-approval is enabled and a trusted current-head `MINOR_ISSUES` synthesis says no required branch-change work remains. The implementation threads `source_required_branch_work` through dispatch/orchestrator handoff, re-validates provenance in self-approval, and updates prompts, workflow wiring, docs, and focused regression tests. This preserves the key safety boundary: routing metadata can trigger the gate, but approval still depends on current-head trusted synthesis checks.\n\n## Review\nThe independent reviews converge on SHIP: Codex found no findings, Claude found only low-risk non-blocking notes, and the rubric review passed with one optional classifier-tightening caveat. I did not find a currently actionable branch-change issue supported by the review artifacts or the live PR state.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues | INFO | No required branch-change work remains. The only reviewer caveats are optional hardening notes around no-required-work classification breadth and extra conservative-path test coverage. |\n\n## Progress\n- PR already addresses #318’s acceptance criteria for enabled self-approval, disabled self-approval, blocking outcomes, and required-work outcomes.\n- Review artifacts report targeted build/test verification passed on head `926f279393b2668b8542208494fc8b6fc1d306df`.\n- Existing inline comments: none. Existing review threads: none.\n- Inline cleanup: no comments posted, no replies added, no comments minimized, and no threads resolved.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: No unresolved required branch-change work remains; further branch mutation automation is not warranted.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-20T09:25:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/320#issuecomment-4496709136",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-20T09:14:32Z",
+  "files": [
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 13,
+      "deletions": 8,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/agent-orchestrator.md",
+      "additions": 5,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/dispatch-agent-orchestrator-cli.test.ts",
+      "additions": 62,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 10,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/handoff.test.ts",
+      "additions": 134,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrate-handoff-cli.test.ts",
+      "additions": 44,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/prepare-self-approve-cli.test.ts",
+      "additions": 80,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/resolve-self-approve-cli.test.ts",
+      "additions": 38,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/self-approval.test.ts",
+      "additions": 86,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/dispatch-agent-orchestrator.ts",
+      "additions": 28,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrate-handoff.ts",
+      "additions": 4,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/prepare-self-approve.ts",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/resolve-self-approve.ts",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/handoff.ts",
+      "additions": 75,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/run.ts",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/self-approval.ts",
+      "additions": 29,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-orchestrator.md",
+      "additions": 12,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-self-approve.md",
+      "additions": 10,
+      "deletions": 6,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-orchestrator.yml",
+      "additions": 6,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-318/codex-26152378805",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 320,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "OPEN",
+  "title": "Route no-branch-work reviews to self-approval",
+  "updatedAt": "2026-05-20T09:25:32Z",
+  "url": "https://github.com/self-evolving/repo/pull/320"
+}

@@ -1,0 +1,123 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "## Problem\n\nWhen a PR review synthesis concludes that no more branch-change automation is needed, orchestration can currently stop instead of consulting the self-approval gate. In full self-governance mode this can leave an otherwise-ready PR stranded: no fix/review loop is warranted, but no self-approval/self-merge path is attempted either.\n\nThis is understandable if `NO_AUTOMATED_ACTION` means \"do not run fix-pr/review again\", but in self-governance mode it should not necessarily mean \"do not consult the approval gate\".\n\n## Expected behavior\n\nWhen all of the following are true:\n\n- target is an open PR;\n- latest trusted review synthesis is for the current head;\n- final verdict is non-blocking, e.g. `MINOR_ISSUES`;\n- recommended next step is `NO_AUTOMATED_ACTION`;\n- synthesis/action items say no required branch-change work remains;\n- `AGENT_ALLOW_SELF_APPROVE=true`;\n\nthen orchestration should be able to hand off to `agent-self-approve` as the decision gate.\n\nIf `AGENT_ALLOW_SELF_MERGE=true` is also enabled and self-approval returns approved, the existing self-merge handoff can decide whether to merge, enable auto-merge, mark ready, or block.\n\n## Why this matters\n\n`NO_AUTOMATED_ACTION` is currently overloaded:\n\n1. no more automated branch mutation/review loops are useful; and\n2. no automation at all should continue.\n\nFor self-governance, those are different states. A PR can be done with branch changes while still needing an approval decision. In that case, `agent-self-approve` is exactly the deterministic/current-head gate that should make the final approval/block/request-changes decision.\n\n## Possible implementation direction\n\nOptions:\n\n1. Update the orchestrator handoff policy so `review -> MINOR_ISSUES + NO_AUTOMATED_ACTION` can route to `agent-self-approve` when self-approval is enabled and no required branch-change work remains.\n2. Alternatively, change review synthesis to emit `HUMAN_DECISION` instead of `NO_AUTOMATED_ACTION` for non-blocking done states where a maintainer/self-approval gate should decide.\n3. Make the provenance accepted by `agent-self-approve` explicit for this case, so it does not only trust `SHIP` or `HUMAN_DECISION` when the current-head synthesis says no required branch-change work remains.\n\n## Acceptance criteria\n\n- Add/update tests for a PR orchestration handoff where latest review synthesis is current-head `MINOR_ISSUES`, recommends `NO_AUTOMATED_ACTION`, and says no required branch-change work remains.\n- With `AGENT_ALLOW_SELF_APPROVE=true`, that scenario dispatches or permits `agent-self-approve` rather than stopping.\n- With self-approval disabled, the orchestrator still stops cleanly and explains why.\n- Blocking findings or required branch-change action items must still prevent self-approval and route to fix/review/stop as appropriate.\n- Documentation clarifies that `NO_AUTOMATED_ACTION` from review means no more branch mutation/review loops, not necessarily no approval gate in self-governance mode.\n\n## Related context\n\nThis follows the same self-governance direction as PR #299, which added same-actor self-approval/status-comment handling when both self-approval and self-merge are enabled.\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC_5z-g",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\ncan you analyze this? also can you check all conditions similar to this?",
+      "createdAt": "2026-05-20T08:24:26Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/318#issuecomment-4496192506",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC_7z9w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I analyzed #318 against the current `main` code and the related merged PR #299. The issue is valid, and there are two closely related gaps.\n\nCurrent behavior:\n\n- `SHIP` review + `AGENT_ALLOW_SELF_APPROVE=true` already routes to `agent-self-approve`.\n  Code: https://github.com/self-evolving/repo/blob/cf1485fbeb30847c734401e721227ee3868b1774/.agent/src/handoff.ts#L491-L501\n- `HUMAN_DECISION` + self-approval enabled already routes to `agent-self-approve`, including non-`SHIP` verdicts.\n  Code: https://github.com/self-evolving/repo/blob/cf1485fbeb30847c734401e721227ee3868b1774/.agent/src/handoff.ts#L478-L489\n- Self-approval provenance currently trusts only current-head `SHIP`, or current-head `HUMAN_DECISION` when that gate is explicitly allowed.\n  Code: https://github.com/self-evolving/repo/blob/cf1485fbeb30847c734401e721227ee3868b1774/.agent/src/self-approval.ts#L203-L219\n\nThe missing case is:\n\n- `MINOR_ISSUES`\n- `Recommended Next Step: NO_AUTOMATED_ACTION`\n- no required branch-change action items\n- self-approval enabled\n\nThat currently has no explicit self-approval path. In agent-planner mode, the orchestrator prompt even tells the planner to stop on `NO_AUTOMATED_ACTION`: https://github.com/self-evolving/repo/blob/cf1485fbeb30847c734401e721227ee3868b1774/.github/prompts/agent-orchestrator.md#L88-L91\n\nThere is also a similar heuristic-mode mismatch: `MINOR_ISSUES`, `NEEDS_REWORK`, and `CHANGES_REQUESTED` all currently fall through to `fix-pr` unless the recommendation is `HUMAN_DECISION`, so `NO_AUTOMATED_ACTION` is not respected there either.\nCode: https://github.com/self-evolving/repo/blob/cf1485fbeb30847c734401e721227ee3868b1774/.agent/src/handoff.ts#L503-L513\n\nI would treat the similar conditions this way:\n\n| Verdict | Recommended next step | Required branch-change work? | Self-approval enabled? | Correct handoff |\n| -- | -- | -- | -- | -- |\n| `SHIP` | any / absent / `NO_AUTOMATED_ACTION` | no | yes | `agent-self-approve` |\n| `SHIP` | any / absent / `NO_AUTOMATED_ACTION` | no | no | stop cleanly |\n| `MINOR_ISSUES` | `HUMAN_DECISION` | optional/judgment only | yes | `agent-self-approve` |\n| `MINOR_ISSUES` | `NO_AUTOMATED_ACTION` | no | yes | `agent-self-approve` |\n| `MINOR_ISSUES` | `NO_AUTOMATED_ACTION` | no | no | stop cleanly |\n| `MINOR_ISSUES` | `FIX_PR` or required action items | yes | any | `fix-pr` |\n| `NEEDS_REWORK` / `CHANGES_REQUESTED` | `FIX_PR` or required action items | yes | any | `fix-pr` |\n| `NEEDS_REWORK` / `CHANGES_REQUESTED` | `NO_AUTOMATED_ACTION` | no | any | stop/block, not approve |\n| any blocking verdict | any | yes or unclear | any | do not self-approve |\n\nImplementation plan:\n\n1. Add a small structured helper in `.agent/src/handoff.ts` to distinguish “required branch-change action items exist” from sentinel/no-op items like `No required branch-change work remains`.\n2. Update review-originated handoff policy so `NO_AUTOMATED_ACTION` is treated as “no more branch mutation/review loop,” not “no approval gate.”\n3. Permit `MINOR_ISSUES + NO_AUTOMATED_ACTION + no required branch-change work` to route to `agent-self-approve` when `AGENT_ALLOW_SELF_APPROVE=true`.\n4. Keep `NEEDS_REWORK` and `CHANGES_REQUESTED` out of this approval shortcut unless the recommendation is the already-supported `HUMAN_DECISION` gate.\n5. Extend `evaluateSelfApprovalProvenance()` so this exact `MINOR_ISSUES + NO_AUTOMATED_ACTION + no required branch work` provenance can be trusted for the current head.\n6. Update `.github/prompts/agent-orchestrator.md` and `.agent/docs/technical-details/agent-orchestrator.md` so `NO_AUTOMATED_ACTION` is documented as no more branch-change automation, not necessarily no self-governance approval gate.\n7. Add tests in `handoff.test.ts`, `orchestrate-handoff-cli.test.ts`, `prepare-self-approve-cli.test.ts`, and `self-approval.test.ts` for the allowed path and the blocked variants.\n\nNo clarification blockers from my side. The main design choice is whether to name this as a new internal predicate like `reviewHasNoRequiredBranchWork()` or encode it directly in the handoff/provenance checks; I’d prefer the helper so the condition stays consistent across dispatch, handoff, and self-approval provenance.",
+      "createdAt": "2026-05-20T08:28:11Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/318#issuecomment-4496225271",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDALLoQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo adopted this issue as a sub-orchestrator child of #314.\n\n| Parent issue | Stage | Parent round | Status |\n| --- | --- | --- | --- |\n| #314 | self-approval-no-branch-work | 3 | Running |\n\n<!-- sepo-sub-orchestrator parent:314 stage:self-approval-no-branch-work state:done parent_round:3 -->\n<!-- sepo-sub-orchestrator-adoption -->",
+      "createdAt": "2026-05-20T08:59:13Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/318#issuecomment-4496477089",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDALNNA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | delegate_issue | Issue #318 | 3 / 40 | Dispatched |\n\nReason: agent planner selected child issue delegation: Issue #314 is a parent batch for sequential small fixes. Child #313 completed with SHIP and opened unmerged PR #319, so continue with the next bounded open issue, #318, stacked on PR #319 to avoid conflicts.\n\n<!-- sepo-agent-handoff state:dispatched created:1779267555859 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxNTE4NTU0NjY6b3JjaGVzdHJhdGU6MzE0OmRlbGVnYXRlX2lzc3VlOjMxODoz -->",
+      "createdAt": "2026-05-20T08:59:16Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/318#issuecomment-4496477492",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDALV0w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | implement | Issue #318 | 2 / 40 | Dispatched |\n\nReason: manual orchestrate start on issue; dispatching implement\n\n<!-- sepo-agent-handoff state:dispatched created:1779267572451 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxNTE4NTU0NjY6b3JjaGVzdHJhdGU6MzE4OmltcGxlbWVudDozMTg6Mg -->",
+      "createdAt": "2026-05-20T08:59:32Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/318#issuecomment-4496479699",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDATBMQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-318/codex-26152378805`\n- Pull request: https://github.com/self-evolving/repo/pull/320\n\nImplemented review-to-self-approval routing for current-head MINOR_ISSUES + NO_AUTOMATED_ACTION syntheses that explicitly have no required branch-change work, while keeping self-approval disabled, blocking verdicts, and required branch work on stop/fix paths. Updated provenance checks, workflow metadata, prompts/docs, and focused tests; verified with TypeScript build, targeted node tests, and git diff --check.",
+      "createdAt": "2026-05-20T09:14:36Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/318#issuecomment-4496605489",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-20T08:23:31Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 318,
+  "state": "OPEN",
+  "title": "Route no-more-branch-work review outcomes to self-approval",
+  "updatedAt": "2026-05-20T09:25:53Z",
+  "url": "https://github.com/self-evolving/repo/issues/318"
+}

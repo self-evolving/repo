@@ -1,0 +1,153 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "Since our OIDC server is updated and our app token scope supports it, we should add a minimum route to support using the agent to change repo variables for easy configurations. \n\n@sepo-agent /answer what's the best way to do so? perhaps we can even do it in the /answer route as well?",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC_6GLg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I’d add a dedicated explicit route, not fold mutation into `/answer`.\n\nWhy: `/answer` is currently an inline response path that runs the model and posts a comment ([router answer job](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L328-L423)). It does receive the resolved Sepo auth token, but making a general Q&A route mutate repository settings would make accidental writes much harder to reason about. The existing architecture treats mutations as route-specific behavior with deterministic post-processing, e.g. explicit implementation dispatch and install have their own guarded jobs ([agent actions docs](https://github.com/self-evolving/repo/blob/main/.agent/docs/actions/agent-actions.md#L5-L17)).\n\nBest minimal shape:\n\n1. Add an explicit `/config` or `/configure` route only.\n   - Do **not** let dispatch triage infer it at first.\n   - Extend explicit route parsing in [`triage.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/triage.ts#L32-L38), route decision handling around [`buildRequestedRouteDecision`](https://github.com/self-evolving/repo/blob/main/.agent/src/triage.ts#L160-L260), and optionally label routing for `agent/config`.\n   - Keep route auth under `AGENT_ACCESS_POLICY`, but default this route stricter than the public default. I’d use `OWNER`, `MEMBER`, `COLLABORATOR`, excluding `CONTRIBUTOR`.\n\n2. Keep the first version deterministic.\n   - Syntax examples:\n     ```md\n     @sepo-agent /config set AGENT_AUTO_UPDATE=false\n     @sepo-agent /config set AGENT_PROJECT_MANAGEMENT_ENABLED=true\n     @sepo-agent /config unset AGENT_STATUS_LABEL_ENABLED\n     ```\n   - Parse `set NAME=value` / `unset NAME` in a CLI like `.agent/src/cli/apply-repo-config.ts`.\n   - Validate variable names with a conservative pattern and start with an allowlist of documented Sepo repo variables from [`configuration-list.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/customization/configuration-list.md#L3-L33). We can later add `AGENT_CONFIG_ALLOWED_VARIABLES` or prefix policy if needed.\n\n3. Add a small sibling job in `agent-router.yml`, not a separate workflow initially.\n   - Reuse the existing auth path. The router already grants `actions: write` and `id-token: write` ([permissions](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L91-L101)).\n   - Reuse `resolve-github-auth`, which already prefers direct GitHub App auth, then hosted OIDC broker, then PAT, then workflow token ([auth action](https://github.com/self-evolving/repo/blob/main/.github/actions/resolve-github-auth/action.yml#L1-L31), [token source selection](https://github.com/self-evolving/repo/blob/main/.github/actions/resolve-github-auth/action.yml#L67-L95)).\n   - Run the deterministic CLI with `GH_TOKEN: ${{ steps.auth.outputs.token }}` and post a concise result with `post-response.js`.\n\n4. Use GitHub’s Actions variables REST API underneath.\n   - GitHub supports repo variable create/update/delete at `POST /repos/{owner}/{repo}/actions/variables`, `PATCH /repos/{owner}/{repo}/actions/variables/{name}`, and `DELETE /repos/{owner}/{repo}/actions/variables/{name}`.\n   - The docs say GitHub App installation tokens work, with `\"Variables\" repository permissions (write)` required for create/update/delete: https://docs.github.com/en/rest/actions/variables#create-a-repository-variable and https://docs.github.com/en/rest/actions/variables#update-a-repository-variable.\n   - Implementation can do `GET` first, then `PATCH` if present or `POST` if missing.\n\n5. Test/document it.\n   - Unit test explicit route extraction and access policy behavior.\n   - CLI tests for parse/validate/upsert/delete using a fake `gh`.\n   - Docs update in `agent-actions.md` and `configuration-list.md`.\n\nI’d explicitly avoid secrets, org variables, and environment variables in the first pass. Repository variables are plaintext and low enough risk for a small route; secrets should use a different flow because values in issue comments are not safe.\n\nIf you approve, I’d implement `/config` as the first route name.",
+      "createdAt": "2026-05-20T08:24:59Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/316#issuecomment-4496197166",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC_7Imw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "no but that path should take in user's natural language and then change the variable. \n\nI even think this should be best run through GitHub action page directly. but also ideally it can be interpreted with `@sepo-agent xxx` directly ? \n\n@sepo-agent /answer ",
+      "createdAt": "2026-05-20T08:27:06Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/316#issuecomment-4496214171",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC_8FwA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Agreed. If the goal is “say this in natural language and have Sepo change repo variables,” I’d make the primary implementation a dedicated GitHub Actions workflow, then expose the same path through mentions.\n\nBest shape:\n\n1. Add `.github/workflows/agent-config.yml` with `workflow_dispatch`.\n   - Inputs:\n     - `request_text`: natural language, e.g. “turn off auto update and enable project management dry run”\n     - `apply`: `false` by default for first iteration, or `true` when we’re comfortable\n     - maybe `target_repo` later, but start with current repo only\n   - It should reuse `resolve-github-auth`, so hosted OIDC / App / PAT resolution stays consistent with the router ([auth action](https://github.com/self-evolving/repo/blob/main/.github/actions/resolve-github-auth/action.yml#L1-L31)).\n   - The router already has the needed workflow permissions shape, including `actions: write` and `id-token: write` ([router permissions](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L91-L101)).\n\n2. Run an agent step to interpret natural language into structured JSON, but keep writes deterministic.\n   - New prompt: `.github/prompts/agent-config.md`\n   - Expected model output:\n     ```json\n     {\n       \"operations\": [\n         {\n           \"action\": \"set\",\n           \"name\": \"AGENT_AUTO_UPDATE\",\n           \"value\": \"false\",\n           \"reason\": \"Disable scheduled Sepo update checks\"\n         }\n       ]\n     }\n     ```\n   - Then a typed CLI, e.g. `.agent/src/cli/apply-repo-config.ts`, validates and applies the plan.\n   - Do not let the model call `gh variable set` directly.\n\n3. Add a conservative validator.\n   - First pass should support only repository Actions variables.\n   - Allow only known Sepo config variables from [`configuration-list.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/customization/configuration-list.md#L3-L33), or an explicit `AGENT_CONFIG_ALLOWED_VARIABLES` policy.\n   - Reject secrets, environment variables, org variables, unknown names, empty ambiguous plans, and multi-repo writes.\n   - Use GitHub’s repository Actions variables API for create/update/delete.\n\n4. Add a mention route as a wrapper around the same workflow.\n   - Add `/config` or `/configure` to explicit route parsing in [`triage.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/triage.ts#L32-L38).\n   - Add a router job that dispatches `agent-config.yml` with `request_text = needs.portal.outputs.body`.\n   - This mirrors the current architecture where routes are selected in `agent-router.yml`, then specialized jobs/workflows do the mutation ([agent action flow](https://github.com/self-evolving/repo/blob/main/.agent/docs/actions/agent-actions.md#L28-L38)).\n\n5. For free-form mentions, allow triage later.\n   - Explicit:\n     ```md\n     @sepo-agent /config disable auto update\n     ```\n     can apply directly for authorized users.\n   - Free-form:\n     ```md\n     @sepo-agent disable auto update\n     ```\n     could be triaged into `config`, but I’d initially make that produce a dry-run confirmation comment to avoid accidental repo setting changes.\n\nI still would not put this inside `/answer`. `/answer` should stay a read/explain route. The right model is: one shared `agent-config.yml` workflow for the GitHub Actions page, plus `/config` as a GitHub mention entry point that calls the same implementation.",
+      "createdAt": "2026-05-20T08:28:33Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/316#issuecomment-4496229824",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC__gjw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "sure ... ",
+      "createdAt": "2026-05-20T08:35:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/316#issuecomment-4496285839",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDAabHw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo adopted this issue as a sub-orchestrator child of #314.\n\n| Parent issue | Stage | Parent round | Status |\n| --- | --- | --- | --- |\n| #314 | repo-variable-config-route | 4 | Running |\n\n<!-- sepo-sub-orchestrator parent:314 stage:repo-variable-config-route state:running parent_round:4 -->\n<!-- sepo-sub-orchestrator-adoption -->",
+      "createdAt": "2026-05-20T09:27:24Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/316#issuecomment-4496726815",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDAadCg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | delegate_issue | Issue #316 | 4 / 40 | Dispatched |\n\nReason: agent planner selected child issue delegation: Issue #314 is a parent batch for sequential small fixes. Child #318 completed with SHIP and opened unmerged PR #320, so continue with the next bounded approved issue, #316, stacked on PR #320 to avoid conflicts.\n\n<!-- sepo-agent-handoff state:dispatched created:1779269247320 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxNTMxNDA2MTY6b3JjaGVzdHJhdGU6MzE0OmRlbGVnYXRlX2lzc3VlOjMxNjo0 -->",
+      "createdAt": "2026-05-20T09:27:27Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/316#issuecomment-4496727306",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDAanVQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | implement | Issue #316 | 2 / 40 | Dispatched |\n\nReason: manual orchestrate start on issue; dispatching implement\n\n<!-- sepo-agent-handoff state:dispatched created:1779269261214 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxNTMxNDA2MTY6b3JjaGVzdHJhdGU6MzE2OmltcGxlbWVudDozMTY6Mg -->",
+      "createdAt": "2026-05-20T09:27:41Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/316#issuecomment-4496729941",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDAmVNA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-316/codex-26153781993`\n- Pull request: https://github.com/self-evolving/repo/pull/321\n\nAdded an explicit natural-language repo config path: `/config` and `/configure` now route to a new `Agent / Repo Config` workflow, which runs the model in read-approved mode and applies only a deterministic, allowlisted repository Actions variable plan. Added parser/apply CLI coverage, route/access tests, workflow docs, and verified with build, targeted node tests, YAML parsing, and `git diff --check`.",
+      "createdAt": "2026-05-20T09:45:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/316#issuecomment-4496921908",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-20T08:21:53Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 316,
+  "state": "OPEN",
+  "title": "Use the agent to change repo variables etc",
+  "updatedAt": "2026-05-20T09:45:04Z",
+  "url": "https://github.com/self-evolving/repo/issues/316"
+}

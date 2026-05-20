@@ -1,0 +1,175 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "agent/implement-issue-318/codex-26152378805",
+  "body": "## Summary\n\n- Add explicit `/config` and `/configure` routing with stricter default access for repository variable changes.\n- Add `agent-config.yml`, `agent-config.md`, and `apply-repo-config` validation/application helpers for allowlisted Sepo repo variables.\n- Update docs and regression tests for config routing, access policy, dry-run validation, and Actions variable apply behavior.\n\n## Verification\n\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/repo-config.test.js .agent/dist/__tests__/apply-repo-config-cli.test.js .agent/dist/__tests__/triage.test.js .agent/dist/__tests__/resolve-dispatch-cli.test.js .agent/dist/__tests__/envelope.test.js`\n- `node -e \"const fs=require('fs'); const YAML=require('yaml'); for (const f of ['.github/workflows/agent-config.yml','.github/workflows/agent-router.yml']) { YAML.parse(fs.readFileSync(f,'utf8')); console.log(f + ' ok'); }\"`\n- `git diff --check`\n\nCloses #316\n\nPart of #314\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDAmi9w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #321 | 3 / 40 | Dispatched |\n\nReason: implementation succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1779270321697 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxNTM3ODE5OTM6aW1wbGVtZW50OjMxNjpyZXZpZXc6MzIxOjM -->",
+      "createdAt": "2026-05-20T09:45:22Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/321#issuecomment-4496925431",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDAn9Dg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 96 | PASS | 11 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR links `Closes #316` and `Part of #314`; issue #316 requested natural-language repo variable changes through an Actions page and mentions, and the PR implements exactly that path. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The route reuses existing `resolve-github-auth`, `resolve-agent-provider`, `setup-agent-runtime`, `run-agent-task`, `post-response.js`, and typed `.agent/src` helpers instead of embedding raw workflow logic. |\n| coding_workflow / generic | Keep privileged workflows on trusted runtime code | pass | 8/8 | `.github/workflows/agent-config.yml` checks out `github.event.repository.default_branch` with `persist-credentials: false` before using local actions/scripts, keeping repo-variable mutation runtime on trusted default-branch code. |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | `/config` mention routing goes through the portal route policy, then delegates to `agent-config.yml`; tests cover default denial for `CONTRIBUTOR`, allowance for `COLLABORATOR`, explicit route override widening, and global policy narrowing. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The agent emits an `operations` array with explicit `action`, `name`, `value`, and `reason`; `.agent/src/repo-config.ts` validates action, name allowlist, value shape, duplicate operations, and unset/set semantics. |\n| coding_workflow / generic | Validate preview contracts | pass | 7/7 | Dry-run still parses and validates the plan, rejects empty/invalid operations, writes an error summary, and tests assert dry-run makes no `gh` calls while invalid dry-run fails clearly. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | The feature supports only documented Sepo repository Actions variables, excludes secrets/org/env/multi-repo changes, and allows access customization through existing `AGENT_ACCESS_POLICY.route_overrides.config`. |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | The PR avoids adding a new repo-level setting for route choice; explicit `/config` and `/configure` route decisions are encoded in triage and guarded by existing policy. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates cover access policy, agent actions, supported workflows, configuration list, and quick start docs for the new config route and stricter default access. |\n| coding_workflow / generic | Surgical changes | pass | 8/8 | The diff is scoped to the new config route, parser/apply helpers, workflow wiring, tests, and related docs; no unrelated refactors are apparent. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | `apply-repo-config` writes a failure summary, sets outputs to non-applied/zero operations, logs the error, and the workflow fails the job when plan validation/application fails. |\n\n## Notes\n\n- The strongest rubric fit is the separation between model interpretation and deterministic mutation: the prompt only produces JSON, while `.agent/src/repo-config.ts` validates an allowlisted plan and applies through GitHub’s Actions variables API.\n- Access is handled conservatively: `/config` defaults to `OWNER`, `MEMBER`, and `COLLABORATOR`, intersects with global policy, and can only be widened with a route-specific override.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** The implementation satisfies the applicable selected rubrics. The only notable tradeoff is that ambiguous natural-language plans intentionally become failed validation rather than a successful no-op, which matches the preview-contract rubric’s preference to fail clearly.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-20T09:47:21Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/321#issuecomment-4496948494",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-20T09:45:00Z",
+  "files": [
+    {
+      "path": ".agent/docs/access-policy.md",
+      "additions": 16,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/actions/agent-actions.md",
+      "additions": 10,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 13,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 5,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/overview/quick-start.md",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/apply-repo-config-cli.test.ts",
+      "additions": 234,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 13,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/repo-config.test.ts",
+      "additions": 110,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/triage.test.ts",
+      "additions": 92,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/access-policy.ts",
+      "additions": 20,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/apply-repo-config.ts",
+      "additions": 74,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/envelope.ts",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/repo-config.ts",
+      "additions": 342,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/run.ts",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/triage.ts",
+      "additions": 35,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/run-agent-task/action.yml",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-config.md",
+      "additions": 74,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/workflows/agent-config.yml",
+      "additions": 210,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/workflows/agent-router.yml",
+      "additions": 28,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-316/codex-26153781993",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 321,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "OPEN",
+  "title": "Add natural-language repo config route",
+  "updatedAt": "2026-05-20T09:47:22Z",
+  "url": "https://github.com/self-evolving/repo/pull/321"
+}
