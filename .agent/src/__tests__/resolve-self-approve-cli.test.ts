@@ -50,7 +50,7 @@ if [ "$1" = "pr" ] && [ "$2" = "view" ]; then
   exit 0
 fi
 if [ "$1" = "api" ] && [ "$2" = "--paginate" ] && [ "$3" = "--slurp" ]; then
-  printf '${commentsPayload}\\n'
+  printf '%s\\n' '${commentsPayload}'
   exit 0
 fi
 if [ "$1" = "api" ] && [ "$2" = "graphql" ]; then
@@ -201,6 +201,43 @@ test("resolve-self-approve accepts trusted human-decision provenance", () => {
       inspected_head_sha: "abc123",
     }), {
       SOURCE_RECOMMENDED_NEXT_STEP: "HUMAN_DECISION",
+    });
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.output, /approved<<[^\n]+\ntrue/);
+    assert.match(result.output, /conclusion<<[^\n]+\napproved/);
+    assert.match(result.log, /^api --method POST repos\/self-evolving\/repo\/pulls\/42\/reviews /m);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("resolve-self-approve accepts trusted no-required-branch-work provenance", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-self-approve-cli-"));
+  try {
+    writeFakeGh(tempDir, "abc123", {
+      synthesisBody: [
+        "## AI Review Synthesis",
+        "<!-- sepo-agent-review-synthesis -->",
+        "<!-- sepo-agent-review-synthesis-head: abc123 -->",
+        "",
+        "## Recommended Next Step",
+        "NO_AUTOMATED_ACTION",
+        "",
+        "## Final Verdict",
+        "MINOR_ISSUES",
+        "",
+        "## Action Items",
+        "- [ ] No required branch-change work remains.",
+      ].join("\n"),
+    });
+
+    const result = runResolveSelfApprove(tempDir, JSON.stringify({
+      verdict: "APPROVE",
+      reason: "No required branch work remains.",
+      inspected_head_sha: "abc123",
+    }), {
+      SOURCE_RECOMMENDED_NEXT_STEP: "NO_AUTOMATED_ACTION",
     });
 
     assert.equal(result.status, 0, result.stderr);

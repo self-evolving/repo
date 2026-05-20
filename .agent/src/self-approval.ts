@@ -1,4 +1,8 @@
-import { extractReviewConclusion, extractReviewRecommendedNextStep } from "./handoff.js";
+import {
+  deriveReviewRequiredBranchWork,
+  extractReviewConclusion,
+  extractReviewRecommendedNextStep,
+} from "./handoff.js";
 import { extractJsonObject } from "./response.js";
 import {
   extractReviewSynthesisHeadSha,
@@ -137,6 +141,7 @@ export function evaluateSelfApprovalProvenance(input: {
   trustedActorLogin: string;
   expectedHeadSha: string;
   allowHumanDecisionGate?: boolean;
+  allowNoBranchWorkGate?: boolean;
 }): SelfApprovalProvenanceResult {
   const trustedActor = normalizeActorLogin(input.trustedActorLogin);
   const expectedHeadSha = String(input.expectedHeadSha || "").trim();
@@ -166,6 +171,7 @@ export function evaluateSelfApprovalProvenance(input: {
         createdAtMs: createdAtMs(comment.createdAt),
         conclusion: extractReviewConclusion(body),
         recommendedNextStep: extractReviewRecommendedNextStep(body),
+        requiredBranchWork: deriveReviewRequiredBranchWork(body),
         reviewedHeadSha: extractReviewSynthesisHeadSha(body),
       };
     })
@@ -174,6 +180,7 @@ export function evaluateSelfApprovalProvenance(input: {
       createdAtMs: number;
       conclusion: string;
       recommendedNextStep: string;
+      requiredBranchWork: "true" | "false" | "unknown";
       reviewedHeadSha: string;
     } => Boolean(signal))
     .sort((left, right) => left.createdAtMs - right.createdAtMs || left.index - right.index);
@@ -211,6 +218,27 @@ export function evaluateSelfApprovalProvenance(input: {
     return {
       trusted: true,
       reason: `latest trusted review synthesis recommended HUMAN_DECISION after ${conclusion} for current head`,
+    };
+  }
+  if (
+    input.allowNoBranchWorkGate &&
+    conclusion === "minor_issues" &&
+    recommendedNextStep === "no_automated_action" &&
+    latest.requiredBranchWork === "false"
+  ) {
+    return {
+      trusted: true,
+      reason: "latest trusted review synthesis found no required branch-change work after MINOR_ISSUES for current head",
+    };
+  }
+  if (
+    input.allowNoBranchWorkGate &&
+    conclusion === "minor_issues" &&
+    recommendedNextStep === "no_automated_action"
+  ) {
+    return {
+      trusted: false,
+      reason: "latest trusted review synthesis did not confirm no required branch-change work remains",
     };
   }
 

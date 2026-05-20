@@ -357,6 +357,92 @@ test("evaluateSelfApprovalProvenance can allow trusted HUMAN_DECISION gate", () 
   assert.match(fixPr.reason, /not SHIP/);
 });
 
+test("evaluateSelfApprovalProvenance can allow no-required-branch-work gate", () => {
+  const trusted = evaluateSelfApprovalProvenance({
+    trustedActorLogin: "sepo-agent-app[bot]",
+    expectedHeadSha: "abc123",
+    allowNoBranchWorkGate: true,
+    comments: [
+      {
+        authorLogin: "sepo-agent-app",
+        createdAt: "2026-05-07T10:00:00Z",
+        body: [
+          "## AI Review Synthesis",
+          "<!-- sepo-agent-review-synthesis -->",
+          "<!-- sepo-agent-review-synthesis-head: abc123 -->",
+          "",
+          "## Recommended Next Step",
+          "NO_AUTOMATED_ACTION: no unresolved branch work remains.",
+          "",
+          "## Final Verdict",
+          "MINOR_ISSUES",
+          "",
+          "## Action Items",
+          "- [ ] No required branch-change work remains.",
+        ].join("\n"),
+      },
+    ],
+  });
+  assert.equal(trusted.trusted, true);
+  assert.match(trusted.reason, /no required branch-change work/);
+
+  const requiredWork = evaluateSelfApprovalProvenance({
+    trustedActorLogin: "sepo-agent-app[bot]",
+    expectedHeadSha: "abc123",
+    allowNoBranchWorkGate: true,
+    comments: [
+      {
+        authorLogin: "sepo-agent-app",
+        createdAt: "2026-05-07T10:00:00Z",
+        body: [
+          "## AI Review Synthesis",
+          "<!-- sepo-agent-review-synthesis -->",
+          "<!-- sepo-agent-review-synthesis-head: abc123 -->",
+          "",
+          "## Recommended Next Step",
+          "NO_AUTOMATED_ACTION",
+          "",
+          "## Final Verdict",
+          "MINOR_ISSUES",
+          "",
+          "## Action Items",
+          "- [ ] Add the missing provenance regression test.",
+        ].join("\n"),
+      },
+    ],
+  });
+  assert.equal(requiredWork.trusted, false);
+  assert.match(requiredWork.reason, /did not confirm no required branch-change work/);
+
+  const blocking = evaluateSelfApprovalProvenance({
+    trustedActorLogin: "sepo-agent-app[bot]",
+    expectedHeadSha: "abc123",
+    allowNoBranchWorkGate: true,
+    comments: [
+      {
+        authorLogin: "sepo-agent-app",
+        createdAt: "2026-05-07T10:00:00Z",
+        body: [
+          "## AI Review Synthesis",
+          "<!-- sepo-agent-review-synthesis -->",
+          "<!-- sepo-agent-review-synthesis-head: abc123 -->",
+          "",
+          "## Recommended Next Step",
+          "NO_AUTOMATED_ACTION",
+          "",
+          "## Final Verdict",
+          "NEEDS_REWORK",
+          "",
+          "## Action Items",
+          "- [ ] No required branch-change work remains.",
+        ].join("\n"),
+      },
+    ],
+  });
+  assert.equal(blocking.trusted, false);
+  assert.match(blocking.reason, /not SHIP/);
+});
+
 test("evaluateSelfApprovalProvenance requires review synthesis for the current head", () => {
   const stale = evaluateSelfApprovalProvenance({
     trustedActorLogin: "sepo-agent-app[bot]",
