@@ -69,7 +69,7 @@
 - Self-approval status comments are marker-upserted only on trusted Sepo-authored comments; avoid fallback duplicate posts.
 - Before merging stacked PRs, verify the intended base head is an ancestor of the PR head; close/recreate mis-stacked branches.
 - Self-approval/self-merge requires trusted SHIP reviewed-head provenance matching the current PR head.
-- Self-approval must block if the initiating requester or approval token actor matches the PR author.
+- Full self-governance allows same-actor self-approval only with both self-approve/self-merge enabled; use current-head status comments.
 - Self-merge should favor a simple core path: mark drafts ready, merge into configured base, rely on current-head approval/check guards.
 - When self-approval is enabled, review SHIP or HUMAN_DECISION handoffs dispatch agent-self-approve; REQUEST_CHANGES returns to fix-pr.
 - Keep entry docs reader-first; put setup trade-offs, auth internals, and limitations in setup/technical docs.
