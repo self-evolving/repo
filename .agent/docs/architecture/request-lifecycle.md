@@ -1,4 +1,6 @@
-# The life cycle of an agent request
+---
+title: "The life cycle of an agent request"
+---
 
 ## Entry and routing
 

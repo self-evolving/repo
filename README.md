@@ -103,4 +103,4 @@ Customizing and operating:
 - [Repository memory](.agent/docs/architecture/memory.md)
 - [User/team rubrics](.agent/docs/architecture/rubrics.md)
 
-See the [full documentation index](.agent/docs/README.md) for technical details, deployment options, and the complete docs tree.
+See the [full documentation index](.agent/docs/index.md) for technical details, deployment options, and the complete docs tree.

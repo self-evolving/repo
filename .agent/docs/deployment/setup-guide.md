@@ -1,4 +1,6 @@
-# Setup guide
+---
+title: "Setup guide"
+---
 
 There are two main customization points: how GitHub authentication is resolved, and where the workflows run.
 

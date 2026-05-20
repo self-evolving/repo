@@ -1,4 +1,6 @@
-# Configurations list
+---
+title: "Configurations list"
+---
 
 ## Repository variables
 

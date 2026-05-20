@@ -1,4 +1,6 @@
-# Agent orchestrator
+---
+title: "Agent orchestrator"
+---
 
 The orchestrator is an explicit high-level route (`/orchestrate` or `agent/orchestrate`) that evaluates current target state and dispatches the most appropriate built-in next action.
 

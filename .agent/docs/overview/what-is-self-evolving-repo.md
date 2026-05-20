@@ -1,4 +1,6 @@
-# What is a self-evolving repository?
+---
+title: "What is a self-evolving repository?"
+---
 
 Besides the code itself, a self-evolving repository also contains two things: a schema for organizing development context, and an operational layer that can act on that context.
 
