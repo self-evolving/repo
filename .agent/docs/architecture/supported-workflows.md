@@ -317,9 +317,10 @@ provenance, verifies the trusted requester differs from the pull request author,
 verifies the approval actor differs from the pull request author unless both
 `AGENT_ALLOW_SELF_APPROVE=true` and `AGENT_ALLOW_SELF_MERGE=true` are enabled,
 parses the agent verdict, and approves only when the expected, current, and
-inspected head SHAs match. Manual runs use `github.actor` when the
-`requested_by` input is omitted, and orchestrated handoffs preserve the original
-requester. Normal handoffs require trusted
+inspected head SHAs match. Manual and other non-orchestrated runs use
+`github.actor` as the deterministic requester even when `requested_by` is
+supplied; only orchestrated handoffs preserve the original requester. Normal
+handoffs require trusted
 current-head `SHIP` review synthesis; orchestrated review `HUMAN_DECISION`
 handoffs also trust the matching current-head synthesis as the decision gate,
 and `MINOR_ISSUES` plus `NO_AUTOMATED_ACTION` is trusted only when the matching

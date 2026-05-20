@@ -459,10 +459,15 @@ test("self-approval workflow stays opt-in and read-only until deterministic reso
   assert.equal(runStep.with.permission_mode, "approve-reads");
   assert.equal(runStep.with.route, "agent-self-approve");
   assert.equal(runStep.with.github_token, "${{ github.token }}");
+  assert.equal(
+    runStep.with.requested_by,
+    "${{ inputs.orchestration_enabled == 'true' && inputs.requested_by || github.actor }}",
+  );
   assert.match(workflowText, /AGENT_ALLOW_SELF_APPROVE:\s*\$\{\{\s*vars\.AGENT_ALLOW_SELF_APPROVE \|\| 'false'\s*\}\}/);
   assert.match(workflowText, /AGENT_ALLOW_SELF_MERGE:\s*\$\{\{\s*vars\.AGENT_ALLOW_SELF_MERGE \|\| 'false'\s*\}\}/);
-  assert.match(workflowText, /Prepare self-approval[\s\S]*REQUESTED_BY:\s*\$\{\{\s*inputs\.requested_by \|\| github\.actor\s*\}\}/);
-  assert.match(workflowText, /Resolve self-approval result[\s\S]*REQUESTED_BY:\s*\$\{\{\s*inputs\.requested_by \|\| github\.actor\s*\}\}/);
+  assert.match(workflowText, /Prepare self-approval[\s\S]*REQUESTED_BY:\s*\$\{\{\s*inputs\.orchestration_enabled == 'true' && inputs\.requested_by \|\| github\.actor\s*\}\}/);
+  assert.match(workflowText, /Resolve self-approval result[\s\S]*REQUESTED_BY:\s*\$\{\{\s*inputs\.orchestration_enabled == 'true' && inputs\.requested_by \|\| github\.actor\s*\}\}/);
+  assert.doesNotMatch(workflowText, /REQUESTED_BY:\s*\$\{\{\s*inputs\.requested_by \|\| github\.actor\s*\}\}/);
   assert.match(workflowText, /node \.agent\/dist\/cli\/prepare-self-approve\.js/);
   assert.match(workflowText, /node \.agent\/dist\/cli\/resolve-self-approve\.js/);
   assert.match(workflowText, /Post self-approval stop[\s\S]*always\(\)[\s\S]*steps\.prepare\.outcome == 'success'[\s\S]*steps\.prepare\.outputs\.should_run != 'true'[\s\S]*steps\.prepare\.outputs\.body_file != ''/);
@@ -474,6 +479,47 @@ test("self-approval workflow stays opt-in and read-only until deterministic reso
   assert.doesNotMatch(workflowText, /steps\.result\.outputs\.conclusion == 'request_changes'/);
   assert.match(workflowText, /steps\.result\.outcome == 'success' &&\s+inputs\.orchestration_enabled == 'true'/);
   assert.match(workflowText, /node \.agent\/dist\/cli\/dispatch-agent-orchestrator\.js/);
+});
+
+test("self-approval requester guard ignores spoofed requested_by on direct dispatches", () => {
+  const workflowText = readRepoFile(".github/workflows/agent-self-approve.yml");
+  const workflow = parseYaml(workflowText) as unknown;
+  assert.ok(isRecord(workflow), "self-approval workflow should parse as a YAML object");
+  assert.ok(isRecord(workflow.on), "self-approval workflow should define triggers");
+  const workflowDispatch = workflow.on.workflow_dispatch;
+  assert.ok(isRecord(workflowDispatch), "self-approval workflow should define workflow_dispatch");
+  assert.ok(isRecord(workflowDispatch.inputs), "workflow_dispatch should define inputs");
+  assert.ok(isRecord(workflowDispatch.inputs.requested_by), "workflow_dispatch keeps requested_by for orchestrated handoffs");
+  assert.ok(isRecord(workflowDispatch.inputs.orchestration_enabled), "workflow_dispatch should define orchestration_enabled");
+  assert.equal(workflowDispatch.inputs.orchestration_enabled.default, "false");
+  assert.ok(isRecord(workflow.jobs), "self-approval workflow should define jobs");
+  const job = workflow.jobs["self-approve"];
+  assert.ok(isRecord(job), "self-approval workflow should define self-approve job");
+  assert.ok(Array.isArray(job.steps), "self-approval job should define steps");
+
+  const trustedRequesterExpression = "${{ inputs.orchestration_enabled == 'true' && inputs.requested_by || github.actor }}";
+  const prepareStep = job.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Prepare self-approval",
+  );
+  const resolveStep = job.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Resolve self-approval result",
+  );
+  const runStep = job.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Run self-approval agent",
+  );
+  assert.ok(prepareStep, "self-approval workflow should prepare");
+  assert.ok(resolveStep, "self-approval workflow should resolve");
+  assert.ok(runStep, "self-approval workflow should run the agent");
+  assert.ok(isRecord(prepareStep.env), "prepare step should define env");
+  assert.ok(isRecord(resolveStep.env), "resolve step should define env");
+  assert.ok(isRecord(runStep.with), "run step should define inputs");
+  assert.equal(prepareStep.env.REQUESTED_BY, trustedRequesterExpression);
+  assert.equal(resolveStep.env.REQUESTED_BY, trustedRequesterExpression);
+  assert.equal(runStep.with.requested_by, trustedRequesterExpression);
+  assert.doesNotMatch(workflowText, /REQUESTED_BY:\s*\$\{\{\s*inputs\.requested_by \|\| github\.actor\s*\}\}/);
 });
 
 test("self-merge workflow stays opt-in and deterministic", () => {
