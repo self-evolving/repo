@@ -123,20 +123,31 @@ The publish command requires the prepare-state file written into the returned
 workdir by the prepare command, so rerun prepare instead of substituting an
 arbitrary checkout path. For issue-backed install requests, the helper derives
 the source request URL from the runtime envelope and adds it to the install PR
-body before opening or updating the PR.
+body before opening or updating the PR. The publish helper also normalizes the
+`Required setup after merge` section so it appears near the top and uses
+target-repository links for the setup actions.
 
-Install PRs should include a structured setup section that mirrors the
-onboarding setup check:
+Install PRs should use this high-level order:
+
+1. summary
+2. required setup after merge
+3. source revision
+4. installed files, preserved/skipped files, validation details, and skipped
+   checks
+5. source install request link, when the request came from an issue
+
+The structured setup section mirrors the onboarding setup check:
 
 1. install the Sepo GitHub App on the target repository, or choose another auth
    path from the setup guide
 2. add at least one provider credential secret: `OPENAI_API_KEY` and/or
    `CLAUDE_CODE_OAUTH_TOKEN`
-3. run `Agent / Onboarding / Check Setup`
-4. review the `Sepo setup check` issue and complete any remaining setup it
-   reports
-5. initialize `agent/memory` if missing
-6. optionally initialize `agent/rubrics` if the repo wants rubric steering
+3. run the target repository's `Agent / Onboarding / Check Setup` workflow
+4. review the target repository's `Sepo setup check` issue and complete any
+   remaining setup it reports
+5. run `Agent / Memory / Initialization` if `agent/memory` is missing
+6. optionally run `Agent / Rubrics / Initialization` if the repo wants rubric
+   steering
 
 ## First verification
 

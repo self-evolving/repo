@@ -396,7 +396,31 @@ test("prepareInstallForkPr finds duplicate install PRs outside the default list 
 test("publishInstallForkPr pushes and reuses an existing install PR from the token owner", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "install-fork-pr-"));
   const bodyFile = join(tempDir, "body.md");
-  writeFileSync(bodyFile, "Install Sepo.\n", "utf8");
+  writeFileSync(
+    bodyFile,
+    [
+      "## Summary",
+      "",
+      "Installs Sepo.",
+      "",
+      "## Source revision",
+      "",
+      "- Source repository: `self-evolving/repo`",
+      "",
+      "## Validation",
+      "",
+      "- Checked the staged diff.",
+      "",
+      "## Required setup after merge",
+      "",
+      "1. Old unlinked setup guidance.",
+      "",
+      "Source install request: https://github.com/self-evolving/repo/issues/303",
+      "<!-- sepo-install-source-request: https://github.com/self-evolving/repo/issues/303 -->",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
   writePrepareState(tempDir);
 
   try {
@@ -429,7 +453,17 @@ test("publishInstallForkPr pushes and reuses an existing install PR from the tok
     assert.equal(result.status, "published");
     assert.equal(result.reusedPr, true);
     assert.equal(result.prUrl, "https://github.com/lm4sci/lm4sci.github.io/pull/34");
-    assert.match(readFileSync(bodyFile, "utf8"), /Source install request: https:\/\/github\.com\/self-evolving\/repo\/issues\/303/);
+    const body = readFileSync(bodyFile, "utf8");
+    assert.ok(body.indexOf("## Summary") < body.indexOf("## Required setup after merge"));
+    assert.ok(body.indexOf("## Required setup after merge") < body.indexOf("## Source revision"));
+    assert.match(body, /https:\/\/github\.com\/apps\/sepo-agent-app\/installations\/select_target/);
+    assert.match(body, /https:\/\/github\.com\/lm4sci\/lm4sci\.github\.io\/settings\/secrets\/actions/);
+    assert.match(body, /https:\/\/github\.com\/lm4sci\/lm4sci\.github\.io\/actions\/workflows\/agent-onboarding\.yml/);
+    assert.match(body, /https:\/\/github\.com\/lm4sci\/lm4sci\.github\.io\/actions\/workflows\/agent-memory-bootstrap\.yml/);
+    assert.match(body, /https:\/\/github\.com\/lm4sci\/lm4sci\.github\.io\/actions\/workflows\/agent-rubrics-initialization\.yml/);
+    assert.match(body, /Source install request: https:\/\/github\.com\/self-evolving\/repo\/issues\/303/);
+    assert.equal(body.match(/Source install request:/g)?.length, 1);
+    assert.doesNotMatch(body, /Old unlinked setup guidance/);
     assert.ok(runner.called("git", /push https:\/\/x-access-token:pat-token@github\.com\/sepo-install-bot\/lm4sci\.github\.io\.git HEAD:agent\/install-agent-infra/));
     assert.ok(runner.called("gh", /pr edit 34 --repo lm4sci\/lm4sci\.github\.io --body-file/));
     assert.equal(runner.called("gh", /pr create/), false);

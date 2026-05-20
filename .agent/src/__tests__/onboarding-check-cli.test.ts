@@ -113,14 +113,20 @@ exit 1
     assert.match(log, /Agent provider: `codex` \(OPENAI_API_KEY is configured\)/);
     assert.match(log, /Memory: initialized \(`agent\/memory`\)/);
     assert.match(log, /Rubrics: not initialized/);
-    assert.match(log, /Optional: run \*\*Actions > Agent \/ Rubrics \/ Initialization\*\*\./);
+    assert.match(
+      log,
+      /Optional: run \*\*\[Actions > Agent \/ Rubrics \/ Initialization\]\(https:\/\/github.com\/self-evolving\/repo\/actions\/workflows\/agent-rubrics-initialization\.yml\)\*\*\./,
+    );
     assert.match(log, /### Remaining setup/);
-    assert.match(log, /Optional: initialize rubrics branch `agent\/rubrics`\./);
+    assert.match(
+      log,
+      /Optional: run \[Agent \/ Rubrics \/ Initialization\]\(https:\/\/github.com\/self-evolving\/repo\/actions\/workflows\/agent-rubrics-initialization\.yml\) to initialize rubrics branch `agent\/rubrics`\./,
+    );
     assert.match(log, /### Test Sepo/);
     assert.match(log, /@sepo-agent \/answer Is Sepo configured correctly in this repository\?/);
     assert.match(log, /@sepo-agent \/implement Create a small README update that verifies the agent can open a PR\./);
     assert.match(log, /@sepo-agent \/review/);
-    assert.match(log, /Last checked: https:\/\/github.com\/self-evolving\/repo\/actions\/runs\/1/);
+    assert.match(log, /Last checked: \[GitHub Actions run\]\(https:\/\/github.com\/self-evolving\/repo\/actions\/runs\/1\)/);
     assert.doesNotMatch(log, /Built-in trigger labels:/);
     assert.doesNotMatch(log, /`agent\/fix-pr` ->/);
     assert.match(log, /agent\/fix-pr/);
@@ -184,10 +190,19 @@ exit 1
     assert.match(log, /^api -X PATCH repos\/self-evolving\/repo\/issues\/comments\/123 -f body=<!-- sepo-agent-onboarding-check -->/m);
     assert.match(log, /GitHub App\/auth: not resolved/);
     assert.match(log, /Model credentials: not configured/);
-    assert.match(log, /Add `OPENAI_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` as a repository secret\./);
+    assert.match(
+      log,
+      /Add `OPENAI_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` in \[repository Actions secrets\]\(https:\/\/github.com\/self-evolving\/repo\/settings\/secrets\/actions\)\./,
+    );
     assert.match(log, /Memory: not initialized/);
-    assert.match(log, /Run \*\*Actions > Agent \/ Memory \/ Initialization\*\*\./);
-    assert.match(log, /Configure one model provider credential\./);
+    assert.match(
+      log,
+      /Run \*\*\[Actions > Agent \/ Memory \/ Initialization\]\(https:\/\/github.com\/self-evolving\/repo\/actions\/workflows\/agent-memory-bootstrap\.yml\)\*\*\./,
+    );
+    assert.match(
+      log,
+      /Configure one model provider credential in \[repository Actions secrets\]\(https:\/\/github.com\/self-evolving\/repo\/settings\/secrets\/actions\)\./,
+    );
     assert.doesNotMatch(log, /Built-in trigger labels:/);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
