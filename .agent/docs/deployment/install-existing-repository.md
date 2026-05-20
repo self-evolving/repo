@@ -2,22 +2,34 @@
 
 This page documents the minimal path for adding the Sepo agent backend to a repository that did not start from this template. If you are starting from this repository as a template, use the main [README quick start](../../../README.md) instead.
 
-In practice, the cleanest install path is:
+## Choose an install path
 
-1. open a normal PR in the target repository that adds the agent backend files
-2. merge that PR
-3. use the repository's own GitHub Actions workflows to bootstrap `agent/memory` and, optionally, `agent/rubrics`
+### Public repositories
 
-From `self-evolving/repo`, authorized users can ask Sepo to prepare that PR for
-a public target repository:
+For public target repositories, the quickest path is to open the **Install Sepo into another repository** issue form in `self-evolving/repo` and paste the target GitHub URL. Sepo prepares or reuses a focused install PR in the target repo, comments with the PR link, and closes the request issue when the PR is ready.
+
+Authorized users can also make the same request with `/install`:
 
 ```md
 @sepo-agent /install can you install Sepo into https://github.com/owner/repo?
 ```
 
-They can also open the **Install Sepo into another repository** issue form,
-which includes an `@sepo-agent /install` command field and a required public
-target repository URL field.
+### Private repositories
+
+For private target repositories, keep the install in a trusted local
+environment. Run an agent locally with access to this source checkout and the
+private target repository, then ask it to use the `.skills/install-agent` skill.
+That skill opens a normal PR in the target repository while preserving
+target-owned files and following the validation/setup checklist below. Do not put
+private repository URLs or private setup details in a public Sepo issue.
+
+Both paths produce the same target-repository outcome:
+
+1. open a normal PR in the target repository that adds the agent backend files
+2. merge that PR
+3. use the repository's own GitHub Actions workflows to bootstrap `agent/memory` and, optionally, `agent/rubrics`
+
+## Public `/install` route details
 
 The `/install` command is a first-class route for authorization, then runs the
 dedicated `agent-install` prompt. Route detection only recognizes the command;
