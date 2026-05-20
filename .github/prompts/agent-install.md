@@ -25,18 +25,18 @@ repository by opening or reusing a focused install PR.
      clarification request using the helper message.
    - Use only the normalized `target_repo` returned by the helper; do not infer
      a target from prose after this step.
-2. Build the typed lifecycle plan with
-   `node .agent/dist/cli/plan-install-lifecycle.js` and read its JSON from
-   stdout.
-   - If it reports `missing` or `ambiguous`, stop and return a concise
-     clarification request using the helper message.
-   - Use the normalized `target_repo`, `install_branch`, `source_repo`, and
-     ordered `steps` from the plan for all install operations.
-   - If the plan target differs from the resolver target, stop and report a
-     blocked resolver mismatch rather than guessing.
-3. Confirm `GH_TOKEN` is present. It must come from `AGENT_INSTALL_PAT`; do not
+2. Confirm `GH_TOKEN` is present. It must come from `AGENT_INSTALL_PAT`; do not
    read or pass any token through CLI flags.
-4. Prepare the fork-backed target worktree with the helper:
+3. Use these install defaults:
+   - install branch: `agent/install-agent-infra`
+   - source repository: `self-evolving/repo`
+   - PR title: `Install Sepo agent infrastructure`
+4. Resolve the Sepo source revision before copying files.
+   - Prefer the latest non-draft stable release from the source repository.
+   - If no stable release exists, use the latest non-draft prerelease.
+   - Record the selected ref, commit SHA, release URL, and fallback reason if
+     no stable release was available.
+5. Prepare the fork-backed target worktree with the helper:
    ```sh
    GH_TOKEN="$GH_TOKEN" node .agent/dist/cli/install-fork-pr.js prepare \
      --target-repo "<target_repo>" \
@@ -50,30 +50,36 @@ repository by opening or reusing a focused install PR.
      `prUrl` for publish.
    - If a reusable PR already exists, update that worktree and PR rather than
      creating a duplicate.
-5. Execute the remaining plan steps in order. Treat the step IDs, commands,
-   command templates, environment requirements, template slots, and descriptions
-   as the deterministic install contract for source release selection, copy
-   scope, diff validation, commit creation, and helper-owned publishing. Never
-   run a `commandTemplate` until every `templateSlots` entry has been filled
-   from its named `sourceStep`.
-   - Use the helper output for the prepared worktree, fork repo, default branch,
-     install branch, and reusable PR state.
-   - Do not replace helper-owned fork branch or PR operations with raw
-     `git checkout`, `git push`, or `gh pr create` commands.
-   - Run the GitHub asset conflict audit before copy. Do not overwrite
-     same-path target `.github` files unless a maintainer explicitly requested
-     that exact replacement.
-6. Stage and commit the validated install diff before publishing. If no staged
-   changes exist after the copy/validation steps, stop and report that no
-   install diff was produced rather than publishing the previous `HEAD`.
-7. Run the lifecycle `write-install-pr-body` step after committing the install
-   diff. Use its stdout as `install_pr_body_file`; do not invent a separate body
-   path for publish.
-8. If a step cannot be completed, stop and return a blocked result that names
+6. Do the target-specific install work in the returned `workdir`.
+   - Check out the selected Sepo source revision into a temporary source
+     checkout.
+   - Copy `.agent/` from the source checkout into the target workdir, excluding
+     `.git`, `dist`, and `node_modules`.
+   - Before copying `.github/`, audit same-path `.github` files in the source
+     and target. Stop for owner review if a source file would overwrite an
+     existing target `.github` file, unless the requester explicitly asked for
+     that exact replacement. Otherwise copy Sepo-owned `.github/` paths without
+     deleting target-only files.
+   - Merge `.agent/dist/` and `.agent/node_modules/` into the target
+     `.gitignore` when missing. Preserve existing ignore entries and make the
+     update idempotent.
+   - Add optional `.skills/<requested-skill>/SKILL.md` or root `AGENT.md` only
+     when explicitly requested.
+7. Validate, stage, and commit the install diff before publishing.
+   - Review `git status --short` and `git diff --stat` in the target workdir.
+   - Stage `.agent`, `.github`, `.gitignore`, and any explicitly requested
+     optional files.
+   - If no staged changes exist, stop and report that no install diff was
+     produced rather than publishing the previous `HEAD`.
+   - Commit with `chore: install Sepo agent infrastructure`.
+8. Write an install PR body file in the prepared workdir after committing the
+   install diff. Include the PR body details below and use that file path for
+   publish.
+9. If a step cannot be completed, stop and return a blocked result that names
    the failed step and the needed next action. For target write failures, say to
    update `AGENT_INSTALL_PAT` or target repository access before rerunning
    `/install`.
-9. Publish through the helper with flag-style arguments:
+10. Publish through the helper with flag-style arguments:
    ```sh
    GH_TOKEN="$GH_TOKEN" node .agent/dist/cli/install-fork-pr.js publish \
      --target-repo "<target_repo>" \
