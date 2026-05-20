@@ -65,6 +65,13 @@ The workflows then mint the installation token locally via `actions/create-githu
 
 You can also configure `AGENT_PAT` as an escape hatch when app installation is blocked by policy or needed for debugging.
 
+`AGENT_INSTALL_PAT` is separate from this fallback. It is read only by the
+first-class `/install owner/repo` route so install runs can use a dedicated
+machine-user identity without changing the auth resolver order for normal
+routes. For external public installs, that identity must be able to create or
+reuse its fork of the target repository, push `agent/install-agent-infra`, and
+open or reuse the PR against the original repository.
+
 If you use a fine-grained PAT, start with these repository permissions:
 
 - **Contents:** read and write

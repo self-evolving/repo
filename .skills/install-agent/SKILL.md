@@ -9,6 +9,10 @@ Use this skill to add the Sepo agent backend to an existing repository by
 opening a normal PR. Keep the target repository's application code and unrelated
 GitHub assets intact.
 
+For productized public cross-repository install PRs from `self-evolving/repo`,
+prefer `@sepo-agent /install ...`. This skill remains available for manual or
+custom installation flows where the requester wants skill-guided adaptation.
+
 ## Inputs
 
 Confirm these before editing:
