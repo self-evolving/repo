@@ -126,3 +126,5 @@ Normal implementation, fix, review, and rubric-review callers do not pass a rubr
 | `rubrics/resolve-policy.js` | Resolve effective route mode |
 
 Validation runs before committing rubric edits. Invalid YAML or duplicate IDs fail the write path rather than publishing broken rubrics.
+
+For local Codex/Claude-style work, run `npm --prefix .agent run prepare:local-agent -- --repo <owner/repo>` after building `.agent`. The helper clones `agent/rubrics` into the ignored `.agent/local/rubrics` workspace and writes `.agent/local/AGENT_CONTEXT.md` with the local `RUBRICS_DIR` path. Local implementation and review agents should treat these rubrics as normative guidance but should not edit them outside the dedicated rubrics workflows.

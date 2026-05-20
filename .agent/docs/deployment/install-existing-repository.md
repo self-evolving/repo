@@ -88,9 +88,10 @@ Also merge these generated-output rules into the target repository's existing `.
 ```gitignore
 .agent/dist/
 .agent/node_modules/
+.agent/local/
 ```
 
-The workflows build `.agent/dist/` on GitHub-hosted runners. Keeping generated runtime outputs ignored prevents them from being committed accidentally.
+The workflows build `.agent/dist/` on GitHub-hosted runners. Local coding-agent context is generated under `.agent/local/`. Keeping generated runtime outputs and local context checkouts ignored prevents them from being committed accidentally.
 
 ## Repository configuration
 
@@ -163,6 +164,18 @@ The onboarding workflow is safe to rerun. It creates the built-in trigger labels
 `agent/fix-pr`, and `agent/orchestrate`) when they are missing, then updates the
 same setup issue comment with GitHub auth, provider credentials, memory, rubrics,
 remaining setup, and test commands.
+
+## Local coding agents
+
+After `agent/memory` and, optionally, `agent/rubrics` exist, a local Codex/Claude-style agent can prepare the same context in an ignored workspace:
+
+```sh
+npm --prefix .agent ci
+npm --prefix .agent run build
+npm --prefix .agent run prepare:local-agent -- --repo <owner/repo>
+```
+
+The helper refreshes `.agent/local/memory`, `.agent/local/rubrics`, and `.agent/local/AGENT_CONTEXT.md`. Give that generated context file to the local agent, or ask it to read it before implementation. It tells the agent how to read memory, apply rubrics, use the memory CLIs, run focused checks, and launch a separate review/checking sub-agent after implementation when the local agent supports sub-agents.
 
 ## Memory Setup
 
