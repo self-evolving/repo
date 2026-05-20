@@ -45,7 +45,7 @@ The bundled workflows intentionally expose one global provider variable. If a re
 | `AGENT_APP_ID` | Self-managed GitHub App ID for the bring-your-own-app path; set only with `AGENT_APP_PRIVATE_KEY`. The public Sepo App ID `3527007` is informational for hosted/OIDC usage. |
 | `AGENT_APP_PRIVATE_KEY` | Self-managed GitHub App private key for the bring-your-own-app path |
 | `AGENT_PAT` | PAT fallback for environments where app-based auth is not practical |
-| `AGENT_CROSS_REPO_PAT` | Optional secondary fine-grained PAT exposed as `INPUT_SECONDARY_GITHUB_TOKEN` for explicit cross-repo agent operations; does not replace the primary same-repo token |
+| `AGENT_SECONDARY_GITHUB_TOKEN` | Optional read-only secondary fine-grained PAT exposed as `INPUT_SECONDARY_GITHUB_TOKEN` for explicit external repo context; does not replace the primary same-repo token |
 
 
 See [Setup guide](../deployment/setup-guide.md) for how token secrets are used.

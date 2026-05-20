@@ -609,9 +609,9 @@ test("agent router supports label-triggered route and skill overrides", () => {
   assert.match(labelWorkflow, /needs\.agent\.outputs\.should_respond == 'true'/);
   assert.match(labelWorkflow, /AGENT_INSTALL_PAT:\s*\$\{\{\s*secrets\.AGENT_INSTALL_PAT\s*\}\}/);
   assert.match(entrypointWorkflow, /AGENT_INSTALL_PAT:\s*\$\{\{\s*secrets\.AGENT_INSTALL_PAT\s*\}\}/);
-  assert.match(labelWorkflow, /AGENT_CROSS_REPO_PAT:\s*\$\{\{\s*secrets\.AGENT_CROSS_REPO_PAT\s*\}\}/);
-  assert.match(entrypointWorkflow, /AGENT_CROSS_REPO_PAT:\s*\$\{\{\s*secrets\.AGENT_CROSS_REPO_PAT\s*\}\}/);
-  assert.match(runnerWorkflow, /AGENT_CROSS_REPO_PAT:[\s\S]*Optional secondary token/);
+  assert.match(labelWorkflow, /AGENT_SECONDARY_GITHUB_TOKEN:\s*\$\{\{\s*secrets\.AGENT_SECONDARY_GITHUB_TOKEN\s*\}\}/);
+  assert.match(entrypointWorkflow, /AGENT_SECONDARY_GITHUB_TOKEN:\s*\$\{\{\s*secrets\.AGENT_SECONDARY_GITHUB_TOKEN\s*\}\}/);
+  assert.match(runnerWorkflow, /AGENT_SECONDARY_GITHUB_TOKEN:[\s\S]*Optional read-only secondary token/);
   assert.doesNotMatch(labelWorkflow, /author_association:\s*COLLABORATOR/);
   assert.match(labelWorkflow, /\.\/\.github\/actions\/resolve-github-auth/);
   assert.match(labelWorkflow, /fallback_token:\s*\$\{\{\s*github\.token\s*\}\}/);
@@ -880,6 +880,8 @@ test("shared run-agent-task exposes an optional secondary GitHub token", () => {
   );
   assert.match(basePrompt, /INPUT_SECONDARY_GITHUB_TOKEN/);
   assert.match(basePrompt, /Do not print token values/);
+  assert.match(basePrompt, /read-only credential for external GitHub repositories/);
+  assert.match(basePrompt, /Do not use the secondary token for external writes/);
 });
 
 test("run-agent-task callers pass secondary token without replacing primary auth", () => {
@@ -902,14 +904,27 @@ test("run-agent-task callers pass secondary token without replacing primary auth
         runTaskCount += 1;
         assert.ok(isRecord(step.with), `${workflowPath} job ${jobId} run-agent-task needs with`);
         assert.ok(step.with.github_token, `${workflowPath} job ${jobId} keeps primary token`);
+        if (workflowPath === ".github/workflows/agent-router.yml" && jobId === "install") {
+          assert.equal(
+            step.with.github_token,
+            "${{ secrets.AGENT_INSTALL_PAT }}",
+            "install route keeps its dedicated primary token",
+          );
+          assert.equal(
+            step.with.secondary_github_token,
+            undefined,
+            "install route must not receive the general secondary token",
+          );
+          continue;
+        }
         assert.notEqual(
           step.with.github_token,
-          "${{ secrets.AGENT_CROSS_REPO_PAT }}",
+          "${{ secrets.AGENT_SECONDARY_GITHUB_TOKEN }}",
           `${workflowPath} job ${jobId} must not replace primary auth with secondary token`,
         );
         assert.equal(
           step.with.secondary_github_token,
-          "${{ secrets.AGENT_CROSS_REPO_PAT }}",
+          "${{ secrets.AGENT_SECONDARY_GITHUB_TOKEN }}",
           `${workflowPath} job ${jobId} should pass optional secondary token`,
         );
       }
@@ -1157,9 +1172,11 @@ test("workflow docs record the minimal metadata contract and developer notes", (
   assert.match(supportedWorkflows, /strips code blocks[\s\S]*quoted text/i);
   assert.match(supportedWorkflows, /OWNER[\s\S]*MEMBER[\s\S]*COLLABORATOR[\s\S]*CONTRIBUTOR/);
   assert.doesNotMatch(configurationList, /AGENT_INSTALL_PAT/);
-  assert.match(configurationList, /AGENT_CROSS_REPO_PAT/);
+  assert.match(configurationList, /AGENT_SECONDARY_GITHUB_TOKEN/);
   assert.match(configurationList, /INPUT_SECONDARY_GITHUB_TOKEN/);
   assert.match(supportedWorkflows, /INPUT_SECONDARY_GITHUB_TOKEN/);
+  assert.match(supportedWorkflows, /read-only external repository inspection/);
+  assert.match(supportedWorkflows, /deterministic write authorization/);
   assert.match(supportedWorkflows, /does not replace the primary same-repository\s+token/);
   assert.match(developerNotes, /AGENT_INSTALL_PAT/);
   assert.doesNotMatch(existingRepoInstall, /AGENT_INSTALL_PAT/);
@@ -1440,12 +1457,12 @@ test("workflow docs cover hosted auth and self-hosting paths", () => {
   assert.match(setupGuide, /Bring your own GitHub App/);
   assert.match(setupGuide, /`AGENT_PAT`/);
   assert.doesNotMatch(setupGuide, /AGENT_INSTALL_PAT/);
-  assert.match(setupGuide, /`AGENT_CROSS_REPO_PAT`/);
+  assert.match(setupGuide, /`AGENT_SECONDARY_GITHUB_TOKEN`/);
   assert.match(setupGuide, /`INPUT_SECONDARY_GITHUB_TOKEN`/);
-  assert.match(setupGuide, /does not replace the primary `GH_TOKEN`/);
-  assert.match(setupGuide, /For read-only context gathering/);
-  assert.match(setupGuide, /For write-capable cross-repository tasks/);
-  assert.match(setupGuide, /Keep repository allowlists\s+narrow/);
+  assert.match(setupGuide, /does not replace the primary\s+`GH_TOKEN`/);
+  assert.match(setupGuide, /read access only to the needed surfaces/);
+  assert.match(setupGuide, /read-only external inspection/);
+  assert.match(setupGuide, /External writes need a route-specific credential/);
   assert.match(setupGuide, /Public install requests use a separate install credential/);
   assert.match(setupGuide, /Contents:\*\* read and write/);
   assert.match(setupGuide, /### Auth priority/);

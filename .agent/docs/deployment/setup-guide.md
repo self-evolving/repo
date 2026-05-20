@@ -78,27 +78,25 @@ If you use a fine-grained PAT, start with these repository permissions:
 - **Discussions:** read and write, only if you use discussion triggers
 - **Actions:** read and write, for approval dispatch and review artifact flows
 
-## Optional secondary cross-repo token
+## Optional secondary external-repo token
 
-Set `AGENT_CROSS_REPO_PAT` as a repository secret only when an agent run needs
-explicit access to repositories outside the current Sepo repository. Workflows
-pass this secret to the agent as `INPUT_SECONDARY_GITHUB_TOKEN`; it is additive
-and does not replace the primary `GH_TOKEN`, `GITHUB_TOKEN`, or
-`INPUT_GITHUB_TOKEN` used for same-repository comments, labels, workflow
-dispatches, memory, and rubrics.
+Set `AGENT_SECONDARY_GITHUB_TOKEN` as a repository secret only when a
+non-install agent run needs explicit access to repositories outside the current
+Sepo repository. Bundled non-install workflows pass this secret to the agent as
+`INPUT_SECONDARY_GITHUB_TOKEN`; it is additive and does not replace the primary
+`GH_TOKEN`, `GITHUB_TOKEN`, or `INPUT_GITHUB_TOKEN` used for same-repository
+comments, labels, workflow dispatches, memory, and rubrics.
 
-Prefer a fine-grained PAT scoped only to the intended external repositories.
-For read-only context gathering, start with read access to metadata, contents,
-issues, pull requests, and discussions only where those surfaces are needed.
-For write-capable cross-repository tasks, intentionally add only the write
-permissions required by the requested operation, such as contents, pull
-requests, issues, or actions/workflow dispatch. Keep repository allowlists
-narrow, rotate the credential like other PATs, and use it for external writes
-only when the user request makes that intent explicit.
+Use a fine-grained PAT scoped only to the intended external repositories and
+grant read access only to the needed surfaces, such as metadata, contents,
+issues, pull requests, and discussions. The bundled secondary-token contract is
+read-only external inspection; do not configure it as a write-capable external
+credential. External writes need a route-specific credential and a deterministic
+write authorization guard documented and tested with that route.
 
 The public `/install` route is separate: it continues to use the dedicated
-install-only primary token described in developer notes. `AGENT_CROSS_REPO_PAT`
-is a general secondary credential for explicit agent opt-in, not the install
+install-only primary token described in developer notes. `AGENT_SECONDARY_GITHUB_TOKEN`
+is a read-only secondary credential for explicit agent opt-in, not the install
 replacement token.
 
 ## Workflow token fallback
