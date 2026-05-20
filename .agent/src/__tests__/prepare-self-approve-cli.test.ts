@@ -19,6 +19,7 @@ function runPrepareSelfApprove(env: Record<string, string>, tempDir: string): {
     env: {
       ...process.env,
       AGENT_ALLOW_SELF_MERGE: "false",
+      REQUESTED_BY: "maintainer",
       ...env,
       GITHUB_OUTPUT: outputFile,
     },
@@ -170,6 +171,39 @@ exit 1
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.output, /should_run<<[^\n]+\nfalse/);
     assert.match(result.output, /approval actor matches the pull request author/);
+    assert.doesNotMatch(readFileSync(logPath, "utf8"), /^api --paginate --slurp/m);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("prepare-self-approve blocks when requester authored the pull request", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-self-approve-prepare-"));
+  try {
+    const logPath = join(tempDir, "gh.log");
+    writeFileSync(join(tempDir, "gh"), `#!/usr/bin/env bash
+printf '%s\\n' "$*" >> "$FAKE_GH_LOG"
+if [ "$1" = "pr" ] && [ "$2" = "view" ]; then
+  printf '{"author":{"login":"lolipopshock"},"headRefName":"agent/test","headRefOid":"abc123","isCrossRepository":false,"state":"OPEN"}\\n'
+  exit 0
+fi
+printf 'unexpected gh args: %s\\n' "$*" >&2
+exit 1
+`, { encoding: "utf8", mode: 0o755 });
+
+    const result = runPrepareSelfApprove({
+      PATH: `${tempDir}:${process.env.PATH || ""}`,
+      AGENT_ALLOW_SELF_APPROVE: "true",
+      FAKE_GH_LOG: logPath,
+      GITHUB_REPOSITORY: "self-evolving/repo",
+      REQUESTED_BY: "lolipopshock",
+      TARGET_KIND: "pull_request",
+      TARGET_NUMBER: "42",
+    }, tempDir);
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.output, /should_run<<[^\n]+\nfalse/);
+    assert.match(result.output, /self-approval requester matches the pull request author/);
     assert.doesNotMatch(readFileSync(logPath, "utf8"), /^api --paginate --slurp/m);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });

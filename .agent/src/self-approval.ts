@@ -31,6 +31,8 @@ export interface SelfApprovalResolveInput {
   decision: SelfApprovalDecision | null;
   approvalActorAllowed?: boolean;
   approvalActorReason?: string;
+  requesterAllowed?: boolean;
+  requesterReason?: string;
   approvalProvenanceTrusted?: boolean;
   approvalProvenanceReason?: string;
 }
@@ -59,6 +61,12 @@ export interface SelfApprovalActorResult {
   sameActor?: boolean;
 }
 
+export interface SelfApprovalRequesterResult {
+  allowed: boolean;
+  reason: string;
+  sameRequester?: boolean;
+}
+
 function normalizeToken(value: string): string {
   return String(value || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
 }
@@ -67,6 +75,7 @@ function normalizeActorLogin(value: string): string {
   return String(value || "")
     .trim()
     .toLowerCase()
+    .replace(/^@/, "")
     .replace(/^app\//i, "")
     .replace(/\[bot\]$/i, "");
 }
@@ -118,6 +127,38 @@ export function evaluateSelfApprovalActor(input: {
     allowed: true,
     sameActor: false,
     reason: "approval actor is distinct from pull request author",
+  };
+}
+
+export function evaluateSelfApprovalRequester(input: {
+  requestedByLogin: string;
+  prAuthorLogin: string;
+}): SelfApprovalRequesterResult {
+  const requestedBy = normalizeActorLogin(input.requestedByLogin);
+  const prAuthor = normalizeActorLogin(input.prAuthorLogin);
+  if (!requestedBy) {
+    return {
+      allowed: false,
+      reason: "could not resolve self-approval requester",
+    };
+  }
+  if (!prAuthor) {
+    return {
+      allowed: false,
+      reason: "could not resolve pull request author for self-approval",
+    };
+  }
+  if (requestedBy === prAuthor) {
+    return {
+      allowed: false,
+      sameRequester: true,
+      reason: "self-approval requester matches the pull request author",
+    };
+  }
+  return {
+    allowed: true,
+    sameRequester: false,
+    reason: "self-approval requester is distinct from pull request author",
   };
 }
 
@@ -351,6 +392,15 @@ export function resolveSelfApproval(input: SelfApprovalResolveInput): SelfApprov
         conclusion: "blocked",
         shouldApprove: false,
         reason: input.approvalActorReason || "approval actor could not be verified as distinct from pull request author",
+        handoffContext: input.decision.handoffContext,
+      };
+    }
+
+    if (input.requesterAllowed !== true) {
+      return {
+        conclusion: "blocked",
+        shouldApprove: false,
+        reason: input.requesterReason || "self-approval requester could not be verified as distinct from pull request author",
         handoffContext: input.decision.handoffContext,
       };
     }

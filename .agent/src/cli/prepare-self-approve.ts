@@ -1,6 +1,6 @@
 // CLI: preflight self-approval before running the approval agent.
-// Env: GITHUB_REPOSITORY, TARGET_NUMBER, TARGET_KIND, AGENT_ALLOW_SELF_APPROVE,
-//      AGENT_ALLOW_SELF_MERGE, SOURCE_RECOMMENDED_NEXT_STEP
+// Env: GITHUB_REPOSITORY, TARGET_NUMBER, TARGET_KIND, REQUESTED_BY,
+//      AGENT_ALLOW_SELF_APPROVE, AGENT_ALLOW_SELF_MERGE, SOURCE_RECOMMENDED_NEXT_STEP
 // Outputs: should_run, head_sha, reason, body_file
 
 import { mkdtempSync, writeFileSync } from "node:fs";
@@ -17,6 +17,7 @@ import {
   envFlagEnabled,
   evaluateSelfApprovalActor,
   evaluateSelfApprovalProvenance,
+  evaluateSelfApprovalRequester,
   formatSelfApprovalBody,
 } from "../self-approval.js";
 
@@ -46,6 +47,7 @@ function stop(reason: string): void {
 const repo = process.env.GITHUB_REPOSITORY || "";
 const targetNumber = Number(process.env.TARGET_NUMBER || process.env.PR_NUMBER || "");
 const targetKind = normalizeToken(process.env.TARGET_KIND || "pull_request");
+const requestedBy = process.env.REQUESTED_BY || process.env.GITHUB_ACTOR || "";
 const allowSelfApprove = envFlagEnabled(process.env.AGENT_ALLOW_SELF_APPROVE);
 const allowSelfMerge = envFlagEnabled(process.env.AGENT_ALLOW_SELF_MERGE);
 const allowSameActorSelfApprove = allowSelfApprove && allowSelfMerge;
@@ -63,6 +65,7 @@ if (!allowSelfApprove) {
   let shouldContinue = true;
   let headSha = "";
   let authenticatedActorLogin = "";
+  let prAuthorLogin = "";
 
   try {
     const meta = fetchPrMeta(targetNumber, repo);
@@ -82,10 +85,27 @@ if (!allowSelfApprove) {
 
   if (shouldContinue) {
     try {
+      prAuthorLogin = fetchPrAuthorLogin(targetNumber, repo);
+      const requester = evaluateSelfApprovalRequester({
+        requestedByLogin: requestedBy,
+        prAuthorLogin,
+      });
+      if (!requester.allowed) {
+        stop(requester.reason);
+        shouldContinue = false;
+      }
+    } catch {
+      stop("could not verify self-approval requester during self-approval preflight");
+      shouldContinue = false;
+    }
+  }
+
+  if (shouldContinue) {
+    try {
       authenticatedActorLogin = fetchAuthenticatedActorLogin();
       const approvalActor = evaluateSelfApprovalActor({
         approvalActorLogin: authenticatedActorLogin,
-        prAuthorLogin: fetchPrAuthorLogin(targetNumber, repo),
+        prAuthorLogin,
         allowSameActor: allowSameActorSelfApprove,
       });
       if (!approvalActor.allowed) {

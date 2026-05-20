@@ -75,8 +75,9 @@ user-launched orchestrate requests validate the requester against the delegated
 route capability set up front. `agent-self-approve` is included in that check
 only when `AGENT_ALLOW_SELF_APPROVE=true`; `agent-self-merge` is included only
 when both `AGENT_ALLOW_SELF_APPROVE=true` and `AGENT_ALLOW_SELF_MERGE=true`.
-Internal child and parent resume dispatches carry `requested_by` for audit and
-display, but they do not thread route authorization inputs through every child
+Internal child and parent resume dispatches carry `requested_by` for audit,
+display, and route-specific guards such as self-approval's requester-author
+check, but they do not thread route authorization inputs through every child
 workflow.
 
 Implementation dispatches default to the repository default branch. Callers can
@@ -312,10 +313,13 @@ optional follow-up context, and `inspected_head_sha`.
 
 Deterministic resolver code is the only part that can submit or record the
 approval. It rereads the current PR head, rechecks trusted current-head review
-provenance, verifies the approval actor differs from the pull request author
-unless both `AGENT_ALLOW_SELF_APPROVE=true` and `AGENT_ALLOW_SELF_MERGE=true`
-are enabled, parses the agent verdict, and approves only when the expected,
-current, and inspected head SHAs match. Normal handoffs require trusted
+provenance, verifies the trusted requester differs from the pull request author,
+verifies the approval actor differs from the pull request author unless both
+`AGENT_ALLOW_SELF_APPROVE=true` and `AGENT_ALLOW_SELF_MERGE=true` are enabled,
+parses the agent verdict, and approves only when the expected, current, and
+inspected head SHAs match. Manual runs use `github.actor` when the
+`requested_by` input is omitted, and orchestrated handoffs preserve the original
+requester. Normal handoffs require trusted
 current-head `SHIP` review synthesis; orchestrated review `HUMAN_DECISION`
 handoffs also trust the matching current-head synthesis as the decision gate,
 and `MINOR_ISSUES` plus `NO_AUTOMATED_ACTION` is trusted only when the matching

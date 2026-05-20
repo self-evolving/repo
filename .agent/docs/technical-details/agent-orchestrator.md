@@ -160,8 +160,9 @@ both `AGENT_ALLOW_SELF_APPROVE=true` and `AGENT_ALLOW_SELF_MERGE=true`, it also
 includes `agent-self-merge`. Disabled self-approval or self-merge routes are not
 part of the delegated capability check. This keeps authorization at the user
 boundary: child and parent resume dispatches preserve `requested_by` for
-traceability, but they do not need to thread requester association and route
-policy through every downstream workflow.
+traceability and for route-specific guards such as self-approval's
+requester-author check, but they do not need to thread requester association and
+route policy through every downstream workflow.
 
 When an orchestrator dispatches `implement`, it forwards any planner-provided
 or explicit `base_branch` or `base_pr` input. `agent-implement.yml` then

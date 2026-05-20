@@ -461,6 +461,8 @@ test("self-approval workflow stays opt-in and read-only until deterministic reso
   assert.equal(runStep.with.github_token, "${{ github.token }}");
   assert.match(workflowText, /AGENT_ALLOW_SELF_APPROVE:\s*\$\{\{\s*vars\.AGENT_ALLOW_SELF_APPROVE \|\| 'false'\s*\}\}/);
   assert.match(workflowText, /AGENT_ALLOW_SELF_MERGE:\s*\$\{\{\s*vars\.AGENT_ALLOW_SELF_MERGE \|\| 'false'\s*\}\}/);
+  assert.match(workflowText, /Prepare self-approval[\s\S]*REQUESTED_BY:\s*\$\{\{\s*inputs\.requested_by \|\| github\.actor\s*\}\}/);
+  assert.match(workflowText, /Resolve self-approval result[\s\S]*REQUESTED_BY:\s*\$\{\{\s*inputs\.requested_by \|\| github\.actor\s*\}\}/);
   assert.match(workflowText, /node \.agent\/dist\/cli\/prepare-self-approve\.js/);
   assert.match(workflowText, /node \.agent\/dist\/cli\/resolve-self-approve\.js/);
   assert.match(workflowText, /Post self-approval stop[\s\S]*always\(\)[\s\S]*steps\.prepare\.outcome == 'success'[\s\S]*steps\.prepare\.outputs\.should_run != 'true'[\s\S]*steps\.prepare\.outputs\.body_file != ''/);
