@@ -456,7 +456,7 @@ test("self-approval workflow stays opt-in and read-only until deterministic reso
   );
   assert.ok(runStep, "self-approval workflow should run the agent");
   assert.ok(isRecord(runStep.with), "self-approval run step should define inputs");
-  assert.equal(runStep.with.permission_mode, "approve-reads");
+  assert.equal(runStep.with.permission_mode, "approve-all");
   assert.equal(runStep.with.route, "agent-self-approve");
   assert.equal(runStep.with.github_token, "${{ github.token }}");
   assert.match(workflowText, /AGENT_ALLOW_SELF_APPROVE:\s*\$\{\{\s*vars\.AGENT_ALLOW_SELF_APPROVE \|\| 'false'\s*\}\}/);
