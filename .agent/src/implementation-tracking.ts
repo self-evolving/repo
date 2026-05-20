@@ -612,9 +612,10 @@ function findExistingImplementationTrackingIssue(
   repoSlug: string,
   metadata: SourceTargetMetadata,
   trackingKey: string,
+  responseTarget?: ResponseTarget,
 ): string {
   try {
-    const linkBackIssueNumber = findTrustedImplementationLinkBack(repoSlug, metadata, trackingKey);
+    const linkBackIssueNumber = findTrustedImplementationLinkBack(repoSlug, metadata, trackingKey, responseTarget);
     if (linkBackIssueNumber) return linkBackIssueNumber;
   } catch (err: unknown) {
     console.warn(`Could not inspect existing implementation link-backs: ${errorText(err)}`);
@@ -722,9 +723,14 @@ export function ensureImplementationTrackingIssueForTarget(
     throw new Error(`implementation tracking cannot create tracking issue for ${input.targetKind || "missing"} targets`);
   }
   const trackingKey = buildImplementationTrackingKey(input);
-  const existingIssueNumber = findExistingImplementationTrackingIssue(input.repo, metadata, trackingKey);
   const linkBackLabel = input.linkBackLabel || "this request";
   const linkBackResponseTarget = buildLinkBackResponseTarget(input, metadata);
+  const existingIssueNumber = findExistingImplementationTrackingIssue(
+    input.repo,
+    metadata,
+    trackingKey,
+    linkBackResponseTarget,
+  );
   if (existingIssueNumber) {
     const issueUrl = issueUrlFromNumber(input.repo, existingIssueNumber);
     postImplementationLinkBack(input.repo, metadata, issueUrl, trackingKey, linkBackLabel, linkBackResponseTarget);

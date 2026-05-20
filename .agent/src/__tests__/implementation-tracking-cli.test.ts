@@ -287,6 +287,36 @@ test("explicit PR review comment implement dedupes threaded link-back", () => {
   assert.doesNotMatch(run.ghLog, /repos\/self-evolving\/repo\/pulls\/21\/comments\/1234\/replies/);
 });
 
+test("explicit PR review comment implement reuses threaded link-back when issue search lags", () => {
+  const markerKey = implementationTrackingKey({});
+  const run = runEnsureImplementationTracking({
+    RESPONSE_KIND: "review_comment_reply",
+    REVIEW_COMMENT_ID: "1234",
+    FAKE_ISSUE_LIST_JSON: "[]",
+    FAKE_PR_REVIEW_COMMENTS_JSON: JSON.stringify([
+      [
+        {
+          id: 5678,
+          in_reply_to_id: 1234,
+          body: [
+            "Implementing this request - tracking in https://github.com/self-evolving/repo/issues/77.",
+            "",
+            `<!-- sepo-implementation-tracking base64:${markerKey} issue:77 -->`,
+          ].join("\n"),
+          user: { login: "sepo-agent-app[bot]" },
+        },
+      ],
+    ]),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("issue_number"), "77");
+  assert.equal(run.outputs.get("created"), "false");
+  assert.equal(run.outputs.get("reused"), "true");
+  assert.doesNotMatch(run.ghLog, /issue create/);
+  assert.doesNotMatch(run.ghLog, /repos\/self-evolving\/repo\/pulls\/21\/comments\/1234\/replies/);
+});
+
 test("explicit discussion implement dedupes link-back before addDiscussionComment", () => {
   const markerKey = implementationTrackingKey({
     targetKind: "discussion",
