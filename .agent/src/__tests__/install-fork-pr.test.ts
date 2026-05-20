@@ -81,6 +81,10 @@ class FakeRunner implements CommandRunner {
       return `${this.createdPrUrl}\n`;
     }
 
+    if (args[0] === "pr" && args[1] === "edit") {
+      return "";
+    }
+
     throw new Error(`unexpected gh args: ${args.join(" ")}`);
   }
 
@@ -418,13 +422,16 @@ test("publishInstallForkPr pushes and reuses an existing install PR from the tok
       workdir: tempDir,
       forkRepo: "sepo-install-bot/lm4sci.github.io",
       bodyFile,
+      sourceRequestUrl: "https://github.com/self-evolving/repo/issues/303",
       runner,
     });
 
     assert.equal(result.status, "published");
     assert.equal(result.reusedPr, true);
     assert.equal(result.prUrl, "https://github.com/lm4sci/lm4sci.github.io/pull/34");
+    assert.match(readFileSync(bodyFile, "utf8"), /Source install request: https:\/\/github\.com\/self-evolving\/repo\/issues\/303/);
     assert.ok(runner.called("git", /push https:\/\/x-access-token:pat-token@github\.com\/sepo-install-bot\/lm4sci\.github\.io\.git HEAD:agent\/install-agent-infra/));
+    assert.ok(runner.called("gh", /pr edit 34 --repo lm4sci\/lm4sci\.github\.io --body-file/));
     assert.equal(runner.called("gh", /pr create/), false);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
@@ -455,6 +462,7 @@ test("publishInstallForkPr pushes and opens a new install PR", () => {
       forkRepo: "sepo-install-bot/lm4sci.github.io",
       title: "Install Sepo agent infrastructure",
       bodyFile,
+      sourceRequestUrl: "https://github.com/self-evolving/repo/issues/303?from=template",
       runner,
     });
 
@@ -462,6 +470,7 @@ test("publishInstallForkPr pushes and opens a new install PR", () => {
     assert.equal(result.reusedPr, false);
     assert.equal(result.prUrl, "https://github.com/lm4sci/lm4sci.github.io/pull/77");
     assert.equal(result.prNumber, "77");
+    assert.match(readFileSync(bodyFile, "utf8"), /Source install request: https:\/\/github\.com\/self-evolving\/repo\/issues\/303/);
     assert.ok(runner.called("git", /push https:\/\/x-access-token:pat-token@github\.com\/sepo-install-bot\/lm4sci\.github\.io\.git HEAD:agent\/install-agent-infra/));
     assert.ok(runner.called("gh", /pr create --repo lm4sci\/lm4sci\.github\.io --base main --head sepo-install-bot:agent\/install-agent-infra --title Install Sepo agent infrastructure --body-file/));
   } finally {

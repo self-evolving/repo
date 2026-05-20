@@ -90,6 +90,9 @@ repository by opening or reusing a focused install PR.
      --pr-title "Install Sepo agent infrastructure" \
      --pr-body-file "<body-file>"
    ```
+   For issue-backed requests, the helper derives the source request URL from the
+   runtime envelope and adds it to the PR body before creating or updating the
+   install PR.
    If publish returns `blocked`, report `blockedCode`, `message`, and the
    requester action needed to unblock it. Otherwise report the reused or created
    install PR URL.

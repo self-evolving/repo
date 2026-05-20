@@ -897,6 +897,10 @@ test("skill route uses the composite setup action for path and setup checks", ()
   assert.match(installWorkflow, /github_token:\s*\$\{\{\s*secrets\.AGENT_INSTALL_PAT\s*\}\}/);
   assert.match(installWorkflow, /memory_mode_override:\s*disabled/);
   assert.match(installWorkflow, /rubrics_mode_override:\s*disabled/);
+  assert.match(installWorkflow, /id:\s*post_install_response/);
+  assert.match(installWorkflow, /steps\.install\.outputs\.install_status == 'published'/);
+  assert.match(installWorkflow, /node \.agent\/dist\/cli\/complete-install-request\.js/);
+  assert.match(installWorkflow, /continue-on-error:\s*true/);
   assert.doesNotMatch(installWorkflow, /memory_policy:\s*\$\{\{\s*vars\.AGENT_MEMORY_POLICY/);
   assert.doesNotMatch(installWorkflow, /github_token:[^\n]*steps\.auth\.outputs\.token/);
   assert.doesNotMatch(installWorkflow, /\.\/\.github\/actions\/run-skill-setup/);
@@ -1045,6 +1049,7 @@ test("workflow docs record the minimal metadata contract and developer notes", (
   const configurationList = readRepoFile(".agent/docs/customization/configuration-list.md");
   const skillsDocs = readRepoFile(".agent/docs/customization/skills.md");
   const existingRepoInstall = readRepoFile(".agent/docs/deployment/install-existing-repository.md");
+  const installIssueTemplate = readRepoFile(".github/ISSUE_TEMPLATE/install-sepo.md");
   const developerNotes = readRepoFile(".agent/docs/technical-details/developer-notes.md");
 
   assert.match(keyConcepts, /### RuntimeEnvelope/);
@@ -1077,6 +1082,10 @@ test("workflow docs record the minimal metadata contract and developer notes", (
   assert.match(configurationList, /AGENT_INSTALL_PAT/);
   assert.match(existingRepoInstall, /`\/install` is the only route that uses `AGENT_INSTALL_PAT`/);
   assert.match(existingRepoInstall, /Normal routes keep[\s\S]*GitHub auth resolver order/);
+  assert.match(existingRepoInstall, /Install Sepo into another repository/);
+  assert.match(existingRepoInstall, /source request issue[\s\S]*comment linking the install PR/);
+  assert.match(installIssueTemplate, /^@sepo-agent \/install/m);
+  assert.match(installIssueTemplate, /Target public repository URL/);
   assert.match(memoryArchitecture, /Agent \/ Memory \/ Initialization[\s\S]*\|\s*Auto\s*\|/);
   assert.match(rubricsArchitecture, /agent\/rubrics/);
   assert.match(rubricsArchitecture, /AGENT_RUBRICS_POLICY/);

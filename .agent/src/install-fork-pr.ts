@@ -53,6 +53,7 @@ export interface PublishInstallForkPrOptions extends InstallForkPrOptions {
   defaultBranch?: string;
   title?: string;
   bodyFile?: string;
+  sourceRequestUrl?: string;
 }
 
 interface RepoInfo {
@@ -162,6 +163,41 @@ function normalizeLogin(value: unknown): string {
 function parsePrNumber(url: string): string {
   const match = String(url || "").match(/\/pull\/(\d+)(?:[/?#].*)?$/);
   return match ? match[1] : "";
+}
+
+function normalizeSourceRequestUrl(value: string | undefined): string {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "https:" || url.hostname.toLowerCase() !== "github.com") return "";
+    const parts = url.pathname.split("/").filter(Boolean);
+    if (parts.length !== 4 || parts[2] !== "issues" || !/^\d+$/.test(parts[3])) return "";
+    return `https://github.com/${parts.join("/")}`;
+  } catch {
+    return "";
+  }
+}
+
+function ensureSourceRequestInBodyFile(bodyFile: string, sourceRequestUrl: string | undefined): void {
+  const normalizedUrl = normalizeSourceRequestUrl(sourceRequestUrl);
+  if (!normalizedUrl) return;
+
+  try {
+    const currentBody = readFileSync(bodyFile, "utf8");
+    if (currentBody.includes(normalizedUrl)) return;
+    const body = currentBody.endsWith("\n") ? currentBody : `${currentBody}\n`;
+    writeFileSync(
+      bodyFile,
+      `${body}\nSource install request: ${normalizedUrl}\n<!-- sepo-install-source-request: ${normalizedUrl} -->\n`,
+      "utf8",
+    );
+  } catch {
+    throw new InstallForkPrBlocked(
+      "pr_body_update_failed",
+      "Could not add the source install request link to the install PR body.",
+    );
+  }
 }
 
 function parseJson(raw: string, description: string): unknown {
@@ -688,6 +724,7 @@ export function publishInstallForkPr(opts: PublishInstallForkPrOptions): Install
       forkRepo: fork.fullName,
     });
     validatePreparedBranch(runner, workdir, branch);
+    ensureSourceRequestInBodyFile(bodyFile, opts.sourceRequestUrl);
 
     try {
       runner.git(["push", buildAuthUrl(opts.githubToken, fork.fullName), `HEAD:${branch}`], workdir);
@@ -699,6 +736,23 @@ export function publishInstallForkPr(opts: PublishInstallForkPrOptions): Install
     }
 
     if (existingPr) {
+      try {
+        runner.gh([
+          "pr",
+          "edit",
+          existingPr.number || existingPr.url,
+          "--repo",
+          target.fullName,
+          "--body-file",
+          bodyFile,
+        ]);
+      } catch {
+        throw new InstallForkPrBlocked(
+          "pr_update_failed",
+          `Updated ${fork.fullName}:${branch}, but could not update install PR ${existingPr.url}; check AGENT_INSTALL_PAT pull-request permissions.`,
+        );
+      }
+
       return {
         action: "publish",
         status: "published",

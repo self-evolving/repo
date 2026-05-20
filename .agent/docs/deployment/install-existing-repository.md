@@ -15,6 +15,10 @@ a public target repository:
 @sepo-agent /install can you install Sepo into https://github.com/owner/repo?
 ```
 
+They can also open the **Install Sepo into another repository** issue template,
+which starts with `@sepo-agent /install` and leaves a field for the public target
+repository URL.
+
 The `/install` command is a first-class route for authorization, then runs the
 dedicated `agent-install` prompt. Route detection only recognizes the command;
 install-specific helper code resolves the target from the request text,
@@ -41,7 +45,12 @@ open/reuse the PR, the route reports a blocked result with the specific
 permission gap and next step. An existing open install PR from the same token
 owner is reused; an open install PR from another owner is treated as a duplicate
 blocked state. Install runs disable source-repo memory writes so this target
-token is not used to update `agent/memory`.
+token is not used to update `agent/memory`. When `/install` is requested from an
+issue, the target install PR body links back to the source request. After the
+publish helper creates or reuses the target PR and the install response is
+posted, the workflow best-effort closes that source request issue with a short
+comment linking the install PR. If that close step fails, the install PR remains
+the source of truth and the workflow does not undo it.
 
 Use `AGENT_ACCESS_POLICY.route_overrides.install` to restrict who may trigger
 external installs independently from general `/skill` runs:
@@ -101,7 +110,9 @@ GH_TOKEN="$GH_TOKEN" node .agent/dist/cli/install-fork-pr.js publish \
 
 The publish command requires the prepare-state file written into the returned
 workdir by the prepare command, so rerun prepare instead of substituting an
-arbitrary checkout path.
+arbitrary checkout path. For issue-backed install requests, the helper derives
+the source request URL from the runtime envelope and adds it to the install PR
+body before opening or updating the PR.
 
 Install PRs should include a structured setup section that mirrors the
 onboarding setup check:

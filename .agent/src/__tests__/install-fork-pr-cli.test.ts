@@ -40,6 +40,8 @@ test("parseInstallForkPrCliArgs maps publish flags", () => {
     "Install Sepo agent infrastructure",
     "--pr-body-file",
     "/tmp/body.md",
+    "--source-request-url",
+    "https://github.com/self-evolving/repo/issues/303",
   ], {
     GH_TOKEN: "pat-token",
   });
@@ -53,6 +55,7 @@ test("parseInstallForkPrCliArgs maps publish flags", () => {
   assert.equal(input.publish.branch, "agent/install-agent-infra");
   assert.equal(input.publish.title, "Install Sepo agent infrastructure");
   assert.equal(input.publish.bodyFile, "/tmp/body.md");
+  assert.equal(input.publish.sourceRequestUrl, "https://github.com/self-evolving/repo/issues/303");
 });
 
 test("parseInstallForkPrCliArgs preserves environment fallbacks", () => {
@@ -66,6 +69,7 @@ test("parseInstallForkPrCliArgs preserves environment fallbacks", () => {
     INSTALL_BRANCH: "agent/env-install",
     INSTALL_PR_TITLE: "Env title",
     INSTALL_PR_BODY_FILE: "/tmp/env-body.md",
+    INSTALL_SOURCE_REQUEST_URL: "https://github.com/self-evolving/repo/issues/304",
   });
 
   assert.equal(input.action, "publish");
@@ -77,6 +81,17 @@ test("parseInstallForkPrCliArgs preserves environment fallbacks", () => {
   assert.equal(input.publish.branch, "agent/env-install");
   assert.equal(input.publish.title, "Env title");
   assert.equal(input.publish.bodyFile, "/tmp/env-body.md");
+  assert.equal(input.publish.sourceRequestUrl, "https://github.com/self-evolving/repo/issues/304");
+});
+
+test("parseInstallForkPrCliArgs derives issue-backed source request from envelope env", () => {
+  const input = parseInstallForkPrCliArgs(["publish"], {
+    GH_TOKEN: "install-token",
+    TARGET_KIND: "issue",
+    TARGET_URL: "https://github.com/self-evolving/repo/issues/303",
+  });
+
+  assert.equal(input.publish.sourceRequestUrl, "https://github.com/self-evolving/repo/issues/303");
 });
 
 test("parseInstallForkPrCliArgs does not fall back to workflow tokens", () => {
