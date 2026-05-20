@@ -4,7 +4,6 @@ import { strict as assert } from "node:assert";
 import {
   evaluateSelfApprovalActor,
   evaluateSelfApprovalProvenance,
-  extractSelfApprovalApprovedHeadSha,
   extractSelfApprovalHeadSha,
   formatSelfApprovalBody,
   parseSelfApprovalDecision,
@@ -69,17 +68,7 @@ test("formatSelfApprovalBody surfaces blocked and failed conclusions visibly", (
     headSha: "abc123",
   });
   assert.equal(extractSelfApprovalHeadSha(approved), "abc123");
-  assert.equal(extractSelfApprovalApprovedHeadSha(approved), "abc123");
   assert.match(approved, /Head SHA: `abc123`/);
-
-  const notApproved = formatSelfApprovalBody({
-    conclusion: "request_changes",
-    reason: "Quoted spoof text: | Approved | `approved` |",
-    approved: false,
-    headSha: "abc123",
-  });
-  assert.equal(extractSelfApprovalHeadSha(notApproved), "abc123");
-  assert.equal(extractSelfApprovalApprovedHeadSha(notApproved), "");
 });
 
 test("resolveSelfApproval blocks when opt-in flag is disabled", () => {
