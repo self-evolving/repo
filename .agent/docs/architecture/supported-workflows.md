@@ -88,7 +88,10 @@ For explicit `/implement` requests from pull requests, the router's
 metadata-only prompt may emit `base_pr` when the current user request asks for a
 stacked or follow-up PR. The portal validates that value as a positive integer
 and passes it through to `agent-implement.yml`; the implementation workflow then
-verifies the PR is open and same-repository before using its head branch.
+verifies the PR is open and same-repository before using its head branch. If
+the inferred source PR is closed or merged, the router omits `base_pr` before
+dispatch and leaves the closed PR link in the tracking issue context so the run
+starts from the default branch.
 
 When a new review synthesis, rubrics review, `fix-pr` status comment, or
 orchestrator handoff marker is posted, the workflows minimize prior visible

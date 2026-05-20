@@ -89,7 +89,7 @@ test("implementation base rejects non-open PRs", () => {
         basePr: "42",
         repo: "self-evolving/repo",
       }),
-      /must be open/,
+      /omit base_pr to use the default branch/,
     ),
   );
 });
