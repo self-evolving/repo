@@ -680,6 +680,25 @@ export function publishInstallForkPr(opts: PublishInstallForkPrOptions): Install
     }
 
     if (existingPr) {
+      try {
+        runner.gh([
+          "pr",
+          "edit",
+          existingPr.number || existingPr.url,
+          "--repo",
+          target.fullName,
+          "--title",
+          title,
+          "--body-file",
+          bodyFile,
+        ]);
+      } catch {
+        throw new InstallForkPrBlocked(
+          "pr_edit_failed",
+          `Could not update install PR ${existingPr.url}; check AGENT_INSTALL_PAT pull-request permissions.`,
+        );
+      }
+
       return {
         action: "publish",
         status: "published",

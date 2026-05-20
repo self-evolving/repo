@@ -80,6 +80,10 @@ class FakeRunner implements CommandRunner {
       return `${this.createdPrUrl}\n`;
     }
 
+    if (args[0] === "pr" && args[1] === "edit") {
+      return "";
+    }
+
     throw new Error(`unexpected gh args: ${args.join(" ")}`);
   }
 
@@ -422,6 +426,7 @@ test("publishInstallForkPr pushes and reuses an existing install PR from the tok
     assert.equal(result.prUrl, "https://github.com/lm4sci/lm4sci.github.io/pull/34");
     assert.ok(runner.called("git", /push https:\/\/x-access-token:pat-token@github\.com\/sepo-install-bot\/lm4sci\.github\.io\.git HEAD:agent\/install-agent-infra/));
     assert.equal(runner.called("gh", /pr create/), false);
+    assert.ok(runner.called("gh", /pr edit 34 --repo lm4sci\/lm4sci\.github\.io --title Install Sepo agent infrastructure --body-file/));
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
