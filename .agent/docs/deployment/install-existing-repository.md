@@ -6,7 +6,7 @@ This page documents the minimal path for adding the Sepo agent backend to a repo
 
 ### Public repositories
 
-For public target repositories, the quickest path is to open the **Install Sepo into another repository** issue form in `self-evolving/repo` and paste the target GitHub URL. Sepo prepares or reuses a focused install PR in the target repo, comments with the PR link, and closes the request issue when the PR is ready.
+For public repositories, the quickest path is to open the [Install Sepo into another repository](https://github.com/self-evolving/repo/issues/new?template=install-sepo.yml) issue form in `self-evolving/repo` and paste the target GitHub URL. Sepo prepares or reuses a focused install PR in that repo, comments with the PR link, and closes the request issue when the PR is ready.
 
 Authorized users can also make the same request with `/install`:
 
