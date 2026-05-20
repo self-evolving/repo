@@ -67,7 +67,8 @@ You can also configure `AGENT_PAT` as an escape hatch when app installation is b
 
 Public install requests use a separate install credential in the Sepo source
 repository, so normal route authentication is unchanged. Most target repositories
-do not need to configure that credential themselves.
+do not need to configure that credential themselves. Operators of a Sepo source
+repository can find internal credential details in [Developer notes](../technical-details/developer-notes.md#internal-install-route-credential).
 
 If you use a fine-grained PAT, start with these repository permissions:
 

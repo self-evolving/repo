@@ -89,6 +89,24 @@ test("completeInstallRequest skips already closed source issue", () => {
   assert.equal(runner.called(/issue close/), false);
 });
 
+test("completeInstallRequest reports source issue state lookup failures", () => {
+  const runner = new FakeInstallRequestRunner();
+  runner.failView = true;
+
+  const result = completeInstallRequest({
+    sourceRepo: "self-evolving/repo",
+    targetKind: "issue",
+    targetNumber: 303,
+    installStatus: "published",
+    prUrl: "https://github.com/example/target/pull/77",
+    runner,
+  });
+
+  assert.equal(result.status, "failed");
+  assert.equal(result.reason, "issue_state_unavailable");
+  assert.equal(runner.called(/issue close/), false);
+});
+
 test("completeInstallRequest reports close failures without throwing", () => {
   const runner = new FakeInstallRequestRunner();
   runner.failClose = true;
