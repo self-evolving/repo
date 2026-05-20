@@ -319,9 +319,10 @@ verifies the approval actor differs from the pull request author unless both
 parses the agent verdict, and approves only when the expected, current, and
 inspected head SHAs match. Manual and other non-orchestrated runs use
 `github.actor` as the deterministic requester even when `requested_by` is
-supplied; only orchestrated handoffs preserve the original requester, and the
-workflow actor is still checked so a PR author cannot spoof orchestration by
-setting `orchestration_enabled=true`. Normal handoffs require trusted
+supplied. Orchestrated handoffs preserve and check the original requester even
+when a PAT-backed machine user is the workflow actor; non-automation workflow
+actors are also checked so a PR author cannot spoof orchestration by setting
+`orchestration_enabled=true`. Normal handoffs require trusted
 current-head `SHIP` review synthesis; orchestrated review `HUMAN_DECISION`
 handoffs also trust the matching current-head synthesis as the decision gate,
 and `MINOR_ISSUES` plus `NO_AUTOMATED_ACTION` is trusted only when the matching

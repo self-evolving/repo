@@ -10,7 +10,7 @@ import {
   formatSelfApprovalBody,
   parseSelfApprovalDecision,
   resolveSelfApproval,
-  resolveTrustedSelfApprovalRequester,
+  resolveTrustedSelfApprovalRequesters,
 } from "../self-approval.js";
 
 const approveDecision = {
@@ -168,22 +168,27 @@ test("evaluateSelfApprovalActor requires a distinct approval actor unless YOLO s
   assert.match(missing.reason, /could not resolve approval actor/);
 });
 
-test("resolveTrustedSelfApprovalRequester trusts forwarded requester only for automation dispatches", () => {
-  assert.equal(resolveTrustedSelfApprovalRequester({
+test("resolveTrustedSelfApprovalRequesters preserves forwarded and runtime requesters", () => {
+  assert.deepEqual(resolveTrustedSelfApprovalRequesters({
     requestedByLogin: "maintainer",
     workflowActorLogin: "lolipopshock",
     orchestrationEnabled: true,
-  }), "lolipopshock");
-  assert.equal(resolveTrustedSelfApprovalRequester({
+  }), ["maintainer", "lolipopshock"]);
+  assert.deepEqual(resolveTrustedSelfApprovalRequesters({
     requestedByLogin: "maintainer",
     workflowActorLogin: "lolipopshock",
     orchestrationEnabled: false,
-  }), "lolipopshock");
-  assert.equal(resolveTrustedSelfApprovalRequester({
+  }), ["lolipopshock"]);
+  assert.deepEqual(resolveTrustedSelfApprovalRequesters({
     requestedByLogin: "maintainer",
     workflowActorLogin: "sepo-agent-app[bot]",
     orchestrationEnabled: true,
-  }), "maintainer");
+  }), ["maintainer"]);
+  assert.deepEqual(resolveTrustedSelfApprovalRequesters({
+    requestedByLogin: "lolipopshock",
+    workflowActorLogin: "machine-user",
+    orchestrationEnabled: true,
+  }), ["lolipopshock", "machine-user"]);
 });
 
 test("evaluateSelfApprovalRequester requires a distinct initiating requester", () => {

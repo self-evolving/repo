@@ -24,7 +24,7 @@ import {
   formatSelfApprovalBody,
   parseSelfApprovalDecision,
   resolveSelfApproval,
-  resolveTrustedSelfApprovalRequester,
+  resolveTrustedSelfApprovalRequesters,
 } from "../self-approval.js";
 
 function writeBodyFile(body: string): string {
@@ -75,7 +75,7 @@ const prNumber = Number(process.env.TARGET_NUMBER || process.env.PR_NUMBER || ""
 const targetKind = process.env.TARGET_KIND || "pull_request";
 const expectedHeadSha = process.env.EXPECTED_HEAD_SHA || "";
 const workflowActor = process.env.WORKFLOW_ACTOR || process.env.GITHUB_ACTOR || "";
-const requestedBy = resolveTrustedSelfApprovalRequester({
+const requestedByLogins = resolveTrustedSelfApprovalRequesters({
   requestedByLogin: process.env.REQUESTED_BY || "",
   workflowActorLogin: workflowActor,
   orchestrationEnabled: envFlagEnabled(process.env.ORCHESTRATION_ENABLED),
@@ -111,12 +111,19 @@ if (allowSelfApprove && normalizeToken(targetKind) === "pull_request" && repo &&
 
   try {
     prAuthorLogin = fetchPrAuthorLogin(prNumber, repo);
-    const requester = evaluateSelfApprovalRequester({
-      requestedByLogin: requestedBy,
-      prAuthorLogin,
-    });
-    requesterAllowed = requester.allowed;
-    requesterReason = requester.reason;
+    requesterAllowed = true;
+    requesterReason = "self-approval requesters are distinct from pull request author";
+    for (const requestedByLogin of requestedByLogins.length ? requestedByLogins : [""]) {
+      const requester = evaluateSelfApprovalRequester({
+        requestedByLogin,
+        prAuthorLogin,
+      });
+      if (!requester.allowed) {
+        requesterAllowed = false;
+        requesterReason = requester.reason;
+        break;
+      }
+    }
   } catch {
     requesterAllowed = false;
     requesterReason = "could not verify self-approval requester differs from pull request author";

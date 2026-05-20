@@ -20,7 +20,7 @@ import {
   evaluateSelfApprovalProvenance,
   evaluateSelfApprovalRequester,
   formatSelfApprovalBody,
-  resolveTrustedSelfApprovalRequester,
+  resolveTrustedSelfApprovalRequesters,
 } from "../self-approval.js";
 
 function normalizeToken(value: string): string {
@@ -50,7 +50,7 @@ const repo = process.env.GITHUB_REPOSITORY || "";
 const targetNumber = Number(process.env.TARGET_NUMBER || process.env.PR_NUMBER || "");
 const targetKind = normalizeToken(process.env.TARGET_KIND || "pull_request");
 const workflowActor = process.env.WORKFLOW_ACTOR || process.env.GITHUB_ACTOR || "";
-const requestedBy = resolveTrustedSelfApprovalRequester({
+const requestedByLogins = resolveTrustedSelfApprovalRequesters({
   requestedByLogin: process.env.REQUESTED_BY || "",
   workflowActorLogin: workflowActor,
   orchestrationEnabled: envFlagEnabled(process.env.ORCHESTRATION_ENABLED),
@@ -93,13 +93,16 @@ if (!allowSelfApprove) {
   if (shouldContinue) {
     try {
       prAuthorLogin = fetchPrAuthorLogin(targetNumber, repo);
-      const requester = evaluateSelfApprovalRequester({
-        requestedByLogin: requestedBy,
-        prAuthorLogin,
-      });
-      if (!requester.allowed) {
-        stop(requester.reason);
-        shouldContinue = false;
+      for (const requestedByLogin of requestedByLogins.length ? requestedByLogins : [""]) {
+        const requester = evaluateSelfApprovalRequester({
+          requestedByLogin,
+          prAuthorLogin,
+        });
+        if (!requester.allowed) {
+          stop(requester.reason);
+          shouldContinue = false;
+          break;
+        }
       }
     } catch {
       stop("could not verify self-approval requester during self-approval preflight");

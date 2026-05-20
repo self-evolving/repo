@@ -167,17 +167,41 @@ export function evaluateSelfApprovalRequester(input: {
   };
 }
 
+export function resolveTrustedSelfApprovalRequesters(input: {
+  requestedByLogin: string;
+  workflowActorLogin: string;
+  orchestrationEnabled?: boolean;
+}): string[] {
+  const requestedBy = String(input.requestedByLogin || "").trim();
+  const workflowActor = String(input.workflowActorLogin || "").trim();
+  const requesters: string[] = [];
+  const seen = new Set<string>();
+
+  function addRequester(login: string): void {
+    const normalized = normalizeActorLogin(login);
+    if (!normalized || seen.has(normalized)) return;
+    seen.add(normalized);
+    requesters.push(login.trim());
+  }
+
+  if (input.orchestrationEnabled === true && requestedBy) {
+    addRequester(requestedBy);
+  }
+  if (!input.orchestrationEnabled || !requestedBy || !isAutomationActorLogin(workflowActor)) {
+    addRequester(workflowActor);
+  }
+  if (!requesters.length) {
+    addRequester(requestedBy);
+  }
+  return requesters;
+}
+
 export function resolveTrustedSelfApprovalRequester(input: {
   requestedByLogin: string;
   workflowActorLogin: string;
   orchestrationEnabled?: boolean;
 }): string {
-  const requestedBy = String(input.requestedByLogin || "").trim();
-  const workflowActor = String(input.workflowActorLogin || "").trim();
-  if (input.orchestrationEnabled === true && requestedBy && isAutomationActorLogin(workflowActor)) {
-    return requestedBy;
-  }
-  return workflowActor || requestedBy;
+  return resolveTrustedSelfApprovalRequesters(input)[0] || "";
 }
 
 function normalizeVerdict(value: string): SelfApprovalVerdict | null {
