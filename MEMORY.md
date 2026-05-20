@@ -86,3 +86,4 @@
 - Use agent-goal for repository goal issues; reserve agent/* labels for route triggers unless a real route exists.
 - For /install, typed fork helpers own target fork/branch/PR mechanics; the prompt orchestrates instead of raw git/gh lifecycle.
 - Install publish helpers must confirm the worktree is on the prepared branch before pushing HEAD:<branch>.
+- Issue-backed /install requests link source issues in target PRs and close the source issue best-effort after publish/reuse.
