@@ -12,6 +12,7 @@ import {
   formatRepoConfigError,
   formatRepoConfigSummary,
   parseRepoConfigPlan,
+  RepoConfigPartialApplyError,
 } from "../repo-config.js";
 import { setOutput } from "../output.js";
 
@@ -41,6 +42,7 @@ function writeSummary(path: string, body: string): void {
 
 function main(): number {
   const summaryFile = resolveSummaryFile();
+  let operationCount = 0;
 
   try {
     const bodyFile = requiredEnv("BODY_FILE");
@@ -48,7 +50,7 @@ function main(): number {
     const apply = boolEnv("AGENT_CONFIG_APPLY", false);
     const raw = readFileSync(bodyFile, "utf8");
     const plan = parseRepoConfigPlan(raw);
-    const operationCount = countRepoConfigOperations(plan);
+    operationCount = countRepoConfigOperations(plan);
     const results = apply ? applyRepoConfigPlan(repo, plan) : [];
     const summary = formatRepoConfigSummary({ repo, apply, plan, results });
 
@@ -63,9 +65,21 @@ function main(): number {
     return 0;
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    writeSummary(summaryFile, formatRepoConfigError(message));
+    if (err instanceof RepoConfigPartialApplyError) {
+      writeSummary(
+        summaryFile,
+        formatRepoConfigError(message, {
+          repo: err.repo,
+          plan: err.plan,
+          results: err.results,
+        }),
+      );
+      operationCount = countRepoConfigOperations(err.plan);
+    } else {
+      writeSummary(summaryFile, formatRepoConfigError(message));
+    }
     setOutput("applied", "false");
-    setOutput("operation_count", "0");
+    setOutput("operation_count", String(operationCount));
     console.error(message);
     return 1;
   }

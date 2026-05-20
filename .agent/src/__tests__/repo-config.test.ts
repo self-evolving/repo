@@ -61,6 +61,49 @@ test("parseRepoConfigPlan validates set and unset operations", () => {
   ]);
 });
 
+test("parseRepoConfigPlan validates variable-specific value contracts", () => {
+  const plan = parseRepoConfigPlan(JSON.stringify({
+    operations: [
+      {
+        action: "set",
+        name: "AGENT_RUNS_ON",
+        value: "[ \"ubuntu-latest\", \"self-hosted\" ]",
+      },
+      {
+        action: "set",
+        name: "AGENT_ACCESS_POLICY",
+        value: "{\"allowed_associations\":[\"owner\"]}",
+      },
+      {
+        action: "set",
+        name: "AGENT_DEFAULT_PROVIDER",
+        value: " Codex ",
+      },
+      {
+        action: "set",
+        name: "AGENT_RUBRICS_LIMIT",
+        value: "all",
+      },
+      {
+        action: "set",
+        name: "AGENT_MEMORY_REF",
+        value: "agent/memory",
+      },
+    ],
+  }));
+
+  assert.deepEqual(
+    plan.operations.map((operation) => [operation.name, operation.value]),
+    [
+      ["AGENT_RUNS_ON", "[\"ubuntu-latest\",\"self-hosted\"]"],
+      ["AGENT_ACCESS_POLICY", "{\"allowed_associations\":[\"owner\"]}"],
+      ["AGENT_DEFAULT_PROVIDER", "codex"],
+      ["AGENT_RUBRICS_LIMIT", "all"],
+      ["AGENT_MEMORY_REF", "agent/memory"],
+    ],
+  );
+});
+
 test("parseRepoConfigPlan rejects missing, empty, unknown, and ambiguous plans", () => {
   assert.throws(() => parseRepoConfigPlan("no json"), /JSON object/);
   assert.throws(() => parseRepoConfigPlan('{"operations":[]}'), /at least one operation/);
@@ -87,6 +130,29 @@ test("parseRepoConfigPlan rejects missing, empty, unknown, and ambiguous plans",
       '{"operations":[{"action":"unset","name":"AGENT_AUTO_UPDATE","value":"false"}]}',
     ),
     /must not include value/,
+  );
+});
+
+test("parseRepoConfigPlan rejects invalid variable-specific values", () => {
+  assert.throws(
+    () => parseRepoConfigPlan('{"operations":[{"action":"set","name":"AGENT_RUNS_ON","value":"ubuntu-latest"}]}'),
+    /JSON array of runner labels/,
+  );
+  assert.throws(
+    () => parseRepoConfigPlan('{"operations":[{"action":"set","name":"AGENT_TASK_TIMEOUT_POLICY","value":"{\\"default_minutes\\":\\"30\\"}"}]}'),
+    /default_minutes must be a positive integer/,
+  );
+  assert.throws(
+    () => parseRepoConfigPlan('{"operations":[{"action":"set","name":"AGENT_AUTO_UPDATE","value":"banana"}]}'),
+    /must be a boolean value/,
+  );
+  assert.throws(
+    () => parseRepoConfigPlan('{"operations":[{"action":"set","name":"AGENT_DEFAULT_PROVIDER","value":"openai"}]}'),
+    /must be one of auto, codex, claude/,
+  );
+  assert.throws(
+    () => parseRepoConfigPlan('{"operations":[{"action":"set","name":"AGENT_MEMORY_REF","value":"bad ref"}]}'),
+    /valid branch\/ref name/,
   );
 });
 

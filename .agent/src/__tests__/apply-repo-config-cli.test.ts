@@ -232,3 +232,66 @@ exit 1
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
+
+test("apply repo config reports partial results when a later operation fails", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "apply-repo-config-"));
+
+  try {
+    const bodyFile = join(tempDir, "config-response.md");
+    const logPath = join(tempDir, "gh.log");
+    const outputPath = join(tempDir, "outputs.txt");
+    const summaryPath = join(tempDir, "summary.md");
+    writeFileSync(
+      bodyFile,
+      '{"operations":[{"action":"set","name":"AGENT_AUTO_UPDATE","value":"false"},{"action":"set","name":"AGENT_STATUS_LABEL_ENABLED","value":"true"}]}',
+      "utf8",
+    );
+    writeFakeGh(
+      tempDir,
+      `#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\\n' "$*" >> "$FAKE_GH_LOG"
+args="$*"
+if [[ "$args" == "api repos/self-evolving/repo/actions/variables/AGENT_AUTO_UPDATE" ]]; then
+  printf 'gh: Not Found (HTTP 404)\\n' >&2
+  exit 1
+fi
+if [[ "$args" == "api -X POST repos/self-evolving/repo/actions/variables -f name=AGENT_AUTO_UPDATE -f value=false" ]]; then
+  exit 0
+fi
+if [[ "$args" == "api repos/self-evolving/repo/actions/variables/AGENT_STATUS_LABEL_ENABLED" ]]; then
+  printf '%s\\n' '{"name":"AGENT_STATUS_LABEL_ENABLED","value":"false"}'
+  exit 0
+fi
+if [[ "$args" == "api -X PATCH repos/self-evolving/repo/actions/variables/AGENT_STATUS_LABEL_ENABLED -f name=AGENT_STATUS_LABEL_ENABLED -f value=true" ]]; then
+  printf 'gh: server unavailable (HTTP 503)\\n' >&2
+  exit 1
+fi
+printf 'unexpected gh args: %s\\n' "$*" >&2
+exit 1
+`,
+    );
+
+    const result = runCli(tempDir, {
+      AGENT_CONFIG_APPLY: "true",
+      BODY_FILE: bodyFile,
+      FAKE_GH_LOG: logPath,
+      GITHUB_OUTPUT: outputPath,
+      GITHUB_REPOSITORY: "self-evolving/repo",
+      SUMMARY_FILE: summaryPath,
+    });
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Failed to apply repository variable AGENT_STATUS_LABEL_ENABLED/);
+    const outputs = parseGithubOutput(outputPath);
+    assert.equal(outputs.get("applied"), "false");
+    assert.equal(outputs.get("operation_count"), "2");
+    const summary = readFileSync(summaryPath, "utf8");
+    assert.match(summary, /created/);
+    assert.match(summary, /failed: /);
+    assert.match(summary, /failed after 1 operation\(s\) changed state/);
+    assert.doesNotMatch(summary, /No repository variables were changed/);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
