@@ -9,6 +9,7 @@ export type SelfApprovalVerdict = "approve" | "request_changes" | "blocked";
 
 export const SELF_APPROVAL_STATUS_MARKER = "<!-- sepo-agent-self-approval -->";
 const SELF_APPROVAL_HEAD_MARKER_RE = /<!--\s*sepo-agent-self-approval-head:\s*([^\s>]+)\s*-->/i;
+const SELF_APPROVAL_APPROVED_HEAD_MARKER_RE = /<!--\s*sepo-agent-self-approval-approved-head:\s*([^\s>]+)\s*-->/i;
 
 export interface SelfApprovalDecision {
   verdict: SelfApprovalVerdict;
@@ -369,6 +370,15 @@ export function extractSelfApprovalHeadSha(body: string): string {
   return String(body || "").match(SELF_APPROVAL_HEAD_MARKER_RE)?.[1]?.trim() || "";
 }
 
+export function buildSelfApprovalApprovedHeadMarker(headSha: string): string {
+  const trimmed = String(headSha || "").trim();
+  return trimmed ? `<!-- sepo-agent-self-approval-approved-head: ${trimmed} -->` : "";
+}
+
+export function extractSelfApprovalApprovedHeadSha(body: string): string {
+  return String(body || "").match(SELF_APPROVAL_APPROVED_HEAD_MARKER_RE)?.[1]?.trim() || "";
+}
+
 export function formatSelfApprovalBody(input: {
   conclusion: string;
   reason: string;
@@ -405,7 +415,9 @@ export function formatSelfApprovalBody(input: {
   }
   const headSha = String(input.headSha || "").trim();
   if (headSha) {
-    lines.push("", `Head SHA: \`${headSha}\``, buildSelfApprovalHeadMarker(headSha));
+    const markers = [buildSelfApprovalHeadMarker(headSha)];
+    if (input.approved) markers.push(buildSelfApprovalApprovedHeadMarker(headSha));
+    lines.push("", `Head SHA: \`${headSha}\``, ...markers);
   }
   lines.push("", SELF_APPROVAL_STATUS_MARKER);
   return lines.join("\n");

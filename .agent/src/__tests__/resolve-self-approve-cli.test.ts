@@ -182,6 +182,7 @@ test("resolve-self-approve records same-actor approval internally when self-merg
     const body = readFileSync(outputs.get("body_file") || "", "utf8");
     assert.match(body, /\| Approved \| `approved` \|/);
     assert.match(body, /sepo-agent-self-approval-head: abc123/);
+    assert.match(body, /sepo-agent-self-approval-approved-head: abc123/);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
