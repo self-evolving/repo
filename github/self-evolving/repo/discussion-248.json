@@ -4,7 +4,7 @@
   "url": "https://github.com/self-evolving/repo/discussions/248",
   "body": "Right now we have a clear definition of how small goals should be specified with issues and PRs. But how to track bigger objectives -- the purposes of the whole repository? And can it be updated accordingly? \n\n@sepo-agent /answer",
   "createdAt": "2026-05-16T22:41:33Z",
-  "updatedAt": "2026-05-19T08:21:05Z",
+  "updatedAt": "2026-05-19T22:40:17Z",
   "author": {
     "login": "lolipopshock"
   },
@@ -117,6 +117,155 @@
               },
               "replyTo": {
                 "id": "DC_kwDOSOhEMM4BAofO"
+              }
+            },
+            {
+              "id": "DC_kwDOSOhEMM4BAx_V",
+              "body": "@sepo-agent /answer \r\n\r\n1. should agent-goal be a better label? that aligns with https://github.com/self-evolving/repo/pull/134 ? \r\n    - should we also try agent/goal? this might be a bit more complicated but shall we explore the effort?\r\n\r\n2. what's left to implement then? ",
+              "createdAt": "2026-05-19T21:44:47Z",
+              "url": "https://github.com/self-evolving/repo/discussions/248#discussioncomment-16981973",
+              "author": {
+                "login": "lolipopshock"
+              },
+              "replyTo": {
+                "id": "DC_kwDOSOhEMM4BAofO"
+              }
+            },
+            {
+              "id": "DC_kwDOSOhEMM4BAx_u",
+              "body": "Yes, I’d use `agent-goal` over `goal`.\n\nIt matches the #134 direction better: keep `agent/*` for **trigger labels**, and use non-trigger `agent-*` / `agent-running/*` style labels for state/classification. Today `agent-label.yml` runs on anything starting with `agent/`: [agent-label.yml#L31-L33](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-label.yml#L31-L33). The built-in trigger labels are all route labels like `agent/implement`, `agent/review`, `agent/orchestrate`: [trigger-labels.ts#L8-L45](https://github.com/self-evolving/repo/blob/main/.agent/src/trigger-labels.ts#L8-L45).\n\nSo:\n\n- `agent-goal` = good classification label; does not trigger routing.\n- `agent/goal` = probably not now; it enters the trigger namespace and needs route semantics.\n\nI would not add `agent/goal` until we know what applying it should *do*. If it means “mark this issue as a goal,” it should not be `agent/goal`. If it means “run a goal-maintenance route,” then it becomes a new route and needs parser/workflow/docs/tests. That is meaningfully more work and easy to confuse with `agent/orchestrate`.\n\nWhat’s left to implement for the first useful version:\n\n1. Add `agent-goal` as an onboarding-created label.\n   - Description: “Marks an issue as a repository-level goal for Sepo planning.”\n   - It should not trigger any workflow.\n\n2. Add a goal issue template.\n   - Fields: Goal, Why, Success Criteria, Current Strategy, Subgoals, Linked Work.\n   - Include a hidden marker like `<!-- sepo-goal v1 status:active -->`.\n\n3. Update docs.\n   - Explain goal issues vs task issues.\n   - Explain `agent-goal` vs `agent/*` trigger labels.\n   - Explain that goal issues should usually use `/orchestrate` to delegate child issues.\n\n4. Update orchestrator prompt guidance.\n   - If an issue has `agent-goal`, treat it as a meta-orchestration parent.\n   - Prefer `delegate_issue` for subgoals unless the requested work is small and self-contained.\n   - This fits the existing orchestrator model: [agent-actions.md#L18](https://github.com/self-evolving/repo/blob/main/.agent/docs/actions/agent-actions.md#L18).\n\n5. Add tests.\n   - Onboarding creates `agent-goal`.\n   - `agent-goal` does not trigger `agent-label.yml`.\n   - Orchestrator prompt/docs mention goal issue behavior.\n\n6. Later: add goal summary sync.\n   - Scan open `agent-goal` issues.\n   - Summarize active goals into `agent/memory/PROJECT.md`.\n   - No separate `agent/goal` branch yet.\n\nSo my recommendation: implement **`agent-goal` + template + docs + orchestrator guidance** first. Defer `agent/goal` unless we decide to add a real goal route.",
+              "createdAt": "2026-05-19T21:47:05Z",
+              "url": "https://github.com/self-evolving/repo/discussions/248#discussioncomment-16981998",
+              "author": {
+                "login": "sepo-agent-app"
+              },
+              "replyTo": {
+                "id": "DC_kwDOSOhEMM4BAofO"
+              }
+            },
+            {
+              "id": "DC_kwDOSOhEMM4BAyAk",
+              "body": "@sepo-agent /answer that sounds like creating an issue template? ",
+              "createdAt": "2026-05-19T21:55:10Z",
+              "url": "https://github.com/self-evolving/repo/discussions/248#discussioncomment-16982052",
+              "author": {
+                "login": "lolipopshock"
+              },
+              "replyTo": {
+                "id": "DC_kwDOSOhEMM4BAofO"
+              }
+            },
+            {
+              "id": "DC_kwDOSOhEMM4BAyBK",
+              "body": "Yes. The first implementation should mostly be **an issue template**, not a new route.\n\nMinimal scope:\n\n1. Add `.github/ISSUE_TEMPLATE/agent-goal.yml`\n   - Auto-apply `agent-goal`\n   - Ask for:\n     - Goal\n     - Why\n     - Success criteria\n     - Current strategy\n     - Subgoals / child tasks\n     - Related issues/PRs/discussions\n     - Suggested first Sepo action\n\n2. Add the `agent-goal` label during onboarding/setup.\n   - Do not use `agent/goal`; `agent-label.yml` treats `agent/*` as trigger labels: [agent-label.yml#L31-L33](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-label.yml#L31-L33).\n\n3. Update docs.\n   - Goal issues are planning/meta-orchestration parents.\n   - Use `@sepo-agent /orchestrate` on a goal issue when ready to break it into child issues.\n\n4. Update orchestrator guidance.\n   - If an issue has `agent-goal`, prefer `delegate_issue` for concrete subgoals instead of implementing the whole goal directly.\n\nExample template shape:\n\n```yaml\nname: Agent goal\ndescription: Define a repository-level goal for Sepo to plan and decompose\ntitle: \"Goal: \"\nlabels: [\"agent-goal\"]\nbody:\n  - type: textarea\n    id: goal\n    attributes:\n      label: Goal\n      description: What larger objective should this issue track?\n    validations:\n      required: true\n\n  - type: textarea\n    id: why\n    attributes:\n      label: Why\n      description: Why does this matter for the repository?\n    validations:\n      required: true\n\n  - type: textarea\n    id: success\n    attributes:\n      label: Success criteria\n      description: What would make this goal complete?\n    validations:\n      required: true\n\n  - type: textarea\n    id: strategy\n    attributes:\n      label: Current strategy\n      description: How should this goal be approached initially?\n\n  - type: textarea\n    id: subgoals\n    attributes:\n      label: Subgoals or child tasks\n      description: List known subgoals, if any.\n```\n\nSo yes: **issue template + non-trigger label + docs/orchestrator guidance** is the right first slice. No `agent/goal` route yet.",
+              "createdAt": "2026-05-19T22:00:20Z",
+              "url": "https://github.com/self-evolving/repo/discussions/248#discussioncomment-16982090",
+              "author": {
+                "login": "sepo-agent-app"
+              },
+              "replyTo": {
+                "id": "DC_kwDOSOhEMM4BAofO"
+              }
+            },
+            {
+              "id": "DC_kwDOSOhEMM4BAyBR",
+              "body": "@sepo-agent /answer then how does this correlate with #223 ? let's say we want to implement an autoresearch route, how does the goal system support that?",
+              "createdAt": "2026-05-19T22:02:00Z",
+              "url": "https://github.com/self-evolving/repo/discussions/248#discussioncomment-16982097",
+              "author": {
+                "login": "lolipopshock"
+              },
+              "replyTo": {
+                "id": "DC_kwDOSOhEMM4BAofO"
+              }
+            },
+            {
+              "id": "DC_kwDOSOhEMM4BAyBc",
+              "body": "The goal system is the **control layer** for #223. The autoresearch route would be an **execution mechanism** under that control layer.\n\nFor example:\n\n```text\nGoal issue:\n  agent-goal\n  \"Support autoresearch-style experiment loops in Sepo\"\n\nSub-issues:\n  - Define ExperimentSpec / ExperimentRun schema\n  - Add metric extraction and result reducer\n  - Add local experiment runner\n  - Add Slurm adapter\n  - Add experiment ledger / notebook\n  - Add autoresearch route integration\n\nLeaf experiment issues:\n  - Run one concrete optimization program with a metric, budget, and allowed files\n```\n\nThat matches the #223 conclusion: the hard part is not just another orchestrator edge; it is a structured experiment object with lifecycle, metric parsing, storage, compute backend, and concurrency semantics.\n\nSo the goal issue provides:\n\n- **Objective**: what are we optimizing?\n- **Why**: why does this matter?\n- **Success criteria**: when is the broader goal complete?\n- **Constraints**: allowed scope, safety boundaries, budget, compute assumptions.\n- **Subgoal hierarchy**: the child issues that build the route.\n- **Progress history**: comments and child issue results.\n- **Replanning context**: what Sepo should consider before creating the next sub-issue.\n\nThe autoresearch route provides:\n\n- `ExperimentSpec`\n- experiment execution\n- metric extraction\n- best-result comparison\n- trial ledger\n- retry/stop logic\n- optional PR promotion for improved results\n\nIn other words:\n\n```text\nagent-goal issue decides \"what should exist and why\"\nautoresearch issue decides \"what experiment loop should run\"\nautoresearch route executes \"one trial / one iteration\"\norchestrator coordinates \"what happens next\"\n```\n\nA concrete flow could be:\n\n1. Create a goal issue with `agent-goal`: “Support autoresearch-style loops.”\n2. Run `@sepo-agent /orchestrate` on that goal.\n3. The orchestrator delegates child issues for implementation slices.\n4. Once the autoresearch route exists, create an experiment issue under the goal.\n5. The experiment issue contains an `ExperimentSpec`.\n6. Apply `agent/autoresearch` or mention `@sepo-agent /autoresearch` once that route exists.\n7. The route runs a trial, records a structured result, and reports back.\n8. The parent goal issue uses those results to decide whether to continue, split, promote, or stop.\n\nSo the goal system supports #223 by giving autoresearch a stable **purpose and decomposition tree**. It should not store every experiment metric itself. Metrics/results belong in an experiment ledger; the goal issue stores the higher-level intent and decisions.\n\nImplementation order I’d use:\n\n1. Add `agent-goal` label + goal issue template.\n2. Add docs saying goal issues are orchestration parents.\n3. Add the “Support autoresearch route” goal issue.\n4. Under that goal, create child issues for:\n   - `ExperimentSpec`\n   - result reducer\n   - local runner\n   - ledger/notebook\n   - route/workflow integration\n5. Only then add `agent/autoresearch` as a real trigger label/route.\n\nThat keeps the design clean: **goal issues organize the work; autoresearch runs the experiments.**",
+              "createdAt": "2026-05-19T22:04:10Z",
+              "url": "https://github.com/self-evolving/repo/discussions/248#discussioncomment-16982108",
+              "author": {
+                "login": "sepo-agent-app"
+              },
+              "replyTo": {
+                "id": "DC_kwDOSOhEMM4BAofO"
+              }
+            },
+            {
+              "id": "DC_kwDOSOhEMM4BAyCD",
+              "body": "@sepo-agent /answer \r\n\r\n> That keeps the design clean: goal issues organize the work; autoresearch runs the experiments.\r\n\r\nI think `autoresearch` should handle both the implementation and evaluation? \r\n\r\nThe difference in my view is that, the \"evaluation\" for autoresearch vs orchestrator is different. for example, in code orchestrator, it passes the review check and get the function implemented, and then it is good. but for autoresearch, besides the code quality check, there is another layer of run the code on some tasks and get a number. in that sense, autoresearch is sort of an extension of the current \"meta-orchestrator\" mode -> so it will add the run experiment step and then plan on that accordingly? \r\n\r\nthen the question is actually how to present the results -> i think one simple ways is to create a issue comment pasting in the results there? \r\n",
+              "createdAt": "2026-05-19T22:10:39Z",
+              "url": "https://github.com/self-evolving/repo/discussions/248#discussioncomment-16982147",
+              "author": {
+                "login": "lolipopshock"
+              },
+              "replyTo": {
+                "id": "DC_kwDOSOhEMM4BAofO"
+              }
+            },
+            {
+              "id": "DC_kwDOSOhEMM4BAyCb",
+              "body": "Yes, I agree with your framing: **`autoresearch` should own both implementation and evaluation**.\n\nThe key difference is the reward signal.\n\nFor normal code orchestration:\n\n```text\nimplement -> review -> fix-pr -> review -> self-approve/self-merge\n```\n\nThe evaluation is mostly:\n\n- does the code implement the requested function?\n- do tests pass?\n- does review say `SHIP`?\n\nFor autoresearch:\n\n```text\npropose code/change -> run experiment -> extract metric -> compare result -> decide next trial\n```\n\nThe evaluation is:\n\n- does the code still pass quality/review checks?\n- did the experiment produce a better number?\n- is the improvement worth promoting?\n\nSo `autoresearch` is closer to a specialized meta-orchestrator than a normal implement route. It should add an experiment loop around code changes.\n\nA useful v1 shape:\n\n```text\nagent-goal issue\n  -> child autoresearch issue\n      -> ExperimentSpec\n      -> autoresearch route\n          -> create candidate patch/branch\n          -> run evaluation command\n          -> parse metric deterministically\n          -> post result comment\n          -> decide: continue, discard, promote, stop\n```\n\nThe `ExperimentSpec` should live in the issue body, for example:\n\n```yaml\neditable_paths:\n  - experiments/train.py\neval_command: \"uv run python experiments/train.py\"\nmetric:\n  name: \"validation_loss\"\n  direction: \"minimize\"\n  parser: \"regex:validation_loss=([0-9.]+)\"\nbudget:\n  max_trials: 10\n  timeout_minutes: 60\npromotion:\n  min_delta: 0.01\n```\n\nThen the autoresearch route handles the loop:\n\n1. Generate or modify code.\n2. Run the experiment.\n3. Parse the metric with deterministic code.\n4. Compare against baseline / best.\n5. Post a result.\n6. If improved enough, open/update a PR.\n7. Run normal review/self-approval/self-merge for promoted code.\n8. Otherwise continue with the next trial or stop at budget.\n\nFor presenting results, yes: **issue comments are the right v1 surface**.\n\nBut I would make them structured and compact, not raw log dumps. Use artifacts for full logs.\n\nExample result comment:\n\n```md\n## Autoresearch Trial Result\n\n<!-- sepo-autoresearch-trial v1 trial:7 status:improved -->\n\n| Field | Value |\n|---|---|\n| Trial | `7` |\n| Status | `improved` |\n| Metric | `validation_loss` |\n| Previous best | `0.8421` |\n| Current | `0.8174` |\n| Delta | `-0.0247` |\n| Candidate branch | `agent/autoresearch-issue-123/trial-7` |\n| Artifact | workflow artifact link |\n\nSummary:\nChanged batch schedule and reduced validation loss without increasing runtime.\n\nNext recommendation:\nPromote this candidate to PR and run normal review.\n```\n\nFor usability, I’d use two comment types:\n\n- **One upserted summary comment**: current best, budget used, active trial, next action.\n- **One append-only result comment per trial**: historical ledger.\n\nThat gives humans a clean current view while preserving the experiment trail.\n\nSo the model becomes:\n\n```text\nGoal issue = why and strategic decomposition\nAutoresearch issue = experiment program/controller\nAutoresearch route = implement + run + evaluate loop\nIssue comments = human-readable results ledger\nArtifacts/state = full logs and machine-readable run data\nReview/self-merge = promotion path for successful candidates\n```\n\nThis means the first implementation slice should probably be:\n\n1. Add `ExperimentSpec` parser.\n2. Add deterministic metric extraction/comparison.\n3. Add issue-comment result formatter.\n4. Add a local short-running experiment workflow.\n5. Only after that wire promotion into review/self-approval/self-merge.",
+              "createdAt": "2026-05-19T22:12:06Z",
+              "url": "https://github.com/self-evolving/repo/discussions/248#discussioncomment-16982171",
+              "author": {
+                "login": "sepo-agent-app"
+              },
+              "replyTo": {
+                "id": "DC_kwDOSOhEMM4BAofO"
+              }
+            },
+            {
+              "id": "DC_kwDOSOhEMM4BAyDM",
+              "body": "@sepo-agent /answer \r\n\r\n```\r\nThe ExperimentSpec should live in the issue body, for example:\r\n\r\neditable_paths:\r\n  - experiments/train.py\r\neval_command: \"uv run python experiments/train.py\"\r\nmetric:\r\n  name: \"validation_loss\"\r\n  direction: \"minimize\"\r\n  parser: \"regex:validation_loss=([0-9.]+)\"\r\nbudget:\r\n  max_trials: 10\r\n  timeout_minutes: 60\r\npromotion:\r\n  min_delta: 0.01\r\nThen the autoresearch route handles the loop:\r\n\r\nGenerate or modify code.\r\nRun the experiment.\r\nParse the metric with deterministic code.\r\nCompare against baseline / best.\r\nPost a result.\r\nIf improved enough, open/update a PR.\r\nRun normal review/self-approval/self-merge for promoted code.\r\nOtherwise continue with the next trial or stop at budget.\r\nFor presenting results, yes: issue comments are the right v1 surface.\r\n```\r\n\r\nThis might be too prescriptive? Let's consider an even simpler alternative: \r\n1. let's say we have a \"goal\" and we attach autoresearch \r\n2. then it will actually create sub issues with experiment configuration, code change request (optional), and then it can orchestrate inside that issue: implement (optional) -> run experiments -> post results in the issue, and hand back to the meta orchestrator for the goal \r\n\r\nIn this way, it mostly mimics our current infrastructure? \r\n\r\nThe next challenge is the `run experiments` part. I think this actually can use our skill's extension system, in that for running a specific experiment, it can be considered as a new \"skill\" and run it? \r\n",
+              "createdAt": "2026-05-19T22:18:34Z",
+              "url": "https://github.com/self-evolving/repo/discussions/248#discussioncomment-16982220",
+              "author": {
+                "login": "lolipopshock"
+              },
+              "replyTo": {
+                "id": "DC_kwDOSOhEMM4BAofO"
+              }
+            },
+            {
+              "id": "DC_kwDOSOhEMM4BAyDh",
+              "body": "Yes, this simpler model feels like the right v0.\n\nI would frame `autoresearch` as a **goal-level orchestration pattern first**, not a separate fully-specified route yet:\n\n```text\nGoal issue: agent-goal\n  -> Experiment child issue: agent-experiment\n      - code change request: optional\n      - experiment/eval instructions: required\n      - evaluation skill: optional\n      - result contract: metric/status/artifact link\n      - flow:\n          implement optional change\n          run experiment\n          post result on child issue\n          hand result back to parent goal orchestrator\n```\n\nThat maps well onto the current infrastructure. The orchestrator already has the concept of a parent issue delegating child work through `delegate_issue`, where each child then runs the normal bounded chain, including implementation, review, fix, self-approval, and self-merge when enabled: [agent-orchestrator.md#L95-L111](https://github.com/self-evolving/repo/blob/main/.agent/docs/technical-details/agent-orchestrator.md#L95-L111). It also already resumes the parent when the child reaches a terminal state and posts parent progress: [agent-orchestrator.md#L120-L130](https://github.com/self-evolving/repo/blob/main/.agent/docs/technical-details/agent-orchestrator.md#L120-L130).\n\nSo the missing piece is not “goal hierarchy”; that can be represented with goal issues plus sub-issues. The missing piece is the **experiment execution step**.\n\nI think skills are a good v0 extension point for that, with one important boundary:\n\n- Use skills as **experiment adapters/evaluators**.\n- Keep the autoresearch control loop in orchestration/core logic.\n\nFor example, an experiment child issue could say:\n\n```yaml\nevaluation_skill: mnist-baseline\nresult_metric: validation_loss\ndirection: minimize\nartifact_expectation: attach logs or link workflow artifact\n```\n\nThen `.skills/mnist-baseline/SKILL.md` defines how the agent should run or inspect that experiment. The skill system already supports repository-local skills invoked by `/skill <name>` or `agent/s/<name>`: [skills.md#L1-L17](https://github.com/self-evolving/repo/blob/main/.agent/docs/customization/skills.md#L1-L17). It can also include setup through `setup.sh`: [skills.md#L26-L34](https://github.com/self-evolving/repo/blob/main/.agent/docs/customization/skills.md#L26-L34). The existing safety rule that setup scripts are refused on PR checkout refs is important here, because experiment setup should only run from trusted contexts: [skills.md#L45-L48](https://github.com/self-evolving/repo/blob/main/.agent/docs/customization/skills.md#L45-L48).\n\nThe result should still be posted back as an issue comment in v0. I would keep that comment structured but lightweight:\n\n```markdown\n<!-- sepo-experiment-result -->\n\n| Field | Value |\n|---|---|\n| Status | completed |\n| Metric | validation_loss |\n| Value | 0.184 |\n| Direction | minimize |\n| Baseline | 0.201 |\n| Delta | -0.017 |\n| Artifact | <link> |\n| Candidate PR | #123 |\n```\n\nThat gives the parent goal orchestrator enough visible state to decide whether to continue, create another experiment child, promote a PR, or stop.\n\nWhat I would implement next:\n\n1. Add an `agent-goal` issue template for repository-level objectives.\n2. Add an `agent-experiment` child issue convention/template.\n3. Document that `agent-goal` issues may delegate `agent-experiment` children.\n4. Define the experiment result comment shape.\n5. Define a skill contract for experiment runners: inputs, command/setup expectations, output metric, artifact link, final result comment.\n6. Teach the orchestrator prompt that an autoresearch goal should create experiment child issues, not try to run the whole research loop inside the parent.\n7. Only after that, consider a first-class `/autoresearch` route if this pattern proves too manual.\n\nSo yes: `run experiments` can start as a skill-backed step. I would not make the skill own the whole research loop, though. The skill should know how to run/evaluate one experiment; the goal orchestrator should decide what experiment to run next and whether the result is good enough to promote.",
+              "createdAt": "2026-05-19T22:20:52Z",
+              "url": "https://github.com/self-evolving/repo/discussions/248#discussioncomment-16982241",
+              "author": {
+                "login": "sepo-agent-app"
+              },
+              "replyTo": {
+                "id": "DC_kwDOSOhEMM4BAofO"
+              }
+            }
+          ],
+          "pageInfo": {
+            "hasNextPage": false,
+            "endCursor": null
+          }
+        }
+      },
+      {
+        "id": "DC_kwDOSOhEMM4BAyFQ",
+        "body": "@sepo-agent /implement let's do it step by step. firstly let's implement the goal system (templates, docs, etc)?",
+        "createdAt": "2026-05-19T22:38:47Z",
+        "url": "https://github.com/self-evolving/repo/discussions/248#discussioncomment-16982352",
+        "author": {
+          "login": "lolipopshock"
+        },
+        "replies": {
+          "nodes": [
+            {
+              "id": "DC_kwDOSOhEMM4BAyFc",
+              "body": "Implementing this request — tracking in https://github.com/self-evolving/repo/issues/295.\n",
+              "createdAt": "2026-05-19T22:40:17Z",
+              "url": "https://github.com/self-evolving/repo/discussions/248#discussioncomment-16982364",
+              "author": {
+                "login": "sepo-agent-app"
+              },
+              "replyTo": {
+                "id": "DC_kwDOSOhEMM4BAyFQ"
               }
             }
           ],

@@ -1,0 +1,18 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "An `/implement` request made from a closed PR can incorrectly carry that PR forward as `base_pr`. In the #303 case, the request came from closed PR #293, so the implement workflow dispatched with `BASE_PR=293` and failed immediately because the base resolver requires `base_pr` to be open. Failure comment: https://github.com/self-evolving/repo/issues/303#issuecomment-4493642383\n\nThat is too strict for “make a new version of this” requests. A closed PR should be usable as context, but it should not automatically become a required stacking base. When the base PR was inferred from the source surface and that PR is closed, the implement flow should fall back to the default branch, usually `main`, while preserving a link to the closed PR as context.\n\nOpen inferred base PRs should continue to work as stack bases. If a user explicitly asks to base work on a closed PR, the agent should give a clear warning or clarification rather than failing with the low-level `base_pr #NNN must be open` message.",
+  "closedAt": null,
+  "comments": [],
+  "createdAt": "2026-05-20T02:34:15Z",
+  "labels": [],
+  "number": 305,
+  "state": "OPEN",
+  "title": "Fall back when inferred implement base PR is closed",
+  "updatedAt": "2026-05-20T02:34:15Z",
+  "url": "https://github.com/self-evolving/repo/issues/305"
+}

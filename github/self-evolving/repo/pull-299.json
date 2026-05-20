@@ -1,0 +1,392 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Allow same-actor self-approval when both AGENT_ALLOW_SELF_APPROVE and AGENT_ALLOW_SELF_MERGE are enabled\n- Record same-actor approvals as current-head self-approval status comments and let self-merge trust those comments alongside review approvals\n- Carry HUMAN_DECISION provenance through self-approval resolution and update docs/prompts/tests\n\n## Tests\n- npm --prefix .agent test\n- git diff --check",
+  "closedAt": "2026-05-20T02:28:18Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8_hNQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review",
+      "createdAt": "2026-05-19T23:47:03Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/299#issuecomment-4493140277",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9Akrg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 11 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Validate delegated route authorization | pass | 8/8 | Same-actor approval remains blocked unless both `AGENT_ALLOW_SELF_APPROVE` and `AGENT_ALLOW_SELF_MERGE` are enabled; `prepare-self-approve` and `resolve-self-approve` both receive and enforce that opt-in. |\n| coding_workflow/generic | Separate decision gates from action authorization | pass | 8/8 | The agent still runs read-scoped; deterministic resolver code owns approval submission or marker recording. `HUMAN_DECISION` is routed through the self-approval gate with current-head provenance checks. |\n| coding_workflow/generic | Keep privileged workflows on trusted runtime code | pass | 8/8 | `agent-self-approve.yml` continues checking out the default branch runtime before running local actions/scripts; the PR does not run privileged workflow code from an untrusted PR branch. |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | The implementation extends existing `self-approval.ts`, `self-merge.ts`, GitHub helpers, and resolver CLIs rather than adding parallel workflow glue. |\n| coding_workflow/generic | Make surgical changes | pass | 8/8 | Changes are scoped to self-approval/self-merge code, prompts, workflow env wiring, docs, and targeted tests. |\n| coding_workflow/generic | Prefer explicit structured inputs | pass | 7/7 | Uses explicit `AGENT_ALLOW_SELF_MERGE` and `SOURCE_RECOMMENDED_NEXT_STEP` fields instead of encoding behavior in request text. |\n| coding_workflow/generic | Prefer agent-derived decisions | pass | 7/7 | The HUMAN_DECISION path lets the existing self-approval decision gate judge whether to approve, request changes, or block without adding a new repository-level decision setting. |\n| coding_workflow/generic | Keep docs in sync | pass | 7/7 | Updates `.agent/docs/actions/agent-actions.md`, request lifecycle docs, supported workflow docs, and configuration docs to describe internal approval status and full self-governance mode. |\n| coding_workflow/generic | Surface stateful failures | pass | 7/7 | `resolve-self-merge` distinguishes review-read and status-comment-read failures and blocks with explicit reasons when approval state cannot be read. |\n| coding_workflow/generic | Make user-facing automation idempotent | pass | 7/7 | Same-actor approval is represented as a marker-based current-head status comment, preserving the existing upsert/comment-marker pattern. |\n| communication/generic | Keep status comments compact | pass | 6/6 | The approval status remains a compact table plus hidden markers and a head SHA, avoiding raw logs or verbose diagnostics in the visible comment. |\n\n## Notes\n\n- The strongest rubric drivers are the double opt-in for same-actor approval, current-head provenance checks, and keeping privileged approval/merge actions inside deterministic resolver code.\n- The test additions cover the key rubric-sensitive paths: same-actor blocked vs allowed, internal status recording, HUMAN_DECISION provenance, and self-merge recognition of current-head status comments.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No blocking or warning-level rubric findings found.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-19T23:49:18Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/299#issuecomment-4493157550",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9DYsg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: a6c97b3167eaba3a1144cabf97d2f0adbc1dcfc5 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\nPR #299 enables Sepo full self-governance self-approval mode: when both `AGENT_ALLOW_SELF_APPROVE` and `AGENT_ALLOW_SELF_MERGE` are enabled, same-actor approval can be recorded as a status comment instead of a native GitHub review. It extends self-merge to treat current-head Sepo-authored approval status comments as approval evidence alongside normal review approvals. It also carries `HUMAN_DECISION` provenance into self-approval resolution so the approval gate can decide when a current-head synthesis intentionally requested human judgment. The PR updates workflow env, prompts, docs, and tests for this mode.\n\n## Review\n\nThe overall direction fits the intended double opt-in trust model, and the rubrics review found the authorization and provenance shape acceptable. However, the current status-comment parsing weakens the deterministic merge gate, so this needs a branch fix before merge.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Status-comment approvals can be spoofed through free-form text | BLOCKING | [`.agent/src/self-merge.ts#L117`](https://github.com/self-evolving/repo/blob/a6c97b3167eaba3a1144cabf97d2f0adbc1dcfc5/.agent/src/self-merge.ts#L117) scans the entire status comment for an approved row, including model-controlled reason and handoff text from non-approved outcomes. A non-approved current-head status comment could therefore be misread as approval provenance. |\n| Recommended-next-step normalization is confusing | WARNING | [`.agent/src/cli/resolve-self-approve.ts#L77`](https://github.com/self-evolving/repo/blob/a6c97b3167eaba3a1144cabf97d2f0adbc1dcfc5/.agent/src/cli/resolve-self-approve.ts#L77) uses `normalizeTargetKind` for `SOURCE_RECOMMENDED_NEXT_STEP`; it works mechanically, but the name obscures intent and differs from the prepare path’s generic token normalization. |\n\n## Progress\n\n- Rubrics review passed all selected rubrics, including dual opt-in same-actor approval, separation of decision gates from privileged actions, and trusted runtime handling.\n- The PR already adds tests for same-actor self-governance mode, `HUMAN_DECISION` resolver provenance, and self-merge acceptance of current-head status comments.\n- No existing inline review comments or review threads were present before synthesis; I posted one new inline comment on `.agent/src/self-merge.ts:117`.\n- No inline comments were replied to, minimized, or resolved.\n\n## Issue Details\n\n<details>\n<summary>Status-comment approvals can be spoofed through free-form text</summary>\n\n**Cause:** `isApprovedSelfApprovalBody()` checks for the Sepo status marker and an approved table row anywhere in the comment body. Non-approved self-approval status comments still include resolver-controlled head markers plus free-form `reason`/handoff text, so that free-form text can contain the approved row pattern.\n\n**Candidate solutions:** Parse only the canonical status table row emitted by `formatSelfApprovalBody()`, or add a dedicated resolver-controlled approval marker/conclusion field that is emitted only on the approved path. Add a negative regression test for a `REQUEST_CHANGES` or `BLOCKED` status comment containing the approved-row text outside the canonical status row.\n\n**Comments:** This is the main reviewer disagreement: one review considered the design sound overall, while another flagged this trust-boundary issue as blocking. The current code supports the blocking interpretation because self-merge consumes these comments as approval evidence.\n\n</details>\n\n<details>\n<summary>Recommended-next-step normalization is confusing</summary>\n\n**Cause:** `resolve-self-approve.ts` reuses `normalizeTargetKind()` to normalize `SOURCE_RECOMMENDED_NEXT_STEP`, even though the value is not a target kind.\n\n**Candidate solutions:** Rename the helper to a generic `normalizeToken()`, or add a local generic normalizer matching `prepare-self-approve.ts`.\n\n**Comments:** This is non-blocking and not included as required automation work, but it is a low-risk cleanup if the branch is already being changed.\n\n</details>\n\n## Recommended Next Step\n\n`FIX_PR`: the status-comment parsing issue is a concrete branch change and is safe for an automated fix-pr pass.\n\n## Final Verdict\n\nNEEDS_REWORK\n\n## Action Items\n\n- [ ] Restrict self-merge approval detection to a deterministic approved status signal and add a negative regression test for spoofed approved-row text in non-approved self-approval comments.",
+      "createdAt": "2026-05-19T23:57:20Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/299#issuecomment-4493203634",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9JmDw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: d7881b421db02433fdef8ccf02ebd6e7f732d400 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #299 enables full self-governance self-approval mode when both `AGENT_ALLOW_SELF_APPROVE` and `AGENT_ALLOW_SELF_MERGE` are enabled. In that mode, same-actor approvals are recorded as Sepo-authored status comments because GitHub cannot accept a same-actor review approval. Self-merge then trusts current-head self-approval status comments alongside normal self-approval reviews. The PR also updates `HUMAN_DECISION` self-approval provenance handling, workflow env wiring, docs, prompts, and tests.\n\n## Review\nThe double opt-in direction and deterministic resolver ownership are the right shape, and the prior table-row spoofing issue was partially addressed. However, the current approved-head marker is still parsed from model-controlled status text, so the merge approval gate remains spoofable and needs a branch fix before merge.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Status-comment approval marker can be spoofed through free-form text | BLOCKING | [`.agent/src/self-merge.ts#L160`](https://github.com/self-evolving/repo/blob/d7881b421db02433fdef8ccf02ebd6e7f732d400/.agent/src/self-merge.ts#L160) extracts the approved-head marker from the entire status comment body. Since [`.agent/src/self-approval.ts#L407`](https://github.com/self-evolving/repo/blob/d7881b421db02433fdef8ccf02ebd6e7f732d400/.agent/src/self-approval.ts#L407) writes model-controlled reason and follow-up text before the footer, a non-approved status can inject the marker and be trusted as approval evidence. |\n| Recommended-next-step normalization is confusing | WARNING | [`.agent/src/cli/resolve-self-approve.ts#L77`](https://github.com/self-evolving/repo/blob/d7881b421db02433fdef8ccf02ebd6e7f732d400/.agent/src/cli/resolve-self-approve.ts#L77) uses `normalizeTargetKind()` for `SOURCE_RECOMMENDED_NEXT_STEP`. Behavior is currently correct, but the helper name obscures intent and could become fragile if target-kind normalization later diverges. |\n\n## Progress\n- The PR replaced the old table-row approval detector with `sepo-agent-self-approval-approved-head` markers and added a regression test for spoofed `| Approved |` table-row text.\n- Reviewer outputs disagreed: one reviewer considered the marker approach sufficient, while another flagged marker spoofing through free-form status text. The current code supports the blocking marker-spoof finding.\n- Posted one new inline comment on [`.agent/src/self-merge.ts#L160`](https://github.com/self-evolving/repo/blob/d7881b421db02433fdef8ccf02ebd6e7f732d400/.agent/src/self-merge.ts#L160).\n- Minimized the older same-agent inline comment on the removed `isApprovedSelfApprovalBody()` implementation as outdated. No replies were added and no review threads were resolved.\n\n## Issue Details\n<details>\n<summary>Status-comment approval marker can be spoofed through free-form text</summary>\n\n**Cause:** `extractSelfApprovalApprovedHeadSha()` matches `<!-- sepo-agent-self-approval-approved-head: ... -->` anywhere in the status comment body. `formatSelfApprovalBody()` includes `reason` and non-approved `handoffContext` before the deterministic marker footer, so a `REQUEST_CHANGES` or `BLOCKED` status can include the approved-head marker in free-form text and self-merge will treat it as approval evidence.\n\n**Candidate solutions:** Parse only a deterministic resolver-owned footer shape, or sanitize Sepo self-approval marker syntax out of all free-form status fields before posting. Add a negative regression test for a non-approved self-approval status whose reason or follow-up context contains `sepo-agent-self-approval-approved-head` for the current head.\n\n**Comments:** The existing new tests cover the old approved-row spoof, but not marker spoofing. This matters because status comments become merge authorization evidence in full self-governance mode.\n\n</details>\n\n<details>\n<summary>Recommended-next-step normalization is confusing</summary>\n\n**Cause:** `resolve-self-approve.ts` reuses `normalizeTargetKind()` to normalize a recommended-next-step value, while the prepare side uses a generic token normalizer.\n\n**Candidate solutions:** Rename the helper to a generic `normalizeToken()`, or add a local generic normalizer for `SOURCE_RECOMMENDED_NEXT_STEP`.\n\n**Comments:** This is not security-critical and should not block the required spoofing fix, but it is low-risk cleanup if the branch is already changing.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: the marker-spoof issue is a concrete branch change with a clear regression test target and is safe for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Restrict self-merge approval detection to resolver-owned approved status evidence or sanitize self-approval marker syntax from free-form fields, then add a regression test for approved-head marker spoofing in a non-approved self-approval status.",
+      "createdAt": "2026-05-20T00:14:37Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/299#issuecomment-4493305359",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9N4Ew",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /fix-pr can you do a proper fix addressing the reviews?",
+      "createdAt": "2026-05-20T00:28:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/299#issuecomment-4493375507",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9Pt_g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `fix/yolo-same-actor-self-approval`. Requested by @lolipopshock.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Hardened self-merge to trust only resolver-owned approved-head markers in the self-approval status footer, not free-form reason/handoff text.\n- Added regression coverage for spoofed approved rows and approved-head markers in non-approved self-approval comments.\n- Cleaned up `SOURCE_RECOMMENDED_NEXT_STEP` normalization naming in `resolve-self-approve`.\n- Checks: `npm --prefix .agent test`; `git diff --check`.",
+      "createdAt": "2026-05-20T00:35:00Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/299#issuecomment-4493405694",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9bgtg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review  ",
+      "createdAt": "2026-05-20T01:09:25Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/299#issuecomment-4493598902",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9cAJw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I have the live PR data now. The current head is `0a727e713a7d729ef03f7c2b5e655f81d4bc0ae3`, and the latest fix-pr update appears to address the prior spoofing findings by parsing only the resolver-owned footer marker and adding negative regression coverage.I’m narrowing the scoring to the rubrics this PR actually touches: self-approval/self-merge authorization, decision gates, trusted runtime, docs, idempotent status comments, compact comments, structured inputs, reuse, and stateful failure handling. I’m not scoring unrelated route parsing, install, merge strategy, or rubric-authoring preferences.## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 11 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Validate delegated route authorization | pass | 8/8 | Same-actor approval is allowed only when both `AGENT_ALLOW_SELF_APPROVE` and `AGENT_ALLOW_SELF_MERGE` are enabled in `.agent/src/cli/prepare-self-approve.ts` and `.agent/src/cli/resolve-self-approve.ts`. |\n| coding_workflow/generic | Separate decision gates from action authorization | pass | 8/8 | The model remains read-scoped; deterministic resolver code owns approval submission/status recording, with current-head and trusted synthesis provenance checks in `.agent/src/self-approval.ts`. |\n| coding_workflow/generic | Keep privileged workflows on trusted runtime code | pass | 8/8 | `.github/workflows/agent-self-approve.yml` continues using the existing trusted workflow path and only adds explicit env wiring for self-merge and source decision context. |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | The change extends existing self-approval, self-merge, GitHub helper, and resolver CLI modules instead of adding parallel workflow logic. |\n| coding_workflow/generic | Make surgical changes | pass | 8/8 | The diff is scoped to self-approval/self-merge behavior, docs, prompts, workflow env wiring, and focused tests. |\n| coding_workflow/generic | Prefer explicit structured inputs | pass | 7/7 | Uses explicit `AGENT_ALLOW_SELF_MERGE` and `SOURCE_RECOMMENDED_NEXT_STEP` fields rather than overloading request text. |\n| coding_workflow/generic | Prefer agent-derived decisions | pass | 7/7 | `HUMAN_DECISION` review handoffs route to the existing self-approval gate, which can approve, request changes, or block using current context. |\n| coding_workflow/generic | Keep docs in sync | pass | 7/7 | Updates `.agent/docs/actions/agent-actions.md`, request lifecycle docs, supported workflow docs, and configuration docs for internal approval status and full self-governance mode. |\n| coding_workflow/generic | Surface stateful failures | pass | 7/7 | `.agent/src/cli/resolve-self-merge.ts` distinguishes review-read and status-comment-read failures and carries explicit blocked reasons when approval state cannot be read. |\n| coding_workflow/generic | Make user-facing automation idempotent | pass | 7/7 | Same-actor approvals use the existing marker-upserted status comment path, with resolver-owned approved-head markers parsed from the footer only. |\n| communication/generic | Keep status comments compact | pass | 6/6 | `formatSelfApprovalBody()` keeps visible status concise with a small table, reason, optional follow-up, head SHA, and hidden markers. |\n\n## Notes\n\n- The latest PR head `0a727e713a7d729ef03f7c2b5e655f81d4bc0ae3` addresses the prior rubric-sensitive spoofing concern by making approval detection depend on a resolver-owned footer marker, not free-form reason or handoff text.\n- Regression coverage now includes same-actor block/allow behavior, internal approval recording, `HUMAN_DECISION` provenance, current-head status-comment approval, and spoofed approved-row/approved-marker text.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No blocking or warning-level rubric findings found.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-20T01:11:10Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/299#issuecomment-4493606951",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9e37Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 0a727e713a7d729ef03f7c2b5e655f81d4bc0ae3 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #299 enables full self-governance self-approval when both `AGENT_ALLOW_SELF_APPROVE` and `AGENT_ALLOW_SELF_MERGE` are enabled. Same-actor approvals are represented as Sepo-authored current-head status comments because GitHub cannot accept same-actor native review approvals. Self-merge then trusts those resolver-owned approval markers alongside normal self-approval reviews. The PR also carries `HUMAN_DECISION` provenance through self-approval and updates docs, prompts, workflow env wiring, and tests.\n\n## Review\nThe current reviewer outputs agree that the latest head addresses the earlier spoofing concerns. I verified the current code parses approval evidence from the resolver-owned footer marker and that regression coverage includes spoofed table-row and approved-head marker text in non-approved comments.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues | INFO | No blocking or warning-level issues remain in the current review artifacts or current PR state. Prior inline spoofing findings are now superseded by the latest implementation and tests. |\n\n## Progress\n- Current PR head checked: `0a727e713a7d729ef03f7c2b5e655f81d4bc0ae3`.\n- Codex review reports SHIP after `npm --prefix /private/tmp/sepo-pr299-review/.agent test` passed with 624 tests.\n- Rubrics review passed all selected rubrics with no required follow-up.\n- No new inline comments were posted.\n- Marked the prior same-agent inline marker-spoof comment as outdated; the older row-spoof inline comment was already minimized as outdated.\n- No replies were added and no review threads were resolved because the existing threads are not viewer-resolvable.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: no unresolved actionable branch-change work remains.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-20T01:20:39Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/299#issuecomment-4493653997",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9xZtQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer just want to confirm, so when we enable both allow self approval and self merge, the agent can then approve and merge one pr when it concludes to merge?",
+      "createdAt": "2026-05-20T02:24:44Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/299#issuecomment-4493957557",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9yIxQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, with the important caveat that it is still gated, not an unconditional merge.\n\nWith both repository vars enabled:\n\n- `AGENT_ALLOW_SELF_APPROVE=true`\n- `AGENT_ALLOW_SELF_MERGE=true`\n\nSepo can take a PR through self-approval and then self-merge when the chain concludes `APPROVED`/merge. For same-actor PRs, it records an internal current-head self-approval status comment instead of a native GitHub review approval, because GitHub does not allow that same-actor review approval path. See the config/docs here: https://github.com/self-evolving/repo/blob/0a727e713a7d729ef03f7c2b5e655f81d4bc0ae3/.agent/docs/customization/configuration-list.md#L13-L14 and https://github.com/self-evolving/repo/blob/0a727e713a7d729ef03f7c2b5e655f81d4bc0ae3/.agent/docs/architecture/supported-workflows.md#L283-L310\n\nIt still only merges if the PR head matches the approved head, approval evidence is trusted/current-head, there are no requested-changes or failed-check blockers, and GitHub reports the PR mergeable or auto-merge eligible. The self-merge handoff happens only after self-approval returns `approved` and self-merge is enabled: https://github.com/self-evolving/repo/blob/0a727e713a7d729ef03f7c2b5e655f81d4bc0ae3/.agent/src/handoff.ts#L527-L532",
+      "createdAt": "2026-05-20T02:27:17Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/299#issuecomment-4493969605",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9yrwg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #299.\n\nno rubric changes\n\nI read PR #299 metadata, issue comments, inline review comments, reviews, diff, repo owner info, collaborator lookup, and the existing active rubrics. The only human-authored comments were review/answer commands and a clarification question from `lolipopshock`; the durable implementation guidance came from bot/agent review comments, which are advisory only for rubric learning unless trusted human contributors explicitly endorse them.\n\nThe substantive lessons are also already covered by existing rubrics such as trusted runtime, delegated authorization, decision/action separation, idempotent automation, compact status comments, and docs-in-sync. No new or updated rubric was warranted.\n",
+      "createdAt": "2026-05-20T02:29:30Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/299#issuecomment-4493978562",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-19T23:45:51Z",
+  "files": [
+    {
+      "path": ".agent/docs/actions/agent-actions.md",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/request-lifecycle.md",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 17,
+      "deletions": 12,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 2,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/prepare-self-approve-cli.test.ts",
+      "additions": 77,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/resolve-self-approve-cli.test.ts",
+      "additions": 67,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/self-approval.test.ts",
+      "additions": 35,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/self-merge.test.ts",
+      "additions": 47,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/prepare-self-approve.ts",
+      "additions": 4,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/resolve-self-approve.ts",
+      "additions": 39,
+      "deletions": 21,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/resolve-self-merge.ts",
+      "additions": 28,
+      "deletions": 6,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/self-approval.ts",
+      "additions": 51,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/self-merge.ts",
+      "additions": 28,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-self-approve.md",
+      "additions": 6,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-self-approve.yml",
+      "additions": 4,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "fix/yolo-same-actor-self-approval",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDSNKQ",
+      "name": "agent/review",
+      "description": "",
+      "color": "8301C0"
+    },
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": "2026-05-20T02:28:18Z",
+  "number": 299,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAb2REw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-19T23:56:10Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "a6c97b3167eaba3a1144cabf97d2f0adbc1dcfc5"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAb77cQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-20T00:13:29Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "d7881b421db02433fdef8ccf02ebd6e7f732d400"
+      }
+    }
+  ],
+  "state": "MERGED",
+  "title": "Allow full self-governance self-approvals",
+  "updatedAt": "2026-05-20T02:29:30Z",
+  "url": "https://github.com/self-evolving/repo/pull/299"
+}

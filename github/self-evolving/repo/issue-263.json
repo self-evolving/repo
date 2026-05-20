@@ -4,7 +4,7 @@
     "login": "app/sepo-agent-app"
   },
   "body": "## Goal\nUpdate PR #262 so any review synthesis with `Recommended Next Step = HUMAN_DECISION` activates `agent-self-approve` when `AGENT_ALLOW_SELF_APPROVE=true`, regardless of whether the review verdict is `SHIP`, `MINOR_ISSUES`, or `NEEDS_REWORK`.\n\n## Context\nPR #262 currently implements a narrower route: `review + SHIP + HUMAN_DECISION + self-approval enabled -> agent-self-approve`, while `HUMAN_DECISION + MINOR_ISSUES` and `HUMAN_DECISION + NEEDS_REWORK` still stop. The requested new behavior is that `HUMAN_DECISION` means the self-approval agent should run as a decision gate for the human judgment, not only for `SHIP` verdicts.\n\nRelevant PR discussion:\n- https://github.com/self-evolving/repo/pull/262#issuecomment-4468989346 describes the current concrete implementation plan.\n- https://github.com/self-evolving/repo/pull/262#issuecomment-4469005406 summarizes what PR #262 implemented and what it did not implement.\n- https://github.com/self-evolving/repo/pull/262#issuecomment-4469260647 clarifies the new requirement: route any `review + HUMAN_DECISION + AGENT_ALLOW_SELF_APPROVE=true` to `agent-self-approve`; keep approval submission safe.\n\nThis should be implemented as a fix-pr on PR #262 because that PR already owns the handoff, workflow input, self-approval context, prompt, docs, and test changes.\n\n## Acceptance Criteria\n- `review + HUMAN_DECISION + AGENT_ALLOW_SELF_APPROVE=true` dispatches `agent-self-approve` for `SHIP`, `MINOR_ISSUES`, and `NEEDS_REWORK` review verdicts.\n- The review verdict and human-decision context are passed into self-approval so the agent can decide whether to approve, request changes, or block.\n- `agent-self-approve` can run for non-`SHIP` human-decision cases as a decision gate instead of stopping in preflight solely because the trusted synthesis verdict is not `SHIP`.\n- Safety is preserved: the workflow may submit an actual GitHub approval only when the trusted current-head review synthesis verdict is `SHIP`.\n- For non-`SHIP` verdicts, self-approval must not approve; it should return `REQUEST_CHANGES` or `BLOCKED` as appropriate.\n- Tests cover `HUMAN_DECISION + SHIP`, `HUMAN_DECISION + MINOR_ISSUES`, and `HUMAN_DECISION + NEEDS_REWORK`, including the no-accidental-approval rule for non-`SHIP` cases.\n- Update prompts/docs to describe self-approval as the decision gate for review `HUMAN_DECISION`, while preserving the approval safety rule.\n\n---\n\nRequested via issue_comment at https://github.com/self-evolving/repo/pull/262\n",
-  "closedAt": null,
+  "closedAt": "2026-05-19T20:34:22Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABCoDhow",
@@ -32,8 +32,8 @@
     }
   ],
   "number": 263,
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Route all HUMAN_DECISION reviews through self-approval",
-  "updatedAt": "2026-05-17T15:18:42Z",
+  "updatedAt": "2026-05-19T20:34:22Z",
   "url": "https://github.com/self-evolving/repo/issues/263"
 }

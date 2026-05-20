@@ -4,7 +4,7 @@
     "login": "app/sepo-agent-app"
   },
   "body": "## Goal\n\nImplement the minimal self-approval handoff for review syntheses that are self-approval eligible but recommend `HUMAN_DECISION`.\n\n## Context\n\nFrom PR #251 discussion: the existing review-originated `SHIP -> agent-self-approve` path already exists when `sourceAction === \"review\"`, the deterministic conclusion is `SHIP`, and `AGENT_ALLOW_SELF_APPROVE=true`. The desired fix is narrower than allowing broad PR `/orchestrate` planner selection of `agent-self-approve`.\n\nImportant distinction:\n\n- `SHIP` is the review synthesis `Final Verdict` and is what deterministic handoff currently extracts as the source conclusion.\n- `HUMAN_DECISION` is the review synthesis `Recommended Next Step`, not the deterministic `sourceConclusion`.\n\nThe requested behavior is: when the latest trusted review synthesis says `Recommended Next Step = HUMAN_DECISION` and `Final Verdict = SHIP`, and self-approval is enabled, route to `agent-self-approve` with explicit context instead of stopping for a human. Non-`SHIP` `HUMAN_DECISION` should still stop for human decision.\n\n## Acceptance Criteria\n\n- Preserve the meaning of `HUMAN_DECISION`; do not reinterpret it as a deterministic review conclusion.\n- Add a focused helper/function that detects the latest review synthesis with `Recommended Next Step = HUMAN_DECISION` and `Final Verdict = SHIP`.\n- When `AGENT_ALLOW_SELF_APPROVE=true`, route that eligible case to `agent-self-approve` with handoff context explaining that the synthesis says `SHIP` but recommends `HUMAN_DECISION`, including available summary/details.\n- Keep `HUMAN_DECISION` with any non-`SHIP` final verdict as a human stop.\n- Remove or avoid broader heuristics that allow PR `/orchestrate` in agent mode to planner-select `agent-self-approve` directly, unless already required by this narrow path.\n- Add focused tests for eligible `HUMAN_DECISION + SHIP + self-approval enabled`, disabled self-approval, and non-`SHIP` `HUMAN_DECISION` behavior.\n- Update prompt/docs only where needed to reflect the minimal deterministic route.\n\n---\n\nRequested via issue_comment at https://github.com/self-evolving/repo/pull/251\n",
-  "closedAt": null,
+  "closedAt": "2026-05-19T20:34:21Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABClvdYA",
@@ -32,8 +32,8 @@
     }
   ],
   "number": 261,
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Route SHIP human-decision reviews to self-approval",
-  "updatedAt": "2026-05-17T01:27:30Z",
+  "updatedAt": "2026-05-19T20:34:21Z",
   "url": "https://github.com/self-evolving/repo/issues/261"
 }

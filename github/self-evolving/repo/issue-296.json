@@ -1,0 +1,157 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "## Context\n\nPRs #273 and #285 explored the right product direction for `/install`, but the stack drifted into review-chasing changes:\n\n- #273 mixed the desired first-class route/prompt split with a direct-write lifecycle planner that is not the final implementation model.\n- #285 contains the closer fork-backed helper direction, but it is now entangled with #273's moving base and prompt/lifecycle conflicts.\n\nStart fresh from `main` instead of continuing to mutate #273/#285. Those PRs can remain as historical prototypes, but this issue should drive a new, clean implementation PR.\n\n## Desired design\n\nBuild a productized `/install` flow with a clean separation of responsibilities:\n\n### 1. First-class `/install` route\n\n- Add `/install` as a first-class explicit route, not as `/skill install-agent`.\n- Route detection should be permissive: detect the command and pass the full request text through.\n- Do not require route-time `owner/repo` parsing.\n- Do not reintroduce `requested_install_target_repo` plumbing unless there is a clear deterministic consumer.\n- Evaluate access policy as route `install` so operators can set `AGENT_ACCESS_POLICY.route_overrides.install` independently from `skill`.\n- Prefer a safe default or clear docs for restricting install access, because `/install` uses an install-capable token.\n\n### 2. Dedicated install prompt\n\n- Add `.github/prompts/agent-install.md` for the productized route.\n- Wire the install route to run that prompt directly.\n- Keep `.skills/install-agent/SKILL.md` as manual/custom installation guidance only, with at most a short note pointing public cross-repo installs to the `/install` route.\n- The install prompt should orchestrate deterministic helpers; it should not contain the whole auth/fork/PR lifecycle as untested prose.\n\n### 3. Install-only token and route isolation\n\n- Add/use `AGENT_INSTALL_PAT` for `/install` only.\n- The install job must pass `secrets.AGENT_INSTALL_PAT` directly to the agent task; no fallback to the normal resolved repo token.\n- If `AGENT_INSTALL_PAT` is absent, post a clear blocked response before running the install prompt.\n- Disable source-repository memory and rubrics writes during install runs so the install token is not used to mutate `agent/memory` or `agent/rubrics`.\n- Normal routes should keep the existing GitHub auth resolver behavior.\n\n### 4. Typed target resolver\n\n- Add a small typed helper/CLI to resolve the target repository from the full request text.\n- Accept at least:\n  - GitHub URLs like `https://github.com/owner/repo`\n  - `owner/repo` slugs\n  - clear natural text containing exactly one candidate\n- Block with `missing` or `ambiguous` when needed; do not guess.\n\n### 5. Fork-backed install helper owns GitHub mechanics\n\nImplement the public-target write path in typed `.agent/src/*` helper code, not skill prose or a direct-write lifecycle plan.\n\nThe helper/CLI should support a two-phase flow:\n\n1. `prepare`\n   - validate the normalized target repo\n   - require `GH_TOKEN`/`AGENT_INSTALL_PAT` from env only; do not accept token CLI flags\n   - confirm the target is public/readable\n   - identify the token owner\n   - create or reuse the token owner's fork\n   - detect existing open install PRs for `agent/install-agent-infra`\n   - reuse same-owner install PRs, block duplicates from other owners\n   - prepare a local worktree on the install branch, based on the current target default branch, while safely handling stale existing fork branches\n   - return structured outputs: status, blocked code/message, target repo, default branch, branch, fork repo, workdir, existing PR URL/number, reused flag\n\n2. `publish`\n   - verify expected inputs from `prepare`\n   - push the install branch to the fork safely\n   - reuse or open the PR against the original target repository\n   - return structured outputs including PR URL/number and reused flag\n   - surface blocked states for push/PR creation failures\n\nPrefer flag-style CLI usage for non-secret values, with env fallbacks for workflow compatibility, for example:\n\n```sh\nGH_TOKEN=\"$GH_TOKEN\" node .agent/dist/cli/install-fork-pr.js prepare \\\n  --target-repo owner/repo \\\n  --branch agent/install-agent-infra\n\nGH_TOKEN=\"$GH_TOKEN\" node .agent/dist/cli/install-fork-pr.js publish \\\n  --target-repo owner/repo \\\n  --workdir \"$workdir\" \\\n  --fork-repo \"$fork_repo\" \\\n  --default-branch \"$default_branch\" \\\n  --branch agent/install-agent-infra \\\n  --pr-title \"Install Sepo agent infrastructure\" \\\n  --pr-body-file \"$body_file\"\n```\n\n### 6. Install prompt flow\n\nThe dedicated prompt should:\n\n1. resolve the target with the typed target resolver\n2. call the fork-backed helper `prepare`\n3. if blocked, return a concise blocked response\n4. work only in the returned workdir\n5. resolve the Sepo source release/ref and copy only approved Sepo-owned infrastructure\n6. audit/preserve target-owned files\n7. validate and commit the install diff\n8. write an install PR body with source revision, files changed/skipped/preserved, validation, and required setup after merge\n9. call the helper `publish`\n10. return the PR URL or blocked state\n\nDo **not** add a separate direct-write lifecycle planner that emits raw `git push` / `gh pr create` steps outside the fork helper. The fork helper owns branch and PR mechanics.\n\n### 7. Issue-backed install requests\n\nAfter the core route/helper flow works, support a simple install request issue template:\n\n- template starts with the literal install command and asks the requester to paste a public GitHub repo URL\n- docs/README link to that issue template\n- final target install PR body references the source installation issue in `self-evolving/repo`\n- when an issue-backed install run successfully creates or reuses the target install PR, close the source installation issue after posting the agent response\n- blocked/missing/ambiguous install requests should leave the issue open\n\nThis can be included in the same PR if small, or a separate follow-up if it would distract from the route/helper implementation.\n\n## Non-goals\n\n- Do not continue pushing fixes to #273 or #285 as part of this issue.\n- Do not stack the new implementation on #273 or #285.\n- Do not overload `.skills/install-agent/SKILL.md` with route policy, auth, fork behavior, target parsing, or PR lifecycle details.\n- Do not use `AGENT_PAT` or `github.token` as a fallback for install target writes.\n- Do not let a raw lifecycle plan duplicate or bypass the fork-backed helper.\n\n## Acceptance criteria\n\n- New implementation PR is based on `main`.\n- `/install` is a first-class route with separate authorization and a dedicated prompt.\n- `/install` uses `AGENT_INSTALL_PAT` only and disables memory/rubrics writes.\n- Target resolution is typed and tested.\n- Fork-backed prepare/publish helper is typed and tested, including idempotency and stale fork branch/current target default behavior.\n- CLI supports flag-style non-secret arguments and env fallback; token remains env-only.\n- Docs and README describe the final route/helper model.\n- Existing `install-agent` skill remains minimal manual/custom guidance.\n- Tests cover route parsing, workflow token wiring, prompt wiring, target resolver, CLI parsing, helper blocked states, helper success/reuse paths, and issue-backed close behavior if implemented.\n",
+  "closedAt": "2026-05-20T01:15:31Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8jV3A",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate\n\nPlease implement this issue as a fresh replacement for #273 and #285.\n\nImportant constraints:\n- Create a new implementation branch/PR from `main`.\n- Do not push more fixes to #273 or #285.\n- Keep the route/prompt/helper split described in the issue.\n- Prefer a small, reviewable first PR for the core `/install` route plus fork-backed helper. If the issue-template/auto-close piece would make the PR too broad, leave it as a clearly documented follow-up.\n",
+      "createdAt": "2026-05-19T22:41:06Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/296#issuecomment-4492678620",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8j1VQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | implement | Issue #296 | 2 / 40 | Dispatched |\n\nReason: agent planner selected implement: Issue #296 is an explicit request to implement a fresh core /install route and fork-backed helper PR from main, replacing but not extending #273/#285.\n\n<!-- sepo-agent-handoff state:dispatched created:1779230552126 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxMjk2OTg3NTc6b3JjaGVzdHJhdGU6Mjk2OmltcGxlbWVudDoyOTY6Mg -->",
+      "createdAt": "2026-05-19T22:42:32Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/296#issuecomment-4492686677",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8nCxQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-296/codex-26129758106`\n\nImplemented a main-based /install route with a dedicated prompt, AGENT_INSTALL_PAT-only workflow wiring, typed target/lifecycle helpers, and a fork-backed prepare/publish CLI; updated docs/skill guidance and verified with build, focused node tests, plan CLI output, and diff checks.",
+      "createdAt": "2026-05-19T22:51:10Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/296#issuecomment-4492739269",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8nc5A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo orchestration needs clarification before it can continue.\n\nImplementation finished on branch `agent/implement-issue-296/codex-26129758106`, but I could not find an open PR for that branch. Automatic review handoff requires a PR target, so the chain is blocked until a PR is opened or the implementation action is rerun to create one.\n\nClarification request: Please open a PR from `agent/implement-issue-296/codex-26129758106` to `main`, or rerun implementation with PR creation enabled.\n\n- Source action: `implement`\n- Source conclusion: `success`\n- Target: `issue #296`\n- Round: `2/40`\n- Reason: agent planner blocked: Implementation reported success but only produced branch agent/implement-issue-296/codex-26129758106; no open PR target was found, so the post-implement review handoff is not allowed.\n- Source run ID: `26129758106`\n\nNo follow-up workflow was dispatched. Reply with the requested context, then continue with `/orchestrate`, `/implement`, or `/answer` when ready.\n\n<!-- sepo-agent-orchestrate-stop -->",
+      "createdAt": "2026-05-19T22:52:16Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/296#issuecomment-4492745956",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8sMhA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate let's reimplement them again? ",
+      "createdAt": "2026-05-19T23:03:31Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/296#issuecomment-4492823684",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8tD8A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | implement | Issue #296 | 2 / 40 | Dispatched |\n\nReason: agent planner selected implement: The maintainer explicitly asked to restart the /install work again on issue #296; the prior attempt only produced a branch without an open PR, and #273/#285 are paused historical prototypes.\n\n<!-- sepo-agent-handoff state:dispatched created:1779231907367 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxMzA2MDg2NjQ6b3JjaGVzdHJhdGU6Mjk2OmltcGxlbWVudDoyOTY6Mg -->",
+      "createdAt": "2026-05-19T23:05:07Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/296#issuecomment-4492837872",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8x-eQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-296/codex-26130671341`\n- Pull request: https://github.com/self-evolving/repo/pull/298\n\nImplemented first-class `/install` routing with a dedicated prompt, `AGENT_INSTALL_PAT`-only execution, typed target resolution, fork-backed prepare/publish helpers, conflict-safe install lifecycle planning, docs, and focused tests. Verified with build, targeted node tests, a plan CLI smoke check, and `git diff --check`.",
+      "createdAt": "2026-05-19T23:14:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/296#issuecomment-4492918393",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-19T22:40:55Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 296,
+  "state": "CLOSED",
+  "title": "Rebuild first-class install route and fork-backed install flow",
+  "updatedAt": "2026-05-20T01:15:31Z",
+  "url": "https://github.com/self-evolving/repo/issues/296"
+}

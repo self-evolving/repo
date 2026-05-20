@@ -7,7 +7,7 @@
   },
   "baseRefName": "main",
   "body": "## Summary\n- Route review syntheses with `Recommended Next Step = HUMAN_DECISION` to `agent-self-approve` when self-approval is enabled, regardless of review verdict.\n- Keep orchestration simple: the orchestrator only routes on the structured recommended-next-step signal; the self-approval agent handles the actual approve/request-changes/blocked decision.\n- Preserve approval safety: non-`SHIP` HUMAN_DECISION can run the decision gate only when the latest trusted current-head synthesis also recommends `HUMAN_DECISION`, and actual GitHub approval still requires trusted current-head `SHIP` provenance.\n- Thread only structured source verdict/recommended-step inputs through the workflows/prompts and update focused docs/tests.\n\n## Verification\n- `npm --prefix .agent run build`\n- `npm --prefix .agent test`\n- `git diff --check`\n\nAlternative clean implementation for #262 / #264 / #265 and issue #263.\n",
-  "closedAt": null,
+  "closedAt": "2026-05-19T20:33:25Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABC6VTMg",
@@ -102,6 +102,58 @@
       "minimizedReason": "",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/287#issuecomment-4491487425",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC7smnw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \r\n\r\nwhich is the line in .github/prompts/agent-orchestrator.md tells the agent if self-approval is enabled? ",
+      "createdAt": "2026-05-19T20:30:23Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/287#issuecomment-4491781791",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC7tObA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "The direct line is line 16:\n\n[`- Self-approval enabled: \\`${ORCHESTRATOR_SELF_APPROVE_ENABLED}\\``](https://github.com/self-evolving/repo/blob/563f13ebb7f5553261c3c7a7922a86156936ac4a/.github/prompts/agent-orchestrator.md#L16)\n\nThat is the prompt variable telling the planner whether self-approval is enabled.\n\nRelated policy lines are:\n\n- [`review` may hand off to `agent-self-approve` only when self-approval is enabled](https://github.com/self-evolving/repo/blob/563f13ebb7f5553261c3c7a7922a86156936ac4a/.github/prompts/agent-orchestrator.md#L29-L30)\n- enabled self-approval should receive a `SHIP` review handoff: [line 51](https://github.com/self-evolving/repo/blob/563f13ebb7f5553261c3c7a7922a86156936ac4a/.github/prompts/agent-orchestrator.md#L51)",
+      "createdAt": "2026-05-19T20:31:41Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/287#issuecomment-4491791980",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC7u01Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nUpdated [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #287.\n\nAdded one active rubric:\n\n`rubrics/workflow/separate-decision-gates-from-action-authorization.yaml`\n\nIt captures the durable preference from PR #287’s linked discussion: when an enabled agent decision gate exists, judgment signals should route to that gate instead of falling back to humans, while privileged outcomes still require separate trusted provenance and safety checks.\n\nValidation:\n- Confirmed no duplicate rubric id.\n- Parsed YAML successfully.\n- Did not commit changes.\n",
+      "createdAt": "2026-05-19T20:35:24Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/287#issuecomment-4491818197",
       "viewerDidAuthor": true
     }
   ],
@@ -219,12 +271,12 @@
       "color": "0e8a16"
     }
   ],
-  "mergedAt": null,
+  "mergedAt": "2026-05-19T20:33:25Z",
   "number": 287,
   "reviewDecision": "",
   "reviews": [],
-  "state": "OPEN",
+  "state": "MERGED",
   "title": "Route HUMAN_DECISION reviews to self-approval",
-  "updatedAt": "2026-05-19T19:52:50Z",
+  "updatedAt": "2026-05-19T20:35:24Z",
   "url": "https://github.com/self-evolving/repo/pull/287"
 }

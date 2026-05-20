@@ -81,6 +81,101 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/227#issuecomment-4437434624",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC7u3ZQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Yes, if you mean “have the orchestrator start work from the current default branch/main,” that is how the orchestration path is wired.\n> \n> Current behavior:\n> \n> * `/orchestrate` dispatches `agent-orchestrator.yml` on `github.event.repository.default_branch`, not on a PR head. See the router dispatch setup: [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L682-L701).\n> * The orchestrator workflow itself checks out the default branch: [`agent-orchestrator.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-orchestrator.yml#L70-L74).\n> * If orchestration dispatches `implement`, it passes through `base_branch` / `base_pr` only when provided; otherwise `agent-implement.yml` resolves the implementation base to the default branch/main. See [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L1547-L1555) and [`agent-implement.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-implement.yml#L171-L179).\n> \n> Important limitation: manual `/orchestrate` only launches `implement` from **issues**. On **PRs**, manual orchestration currently chooses `review` or `fix-pr`, not `implement`: [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L1269-L1309). Discussions are not valid orchestrator targets today.\n> \n> So the corrected read is:\n> \n> * **Issue + `/orchestrate`**: yes, can launch implementation from current main.\n> * **PR + `/orchestrate`**: no, it routes to review/fix-pr, not a new implement PR from main.\n> * **Discussion + `/orchestrate`**: unsupported today.\n> * **PR/discussion + explicit `/implement`**: creates a tracking issue and dispatches implement, defaulting to main unless a base is explicitly passed.\n\nWhat's a minimal implementation to add support Discussion + `/orchestrate` and PR + `/orchestrate` for implement route?\n@sepo-agent /answer?",
+      "createdAt": "2026-05-19T20:35:29Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/227#issuecomment-4491818853",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC7wb3w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Minimal path: reuse the existing “non-issue implement creates a tracking issue, then dispatches `agent-implement.yml`” pattern, but let the orchestrator do it.\n\nCurrent blockers:\n\n- `orchestrate` is rejected for discussions in dispatch policy: [`triage.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/triage.ts#L441-L450)\n- initial orchestrator planner mode only enables `issue` / `pull_request`, not `discussion`\n- planner-selected `implement` from `orchestrate` is currently allowed only for issue targets: [`handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L615-L626)\n- manual PR `/orchestrate` still defaults to `review` / `fix-pr`: [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L1272-L1316)\n\nSmallest implementation I’d do:\n\n1. **Allow discussion orchestration at routing time**\n   - In `.agent/src/triage.ts`, change the `orchestrate` target check from `issue | pull_request` to `issue | pull_request | discussion`.\n   - Update the unsupported message and tests.\n\n2. **Enable the planner for discussion targets**\n   - In `.agent/src/cli/orchestrator-preflight.ts`, include `discussion` in `planner_enabled`.\n   - In `.agent/src/cli/orchestrate-handoff.ts`, include `discussion` in the initial planner path condition.\n\n3. **Let planner-selected `implement` work for PR/discussion targets**\n   - In `.agent/src/handoff.ts`, allow `sourceAction === \"orchestrate\"` + `nextAction === \"implement\"` for `issue`, `pull_request`, and `discussion`.\n   - Keep `base_branch`/`base_pr` mutual exclusion.\n   - For `issue`, preserve current behavior: dispatch implement directly on the issue number.\n   - For `pull_request` or `discussion`, return a dispatch decision that tells `orchestrate-handoff.ts` to create a tracking issue first.\n\n4. **Create a tracking issue before dispatching implement for non-issue targets**\n   - In `.agent/src/cli/orchestrate-handoff.ts`, before `dispatchWorkflow(... \"agent-implement.yml\" ...)`, if `nextAction === \"implement\"` and `TARGET_KIND !== \"issue\"`:\n     - create a tracking issue with the original request, target URL, target kind/number, and planner `handoff_context`\n     - set `issue_number` to the new issue number\n     - post a link-back to the PR/discussion if practical\n   - For PR targets, default to main unless the planner explicitly sets `base_pr`. That preserves “launch current main” while still allowing stacked PRs when requested.\n\n5. **Update the orchestrator prompt**\n   - In `.github/prompts/agent-orchestrator.md`, change the PR policy from “review/fix-pr only” to “review/fix-pr/implement, where implement creates a tracking issue first.”\n   - Add discussion policy: discussion `/orchestrate` may choose `implement` by creating a tracking issue, or `answer/blocked/stop` when implementation is not appropriate.\n\n6. **Focused tests**\n   - `triage.test.ts`: `orchestrate` allowed on `discussion`.\n   - `orchestrator-preflight` test: planner enabled for discussion.\n   - `handoff.test.ts`: planner can choose `implement` for PR/discussion.\n   - `orchestrate-handoff-cli.test.ts`: PR/discussion implement creates a tracking issue and dispatches `agent-implement.yml` with that issue number.\n   - Preserve existing PR `/orchestrate` review/fix-pr behavior when planner chooses those actions.\n\nThat avoids a broad redesign. The main new behavior is just: **non-issue orchestrated implement gets normalized into an implementation tracking issue**, same as explicit `/implement` already does.",
+      "createdAt": "2026-05-19T20:38:51Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/227#issuecomment-4491844575",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8H9IQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate ",
+      "createdAt": "2026-05-19T21:32:25Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/227#issuecomment-4492229921",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8JRYg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | implement | Issue #227 | 2 / 40 | Dispatched |\n\nReason: agent planner selected implement: Issue #227 contains a concrete, self-contained request to add orchestrated implement support for PR and discussion targets, with a minimal implementation plan already established in the issue comments.\n\n<!-- sepo-agent-handoff state:dispatched created:1779226500658 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxMjY2MTI4MzM6b3JjaGVzdHJhdGU6MjI3OmltcGxlbWVudDoyMjc6Mg -->",
+      "createdAt": "2026-05-19T21:35:00Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/227#issuecomment-4492251490",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8OQiQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-227/codex-26126733366`\n- Pull request: https://github.com/self-evolving/repo/pull/294\n\nAdded planner-backed `/orchestrate` support for PR and discussion implement handoffs by allowing discussion routing, permitting non-issue implement decisions, creating context-derived tracking issues with link-backs before dispatching `agent-implement.yml`, and updating prompts/docs. Verified with TypeScript build, focused node tests, YAML parse, and diff whitespace checks.",
+      "createdAt": "2026-05-19T21:47:49Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/227#issuecomment-4492333193",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-13T04:44:24Z",
@@ -95,6 +190,6 @@
   "number": 227,
   "state": "OPEN",
   "title": "Orchestrator small bugs:",
-  "updatedAt": "2026-05-13T04:55:10Z",
+  "updatedAt": "2026-05-19T21:47:49Z",
   "url": "https://github.com/self-evolving/repo/issues/227"
 }

@@ -5,7 +5,7 @@
   },
   "baseRefName": "main",
   "body": "## Summary\n- Add `/install owner/repo` explicit mention parsing as an alias to the bundled `install-agent` skill.\n- Return a clear unsupported response for malformed install requests before skill execution.\n- Update install docs and skill instructions with latest-release source guidance and structured post-merge setup steps.\n\n## Verification\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/triage.test.js .agent/dist/__tests__/resolve-dispatch-cli.test.js`\n- `node --test .agent/dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nCloses #269\n",
-  "closedAt": null,
+  "closedAt": "2026-05-19T22:46:56Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABCqC5xQ",
@@ -203,8 +203,8 @@
       "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #273 | 7 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on open PR #273 and pushed changes addressing the prior review action items; one automated review pass is warranted to validate the latest head.\n\n<!-- sepo-agent-handoff state:dispatched created:1779068185357 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYwMDg3NzczOTA6Zml4X3ByOjI3MzpyZXZpZXc6MjczOjc -->",
       "createdAt": "2026-05-18T01:36:25Z",
       "includesCreatedEdit": true,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4473443365",
       "viewerDidAuthor": true
@@ -313,8 +313,8 @@
       "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-269/codex-26007754542`. Requested by @lolipopshock.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Resolved the merge with `origin/main`; all conflicts are fixed and staged, with merge still uncommitted as requested.\n- Made `/install` route detection permissive: the router now detects the command and passes the full request through without requiring a route-time `owner/repo` slug.\n- Removed `requested_install_target_repo` / `install_target_repo` / `INSTALL_TARGET_REPO` plumbing and updated install docs/skill guidance so target resolution belongs to the install skill.\n- Verified with `npm --prefix .agent run build` and focused routing/envelope tests: 137 passed.",
       "createdAt": "2026-05-19T17:24:12Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4490294576",
       "viewerDidAuthor": true
@@ -371,8 +371,8 @@
       "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 94 | PASS | 12 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | `/install` is now a first-class `install` route, and policy can restrict it independently from `/skill`; see [`triage.ts`](https://github.com/self-evolving/repo/blob/927edc45996ee412e4dad88ce6ffbad0412611f8/.agent/src/triage.ts#L146) and [`install-existing-repository.md`](https://github.com/self-evolving/repo/blob/927edc45996ee412e4dad88ce6ffbad0412611f8/.agent/docs/deployment/install-existing-repository.md#L37). |\n| coding_workflow / generic | Prefer permissive command route parsing | partial | 6/7 | Route detection now only detects `/install` and passes full `REQUEST_TEXT`; the skill resolves slugs, URLs, or natural language. It no longer preserves deterministic normalized context, which the rubric allows as useful but not mandatory per latest requester direction. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The route still executes the existing bundled `install-agent` skill through the shared skill job rather than adding a separate install workflow; see [`agent-router.yml`](https://github.com/self-evolving/repo/blob/927edc45996ee412e4dad88ce6ffbad0412611f8/.github/workflows/agent-router.yml#L438). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The PR uses explicit `install` route semantics and a dedicated `AGENT_INSTALL_PAT` secret instead of overloading generic `/skill` auth or normal `AGENT_PAT`; see [`agent-router.yml`](https://github.com/self-evolving/repo/blob/927edc45996ee412e4dad88ce6ffbad0412611f8/.github/workflows/agent-router.yml#L446). |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | The implementation keeps the default surface small: route authorization plus the install skill, with target/fork/auth behavior bounded to `AGENT_INSTALL_PAT` and skill guidance. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | The install skill now checks for an existing open `agent/install-agent-infra` PR before push/PR creation; see [`SKILL.md`](https://github.com/self-evolving/repo/blob/927edc45996ee412e4dad88ce6ffbad0412611f8/.skills/install-agent/SKILL.md#L118). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Docs cover route behavior, route policy, `AGENT_INSTALL_PAT`, and target resolution across install docs, README, supported workflows, access policy, and configuration docs. |\n| communication / generic | Write audience-first documentation | pass | 7/7 | The install guide leads with the user command and practical behavior before auth details; see [`install-existing-repository.md`](https://github.com/self-evolving/repo/blob/927edc45996ee412e4dad88ce6ffbad0412611f8/.agent/docs/deployment/install-existing-repository.md#L11). |\n| communication / generic | Keep status comments compact | pass | 6/6 | The missing-`AGENT_INSTALL_PAT` response is concise and action-oriented; see [`agent-router.yml`](https://github.com/self-evolving/repo/blob/927edc45996ee412e4dad88ce6ffbad0412611f8/.github/workflows/agent-router.yml#L480). |\n| coding_workflow / generic | Generate context-derived artifact metadata | pass | 7/7 | The install skill requires PR bodies to include source revision, audit, detected settings, validation, and remaining setup todos; see [`SKILL.md`](https://github.com/self-evolving/repo/blob/927edc45996ee412e4dad88ce6ffbad0412611f8/.skills/install-agent/SKILL.md#L183). |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The latest head reflects issue #269, discussion #271, and the latest inline comments by making parsing permissive and moving target resolution into install-specific skill behavior. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is scoped to install route parsing, workflow plumbing, tests, docs, and skill instructions; no broad unrelated refactor is visible. |\n\n## Notes\n\n- The latest head addresses the requester’s main inline concern: `/install` no longer requires an exact route-time slug and no longer carries `requested_install_target_repo`; the skill receives the full request and owns target resolution.\n- The strongest rubric fits are authorization separation, reuse of the existing skill execution path, and docs staying aligned with `AGENT_INSTALL_PAT`.\n- The only minor deduction is that the permissive parsing rubric says normalized context can still be useful when extraction is deterministic, while this PR intentionally removes it based on the latest discussion.\n\n## Findings\n\n- **INFO:** `permissive-command-route-parsing` is substantially satisfied. The remaining structured-context omission is acceptable given the requester’s latest preference that optional `requested_install_target_repo` may not be useful.\n\n## Final Rubric Verdict\n\nPASS",
       "createdAt": "2026-05-19T17:31:47Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4490349629",
       "viewerDidAuthor": true
@@ -408,8 +408,8 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 927edc45996ee412e4dad88ce6ffbad0412611f8 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #273 implements issue #269 by adding `/install` as a first-class route for installing Sepo into another repository. The latest head makes route detection permissive, passes the full request to `install-agent`, removes `requested_install_target_repo`, and gates install runs on `AGENT_INSTALL_PAT`. It also documents separate install authorization, target resolution, post-merge setup, and install-specific token behavior. This reflects the broader Discussion #271 constraint that public repos are readable, but opening PRs requires a writable install identity.\n\n## Review\nThe current implementation is close, and reviewers agree the rigid `/install owner/repo` parsing concern has been addressed. One workflow hardening item remains around keeping install runs from ever falling back to the normal route token.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Install token handoff can fall back if guards drift | WARNING | `.github/workflows/agent-router.yml` passes `secrets.AGENT_INSTALL_PAT || steps.auth.outputs.token`; today earlier gates prevent empty-PAT install execution, but the token input itself does not enforce that invariant. |\n| Dedicated install prompt vs bundled skill remains a design choice | INFO | The latest maintainer comment questions whether `install-agent` is now too broad. Current review artifacts treat the bundled skill route as acceptable, so this is a product direction call rather than a required branch fix. |\n| Rubrics docs lag install route support | INFO | `rubrics.ts` now supports `install` and `skill -> install` matching, but the rubrics architecture doc example still omits `install`. This is non-blocking docs polish. |\n\n## Progress\n- The prior human inline concern on rigid regex parsing is addressed in code: `/install` detection is command-only and target parsing moved to the install skill.\n- Prior findings about open install PR lookup and external-auth documentation are fixed; older same-agent threads remain resolved.\n- Posted one new inline comment on `.github/workflows/agent-router.yml:590`.\n- No threads were resolved and no comments were minimized in this synthesis pass.\n\n## Issue Details\n<details>\n<summary>Install token handoff can fall back if guards drift</summary>\n\n**Cause:** The current input at [`agent-router.yml#L590`](https://github.com/self-evolving/repo/blob/927edc45996ee412e4dad88ce6ffbad0412611f8/.github/workflows/agent-router.yml#L590) falls back to `steps.auth.outputs.token` when `AGENT_INSTALL_PAT` is empty. The step is currently unreachable in that state, but the protection lives in earlier `if` guards.\n\n**Candidate solutions:** Split normal skill and install skill execution into separate steps with fixed token inputs, or compute an explicit task token that only uses the normal auth token when `route != 'install'`.\n\n**Comments:** Codex/rubrics reviewers did not treat this as blocking; Claude flagged it as workflow hardening. Synthesis treats it as a minor required fix because `/install` is a privileged cross-repo path.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: one concrete workflow hardening change remains and is safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Harden the install-route `github_token` handoff so `/install` cannot use the normal auth token if `AGENT_INSTALL_PAT` is absent or a guard is refactored.",
       "createdAt": "2026-05-19T17:41:19Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4490418622",
       "viewerDidAuthor": true
@@ -428,6 +428,469 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4490434407",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC72oFQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate\n\nPlease fix PR #273 using the design direction from the latest discussion, especially https://github.com/self-evolving/repo/pull/273#issuecomment-4490434407.\n\nGoal: split the productized `/install` route from the repository `install-agent` skill instead of continuing to overload the skill.\n\nRequested shape:\n\n1. Keep `/install` as a first-class authorized route with permissive command detection.\n2. Add a dedicated install prompt, e.g. `.github/prompts/agent-install.md`, and wire the `install` route to run that prompt instead of `.skills/install-agent/SKILL.md`.\n3. Minimize/revert the expanded `install-agent` skill changes. Keep the skill as manual/custom installation guidance, with at most a short note that public cross-repo installs should prefer `@sepo-agent /install ...`.\n4. Keep deterministic install mechanics in typed `.agent/src/*` helpers/CLIs and workflow wiring, not in skill prose.\n5. Harden the install token handoff so `/install` uses `AGENT_INSTALL_PAT` only and cannot fall back to the normal resolved repo token if guards are refactored.\n6. Resolve any merge conflicts with `main`, keep docs/tests aligned, and keep the diff surgical.\n\nPlease plan/dispatch the needed fix-pr and review steps as appropriate.\n",
+      "createdAt": "2026-05-19T20:52:36Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4491946005",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC73UEA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | fix-pr | PR #273 | 2 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: PR #273 is open and the latest requester comment explicitly asks to fix the branch using the dedicated install-route prompt direction; the requested changes are concrete branch-local code/docs/test changes.\n\nTask for fix-pr:\nFix PR #273 according to the latest design direction in https://github.com/self-evolving/repo/pull/273#issuecomment-4490434407 and the requester comment. Make the diff surgical. Required changes: keep `/install` as a first-class authorized route with permissive command detection; add a dedicated install prompt such as `.github/prompts/agent-install.md`; wire the `install` route to run that dedicated prompt instead of `.skills/install-agent/SKILL.md`; minimize/revert the expanded `install-agent` skill prose so it remains manual/custom installation guidance, with at most a short note that public cross-repo installs should prefer `@sepo-agent /install ...`; keep deterministic install mechanics in typed `.agent/src/*` helpers/CLIs and workflow wiring rather than skill prose; harden the workflow token handoff so `/install` uses `AGENT_INSTALL_PAT` only and cannot fall back to the normal resolved repo token if guards are refactored; resolve any merge conflicts with `main`; update aligned docs and focused tests. Preserve existing first-class install route policy and permissive parsing behavior, and avoid unrelated refactors or metadata-only churn.\n\n<!-- sepo-agent-handoff state:dispatched created:1779224045604 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxMjQ2MjE2OTE6b3JjaGVzdHJhdGU6MjczOmZpeF9wcjoyNzM6Mg -->",
+      "createdAt": "2026-05-19T20:54:06Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4491957264",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC77Tig",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-269/codex-26007754542`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Resolved `origin/main` into the PR branch; all conflicts are fixed and staged, with the merge left uncommitted as requested.\n- Split `/install` from the repository skill: added `.github/prompts/agent-install.md`, routed install runs through a dedicated `install` job, and left `/skill install-agent` on the normal skill path.\n- Hardened install auth: the install run now passes `github_token: ${{ secrets.AGENT_INSTALL_PAT }}` directly, with no fallback to the resolved repo token.\n- Added typed install target resolution in `.agent/src/install-target.ts` plus a CLI wrapper, and updated route/rubric/docs/tests to treat `install` as its own route.\n- Minimized `install-agent` back to manual/custom guidance with only a short note pointing public cross-repo installs to `@sepo-agent /install ...`.\n\n<details><summary>Verification</summary>\n\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/install-target.test.js .agent/dist/__tests__/triage.test.js .agent/dist/__tests__/extract-context-cli.test.js .agent/dist/__tests__/resolve-dispatch-cli.test.js .agent/dist/__tests__/envelope.test.js .agent/dist/__tests__/rubrics.test.js` (156 passed)\n- `git diff --cached --check`\n\n</details>",
+      "createdAt": "2026-05-19T21:03:15Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4492022666",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC77tfQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #273 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on open PR #273 after applying the requested dedicated install-route prompt split, so one automated review pass is warranted to validate the latest head.\n\n<!-- sepo-agent-handoff state:dispatched created:1779224653886 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxMjQ2OTkyNTU6Zml4X3ByOjI3MzpyZXZpZXc6MjczOjM -->",
+      "createdAt": "2026-05-19T21:04:14Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4492029309",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC78vnw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 14 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | `/install` is now its own route in triage/envelope/rubrics and can be restricted independently through `route_overrides.install`. |\n| coding_workflow / generic | Prefer permissive command route parsing | pass | 7/7 | Route detection only recognizes `@sepo-agent /install` and passes the full request through; target resolution moved to install-specific helper code. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR uses the existing `run-agent-task` action and prompt template mechanism, adding only the route-specific prompt/helper needed for install. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Adds explicit `install` route, `AGENT_INSTALL_PAT`, and typed `resolve-install-target` outputs instead of overloading `/skill install-agent`. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | The public route is small: authorize `/install`, resolve target, use install-only auth, and keep advanced/manual adaptation in the existing skill. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | The dedicated prompt requires checking for an existing open `agent/install-agent-infra` PR before commit, push, or PR creation. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Docs now cover `/install`, install policy, `AGENT_INSTALL_PAT`, and route behavior across quick start, install guide, access policy, actions, and workflow docs. |\n| communication / generic | Write audience-first documentation | pass | 7/7 | Install docs lead with the user command and practical setup path, then explain auth and policy details. |\n| communication / generic | Keep status comments compact | pass | 6/6 | Missing-token response is short and action-oriented: install is not configured, required secret, next step. |\n| coding_workflow / generic | Generate context-derived artifact metadata | pass | 7/7 | The install prompt requires PR body metadata for target, source revision, installed/skipped/preserved files, validation, and setup steps. |\n| coding_workflow / generic | Keep privileged workflows on trusted runtime | pass | 8/8 | Install route uses source-repo workflow wiring and instructs work against a separate target worktree/default branch rather than treating target repo code as runtime. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | Latest head reflects the 2026-05-19 discussion direction: dedicated install prompt, skill de-overload, typed helper, and install-only token. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is scoped to install route wiring, prompt/helper, focused tests, install docs, and a short skill note. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Adds a small typed target resolver plus workflow prompt wiring rather than a broad new install framework. |\n\n## Notes\n\n- The latest PR head matches the requested split: `/install` is first-class, runs `.github/prompts/agent-install.md`, and no longer routes through `.skills/install-agent/SKILL.md`.\n- The token handoff is hardened for the install run: `github_token` is `secrets.AGENT_INSTALL_PAT` directly, with no fallback to `steps.auth.outputs.token`.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** The existing `install-agent` skill is still a fairly detailed manual install guide, but the PR diff only adds a short note pointing productized cross-repo installs to `/install`, which satisfies the requested de-overload at the PR level.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-19T21:06:37Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4492046239",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8BQPg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: e2439ac644f3f7a89441bb9438fa2e2ad4b1a1b5 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #273 implements issue #269 and the later PR discussion by making `/install` a first-class route for installing Sepo into external public repositories. The latest head splits productized install behavior away from `.skills/install-agent/SKILL.md`, adds `.github/prompts/agent-install.md`, keeps permissive `/install` command detection, and wires the route to use `AGENT_INSTALL_PAT` directly. It also adds typed target resolution through `.agent/src/install-target.ts` and updates route policy, docs, and tests. The remaining review concerns are around token separation for source-repo state and how much deterministic install lifecycle behavior still lives in prompt prose.\n\n## Review\nThe PR is much closer to the requested design and reviewers agree the earlier rigid parsing and skill-overload concerns are mostly addressed. Two warning-level issues remain before this should ship.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Install route can write source memory with `AGENT_INSTALL_PAT` | WARNING | The install job passes `secrets.AGENT_INSTALL_PAT` as `run-agent-task`’s `github_token`, and the shared action uses that same token for default-enabled memory checkout/commit. |\n| Deterministic install lifecycle still lives mostly in prompt prose | WARNING | The dedicated prompt moved behavior out of the skill, but permission probing, source release resolution, PR reuse, branch setup, and PR creation are still prompt instructions rather than typed helpers. |\n| Minor install hardening gaps remain | INFO | Reviewers noted edge cases around install-target false positives, missing URL+slug dedup coverage, stdout guidance for the target resolver, and no install failure-response path on hard crashes/timeouts. |\n\n## Progress\n- The latest head implements the requested split: `/install` is first-class, runs `.github/prompts/agent-install.md`, keeps `/skill install-agent` separate, and minimizes the skill change to a short route note.\n- The previous same-agent token-fallback thread on `.github/workflows/agent-router.yml` was resolved because the direct fallback to `steps.auth.outputs.token` is gone.\n- Posted one new inline comment on `.github/workflows/agent-router.yml:682` for the memory-token separation issue.\n- No replies were added and no comments were minimized. The human-authored parsing/design thread was not resolved.\n\n## Issue Details\n\n<details>\n<summary>Install route can write source memory with <code>AGENT_INSTALL_PAT</code></summary>\n\n**Cause:** [`agent-router.yml`](https://github.com/self-evolving/repo/blob/e2439ac644f3f7a89441bb9438fa2e2ad4b1a1b5/.github/workflows/agent-router.yml#L675-L682) passes `AGENT_INSTALL_PAT` into `run-agent-task`, while the shared action uses `inputs.github_token` for source-repo memory checkout and commits. Empty `AGENT_MEMORY_POLICY` defaults to enabled memory writes.\n\n**Candidate solutions:** Disable memory writes for the `install` route, or split the target install token from the source-repo state token used for memory/rubrics/session operations.\n\n**Comments:** This is a new current-head issue; it is separate from the older token-fallback thread, which was fixed and resolved.\n\n</details>\n\n<details>\n<summary>Deterministic install lifecycle still lives mostly in prompt prose</summary>\n\n**Cause:** [`agent-install.md`](https://github.com/self-evolving/repo/blob/e2439ac644f3f7a89441bb9438fa2e2ad4b1a1b5/.github/prompts/agent-install.md#L24-L37) still instructs the agent to perform permission probing, existing PR lookup, source release resolution, branch preparation, validation, and PR creation directly.\n\n**Candidate solutions:** Move the deterministic parts into `.agent/src/*` helper CLIs, at least for target write-path probing, source release selection, existing install PR reuse, and branch/PR creation. Keep the prompt responsible for orchestration and summary text.\n\n**Comments:** Rubrics and Claude considered the split largely complete; Codex flagged this as a remaining design-fit gap against the latest maintainer direction.\n\n</details>\n\n<details>\n<summary>Minor install hardening gaps remain</summary>\n\n**Cause:** The new target resolver is intentionally small, but reviewers identified edge cases such as false-positive slug matches in npm-style text and missing coverage for duplicate URL+slug references. The prompt also does not explicitly say to read resolver JSON from stdout, and the workflow only posts install responses when the agent step succeeds.\n\n**Candidate solutions:** Add focused resolver tests, clarify stdout handling in the prompt, and consider an `always()` failure-response path for install crashes/timeouts.\n\n**Comments:** These are non-blocking hardening items and do not need to drive automation unless maintainers want a broader polish pass.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the two WARNING items are concrete branch changes and are safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Prevent `/install` from using `AGENT_INSTALL_PAT` for source-repo memory writes by disabling install memory writes or splitting target and source-state tokens.\n- [ ] Move deterministic install lifecycle operations currently in prompt prose into typed `.agent/src/*` helper(s), keeping the prompt as the orchestrator.",
+      "createdAt": "2026-05-19T21:16:53Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4492120126",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8Bmtg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #273 | 4 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: The latest review synthesis recommends FIX_PR for two concrete unresolved install-route hardening items on open PR #273; both require branch changes and are safe for an automated fix-pr pass.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Prevent `/install` from using `AGENT_INSTALL_PAT` for source-repo memory writes by disabling install memory writes or splitting target and source-state tokens.\n- Move deterministic install lifecycle operations currently in prompt prose into typed `.agent/src/*` helper(s), keeping the prompt as the orchestrator.\n\nConstraints: Preserve the productized `/install` route design direction: first-class authorized route, dedicated install prompt instead of overloading `.skills/install-agent/SKILL.md`, minimized/manual `install-agent` skill guidance, deterministic mechanics in typed helpers/CLIs and workflow wiring, `AGENT_INSTALL_PAT` only for target install operations with no fallback to the normal resolved repo token, docs/tests aligned, and surgical diff. Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1779225464935 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxMjUyMzE4NzY6cmV2aWV3OjI3MzpmaXhfcHI6MjczOjQ -->",
+      "createdAt": "2026-05-19T21:17:45Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4492125878",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8EEeA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-269/codex-26007754542`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Disabled source-repo memory for `/install` by forcing `memory_mode_override: disabled`, while keeping `AGENT_INSTALL_PAT` as the target install token only.\n- Added typed install lifecycle planning in `.agent/src/install-lifecycle.ts` and `.agent/src/cli/plan-install-lifecycle.ts`; the install prompt now orchestrates helper output instead of hardcoding lifecycle prose.\n- Updated focused workflow/docs/tests for the new memory and lifecycle contracts.\n\n<details><summary>Verification</summary>\n\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/install-target.test.js .agent/dist/__tests__/install-lifecycle.test.js .agent/dist/__tests__/envelope.test.js`\n- `env GITHUB_OUTPUT=/tmp/plan-install-output node .agent/dist/cli/plan-install-lifecycle.js \"@sepo-agent /install can you install Sepo into https://github.com/foo/bar?\"`\n- `git diff --check`\n\n</details>",
+      "createdAt": "2026-05-19T21:23:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4492166264",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8EZWQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #273 | 5 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on open PR #273 after applying the requested install-route split, so one automated review pass is warranted to verify the branch before stopping.\n\n<!-- sepo-agent-handoff state:dispatched created:1779225856326 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxMjU5MDQxOTk6Zml4X3ByOjI3MzpyZXZpZXc6MjczOjU -->",
+      "createdAt": "2026-05-19T21:24:16Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4492171609",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8FcMQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 99 | PASS | 14 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Prefer permissive command route parsing | pass | 7/7 | `/install` detection only recognizes the command and passes the full request through; target parsing moved to `.agent/src/install-target.ts`. |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | `install` is now its own route in triage/envelope/rubrics and docs show `route_overrides.install` can restrict it independently. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Adds explicit `install` route, `AGENT_INSTALL_PAT`, and typed install target/lifecycle CLIs instead of overloading `/skill install-agent`. |\n| coding_workflow / generic | Reuse existing code | partial | 7/8 | Uses existing prompt/action/runtime wiring and adds typed helpers; lifecycle execution is still agent-orchestrated from a typed plan rather than fully owned by helper CLIs. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | Keeps this PR to first-class route, access policy, prompt wiring, install-only token, and leaves manual/custom installs in the existing skill. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | `.agent/src/install-lifecycle.ts` includes `check-existing-install-pr` before branch/PR creation. |\n| coding_workflow / generic | Keep privileged workflows on trusted runtime | pass | 8/8 | Runtime stays in source workflow checkout; install target operations are driven from route prompt/helper output. |\n| coding_workflow / generic | Generate context-derived artifact metadata | pass | 7/7 | `agent-install.md` requires PR body metadata for target, source revision, installed/skipped/preserved files, validation, and setup steps. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Docs cover `/install`, access policy, `AGENT_INSTALL_PAT`, source-memory disablement, and route behavior. |\n| communication / generic | Write audience-first documentation | pass | 7/7 | Install docs lead with the user command and practical setup path before auth/policy details. |\n| communication / generic | Keep status comments compact | pass | 6/6 | Missing-token response is short and actionable: not configured, required secret, next step. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | Latest head matches the linked discussion: dedicated prompt, skill de-overload, typed helper code, first-class route, and install-only PAT. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is scoped to install route wiring, prompt/helper files, focused tests, install docs, and a short skill note. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Adds a small resolver and lifecycle planner rather than a broad install framework. |\n\n## Notes\n\n- The current PR head satisfies the main design split from `#issuecomment-4490434407`: `/install` is first-class, runs `.github/prompts/agent-install.md`, and no longer routes through `.skills/install-agent/SKILL.md`.\n- The install token handoff is hardened for the agent run: `github_token` is `secrets.AGENT_INSTALL_PAT`, source memory is disabled, and tests assert there is no fallback to `steps.auth.outputs.token` in the install run.\n- The only minor rubric gap is that install lifecycle helpers currently emit a deterministic plan of commands rather than executing every lifecycle operation inside typed CLIs. That still fits the scoped PR #273 split, with deeper fork-backed install mechanics left for follow-up.\n\n## Findings\n\n- **INFO:** `reuse-existing-code` is slightly short of perfect because `.agent/src/install-lifecycle.ts` owns the ordered plan and command contract, while the prompt still tells the agent to execute those steps. This is acceptable for the requested PR #273 shape, but future fork-backed install work should continue moving mutation-heavy mechanics into typed helpers.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-19T21:26:35Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4492188721",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8KIXw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 5b03b622bfe7640c5ed7aa4ce4256c18818cadc3 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #273 addresses #269 and the later Discussion #271 direction by turning `/install` into a first-class route for public cross-repository Sepo installs. The current head adds a dedicated install job, `.github/prompts/agent-install.md`, install-only `AGENT_INSTALL_PAT` wiring, typed target/lifecycle helpers, route policy docs, and focused tests. It also moves productized install behavior away from the manual `.skills/install-agent` skill. The shape now matches the intended route split, but current review artifacts still identify several branch changes needed before this should ship.\n\n## Review\nThe implementation is close, but not ready to merge. The main remaining risk is token separation: the install-only PAT is still used for source-repo rubrics reads through the shared action.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Install route still reads source rubrics with AGENT_INSTALL_PAT | BLOCKING | The install job disables memory, but `run-agent-task` still defaults rubrics to read-only and clones `agent/rubrics` using `AGENT_INSTALL_PAT`. |\n| Install route parsing still uses a bespoke regex | WARNING | `/install` has a custom route-detection regex even though equivalent non-argument routes use `EXPLICIT_ROUTE_COMMANDS`; this keeps the maintainer’s parsing thread unresolved. |\n| Target resolver treats URL paths as extra repos | WARNING | The resolver scans slug matches inside GitHub URLs, so `https://github.com/foo/bar/issues/123` can become ambiguous with `foo/bar` and `issues/123`. |\n| Lifecycle plan contains literal placeholders | WARNING | The plan tells the agent to execute commands, but some commands still contain `<target-default-branch>` and `<install-pr-body.md>` placeholders. |\n\n## Progress\n- The latest head fixes the earlier alias/skill overload concern: `/install` is first-class and runs the dedicated install prompt.\n- The prior `AGENT_INSTALL_PAT` fallback issue is fixed: install now passes `secrets.AGENT_INSTALL_PAT` directly with no normal-token fallback.\n- The prior source-memory token concern is fixed with `memory_mode_override: disabled`; I resolved that older same-agent thread.\n- Posted new inline comments on `.github/workflows/agent-router.yml:682`, `.agent/src/install-target.ts:47`, and `.agent/src/install-lifecycle.ts:96`.\n- No replies were added and no comments were minimized. The human-authored `.agent/src/triage.ts:145` thread remains unresolved.\n\n## Issue Details\n<details>\n<summary>Install route still reads source rubrics with AGENT_INSTALL_PAT</summary>\n\n**Cause:** The install job passes `AGENT_INSTALL_PAT` as `github_token`, and `run-agent-task` resolves empty `AGENT_RUBRICS_POLICY` to read-only by default. That triggers `download-agent-rubrics` with the install token.\n\n**Candidate solutions:** Add `rubrics_mode_override: disabled` to the install run and assert it in `envelope.test.ts`.\n\n**Comments:** Rubrics review passed, but Claude flagged this token-boundary gap and the current workflow supports it.\n\n</details>\n\n<details>\n<summary>Install route parsing still uses a bespoke regex</summary>\n\n**Cause:** `installRegex` duplicates the explicit route regex shape instead of adding `install` to `EXPLICIT_ROUTE_COMMANDS`.\n\n**Candidate solutions:** Add `\"install\"` to `EXPLICIT_ROUTE_COMMANDS`, remove the custom block, and keep target parsing inside the install helper/prompt path.\n\n**Comments:** Do not resolve the human thread automatically; maintainer should confirm after the branch change.\n\n</details>\n\n<details>\n<summary>Target resolver treats URL paths as extra repos</summary>\n\n**Cause:** `GITHUB_URL_RE` records the repo, then `SLUG_RE` scans the same URL string and can capture path segments such as `issues/123` or `tree/main`.\n\n**Candidate solutions:** Mask matched GitHub URL spans before the slug pass, or skip slug matches whose range is inside a matched URL. Add regression tests for GitHub URLs with path components.\n\n</details>\n\n<details>\n<summary>Lifecycle plan contains literal placeholders</summary>\n\n**Cause:** `buildInstallLifecyclePlan()` emits commands containing `<target-default-branch>` and `<install-pr-body.md>` while the prompt says to execute plan commands in order.\n\n**Candidate solutions:** Resolve the target default branch into the plan after access probing, or explicitly model these as template slots the agent must fill from earlier step output.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the unresolved findings are concrete branch changes and are safe for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Disable rubrics for `/install` with `rubrics_mode_override: disabled` and add an envelope assertion.\n- [ ] Move `/install` into `EXPLICIT_ROUTE_COMMANDS` and remove the custom `installRegex` block.\n- [ ] Fix install target resolution so slug matching does not scan inside matched GitHub URLs, with regression coverage.\n- [ ] Replace or clearly model lifecycle command placeholders so agents do not execute them verbatim.",
+      "createdAt": "2026-05-19T21:37:11Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4492265567",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8Kq5Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #273 | 6 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review concluded needs_rework and explicitly recommended fix_pr; the remaining items are concrete branch changes within the PR scope.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Disable rubrics for `/install` with `rubrics_mode_override: disabled` and add an envelope assertion.\n- Move `/install` into `EXPLICIT_ROUTE_COMMANDS` and remove the custom `installRegex` block.\n- Fix install target resolution so slug matching does not scan inside matched GitHub URLs, with regression coverage.\n- Replace or clearly model lifecycle command placeholders so agents do not execute them verbatim.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items. Keep the diff surgical and preserve the requested split between the productized `/install` route and the manual/custom `install-agent` skill.\n\n<!-- sepo-agent-handoff state:dispatched created:1779226713551 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxMjYyMTc4OTg6cmV2aWV3OjI3MzpmaXhfcHI6MjczOjY -->",
+      "createdAt": "2026-05-19T21:38:33Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4492274405",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8L6Sg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-269/codex-26007754542`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Disabled install-route rubrics with `rubrics_mode_override: disabled` and added the envelope assertion beside the existing memory override check.\n- Moved `/install` into the shared explicit route command list and removed the bespoke install regex block.\n- Fixed install target resolution to ignore slug matches inside GitHub URL spans, with URL path regression coverage.\n- Modeled lifecycle placeholders as `commandTemplate` plus `templateSlots` so agents do not execute unresolved placeholders verbatim.\n\n<details><summary>Verification</summary>\n\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/triage.test.js .agent/dist/__tests__/install-target.test.js .agent/dist/__tests__/install-lifecycle.test.js .agent/dist/__tests__/envelope.test.js`\n- `env GITHUB_OUTPUT=/tmp/plan-install-output node .agent/dist/cli/plan-install-lifecycle.js \"@sepo-agent /install https://github.com/foo/bar/issues/123\"`\n- `git diff --check`\n\n</details>",
+      "createdAt": "2026-05-19T21:41:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4492294730",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8Mcng",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #273 | 7 / 40 | Dispatched |\n\nReason: agent planner selected review: The fix-pr action completed successfully on PR #273, so an automated review pass is warranted to verify the requested /install route split, token hardening, conflict resolution, and docs/tests alignment before stopping.\n\n<!-- sepo-agent-handoff state:dispatched created:1779226985241 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxMjY5MDI0Mjc6Zml4X3ByOjI3MzpyZXZpZXc6MjczOjc -->",
+      "createdAt": "2026-05-19T21:43:05Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4492303518",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8NLQQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 99 | PASS | 14 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Prefer permissive command route parsing | pass | 7/7 | `/install` is in the shared explicit route list and only detects the command; target parsing is deferred to typed helper logic in [`install-target.ts`](https://github.com/self-evolving/repo/blob/397265240d68098245d9e80acc9ad66a46572348/.agent/src/install-target.ts). |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | `/install` now resolves as route `install`, and docs show independent `route_overrides.install` authorization. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Adds explicit `install` route, `AGENT_INSTALL_PAT`, dedicated prompt, and typed install target/lifecycle CLIs instead of overloading `/skill install-agent`. |\n| coding_workflow / generic | Reuse existing code | partial | 7/8 | Reuses existing router, prompt runner, access policy, and test patterns; lifecycle logic is typed, though final mutation execution remains agent-orchestrated from the plan. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | Keeps productized `/install` focused on common public cross-repo installs and leaves `.skills/install-agent/SKILL.md` as manual/custom guidance. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Lifecycle plan includes `check-existing-install-pr` before branch/PR creation. |\n| coding_workflow / generic | Keep privileged workflows on trusted runtime | pass | 8/8 | Runtime checkout remains the source repo workflow checkout; target writes use the install route path and install-only token. |\n| coding_workflow / generic | Generate context-derived artifact metadata | pass | 7/7 | [`agent-install.md`](https://github.com/self-evolving/repo/blob/397265240d68098245d9e80acc9ad66a46572348/.github/prompts/agent-install.md) requires PR body metadata for target, source revision, files, validation, and setup steps. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Docs cover `/install`, access policy, `AGENT_INSTALL_PAT`, source memory/rubrics isolation, and manual skill separation. |\n| communication / generic | Write audience-first documentation | pass | 7/7 | Install docs lead with the user command and practical setup path before deeper auth details. |\n| communication / generic | Keep status comments compact | pass | 6/6 | Missing-token response is concise and actionable: not configured, required secret, next step. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | Current head matches the latest discussion direction: first-class route, dedicated prompt, de-overloaded skill, typed helpers, and install-only PAT. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is scoped to install route wiring, prompt/helper files, focused tests, docs, and a short skill note. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Adds a small resolver and lifecycle planner rather than a broad install framework. |\n\n## Notes\n\n- The current PR head satisfies the requested split: `/install` is a first-class authorized route, runs `.github/prompts/agent-install.md`, and no longer routes through `.skills/install-agent/SKILL.md`.\n- Token handoff is hardened: install uses `secrets.AGENT_INSTALL_PAT`, disables source memory and rubrics, and tests assert no fallback to the normal resolved repo token in the install run.\n- Verification run: `node --test .agent/dist/__tests__/triage.test.js .agent/dist/__tests__/install-target.test.js .agent/dist/__tests__/install-lifecycle.test.js .agent/dist/__tests__/envelope.test.js .agent/dist/__tests__/resolve-dispatch-cli.test.js .agent/dist/__tests__/rubrics.test.js`.\n\n## Findings\n\n- **INFO:** `reuse-existing-code` is slightly short of perfect because `.agent/src/install-lifecycle.ts` emits a deterministic execution plan and templates, while the prompt still instructs the agent to execute the plan. This is acceptable for the requested PR shape; future fork-backed install work should continue moving mutation-heavy mechanics into typed helpers.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-19T21:45:05Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4492315457",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8SYDg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 397265240d68098245d9e80acc9ad66a46572348 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #273 implements the `/install` direction from #269 and Discussion #271 by moving beyond the original skill alias into a first-class install route. The current head adds a dedicated install job, `.github/prompts/agent-install.md`, install-only `AGENT_INSTALL_PAT` wiring, source memory/rubrics isolation, permissive install target parsing, and typed lifecycle planning. It also keeps `.skills/install-agent/SKILL.md` as manual/custom guidance and updates docs/tests for the route split. The remaining review concern is that the typed lifecycle plan still does not reliably perform the Git operations needed to create the external install PR.\n\n## Review\nThe route split and token isolation are now in good shape, and several prior findings are fixed. The PR is not ready to ship because the lifecycle plan can reach `gh pr create` without a target checkout, commit, or pushed branch.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Lifecycle plan cannot deterministically create the install PR | BLOCKING | [`buildInstallLifecyclePlan()`](https://github.com/self-evolving/repo/blob/397265240d68098245d9e80acc9ad66a46572348/.agent/src/install-lifecycle.ts#L102) prepares/copies/validates, then jumps to [`open-install-pr`](https://github.com/self-evolving/repo/blob/397265240d68098245d9e80acc9ad66a46572348/.agent/src/install-lifecycle.ts#L142) without explicit target clone/worktree setup, staging, commit, or push steps. |\n| Install access defaults may be too broad | WARNING | The install route is independently authorizable, but absent `route_overrides.install`, public defaults still allow `CONTRIBUTOR` to trigger an approve-all install run using `AGENT_INSTALL_PAT`. |\n\n## Progress\n- Prior findings for source rubrics isolation, bespoke install regex parsing, URL-path target ambiguity, and literal lifecycle placeholders are fixed at head `397265240d68098245d9e80acc9ad66a46572348`.\n- Resolved obsolete same-agent threads for the URL target parsing, install rubrics isolation, and literal placeholder issues.\n- Posted one new inline comment on `.agent/src/install-lifecycle.ts:142` for the missing target worktree plus commit/push lifecycle steps.\n- No replies were added and no comments were minimized. The human-authored `.agent/src/triage.ts` thread remains unresolved.\n- Rubrics review passed the current route split; reviewer disagreement remains only on lifecycle severity, with Codex treating the missing publish steps as blocking and Claude as a minor lifecycle completeness gap.\n\n## Issue Details\n<details>\n<summary>Lifecycle plan cannot deterministically create the install PR</summary>\n\n**Cause:** The plan assumes a clean target worktree but never creates or clones one, and after `copy-install-scope` it only runs `git status --short && git diff --stat`. It then runs `gh pr create --head agent/install-agent-infra`, but no step stages, commits, or pushes that branch.\n\n**Candidate solutions:** Add explicit target clone/worktree setup before `prepare-target-branch`, then add deterministic stage, commit, and push steps before `open-install-pr`. Update `install-lifecycle.test.ts` to assert the ordering.\n\n**Comments:** Codex marked this blocking because the current flow cannot reliably open the promised external PR. Claude raised the same lifecycle area as warnings around missing clone/workdir context and prose-level copy mechanics; rubrics accepted the scoped typed-plan shape but noted final mutation execution is still agent-orchestrated.\n\n</details>\n\n<details>\n<summary>Install access defaults may be too broad</summary>\n\n**Cause:** `access-policy.ts` defaults public routes to `OWNER`, `MEMBER`, `COLLABORATOR`, and `CONTRIBUTOR`, while the install job runs with `permission_mode: approve-all` and `github_token: secrets.AGENT_INSTALL_PAT`.\n\n**Candidate solutions:** Require an explicit `route_overrides.install` when `AGENT_INSTALL_PAT` is configured, or make `install` default to a narrower allowlist such as `OWNER`/`MEMBER`. If the current default is intentional, keep it documented as an operator policy choice.\n\n**Comments:** Codex raised this as a warning. Rubrics passed because `/install` is now a separate route and docs show the stricter override pattern, so this is a maintainer policy decision rather than the primary automated fix item.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the lifecycle plan needs concrete branch changes to set up the target worktree and publish the install branch before PR creation.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Add explicit target clone/worktree setup to the install lifecycle before branch preparation.\n- [ ] Add deterministic stage, commit, and push steps before `open-install-pr`, with lifecycle ordering tests.",
+      "createdAt": "2026-05-19T21:58:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4492400654",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8TAfg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #273 | 8 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: The latest review synthesis recommends FIX_PR for concrete unresolved install lifecycle gaps on open PR #273; the source conclusion is needs_rework and the fixes require branch changes.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Add explicit target clone/worktree setup to the install lifecycle before branch preparation.\n- Add deterministic stage, commit, and push steps before `open-install-pr`, with lifecycle ordering tests.\n\nConstraints: Preserve the productized `/install` route design direction: first-class authorized route, dedicated install prompt instead of overloading `.skills/install-agent/SKILL.md`, minimized/manual `install-agent` skill guidance, deterministic mechanics in typed `.agent/src/*` helpers/CLIs and workflow wiring, `AGENT_INSTALL_PAT` only for target install operations with no fallback to the normal resolved repo token, docs/tests aligned, and surgical diff. Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1779228040486 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxMjcxMTc1Njk6cmV2aWV3OjI3MzpmaXhfcHI6MjczOjg -->",
+      "createdAt": "2026-05-19T22:00:40Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4492411006",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8T-Dg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-269/codex-26007754542`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Added explicit `setup-target-worktree` before target branch preparation in the typed install lifecycle plan.\n- Added deterministic `stage-install-changes`, `commit-install-changes`, and `push-install-branch` steps before `open-install-pr`.\n- Updated lifecycle ordering tests to assert clone/worktree setup and publish steps occur in the required sequence.\n\n<details><summary>Verification</summary>\n\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/install-lifecycle.test.js`\n- `env GITHUB_OUTPUT=/tmp/plan-install-output node .agent/dist/cli/plan-install-lifecycle.js \"@sepo-agent /install https://github.com/foo/bar\"`\n- `git diff --check`\n\n</details>",
+      "createdAt": "2026-05-19T22:03:14Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4492426766",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8UPLQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #273 | 9 / 40 | Dispatched |\n\nReason: agent planner selected review: The latest fix-pr action succeeded on PR #273, so the next useful automated step is a review pass to verify the requested install-route split and token-hardening work before stopping.\n\n<!-- sepo-agent-handoff state:dispatched created:1779228230453 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxMjc5Mzc4MTg6Zml4X3ByOjI3MzpyZXZpZXc6MjczOjk -->",
+      "createdAt": "2026-05-19T22:03:50Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4492431149",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8VJTA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 92 | PARTIAL | 14 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Prefer permissive command route parsing | pass | 7/7 | `/install` is a normal explicit route and the full request is passed to install-specific resolution in `.agent/src/install-target.ts`. |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | `/install` now resolves as route `install`, with docs showing `route_overrides.install` for separate authorization. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The PR adds a distinct `install` route, dedicated prompt, `AGENT_INSTALL_PAT`, and typed target/lifecycle helpers instead of routing through `/skill install-agent`. |\n| coding_workflow / generic | Reuse existing code | partial | 5/8 | It reuses router/prompt/action patterns, but some install mechanics remain agent-interpreted templates rather than executable typed helpers. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | Productized public installs move to `/install`; `.skills/install-agent/SKILL.md` is reduced to manual/custom guidance plus a short `/install` note. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | The lifecycle plan checks for an existing open install PR before branch/PR creation. |\n| coding_workflow / generic | Keep privileged workflows on trusted runtime | partial | 7/8 | Runtime code stays in the source checkout and target writes use a target worktree, but the git clone/push templates do not explicitly wire the install token into git credentials. |\n| coding_workflow / generic | Generate context-derived artifact metadata | pass | 7/7 | `agent-install.md` requires target, source revision, installed files, validation, and setup metadata in the PR body. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Docs cover `/install`, `AGENT_INSTALL_PAT`, access policy, source memory isolation, and the manual skill split. |\n| communication / generic | Write audience-first documentation | pass | 7/7 | Install docs lead with the user command and practical setup before deeper auth details. |\n| communication / generic | Keep status comments compact | pass | 6/6 | The missing-token response is short and actionable: not configured, required secret, next step. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | Current diff follows the cited design direction: first-class route, dedicated prompt, typed helpers, install-only PAT, minimized skill. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are scoped to install route wiring, helper/tests, docs, and the skill note. |\n| coding_style / generic | Prefer simple implementations | partial | 6/7 | The approach is small, but the lifecycle plan stops short of a fully deterministic helper and asks the agent to fill operational gaps. |\n\n## Notes\n\n- The PR now satisfies the main route split: `/install` is first-class, authorized separately, runs `.github/prompts/agent-install.md`, and no longer overloads `.skills/install-agent/SKILL.md`.\n- Token fallback is mostly hardened in workflow wiring: install execution uses `secrets.AGENT_INSTALL_PAT`, with source memory/rubrics disabled.\n- The remaining rubric gap is the boundary between typed mechanics and agent prose/templates.\n\n## Findings\n\n- **WARNING:** `reuse-existing-code` / `keep-privileged-workflows-on-trusted-runtime` are only partially satisfied. In [`install-lifecycle.ts`](https://github.com/self-evolving/repo/blob/d349fc73cf1e7c460e33bf997166a85928e45ff2/.agent/src/install-lifecycle.ts#L116), the target clone uses a plain GitHub HTTPS URL, and [`push-install-branch`](https://github.com/self-evolving/repo/blob/d349fc73cf1e7c460e33bf997166a85928e45ff2/.agent/src/install-lifecycle.ts#L175) assumes git can push without an explicit install-token credential setup. The copy/source checkout step is also a prose `commandTemplate` at [`install-lifecycle.ts#L138`](https://github.com/self-evolving/repo/blob/d349fc73cf1e7c460e33bf997166a85928e45ff2/.agent/src/install-lifecycle.ts#L138). The smallest useful follow-up is to make the lifecycle helper emit executable, token-aware clone/source/copy/push commands or a typed CLI that performs those steps.\n\n## Final Rubric Verdict\n\nPARTIAL",
+      "createdAt": "2026-05-19T22:06:15Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4492446028",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8ZsNw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: d349fc73cf1e7c460e33bf997166a85928e45ff2 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #273 implements the `/install` direction from issue #269 and Discussion #271 by moving from a skill alias toward a first-class install route. The current head adds a dedicated install job and prompt, routes target parsing through typed helpers, uses `AGENT_INSTALL_PAT` for install runs, and disables source memory/rubrics for that route. It also preserves the manual `.skills/install-agent` path as custom guidance and updates docs/tests around the new route. The remaining risk is in the lifecycle plan: the route can still fail to create the external install PR because the most sensitive git/copy operations are not fully executable or token-aware.\n\n## Review\nThe route split, target parsing direction, and token isolation are substantially improved. The PR still needs rework before merge because the target publish path assumes git credentials that are not configured, and the source checkout/copy step remains agent-inferred prose.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Install publish path is not token-aware | BLOCKING | [`setup-target-worktree`](https://github.com/self-evolving/repo/blob/d349fc73cf1e7c460e33bf997166a85928e45ff2/.agent/src/install-lifecycle.ts#L116) clones an anonymous HTTPS remote, then [`push-install-branch`](https://github.com/self-evolving/repo/blob/d349fc73cf1e7c460e33bf997166a85928e45ff2/.agent/src/install-lifecycle.ts#L177) pushes to `origin` without configuring git credentials. `GH_TOKEN`/`GITHUB_TOKEN` alone does not make plain `git push` use `AGENT_INSTALL_PAT`. |\n| Source checkout and copy remain agent-inferred | WARNING | [`copy-install-scope`](https://github.com/self-evolving/repo/blob/d349fc73cf1e7c460e33bf997166a85928e45ff2/.agent/src/install-lifecycle.ts#L138) is a prose `commandTemplate`, and its `source_checkout` slot points to release-list output rather than a concrete checkout/download step. |\n| Install trigger default is an operator-policy risk | WARNING | The install route is independently authorizable, but without `route_overrides.install`, public defaults still include `CONTRIBUTOR` for an approve-all route using `AGENT_INSTALL_PAT`. Docs show the stricter override pattern, so this is a maintainer policy decision rather than the main automated fix item. |\n\n## Progress\n- Prior findings for route overloading, install-token fallback, source memory/rubrics isolation, URL target ambiguity, literal placeholders, and missing target worktree/stage/commit/push steps are fixed at head `d349fc73cf1e7c460e33bf997166a85928e45ff2`.\n- Resolved the stale same-agent thread on `.agent/src/install-lifecycle.ts:183` because current code now includes target worktree setup plus stage, commit, and push steps.\n- Posted new inline comments on `.agent/src/install-lifecycle.ts:177` and `.agent/src/install-lifecycle.ts:138`.\n- No replies were added and no comments were minimized. The human-authored `.agent/src/triage.ts` design thread remains unresolved and was left untouched.\n\n## Issue Details\n\n<details>\n<summary>Install publish path is not token-aware</summary>\n\n**Cause:** The lifecycle plan clones `https://github.com/${targetRepo}.git`, leaving `origin` as an anonymous HTTPS remote. The install job passes `AGENT_INSTALL_PAT` into `run-agent-task`, which exports it as `GH_TOKEN`/`GITHUB_TOKEN`, but neither `run-agent-task` nor the lifecycle plan configures git credentials before `git push --set-upstream origin ...`.\n\n**Candidate solutions:** Move target clone/push into a typed helper that uses the install PAT without logging it, run an explicit safe credential setup such as `gh auth setup-git`, or push to an authenticated remote constructed from the install token. Add regression coverage proving the install path does not fall back to the normal repo token.\n\n**Comments:** Codex marked this blocking; rubrics raised the same token-aware clone/push gap as the remaining trusted-runtime concern.\n\n</details>\n\n<details>\n<summary>Source checkout and copy remain agent-inferred</summary>\n\n**Cause:** `resolve-source-release` only lists releases, but no lifecycle step materializes the selected release/tag into `source_checkout`. The following copy step is natural-language prose instead of an executable command/template.\n\n**Candidate solutions:** Add a `checkout-source-release` or download step, then replace the prose copy template with an executable `rsync`/targeted copy command, or move source selection and copy mechanics into a typed CLI/helper with tests.\n\n**Comments:** Reviewers agree this is less severe than the unauthenticated push, but it is the same class of issue: install mechanics that should be deterministic are still left to agent interpretation.\n\n</details>\n\n<details>\n<summary>Install trigger default is an operator-policy risk</summary>\n\n**Cause:** `.agent/src/access-policy.ts` keeps public defaults at `OWNER`, `MEMBER`, `COLLABORATOR`, and `CONTRIBUTOR`, while `/install` runs with `permission_mode: approve-all` and an external-write token when `AGENT_INSTALL_PAT` is configured.\n\n**Candidate solutions:** Require or strongly gate `route_overrides.install`, narrow the built-in default for `install`, or keep the documented override as the intended operator control.\n\n**Comments:** This is not listed as an automation action item because it may be an intentional repository policy choice.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the token-aware publish path and concrete source checkout/copy mechanics are branch-local lifecycle fixes that are safe for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Make target clone/push token-aware using `AGENT_INSTALL_PAT` without falling back to the normal repo token, with regression coverage.\n- [ ] Add a concrete source checkout/download step and executable copy operation, or move those lifecycle mechanics into a typed helper with tests.",
+      "createdAt": "2026-05-19T22:17:03Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4492520503",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8Z9yQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #273 | 10 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: The latest review synthesis returned NEEDS_REWORK with recommended next step fix_pr, and the findings are concrete branch changes suitable for automation.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Make target clone/push token-aware using AGENT_INSTALL_PAT without falling back to the normal repo token, with regression coverage.\n- Add a concrete source checkout/download step and executable copy operation, or move those lifecycle mechanics into a typed helper with tests.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1779229060241 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxMjgwODM2OTY6cmV2aWV3OjI3MzpmaXhfcHI6MjczOjEw -->",
+      "createdAt": "2026-05-19T22:17:40Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4492525001",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8b1EA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-269/codex-26007754542`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Made install lifecycle target operations token-aware: target repo checks, git auth setup, clone, push, and PR creation now require `GH_TOKEN: AGENT_INSTALL_PAT`.\n- Added deterministic source checkout and executable `rsync` copy steps before target branch/diff/commit flow.\n- Added lifecycle ordering and token-regression coverage.\n\n<details><summary>Verification</summary>\n\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/install-lifecycle.test.js`\n- `env GITHUB_OUTPUT=/tmp/plan-install-output node .agent/dist/cli/plan-install-lifecycle.js \"@sepo-agent /install https://github.com/foo/bar\"`\n- `git diff --check`\n\n</details>",
+      "createdAt": "2026-05-19T22:21:53Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4492555536",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8cG4g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #273 | 11 / 40 | Dispatched |\n\nReason: agent planner selected review: The fix-pr pass succeeded on open PR #273 after implementing the requested `/install` route split, so an automated review is warranted to verify the productized install route design and guardrails.\n\n<!-- sepo-agent-handoff state:dispatched created:1779229354839 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxMjg2OTQzMjk6Zml4X3ByOjI3MzpyZXZpZXc6MjczOjEx -->",
+      "createdAt": "2026-05-19T22:22:35Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4492560098",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8c6zw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 98 | PASS | 14 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Prefer permissive command route parsing | pass | 7/7 | `/install` is detected as an explicit route while target resolution is deferred to `.agent/src/install-target.ts`, which accepts GitHub URLs and `owner/repo` slugs and blocks missing/ambiguous targets. |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | The PR no longer delegates `/install` through `skill`; `.agent/src/triage.ts` resolves route `install`, `.agent/src/rubrics.ts` includes `install`, and docs show `route_overrides.install` for separate authorization. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The implementation adds a distinct `install` route, `AGENT_INSTALL_PAT`, dedicated prompt, typed target resolver, and lifecycle CLI instead of overloading `/skill install-agent`. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The route reuses existing router, prompt, run-agent-task, post-response, timeout, and docs/test patterns while placing install-specific behavior in focused `.agent/src/*` helpers. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | `.skills/install-agent/SKILL.md` is kept as manual/custom guidance with only a short note pointing public cross-repo installs to `@sepo-agent /install ...`. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | The lifecycle plan includes `check-existing-install-pr` before clone/branch/push/PR creation, and tests assert the step ordering. |\n| coding_workflow / generic | Keep privileged workflows on trusted runtime | pass | 8/8 | Install runs use the source checkout for runtime code, create a separate target worktree, require `AGENT_INSTALL_PAT` for target operations, and disable source memory/rubrics writes. |\n| coding_workflow / generic | Generate context-derived artifact metadata | pass | 7/7 | `.github/prompts/agent-install.md` requires target repo/branch, source revision, installed/skipped files, validation results, and required setup metadata in the install PR body. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Docs were updated for the first-class install route, access policy, `AGENT_INSTALL_PAT`, setup guide, quick start, supported workflows, and configuration list. |\n| communication / generic | Write audience-first documentation | pass | 7/7 | The install docs lead with the practical user command and token requirement, then put route/auth details in the deployment and setup docs. |\n| communication / generic | Keep status comments compact | pass | 6/6 | The missing-token response is short and actionable: “Install is not configured,” required secret, and next rerun step. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The current diff follows the cited design comment: first-class route, dedicated prompt, typed helpers, minimized skill, and install-only PAT. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is scoped to install route wiring, install helpers/tests, prompt/docs, and the short install skill note. |\n| coding_style / generic | Prefer simple implementations | partial | 6/7 | The approach stays small, but the lifecycle helper still emits an ordered plan for the agent to execute rather than a single end-to-end install executor. This fits the requested prompt-orchestrated shape, with minor residual operational complexity. |\n\n## Notes\n\n- The current head satisfies the main split requested in the latest discussion: `/install` is first-class, separately authorizable, runs `.github/prompts/agent-install.md`, and no longer overloads `.skills/install-agent/SKILL.md`.\n- Token handoff is materially hardened: install execution passes `github_token: ${{ secrets.AGENT_INSTALL_PAT }}`, the prompt forbids fallback tokens for target writes, lifecycle target operations declare `GH_TOKEN: AGENT_INSTALL_PAT`, and tests assert the plan does not reference `AGENT_PAT`, `github.token`, or `steps.auth.outputs.token`.\n- Verification run locally: `npm --prefix .agent run build`; `node --test .agent/dist/__tests__/install-lifecycle.test.js .agent/dist/__tests__/install-target.test.js .agent/dist/__tests__/triage.test.js .agent/dist/__tests__/envelope.test.js`; `env GITHUB_OUTPUT=/tmp/plan-install-output node .agent/dist/cli/plan-install-lifecycle.js \"@sepo-agent /install https://github.com/foo/bar\"`.\n\n## Findings\n\n- **INFO:** `simple-implementation` has a small residual tradeoff: the install lifecycle is deterministic as a typed plan/CLI, but execution is still prompt-orchestrated step by step rather than handled by one typed executor. This is acceptable for this PR’s requested shape.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-19T22:24:45Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4492573391",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8hCgQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 24a8db189c71e3566fd263268bd5073736a708a9 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #273 implements the `/install` direction from issue #269 and Discussion #271 by evolving from a skill alias into a first-class install route. The current head adds permissive `/install` routing, a dedicated install prompt, typed target/lifecycle helpers, install-only `AGENT_INSTALL_PAT` handling, and disabled source memory/rubrics state for install runs. It also documents route-specific access policy and the external install flow. The remaining risk is in the lifecycle copy/probe contract: the route can still overwrite target-owned GitHub assets before conflict review.\n\n## Review\nThe route split and token isolation are substantially improved, and rubrics review passes the overall design. Current reviewer artifacts and PR state still support one blocking lifecycle safety issue plus two concrete warnings.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Install copy can overwrite target-owned GitHub assets | BLOCKING | `copy-install-scope` uses `rsync -a` from source `.github/` into target `.github/` before a conflict audit, so same-path target workflows/actions/prompts can be overwritten despite the install prompt’s preservation contract. |\n| Target write probe does not block on missing push permission | WARNING | `check-target-write` prints repository permissions but does not fail when `permissions.push` is false, so no-write installs can continue until a later push failure instead of returning a deterministic blocked result. |\n| Source checkout slot has an inconsistent template contract | WARNING | `source_checkout` is marked as filled from `resolve-source-release`, but its description says to choose a temp directory; that conflicts with the prompt rule that slots are filled from their named source step. |\n| Install authorization default remains operator-sensitive | INFO | Public defaults still allow `CONTRIBUTOR` unless `route_overrides.install` is configured; docs show the stricter override, so this remains a maintainer policy choice rather than an automation action item. |\n\n## Progress\n- Prior findings around route overloading, install-token fallback, memory/rubrics isolation, URL target ambiguity, token-aware clone/push, source checkout materialization, and stage/commit/push ordering are fixed at head `24a8db189c71e3566fd263268bd5073736a708a9`.\n- Posted one new inline comment on `.agent/src/install-lifecycle.ts:179` for the overwrite-before-audit copy issue.\n- Resolved two obsolete same-agent threads: token-aware clone/push and prose copy/source checkout.\n- No replies were added and no comments were minimized. The human-authored triage discussion thread remains unresolved and untouched.\n- Reviewers differ on severity: rubrics passes the design and Claude reports minor issues, while Codex flags the copy safety issue as blocking; current code supports the blocking finding.\n\n## Issue Details\n\n<details>\n<summary>Install copy can overwrite target-owned GitHub assets</summary>\n\n**Cause:** [`copy-install-scope`](https://github.com/self-evolving/repo/blob/24a8db189c71e3566fd263268bd5073736a708a9/.agent/src/install-lifecycle.ts#L179) copies the full source `.github/` tree over the target `.github/` tree. `rsync -a` preserves target-only files, but it overwrites files with the same path before any conflict classification, while [`agent-install.md`](https://github.com/self-evolving/repo/blob/24a8db189c71e3566fd263268bd5073736a708a9/.github/prompts/agent-install.md#L43) says to preserve target-owned GitHub functionality.\n\n**Candidate solutions:** Add a deterministic conflict/audit step before copying, or move copy into a typed helper that skips and reports same-path conflicts instead of staging overwritten files. Add lifecycle coverage for a target repo with an existing same-path workflow.\n\n**Comments:** This is the new inline comment posted during synthesis.\n\n</details>\n\n<details>\n<summary>Target write probe does not block on missing push permission</summary>\n\n**Cause:** [`check-target-write`](https://github.com/self-evolving/repo/blob/24a8db189c71e3566fd263268bd5073736a708a9/.agent/src/install-lifecycle.ts#L106) outputs `.permissions`, but the command itself does not assert `permissions.push == true`.\n\n**Candidate solutions:** Make the probe fail or return a blocked state when push/write permission is absent, preferably through a typed helper or a command that exits non-zero with a clear message.\n\n**Comments:** This is not an unauthorized-write risk because the push should still fail later, but it weakens the install route’s deterministic blocked-result behavior.\n\n</details>\n\n<details>\n<summary>Source checkout slot has an inconsistent template contract</summary>\n\n**Cause:** In [`checkout-source-release`](https://github.com/self-evolving/repo/blob/24a8db189c71e3566fd263268bd5073736a708a9/.agent/src/install-lifecycle.ts#L145), `source_checkout` names `resolve-source-release` as its `sourceStep`, but that step lists releases rather than producing a temp directory path.\n\n**Candidate solutions:** Add an explicit agent-chosen slot convention, remove the misleading `sourceStep`, or add a concrete checkout-dir output step. Cover the intended slot behavior in `install-lifecycle.test.ts`.\n\n**Comments:** This is less severe than the copy overwrite issue, but it is a real lifecycle contract ambiguity.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the unresolved lifecycle safety and contract issues are concrete branch changes that are safe for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Add conflict-safe audit/copy behavior so `.github` same-path target assets are not overwritten before review.\n- [ ] Make target write validation fail or block deterministically when `AGENT_INSTALL_PAT` lacks target push permission.\n- [ ] Fix the `source_checkout` template-slot contract and add focused lifecycle test coverage.",
+      "createdAt": "2026-05-19T22:34:44Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4492640897",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8hR6A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #273 | 12 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: The latest review synthesis recommends FIX_PR for concrete NEEDS_REWORK items on open PR #273, so one automated fix-pr pass is warranted.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Add conflict-safe audit/copy behavior so `.github` same-path target assets are not overwritten before review.\n- Make target write validation fail or block deterministically when `AGENT_INSTALL_PAT` lacks target push permission.\n- Fix the `source_checkout` template-slot contract and add focused lifecycle test coverage.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1779230122374 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxMjg5MDUwMjM6cmV2aWV3OjI3MzpmaXhfcHI6MjczOjEy -->",
+      "createdAt": "2026-05-19T22:35:22Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4492644840",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8iaTA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-269/codex-26007754542`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Added deterministic `/install` target write blocking: `check-target-write` now fails when `AGENT_INSTALL_PAT` lacks push permission.\n- Added conflict-safe `.github` copy handling: same-path target GitHub assets are audited before copy, and `.github` rsync uses `--ignore-existing`.\n- Fixed the `source_checkout` contract with an explicit temp checkout-dir step and focused lifecycle coverage.\n\n<details><summary>Verification</summary>\n\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/install-lifecycle.test.js`\n- `env GITHUB_OUTPUT=/tmp/plan-install-output-273 node .agent/dist/cli/plan-install-lifecycle.js \"@sepo-agent /install https://github.com/foo/bar\"`\n- `git diff --check`\n\n</details>",
+      "createdAt": "2026-05-19T22:38:34Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4492663372",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8iqzA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #273 | 13 / 40 | Dispatched |\n\nReason: agent planner selected review: The fix-pr pass succeeded on open PR #273 after addressing the latest review action items, so an automated review is warranted to verify the fixes before stopping.\n\n<!-- sepo-agent-handoff state:dispatched created:1779230354616 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxMjk0NTQyMjQ6Zml4X3ByOjI3MzpyZXZpZXc6MjczOjEz -->",
+      "createdAt": "2026-05-19T22:39:14Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4492667596",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8jZEA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "Pausing this PR. The install-route work is being restarted from a clean design in #296; please do not dispatch further automation on this branch unless a maintainer explicitly reopens this approach.",
+      "createdAt": "2026-05-19T22:41:14Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/273#issuecomment-4492679440",
+      "viewerDidAuthor": false
     }
   ],
   "createdAt": "2026-05-18T00:59:02Z",
@@ -445,8 +908,14 @@
       "changeType": "MODIFIED"
     },
     {
+      "path": ".agent/docs/architecture/rubrics.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
       "path": ".agent/docs/architecture/supported-workflows.md",
-      "additions": 11,
+      "additions": 13,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
@@ -458,7 +927,7 @@
     },
     {
       "path": ".agent/docs/deployment/install-existing-repository.md",
-      "additions": 50,
+      "additions": 52,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
@@ -482,8 +951,8 @@
     },
     {
       "path": ".agent/src/__tests__/envelope.test.ts",
-      "additions": 26,
-      "deletions": 0,
+      "additions": 40,
+      "deletions": 2,
       "changeType": "MODIFIED"
     },
     {
@@ -493,6 +962,18 @@
       "changeType": "MODIFIED"
     },
     {
+      "path": ".agent/src/__tests__/install-lifecycle.test.ts",
+      "additions": 90,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/install-target.test.ts",
+      "additions": 43,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
       "path": ".agent/src/__tests__/resolve-dispatch-cli.test.ts",
       "additions": 39,
       "deletions": 0,
@@ -500,7 +981,7 @@
     },
     {
       "path": ".agent/src/__tests__/rubrics.test.ts",
-      "additions": 19,
+      "additions": 27,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
@@ -517,10 +998,16 @@
       "changeType": "MODIFIED"
     },
     {
-      "path": ".agent/src/cli/resolve-dispatch.ts",
-      "additions": 10,
-      "deletions": 1,
-      "changeType": "MODIFIED"
+      "path": ".agent/src/cli/plan-install-lifecycle.ts",
+      "additions": 33,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/resolve-install-target.ts",
+      "additions": 21,
+      "deletions": 0,
+      "changeType": "ADDED"
     },
     {
       "path": ".agent/src/envelope.ts",
@@ -529,15 +1016,33 @@
       "changeType": "MODIFIED"
     },
     {
+      "path": ".agent/src/install-lifecycle.ts",
+      "additions": 250,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/install-target.ts",
+      "additions": 94,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
       "path": ".agent/src/rubrics.ts",
-      "additions": 5,
+      "additions": 3,
       "deletions": 1,
       "changeType": "MODIFIED"
     },
     {
+      "path": ".agent/src/run.ts",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
       "path": ".agent/src/triage.ts",
-      "additions": 36,
-      "deletions": 1,
+      "additions": 27,
+      "deletions": 2,
       "changeType": "MODIFIED"
     },
     {
@@ -545,6 +1050,12 @@
       "additions": 1,
       "deletions": 1,
       "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-install.md",
+      "additions": 74,
+      "deletions": 0,
+      "changeType": "ADDED"
     },
     {
       "path": ".github/workflows/agent-entrypoint.yml",
@@ -560,14 +1071,14 @@
     },
     {
       "path": ".github/workflows/agent-router.yml",
-      "additions": 34,
-      "deletions": 7,
+      "additions": 112,
+      "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
       "path": ".skills/install-agent/SKILL.md",
-      "additions": 78,
-      "deletions": 16,
+      "additions": 4,
+      "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
@@ -649,10 +1160,130 @@
       "commit": {
         "oid": "927edc45996ee412e4dad88ce6ffbad0412611f8"
       }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAa-ryg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-19T21:15:54Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "e2439ac644f3f7a89441bb9438fa2e2ad4b1a1b5"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAbHYnA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-19T21:35:56Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "5b03b622bfe7640c5ed7aa4ce4256c18818cadc3"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAbHacA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-19T21:36:02Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "5b03b622bfe7640c5ed7aa4ce4256c18818cadc3"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAbHcwA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-19T21:36:10Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "5b03b622bfe7640c5ed7aa4ce4256c18818cadc3"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAbOIRw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-19T21:57:28Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "397265240d68098245d9e80acc9ad66a46572348"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAbVMbQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-19T22:15:58Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "d349fc73cf1e7c460e33bf997166a85928e45ff2"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAbVPJQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-19T22:16:04Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "d349fc73cf1e7c460e33bf997166a85928e45ff2"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAbb1dg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-19T22:33:19Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "24a8db189c71e3566fd263268bd5073736a708a9"
+      }
     }
   ],
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Add /install route alias for install-agent",
-  "updatedAt": "2026-05-19T17:42:57Z",
+  "updatedAt": "2026-05-19T22:46:56Z",
   "url": "https://github.com/self-evolving/repo/pull/273"
 }

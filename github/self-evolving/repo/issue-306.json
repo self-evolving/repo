@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "1. in that case, perhaps we can continue the review from the past session?\n2. or other ways to make review faster?\n\n@sepo-agent /answer",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC-APgA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, a `fast-review` mode makes sense, but I would make it **delta/context-assisted**, not a blind continuation of the previous agent chat.\n\nCurrent behavior is intentionally full-review oriented:\n\n- `agent-review.yml` runs two reviewer lanes, Claude and Codex, in parallel, then runs synthesis: [`agent-review.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-review.yml#L119-L229), [`agent-review.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-review.yml#L244-L366).\n- Review lanes and synthesis currently use `session_policy: track-only`, so they record run metadata but do **not** restore a previous named ACP session: [`agent-review.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-review.yml#L200-L201), [`agent-review.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-review.yml#L333-L334).\n- The docs explicitly call out that repeated review synthesis is one-shot and does not reuse prior conversation state: [`session-continuity.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/technical-details/session-continuity.md#L14-L20), [`session-continuity.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/technical-details/session-continuity.md#L86-L90).\n- Synthesis already has an important safety rule: do not carry forward old findings unless grounded in current artifacts or current PR state: [`review-synthesize.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/review-synthesize.md#L9-L13).\n\nSo for question 1: **continuing from the past session is technically possible, but I would not make that the main fast path for review.** It risks stale review memory affecting current-head judgment. Sepo already has session resume/fork machinery in `run-agent-task` and `run.ts`, but review deliberately avoids it today: [`run-agent-task/action.yml`](https://github.com/self-evolving/repo/blob/main/.github/actions/run-agent-task/action.yml#L73-L87), [`run.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/run.ts#L445-L559).\n\nRecommended design:\n\n1. Add a `review_mode` input to `agent-review.yml`, defaulting to `full`.\n2. Support `review_mode: fast` as:\n   - capture current PR head\n   - find the latest trusted Sepo review synthesis and its reviewed-head marker\n   - if current head is unchanged, reuse/refresh the existing review result instead of rerunning both reviewers\n   - if current head changed, run a **delta review** focused on changes since the previous reviewed head, plus unresolved prior action items\n   - require synthesis to revalidate every carried-forward finding against current PR state\n3. Make fast mode run fewer expensive steps:\n   - one reviewer lane instead of Claude+Codex, using configured/default provider\n   - optionally skip or defer `rubrics-review`\n   - keep synthesis, because it owns final verdict, reviewed-head provenance, inline cleanup, and orchestration handoff\n4. Keep `full` as the default for first review, risky PRs, security-sensitive changes, or when no trusted prior reviewed-head exists.\n5. Expose it as either `@sepo-agent /review --fast` or `@sepo-agent /fast-review`; internally I’d prefer one route with a mode flag to avoid duplicating dispatch and docs.\n\nExecution plan before coding:\n\n1. Add `review_mode` workflow input to [`agent-review.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-review.yml).\n2. Thread that mode from [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L905-L922).\n3. Add a small typed helper/CLI to locate the latest trusted review synthesis for a PR and compare its reviewed-head marker with the current head.\n4. Add a delta-review prompt variant or inject mode-specific instructions into the existing review prompt.\n5. Update synthesis prompt constraints so fast mode can consider prior synthesis only as context, never as unverified truth.\n6. Add tests for unchanged-head reuse, changed-head delta mode, missing prior synthesis fallback, and stale reviewed-head fallback to full review.\n7. Document the mode in action/session docs.\n\nI’d proceed with this only after approval, since it changes review behavior and the default/full-vs-fast tradeoff should be explicit.",
+      "createdAt": "2026-05-20T03:23:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/306#issuecomment-4494200704",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-20T03:19:42Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 306,
+  "state": "OPEN",
+  "title": "Consider a \"fast-review\" mode",
+  "updatedAt": "2026-05-20T03:23:51Z",
+  "url": "https://github.com/self-evolving/repo/issues/306"
+}

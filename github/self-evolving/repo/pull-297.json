@@ -1,0 +1,292 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n\n- Add a `Repository goal` issue template with structured sections and a hidden `sepo-goal v1` marker.\n- Add onboarding creation for the non-trigger `goal` label.\n- Document goal issues as parent objectives for sub-issues, orchestration, memory context, self-improvement, and experiment work.\n- Update orchestrator prompt/docs to treat `goal` issues as meta objectives and prefer delegated child issues for non-trivial work.\n\n## Verification\n\n- `npm run build`\n- `env GITHUB_OUTPUT=/tmp/sepo-onboarding-test-output node --test dist/__tests__/onboarding-check-cli.test.js`\n- `git diff --check`\n\nCloses #295\n",
+  "closedAt": "2026-05-19T23:34:15Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8mhdg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review with reference to #248 and see if it's a good implementation ",
+      "createdAt": "2026-05-19T22:49:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/297#issuecomment-4492730742",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8nYBg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 98 | PASS | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #297 implements the final direction from discussion #248 and issue #295: goal-as-issue, not discussion category or `agent/goal` branch. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The label path extends existing onboarding label creation via `ensureLabel` rather than adding a new setup mechanism: [onboarding.ts](https://github.com/self-evolving/repo/blob/09f86fc5535f43846df25efef311c0697209626b/.agent/src/onboarding.ts). |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The PR adds one `goal` label, one issue template, and planner/docs guidance. It does not introduce a new branch, parser, workflow, or canonical goal-sync subsystem. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are tightly scoped to goal issue docs/template, onboarding label setup, orchestrator guidance, and one focused onboarding test assertion. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | The implementation uses native GitHub issues, labels, sub-issues, PRs, and comments as the v0 goal surface, matching #248’s “goal-as-issue” conclusion. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The goal template uses explicit sections for goal, why, success criteria, strategy, subgoals, linked work, and a hidden `sepo-goal v1` marker: [goal.md](https://github.com/self-evolving/repo/blob/09f86fc5535f43846df25efef311c0697209626b/.github/ISSUE_TEMPLATE/goal.md). |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Onboarding creates or reuses labels through the existing `ensureLabel` behavior, and the test now verifies the `goal` label creation command. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | New and updated docs cover repository goals, onboarding label behavior, supported workflows, and orchestrator behavior: [goals.md](https://github.com/self-evolving/repo/blob/09f86fc5535f43846df25efef311c0697209626b/.agent/docs/architecture/goals.md), [supported-workflows.md](https://github.com/self-evolving/repo/blob/09f86fc5535f43846df25efef311c0697209626b/.agent/docs/architecture/supported-workflows.md), [agent-orchestrator.md](https://github.com/self-evolving/repo/blob/09f86fc5535f43846df25efef311c0697209626b/.agent/docs/technical-details/agent-orchestrator.md). |\n| communication / generic | Audience-first documentation | partial | 6/7 | The new docs are clear and task-oriented, but the main goals page opens with conceptual framing before the concrete “create a Repository goal issue” workflow. This is minor. |\n\n## Notes\n\n- The implementation is a good fit for #248’s final design: goal issues as parent objectives, sub-issues for decomposition, no `agent/goal` branch, and no premature canonical sync machinery.\n- The PR also satisfies #295’s first-slice scope. It intentionally leaves active-goal summary sync into `PROJECT.md` for later, which is consistent with the issue text.\n- Smallest useful follow-up: tighten the top of `goals.md` so the first paragraph is more directly “create a Repository goal issue with the `goal` label,” then explain the model.\n\n## Findings\n\n- **INFO:** The implementation is rubric-aligned. The only minor rubric note is documentation ordering: the new goals doc is useful, but could lead more directly with the maintainer’s immediate task.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-19T22:52:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/297#issuecomment-4492744710",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8qUTQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 09f86fc5535f43846df25efef311c0697209626b -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #297 adds the first goal-system slice for Sepo: a repository goal issue template, onboarding support for a goal label, docs for the goal hierarchy, and orchestrator guidance for treating goal issues as parent objectives. It closes #295 and is intended to reflect the latest design discussion in #248. The implementation correctly stays away from a new `agent/goal` route or goal branch, but it appears to implement an earlier `goal` convention rather than the latest `agent-goal` direction in #248. That mismatch affects the template, onboarding label, docs, prompt guidance, and test expectation.\n\n## Review\nOverall, the PR is scoped well but needs rework before merge because it would establish the wrong public label convention. Reviewers disagreed: one reviewer flagged the `agent-goal` mismatch as blocking, while another reviewer and the rubrics review treated `goal` as correct; after checking the current #248 transcript, the latest concrete direction supports `agent-goal`.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Goal label convention is stale | BLOCKING | The current diff hard-codes generic `goal`, but #248 later converged on non-trigger `agent-goal` and explicitly deferred `agent/goal`. Shipping this would document and onboard the wrong convention. |\n| Template should use the final issue-form shape | BLOCKING | #248 ended on `.github/ISSUE_TEMPLATE/agent-goal.yml` with auto-applied `agent-goal` and required Goal, Why, and Success criteria fields. The Markdown template can be submitted with blank critical sections. |\n\n## Progress\n- PR #297 correctly keeps the first slice focused on templates, docs, onboarding labels, and orchestrator guidance.\n- It avoids adding an `agent/goal` trigger route, separate goal branch, discussion category workflow, or automated goal sync.\n- Existing PR inline comments and review threads were empty before synthesis.\n- Posted two inline comments: one on `.agent/src/onboarding.ts` for the label convention mismatch, and one on `.github/ISSUE_TEMPLATE/goal.md` for the issue-form/template shape.\n\n## Issue Details\n\n<details>\n<summary>Goal label convention is stale</summary>\n\n**Cause:** The PR appears to follow the generated #295 body’s earlier `goal` label wording, but the later #248 discussion explicitly recommended `agent-goal` as the non-trigger Sepo-owned classification label and rejected `agent/goal` for now because `agent/*` is the trigger namespace.\n\n**Candidate solutions:** Rename the onboarding-created label, issue template label, docs, orchestrator prompt, technical docs, and onboarding test assertion from `goal` to `agent-goal`. Keep the docs explicit that `agent/goal` is deferred unless a real route is later designed.\n\n**Comments:** This is the main reviewer disagreement. The current source discussion resolves it in favor of `agent-goal`.\n\n</details>\n\n<details>\n<summary>Template should use the final issue-form shape</summary>\n\n**Cause:** The PR adds `.github/ISSUE_TEMPLATE/goal.md`, but #248’s latest implementation sketch called for `.github/ISSUE_TEMPLATE/agent-goal.yml` with required fields and automatic `agent-goal` labeling.\n\n**Candidate solutions:** Replace the Markdown template with a GitHub issue form that requires Goal, Why, and Success criteria, and includes optional fields for strategy, subgoals/child tasks, related work, and suggested first Sepo action. If maintainers intentionally prefer Markdown for v0, that should be an explicit human decision rather than implied by this PR.\n\n**Comments:** The current Markdown template is usable documentation, but it does not enforce the structured inputs that orchestration guidance relies on.\n\n</details>\n\n## Recommended Next Step\nFIX_PR\n\nThe unresolved issues are concrete branch changes that an automated fix-pr pass can make safely: rename the convention to `agent-goal` and convert the template to the final issue-form shape.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Rename the goal convention from `goal` to `agent-goal` across onboarding, tests, docs, prompts, and issue-template labels.\n- [ ] Replace `.github/ISSUE_TEMPLATE/goal.md` with `.github/ISSUE_TEMPLATE/agent-goal.yml` using required Goal, Why, and Success criteria fields.",
+      "createdAt": "2026-05-19T22:59:29Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/297#issuecomment-4492792909",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8shBw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate ",
+      "createdAt": "2026-05-19T23:04:08Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/297#issuecomment-4492828935",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8tZFg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | fix-pr | PR #297 | 2 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: The latest review synthesis for open PR #297 recommends FIX_PR with concrete blocking issues that are safe to automate.\n\nTask for fix-pr:\nFix PR #297 by addressing the review synthesis findings in the context of issue #295 and discussion #248. Rename the public goal convention from generic `goal` to non-trigger `agent-goal` across onboarding label setup, tests, docs, and orchestrator prompt guidance. Replace `.github/ISSUE_TEMPLATE/goal.md` with `.github/ISSUE_TEMPLATE/agent-goal.yml` as a GitHub issue form that auto-applies `agent-goal` and requires Goal, Why, and Success criteria, with optional Current strategy, Subgoals/child tasks, Related work, and Suggested first Sepo action. Keep `agent/goal` explicitly deferred as a trigger-route namespace concern. Avoid adding unrelated autoresearch, goal-sync, new route, or memory-update functionality. Verify with the relevant existing checks, including build, onboarding test, and diff check.\n\n<!-- sepo-agent-handoff state:dispatched created:1779231941829 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxMzA2MzMwMjk6b3JjaGVzdHJhdGU6Mjk3OmZpeF9wcjoyOTc6Mg -->",
+      "createdAt": "2026-05-19T23:05:42Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/297#issuecomment-4492843286",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8vypg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-295/codex-26129658367`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Replaced `.github/ISSUE_TEMPLATE/goal.md` with `.github/ISSUE_TEMPLATE/agent-goal.yml`, a GitHub issue form that auto-applies `agent-goal` and requires Goal, Why, and Success criteria.\n- Renamed the public convention from `goal` to `agent-goal` across onboarding label setup, tests, docs, and orchestrator guidance.\n- Kept `agent/goal` explicitly documented as deferred because `agent/*` remains the trigger-route namespace.\n- Verified with `npm run build`, onboarding CLI test, envelope test, issue-form YAML parse, and `git diff --check`.",
+      "createdAt": "2026-05-19T23:10:16Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/297#issuecomment-4492882598",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8wVBw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #297 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on open PR #297 after addressing the prior review synthesis; a fresh review is warranted to validate the current head before stopping.\n\n<!-- sepo-agent-handoff state:dispatched created:1779232278728 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxMzA2OTMxMTk6Zml4X3ByOjI5NzpyZXZpZXc6Mjk3OjM -->",
+      "createdAt": "2026-05-19T23:11:19Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/297#issuecomment-4492891399",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8xBSA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR now matches the latest direction in discussion #248: issue-form based goals, `agent-goal`, and no `agent/goal` trigger route. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Onboarding extends existing `ensureLabel` flow instead of adding a new label setup mechanism: [`onboarding.ts`](https://github.com/self-evolving/repo/blob/29a3806f6fe38a8ce464b429242455d846335e93/.agent/src/onboarding.ts). |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The PR adds one issue form, one non-trigger management label, docs, prompt guidance, and focused tests. It does not add a new route, branch, sync workflow, or goal state subsystem. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are scoped to goal template/docs, onboarding label creation, orchestrator guidance, and narrow tests. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | Uses native GitHub issues, labels, sub-issues, comments, and orchestration rather than building a separate goal tracker. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The GitHub issue form requires Goal, Why, and Success criteria and provides typed optional fields for strategy, child tasks, related work, and first Sepo action: [`agent-goal.yml`](https://github.com/self-evolving/repo/blob/29a3806f6fe38a8ce464b429242455d846335e93/.github/ISSUE_TEMPLATE/agent-goal.yml). |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Label creation uses the existing onboarding `ensureLabel` path, which creates or reuses labels rather than blindly duplicating setup artifacts. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Docs were updated for repository goals, supported workflows, and orchestrator behavior: [`goals.md`](https://github.com/self-evolving/repo/blob/29a3806f6fe38a8ce464b429242455d846335e93/.agent/docs/architecture/goals.md), [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/29a3806f6fe38a8ce464b429242455d846335e93/.agent/docs/architecture/supported-workflows.md), [`agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/29a3806f6fe38a8ce464b429242455d846335e93/.agent/docs/technical-details/agent-orchestrator.md). |\n| communication / generic | Audience-first documentation | pass | 7/7 | The new goals doc opens with the user-facing action and convention: create an `Agent goal` issue with the `agent-goal` label, then explains hierarchy and orchestration. |\n\n## Notes\n\n- The important rubric driver is that the PR follows the final linked discussion direction: `agent-goal` is a non-trigger classification label, while `agent/*` remains reserved for route triggers.\n- The implementation stays deliberately small and uses existing orchestration/onboarding patterns.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** The current head is rubric-aligned. The earlier stale `goal` label/template concern appears addressed by the fix-pr changes now present in the live diff.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-19T23:12:39Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/297#issuecomment-4492902728",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC80K0Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 29a3806f6fe38a8ce464b429242455d846335e93 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #297 adds the first Sepo repository-goal slice for issue-based goals. It introduces an `agent-goal` issue form, onboarding label creation, docs for goal issue hierarchy, and orchestrator guidance for treating goal issues as parent objectives. The PR closes #295 and now matches the latest #248 direction: use GitHub issues and the non-trigger `agent-goal` label, while deferring any `agent/goal` route. The current head is `29a3806f6fe38a8ce464b429242455d846335e93`.\n\n## Review\nThe fresh Codex, Claude, and rubrics reviews all agree the prior blocking issues are resolved. The implementation is scoped to the intended v0 surface and does not add premature goal-sync, branch, route, or autoresearch machinery.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues | INFO | Current reviewers found no required branch changes. The remaining notes are optional observations, such as future YAML parsing coverage or later goal-summary work. |\n\n## Progress\n- Prior `goal` vs `agent-goal` mismatch is fixed across onboarding, tests, docs, prompts, and template labeling.\n- Prior Markdown template concern is fixed by replacing it with `.github/ISSUE_TEMPLATE/agent-goal.yml` using required Goal, Why, and Success criteria fields.\n- Existing same-agent inline review threads for those two old blockers were re-fetched, verified, and resolved.\n- No new inline comments were posted.\n- Current PR check rollup shows `Test Scripts / check` passing on the current head.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION\n\nNo unresolved branch-change work remains; optional INFO observations do not need another automated pass.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-19T23:18:24Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/297#issuecomment-4492954321",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC88Hag",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #297.\n\nno rubric changes\n\nI reviewed PR #297, its issue/review comments, linked issue #295, discussion #248, trust signals, and the existing rubric set. The reusable lessons are already covered by active rubrics like `read-docs-first`, `minimal-defaults-native-escape-hatches`, and `prefer-explicit-structured-inputs`.\n\nNo rubric files were changed.\n",
+      "createdAt": "2026-05-19T23:35:48Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/297#issuecomment-4493084522",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-19T22:43:44Z",
+  "files": [
+    {
+      "path": ".agent/docs/README.md",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/goals.md",
+      "additions": 68,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 2,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/agent-orchestrator.md",
+      "additions": 9,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/onboarding-check-cli.test.ts",
+      "additions": 4,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/onboarding.ts",
+      "additions": 15,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/agent-goal.yml",
+      "additions": 68,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/prompts/agent-orchestrator.md",
+      "additions": 8,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-295/codex-26129658367",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": "2026-05-19T23:34:15Z",
+  "number": 297,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAblzpQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-19T22:57:21Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "09f86fc5535f43846df25efef311c0697209626b"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAbl6yQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-19T22:57:37Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "09f86fc5535f43846df25efef311c0697209626b"
+      }
+    }
+  ],
+  "state": "MERGED",
+  "title": "Add goal issue template and docs",
+  "updatedAt": "2026-05-19T23:35:48Z",
+  "url": "https://github.com/self-evolving/repo/pull/297"
+}

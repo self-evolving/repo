@@ -1,0 +1,433 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Allow `/orchestrate` on discussion targets and enable planner mode for discussion orchestration.\n- Allow planner-selected `implement` from PR/discussion orchestration by creating a focused tracking issue, dispatching `agent-implement.yml` against that issue, and linking back to the original surface.\n- Keep explicit `/implement` unchanged; this PR only wires the orchestrated path. Adds focused coverage for policy, preflight, and handoff behavior.\n\nSupersedes #294 with a smaller focused implementation.\nCloses #227\n\n## Tests\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/handoff.test.js .agent/dist/__tests__/orchestrate-handoff-cli.test.js .agent/dist/__tests__/orchestrator-preflight-cli.test.js .agent/dist/__tests__/triage.test.js`\n- YAML parse for `agent-router.yml` and `agent-orchestrator.yml`\n- `git diff --check`\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9VjIg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review compare with #294  is it better?",
+      "createdAt": "2026-05-20T00:50:23Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/302#issuecomment-4493501218",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9XMAA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 88 | PARTIAL | 13 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Router passes requester/auth context into orchestrator dispatch and allows discussions only through the route condition: [`agent-router.yml`](https://github.com/self-evolving/repo/blob/e85ca5405d74d2f79b289c0b89dbf296400a4d24/.github/workflows/agent-router.yml#L748), [`agent-router.yml`](https://github.com/self-evolving/repo/blob/e85ca5405d74d2f79b289c0b89dbf296400a4d24/.github/workflows/agent-router.yml#L789). |\n| coding_workflow / generic | Generate context-derived artifact metadata | pass | 7/7 | Tracking issue title/body are derived from PR/discussion title/body/url, requester, planner reason, request text, base, and handoff context: [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/e85ca5405d74d2f79b289c0b89dbf296400a4d24/.agent/src/cli/orchestrate-handoff.ts#L485), [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/e85ca5405d74d2f79b289c0b89dbf296400a4d24/.agent/src/cli/orchestrate-handoff.ts#L617). |\n| coding_workflow / generic | Reuse existing code | partial | 5/8 | The PR reuses dispatch and comment primitives, but reintroduces a separate tracking-issue implementation inside `orchestrate-handoff.ts` instead of sharing the explicit non-issue `/implement` tracking path or #294’s later shared helper. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | The prompt keeps the common behavior minimal: PR/discussion `implement` creates a tracking issue first, defaulting to the repository default branch unless `base_pr` is explicitly selected: [`agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/e85ca5405d74d2f79b289c0b89dbf296400a4d24/.github/prompts/agent-orchestrator.md#L55). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The planner path keeps typed `target_kind`, `target_number`, `base_branch`, and `base_pr`, and rejects conflicting base inputs: [`handoff.ts`](https://github.com/self-evolving/repo/blob/e85ca5405d74d2f79b289c0b89dbf296400a4d24/.agent/src/handoff.ts#L615), [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/e85ca5405d74d2f79b289c0b89dbf296400a4d24/.agent/src/cli/orchestrate-handoff.ts#L1740). |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | PR/discussion behavior is expressed in the orchestrator prompt and deterministic handoff validation, not a new repository setting: [`agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/e85ca5405d74d2f79b289c0b89dbf296400a4d24/.github/prompts/agent-orchestrator.md#L108), [`handoff.ts`](https://github.com/self-evolving/repo/blob/e85ca5405d74d2f79b289c0b89dbf296400a4d24/.agent/src/handoff.ts#L637). |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | Planner execution remains behind preflight/authorization and target-kind policy; discussions can only hand off to `implement`, while PRs can hand off to `review`, `fix-pr`, or `implement`: [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/e85ca5405d74d2f79b289c0b89dbf296400a4d24/.agent/src/cli/orchestrate-handoff.ts#L1641), [`handoff.ts`](https://github.com/self-evolving/repo/blob/e85ca5405d74d2f79b289c0b89dbf296400a4d24/.agent/src/handoff.ts#L637). |\n| coding_workflow / generic | Keep docs in sync | partial | 4/7 | README and prompts were updated, but canonical `.agent/docs/actions` and `.agent/docs/architecture` route docs were not updated in #302, unlike #294’s final shape: [`README.md`](https://github.com/self-evolving/repo/blob/e85ca5405d74d2f79b289c0b89dbf296400a4d24/README.md#L55). |\n| coding_workflow / generic | Make user-facing automation idempotent | partial | 5/7 | Tracking issues are looked up before creation with a trusted marker, but discussion stop comments still post directly without the duplicate guard used for issues/PRs: [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/e85ca5405d74d2f79b289c0b89dbf296400a4d24/.agent/src/cli/orchestrate-handoff.ts#L585), [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/e85ca5405d74d2f79b289c0b89dbf296400a4d24/.agent/src/cli/orchestrate-handoff.ts#L1489). |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Tracking issue creation failures stop the handoff, set stop outputs, log the error, and attempt a visible stop comment: [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/e85ca5405d74d2f79b289c0b89dbf296400a4d24/.agent/src/cli/orchestrate-handoff.ts#L1762). |\n| coding_workflow / generic | Comment on accepted workflow stops | partial | 4/6 | Discussion stops are now visible, but lack same-body trusted dedupe, so retries can produce duplicate discussion stop comments: [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/e85ca5405d74d2f79b289c0b89dbf296400a4d24/.agent/src/cli/orchestrate-handoff.ts#L1489). |\n| coding_workflow / generic | Surgical changes | pass | 8/8 | #302 is scoped to the requested minimal route/policy/handoff/prompt/workflow/test changes and is much smaller than #294. |\n| coding_style / generic | Prefer simple implementations | partial | 6/7 | The PR is simpler than #294 by file count and surface area, but some complexity is concentrated in `orchestrate-handoff.ts` rather than a shared helper. |\n\n## Notes\n\n- Compared with final #294: **#302 is smaller, but not better against these rubrics**. It keeps the key safety fix for copied Sepo marker openers and adds pre-create tracking issue reuse, but loses #294’s shared implementation-tracking helper, broader `.agent` docs updates, and discussion stop-comment dedupe.\n- Compared with the earliest #294 version: #302 is better focused and avoids some earlier marker/idempotency problems.\n- Smallest useful follow-up: either restore the shared helper approach from #294 or add focused docs plus discussion stop dedupe while keeping #302’s smaller scope.\n\n## Findings\n\n- **WARNING:** Against `reuse-existing-code`, #302 duplicates non-issue tracking issue logic in `orchestrate-handoff.ts` instead of sharing the existing explicit `/implement` path or #294’s helper.\n- **WARNING:** Against `keep-docs-in-sync`, #302 updates README/prompts but leaves the more detailed `.agent/docs` route documentation stale.\n- **WARNING:** Against `idempotent-user-facing-automation`, discussion stop comments bypass trusted duplicate checks.\n\n## Final Rubric Verdict\n\nPARTIAL",
+      "createdAt": "2026-05-20T00:53:51Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/302#issuecomment-4493528064",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9ZIXw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: e85ca5405d74d2f79b289c0b89dbf296400a4d24 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #302 closes #227 by allowing `/orchestrate` on discussions and allowing planner-selected `implement` from PRs and discussions.\n- For non-issue targets, the implementation creates a tracking issue first, then dispatches `agent-implement.yml` against that issue.\n- The PR supersedes #294 with a smaller focused implementation.\n- The core route/policy direction matches the requested minimal behavior, but the smaller replacement drops some idempotency hardening and deeper docs updates from final #294.\n\n## Review\nNo BLOCKING issue is supported by the current artifacts, but three WARNING-level follow-ups remain. Both reviewer outputs are consistent: #302 is scoped and functionally close, but not yet as robust or documented as the final #294 implementation.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Tracking issue reuse relies only on issue search | WARNING | The non-issue implement path checks only issue-body search for the tracking marker before creating a new issue, so search lag or misses can create duplicate tracking issues. |\n| Discussion stop comments bypass duplicate checks | WARNING | The discussion stop path posts directly through `addDiscussionComment()` and returns before the issue/PR duplicate guard runs. |\n| Canonical `.agent/docs` still describe old orchestration limits | WARNING | README and prompts were updated, but deeper `.agent/docs` still describe orchestrate as issue/PR-only and PR orchestration as review/fix-pr-only. |\n\n## Progress\n- The requester’s minimal behavior from #227 is implemented at the route, planner, handoff, workflow, prompt, and focused-test levels.\n- Authorization and target-kind constraints passed the rubrics review.\n- GitHub `check` is passing, and `git diff --check main...origin/pr-302` is clean.\n- Existing inline comments and review threads were empty before mutation; posted one inline comment at `.agent/src/cli/orchestrate-handoff.ts:682`.\n- No inline replies, comment minimizations, or thread resolutions were added.\n\n## Issue Details\n<details>\n<summary>Tracking issue reuse relies only on issue search</summary>\n\n**Cause:** [`ensureOrchestratedImplementationIssue()`](https://github.com/self-evolving/repo/blob/e85ca5405d74d2f79b289c0b89dbf296400a4d24/.agent/src/cli/orchestrate-handoff.ts#L681) calls a helper that searches issue bodies for the tracking marker, while the PR/discussion link-back body has no marker fallback.\n\n**Candidate solutions:** Add trusted link-back marker/comment lookup before issue creation, or reuse the shared implementation-tracking helper shape from final #294.\n\n**Comments:** This was posted inline at line 682 because it is concrete, line-specific, and not already clearly covered in the PR conversation.\n\n</details>\n\n<details>\n<summary>Discussion stop comments bypass duplicate checks</summary>\n\n**Cause:** The discussion branch calls [`addDiscussionComment()`](https://github.com/self-evolving/repo/blob/e85ca5405d74d2f79b289c0b89dbf296400a4d24/.agent/src/cli/orchestrate-handoff.ts#L1495) and returns before `hasMatchingOrchestrateStopComment()` can prevent duplicate stop comments.\n\n**Candidate solutions:** Fetch trusted discussion comments and skip posting when the same stop marker/body already exists.\n\n**Comments:** Existing rubrics feedback already clearly covers this point, so no duplicate inline was posted.\n\n</details>\n\n<details>\n<summary>Canonical `.agent/docs` still describe old orchestration limits</summary>\n\n**Cause:** [`agent-actions.md`](https://github.com/self-evolving/repo/blob/e85ca5405d74d2f79b289c0b89dbf296400a4d24/.agent/docs/actions/agent-actions.md#L18), [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/e85ca5405d74d2f79b289c0b89dbf296400a4d24/.agent/docs/architecture/supported-workflows.md#L27), and [`agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/e85ca5405d74d2f79b289c0b89dbf296400a4d24/.agent/docs/technical-details/agent-orchestrator.md#L83) still describe the previous issue/PR-only and PR review/fix-pr-only behavior.\n\n**Candidate solutions:** Update those docs to include discussion orchestration and PR/discussion `implement` handoffs through tracking issues.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the remaining warnings are concrete branch changes and are safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Add stable pre-create tracking issue reuse beyond issue-body search, such as trusted marker/link-back lookup before issue creation.\n- [ ] Add duplicate prevention for discussion stop comments before `addDiscussionComment()`.\n- [ ] Update `.agent/docs/actions/agent-actions.md`, `.agent/docs/architecture/supported-workflows.md`, and `.agent/docs/technical-details/agent-orchestrator.md` for discussion orchestration and PR/discussion `implement` tracking issues.",
+      "createdAt": "2026-05-20T01:00:57Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/302#issuecomment-4493559903",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9Z7gQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /fix-pr can we launch a minimal fix? ",
+      "createdAt": "2026-05-20T01:03:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/302#issuecomment-4493572993",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9c-7A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/orchestrate-nonissue-implement-minimal`. Requested by @lolipopshock.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Added trusted PR/discussion link-back lookup before creating orchestrated implement tracking issues, and new link-backs now carry the tracking marker.\n- Added trusted exact-body dedupe for discussion orchestrator stop comments.\n- Updated canonical `.agent/docs` orchestration docs for discussion targets and PR/discussion `implement` tracking issues.\n- Checks: `npm --prefix .agent run build`; `node --test .agent/dist/__tests__/orchestrate-handoff-cli.test.js .agent/dist/__tests__/discussion.test.js`; `git diff --check`.",
+      "createdAt": "2026-05-20T01:14:26Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/302#issuecomment-4493623020",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9vJKw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /fix-pr there's a failed test? fix it?",
+      "createdAt": "2026-05-20T02:16:52Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/302#issuecomment-4493920555",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9wTmw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/orchestrate-nonissue-implement-minimal`. Requested by @lolipopshock.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Fixed the failing docs contract by keeping the expected `minimizes older visible handoff marker comments` phrase intact in `.agent/docs/technical-details/agent-orchestrator.md`.\n- Verified with `npm --prefix .agent run build`, `node --test .agent/dist/__tests__/envelope.test.js`, full `npm --prefix .agent test`, and `git diff --check`.\n- Left the working tree with one docs-only change; no commit was created.",
+      "createdAt": "2026-05-20T02:20:59Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/302#issuecomment-4493939611",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9xk7g",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review",
+      "createdAt": "2026-05-20T02:25:20Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/302#issuecomment-4493960430",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9yWAg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 96 | PASS | 13 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Initial orchestrate preflight still checks delegated route capability, and tests cover delegated access before dispatch. |\n| coding_workflow / generic | Generate context-derived artifact metadata | pass | 7/7 | Non-issue implement handoffs create tracking issues from source target metadata, requester, request text, planner reason/context, target title/body, and base inputs. |\n| coding_workflow / generic | Reuse existing code | partial | 6/8 | The PR reuses existing GitHub/comment/discussion helpers and marker patterns, but still keeps substantial tracking-issue orchestration logic inside `orchestrate-handoff.ts` rather than a shared explicit-implement tracking helper. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | Behavior is limited to planner-selected PR/discussion `implement`, normalizing through a tracking issue and defaulting base selection to the existing implement workflow rules. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Keeps `target_kind`, `target_number`, `base_branch`, and `base_pr` as separate validated fields; conflicting base inputs stop visibly. |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | Planner policy and runtime validation choose whether PR/discussion orchestration should implement, answer, stop, or block without adding new repo settings. |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | Discussion targets can only dispatch `implement`; PR targets can dispatch `review`, `fix-pr`, or `implement`; invalid planner choices stop before privileged workflow dispatch. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | README, action docs, workflow architecture docs, and orchestrator technical docs now describe discussion orchestration and PR/discussion implement tracking issues. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Tracking issue reuse checks trusted source link-backs and issue markers; discussion stop comments now use trusted exact-body dedupe. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Tracking issue creation failures set stop outputs, log the error, and attempt a visible stop comment. |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Initial discussion orchestrate stops can post visible comments, with regression coverage for duplicate suppression. |\n| coding_workflow / generic | Surgical changes | pass | 8/8 | The diff is focused on route policy, orchestration handoff logic, docs/prompts, and targeted tests for issue #227. |\n| coding_style / generic | Prefer simple implementations | partial | 6/7 | The implementation is scoped and direct, though the added non-issue tracking path concentrates a fair amount of logic in one CLI. |\n\n## Notes\n\n- The follow-up fixes addressed the earlier rubric gaps: canonical docs are now updated, trusted PR/discussion link-back reuse exists before tracking issue creation, and discussion stop comments are deduped.\n- Verification: `npm --prefix .agent run build`, focused `node --test ...` after rebuild passed `158/158`, and `git diff --check origin/main...HEAD` passed.\n- No rubric-specific follow-up needed beyond considering a later extraction of the non-issue tracking issue helper if this path grows again.\n\n## Findings\n\n- **INFO:** `reuse-existing-code` and `simple-implementation` are not perfect because the new tracking issue/link-back flow is implemented directly in `orchestrate-handoff.ts`, but current coverage and scope make this acceptable for the requested minimal implementation.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-20T02:28:08Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/302#issuecomment-4493972994",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC90Vdw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: d8f706d15ecb4688aca270d3aed71c20f286dece -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #302 closes #227 by enabling `/orchestrate` on discussion targets and allowing planner-selected `implement` from PRs and discussions.\n- Non-issue `implement` handoffs now create or reuse a tracking issue before dispatching `agent-implement.yml`.\n- The PR supersedes #294 with a smaller focused implementation while keeping the requested route, policy, prompt, docs, and test coverage.\n- Follow-up `/fix-pr` runs addressed the prior warnings around tracking issue reuse, discussion stop-comment dedupe, and canonical docs.\n\n## Review\nThe current head is ready to ship. Codex, Claude, and rubrics review outputs agree there are no unresolved BLOCKING or WARNING findings; remaining notes are INFO-level polish only.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No required branch-change issues remain | INFO | Prior review findings are addressed at current head `d8f706d15ecb4688aca270d3aed71c20f286dece`, and the GitHub `check` is passing. Optional notes about helper size, possible future test depth, and one stale PR rejection message are not required ship blockers. |\n\n## Progress\n- Issue #227’s requested minimal behavior is implemented for PR and discussion `/orchestrate` paths.\n- Prior tracking issue reuse risk is addressed by checking trusted PR/discussion link-backs before issue-body search.\n- Prior discussion stop-comment duplication is addressed with trusted exact-body dedupe.\n- Canonical `.agent/docs` route and orchestrator documentation now describes discussion orchestration and non-issue `implement` tracking issues.\n- Re-fetched inline comments and review threads; the remaining older same-agent thread is for the already-fixed tracking issue reuse concern, but `viewerCanResolve` is false, so no thread mutation was performed.\n- No new inline comments, replies, comment minimizations, or thread resolutions were added.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved required branch-change work remains.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-20T02:35:52Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/302#issuecomment-4494005623",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC-AO1w",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer at a high level, does it implement the function: \r\n\r\n1. allow orchestrate -> implement in PRs (to create a new issue etc) \r\n2. allow discussion orchestrate -> implement a new issue (just like what we have in issue orchestrate)? ",
+      "createdAt": "2026-05-20T03:23:48Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/302#issuecomment-4494200535",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC-BEvg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes. At current PR head `d8f706d`, #302 implements both high-level functions.\n\n1. **PR `/orchestrate` -> `implement`: yes.** The planner can choose `implement` for PR orchestration, and the runtime creates or reuses a tracking issue first, then dispatches `agent-implement.yml` against that issue. Evidence: planner policy in [`agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/d8f706d15ecb4688aca270d3aed71c20f286dece/.github/prompts/agent-orchestrator.md#L55-L61), handoff validation in [`handoff.ts`](https://github.com/self-evolving/repo/blob/d8f706d15ecb4688aca270d3aed71c20f286dece/.agent/src/handoff.ts#L615-L635), tracking issue creation/reuse in [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/d8f706d15ecb4688aca270d3aed71c20f286dece/.agent/src/cli/orchestrate-handoff.ts#L722-L762), and dispatch to implement in [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/d8f706d15ecb4688aca270d3aed71c20f286dece/.agent/src/cli/orchestrate-handoff.ts#L1970-L1979).\n\n2. **Discussion `/orchestrate` -> new implementation issue: yes.** The router now allows `/orchestrate` on discussions, the planner can select only `implement` as a workflow handoff for discussions, and the runtime creates/reuses a tracking issue before dispatching implement. Evidence: discussion route allowance in [`agent-router.yml`](https://github.com/self-evolving/repo/blob/d8f706d15ecb4688aca270d3aed71c20f286dece/.github/workflows/agent-router.yml#L745-L755), discussion planner policy in [`agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/d8f706d15ecb4688aca270d3aed71c20f286dece/.github/prompts/agent-orchestrator.md#L62-L65), discussion-only handoff constraint in [`handoff.ts`](https://github.com/self-evolving/repo/blob/d8f706d15ecb4688aca270d3aed71c20f286dece/.agent/src/handoff.ts#L637-L642), and discussion metadata/link-back support in [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/d8f706d15ecb4688aca270d3aed71c20f286dece/.agent/src/cli/orchestrate-handoff.ts#L515-L579).\n\nImportant nuance: for **issues**, orchestrated `implement` can run against the current issue. For **PRs and discussions**, this PR intentionally normalizes implementation through a separate tracking issue first, then runs `agent-implement.yml` on that issue. Current tests cover both PR and discussion tracking-issue flows.",
+      "createdAt": "2026-05-20T03:26:41Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/302#issuecomment-4494214334",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC-BpQg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /fix-pr resolve merge conflicts to main? ",
+      "createdAt": "2026-05-20T03:28:33Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/302#issuecomment-4494223682",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC-CqxA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/orchestrate-nonissue-implement-minimal`. Requested by @lolipopshock.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Merged current `origin/main` into the PR branch and resolved the only content conflict in `.agent/docs/actions/agent-actions.md`.\n- Kept this PR’s discussion-orchestration wording while preserving `main`’s newer self-approval/self-merge and install-route docs.\n- Confirmed no unmerged paths or conflict markers remain.\n- Checks passed: `npm --prefix .agent run build`, focused `node --test ...` route/orchestration suite, `git diff --check`, and `git diff --cached --check`.",
+      "createdAt": "2026-05-20T03:32:06Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/302#issuecomment-4494240452",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-20T00:42:52Z",
+  "files": [
+    {
+      "path": ".agent/docs/actions/agent-actions.md",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 19,
+      "deletions": 7,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/agent-orchestrator.md",
+      "additions": 45,
+      "deletions": 17,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/handoff.test.ts",
+      "additions": 51,
+      "deletions": 10,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrate-handoff-cli.test.ts",
+      "additions": 198,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrator-preflight-cli.test.ts",
+      "additions": 10,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/triage.test.ts",
+      "additions": 11,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrate-handoff.ts",
+      "additions": 408,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrator-preflight.ts",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/discussion.ts",
+      "additions": 10,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/handoff.ts",
+      "additions": 13,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/triage.ts",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-dispatch.md",
+      "additions": 3,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-orchestrator.md",
+      "additions": 16,
+      "deletions": 7,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-orchestrator.yml",
+      "additions": 4,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-router.yml",
+      "additions": 5,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": "README.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/orchestrate-nonissue-implement-minimal",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 302,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAcJR5Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-20T00:59:45Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "e85ca5405d74d2f79b289c0b89dbf296400a4d24"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Support orchestrated implement from PRs and discussions",
+  "updatedAt": "2026-05-20T03:32:06Z",
+  "url": "https://github.com/self-evolving/repo/pull/302"
+}

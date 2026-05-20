@@ -1,0 +1,881 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Allow `/orchestrate` on discussions and enable planner preflight for discussion targets.\n- Let planner-selected `implement` from PRs/discussions create a tracking issue first, then dispatch `agent-implement.yml` against it.\n- Update orchestrator prompts/docs and add focused regression coverage.\n\n## Tests\n- `npm run build`\n- `node --test dist/__tests__/triage.test.js dist/__tests__/orchestrator-preflight-cli.test.js dist/__tests__/handoff.test.js dist/__tests__/orchestrate-handoff-cli.test.js dist/__tests__/envelope.test.js`\n- YAML parse for `agent-router.yml` and `agent-orchestrator.yml`\n- `git diff --check`\n\nCloses #227\n",
+  "closedAt": "2026-05-20T03:20:03Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8O1Vw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #294 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: Implementation succeeded and produced open PR #294 for issue #227; an automated review is the appropriate next step before any human decision or fixes.\n\n<!-- sepo-agent-handoff state:dispatched created:1779227368985 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxMjY3MzMzNjY6aW1wbGVtZW50OjIyNzpyZXZpZXc6Mjk0OjM -->",
+      "createdAt": "2026-05-19T21:49:29Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4492342615",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8QFgA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 88 | PARTIAL | 11 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Router forwards `AUTHOR_ASSOCIATION`, `ACCESS_POLICY`, and repository visibility into orchestrator dispatch, and preflight re-checks `initialOrchestrateCapabilityStopReason` before planner/action dispatch: `.github/workflows/agent-router.yml#L789-L793`, `.agent/src/cli/orchestrator-preflight.ts#L30-L44`, `.agent/src/cli/orchestrate-handoff.ts#L1590-L1608`. |\n| coding_workflow / generic | Generate context-derived artifact metadata | pass | 7/7 | Non-issue orchestrated implement fetches PR/discussion title/body/url and builds the tracking issue from target metadata, requester, planner reason, request text, base, and handoff context rather than using the literal slash command as the artifact title/body: `.agent/src/cli/orchestrate-handoff.ts#L481-L602`, `.agent/src/cli/orchestrate-handoff.ts#L637-L648`. |\n| coding_workflow / generic | Reuse existing code | partial | 6/8 | The implementation reuses existing handoff policy, `createIssueFromBody`, `createIssueComment`, `dispatchWorkflow`, and `addDiscussionComment`, but adds a parallel source-metadata/tracking-issue path inside `orchestrate-handoff.ts` instead of sharing the existing explicit non-issue `/implement` metadata flow. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | No new repo setting or broad platform abstraction was added. The prompt preserves default-branch behavior and exposes the existing `base_pr` escape hatch for stacking: `.github/prompts/agent-orchestrator.md#L47-L57`, `.github/prompts/agent-orchestrator.md#L80-L81`. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The change continues to use typed fields (`target_kind`, `target_number`, `base_branch`, `base_pr`) and rejects ambiguous implementation bases when both base inputs are set: `.agent/src/handoff.ts#L623-L635`, `.agent/src/cli/orchestrate-handoff.ts#L1689-L1709`. |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | PR/discussion implement routing is encoded in the orchestrator planner policy and deterministic validator rather than a new configuration switch: `.github/prompts/agent-orchestrator.md#L100-L105`, `.agent/src/handoff.ts#L615-L667`. |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | The planner is enabled only after authorization preflight, and deterministic handoff validation constrains discussion to `implement` and PRs to `review`/`fix-pr`/`implement`; privileged dispatch remains in workflow code: `.agent/src/cli/orchestrator-preflight.ts#L41-L44`, `.agent/src/handoff.ts#L637-L667`. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | README, action docs, supported workflows, technical orchestrator docs, developer notes, and prompts were updated to describe discussion orchestration and PR/discussion tracking issues: `.agent/docs/architecture/supported-workflows.md#L27-L43`, `.agent/docs/architecture/supported-workflows.md#L228-L231`, `README.md#L56`. |\n| coding_workflow / generic | Make user-facing automation idempotent | partial | 4/7 | Existing handoff marker dedupe still runs for dispatches, but non-issue implement creates the tracking issue before computing/checking the handoff dedupe key, so a retry of the same source run can create another tracking issue and link-back before dedupe has a stable target to inspect: `.agent/src/cli/orchestrate-handoff.ts#L1711-L1715`, `.agent/src/cli/orchestrate-handoff.ts#L1738-L1740`. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Tracking issue creation failures set stop outputs, log an error, and attempt to post an initial orchestrator stop comment instead of silently succeeding: `.agent/src/cli/orchestrate-handoff.ts#L1716-L1734`. |\n| coding_workflow / generic | Surgical changes | pass | 8/8 | Changes are focused on route validation, preflight, handoff policy, orchestrator dispatch, docs/prompts, and targeted tests for PR/discussion orchestrated implement. |\n\n## Notes\n\n- Main score driver: the PR satisfies the requested minimal behavior from issue #227 and preserves the authorization/preflight shape while adding focused tests for triage, preflight, policy, and actual dispatch payloads.\n- The main rubric gap is idempotency for the newly created tracking issue path. The smallest useful follow-up is to move a stable dedupe check before `ensureImplementationTrackingIssue`, or use a stable marker/lookup keyed to the original PR/discussion target and source run before creating a new issue.\n\n## Findings\n\n- **WARNING:** The non-issue orchestrated implement path can create duplicate tracking issues on retry because tracking issue creation happens before the handoff dedupe key/check, and the eventual key includes the newly created issue number. This weakens the idempotent user-facing automation rubric for tracking artifacts.\n\n## Final Rubric Verdict\n\nPARTIAL",
+      "createdAt": "2026-05-19T21:52:52Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4492363136",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8URGA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: aa6fb6fa2ebe4e6016509f40accf084806f9cfbc -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #294 closes #227 by allowing `/orchestrate` on PRs and discussions to hand off to `implement`.\n- The intended design is to create a context-derived tracking issue first, then dispatch `agent-implement.yml` against that issue.\n- The PR updates routing, planner preflight, handoff policy, prompts, docs, workflow permissions, and focused tests.\n- The feature direction matches the requested minimal implementation, but the new tracking issue path introduces trust and idempotency risks.\n\n## Review\nThe implementation is structurally close, but it should not ship in its current form. The main blocker is that untrusted PR/discussion/request markdown is copied into an app-authored issue body that later orchestration code treats as trusted marker-bearing state.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Trusted orchestration markers can be forged through copied markdown | BLOCKING | `.agent/src/cli/orchestrate-handoff.ts` copies untrusted request and target markdown into a Sepo-authored tracking issue, while terminal orchestration later trusts `sepo-sub-orchestrator` markers in Sepo-authored issue bodies. |\n| Non-issue implement retries can create duplicate tracking issues | WARNING | The tracking issue is created before the handoff dedupe key/check, and the eventual key includes the newly created issue number, so retries can create duplicate issues and link-backs. |\n| Discussion stop comments bypass dedupe | WARNING | Discussion stop comments post directly via `addDiscussionComment` without the duplicate check used for issue/PR stop comments. |\n\n## Progress\n- Existing PR discussion and rubric review already acknowledged that the feature direction matches #227.\n- Review artifacts agreed on the retry/idempotency weakness for non-issue implement tracking issues.\n- No previous inline comments or review threads existed before synthesis.\n- Posted three inline comments on `.agent/src/cli/orchestrate-handoff.ts` at lines 597, 1444, and 1711.\n\n## Issue Details\n<details>\n<summary>Trusted orchestration markers can be forged through copied markdown</summary>\n\n**Cause:** The new tracking issue body appends `requestText`, planner context, title, and PR/discussion body at lines 597-600. That issue is created by Sepo, and later `trustedSubOrchestratorMarkerFromBody` / terminal reporting trusts markers found in Sepo-authored issue bodies.\n\n**Candidate solutions:** Strip or escape Sepo control markers from every untrusted copied section before issue creation, or make marker trust validate only a dedicated generated marker block rather than scanning arbitrary issue text.\n\n**Comments:** This is the main reviewer severity disagreement: one review concluded `MINOR_ISSUES`, but the current diff supports the later blocking finding.\n\n</details>\n\n<details>\n<summary>Non-issue implement retries can create duplicate tracking issues</summary>\n\n**Cause:** `ensureImplementationTrackingIssue()` runs at line 1711 before `buildHandoffDedupeKey()` and `findHandoffMarkers()`. Since the new issue number becomes part of the dedupe key, a rerun cannot find the previous marker on the earlier tracking issue.\n\n**Candidate solutions:** Add a stable pre-create marker/lookup keyed to the original PR/discussion target plus `source_run_id`, then reuse the existing tracking issue when present. Alternatively persist a deterministic tracking marker before creating another issue.\n\n**Comments:** This was raised by both the code review and rubric review as an idempotency gap.\n\n</details>\n\n<details>\n<summary>Discussion stop comments bypass dedupe</summary>\n\n**Cause:** The discussion branch in `createOrchestrateStopComment()` calls `addDiscussionComment()` at line 1444 and returns before any duplicate check. Issue/PR stop comments still use `hasMatchingOrchestrateStopComment()`.\n\n**Candidate solutions:** Fetch recent discussion comments and check for the same stop marker/body from the trusted actor before posting, mirroring the issue/PR guard.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the blocker and idempotency gaps are concrete branch changes and are safe for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Strip or escape Sepo control markers from copied PR/discussion/request markdown, or constrain trusted marker parsing to generated marker blocks.\n- [ ] Add stable pre-create dedupe/reuse for non-issue orchestrated implement tracking issues.\n- [ ] Add duplicate prevention for discussion stop comments before `addDiscussionComment()`.",
+      "createdAt": "2026-05-19T22:03:55Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4492431640",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8Usmg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #294 | 4 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis for open PR #294 returned NEEDS_REWORK with Recommended Next Step FIX_PR; round budget remains available and findings are concrete branch changes.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Strip or escape Sepo control markers from copied PR/discussion/request markdown, or constrain trusted marker parsing to generated marker blocks.\n- Add stable pre-create dedupe/reuse for non-issue orchestrated implement tracking issues.\n- Add duplicate prevention for discussion stop comments before `addDiscussionComment()`.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1779228300423 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxMjc0MTcxOTk6cmV2aWV3OjI5NDpmaXhfcHI6Mjk0OjQ -->",
+      "createdAt": "2026-05-19T22:05:00Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4492438682",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8YgZw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-227/codex-26126733366`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Escaped copied Sepo control markers in non-issue orchestrated implement tracking issues.\n- Added stable pre-create tracking issue reuse keyed to the source PR/discussion run.\n- Added trusted duplicate checks before posting discussion stop comments.\n\n<details><summary>Checks</summary>\n\n- `npm run build`\n- Focused `node --test` suites for orchestrate handoff, handoff, triage, preflight, envelope, and discussion helpers\n- `git diff --check`\n\n</details>",
+      "createdAt": "2026-05-19T22:14:07Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4492501095",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8Y1aA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #294 | 5 / 40 | Dispatched |\n\nReason: agent planner selected review: The fix-pr action succeeded for PR #294, and another automated review is warranted to verify the requested rework before stopping or leaving it to a human.\n\n<!-- sepo-agent-handoff state:dispatched created:1779228903809 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxMjgxMzQ4NzQ6Zml4X3ByOjI5NDpyZXZpZXc6Mjk0OjU -->",
+      "createdAt": "2026-05-19T22:15:04Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4492506472",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8Z8rA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 98 | PASS | 13 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Router forwards requester/auth context into orchestrator dispatch, and preflight blocks planner use when capability authorization fails: [agent-router.yml](https://github.com/self-evolving/repo/blob/e8170d60afcc2c80f37c29d095e1f7ca13839f39/.github/workflows/agent-router.yml#L776-L794), [orchestrator-preflight.ts](https://github.com/self-evolving/repo/blob/e8170d60afcc2c80f37c29d095e1f7ca13839f39/.agent/src/cli/orchestrator-preflight.ts#L30-L44). |\n| coding_workflow / generic | Generate context-derived artifact metadata | pass | 7/7 | PR/discussion implement handoffs fetch source title/body/url and generate a tracking issue from target/request/planner context instead of copying the slash command tail: [orchestrate-handoff.ts](https://github.com/self-evolving/repo/blob/e8170d60afcc2c80f37c29d095e1f7ca13839f39/.agent/src/cli/orchestrate-handoff.ts#L538-L660). |\n| coding_workflow / generic | Reuse existing code | pass | 7/8 | The change reuses existing dispatch, issue/comment helpers, planner decision contracts, and discussion helpers, though the non-issue orchestrated tracking issue path necessarily adds route-specific glue in `orchestrate-handoff.ts`. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | PR `implement` defaults to the repository default branch while preserving explicit `base_pr` / `base_branch` escape hatches: [agent-orchestrator.md](https://github.com/self-evolving/repo/blob/e8170d60afcc2c80f37c29d095e1f7ca13839f39/.github/prompts/agent-orchestrator.md#L47-L57). |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | Planner choices are still validated deterministically: discussion orchestration can only dispatch `implement`, while PR orchestration supports `review`, `fix-pr`, or separate `implement`: [handoff.ts](https://github.com/self-evolving/repo/blob/e8170d60afcc2c80f37c29d095e1f7ca13839f39/.agent/src/handoff.ts#L615-L667). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | README, action docs, supported workflows, technical orchestrator docs, developer notes, and prompts were updated for PR/discussion orchestration and tracking issues: [README.md](https://github.com/self-evolving/repo/blob/e8170d60afcc2c80f37c29d095e1f7ca13839f39/README.md#L56), [supported-workflows.md](https://github.com/self-evolving/repo/blob/e8170d60afcc2c80f37c29d095e1f7ca13839f39/.agent/docs/architecture/supported-workflows.md#L27-L43). |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | The implementation encodes policy in the orchestrator planner prompt and validator rather than adding a new repository setting: [agent-orchestrator.md](https://github.com/self-evolving/repo/blob/e8170d60afcc2c80f37c29d095e1f7ca13839f39/.github/prompts/agent-orchestrator.md#L100-L105), [handoff.ts](https://github.com/self-evolving/repo/blob/e8170d60afcc2c80f37c29d095e1f7ca13839f39/.agent/src/handoff.ts#L615-L667). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The path keeps separate `target_kind`, `target_number`, `base_branch`, and `base_pr` inputs, and rejects conflicting implementation bases: [orchestrate-handoff.ts](https://github.com/self-evolving/repo/blob/e8170d60afcc2c80f37c29d095e1f7ca13839f39/.agent/src/cli/orchestrate-handoff.ts#L1881-L1900). |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | The current head fixes the earlier gap by looking for trusted tracking markers and link-backs before creating another issue, then avoiding duplicate link-backs: [orchestrate-handoff.ts](https://github.com/self-evolving/repo/blob/e8170d60afcc2c80f37c29d095e1f7ca13839f39/.agent/src/cli/orchestrate-handoff.ts#L676-L820). |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Tracking issue creation failures set stop outputs, log the error, and attempt a visible orchestrator stop comment: [orchestrate-handoff.ts](https://github.com/self-evolving/repo/blob/e8170d60afcc2c80f37c29d095e1f7ca13839f39/.agent/src/cli/orchestrate-handoff.ts#L1903-L1927). |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Discussion stop comments now use the same trusted duplicate guard pattern before posting, avoiding silent stops and duplicate status noise: [orchestrate-handoff.ts](https://github.com/self-evolving/repo/blob/e8170d60afcc2c80f37c29d095e1f7ca13839f39/.agent/src/cli/orchestrate-handoff.ts#L1603-L1637). |\n| coding_workflow / generic | Surgical changes | pass | 8/8 | The diff is scoped to orchestrate routing, planner validation, handoff dispatch, discussion comment metadata, docs/prompts, and focused tests for the new PR/discussion implement path. |\n| coding_style / generic | Prefer simple implementations | pass | 6/7 | The approach follows the minimal plan from issue #227: allow discussion orchestration, permit PR/discussion `implement`, create a tracking issue, then dispatch existing `agent-implement.yml`. The main complexity is localized marker/dedupe handling. |\n\n## Notes\n\n- The current PR head addresses the earlier rubric-specific idempotency and trusted-marker concerns: copied Sepo markers are escaped, tracking issue reuse happens before creation, and discussion stop comments are deduped.\n- The implementation matches the linked issue’s minimal requested behavior: PR and discussion `/orchestrate` can lead to separate implementation work through a tracking issue.\n\n## Findings\n\n- **INFO:** No blocking rubric-specific follow-up needed. The only minor tradeoff is that `orchestrate-handoff.ts` now owns a sizable amount of tracking-issue glue, but it stays bounded to this route and reuses existing primitives.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-19T22:17:37Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4492524716",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8ciKQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: e8170d60afcc2c80f37c29d095e1f7ca13839f39 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #294 closes #227 by enabling `/orchestrate` on discussions and allowing planner-selected `implement` handoffs from PRs and discussions.\n- For non-issue targets, the PR creates a context-derived tracking issue first, then dispatches `agent-implement.yml` against that issue.\n- The follow-up fix-pr pass addressed the earlier trusted-marker, tracking-issue idempotency, and discussion stop-comment dedupe concerns.\n- Current reviewer outputs and the current PR head agree the required behavior is now covered.\n\n## Review\nThe current head is ready to ship. Reviewers agree there are no unresolved BLOCKING or WARNING issues; one reviewer noted optional INFO-level cleanup, while another reported no findings.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | The prior marker escaping, tracking issue reuse, and discussion stop-comment dedupe findings are fixed at the current head. Remaining notes are optional maintenance/test-depth observations, not required branch changes. |\n\n## Progress\n- Issue #227’s requested minimal path is implemented: discussion orchestration is allowed, PR/discussion planner `implement` is supported, and non-issue implement normalizes through a tracking issue.\n- Prior review findings were addressed by escaping copied Sepo control markers, adding stable pre-create tracking issue reuse, and deduping discussion stop comments.\n- Re-fetched inline comments and review threads; resolved the three stale same-agent inline threads for the already-fixed findings.\n- No new inline comments were posted.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved actionable work remains for an automated fix-pr pass.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-19T22:23:41Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4492567081",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8otFQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "why we added so many lines in `.agent/src/cli/orchestrate-handoff.ts`? we can just have a simple extension based on what we have?\r\n\r\n@sepo-agent /answer ",
+      "createdAt": "2026-05-19T22:55:26Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4492766485",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8ptUw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Short answer: yes, conceptually this should be a simple extension. The line count grew because the PR implemented the missing “PR/discussion `/orchestrate` -> `implement`” path inside `orchestrate-handoff.ts` instead of extracting the already-existing non-issue `/implement` tracking-issue pattern into a shared helper.\n\nWhy some extra logic is still needed:\n\n- `agent-implement.yml` is issue-based: it requires `issue_number`, not a PR/discussion target. See [`agent-implement.yml`](https://github.com/self-evolving/repo/blob/810dfcaf206c03a805f4b3d072bf50900fe0d3ed/.github/workflows/agent-implement.yml#L3-L33).\n- Existing explicit `/implement` from PR/discussion already creates a tracking issue, dispatches implement against that issue, then links back. See [`agent-router.yml`](https://github.com/self-evolving/repo/blob/810dfcaf206c03a805f4b3d072bf50900fe0d3ed/.github/workflows/agent-router.yml#L678-L735).\n- Orchestrated handoff dedupe/status comments are issue-comment based, so once PR/discussion orchestration selects `implement`, we need a stable tracking issue before the normal handoff marker flow can work.\n- The later added lines were mostly hardening: reuse an existing tracking issue on retry, avoid duplicate link-backs, escape copied Sepo control markers, and support discussion comment lookup. That lives around [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/e8170d60afcc2c80f37c29d095e1f7ca13839f39/.agent/src/cli/orchestrate-handoff.ts#L460-L820).\n\nI agree the shape can be cleaner. The better version is:\n\n1. Keep the small policy changes in `triage.ts`, `orchestrator-preflight.ts`, and `handoff.ts`.\n2. Move the non-issue implementation tracking issue creation/reuse/link-back logic into a shared helper, e.g. `.agent/src/implementation-tracking.ts`.\n3. Reuse that helper from both explicit `/implement` and orchestrated `implement`.\n4. Leave `orchestrate-handoff.ts` with only the orchestration-specific call:\n\n```ts\nif (decision.nextAction === \"implement\" && targetKind !== \"issue\") {\n  decision.targetNumber = ensureImplementationTrackingIssueForTarget(...);\n}\n```\n\nSo I would not remove the tracking issue/dedupe/marker safety entirely, but I do think we should refactor this PR so `orchestrate-handoff.ts` gets a small extension rather than owning all of that glue directly.",
+      "createdAt": "2026-05-19T22:57:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4492782931",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8uEhg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Short answer: yes, conceptually this should be a simple extension. The line count grew because the PR implemented the missing “PR/discussion `/orchestrate` -> `implement`” path inside `orchestrate-handoff.ts` instead of extracting the already-existing non-issue `/implement` tracking-issue pattern into a shared helper.\r\n> \r\n> Why some extra logic is still needed:\r\n> \r\n> * `agent-implement.yml` is issue-based: it requires `issue_number`, not a PR/discussion target. See [`agent-implement.yml`](https://github.com/self-evolving/repo/blob/810dfcaf206c03a805f4b3d072bf50900fe0d3ed/.github/workflows/agent-implement.yml#L3-L33).\r\n> * Existing explicit `/implement` from PR/discussion already creates a tracking issue, dispatches implement against that issue, then links back. See [`agent-router.yml`](https://github.com/self-evolving/repo/blob/810dfcaf206c03a805f4b3d072bf50900fe0d3ed/.github/workflows/agent-router.yml#L678-L735).\r\n> * Orchestrated handoff dedupe/status comments are issue-comment based, so once PR/discussion orchestration selects `implement`, we need a stable tracking issue before the normal handoff marker flow can work.\r\n> * The later added lines were mostly hardening: reuse an existing tracking issue on retry, avoid duplicate link-backs, escape copied Sepo control markers, and support discussion comment lookup. That lives around [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/e8170d60afcc2c80f37c29d095e1f7ca13839f39/.agent/src/cli/orchestrate-handoff.ts#L460-L820).\r\n> \r\n> I agree the shape can be cleaner. The better version is:\r\n> \r\n> 1. Keep the small policy changes in `triage.ts`, `orchestrator-preflight.ts`, and `handoff.ts`.\r\n> 2. Move the non-issue implementation tracking issue creation/reuse/link-back logic into a shared helper, e.g. `.agent/src/implementation-tracking.ts`.\r\n> 3. Reuse that helper from both explicit `/implement` and orchestrated `implement`.\r\n> 4. Leave `orchestrate-handoff.ts` with only the orchestration-specific call:\r\n> \r\n> ```ts\r\n> if (decision.nextAction === \"implement\" && targetKind !== \"issue\") {\r\n>   decision.targetNumber = ensureImplementationTrackingIssueForTarget(...);\r\n> }\r\n> ```\r\n> \r\n> So I would not remove the tracking issue/dedupe/marker safety entirely, but I do think we should refactor this PR so `orchestrate-handoff.ts` gets a small extension rather than owning all of that glue directly.\r\n\r\n@sepo-agent /orchestrate ",
+      "createdAt": "2026-05-19T23:07:00Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4492854406",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8u-ng",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | fix-pr | PR #294 | 2 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: The latest human comment asks to refactor PR #294 after the prior answer agreed the current implementation shape is too concentrated in orchestrate-handoff.ts. This is a concrete PR branch change request, even though the last review synthesis had no correctness blockers.\n\nTask for fix-pr:\nRefactor PR #294 so non-issue implementation tracking issue creation/reuse/link-back logic is shared instead of being owned mostly by .agent/src/cli/orchestrate-handoff.ts. Keep the existing behavior and safety hardening: PR/discussion orchestrated implement must create or reuse a stable tracking issue, avoid duplicate link-backs, escape copied Sepo control markers, support discussion comment lookup/dedupe, and dispatch agent-implement.yml against the tracking issue. Prefer extracting a typed helper/module such as .agent/src/implementation-tracking.ts plus any small CLI wrapper needed so both explicit non-issue /implement from .github/workflows/agent-router.yml and orchestrated implement reuse the same logic. Leave orchestrate-handoff.ts with only orchestration-specific decision handling, roughly: if nextAction is implement and target_kind is not issue, call the shared helper and replace the dispatch target with the tracking issue number. Preserve the small policy changes in triage.ts, orchestrator-preflight.ts, handoff.ts, prompts, and docs. Update focused tests for both explicit /implement and orchestrated PR/discussion implement paths, and avoid unrelated redesigns or removing the tracking issue/dedupe/marker-safety behavior.\n\n<!-- sepo-agent-handoff state:dispatched created:1779232123776 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxMzA3NDM3Nzc6b3JjaGVzdHJhdGU6Mjk0OmZpeF9wcjoyOTQ6Mg -->",
+      "createdAt": "2026-05-19T23:08:44Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4492869278",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC81ueg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-227/codex-26126733366`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Extracted non-issue implementation tracking into shared `.agent/src/implementation-tracking.ts` plus `ensure-implementation-tracking` CLI.\n- Updated explicit non-issue `/implement` and orchestrated PR/discussion `implement` to share create/reuse/link-back/dedupe/marker-escaping behavior.\n- Slimmed `orchestrate-handoff.ts` to orchestration-specific dispatch handling and kept discussion stop-comment dedupe via shared helpers.\n- Updated docs and focused tests for explicit and orchestrated tracking paths.\n\n<details><summary>Checks</summary>\n\n- `npm run build`\n- `node --test .agent/dist/__tests__/implementation-tracking-cli.test.js .agent/dist/__tests__/orchestrate-handoff-cli.test.js .agent/dist/__tests__/handoff.test.js .agent/dist/__tests__/triage.test.js .agent/dist/__tests__/orchestrator-preflight-cli.test.js .agent/dist/__tests__/envelope.test.js .agent/dist/__tests__/discussion.test.js .agent/dist/__tests__/resolve-approval-cli.test.js .agent/dist/__tests__/post-project-management-summary-cli.test.js`\n- `git diff --check`\n\n</details>",
+      "createdAt": "2026-05-19T23:20:49Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4492979834",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC82d4g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #294 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: The fix-pr action succeeded after the human-requested refactor of PR #294, and an automated review is warranted to verify the shared implementation-tracking extraction preserved behavior and addressed the request before stopping.\n\n<!-- sepo-agent-handoff state:dispatched created:1779232913563 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxMzA4MDQ2OTQ6Zml4X3ByOjI5NDpyZXZpZXc6Mjk0OjM -->",
+      "createdAt": "2026-05-19T23:21:53Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4492991970",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC83uEw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 98 | PASS | 13 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Router passes requester/auth context into orchestrator dispatch, and handoff preflight checks authorization before planner dispatch: [`agent-router.yml`](https://github.com/self-evolving/repo/blob/3b256955aac0f6e0e8fd5520834d912bfd052a88/.github/workflows/agent-router.yml#L767), [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/3b256955aac0f6e0e8fd5520834d912bfd052a88/.agent/src/cli/orchestrate-handoff.ts#L1384). |\n| coding_workflow / generic | Generate context-derived artifact metadata | pass | 7/7 | Tracking issues are generated from source PR/discussion metadata, requester, planner reason, request text, base, and handoff context, with marker escaping: [`implementation-tracking.ts`](https://github.com/self-evolving/repo/blob/3b256955aac0f6e0e8fd5520834d912bfd052a88/.agent/src/implementation-tracking.ts#L337). |\n| coding_workflow / generic | Reuse existing code | pass | 7/8 | The latest head extracts shared implementation tracking into [`implementation-tracking.ts`](https://github.com/self-evolving/repo/blob/3b256955aac0f6e0e8fd5520834d912bfd052a88/.agent/src/implementation-tracking.ts#L508) and reuses it from explicit `/implement` via [`ensure-implementation-tracking.ts`](https://github.com/self-evolving/repo/blob/3b256955aac0f6e0e8fd5520834d912bfd052a88/.agent/src/cli/ensure-implementation-tracking.ts#L7) and orchestrated implement via [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/3b256955aac0f6e0e8fd5520834d912bfd052a88/.agent/src/cli/orchestrate-handoff.ts#L1506). Minor remaining duplication exists around local trust/comment helpers. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | PR `implement` defaults to repository default branch and preserves explicit `base_pr` / `base_branch` escape hatches in planner policy and dispatch. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The implementation keeps typed fields such as `targetKind`, `targetNumber`, `baseBranch`, `basePr`, `trackingScope`, and rejects conflicting base inputs: [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/3b256955aac0f6e0e8fd5520834d912bfd052a88/.agent/src/cli/orchestrate-handoff.ts#L1484). |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | Policy is encoded in planner prompt and handoff validation rather than adding new repository settings; discussion routing is constrained in [`handoff.ts`](https://github.com/self-evolving/repo/blob/3b256955aac0f6e0e8fd5520834d912bfd052a88/.agent/src/handoff.ts#L640). |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | Planner decisions are allowed only after initial orchestrate capability checks, while downstream actions are still deterministically constrained before dispatch. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | README, action docs, supported workflows, technical orchestrator docs, prompts, and developer notes were updated; supported workflows explicitly says both explicit and orchestrated paths use the same helper: [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/3b256955aac0f6e0e8fd5520834d912bfd052a88/.agent/docs/architecture/supported-workflows.md#L226). |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | The helper checks trusted link-backs and trusted tracking issue markers before creating a new issue, then skips duplicate link-backs: [`implementation-tracking.ts`](https://github.com/self-evolving/repo/blob/3b256955aac0f6e0e8fd5520834d912bfd052a88/.agent/src/implementation-tracking.ts#L435), [`implementation-tracking.ts`](https://github.com/self-evolving/repo/blob/3b256955aac0f6e0e8fd5520834d912bfd052a88/.agent/src/implementation-tracking.ts#L454). |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Tracking issue failures set stop outputs, log the error, and try to post a visible stop comment instead of continuing as success: [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/3b256955aac0f6e0e8fd5520834d912bfd052a88/.agent/src/cli/orchestrate-handoff.ts#L1523). |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Discussion stop comments now use trusted duplicate detection before posting, matching the issue/PR stop-comment behavior: [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/3b256955aac0f6e0e8fd5520834d912bfd052a88/.agent/src/cli/orchestrate-handoff.ts#L1204). |\n| coding_workflow / generic | Surgical changes | pass | 8/8 | The diff is scoped to PR/discussion orchestration, shared implementation tracking, route/policy validation, docs/prompts, and focused tests. |\n| coding_style / generic | Prefer simple implementations | pass | 6/7 | The shape is now simpler at the call sites: explicit `/implement` and orchestrated `implement` share one helper, and `orchestrate-handoff.ts` only calls it before dispatch. The helper is still substantial because it owns marker safety, reuse, link-back, and discussion support. |\n\n## Notes\n\n- The current PR head addresses the main rubric concern from the human follow-up: non-issue implementation tracking is now shared instead of being owned mostly by `orchestrate-handoff.ts`.\n- The strongest score drivers are reuse, idempotency, delegated authorization, marker safety, and docs/tests alignment.\n- No rubric-specific follow-up needed beyond optional later cleanup of duplicated trust/comment utility code.\n\n## Findings\n\n- **INFO:** No blocking rubric-specific issues found. The remaining tradeoff is size: `implementation-tracking.ts` is a large helper, but it centralizes behavior that both explicit and orchestrated non-issue `/implement` need.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-19T23:24:11Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4493012499",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC87A0A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 3b256955aac0f6e0e8fd5520834d912bfd052a88 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #294 closes #227 by allowing `/orchestrate` on discussions and enabling planner-selected `implement` handoffs from PRs and discussions.\n- Non-issue implement requests now normalize through a tracking issue before dispatching `agent-implement.yml`.\n- After the human follow-up, the PR refactors tracking issue create/reuse/link-back logic into `.agent/src/implementation-tracking.ts` and reuses it from explicit `/implement` and orchestrated `implement`.\n- The prior marker-safety, retry idempotency, and discussion stop-comment dedupe findings appear fixed at the current head.\n\n## Review\nThe refactor direction is correct and the previous blockers are resolved. Two code reviewers independently flagged one remaining user-visible regression in the explicit `/implement` path; the rubrics review otherwise passes and has no blocking concern.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Explicit /implement link-backs lost original comment threading | WARNING | The new shared helper posts PR and discussion link-backs at the target level, while the removed router step used `post-response.js` metadata to reply to PR review comments and discussion comment threads. |\n\n## Progress\n- The requested PR/discussion `/orchestrate` -> `implement` behavior is implemented through tracking issues.\n- The human-requested refactor is addressed: explicit and orchestrated non-issue implement paths now share the tracking helper.\n- Prior inline findings for marker escaping, tracking issue retry dedupe, and discussion stop-comment dedupe are already resolved.\n- Posted one new inline comment on `.agent/src/implementation-tracking.ts` line 472 for the remaining link-back threading regression.\n\n## Issue Details\n<details>\n<summary>Explicit /implement link-backs lost original comment threading</summary>\n\n**Cause:** The explicit non-issue `/implement` path now calls `ensure-implementation-tracking.js` from `agent-router.yml`, but no longer passes `RESPONSE_KIND`, `REVIEW_COMMENT_ID`, or `REPLY_TO_ID` into the link-back posting path. The helper posts PR link-backs via `repos/{repo}/issues/{number}/comments` and discussion link-backs via `addDiscussionComment`, so review-comment replies and discussion threaded replies are lost.\n\n**Candidate solutions:** Pass source response metadata into `EnsureImplementationTrackingIssueInput` and use it in `postImplementationLinkBack`, or keep the old `post-response.js` link-back step for the explicit path while letting the helper own create/reuse/dedupe.\n\n**Comments:** This is not a correctness blocker for orchestrated implement, but it is a behavior regression for users invoking explicit `/implement` from review-comment or discussion-comment threads.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the remaining issue is a concrete, safe branch change to preserve explicit `/implement` response threading.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Preserve original response-surface threading for explicit non-issue `/implement` link-backs.",
+      "createdAt": "2026-05-19T23:32:53Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4493066448",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC87QdQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #294 | 4 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis for open PR #294 reported MINOR_ISSUES with Recommended Next Step FIX_PR; the remaining finding is a concrete branch change and round budget remains available.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Preserve original response-surface threading for explicit non-issue `/implement` link-backs.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1779233611698 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxMzEzMDIzNTA6cmV2aWV3OjI5NDpmaXhfcHI6Mjk0OjQ -->",
+      "createdAt": "2026-05-19T23:33:32Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4493070453",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC877ag",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \r\n\r\nI thought the goal of https://github.com/self-evolving/repo/pull/294#issuecomment-4492854406 is to make the PR simpler, but it adds more lines??",
+      "createdAt": "2026-05-19T23:35:15Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4493081450",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC88pTg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, your read is fair.\n\nThe refactor made the **architecture simpler**, but not the **net diff smaller**.\n\nAt current PR head `3b256955`:\n\n- `.agent/src/cli/orchestrate-handoff.ts` got much smaller versus the previous heavy version: about `2124` lines -> `1739` lines.\n- Compared to `main`, though, it is still slightly larger: about `1662` -> `1739`.\n- The total PR grew because the logic moved into a new shared helper:\n  - [`implementation-tracking.ts`](https://github.com/self-evolving/repo/blob/3b256955aac0f6e0e8fd5520834d912bfd052a88/.agent/src/implementation-tracking.ts) adds the shared create/reuse/link-back/marker-safety behavior.\n  - [`ensure-implementation-tracking.ts`](https://github.com/self-evolving/repo/blob/3b256955aac0f6e0e8fd5520834d912bfd052a88/.agent/src/cli/ensure-implementation-tracking.ts) lets the workflow call that helper.\n  - New tests add a lot of lines too.\n\nSo the change did address the specific concern from [your comment](https://github.com/self-evolving/repo/pull/294#issuecomment-4492854406): `orchestrate-handoff.ts` no longer owns most of the tracking issue logic. The orchestrated path is now basically the intended small call:\n\n```ts\nif (decision.nextAction === \"implement\" && targetKind !== \"issue\") {\n  dispatchTargetNumber = ensureImplementationTrackingIssueForTarget(...)\n}\n```\n\nSee [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/3b256955aac0f6e0e8fd5520834d912bfd052a88/.agent/src/cli/orchestrate-handoff.ts#L1504-L1518).\n\nBut if the goal is **“make the whole PR smaller”**, then yes, this still misses that bar. It centralized behavior, but kept all the hardening: marker escaping, retry reuse, duplicate link-back prevention, discussion support, and tests.\n\nThe smallest follow-up direction would be: keep the shared helper for tracking issue creation/reuse, but avoid moving every link-back/threading behavior into it. The latest review already found this tradeoff: explicit `/implement` lost original response-threading, so preserving the old `post-response.js` path for explicit `/implement` may be simpler than expanding the helper further.",
+      "createdAt": "2026-05-19T23:37:24Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4493093198",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC88x4w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-227/codex-26126733366`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Preserved explicit non-issue `/implement` link-back threading by passing response-surface metadata into the shared implementation tracking helper.\n- Link-backs now route through the existing response posting path when available, so PR review comment replies and discussion comment replies stay in-thread.\n- Updated router wiring, docs, and focused tests for threaded PR review/discussion comment link-backs.\n\n<details><summary>Checks</summary>\n\n- `npm run build`\n- `node --test .agent/dist/__tests__/implementation-tracking-cli.test.js .agent/dist/__tests__/envelope.test.js`\n- `node --test .agent/dist/__tests__/implementation-tracking-cli.test.js .agent/dist/__tests__/orchestrate-handoff-cli.test.js .agent/dist/__tests__/envelope.test.js .agent/dist/__tests__/post-response-cli.test.js`\n- `git diff --check`\n\n</details>",
+      "createdAt": "2026-05-19T23:37:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4493095395",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC89GqA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #294 | 5 / 40 | Dispatched |\n\nReason: agent planner selected review: The fix-pr action succeeded after addressing the latest review finding about explicit /implement link-back threading, so an automated review is warranted to verify the regression is fixed before stopping.\n\n<!-- sepo-agent-handoff state:dispatched created:1779233938270 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxMzE3NDc5NTU6Zml4X3ByOjI5NDpyZXZpZXc6Mjk0OjU -->",
+      "createdAt": "2026-05-19T23:38:58Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4493100712",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC89yuA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 99 | PASS | 13 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Router preserves requester/auth context into orchestrator dispatch via `AUTHOR_ASSOCIATION` and `ACCESS_POLICY`, and preflight gates planner use through authorization checks: [`agent-router.yml`](https://github.com/self-evolving/repo/blob/08c3f2e95bd4d9d75190c35be6a569f87003b0a2/.github/workflows/agent-router.yml#L770-L775), [`orchestrator-preflight.ts`](https://github.com/self-evolving/repo/blob/08c3f2e95bd4d9d75190c35be6a569f87003b0a2/.agent/src/cli/orchestrator-preflight.ts#L30-L44). |\n| coding_workflow / generic | Generate context-derived artifact metadata | pass | 7/7 | Tracking issues are generated from PR/discussion metadata, requester, planner reason, request text, base, and handoff context, with copied Sepo markers escaped: [`implementation-tracking.ts`](https://github.com/self-evolving/repo/blob/08c3f2e95bd4d9d75190c35be6a569f87003b0a2/.agent/src/implementation-tracking.ts#L341-L368). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The latest head extracts shared tracking behavior into `implementation-tracking.ts`, reuses it from explicit `/implement` through the CLI, and calls it from orchestrated implement instead of owning the logic in `orchestrate-handoff.ts`: [`ensure-implementation-tracking.ts`](https://github.com/self-evolving/repo/blob/08c3f2e95bd4d9d75190c35be6a569f87003b0a2/.agent/src/cli/ensure-implementation-tracking.ts#L11-L27), [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/08c3f2e95bd4d9d75190c35be6a569f87003b0a2/.agent/src/cli/orchestrate-handoff.ts#L1504-L1522). |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | PR orchestration defaults separate implementation to the default branch while preserving explicit `base_pr` / `base_branch` escape hatches: [`agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/08c3f2e95bd4d9d75190c35be6a569f87003b0a2/.github/prompts/agent-orchestrator.md#L47-L57). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The path keeps typed fields such as `targetKind`, `targetNumber`, `trackingScope`, `baseBranch`, and `basePr`, and rejects conflicting base inputs before dispatch: [`implementation-tracking.ts`](https://github.com/self-evolving/repo/blob/08c3f2e95bd4d9d75190c35be6a569f87003b0a2/.agent/src/implementation-tracking.ts#L32-L54), [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/08c3f2e95bd4d9d75190c35be6a569f87003b0a2/.agent/src/cli/orchestrate-handoff.ts#L1482-L1502). |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | The policy is encoded in planner prompts and deterministic handoff validation rather than a new repo setting: [`agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/08c3f2e95bd4d9d75190c35be6a569f87003b0a2/.github/prompts/agent-orchestrator.md#L100-L105), [`handoff.ts`](https://github.com/self-evolving/repo/blob/08c3f2e95bd4d9d75190c35be6a569f87003b0a2/.agent/src/handoff.ts#L615-L667). |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | Planner decisions are constrained after authorization: discussion orchestration can only hand off to `implement`, while PR orchestration permits review/fix-pr/implement with separate validation: [`handoff.ts`](https://github.com/self-evolving/repo/blob/08c3f2e95bd4d9d75190c35be6a569f87003b0a2/.agent/src/handoff.ts#L615-L667). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | README and technical workflow docs now describe PR/discussion orchestration, tracking issues, reuse of the helper, and response threading: [`README.md`](https://github.com/self-evolving/repo/blob/08c3f2e95bd4d9d75190c35be6a569f87003b0a2/README.md#L55-L56), [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/08c3f2e95bd4d9d75190c35be6a569f87003b0a2/.agent/docs/architecture/supported-workflows.md#L225-L232). |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | The helper checks trusted link-backs and trusted issue-body markers before creating a tracking issue, then skips duplicate link-backs: [`implementation-tracking.ts`](https://github.com/self-evolving/repo/blob/08c3f2e95bd4d9d75190c35be6a569f87003b0a2/.agent/src/implementation-tracking.ts#L439-L456), [`implementation-tracking.ts`](https://github.com/self-evolving/repo/blob/08c3f2e95bd4d9d75190c35be6a569f87003b0a2/.agent/src/implementation-tracking.ts#L469-L479). |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Tracking issue failures set stop outputs, log the error, and attempt a visible stop comment rather than continuing as success: [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/08c3f2e95bd4d9d75190c35be6a569f87003b0a2/.agent/src/cli/orchestrate-handoff.ts#L1523-L1541). |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Discussion stop comments now use trusted duplicate detection before posting, matching issue/PR stop behavior: [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/08c3f2e95bd4d9d75190c35be6a569f87003b0a2/.agent/src/cli/orchestrate-handoff.ts#L1204-L1243). |\n| coding_workflow / generic | Surgical changes | pass | 8/8 | The diff is scoped to PR/discussion orchestration, shared tracking, policy validation, docs/prompts, workflow glue, and focused tests. |\n| coding_style / generic | Prefer simple implementations | pass | 6/7 | The call sites are now simple and shared, but the helper remains necessarily sizable because it owns create/reuse/link-back/threading/marker-safety behavior: [`implementation-tracking.ts`](https://github.com/self-evolving/repo/blob/08c3f2e95bd4d9d75190c35be6a569f87003b0a2/.agent/src/implementation-tracking.ts#L535-L585). |\n\n## Notes\n\n- The current PR head satisfies the human-requested refactor: explicit non-issue `/implement` and orchestrated PR/discussion `implement` now share the tracking issue helper.\n- Prior rubric concerns around duplicate tracking issues, marker injection, and lost response threading are covered by current code and focused tests: [`implementation-tracking-cli.test.ts`](https://github.com/self-evolving/repo/blob/08c3f2e95bd4d9d75190c35be6a569f87003b0a2/.agent/src/__tests__/implementation-tracking-cli.test.ts#L175-L274).\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No blocking rubric-specific issues found. The only tradeoff is helper size, but it centralizes behavior that both explicit and orchestrated non-issue implementation paths need.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-19T23:41:27Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4493111992",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9CQZw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 08c3f2e95bd4d9d75190c35be6a569f87003b0a2 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #294 closes #227 by allowing `/orchestrate` on discussions and enabling planner-selected `implement` handoffs from PRs and discussions.\n- Non-issue implement handoffs normalize through an implementation tracking issue before dispatching `agent-implement.yml`.\n- The current head refactors tracking issue create/reuse/link-back behavior into `.agent/src/implementation-tracking.ts` and reuses it from explicit `/implement` and orchestrated implement.\n- The previous marker-copying, duplicate tracking issue, discussion stop dedupe, and top-level link-back threading findings are mostly addressed, but two current issues remain.\n\n## Review\nThe implementation is close, but it should not ship with the current trust-boundary gap. Reviewers disagreed on the final verdict: rubrics review passed and one code review said SHIP, while the other code review found a blocker that is supported by the current PR head.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Unescaped base inputs can forge trusted Sepo markers | BLOCKING | `base_branch` / `base_pr` from planner output are interpolated into a Sepo-authored tracking issue without marker escaping, unlike other copied PR/discussion/request text. |\n| Threaded link-back dedupe misses prior threaded replies | WARNING | The helper posts threaded link-backs via `postResponse`, but duplicate detection scans only PR issue comments or top-level discussion comments, so retries can post duplicate threaded replies. |\n\n## Progress\n- Issue #227’s minimal requested path is implemented: discussion orchestration is allowed, PR/discussion planner `implement` is supported, and non-issue implementation uses tracking issues.\n- Prior findings around copied request/target marker escaping, tracking issue reuse, and discussion stop-comment dedupe are resolved at current head.\n- Explicit `/implement` link-backs now preserve PR review comment and discussion reply threading.\n- Posted one new inline comment on `.agent/src/implementation-tracking.ts` line 358 for the base-input marker escaping blocker.\n- Replied to the existing same-agent inline thread on `.agent/src/implementation-tracking.ts` line 481 for the remaining threaded-reply dedupe gap.\n- No threads were resolved or minimized in this synthesis.\n\n## Issue Details\n<details>\n<summary>Unescaped base inputs can forge trusted Sepo markers</summary>\n\n**Cause:** [`formatGeneratedImplementationIssueBody`](https://github.com/self-evolving/repo/blob/08c3f2e95bd4d9d75190c35be6a569f87003b0a2/.agent/src/implementation-tracking.ts#L358) writes `formatImplementationBase(request.baseBranch, request.basePr)` into the generated tracking issue body, but [`formatImplementationBase`](https://github.com/self-evolving/repo/blob/08c3f2e95bd4d9d75190c35be6a569f87003b0a2/.agent/src/implementation-tracking.ts#L212) does not call `escapeSepoControlMarkers`. Planner `base_branch` / `base_pr` values come from planner JSON influenced by untrusted PR/discussion/request text, and the resulting issue is authored by Sepo.\n\n**Candidate solutions:** Escape Sepo control markers inside `formatImplementationBase` or before inserting its output into the issue body. Add focused tests for marker payloads in both `base_branch` and `base_pr`.\n\n**Comments:** This is the main reviewer disagreement; the current code supports the blocking finding despite the passing rubrics review.\n\n</details>\n\n<details>\n<summary>Threaded link-back dedupe misses prior threaded replies</summary>\n\n**Cause:** [`postImplementationLinkBack`](https://github.com/self-evolving/repo/blob/08c3f2e95bd4d9d75190c35be6a569f87003b0a2/.agent/src/implementation-tracking.ts#L469) checks `findTrustedImplementationLinkBack`, which only reads PR issue comments or top-level discussion comments. When `responseTarget` is present, [`postResponse`](https://github.com/self-evolving/repo/blob/08c3f2e95bd4d9d75190c35be6a569f87003b0a2/.agent/src/implementation-tracking.ts#L477) can post to PR review comment replies or discussion replies, outside those scanned collections.\n\n**Candidate solutions:** Include the relevant threaded reply surfaces in the duplicate lookup, or write a stable top-level trusted marker before posting threaded replies. Add retry coverage for existing PR review-comment reply and discussion reply markers.\n\n**Comments:** The original top-level link-back regression is mostly fixed; this is the remaining idempotency edge case after that fix.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the remaining marker-safety and threaded-reply idempotency issues are concrete branch changes and are safe for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Escape Sepo control markers in planner-derived `base_branch` / `base_pr` values before writing the implementation base into tracking issue bodies, with tests for both fields.\n- [ ] Add threaded-reply-aware link-back dedupe, or persist a stable top-level marker before posting threaded PR review/discussion replies.",
+      "createdAt": "2026-05-19T23:54:18Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4493185127",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9CpVg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #294 | 6 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review concluded needs_rework and recommended fix_pr with concrete branch-change action items.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Escape Sepo control markers in planner-derived `base_branch` / `base_pr` values before writing the implementation base into tracking issue bodies, with tests for both fields.\n- Add threaded-reply-aware link-back dedupe, or persist a stable top-level marker before posting threaded PR review/discussion replies.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1779234911885 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxMzE5NTE2OTM6cmV2aWV3OjI5NDpmaXhfcHI6Mjk0OjY -->",
+      "createdAt": "2026-05-19T23:55:12Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4493191510",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9ERbA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-227/codex-26126733366`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Escaped Sepo control markers in generated implementation tracking issue base metadata for both `base_branch` and `base_pr`.\n- Added threaded link-back dedupe for PR review comment replies and discussion replies before posting through the original response surface.\n- Added focused regression coverage for base marker escaping and threaded PR/discussion dedupe.\n- Verified with `npm run build`, focused `node --test ...`, and `git diff --check`.",
+      "createdAt": "2026-05-19T23:59:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4493218156",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9Ef3w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #294 | 7 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on the PR, so an automated review should verify the latest changes and confirm the prior action items are resolved.\n\n<!-- sepo-agent-handoff state:dispatched created:1779235224666 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxMzI1NDY4OTE6Zml4X3ByOjI5NDpyZXZpZXc6Mjk0Ojc -->",
+      "createdAt": "2026-05-20T00:00:25Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4493221855",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9FbFQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 99 | PASS | 13 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Initial `/orchestrate` re-checks delegated route capability for `implement`, `review`, and `fix-pr`, and router passes requester/policy context into orchestrator dispatch: [`orchestrator-capabilities.ts`](https://github.com/self-evolving/repo/blob/932fa11ae50205353c9267f107ded24ffa0c69d3/.agent/src/orchestrator-capabilities.ts#L38), [`agent-router.yml`](https://github.com/self-evolving/repo/blob/932fa11ae50205353c9267f107ded24ffa0c69d3/.github/workflows/agent-router.yml#L757). |\n| coding_workflow / generic | Generate context-derived artifact metadata | pass | 7/7 | Tracking issue body is generated from source metadata, requester, request text, planner reason, handoff context, and base inputs, with copied Sepo markers escaped: [`implementation-tracking.ts`](https://github.com/self-evolving/repo/blob/932fa11ae50205353c9267f107ded24ffa0c69d3/.agent/src/implementation-tracking.ts#L468). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Explicit non-issue `/implement` now calls the shared `ensure-implementation-tracking` CLI, and orchestrated implement calls the same helper instead of owning the glue inline: [`agent-router.yml`](https://github.com/self-evolving/repo/blob/932fa11ae50205353c9267f107ded24ffa0c69d3/.github/workflows/agent-router.yml#L678), [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/932fa11ae50205353c9267f107ded24ffa0c69d3/.agent/src/cli/orchestrate-handoff.ts#L1504). |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | Planner policy keeps PR implement as separate default-branch work unless `base_pr` is explicitly requested; no new repo setting was added: [`agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/932fa11ae50205353c9267f107ded24ffa0c69d3/.github/prompts/agent-orchestrator.md#L47). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The helper uses typed fields like `targetKind`, `trackingScope`, `baseBranch`, and `basePr`, and dispatch rejects conflicting effective base inputs: [`implementation-tracking.ts`](https://github.com/self-evolving/repo/blob/932fa11ae50205353c9267f107ded24ffa0c69d3/.agent/src/implementation-tracking.ts#L31), [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/932fa11ae50205353c9267f107ded24ffa0c69d3/.agent/src/cli/orchestrate-handoff.ts#L1482). |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | PR/discussion implement routing is encoded in planner prompt policy and deterministic validation, not a new configuration switch: [`agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/932fa11ae50205353c9267f107ded24ffa0c69d3/.github/prompts/agent-orchestrator.md#L100), [`handoff.ts`](https://github.com/self-evolving/repo/blob/932fa11ae50205353c9267f107ded24ffa0c69d3/.agent/src/handoff.ts#L615). |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | Planner choices are still authorization-gated and then constrained by target kind; discussion can only dispatch `implement`, while PR supports review/fix-pr/implement: [`orchestrator-preflight.ts`](https://github.com/self-evolving/repo/blob/932fa11ae50205353c9267f107ded24ffa0c69d3/.agent/src/cli/orchestrator-preflight.ts#L30), [`handoff.ts`](https://github.com/self-evolving/repo/blob/932fa11ae50205353c9267f107ded24ffa0c69d3/.agent/src/handoff.ts#L637). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Supported workflow docs now cover discussion orchestration, PR/discussion tracking issues, and reuse of the shared helper: [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/932fa11ae50205353c9267f107ded24ffa0c69d3/.agent/docs/architecture/supported-workflows.md#L27), [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/932fa11ae50205353c9267f107ded24ffa0c69d3/.agent/docs/architecture/supported-workflows.md#L225). |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | The helper checks trusted threaded/top-level link-backs and trusted issue-body markers before creating, then skips duplicate link-backs: [`implementation-tracking.ts`](https://github.com/self-evolving/repo/blob/932fa11ae50205353c9267f107ded24ffa0c69d3/.agent/src/implementation-tracking.ts#L507), [`implementation-tracking.ts`](https://github.com/self-evolving/repo/blob/932fa11ae50205353c9267f107ded24ffa0c69d3/.agent/src/implementation-tracking.ts#L539). |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Tracking issue failures stop the handoff, set outputs, log the reason, and attempt a visible stop comment: [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/932fa11ae50205353c9267f107ded24ffa0c69d3/.agent/src/cli/orchestrate-handoff.ts#L1523). |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Discussion stops now perform trusted duplicate detection before `addDiscussionComment`, matching issue/PR stop behavior: [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/932fa11ae50205353c9267f107ded24ffa0c69d3/.agent/src/cli/orchestrate-handoff.ts#L1204). |\n| coding_workflow / generic | Surgical changes | pass | 8/8 | The live PR file list is scoped to orchestration routing, handoff policy, shared tracking helper/CLI, discussion metadata, docs/prompts, and focused regression tests. |\n| coding_style / generic | Prefer simple implementations | pass | 6/7 | The call sites are now simple, but the shared helper remains sizable because it owns create/reuse/link-back/threading/marker-safety behavior: [`implementation-tracking.ts`](https://github.com/self-evolving/repo/blob/932fa11ae50205353c9267f107ded24ffa0c69d3/.agent/src/implementation-tracking.ts#L620). |\n\n## Notes\n\n- The current head satisfies the requested refactor shape: `orchestrate-handoff.ts` delegates non-issue implement tracking to the shared helper, while explicit `/implement` uses that same path.\n- Focused tests cover marker escaping, retry reuse, threaded PR review comment replies, discussion replies, and orchestrated PR/discussion implement dispatch.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No blocking rubric-specific issues found. The main tradeoff is helper size, but that complexity is now centralized and shared across the two non-issue implementation paths.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-20T00:03:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4493237013",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9IUkg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 932fa11ae50205353c9267f107ded24ffa0c69d3 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #294 closes #227 by enabling `/orchestrate` on discussions and allowing planner-selected `implement` from PRs/discussions.\n- Non-issue implement handoffs now normalize through a shared implementation tracking issue helper before dispatching `agent-implement.yml`.\n- The PR also updates prompts, docs, route policy, workflow wiring, and focused tests around marker safety, tracking issue reuse, and threaded link-backs.\n- Current reviewer outputs agree the previous marker-escaping blocker is fixed, but one reviewer still identifies a narrow idempotency gap in PR review-comment retry handling.\n\n## Review\nThe current head is close and the main trust-boundary concerns are resolved. I am carrying forward one WARNING because it is supported by the current code and an existing review thread, even though the rubrics review and Codex review considered the threaded dedupe path resolved.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Threaded PR review-comment retry can duplicate tracking issues | WARNING | `findExistingImplementationTrackingIssue()` runs before the helper builds/passes `responseTarget`, so PR review-comment retries cannot directly detect a prior threaded reply marker and fall back to issue-body search. If that search lags, a retry can create another tracking issue and threaded reply. |\n\n## Progress\n- The issue #227 feature path is implemented: discussion orchestration is allowed, PR/discussion planner `implement` is supported, and non-issue implementation uses tracking issues.\n- Prior copied-marker and base-field marker escaping findings are fixed at current head.\n- Prior discussion stop-comment dedupe and top-level tracking issue reuse findings are fixed at current head.\n- Resolved stale same-agent inline thread `PRRT_kwDOSOhEMM6DU04l` for the fixed `base_branch` / `base_pr` marker escaping concern.\n- No new inline comments, replies, or minimizations were added; the remaining warning is already covered by the open same-agent thread `PRRT_kwDOSOhEMM6DUo3q`.\n\n## Issue Details\n<details>\n<summary>Threaded PR review-comment retry can duplicate tracking issues</summary>\n\n**Cause:** [`ensureImplementationTrackingIssueForTarget`](https://github.com/self-evolving/repo/blob/932fa11ae50205353c9267f107ded24ffa0c69d3/.agent/src/implementation-tracking.ts#L724-L730) calls `findExistingImplementationTrackingIssue()` before building `linkBackResponseTarget`. Without that target, [`findTrustedThreadedImplementationLinkBack`](https://github.com/self-evolving/repo/blob/932fa11ae50205353c9267f107ded24ffa0c69d3/.agent/src/implementation-tracking.ts#L539-L573) cannot inspect PR review-comment replies on the pre-create lookup path.\n\n**Candidate solutions:** Build `linkBackResponseTarget` before the existing-issue lookup and pass it through `findExistingImplementationTrackingIssue()` / `findTrustedImplementationLinkBack()`. Add a retry test where issue search returns empty but a trusted PR review-comment reply marker exists.\n\n**Comments:** Reviewer disagreement is meaningful here: Codex and rubrics marked this resolved, while Claude identified the issue-body-search fallback risk. The current code supports Claude’s narrower PR review-comment case.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the remaining issue is a concrete, low-risk helper change with a focused regression test.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Make the pre-create tracking issue lookup threaded-reply-aware for PR review-comment replies, with regression coverage for the search-lag retry case.",
+      "createdAt": "2026-05-20T00:11:17Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4493284498",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9IoAw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #294 | 8 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis reported MINOR_ISSUES with Recommended Next Step FIX_PR; the remaining item is a concrete branch change and round budget remains available.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Make the pre-create tracking issue lookup threaded-reply-aware for PR review-comment replies, with regression coverage for the search-lag retry case.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1779235922170 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxMzI3MzE0NDY6cmV2aWV3OjI5NDpmaXhfcHI6Mjk0Ojg -->",
+      "createdAt": "2026-05-20T00:12:02Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4493289475",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9Jeuw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-227/codex-26126733366`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Made the pre-create implementation tracking lookup pass the response target into threaded link-back detection, so PR review-comment reply markers can be reused before issue search fallback.\n- Added a regression test for the search-lag retry case where issue search returns empty but a trusted threaded PR review reply already points at the tracking issue.\n- Verified with `npm run build`, focused `node --test ...`, and `git diff --check`.",
+      "createdAt": "2026-05-20T00:14:17Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4493303483",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9J5MA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #294 | 9 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on PR #294 after the requested refactor, so an automated review should verify the shared tracking helper preserves behavior and safety before the chain stops.\n\n<!-- sepo-agent-handoff state:dispatched created:1779236123032 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxMzMxMzUxMTY6Zml4X3ByOjI5NDpyZXZpZXc6Mjk0Ojk -->",
+      "createdAt": "2026-05-20T00:15:23Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4493310256",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9Kx4w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 99 | PASS | 13 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Orchestrator preflight re-checks delegated capability before planner/action dispatch, and router passes requester/policy context into orchestrator dispatch: [`orchestrator-preflight.ts`](https://github.com/self-evolving/repo/blob/e101d7e8829f22d801536083e5fbf3dfac098601/.agent/src/cli/orchestrator-preflight.ts#L30), [`agent-router.yml`](https://github.com/self-evolving/repo/blob/e101d7e8829f22d801536083e5fbf3dfac098601/.github/workflows/agent-router.yml#L729). |\n| coding_workflow / generic | Generate context-derived artifact metadata | pass | 7/7 | Tracking issues are generated from source metadata, requester, planner reason, request/context, base inputs, and escaped target markdown rather than the literal slash command: [`implementation-tracking.ts`](https://github.com/self-evolving/repo/blob/e101d7e8829f22d801536083e5fbf3dfac098601/.agent/src/implementation-tracking.ts#L468). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Explicit non-issue `/implement` and orchestrated non-issue `implement` now both use the shared tracking helper/CLI: [`agent-router.yml`](https://github.com/self-evolving/repo/blob/e101d7e8829f22d801536083e5fbf3dfac098601/.github/workflows/agent-router.yml#L678), [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/e101d7e8829f22d801536083e5fbf3dfac098601/.agent/src/cli/orchestrate-handoff.ts#L1504). |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | PR `implement` defaults to separate default-branch work and keeps `base_pr` as the explicit stacking escape hatch, without adding a new repo setting: [`agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/e101d7e8829f22d801536083e5fbf3dfac098601/.github/prompts/agent-orchestrator.md#L47). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The helper uses typed fields such as `targetKind`, `trackingScope`, `baseBranch`, `basePr`, response kind, and threaded IDs; handoff rejects conflicting base inputs: [`implementation-tracking.ts`](https://github.com/self-evolving/repo/blob/e101d7e8829f22d801536083e5fbf3dfac098601/.agent/src/implementation-tracking.ts#L33), [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/e101d7e8829f22d801536083e5fbf3dfac098601/.agent/src/cli/orchestrate-handoff.ts#L1482). |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | The policy is expressed in the planner prompt and deterministic handoff validator, not a new environment variable or setting: [`agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/e101d7e8829f22d801536083e5fbf3dfac098601/.github/prompts/agent-orchestrator.md#L100), [`handoff.ts`](https://github.com/self-evolving/repo/blob/e101d7e8829f22d801536083e5fbf3dfac098601/.agent/src/handoff.ts#L615). |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | Planner decisions remain separately constrained by target kind: discussion can dispatch only `implement`, while PR can dispatch `review`, `fix-pr`, or separate `implement`: [`handoff.ts`](https://github.com/self-evolving/repo/blob/e101d7e8829f22d801536083e5fbf3dfac098601/.agent/src/handoff.ts#L637). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | README, action docs, supported workflow docs, technical orchestrator docs, and prompts describe PR/discussion orchestration and tracking issue behavior: [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/e101d7e8829f22d801536083e5fbf3dfac098601/.agent/docs/architecture/supported-workflows.md#L27), [`agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/e101d7e8829f22d801536083e5fbf3dfac098601/.agent/docs/technical-details/agent-orchestrator.md#L100). |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | The helper checks trusted threaded/top-level link-backs and trusted tracking issue markers before creating, then skips duplicate link-backs: [`implementation-tracking.ts`](https://github.com/self-evolving/repo/blob/e101d7e8829f22d801536083e5fbf3dfac098601/.agent/src/implementation-tracking.ts#L507), [`implementation-tracking.ts`](https://github.com/self-evolving/repo/blob/e101d7e8829f22d801536083e5fbf3dfac098601/.agent/src/implementation-tracking.ts#L611). |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Tracking issue creation failures stop the handoff, set outputs, log the reason, and attempt a visible stop comment: [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/e101d7e8829f22d801536083e5fbf3dfac098601/.agent/src/cli/orchestrate-handoff.ts#L1523). |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Discussion orchestration is supported, and discussion stop dedupe is covered by focused tests for trusted final comments: [`orchestrate-handoff-cli.test.ts`](https://github.com/self-evolving/repo/blob/e101d7e8829f22d801536083e5fbf3dfac098601/.agent/src/__tests__/orchestrate-handoff-cli.test.ts#L164). |\n| coding_workflow / generic | Surgical changes | pass | 8/8 | The live file list is scoped to orchestration policy, shared tracking helper/CLI, workflow wiring, docs/prompts, and focused tests for the new PR/discussion implement path. |\n| coding_style / generic | Prefer simple implementations | pass | 6/7 | The call sites are now simple and shared. The helper is still substantial because it owns create/reuse/link-back/threading/marker-safety behavior in one place: [`implementation-tracking.ts`](https://github.com/self-evolving/repo/blob/e101d7e8829f22d801536083e5fbf3dfac098601/.agent/src/implementation-tracking.ts#L708). |\n\n## Notes\n\n- The current head satisfies the requester’s refactor direction: `orchestrate-handoff.ts` makes a small orchestration-specific call, while the non-issue tracking issue create/reuse/link-back logic lives in `.agent/src/implementation-tracking.ts`.\n- Focused verification passed locally: `npm run build`, then `node --test dist/__tests__/implementation-tracking-cli.test.js dist/__tests__/orchestrate-handoff-cli.test.js dist/__tests__/handoff.test.js dist/__tests__/triage.test.js dist/__tests__/orchestrator-preflight-cli.test.js dist/__tests__/envelope.test.js` with 228 passing tests.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No blocking rubric-specific issues found. The main tradeoff is helper size, but the complexity is centralized and shared across explicit `/implement` and orchestrated `implement`.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-20T00:18:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4493324771",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9NsFA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: e101d7e8829f22d801536083e5fbf3dfac098601 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #294 closes #227 by adding `/orchestrate` support for discussion targets and allowing planner-selected `implement` from PRs and discussions.\n- Non-issue implement handoffs now normalize through a shared implementation tracking issue helper before dispatching `agent-implement.yml`.\n- The PR also updates route policy, workflow wiring, prompts, docs, and focused tests for tracking issue creation, reuse, and threaded link-backs.\n- Current review artifacts disagree: the rubrics review passes the current head, while the code review identifies a remaining trust-boundary blocker that is supported by the live diff.\n\n## Review\nThe implementation is close, and the prior idempotency/threaded link-back issues are fixed. One blocker remains because copied untrusted markdown can still form a trusted Sepo marker when it contains an unclosed control-marker opener.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Incomplete Sepo control marker openers can become trusted markers | BLOCKING | `escapeSepoControlMarkers()` only escapes complete `<!-- sepo-... -->` comments, so an unclosed copied `<!-- sepo-sub-orchestrator ...` opener can be completed by the generated tracking marker and later parsed as trusted sub-orchestrator state. |\n\n## Progress\n- Issue #227’s requested minimal path is implemented: discussion orchestration is allowed, and PR/discussion `implement` can create a tracking issue before dispatch.\n- Prior tracking issue reuse, threaded link-back retry, and discussion stop-comment dedupe findings are addressed at head `e101d7e8829f22d801536083e5fbf3dfac098601`.\n- Posted one new inline comment on `.agent/src/implementation-tracking.ts:153` for the incomplete marker opener blocker.\n- Resolved stale same-agent thread `PRRT_kwDOSOhEMM6DUo3q` for the already-fixed threaded link-back retry issue.\n- No inline replies or comment minimizations were added.\n\n## Issue Details\n<details>\n<summary>Incomplete Sepo control marker openers can become trusted markers</summary>\n\n**Cause:** [`escapeSepoControlMarkers()`](https://github.com/self-evolving/repo/blob/e101d7e8829f22d801536083e5fbf3dfac098601/.agent/src/implementation-tracking.ts#L153) uses a regex that matches only complete Sepo HTML comments. If copied request/target markdown contains an unclosed `<!-- sepo-sub-orchestrator parent:99 stage:x state:running`, the generated `sepo-implementation-tracking` marker supplies the first closing `-->`; [`parseSubOrchestratorMarker()`](https://github.com/self-evolving/repo/blob/e101d7e8829f22d801536083e5fbf3dfac098601/.agent/src/sub-orchestration.ts#L63) can then accept the forged marker inside a Sepo-authored issue body.\n\n**Candidate solutions:** Escape every `<!-- sepo-` opener regardless of whether a closing delimiter exists, or change trusted marker parsing so only exact generated marker blocks are accepted. Add regression coverage for unclosed copied markers in request text and target body.\n\n**Comments:** Rubrics passed because complete-marker escaping and idempotency paths are covered; the code review found this narrower unclosed-opener case, and a local regex check against the current code confirmed it still matches as a forged marker.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the remaining blocker is a concrete helper/test change and is safe for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Escape incomplete Sepo control marker openers in copied untrusted tracking-issue content, with regression tests for request text and target body.",
+      "createdAt": "2026-05-20T00:28:06Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4493372436",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9N4Qw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #294 | 10 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: The latest review synthesis recommended FIX_PR for a concrete unresolved marker-escaping gap that requires a branch change.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Escape incomplete Sepo control marker openers in copied untrusted tracking-issue content, with regression tests for request text and target body.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1779236931167 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxMzMyNDg4NjM6cmV2aWV3OjI5NDpmaXhfcHI6Mjk0OjEw -->",
+      "createdAt": "2026-05-20T00:28:51Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4493375555",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9Ol0A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-227/codex-26126733366`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Escaped every `<!-- sepo-` opener in copied tracking issue content, including incomplete marker openers without a closing `-->`.\n- Added generated tracking issue regressions for incomplete Sepo marker openers in request text and target body.\n- Verified with `npm run build`, focused `node --test ...`, and `git diff --check`.",
+      "createdAt": "2026-05-20T00:31:22Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4493387216",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9OzyQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #294 | 11 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded after addressing the latest review action item, so one automated review should verify the marker-escaping fix and regressions before stopping.\n\n<!-- sepo-agent-handoff state:dispatched created:1779237122448 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYxMzM3MDQzMzU6Zml4X3ByOjI5NDpyZXZpZXc6Mjk0OjEx -->",
+      "createdAt": "2026-05-20T00:32:02Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4493390793",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9PsYw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 99 | PASS | 13 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Router passes requester/auth context into orchestrator dispatch, and preflight blocks planner use when delegated capability authorization fails: [`agent-router.yml`](https://github.com/self-evolving/repo/blob/a33e26fec8b7923dc4b7919a85a23507b4638180/.github/workflows/agent-router.yml#L757), [`orchestrator-preflight.ts`](https://github.com/self-evolving/repo/blob/a33e26fec8b7923dc4b7919a85a23507b4638180/.agent/src/cli/orchestrator-preflight.ts#L30). |\n| coding_workflow / generic | Generate context-derived artifact metadata | pass | 7/7 | Tracking issues are generated from target metadata, requester, planner reason, request/context, and base inputs rather than copying the slash command as metadata: [`implementation-tracking.ts`](https://github.com/self-evolving/repo/blob/a33e26fec8b7923dc4b7919a85a23507b4638180/.agent/src/implementation-tracking.ts#L471). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Explicit non-issue `/implement` and orchestrated non-issue `implement` both use the shared tracking helper/CLI: [`agent-router.yml`](https://github.com/self-evolving/repo/blob/a33e26fec8b7923dc4b7919a85a23507b4638180/.github/workflows/agent-router.yml#L678), [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/a33e26fec8b7923dc4b7919a85a23507b4638180/.agent/src/cli/orchestrate-handoff.ts#L1504). |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | The PR keeps the common path minimal: non-issue implement normalizes through a tracking issue, while `base_pr` / `base_branch` remain explicit typed escape hatches. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The helper and handoff path use typed fields such as `targetKind`, `trackingScope`, `baseBranch`, `basePr`, response kind, and threaded IDs; conflicting base inputs stop clearly: [`implementation-tracking.ts`](https://github.com/self-evolving/repo/blob/a33e26fec8b7923dc4b7919a85a23507b4638180/.agent/src/implementation-tracking.ts#L33), [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/a33e26fec8b7923dc4b7919a85a23507b4638180/.agent/src/cli/orchestrate-handoff.ts#L1482). |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | Planner policy and deterministic handoff validation decide PR/discussion orchestration behavior without adding a new repo setting: [`agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/a33e26fec8b7923dc4b7919a85a23507b4638180/.github/prompts/agent-orchestrator.md#L45), [`handoff.ts`](https://github.com/self-evolving/repo/blob/a33e26fec8b7923dc4b7919a85a23507b4638180/.agent/src/handoff.ts#L615). |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | Planner decisions remain constrained by target kind: discussions can dispatch only `implement`, while PRs can dispatch `review`, `fix-pr`, or separate `implement`: [`handoff.ts`](https://github.com/self-evolving/repo/blob/a33e26fec8b7923dc4b7919a85a23507b4638180/.agent/src/handoff.ts#L637). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | README and architecture docs now describe PR/discussion orchestration and shared tracking issue behavior: [`README.md`](https://github.com/self-evolving/repo/blob/a33e26fec8b7923dc4b7919a85a23507b4638180/README.md#L55), [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/a33e26fec8b7923dc4b7919a85a23507b4638180/.agent/docs/architecture/supported-workflows.md#L228). |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | The helper checks trusted threaded/top-level link-backs and trusted issue-body markers before creating, then skips duplicate link-backs: [`implementation-tracking.ts`](https://github.com/self-evolving/repo/blob/a33e26fec8b7923dc4b7919a85a23507b4638180/.agent/src/implementation-tracking.ts#L614), [`implementation-tracking.ts`](https://github.com/self-evolving/repo/blob/a33e26fec8b7923dc4b7919a85a23507b4638180/.agent/src/implementation-tracking.ts#L634). |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Tracking issue failures stop the handoff, set outputs, log the reason, and attempt a visible stop comment: [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/a33e26fec8b7923dc4b7919a85a23507b4638180/.agent/src/cli/orchestrate-handoff.ts#L1523). |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Discussion stop dedupe has focused coverage for trusted final comments, avoiding silent stops and duplicate status noise: [`orchestrate-handoff-cli.test.ts`](https://github.com/self-evolving/repo/blob/a33e26fec8b7923dc4b7919a85a23507b4638180/.agent/src/__tests__/orchestrate-handoff-cli.test.ts#L1668). |\n| coding_workflow / generic | Surgical changes | pass | 8/8 | The file list is scoped to orchestration policy, shared tracking helper/CLI, workflow wiring, docs/prompts, and focused tests for the PR/discussion implement path. |\n| coding_style / generic | Prefer simple implementations | partial | 6/7 | The call sites are now simple and shared, matching the requested shape. The helper is still sizable because it centralizes create/reuse/link-back/threading/marker-safety behavior in one module. |\n\n## Notes\n\n- The current PR head satisfies the main rubric concern from the request: tracking issue create/reuse/link-back logic moved into `.agent/src/implementation-tracking.ts`, and `orchestrate-handoff.ts` now makes a small route-specific call.\n- The prior idempotency and marker-safety gaps are covered by focused tests, including incomplete `<!-- sepo-` marker openers, threaded PR review-comment retries, and discussion link-back dedupe.\n- Verification run: `npm run build` and focused `node --test ...` passed with 230 passing tests.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No blocking rubric-specific issues found. The only tradeoff is helper size, but the complexity is now centralized and reused by both explicit `/implement` and orchestrated `implement`.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-20T00:34:56Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4493405283",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9SsDQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "Superseded by the smaller focused replacement PR #302.",
+      "createdAt": "2026-05-20T00:43:12Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4493454349",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9S0KA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: a33e26fec8b7923dc4b7919a85a23507b4638180 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #294 addresses #227 by allowing `/orchestrate` on discussion targets and letting planner-selected `implement` run from PRs and discussions.\n- Non-issue `implement` handoffs now create or reuse a shared implementation tracking issue before dispatching `agent-implement.yml`.\n- The PR updates route policy, planner validation, workflow wiring, prompts, docs, and focused regression tests.\n- Follow-up fixes addressed the earlier marker escaping, tracking issue reuse, threaded link-back, and discussion stop-comment dedupe concerns.\n\n## Review\nThe current PR head `a33e26fec8b7923dc4b7919a85a23507b4638180` is ready to ship. The code review and rubrics review agree there are no unresolved BLOCKING or WARNING findings; the only remaining note is INFO-level helper size tradeoff.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | Current reviewer outputs report SHIP/PASS, and the current diff supports that conclusion. Prior findings are fixed and covered by focused tests. |\n\n## Progress\n- Issue #227’s requested minimal behavior is implemented for PR and discussion `/orchestrate` paths.\n- Prior marker-safety issues are fixed by escaping every `<!-- sepo-` opener in copied tracking-issue content.\n- Tracking issue reuse and link-back dedupe now cover top-level and threaded PR/discussion surfaces.\n- Re-fetched inline comments and review threads; resolved stale same-agent thread `PRRT_kwDOSOhEMM6DVLEr`.\n- No new inline comments, replies, or comment minimizations were added.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved required branch-change work remains.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-20T00:43:34Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/294#issuecomment-4493456424",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-19T21:47:46Z",
+  "files": [
+    {
+      "path": ".agent/docs/actions/agent-actions.md",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 18,
+      "deletions": 10,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/agent-orchestrator.md",
+      "additions": 19,
+      "deletions": 6,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/developer-notes.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 7,
+      "deletions": 9,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/handoff.test.ts",
+      "additions": 57,
+      "deletions": 9,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/implementation-tracking-cli.test.ts",
+      "additions": 445,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrate-handoff-cli.test.ts",
+      "additions": 233,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrator-preflight-cli.test.ts",
+      "additions": 10,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/triage.test.ts",
+      "additions": 10,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/ensure-implementation-tracking.ts",
+      "additions": 35,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrate-handoff.ts",
+      "additions": 79,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrator-preflight.ts",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/discussion.ts",
+      "additions": 10,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/handoff.ts",
+      "additions": 13,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/implementation-tracking.ts",
+      "additions": 766,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/triage.ts",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-dispatch.md",
+      "additions": 3,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-orchestrator.md",
+      "additions": 16,
+      "deletions": 7,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-orchestrator.yml",
+      "additions": 4,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-router.yml",
+      "additions": 17,
+      "deletions": 32,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": "README.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-227/codex-26126733366",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 294,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAbP1-A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-19T22:03:00Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "aa6fb6fa2ebe4e6016509f40accf084806f9cfbc"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAbP45w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-19T22:03:06Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "aa6fb6fa2ebe4e6016509f40accf084806f9cfbc"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAbP72Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-19T22:03:12Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "aa6fb6fa2ebe4e6016509f40accf084806f9cfbc"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAbwVBA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-19T23:32:21Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "3b256955aac0f6e0e8fd5520834d912bfd052a88"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAb1alQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-19T23:53:02Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "08c3f2e95bd4d9d75190c35be6a569f87003b0a2"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAb1gww",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-19T23:53:22Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "08c3f2e95bd4d9d75190c35be6a569f87003b0a2"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAb_0og",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-20T00:26:49Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "e101d7e8829f22d801536083e5fbf3dfac098601"
+      }
+    }
+  ],
+  "state": "CLOSED",
+  "title": "Support orchestrated implement from PRs and discussions",
+  "updatedAt": "2026-05-20T03:20:03Z",
+  "url": "https://github.com/self-evolving/repo/pull/294"
+}

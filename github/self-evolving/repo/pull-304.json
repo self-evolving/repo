@@ -1,0 +1,313 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Add an install request issue template for public target repository URLs.\n- Have install publish add source request links to target PR bodies and update reused PR bodies.\n- Close issue-backed install requests through a typed best-effort CLI after the install response posts.\n- Update install docs, README, prompt guidance, and focused tests.\n\n## Verification\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/install-fork-pr.test.js .agent/dist/__tests__/install-fork-pr-cli.test.js .agent/dist/__tests__/install-request.test.js .agent/dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nCloses #303\n",
+  "closedAt": "2026-05-20T03:28:25Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9zCHg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer why this is way much larger than https://github.com/self-evolving/repo/pull/293 ?",
+      "createdAt": "2026-05-20T02:30:53Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/304#issuecomment-4493984286",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9z4IQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Short version: #304 is larger because it is not just the same #293 patch rebased. It is a fresh implementation after #298 merged, and it incorporates the review feedback from #293: move the fragile inline workflow parsing/closing logic into typed, tested `.agent/src` code.\n\nConcrete size drivers:\n\n- #293 was 9 files, `+79/-10`. It mostly added the issue template/docs plus inline shell in `agent-router.yml` that grepped the response body for a marker/PR URL and closed the issue.\n- #304 is 16 files, `+497/-6`. The extra bulk is mostly:\n  - new typed close helper: [`install-request.ts`](https://github.com/self-evolving/repo/blob/1610f81f107ae2eb798f17f47b7a584bd77c12c1/.agent/src/install-request.ts#L79-L175)\n  - new CLI wrapper: [`complete-install-request.ts`](https://github.com/self-evolving/repo/blob/1610f81f107ae2eb798f17f47b7a584bd77c12c1/.agent/src/cli/complete-install-request.ts#L1-L53)\n  - focused lifecycle tests: [`install-request.test.ts`](https://github.com/self-evolving/repo/blob/1610f81f107ae2eb798f17f47b7a584bd77c12c1/.agent/src/__tests__/install-request.test.ts#L1)\n  - structured publish outputs instead of parsing markdown from the agent response: [`agent-router.yml`](https://github.com/self-evolving/repo/blob/1610f81f107ae2eb798f17f47b7a584bd77c12c1/.github/workflows/agent-router.yml#L710-L726)\n  - source request link support in the install PR body, including reused PRs: [`install-fork-pr.ts`](https://github.com/self-evolving/repo/blob/1610f81f107ae2eb798f17f47b7a584bd77c12c1/.agent/src/install-fork-pr.ts#L168-L200)\n\nThe main reason is the acceptance criteria in #303 explicitly asked to recreate #293 after #298 and avoid “brittle inline workflow shell and markdown-wide regex parsing” by using the typed helper/CLI style. So #304 is larger because it pays for validation, idempotency, non-fatal cleanup, structured outputs, and regression tests.",
+      "createdAt": "2026-05-20T02:33:53Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/304#issuecomment-4493998113",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC96xBA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review",
+      "createdAt": "2026-05-20T03:02:37Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/304#issuecomment-4494110980",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC97pHw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Validate delegated route authorization | pass | 8/8 | The issue form routes through `@sepo-agent /install`, and docs keep `/install` as the first-class authorization boundary with `route_overrides.install` guidance: [install-sepo.yml#L6-L13](https://github.com/self-evolving/repo/blob/b74dbbbb75361b3a5da7cb3386148da8347cd43b/.github/ISSUE_TEMPLATE/install-sepo.yml#L6-L13), [install-existing-repository.md#L34-L39](https://github.com/self-evolving/repo/blob/b74dbbbb75361b3a5da7cb3386148da8347cd43b/.agent/docs/deployment/install-existing-repository.md#L34-L39), [install-existing-repository.md#L66-L74](https://github.com/self-evolving/repo/blob/b74dbbbb75361b3a5da7cb3386148da8347cd43b/.agent/docs/deployment/install-existing-repository.md#L66-L74). |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | PR #303 asked to avoid brittle inline shell; this PR extends the existing typed install fork/PR helper and adds a focused completion helper instead of embedding parsing in workflow glue: [install-fork-pr.ts#L168-L201](https://github.com/self-evolving/repo/blob/b74dbbbb75361b3a5da7cb3386148da8347cd43b/.agent/src/install-fork-pr.ts#L168-L201), [install-request.ts#L79-L175](https://github.com/self-evolving/repo/blob/b74dbbbb75361b3a5da7cb3386148da8347cd43b/.agent/src/install-request.ts#L79-L175). |\n| coding_workflow/generic | Prefer explicit structured inputs | pass | 7/7 | The install publish CLI derives `sourceRequestUrl` from explicit flags/env/envelope fields and emits route-specific outputs consumed by the workflow: [cli/install-fork-pr.ts#L53-L88](https://github.com/self-evolving/repo/blob/b74dbbbb75361b3a5da7cb3386148da8347cd43b/.agent/src/cli/install-fork-pr.ts#L53-L88), [cli/install-fork-pr.ts#L93-L108](https://github.com/self-evolving/repo/blob/b74dbbbb75361b3a5da7cb3386148da8347cd43b/.agent/src/cli/install-fork-pr.ts#L93-L108), [run-agent-task/action.yml#L203-L208](https://github.com/self-evolving/repo/blob/b74dbbbb75361b3a5da7cb3386148da8347cd43b/.github/actions/run-agent-task/action.yml#L203-L208). |\n| coding_workflow/generic | Keep docs in sync | pass | 7/7 | README, action docs, supported workflow docs, install docs, setup docs, developer notes, and prompt guidance were updated alongside runtime behavior; install docs cover public/private paths and close semantics: [install-existing-repository.md#L5-L64](https://github.com/self-evolving/repo/blob/b74dbbbb75361b3a5da7cb3386148da8347cd43b/.agent/docs/deployment/install-existing-repository.md#L5-L64). |\n| coding_workflow/generic | Make user-facing automation idempotent | pass | 7/7 | Reused install PRs are updated rather than duplicated, already-closed source issues are skipped, and closure failure is non-fatal: [install-fork-pr.ts#L738-L769](https://github.com/self-evolving/repo/blob/b74dbbbb75361b3a5da7cb3386148da8347cd43b/.agent/src/install-fork-pr.ts#L738-L769), [install-request.ts#L141-L166](https://github.com/self-evolving/repo/blob/b74dbbbb75361b3a5da7cb3386148da8347cd43b/.agent/src/install-request.ts#L141-L166), [agent-router.yml#L710-L726](https://github.com/self-evolving/repo/blob/b74dbbbb75361b3a5da7cb3386148da8347cd43b/.github/workflows/agent-router.yml#L710-L726). |\n| coding_workflow/generic | Surface stateful failures | pass | 7/7 | Completion returns structured `failed` reasons for unreadable issues, bad PR URLs, and close failures; tests cover close failure reporting without throwing: [install-request.ts#L111-L138](https://github.com/self-evolving/repo/blob/b74dbbbb75361b3a5da7cb3386148da8347cd43b/.agent/src/install-request.ts#L111-L138), [install-request.test.ts#L92-L107](https://github.com/self-evolving/repo/blob/b74dbbbb75361b3a5da7cb3386148da8347cd43b/.agent/src/__tests__/install-request.test.ts#L92-L107). |\n| coding_workflow/generic | Prefer permissive command route parsing | pass | 7/7 | The issue template supplies only the route command and a target URL field, leaving route-specific target resolution to existing `/install` helper behavior documented as accepting slugs, URLs, or clear natural language: [install-sepo.yml#L6-L21](https://github.com/self-evolving/repo/blob/b74dbbbb75361b3a5da7cb3386148da8347cd43b/.github/ISSUE_TEMPLATE/install-sepo.yml#L6-L21), [install-existing-repository.md#L34-L39](https://github.com/self-evolving/repo/blob/b74dbbbb75361b3a5da7cb3386148da8347cd43b/.agent/docs/deployment/install-existing-repository.md#L34-L39). |\n| communication/generic | Keep status comments compact | pass | 6/6 | Source issue closure uses a concise one-line comment linking the target PR: [install-request.ts#L149-L159](https://github.com/self-evolving/repo/blob/b74dbbbb75361b3a5da7cb3386148da8347cd43b/.agent/src/install-request.ts#L149-L159), tested in [install-request.test.ts#L45-L49](https://github.com/self-evolving/repo/blob/b74dbbbb75361b3a5da7cb3386148da8347cd43b/.agent/src/__tests__/install-request.test.ts#L45-L49). |\n| communication/generic | Write audience-first documentation | pass | 7/7 | Install docs lead with the user choice between public issue-form installs and private trusted local installs before lower-level token/helper details: [install-existing-repository.md#L5-L30](https://github.com/self-evolving/repo/blob/b74dbbbb75361b3a5da7cb3386148da8347cd43b/.agent/docs/deployment/install-existing-repository.md#L5-L30). |\n| coding_workflow/generic | Make surgical changes | pass | 8/8 | The diff is focused on issue-backed install request lifecycle files, docs, prompt guidance, and targeted tests tied directly to #303 acceptance criteria. |\n\n## Notes\n\n- The strongest rubric alignment is that PR #304 follows issue #303’s explicit instruction to move lifecycle parsing/closure out of workflow shell and into typed `.agent/src` helpers with focused tests.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific blocking findings found.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-20T03:06:17Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/304#issuecomment-4494125343",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC99e9w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #304 implements issue #303 by recreating the install request issue-template flow on top of the merged first-class `/install` route from #298.\n- It adds a public install request issue form, carries the source request link into published or reused target install PR bodies, and closes source request issues best-effort after the install response posts.\n- The PR replaces the earlier #293-style workflow parsing with typed `.agent/src` helper/CLI code and structured publish outputs.\n- Current CI for head `f4e94a9c` is passing.\n\n## Review\nNo blocking issues are supported by the current review artifacts or live PR state. Claude raised two minor follow-up concerns; Codex and the rubrics review both found the implementation acceptable, so these are best treated as maintainer-choice polish rather than required automation work.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Missing `issue_state_unavailable` regression test | WARNING | [`completeInstallRequest`](https://github.com/self-evolving/repo/blob/f4e94a9cf73e6ab7b4784e42508e6cc1a17f45d0/.agent/src/install-request.ts#L111-L121) handles `gh issue view` failures, but the new test file does not exercise `runner.failView`. |\n| Install credential discoverability is reduced | WARNING | The PR intentionally moves `AGENT_INSTALL_PAT` out of the public configuration list and into developer notes; that keeps target-repo docs simpler, but may make source-repo self-hosted install setup less discoverable. |\n| Review lanes otherwise agree on the design direction | INFO | The implementation satisfies #303’s typed-helper requirement and current rubrics review scored PASS with no required follow-up. |\n\n## Progress\n- Reviewed PR #304, linked issue #303, prior PR #293 feedback, and the merged #298 install-route context.\n- Existing inline review comments and review threads are empty for PR #304.\n- No inline comments were posted, no replies were added, and no comments or threads were minimized/resolved.\n- `gh pr checks 304` reports the current `check` job passing.\n\n## Issue Details\n\n<details>\n<summary>Missing `issue_state_unavailable` regression test</summary>\n\n**Cause:** The fake runner in [`install-request.test.ts`](https://github.com/self-evolving/repo/blob/f4e94a9cf73e6ab7b4784e42508e6cc1a17f45d0/.agent/src/__tests__/install-request.test.ts#L8-L24) exposes `failView`, and production code returns `failed` / `issue_state_unavailable`, but the focused tests cover close success, non-issue/non-published skips, already-closed skip, and close failure only.\n\n**Candidate solutions:** Add one small test setting `runner.failView = true` and asserting `status === \"failed\"` plus `reason === \"issue_state_unavailable\"`.\n\n**Comments:** Claude flagged this as a warning. Codex considered the existing coverage sufficient, so this is useful hardening but not a blocker.\n\n</details>\n\n<details>\n<summary>Install credential discoverability is reduced</summary>\n\n**Cause:** [`configuration-list.md`](https://github.com/self-evolving/repo/blob/f4e94a9cf73e6ab7b4784e42508e6cc1a17f45d0/.agent/docs/customization/configuration-list.md#L39-L49) no longer names `AGENT_INSTALL_PAT`; [`install-existing-repository.md`](https://github.com/self-evolving/repo/blob/f4e94a9cf73e6ab7b4784e42508e6cc1a17f45d0/.agent/docs/deployment/install-existing-repository.md#L34-L44) describes a dedicated install credential without the secret name, while developer notes now carry the internal name.\n\n**Candidate solutions:** Either leave as-is to keep first-run docs audience-first, or add a short cross-reference from the install docs/config list to the developer note for operators running their own Sepo source repository.\n\n**Comments:** This is a documentation audience trade-off, not an implementation defect. The rubrics review passed `audience-first-documentation`.\n\n</details>\n\n## Recommended Next Step\n`HUMAN_DECISION`: the only remaining concerns are optional coverage/docs polish and need maintainer preference before more automation.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] No required branch-change work from this synthesis.",
+      "createdAt": "2026-05-20T03:13:59Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/304#issuecomment-4494155511",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9-6-w",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review",
+      "createdAt": "2026-05-20T03:19:09Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/304#issuecomment-4494179067",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9_pmg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 11 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Validate delegated route authorization | pass | 8/8 | The issue form submits the normal `@sepo-agent /install` route instead of inventing a broader delegated entry point, so existing install-route policy remains the authorization boundary: [install-sepo.yml#L6-L13](https://github.com/self-evolving/repo/blob/6e749c8fb9fb6126863b5974cae782b6c1d72cd0/.github/ISSUE_TEMPLATE/install-sepo.yml#L6-L13), [install-existing-repository.md#L32-L39](https://github.com/self-evolving/repo/blob/6e749c8fb9fb6126863b5974cae782b6c1d72cd0/.agent/docs/deployment/install-existing-repository.md#L32-L39). |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | Issue #303 explicitly asked for typed helper/CLI style, and this PR extends `install-fork-pr` plus adds `completeInstallRequest` rather than parsing markdown in workflow shell: [install-fork-pr.ts#L168-L201](https://github.com/self-evolving/repo/blob/6e749c8fb9fb6126863b5974cae782b6c1d72cd0/.agent/src/install-fork-pr.ts#L168-L201), [install-request.ts#L79-L175](https://github.com/self-evolving/repo/blob/6e749c8fb9fb6126863b5974cae782b6c1d72cd0/.agent/src/install-request.ts#L79-L175). |\n| coding_workflow/generic | Prefer explicit structured inputs | pass | 7/7 | The publish helper derives or accepts `sourceRequestUrl` through explicit CLI/env fields and emits `install_status` / `install_pr_url` outputs consumed by the workflow: [cli/install-fork-pr.ts#L53-L89](https://github.com/self-evolving/repo/blob/6e749c8fb9fb6126863b5974cae782b6c1d72cd0/.agent/src/cli/install-fork-pr.ts#L53-L89), [cli/install-fork-pr.ts#L93-L108](https://github.com/self-evolving/repo/blob/6e749c8fb9fb6126863b5974cae782b6c1d72cd0/.agent/src/cli/install-fork-pr.ts#L93-L108), [action.yml#L203-L208](https://github.com/self-evolving/repo/blob/6e749c8fb9fb6126863b5974cae782b6c1d72cd0/.github/actions/run-agent-task/action.yml#L203-L208). |\n| coding_workflow/generic | Keep docs in sync | pass | 7/7 | README, install docs, supported workflow docs, setup docs, developer notes, action docs, and prompt guidance are updated with the issue-form install path and close/link behavior: [install-existing-repository.md#L5-L64](https://github.com/self-evolving/repo/blob/6e749c8fb9fb6126863b5974cae782b6c1d72cd0/.agent/docs/deployment/install-existing-repository.md#L5-L64). |\n| coding_workflow/generic | Make user-facing automation idempotent | pass | 7/7 | Source issue completion skips non-issue, non-published, and already-closed cases; reused PRs get body updates instead of duplicate PRs: [install-request.ts#L79-L147](https://github.com/self-evolving/repo/blob/6e749c8fb9fb6126863b5974cae782b6c1d72cd0/.agent/src/install-request.ts#L79-L147), [install-fork-pr.ts#L738-L769](https://github.com/self-evolving/repo/blob/6e749c8fb9fb6126863b5974cae782b6c1d72cd0/.agent/src/install-fork-pr.ts#L738-L769). |\n| coding_workflow/generic | Surface stateful failures | pass | 7/7 | Completion failures return structured reasons for unreadable issues and close failures, with focused regression coverage for both: [install-request.ts#L121-L166](https://github.com/self-evolving/repo/blob/6e749c8fb9fb6126863b5974cae782b6c1d72cd0/.agent/src/install-request.ts#L121-L166), [install-request.test.ts#L92-L125](https://github.com/self-evolving/repo/blob/6e749c8fb9fb6126863b5974cae782b6c1d72cd0/.agent/src/__tests__/install-request.test.ts#L92-L125). |\n| coding_workflow/generic | Prefer permissive command route parsing | pass | 7/7 | The issue form only anchors the route command and target URL field, while docs preserve route-specific target resolution for slugs, URLs, and clear natural-language references: [install-sepo.yml#L6-L21](https://github.com/self-evolving/repo/blob/6e749c8fb9fb6126863b5974cae782b6c1d72cd0/.github/ISSUE_TEMPLATE/install-sepo.yml#L6-L21), [install-existing-repository.md#L34-L39](https://github.com/self-evolving/repo/blob/6e749c8fb9fb6126863b5974cae782b6c1d72cd0/.agent/docs/deployment/install-existing-repository.md#L34-L39). |\n| coding_workflow/generic | Minimal defaults, native escape hatches | pass | 8/8 | The public path is a simple issue form plus `/install`; advanced/private installs are directed to a trusted local environment and the existing install skill rather than expanding the public workflow surface: [install-existing-repository.md#L7-L24](https://github.com/self-evolving/repo/blob/6e749c8fb9fb6126863b5974cae782b6c1d72cd0/.agent/docs/deployment/install-existing-repository.md#L7-L24). |\n| communication/generic | Keep status comments compact | pass | 6/6 | Source request closure posts a single concise link comment after the install PR is ready: [install-request.ts#L149-L159](https://github.com/self-evolving/repo/blob/6e749c8fb9fb6126863b5974cae782b6c1d72cd0/.agent/src/install-request.ts#L149-L159), [install-request.test.ts#L45-L49](https://github.com/self-evolving/repo/blob/6e749c8fb9fb6126863b5974cae782b6c1d72cd0/.agent/src/__tests__/install-request.test.ts#L45-L49). |\n| communication/generic | Write audience-first documentation | pass | 7/7 | Install docs lead with public vs private user choices before lower-level helper details and credential internals: [install-existing-repository.md#L5-L31](https://github.com/self-evolving/repo/blob/6e749c8fb9fb6126863b5974cae782b6c1d72cd0/.agent/docs/deployment/install-existing-repository.md#L5-L31). |\n| coding_workflow/generic | Make surgical changes | pass | 8/8 | The diff is concentrated on the issue-backed install lifecycle requested by #303: issue template, install helper outputs, source-link/close helpers, docs/prompts, and focused tests. |\n\n## Notes\n\n- The strongest score driver is alignment with issue #303’s acceptance criteria: avoid brittle inline shell and markdown parsing, use typed `.agent/src` helpers, keep close behavior idempotent/non-fatal, and cover it with tests.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific blocking or warning findings found on current head `6e749c8fb9fb6126863b5974cae782b6c1d72cd0`.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-20T03:21:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/304#issuecomment-4494191002",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC-BfYg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 6e749c8fb9fb6126863b5974cae782b6c1d72cd0 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #304 implements issue #303 by recreating the install request issue-template flow after the first-class `/install` route merged.\n- It adds a public install request issue form, updates README/install docs, carries source request links into target install PR bodies, and closes source install request issues best-effort after a published/reused install PR response.\n- The implementation uses typed `.agent/src` helpers and structured workflow outputs instead of the brittle inline shell and markdown parsing called out from the older #293 approach.\n- The PR is currently draft, with the current `check` job passing on head `6e749c8fb9fb6126863b5974cae782b6c1d72cd0`.\n\n## Review\nNo unresolved blocking or branch-change findings are supported by the current review artifacts or live PR state. Claude raised two low-risk warnings, while Codex and the rubrics review found no actionable issues; synthesis treats those warnings as non-required polish rather than automation work.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues found | INFO | The current diff satisfies #303’s acceptance criteria, and the only reviewer warnings are narrow/cosmetic enough to leave to maintainer preference. |\n\n## Progress\n- Read all current review outputs: Claude, Codex, and rubrics review.\n- Verified current PR conversation, linked issue #303 context, current diff, PR head, draft state, and check status.\n- Existing inline review comments and review threads are empty for PR #304.\n- No inline comments were posted, no replies were added, and no comments or threads were minimized/resolved.\n- The earlier synthesis warning about missing `issue_state_unavailable` coverage is superseded; the current test exists in `.agent/src/__tests__/install-request.test.ts`.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: no unresolved required branch-change work remains; merge readiness is now a maintainer timing decision because the PR is still draft.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work from this synthesis.",
+      "createdAt": "2026-05-20T03:28:07Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/304#issuecomment-4494221154",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC-B_rg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #304.\n\nno rubric changes\n\nI read PR #304, issue/review comments, linked issue #303, maintainer signals, the PR diff, and the active rubric files. The only durable preference surfaced here is to avoid brittle inline workflow parsing and use typed helper/CLI code with tests, but that is already covered by existing rubrics such as `reuse-existing-code`, `prefer-explicit-structured-inputs`, `surface-stateful-failures`, and `idempotent-user-facing-automation`.\n\nNo files were changed under `agent-rubrics`.\n",
+      "createdAt": "2026-05-20T03:29:43Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/304#issuecomment-4494229422",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-20T02:28:34Z",
+  "files": [
+    {
+      "path": ".agent/docs/actions/agent-actions.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 9,
+      "deletions": 6,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 0,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/deployment/install-existing-repository.md",
+      "additions": 36,
+      "deletions": 14,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/deployment/setup-guide.md",
+      "additions": 4,
+      "deletions": 6,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/developer-notes.md",
+      "additions": 8,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 35,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/install-fork-pr-cli.test.ts",
+      "additions": 15,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/install-fork-pr.test.ts",
+      "additions": 9,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/install-request.test.ts",
+      "additions": 125,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/complete-install-request.ts",
+      "additions": 53,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/install-fork-pr.ts",
+      "additions": 12,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/install-fork-pr.ts",
+      "additions": 54,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/install-request.ts",
+      "additions": 175,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/install-sepo.yml",
+      "additions": 29,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/actions/run-agent-task/action.yml",
+      "additions": 6,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-install.md",
+      "additions": 3,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-router.yml",
+      "additions": 19,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": "README.md",
+      "additions": 8,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-303/codex-26137250088",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": "2026-05-20T03:28:25Z",
+  "number": 304,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "MERGED",
+  "title": "Add issue-backed install request lifecycle",
+  "updatedAt": "2026-05-20T03:29:43Z",
+  "url": "https://github.com/self-evolving/repo/pull/304"
+}

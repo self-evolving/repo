@@ -1,0 +1,204 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "baseRefName": "agent/implement-issue-284/codex-26086793017",
+  "body": "## Summary\n- Add a simple install request issue template that starts with `@sepo-agent /install` and leaves space for a requester to paste a public target repo URL.\n- Link README and install docs to the install request issue template.\n- Update the install prompt/workflow so successful issue-backed install runs mention the source request in the target PR body and close the source issue after posting the agent response.\n\n## Verification\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/envelope.test.js .agent/dist/__tests__/install-target.test.js .agent/dist/__tests__/triage.test.js`\n- `git diff --check`\n\nStacked on #285.\n",
+  "closedAt": "2026-05-19T22:46:57Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8NKiA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review",
+      "createdAt": "2026-05-19T21:45:03Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/293#issuecomment-4492315272",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8PEfw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 88 | PARTIAL | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow | Make surgical changes | pass | 8/8 | PR is scoped to the install issue template, install route prompt/workflow behavior, docs, and a focused envelope test. |\n| coding_workflow | Keep docs in sync | pass | 7/7 | README and install docs now mention the issue-template path and source-issue closing behavior. See [`README.md`](https://github.com/self-evolving/repo/blob/f46f9b53e31e4aaa76f0f2b26930ab719b4a914b/README.md#L25) and [`install-existing-repository.md`](https://github.com/self-evolving/repo/blob/f46f9b53e31e4aaa76f0f2b26930ab719b4a914b/.agent/docs/deployment/install-existing-repository.md#L45-L47). |\n| communication | Write audience-first documentation | pass | 7/7 | The install guide leads with the user action: open the template or mention `/install`, then explains target resolution and blocked outcomes. |\n| coding_workflow | Prefer permissive command route parsing | pass | 7/7 | The template uses only `@sepo-agent /install` plus a blank target URL area, while docs preserve slug/URL/natural-language target resolution. |\n| coding_workflow | Make user-facing automation idempotent | pass | 7/7 | The close step checks for the published marker and skips already-closed issues before calling `gh issue close`. |\n| communication | Keep status comments compact | pass | 6/6 | The close comment is concise: “Installation PR is ready: <url>” or a short fallback. |\n| coding_workflow | Minimal defaults, native escape hatches | pass | 8/8 | The PR adds a minimal issue-template entry point and does not add new install policy/configuration surfaces. |\n| coding_workflow | Reuse existing code | partial | 4/8 | The PR adds nontrivial workflow shell to parse the marker, extract a PR URL, check issue state, and close the issue directly in `agent-router.yml` instead of moving that behavior into a typed `.agent/src` CLI/helper. |\n| coding_workflow | Prefer explicit structured inputs | partial | 3/7 | The workflow contract depends on a hidden markdown marker and regex URL extraction from the agent response rather than a typed/validated status output. See [`agent-install.md`](https://github.com/self-evolving/repo/blob/f46f9b53e31e4aaa76f0f2b26930ab719b4a914b/.github/prompts/agent-install.md#L100-L105) and [`agent-router.yml`](https://github.com/self-evolving/repo/blob/f46f9b53e31e4aaa76f0f2b26930ab719b4a914b/.github/workflows/agent-router.yml#L715-L728). |\n\n## Notes\n\n- The user-facing shape is good: the template is simple, docs are updated, and the source issue closes only after a successful published/reused install PR response.\n- The main rubric gap is implementation placement/contract quality: parsing agent markdown and closing issues in inline workflow shell is less reusable and less structured than this repo’s usual typed helper/CLI pattern.\n\n## Findings\n\n- **WARNING:** The completion path should move out of inline workflow shell into a typed helper or CLI. This would better satisfy `reuse-existing-code` and make the marker/status parsing, PR URL extraction, issue-state check, and close behavior testable outside broad envelope regex assertions.\n- **WARNING:** The published-status contract is encoded in response markdown. Prefer a structured, validated output or a small parser helper with focused regression coverage so malformed or accidental marker text cannot silently drive issue closure.\n\n## Final Rubric Verdict\n\nPARTIAL",
+      "createdAt": "2026-05-19T21:50:10Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/293#issuecomment-4492346495",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8SvWw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: f46f9b53e31e4aaa76f0f2b26930ab719b4a914b -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #293 adds an install request issue template for `@sepo-agent /install`, then wires docs and prompt guidance so issue-backed install runs can link the source request.\n- It also adds workflow cleanup that closes the source issue after the install response reports a published or reused target PR.\n- The PR is stacked on #285, which is part of the broader #277/#284 `/install` PAT-backed fork PR implementation.\n- The feature direction fits the parent plan, but the current branch is stale against its stacked base and has two workflow cleanup issues to address.\n\n## Review\nThe PR needs rework before merge. One reviewer found the current stacked-base conflict, and that is confirmed by live GitHub state and a local merge-tree check; the other reviewer and rubrics review raised targeted workflow quality issues.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| PR no longer merges with current stacked base | BLOCKING | PR #293 still sits on `7f72353`, while its stacked base #285 is now at `6cbb5cea`; GitHub reports `mergeable:false` / `mergeable_state:dirty`, and local merge-tree shows conflicts. |\n| Issue close cleanup can fail a successful install job | WARNING | The new source-issue close step lacks `continue-on-error`, so a transient `gh issue close` or permission failure can fail the install job after the target PR was already published. |\n| Close comment can link the wrong install PR | WARNING | The prompt defines a structured `pr_url:` marker, but the workflow scans the full response and uses the first PR URL it finds, which can point to the wrong PR. |\n\n## Progress\n- Inspected the current PR conversation, PR #285, parent issue #277, child issue #284, all review artifacts, inline comments, and review threads.\n- Existing inline comments and review threads were empty before synthesis.\n- Posted one new inline comment on `.github/workflows/agent-router.yml:708` for the missing `continue-on-error`.\n- The marker/regex URL concern is already covered in the existing rubrics discussion, so I did not duplicate it inline.\n- No comments were minimized and no threads were resolved.\n\n## Issue Details\n\n<details>\n<summary>PR no longer merges with current stacked base</summary>\n\n**Cause:** PR #293 targets `agent/implement-issue-284/codex-26086793017`; that branch has advanced to `6cbb5cea`, while this PR still sits on `7f72353`. `git merge-tree --write-tree` reports conflicts in `.agent/docs/architecture/supported-workflows.md`, `.agent/docs/deployment/install-existing-repository.md`, and `.github/prompts/agent-install.md`.\n\n**Candidate solutions:** Merge or rebase current #285 into #293, resolve the three conflicts, and preserve both #285’s install hardening and #293’s issue-template/source-close behavior.\n\n**Comments:** Codex marked this blocking and current GitHub/local state supports it. Claude’s review was otherwise positive but did not account for the later base advancement.\n\n</details>\n\n<details>\n<summary>Issue close cleanup can fail a successful install job</summary>\n\n**Cause:** The new `Close completed install request issue` step runs after the response is posted but has no `continue-on-error: true`. That makes source-issue cleanup a workflow-failing operation even though the primary install result already succeeded.\n\n**Candidate solutions:** Add `continue-on-error: true` to that step and keep the close behavior marker-gated.\n\n**Comments:** Posted inline feedback at `.github/workflows/agent-router.yml:708`.\n\n</details>\n\n<details>\n<summary>Close comment can link the wrong install PR</summary>\n\n**Cause:** `.github/prompts/agent-install.md` asks for `<!-- sepo-install-status:published pr_url:<install-pr-url> -->`, but `.github/workflows/agent-router.yml` extracts the first PR URL anywhere in the response body.\n\n**Candidate solutions:** Parse the PR URL from the marker line, or remove `pr_url` from the marker contract if the workflow should not depend on it. A small typed parser/helper with focused coverage would also address the rubrics concern about markdown parsing in workflow shell.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: the branch is dirty and the remaining workflow issues are concrete branch changes suitable for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Update PR #293 onto current #285 head `6cbb5cea751ee2230f2f74bc80752f5d85b8f630` and resolve the merge conflicts.\n- [ ] Add `continue-on-error: true` to the issue-close cleanup step.\n- [ ] Extract the install PR URL from the structured published marker, or remove that marker field and adjust the contract/tests accordingly.",
+      "createdAt": "2026-05-19T21:59:58Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/293#issuecomment-4492406619",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9dpnQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /implement can we create a new version of this given #298 is merged? ",
+      "createdAt": "2026-05-20T01:16:48Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/293#issuecomment-4493633949",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC9eF7g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Implementing this request — tracking in https://github.com/self-evolving/repo/issues/303.\n",
+      "createdAt": "2026-05-20T01:18:18Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/293#issuecomment-4493641198",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-19T21:38:36Z",
+  "files": [
+    {
+      "path": ".agent/docs/actions/agent-actions.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 4,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/deployment/install-existing-repository.md",
+      "additions": 6,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/overview/quick-start.md",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 11,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/install-sepo.md",
+      "additions": 11,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/prompts/agent-install.md",
+      "additions": 16,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-router.yml",
+      "additions": 26,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": "README.md",
+      "additions": 2,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/install-request-template",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 293,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAbOl1Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-19T21:59:03Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "f46f9b53e31e4aaa76f0f2b26930ab719b4a914b"
+      }
+    }
+  ],
+  "state": "CLOSED",
+  "title": "Add install request issue template",
+  "updatedAt": "2026-05-20T01:18:18Z",
+  "url": "https://github.com/self-evolving/repo/pull/293"
+}

@@ -1,0 +1,39 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "body": "## Goal\n\nAdd the first implementation slice for Sepo's goal system: a goal-as-issue convention with templates, labels/docs, and guidance for using goal issues as parent objectives for sub-issues and orchestration.\n\n## Context\n\nDiscussion #248 converged from goals as `GOALS.md` or Discussions to the simpler current architecture fit: goal issues. A goal issue represents a strategic objective; sub-issues represent subgoals or workstreams; leaf issues/PRs remain executable tasks. This should align with existing orchestrator and sub-orchestrator behavior instead of introducing a separate goal branch or discussion category.\n\nRelevant constraints from the discussion:\n\n- Use issues as the durable goal object, not a new `agent/goal` branch for v0.\n- Add a `goal` label, with optional future status labels such as `goal/active`, `goal/paused`, and `goal/done` only if the repo's existing label conventions make that appropriate.\n- Prefer structured issue body sections over many labels.\n- Goal issues should link to concrete child issues/PRs and can be run through `/orchestrate` as meta-orchestration parents.\n- `agent/memory/PROJECT.md` may later hold a short active-goals summary, but canonical goal changes should remain reviewable through GitHub issues/PRs.\n- Related threads: #223 needs goals to constrain experiment/self-research loops; #173 needs goals as context for orchestrator reflection and scope drift checks; #160 needs goals to constrain future self-improvement proposals.\n\n## Initial Scope\n\n- Add a goal issue template with fields such as Goal, Why, Success Criteria, Current Strategy, Subgoals, Linked Work, and a hidden structured marker like `<!-- sepo-goal v1 status:active horizon:... -->` if useful.\n- Add or update documentation explaining the hierarchy: goal issue -> sub-issues/subgoals -> implementation issues/PRs -> orchestrator progress comments.\n- Document how goal issues should be used with `/orchestrate`, including when to create/adopt child issues and when to stop for human direction.\n- Add/update label setup so repositories can create or recognize the `goal` label through existing onboarding/label mechanisms.\n- Keep this first slice focused on templates and docs; do not build automated goal syncing or PROJECT.md updates yet unless it is already a small local extension of existing setup code.\n\n## Acceptance Criteria\n\n- A maintainer can create a new goal issue from a template that captures objective, rationale, success criteria, strategy, subgoals, and linked work.\n- Sepo docs explain the goal issue convention and how it interacts with issues, PRs, sub-issues, orchestration, memory, self-improvement, and experiment work.\n- The repo has a clear `goal` label path, either via checked-in label metadata/setup code or documented onboarding behavior consistent with existing label handling.\n- Orchestrator guidance documents that `goal` issues are parent/meta objectives and should be decomposed into child issues when implementation work is non-trivial.\n- No separate `agent/goal` branch, discussion category workflow, or automated canonical goal rewrite is introduced in this first slice.\n- Tests or documentation checks are updated where existing project patterns require them.\n\n---\n\nRequested via discussion_comment at https://github.com/self-evolving/repo/discussions/248\n",
+  "closedAt": "2026-05-19T23:34:16Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABC8kRZg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-295/codex-26129658367`\n- Pull request: https://github.com/self-evolving/repo/pull/297\n\nImplemented the goal-system v1 slice by adding a `Repository goal` issue template, creating onboarding support for the non-trigger `goal` label, documenting the goal issue hierarchy and memory/orchestration boundaries, and updating orchestrator planner guidance for goal-labeled issues. Verification run: `npm run build`, `env GITHUB_OUTPUT=/tmp/sepo-onboarding-test-output node --test dist/__tests__/onboarding-check-cli.test.js`, and `git diff --check`.",
+      "createdAt": "2026-05-19T22:43:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/295#issuecomment-4492693862",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-19T22:40:15Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 295,
+  "state": "CLOSED",
+  "title": "Add goal issue templates and docs",
+  "updatedAt": "2026-05-19T23:34:16Z",
+  "url": "https://github.com/self-evolving/repo/issues/295"
+}
