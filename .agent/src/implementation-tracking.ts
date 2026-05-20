@@ -62,7 +62,7 @@ export interface EnsureImplementationTrackingIssueResult {
 }
 
 const IMPLEMENTATION_TRACKING_MARKER_PREFIX = "sepo-implementation-tracking";
-const SEPO_CONTROL_MARKER_RE = /<!--\s*sepo-[\s\S]*?-->/gi;
+const SEPO_CONTROL_MARKER_OPENER_RE = /<!--\s*sepo-/gi;
 
 function errorText(err: unknown): string {
   const record = err as { message?: unknown; stderr?: unknown; stdout?: unknown };
@@ -151,7 +151,10 @@ function truncateText(value: string, maxLength: number): string {
 }
 
 function escapeSepoControlMarkers(value: string): string {
-  return String(value || "").replace(SEPO_CONTROL_MARKER_RE, (marker) => marker.replace(/<!--/i, "&lt;!--"));
+  return String(value || "").replace(
+    SEPO_CONTROL_MARKER_OPENER_RE,
+    (opener) => opener.replace(/<!--/i, "&lt;!--"),
+  );
 }
 
 function formatTrackingIssueTitle(metadata: SourceTargetMetadata, providedTitle?: string): string {
