@@ -13,6 +13,9 @@ const DEFAULT_BOT_NAME = "sepo-agent";
 const DEFAULT_BOT_EMAIL = "279869237+sepo-agent@users.noreply.github.com";
 const MAX_BUFFER = 10 * 1024 * 1024;
 const PREPARE_STATE_VERSION = 1;
+const SEPO_APP_INSTALL_URL = "https://github.com/apps/sepo-agent-app/installations/select_target";
+const SEPO_SETUP_GUIDE_URL = "https://github.com/self-evolving/repo/blob/main/.agent/docs/deployment/setup-guide.md";
+const REQUIRED_SETUP_HEADING = "## Required setup after merge";
 
 export type InstallForkPrAction = "prepare" | "publish";
 export type InstallForkPrStatus = "prepared" | "published" | "blocked";
@@ -176,6 +179,109 @@ function normalizeSourceRequestUrl(value: string | undefined): string {
     return `https://github.com/${parts.join("/")}`;
   } catch {
     return "";
+  }
+}
+
+function githubRepoUrl(repo: string): string {
+  const [owner = "", name = ""] = repo.trim().split("/");
+  if (!owner || !name) return "";
+  return `https://github.com/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`;
+}
+
+function markdownLink(label: string, url: string): string {
+  return url ? `[${label}](${url})` : label;
+}
+
+function buildRequiredSetupSection(targetRepo: string): string {
+  const repoUrl = githubRepoUrl(targetRepo);
+  const secretsUrl = repoUrl ? `${repoUrl}/settings/secrets/actions` : "";
+  const onboardingUrl = repoUrl ? `${repoUrl}/actions/workflows/agent-onboarding.yml` : "";
+  const memoryUrl = repoUrl ? `${repoUrl}/actions/workflows/agent-memory-bootstrap.yml` : "";
+  const rubricsUrl = repoUrl ? `${repoUrl}/actions/workflows/agent-rubrics-initialization.yml` : "";
+  const setupIssueUrl = repoUrl ? `${repoUrl}/issues?q=is%3Aissue%20%22Sepo%20setup%20check%22` : "";
+
+  return [
+    REQUIRED_SETUP_HEADING,
+    "",
+    `1. ${markdownLink("Install the Sepo GitHub App on the target repository", SEPO_APP_INSTALL_URL)}, or choose another supported auth path from the ${markdownLink("setup guide", SEPO_SETUP_GUIDE_URL)}.`,
+    `2. Add \`OPENAI_API_KEY\` and/or \`CLAUDE_CODE_OAUTH_TOKEN\` in ${markdownLink("Actions secrets", secretsUrl)}.`,
+    `3. Run ${markdownLink("Agent / Onboarding / Check Setup", onboardingUrl)}.`,
+    `4. Review the ${markdownLink("Sepo setup check issue", setupIssueUrl)} and complete remaining setup.`,
+    `5. If needed, run ${markdownLink("Agent / Memory / Initialization", memoryUrl)} to create \`agent/memory\`.`,
+    `6. Optionally run ${markdownLink("Agent / Rubrics / Initialization", rubricsUrl)} to create \`agent/rubrics\`.`,
+  ].join("\n");
+}
+
+function isSecondLevelHeading(line: string): boolean {
+  return /^##\s+\S/.test(line.trim());
+}
+
+function isRequiredSetupHeading(line: string): boolean {
+  return line.trim().toLowerCase() === REQUIRED_SETUP_HEADING.toLowerCase();
+}
+
+function isSourceRequestLine(line: string): boolean {
+  const trimmed = line.trim();
+  return trimmed.startsWith("Source install request:") || trimmed.startsWith("<!-- sepo-install-source-request:");
+}
+
+function removeRequiredSetupSections(body: string): string[] {
+  const lines = body.replace(/\r\n/g, "\n").split("\n");
+  const kept: string[] = [];
+
+  for (let index = 0; index < lines.length;) {
+    const line = lines[index];
+    if (!isRequiredSetupHeading(line)) {
+      kept.push(line);
+      index += 1;
+      continue;
+    }
+
+    index += 1;
+    while (
+      index < lines.length &&
+      !isSecondLevelHeading(lines[index]) &&
+      !isSourceRequestLine(lines[index])
+    ) {
+      index += 1;
+    }
+  }
+
+  while (kept.length > 0 && kept[kept.length - 1] === "") {
+    kept.pop();
+  }
+  return kept;
+}
+
+function insertRequiredSetupSection(body: string, targetRepo: string): string {
+  const lines = removeRequiredSetupSections(body);
+  const section = buildRequiredSetupSection(targetRepo).split("\n");
+  const summaryIndex = lines.findIndex((line) => line.trim().toLowerCase() === "## summary");
+
+  if (summaryIndex < 0) {
+    return [...section, "", ...lines].join("\n").trimEnd() + "\n";
+  }
+
+  const nextHeadingIndex = lines.findIndex((line, index) => index > summaryIndex && isSecondLevelHeading(line));
+  const insertIndex = nextHeadingIndex < 0 ? lines.length : nextHeadingIndex;
+  const before = lines.slice(0, insertIndex);
+  const after = lines.slice(insertIndex);
+
+  return [...before, "", ...section, "", ...after].join("\n").trimEnd() + "\n";
+}
+
+function ensureRequiredSetupInBodyFile(bodyFile: string, targetRepo: string): void {
+  try {
+    const currentBody = readFileSync(bodyFile, "utf8");
+    const nextBody = insertRequiredSetupSection(currentBody, targetRepo);
+    if (nextBody !== currentBody) {
+      writeFileSync(bodyFile, nextBody, "utf8");
+    }
+  } catch {
+    throw new InstallForkPrBlocked(
+      "pr_body_update_failed",
+      "Could not add required setup guidance to the install PR body.",
+    );
   }
 }
 
@@ -724,6 +830,7 @@ export function publishInstallForkPr(opts: PublishInstallForkPrOptions): Install
       forkRepo: fork.fullName,
     });
     validatePreparedBranch(runner, workdir, branch);
+    ensureRequiredSetupInBodyFile(bodyFile, target.fullName);
     ensureSourceRequestInBodyFile(bodyFile, opts.sourceRequestUrl);
 
     try {

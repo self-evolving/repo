@@ -131,9 +131,13 @@ unless explicitly requested.
    - Commit message: `chore: install Sepo agent infrastructure`.
    - Stage only intended files, typically `.agent .github`, plus approved
      `.skills/<requested-skill>` and/or `AGENT.md`.
-   - PR body should include source revision, installed files, conflict audit,
-     preserved/skipped files, validation results, required secrets/variables,
-     and post-merge setup notes.
+   - PR body should start with summary, then **Required setup after merge**,
+     then source revision, installed files, conflict audit,
+     preserved/skipped files, validation results, and any source request link.
+   - In **Required setup after merge**, use target-specific links for the Sepo
+     GitHub App install page, target Actions secrets, onboarding check workflow,
+     memory initialization workflow, rubrics initialization workflow, and setup
+     guide where possible.
    - Do not merge the PR unless explicitly asked.
 
 ## Post-Merge Guidance
