@@ -201,6 +201,12 @@ test("resolveTrustedSelfApprovalRequesters preserves forwarded and runtime reque
     workflowActorLogin: "sepo-agent-app[bot]",
     orchestrationEnabled: true,
   }), ["maintainer", "spoofed-maintainer", "lolipopshock"]);
+  assert.deepEqual(resolveTrustedSelfApprovalRequesters({
+    requestedByLogin: "maintainer",
+    sourceActorLogin: "maintainer,sepo-agent-app[bot],github-actions,app/sepo-agent-app",
+    workflowActorLogin: "sepo-agent-app[bot]",
+    orchestrationEnabled: true,
+  }), ["maintainer"]);
 });
 
 test("evaluateSelfApprovalRequester requires a distinct initiating requester", () => {

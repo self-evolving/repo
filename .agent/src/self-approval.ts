@@ -186,8 +186,9 @@ export function resolveTrustedSelfApprovalRequesters(input: {
     requesters.push(login.trim());
   }
 
-  function addRequesterList(logins: string): void {
+  function addRequesterList(logins: string, options: { skipAutomationActors?: boolean } = {}): void {
     for (const login of logins.split(/[,\n]+/)) {
+      if (options.skipAutomationActors && isAutomationActorLogin(login)) continue;
       addRequester(login);
     }
   }
@@ -196,7 +197,7 @@ export function resolveTrustedSelfApprovalRequesters(input: {
     addRequester(requestedBy);
   }
   if (input.orchestrationEnabled === true && sourceActor) {
-    addRequesterList(sourceActor);
+    addRequesterList(sourceActor, { skipAutomationActors: true });
   }
   if (!input.orchestrationEnabled || !requestedBy || !isAutomationActorLogin(workflowActor)) {
     addRequester(workflowActor);
