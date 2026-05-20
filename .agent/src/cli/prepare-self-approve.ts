@@ -51,6 +51,7 @@ const allowSelfMerge = envFlagEnabled(process.env.AGENT_ALLOW_SELF_MERGE);
 const allowSameActorSelfApprove = allowSelfApprove && allowSelfMerge;
 const sourceRecommendedNextStep = normalizeToken(process.env.SOURCE_RECOMMENDED_NEXT_STEP || "");
 const isHumanDecisionGate = sourceRecommendedNextStep === "human_decision";
+const isNoBranchWorkGate = sourceRecommendedNextStep === "no_automated_action";
 
 if (!allowSelfApprove) {
   stop("AGENT_ALLOW_SELF_APPROVE is not enabled");
@@ -104,6 +105,7 @@ if (!allowSelfApprove) {
         trustedActorLogin: authenticatedActorLogin,
         expectedHeadSha: headSha,
         allowHumanDecisionGate: isHumanDecisionGate,
+        allowNoBranchWorkGate: isNoBranchWorkGate,
       });
       if (!provenance.trusted) {
         stop(provenance.reason);

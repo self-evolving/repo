@@ -1287,9 +1287,12 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestratorWorkflow, /base_branch:/);
   assert.match(orchestratorWorkflow, /base_pr:/);
   assert.match(orchestratorWorkflow, /source_handoff_context:/);
+  assert.match(orchestratorWorkflow, /source_required_branch_work:/);
   assert.match(orchestratorWorkflow, /AGENT_COLLAPSE_OLD_REVIEWS:\s*\$\{\{ vars\.AGENT_COLLAPSE_OLD_REVIEWS \}\}/);
   assert.match(orchestratorWorkflow, /BASE_BRANCH:\s*\$\{\{ inputs\.base_branch \}\}/);
+  assert.match(orchestratorWorkflow, /SOURCE_REQUIRED_BRANCH_WORK:\s*\$\{\{ inputs\.source_required_branch_work \}\}/);
   assert.match(orchestratorWorkflow, /SOURCE_HANDOFF_CONTEXT:\s*\$\{\{ inputs\.source_handoff_context \}\}/);
+  assert.match(orchestratorWorkflow, /ORCHESTRATOR_SOURCE_REQUIRED_BRANCH_WORK:\s*\$\{\{ inputs\.source_required_branch_work \}\}/);
   assert.match(orchestratorWorkflow, /ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT:\s*\$\{\{ inputs\.source_handoff_context \}\}/);
   assert.match(orchestrateHandoffCli, /resolveEffectiveBaseInputs/);
   assert.match(orchestrateHandoffCli, /baseBranch:\s*decision\.baseBranch \|\| baseBranch/);
@@ -1313,6 +1316,7 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(fixPrPrompt, /\$\{ORCHESTRATOR_CONTEXT\}/);
   assert.match(orchestratorPrompt, /"handoff_context"/);
   assert.match(orchestratorPrompt, /ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT/);
+  assert.match(orchestratorPrompt, /ORCHESTRATOR_SOURCE_REQUIRED_BRANCH_WORK/);
   assert.match(orchestratorPrompt, /ORCHESTRATOR_SELF_APPROVE_ENABLED/);
   assert.match(orchestratorPrompt, /ORCHESTRATOR_SELF_MERGE_ENABLED/);
   assert.match(orchestratorPrompt, /"user_message"/);
@@ -1335,11 +1339,17 @@ test("orchestrator source handoff context is renderable in planner prompts", () 
   const runSource = readRepoFile(".agent/src/run.ts");
   const orchestratorPrompt = readRepoFile(".github/prompts/agent-orchestrator.md");
   const sourceContextName = "ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT";
+  const sourceRequiredWorkName = "ORCHESTRATOR_SOURCE_REQUIRED_BRANCH_WORK";
 
   assert.match(orchestratorPrompt, /\$\{ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT\}/);
+  assert.match(orchestratorPrompt, /\$\{ORCHESTRATOR_SOURCE_REQUIRED_BRANCH_WORK\}/);
   assert.ok(
     readSupplementalPromptVarNames(runSource).has(sourceContextName),
     `${sourceContextName} must be allowlisted for runtime prompt rendering`,
+  );
+  assert.ok(
+    readSupplementalPromptVarNames(runSource).has(sourceRequiredWorkName),
+    `${sourceRequiredWorkName} must be allowlisted for runtime prompt rendering`,
   );
 });
 

@@ -288,9 +288,11 @@ workflow accepts a pull request number, confirms the target is an open PR, and
 requires latest trusted review synthesis from the authenticated Sepo actor for
 the current reviewed-head marker before it runs an approval agent. Normal runs
 require that synthesis to be `SHIP`; orchestrated review `HUMAN_DECISION`
-handoffs may also run the agent as a decision gate for non-`SHIP` verdicts. The
-agent runs with read-approved permissions and returns structured JSON with a
-verdict, reason, optional follow-up context, and `inspected_head_sha`.
+handoffs may also run the agent as a decision gate for non-`SHIP` verdicts, and
+orchestrated `MINOR_ISSUES` reviews that recommend `NO_AUTOMATED_ACTION` may run
+the gate when no required branch-change work remains. The agent runs with
+read-approved permissions and returns structured JSON with a verdict, reason,
+optional follow-up context, and `inspected_head_sha`.
 
 Deterministic resolver code is the only part that can submit or record the
 approval. It rereads the current PR head, rechecks trusted current-head review
@@ -299,13 +301,16 @@ unless both `AGENT_ALLOW_SELF_APPROVE=true` and `AGENT_ALLOW_SELF_MERGE=true`
 are enabled, parses the agent verdict, and approves only when the expected,
 current, and inspected head SHAs match. Normal handoffs require trusted
 current-head `SHIP` review synthesis; orchestrated review `HUMAN_DECISION`
-handoffs also trust the matching current-head synthesis as the decision gate.
-Non-approval outcomes post a compact PR status comment. In full
+handoffs also trust the matching current-head synthesis as the decision gate,
+and `MINOR_ISSUES` plus `NO_AUTOMATED_ACTION` is trusted only when the matching
+synthesis action items show no required branch-change work. Non-approval
+outcomes post a compact PR status comment. In full
 self-governance mode, same-actor approvals are recorded as a current-head
 self-approval status comment rather than a GitHub review approval. In
-orchestrated chains, `SHIP` review synthesis and review syntheses that recommend
-`HUMAN_DECISION` can hand off to `agent-self-approve`; non-`SHIP`
-`HUMAN_DECISION` runs let self-approval approve, request changes, or block. A
+orchestrated chains, `SHIP` review synthesis, review syntheses that recommend
+`HUMAN_DECISION`, and no-required-branch-work `MINOR_ISSUES` syntheses that
+recommend `NO_AUTOMATED_ACTION` can hand off to `agent-self-approve`; non-`SHIP`
+handoffs let self-approval approve, request changes, or block. A
 self-approval `REQUEST_CHANGES` result can hand off to `fix-pr` with the
 approval agent's handoff context. Self-approval status comments are upserted by
 marker against comments authored by the authenticated Sepo actor, and result
