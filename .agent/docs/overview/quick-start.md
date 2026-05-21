@@ -6,7 +6,7 @@ title: "Quick start"
 
 1. Create a new repository with **Use this template**. Forking is supported, but forks often have Issues and/or Actions disabled by default; template-created repos usually avoid those fork-specific defaults.
 2. Install the [Sepo GitHub App](https://github.com/apps/sepo-agent-app/installations/select_target). For first-time setup, choose **Only select repositories** and select the repository you are setting up.
-3. Use the hosted Sepo App path unless your organization requires a self-managed GitHub App. See the [setup guide](../deployment/setup-guide.md) for details.
+3. Use the hosted Sepo App path unless your organization requires a self-managed GitHub App. See the [setup guide](../setup/setup-guide.md) for details.
 4. Before onboarding, confirm the repository is ready:
    - **Issues** are enabled in `Settings > General > Features > Issues`.
    - **Actions** are enabled in `Settings > Actions > General`.
@@ -17,7 +17,7 @@ title: "Quick start"
 
 ## Install into an existing repository
 
-Use [Install into an existing repository](../deployment/install-existing-repository.md) for the minimal non-template flow. It covers copying `.agent/` and `.github/`, configuring secrets, running the onboarding setup check, and bootstrapping `agent/memory` from GitHub Actions.
+Use [Install into an existing repository](../setup/install-existing-repository.md) for the minimal non-template flow. It covers copying `.agent/` and `.github/`, configuring secrets, running the onboarding setup check, and bootstrapping `agent/memory` from GitHub Actions.
 
 ## Trigger Sepo
 

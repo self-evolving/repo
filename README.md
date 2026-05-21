@@ -22,7 +22,7 @@ Sepo turns a repository into a **self-evolving repository**: a codebase that can
 
 ### Install into an existing repository
 
-Check [Install into an existing repository](.agent/docs/deployment/install-existing-repository.md) for the detailed guide.
+Check [Install into an existing repository](.agent/docs/setup/install-existing-repository.md) for the detailed guide.
 
 - **Public repositories:** the quickest path is to open the [Install Sepo into another repository](https://github.com/self-evolving/repo/issues/new?template=install-sepo.yml) issue form in `self-evolving/repo` and paste the target URL.
 - **Private repositories:** run an agent locally, give it access to this source checkout and the private target repository, and ask it to use the `.skills/install-agent` skill so private access stays in your trusted environment.
@@ -87,8 +87,8 @@ Orchestration runs through `agent-orchestrator.yml` as an explicit route. Follow
 Getting started:
 
 - [Quick start](.agent/docs/overview/quick-start.md)
-- [Setup guide](.agent/docs/deployment/setup-guide.md)
-- [Install into an existing repository](.agent/docs/deployment/install-existing-repository.md)
+- [Setup guide](.agent/docs/setup/setup-guide.md)
+- [Install into an existing repository](.agent/docs/setup/install-existing-repository.md)
 
 Understanding the system:
 

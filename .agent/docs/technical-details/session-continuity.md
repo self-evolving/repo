@@ -93,7 +93,7 @@ flowchart TD
 - resumed orchestrator-launched `fix-pr` runs with non-empty handoff context replay the full current route prompt so the latest planner instructions are not lost to a lightweight continuation prompt
 - self-hosted runners can choose to set `AGENT_SESSION_BUNDLE_MODE=never` to prefer local session state over artifact-backed continuity, but the backend does not switch this automatically
 
-See [Self-hosted GitHub Action runner](../deployment/self-hosted-github-action-runner.md) for the runner side of that trade-off.
+See [Self-hosted GitHub Action runner](../setup/self-hosted-github-action-runner.md) for the runner side of that trade-off.
 
 ## Backed-up session files
 

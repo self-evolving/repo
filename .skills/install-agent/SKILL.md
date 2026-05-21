@@ -68,9 +68,9 @@ unless explicitly requested.
 
 ## Workflow
 
-1. Read source deployment docs first:
-   - `.agent/docs/deployment/install-existing-repository.md`
-   - `.agent/docs/deployment/setup-guide.md`
+1. Read source setup docs first:
+   - `.agent/docs/setup/install-existing-repository.md`
+   - `.agent/docs/setup/setup-guide.md`
 
 2. Prepare the target checkout.
    - Clone/open the target repo.

@@ -1140,7 +1140,7 @@ test("workflow docs record the minimal metadata contract and developer notes", (
   const requestLifecycle = readRepoFile(".agent/docs/architecture/request-lifecycle.md");
   const configurationList = readRepoFile(".agent/docs/customization/configuration-list.md");
   const skillsDocs = readRepoFile(".agent/docs/customization/skills.md");
-  const existingRepoInstall = readRepoFile(".agent/docs/deployment/install-existing-repository.md");
+  const existingRepoInstall = readRepoFile(".agent/docs/setup/install-existing-repository.md");
   const installIssueTemplate = readRepoFile(".github/ISSUE_TEMPLATE/install-sepo.yml");
   const installIssueTemplateForm = parseYaml(installIssueTemplate) as unknown;
   const developerNotes = readRepoFile(".agent/docs/technical-details/developer-notes.md");
@@ -1441,9 +1441,9 @@ test("orchestrator source handoff context is renderable in planner prompts", () 
 });
 
 test("workflow docs cover hosted auth and self-hosting paths", () => {
-  const setupGuide = readRepoFile(".agent/docs/deployment/setup-guide.md");
+  const setupGuide = readRepoFile(".agent/docs/setup/setup-guide.md");
   const selfHostedRunner = readRepoFile(
-    ".agent/docs/deployment/self-hosted-github-action-runner.md",
+    ".agent/docs/setup/self-hosted-github-action-runner.md",
   );
 
   assert.match(setupGuide, /Official Sepo-hosted app/);
