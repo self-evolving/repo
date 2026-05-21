@@ -3,7 +3,7 @@
     "is_bot": true,
     "login": "app/sepo-agent-app"
   },
-  "baseRefName": "agent/implement-issue-310/codex-26158458001",
+  "baseRefName": "main",
   "body": "## Summary\n\n- Pass the trusted requester into self-approval preflight and resolution, using `github.actor` when the workflow input is absent.\n- Block approval when `requested_by` normalizes to the pull request author, alongside the existing approval actor guard.\n- Add focused requester-author regression coverage and update self-approval docs.\n\n## Verification\n\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/self-approval.test.js .agent/dist/__tests__/prepare-self-approve-cli.test.js .agent/dist/__tests__/resolve-self-approve-cli.test.js .agent/dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nCloses #224\n\nPart of #314\n",
   "closedAt": null,
   "comments": [
@@ -641,88 +641,286 @@
   "createdAt": "2026-05-20T11:30:56Z",
   "files": [
     {
-      "path": ".agent/docs/architecture/supported-workflows.md",
+      "path": ".agent/docs/README.md",
+      "additions": 26,
+      "deletions": 26,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/access-policy.md",
       "additions": 16,
-      "deletions": 7,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/actions/agent-actions.md",
+      "additions": 13,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/memory.md",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/request-lifecycle.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/rubrics.md",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 46,
+      "deletions": 16,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/docs/customization/configuration-list.md",
-      "additions": 2,
+      "additions": 7,
       "deletions": 2,
       "changeType": "MODIFIED"
     },
     {
-      "path": ".agent/docs/technical-details/agent-orchestrator.md",
-      "additions": 6,
-      "deletions": 3,
+      "path": ".agent/docs/deployment/install-existing-repository.md",
+      "additions": 14,
+      "deletions": 1,
       "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/overview/quick-start.md",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/agent-orchestrator.md",
+      "additions": 11,
+      "deletions": 7,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/package.json",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/apply-repo-config-cli.test.ts",
+      "additions": 297,
+      "deletions": 0,
+      "changeType": "ADDED"
     },
     {
       "path": ".agent/src/__tests__/dispatch-agent-orchestrator-cli.test.ts",
-      "additions": 2,
+      "additions": 64,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
-      "path": ".agent/src/__tests__/envelope.test.ts",
-      "additions": 101,
+      "path": ".agent/src/__tests__/docs-index-links.test.ts",
+      "additions": 52,
       "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 125,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/handoff.test.ts",
+      "additions": 134,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/implementation-base.test.ts",
+      "additions": 1,
+      "deletions": 1,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/__tests__/orchestrate-handoff-cli.test.ts",
-      "additions": 47,
+      "additions": 91,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
+      "path": ".agent/src/__tests__/prepare-local-agent-context-cli.test.ts",
+      "additions": 171,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
       "path": ".agent/src/__tests__/prepare-self-approve-cli.test.ts",
-      "additions": 187,
+      "additions": 267,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/repo-config.test.ts",
+      "additions": 176,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/resolve-dispatch-cli.test.ts",
+      "additions": 108,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/__tests__/resolve-self-approve-cli.test.ts",
-      "additions": 115,
-      "deletions": 0,
-      "changeType": "MODIFIED"
-    },
-    {
-      "path": ".agent/src/__tests__/self-approval.test.ts",
-      "additions": 94,
-      "deletions": 0,
-      "changeType": "MODIFIED"
-    },
-    {
-      "path": ".agent/src/cli/dispatch-agent-orchestrator.ts",
-      "additions": 2,
+      "additions": 153,
       "deletions": 1,
       "changeType": "MODIFIED"
     },
     {
+      "path": ".agent/src/__tests__/self-approval.test.ts",
+      "additions": 180,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/triage.test.ts",
+      "additions": 92,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/access-policy.ts",
+      "additions": 20,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/apply-repo-config.ts",
+      "additions": 88,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/dispatch-agent-orchestrator.ts",
+      "additions": 30,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/local/prepare-agent-context.ts",
+      "additions": 368,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
       "path": ".agent/src/cli/orchestrate-handoff.ts",
-      "additions": 8,
+      "additions": 11,
       "deletions": 3,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/cli/prepare-self-approve.ts",
-      "additions": 34,
+      "additions": 36,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/resolve-dispatch.ts",
+      "additions": 51,
       "deletions": 3,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/cli/resolve-self-approve.ts",
-      "additions": 37,
+      "additions": 39,
       "deletions": 2,
       "changeType": "MODIFIED"
     },
     {
-      "path": ".agent/src/self-approval.ts",
-      "additions": 105,
+      "path": ".agent/src/envelope.ts",
+      "additions": 1,
       "deletions": 0,
       "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/handoff.ts",
+      "additions": 75,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/implementation-base.ts",
+      "additions": 6,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/repo-config.ts",
+      "additions": 607,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/run.ts",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/self-approval.ts",
+      "additions": 134,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/triage.ts",
+      "additions": 35,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/run-agent-task/action.yml",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-config.md",
+      "additions": 74,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/prompts/agent-implement-metadata.md",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-orchestrator.md",
+      "additions": 12,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-self-approve.md",
+      "additions": 10,
+      "deletions": 6,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-config.yml",
+      "additions": 210,
+      "deletions": 0,
+      "changeType": "ADDED"
     },
     {
       "path": ".github/workflows/agent-fix-pr.yml",
@@ -738,7 +936,7 @@
     },
     {
       "path": ".github/workflows/agent-orchestrator.yml",
-      "additions": 8,
+      "additions": 14,
       "deletions": 2,
       "changeType": "MODIFIED"
     },
@@ -749,9 +947,27 @@
       "changeType": "MODIFIED"
     },
     {
+      "path": ".github/workflows/agent-router.yml",
+      "additions": 31,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
       "path": ".github/workflows/agent-self-approve.yml",
       "additions": 14,
       "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".gitignore",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": "AGENT.md",
+      "additions": 14,
+      "deletions": 0,
       "changeType": "MODIFIED"
     }
   ],
@@ -876,6 +1092,6 @@
   ],
   "state": "OPEN",
   "title": "Guard self-approval against requester-authored PRs",
-  "updatedAt": "2026-05-20T14:39:57Z",
+  "updatedAt": "2026-05-21T00:34:39Z",
   "url": "https://github.com/self-evolving/repo/pull/325"
 }

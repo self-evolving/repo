@@ -5,7 +5,7 @@
   },
   "baseRefName": "main",
   "body": "## Summary\n- Add `secondary_github_token` to `run-agent-task` and pass `AGENT_CROSS_REPO_PAT` from agent workflows.\n- Expose the additive token as `INPUT_SECONDARY_GITHUB_TOKEN` while preserving primary `GH_TOKEN`/`GITHUB_TOKEN` behavior.\n- Document setup, recommended fine-grained PAT scopes, read-only vs write-capable use, and security guidance.\n- Add workflow contract tests for the new input and caller wiring.\n\n## Verification\n- `npm --prefix .agent run build`\n- YAML parse check for workflows/action files\n- `node --test .agent/dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nCloses #312\n",
-  "closedAt": null,
+  "closedAt": "2026-05-20T20:38:49Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABC_7xZg",
@@ -201,8 +201,8 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 0ca081d6ff239b7f36a02fe833f2f6b285bd46ad -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #317 adds an optional additive secondary GitHub token for non-install agent runs.\n- The current head exposes it as `INPUT_SECONDARY_GITHUB_TOKEN` without replacing primary same-repo `GH_TOKEN` / `GITHUB_TOKEN` behavior.\n- The fix-pr pass addressed the prior blocking review: the public secret is now `AGENT_SECONDARY_GITHUB_TOKEN`, `/install` no longer receives the secondary token, and the prompt/docs now restrict the bundled contract to read-only external inspection.\n- The remaining review concern is documentation around who is allowed to request reads from private or non-public external repositories.\n\n## Review\nThe core plumbing is sound, tested, and the earlier NEEDS_REWORK items are resolved at head `0ca081d6ff239b7f36a02fe833f2f6b285bd46ad`. Reviewers differ only on residual severity: rubrics treats broad read-only exposure as acceptable, while Codex flags one missing setup-guide warning as a small security-docs gap.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Private external read access needs requester-scope guidance | WARNING | The setup guide recommends read-only external PAT scopes, but does not say that private-repo read access is still sensitive when exposed to all non-install routes. Users should be told to tighten `AGENT_ACCESS_POLICY` or avoid private scopes unless requesters are trusted. |\n| Prompt does not guard empty secondary token | INFO | `_base.md` shows setting `GH_TOKEN=\"$INPUT_SECONDARY_GITHUB_TOKEN\"` for external reads, but does not explicitly say to skip that path when the value is empty. This is a minor prompt hardening point already noted in the earlier synthesis. |\n\n## Progress\n- Prior external-write, install-route, and secret-name findings are fixed on the current PR head.\n- Resolved two superseded same-agent inline threads: `.github/prompts/_base.md` external-write concern and `.github/workflows/agent-router.yml` install-route concern.\n- Posted one new inline comment on `.agent/docs/deployment/setup-guide.md` line 90 for the private/non-public read-access guidance gap.\n- No comments were minimized, deleted, or replied to.\n\n## Issue Details\n\n<details>\n<summary>Private external read access needs requester-scope guidance</summary>\n\n**Cause:** The setup guide says to use a read-only fine-grained PAT for external repositories, and bundled non-install workflows pass that token broadly as `INPUT_SECONDARY_GITHUB_TOKEN`. If that PAT can read private or non-public repositories, any actor allowed to trigger those routes by `AGENT_ACCESS_POLICY` could ask the agent to inspect and quote that context.\n\n**Candidate solutions:** Add a short setup-guide note that private/non-public external repo scopes require trusted requesters, a tightened `AGENT_ACCESS_POLICY`, or avoiding private scopes entirely.\n\n**Comments:** This is docs-only and safe for an automated fix-pr pass.\n\n</details>\n\n<details>\n<summary>Prompt does not guard empty secondary token</summary>\n\n**Cause:** The prompt example uses `GH_TOKEN=\"$INPUT_SECONDARY_GITHUB_TOKEN\"` but the action defaults the input to an empty string when the secret is unset.\n\n**Candidate solutions:** Add one sentence telling agents to skip secondary-token external inspection when `INPUT_SECONDARY_GITHUB_TOKEN` is empty.\n\n**Comments:** This is INFO severity and was already covered in the prior synthesis, so I did not duplicate it with another inline comment.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: One unresolved security-docs warning is a concrete branch change and is safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Add setup-guide guidance that private or non-public external repository read access through `AGENT_SECONDARY_GITHUB_TOKEN` requires trusted requesters, tightened `AGENT_ACCESS_POLICY`, or avoiding private scopes.",
       "createdAt": "2026-05-20T20:25:18Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/317#issuecomment-4502360471",
       "viewerDidAuthor": true
@@ -265,6 +265,73 @@
       "minimizedReason": "",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/317#issuecomment-4502390411",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDF1Amw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer for example, let's say we want to use the additional auth token to post a comment in another repo (assuming it has the proper access), does it work? ",
+      "createdAt": "2026-05-20T20:32:08Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/317#issuecomment-4502405275",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDF1l1w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Not for posting a comment, as this PR is currently written.\n\nIt will make the token available as `INPUT_SECONDARY_GITHUB_TOKEN`, but the contract is explicitly **read-only external repo inspection**. The base prompt tells the agent to use it only for external repository inspection and specifically says not to use it for external writes, pushes, workflow dispatches, or non-read API calls: [.github/prompts/_base.md](https://github.com/self-evolving/repo/blob/9a9e12923fbf69e484cb7c78d02622afb60f34ad/.github/prompts/_base.md#L27-L30).\n\nSo even if `AGENT_SECONDARY_GITHUB_TOKEN` technically had permission to comment in another repo, the agent should not use this secondary token for that under this PR’s rules. To support “post a comment in another repo”, we’d want a route-specific write credential plus deterministic authorization for that exact write path, then document/test that route separately.",
+      "createdAt": "2026-05-20T20:33:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/317#issuecomment-4502414807",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDF2zQA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 9a9e12923fbf69e484cb7c78d02622afb60f34ad -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #317 adds an optional additive secondary GitHub token for explicit external repository inspection.\n- The current head exposes it as `INPUT_SECONDARY_GITHUB_TOKEN` without replacing primary same-repo `GH_TOKEN`, `GITHUB_TOKEN`, or `INPUT_GITHUB_TOKEN`.\n- It also preserves `/install` isolation on `AGENT_INSTALL_PAT`, documents read-only/private-repo guidance, and adds workflow contract coverage.\n- This implements the auth plumbing requested by issue #312 without attempting the full multi-repo orchestrator.\n\n## Review\nThe current review artifacts support shipping the PR at head `9a9e12923fbf69e484cb7c78d02622afb60f34ad`. Claude noted broad read-only exposure as a residual future design risk, while Codex and rubrics treat it as acceptable under the current read-only prompt/docs contract; no reviewer identifies required branch-change work.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | Current reviewers found the branch satisfies issue #312’s additive-token goal. Remaining notes are optional metadata/prompt-hardening or future design-risk tracking, not required branch changes. |\n\n## Progress\n- Prior blocking concerns are fixed: the secret is now `AGENT_SECONDARY_GITHUB_TOKEN`, `/install` no longer receives the secondary token, and external writes are excluded from the generic secondary-token contract.\n- Private/non-public external read guidance is now documented in the setup guide, including trusted requester and `AGENT_ACCESS_POLICY` mitigations.\n- Resolved the superseded same-agent inline thread on `.agent/docs/deployment/setup-guide.md:90`; no new inline comments, replies, or minimizations were added.\n- Codex review reports verification passed: `npm --prefix .agent run build`, `node --test .agent/dist/__tests__/envelope.test.js`, and `git diff --check`.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: Current review artifacts and PR state do not identify unresolved branch-change work.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-20T20:36:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/317#issuecomment-4502434624",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDF4aFw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nUpdated [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #317.\n\nAdded one active rubric:\n\n`rubrics/workflow/name-config-by-capability.yaml`\n\nIt captures the durable preference from PR #317 that public config, secret, workflow input, and env var names should reflect the general capability they expose, not a narrower initial use case. I skipped the bot-only review points and avoided duplicating existing auth/scope rubrics.\n",
+      "createdAt": "2026-05-20T20:40:22Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/317#issuecomment-4502460951",
       "viewerDidAuthor": true
     }
   ],
@@ -430,7 +497,7 @@
       "color": "0e8a16"
     }
   ],
-  "mergedAt": null,
+  "mergedAt": "2026-05-20T20:38:49Z",
   "number": 317,
   "reviewDecision": "",
   "reviews": [
@@ -480,8 +547,8 @@
       }
     }
   ],
-  "state": "OPEN",
+  "state": "MERGED",
   "title": "Add secondary GitHub token plumbing",
-  "updatedAt": "2026-05-20T20:29:54Z",
+  "updatedAt": "2026-05-20T20:40:22Z",
   "url": "https://github.com/self-evolving/repo/pull/317"
 }

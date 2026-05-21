@@ -1,0 +1,371 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\r\n- Reopens the documentation structure/nav metadata update for additional testing after reverting it from `main`\r\n- Moves the docs entry point and access policy into the generated docs structure\r\n- Adds `_meta.json` navigation metadata and normalizes docs page titles\r\n\r\n## Notes\r\n- Replaces the previously merged PR #331; `main` was reset so this can be tested again before merging.\r\n\r\n## Tests\r\n- Pending additional live-render/docs verification\r\n",
+  "closedAt": "2026-05-21T00:53:26Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDHIdcA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review ",
+      "createdAt": "2026-05-21T00:37:31Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/333#issuecomment-4503772528",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDHI8Kg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 97 | PASS | 5 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| communication / generic | Write audience-first documentation | pass | 7/7 | `.agent/docs/index.md` now opens with what Sepo does, then immediate quick-start/install paths before deeper architecture details. |\n| communication / generic | Make setup guidance actionable | partial | 6/7 | The new docs link the Sepo App install target, install issue form, and detailed install guide, and name required secrets/workflow. It does not directly link the onboarding workflow/settings pages, though this is partly reasonable for template docs. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The PR updates root README links, moved access-policy links, section index paths, and docs navigation metadata together with the docs restructuring. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | The new docs index uses grouped learning/action links, not a brittle per-file inventory table. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are scoped to `.agent/docs/**`, the README pointers, and a focused docs validation test replacing the old index-link-only test. |\n\n## Notes\n\n- Main score drivers are positive: the PR moves the docs entry point to `.agent/docs/index.md`, adds `_meta.json` navigation metadata, updates renamed/moved links, and adds validation for no README docs pages, frontmatter titles, no leading H1 bodies, and relative link resolution.\n- PR #331 context says `_meta.json` coverage validation was part of the intended test plan. The replacement test improves general docs validation, but does not yet assert that `_meta.json` page lists match markdown files. That is a useful follow-up, not a rubric-blocking issue.\n- Live checks show `check` passing for PR #333.\n\n## Findings\n\n- **INFO:** Consider adding a focused assertion that each `_meta.json` `pages` list exactly covers the markdown pages in that folder, excluding implicit `index`. This would lock down the new navigation metadata contract described in the linked prior PR context.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-21T00:39:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/333#issuecomment-4503780394",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDHLUWA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 68886ef84a79811cb7b47ae229af8b0ff33bf1a4 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #333 reopens the docs structure/nav metadata update from #331 after `main` was reset so it can be retested.\n- It moves the docs entry point to `.agent/docs/index.md`, moves access policy under `customization/`, removes a stale workflow customization stub, and normalizes doc page titles.\n- It adds `_meta.json` files as declarative navigation metadata for the docs renderer and replaces the old docs link test with broader source-level docs validation.\n- The current source metadata is internally consistent, but the new validation suite does not yet enforce the new navigation metadata contract.\n\n## Review\nThe PR is well-scoped and the current checks are passing. Reviewers agreed on one remaining nonblocking but actionable test coverage gap around `_meta.json` metadata.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| `_meta.json` navigation metadata is not validated | WARNING | The new docs validation test checks Markdown shape and relative links, but it never parses the `_meta.json` files added by this PR. Future docs pages or section changes could drift from the declared nav while tests still pass. |\n\n## Progress\n- `check` is passing on PR #333, and reviewer verification reported `.agent && npm ci && npm test` passing with 672/672 tests.\n- Current `_meta.json` files were manually/static-checked as internally consistent.\n- The PR body already acknowledges pending live-render/docs verification.\n- No inline comments were posted: the existing top-level rubrics review already raises the same `_meta.json` coverage gap, and there were no inline comments or review threads to update.\n- The referenced external `self-evolving/repo-docs#19` could not be inspected with the available token.\n\n## Issue Details\n<details>\n<summary>`_meta.json` navigation metadata is not validated</summary>\n\n**Cause:** [`docs-validation.test.ts`](https://github.com/self-evolving/repo/blob/68886ef84a79811cb7b47ae229af8b0ff33bf1a4/.agent/src/__tests__/docs-validation.test.ts#L101) ends after README/frontmatter/H1/link checks and does not read the `_meta.json` files introduced as the new navigation source.\n\n**Candidate solutions:** Add a focused subtest that walks docs folders with `_meta.json`, validates a non-empty `label`, ensures each `pages` entry resolves to an existing child Markdown file or section directory, and ensures every non-`index.md` Markdown page/section is represented exactly once.\n\n**Comments:** The rubrics review treated this as INFO/useful follow-up, while both code reviews rated it WARNING. The issue is not blocking because current metadata is consistent, but adding the regression guard is a concrete branch change and matches the original #331 test plan.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR` - The remaining issue is a small, concrete test addition that is safe for an automated fix-pr pass.\n\n## Final Verdict\n`MINOR_ISSUES`\n\n## Action Items\n- [ ] Add docs validation coverage for `_meta.json` labels and `pages` entries matching the actual docs files/sections.",
+      "createdAt": "2026-05-21T00:49:17Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/333#issuecomment-4503819352",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDHLmvQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "```\r\n`_meta.json` navigation metadata is not validated\r\nCause: [docs-validation.test.ts](https://github.com/self-evolving/repo/blob/68886ef84a79811cb7b47ae229af8b0ff33bf1a4/.agent/src/__tests__/docs-validation.test.ts#L101) ends after README/frontmatter/H1/link checks and does not read the _meta.json files introduced as the new navigation source.\r\n\r\nCandidate solutions: Add a focused subtest that walks docs folders with _meta.json, validates a non-empty label, ensures each pages entry resolves to an existing child Markdown file or section directory, and ensures every non-index.md Markdown page/section is represented exactly once.\r\n\r\nComments: The rubrics review treated this as INFO/useful follow-up, while both code reviews rated it WARNING. The issue is not blocking because current metadata is consistent, but adding the regression guard is a concrete branch change and matches the original https://github.com/self-evolving/repo/pull/331 test plan.\r\n```\r\n\r\n@sepo-agent /answer what's going on with this?",
+      "createdAt": "2026-05-21T00:50:29Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/333#issuecomment-4503824061",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDHMGEA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "This is a real but nonblocking test gap.\n\nPR #333 adds `_meta.json` files as the new docs navigation source, e.g. root docs navigation in [`/.agent/docs/_meta.json`](https://github.com/self-evolving/repo/blob/68886ef84a79811cb7b47ae229af8b0ff33bf1a4/.agent/docs/_meta.json#L1-L11) and section navigation like [`/.agent/docs/architecture/_meta.json`](https://github.com/self-evolving/repo/blob/68886ef84a79811cb7b47ae229af8b0ff33bf1a4/.agent/docs/architecture/_meta.json#L1-L11). But the new docs validation test only checks README removal, frontmatter titles, leading H1s, and relative links; it stops at [`docs-validation.test.ts#L47-L101`](https://github.com/self-evolving/repo/blob/68886ef84a79811cb7b47ae229af8b0ff33bf1a4/.agent/src/__tests__/docs-validation.test.ts#L47-L101) and never parses `_meta.json`.\n\nSo today, checks would still pass if someone later typoed a nav entry, forgot to add a new doc page to `_meta.json`, or left a deleted page in navigation. The current metadata appears consistent, which is why the rubrics review called it INFO/useful follow-up. The code reviewers rated it WARNING because PR #331’s own test plan explicitly called out validating `_meta.json` coverage, and this PR replaces #331.\n\nRecommended fix is small: add one focused test in `docs-validation.test.ts` that walks folders containing `_meta.json`, validates a non-empty `label`, validates `pages` as unique string entries, ensures each entry resolves to either a child markdown file or child section directory, and ensures every non-`index.md` child markdown/section is represented exactly once. That would convert the current manual consistency check into a regression guard.",
+      "createdAt": "2026-05-21T00:52:27Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/333#issuecomment-4503832080",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDHMsCQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #333.\n\nno rubric changes\n\nI reviewed PR #333, its linked predecessor #331, issue comments, review comments, reviews, trusted-author signals, the diff, and existing rubrics. The only reusable-looking point was the `_meta.json` docs navigation validation gap, but it came from bot-authored review synthesis and an untrusted `CONTRIBUTOR`-associated clarification thread, with no trusted maintainer instruction to add/update rubrics.\n\nThe broader durable expectations are already covered by existing active rubrics like `keep-docs-in-sync`, `audience-first-documentation`, and `actionable-setup-guidance`, so I left the rubrics checkout unchanged.\n",
+      "createdAt": "2026-05-21T00:54:58Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/333#issuecomment-4503841801",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-21T00:35:28Z",
+  "files": [
+    {
+      "path": ".agent/docs/README.md",
+      "additions": 0,
+      "deletions": 45,
+      "changeType": "DELETED"
+    },
+    {
+      "path": ".agent/docs/_meta.json",
+      "additions": 11,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/docs/actions/_meta.json",
+      "additions": 7,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/docs/actions/agent-actions.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/actions/index.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "RENAMED"
+    },
+    {
+      "path": ".agent/docs/actions/internal-actions.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/_meta.json",
+      "additions": 11,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/docs/architecture/goals.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/memory.md",
+      "additions": 4,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/overall-design.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/request-lifecycle.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/rubrics.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 7,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/_meta.json",
+      "additions": 9,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/docs/customization/access-policy.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "RENAMED"
+    },
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 4,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/creating-your-own-actions.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/creating-your-own-workflows.md",
+      "additions": 0,
+      "deletions": 3,
+      "changeType": "DELETED"
+    },
+    {
+      "path": ".agent/docs/customization/skills.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/deployment/_meta.json",
+      "additions": 9,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/docs/deployment/index.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "RENAMED"
+    },
+    {
+      "path": ".agent/docs/deployment/install-existing-repository.md",
+      "additions": 4,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/deployment/self-hosted-github-action-runner.md",
+      "additions": 4,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/deployment/setup-guide.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/deployment/using-your-own-github-app.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/index.md",
+      "additions": 127,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/docs/overview/_meta.json",
+      "additions": 7,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/docs/overview/quick-start.md",
+      "additions": 4,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/overview/what-is-self-evolving-repo.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/_meta.json",
+      "additions": 10,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/docs/technical-details/agent-orchestrator.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/developer-notes.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/key-concepts.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/session-continuity.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/versioning.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/docs-index-links.test.ts",
+      "additions": 0,
+      "deletions": 52,
+      "changeType": "DELETED"
+    },
+    {
+      "path": ".agent/src/__tests__/docs-validation.test.ts",
+      "additions": 101,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": "README.md",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "docs/documentation-update",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": "2026-05-21T00:53:26Z",
+  "number": 333,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "MERGED",
+  "title": "Update documentation structure and add nav metadata",
+  "updatedAt": "2026-05-21T00:54:58Z",
+  "url": "https://github.com/self-evolving/repo/pull/333"
+}

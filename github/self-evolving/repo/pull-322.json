@@ -3,9 +3,9 @@
     "is_bot": true,
     "login": "app/sepo-agent-app"
   },
-  "baseRefName": "agent/implement-issue-316/codex-26153781993",
+  "baseRefName": "main",
   "body": "## Summary\n\n- Drop source-inferred `base_pr` metadata when the source PR is closed or merged so `/implement` starts from the default branch while retaining PR context.\n- Add a base-branch note to generated tracking issue metadata and clarify explicit closed `base_pr` resolver errors.\n- Update prompt/docs and regression tests for open vs closed inferred base PR handling.\n\n## Verification\n\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/resolve-dispatch-cli.test.js .agent/dist/__tests__/implementation-base.test.js .agent/dist/__tests__/envelope.test.js`\n- `node --test .agent/dist/__tests__/triage.test.js`\n- `node -e \"const fs=require('fs'); const YAML=require('yaml'); for (const f of ['.github/workflows/agent-router.yml']) { YAML.parse(fs.readFileSync(f,'utf8')); console.log(f + ' ok'); }\"`\n- `git diff --check`\n\nCloses #305\n\nPart of #314\n",
-  "closedAt": null,
+  "closedAt": "2026-05-20T21:01:33Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABDBDiYA",
@@ -31,8 +31,8 @@
       "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | The router still resolves dispatch through `applyDispatchPolicy` before emitting the implement route, while the PR only adds metadata normalization inputs for the existing dispatch path: [`resolve-dispatch.ts`](https://github.com/self-evolving/repo/blob/ff5e21d5dac0ac16406415d02d85ec840d9914ab/.agent/src/cli/resolve-dispatch.ts#L84-L117), [`agent-router.yml`](https://github.com/self-evolving/repo/blob/ff5e21d5dac0ac16406415d02d85ec840d9914ab/.github/workflows/agent-router.yml#L287-L302). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Adds explicit `TARGET_NUMBER`, `GITHUB_REPOSITORY`, and `GH_TOKEN` env inputs instead of parsing request text to decide source PR state: [`agent-router.yml`](https://github.com/self-evolving/repo/blob/ff5e21d5dac0ac16406415d02d85ec840d9914ab/.github/workflows/agent-router.yml#L290-L302). |\n| coding_workflow / generic | Generate context-derived artifact metadata | pass | 7/7 | Keeps generated tracking issue metadata, drops only inferred closed-source `base_pr`, and appends a context-derived base-branch note: [`resolve-dispatch.ts`](https://github.com/self-evolving/repo/blob/ff5e21d5dac0ac16406415d02d85ec840d9914ab/.agent/src/cli/resolve-dispatch.ts#L41-L80). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates action docs, request lifecycle docs, supported workflow docs, and the metadata prompt to document closed/merged inferred base behavior. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Reuses `fetchPrMeta`, `normalizeImplementIssueMetadata`, and `buildRequestedRouteDecision`; no new ad hoc GitHub parser or route stack was added. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Closed inferred bases emit a warning and issue-body note; unverifiable source PR state emits a warning instead of silently pretending fallback occurred: [`resolve-dispatch.ts`](https://github.com/self-evolving/repo/blob/ff5e21d5dac0ac16406415d02d85ec840d9914ab/.agent/src/cli/resolve-dispatch.ts#L69-L80). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is narrowly scoped to implement base metadata handling, one workflow env handoff, docs/prompt text, and focused tests. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation is a small normalization function plus clearer existing resolver error text, with no new configuration surface. |\n\n## Notes\n\n- The PR matches issue #305’s requested split: open inferred `base_pr` is preserved, closed inferred `base_pr` is omitted, and explicit closed `base_pr` resolution now gives a clearer error.\n- Verification run locally on the PR branch: `npm --prefix .agent run build`, targeted `node --test` suites, and `git diff --check origin/main...HEAD` all passed.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** The selected rubrics are satisfied. The implementation is scoped, documented, covered by regression tests for open and closed inferred base PRs, and keeps authorization decisions in the existing dispatch policy path.\n\n## Final Rubric Verdict\n\nPASS",
       "createdAt": "2026-05-20T10:29:29Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/322#issuecomment-4497421007",
       "viewerDidAuthor": true
@@ -46,10 +46,83 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: ff5e21d5dac0ac16406415d02d85ec840d9914ab -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #322 addresses issue #305, which is part of parent issue #314’s batch of small fixes. It prevents explicit `/implement` requests made from closed or merged PRs from carrying that source PR forward as an inferred `base_pr`. The implementation keeps the closed PR as tracking-issue context while letting the implementation start from the repository default branch. It also preserves open inferred base PR behavior, improves the explicit closed-base error, and updates docs, prompt guidance, and regression tests.\n\n## Review\nThe current review artifacts and PR diff support shipping this change. Reviewers did not identify any blocking or warning-level issues; the only optional notes were minor INFO observations that do not require branch changes.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues | INFO | The implementation is scoped, tested, documented, and aligned with issue #305 and parent #314. Optional observations about duplicate PR metadata lookup and additional edge-case tests are non-blocking. |\n\n## Progress\n- Used all current review artifacts: `claude-review-322`, `codex-review-322`, and `rubrics-review-322`.\n- Read current PR conversation, linked issue #305, and parent issue #314 context.\n- Existing inline review comments and review threads are empty.\n- No inline comments were posted, replied to, minimized, or resolved.\n- Rubrics review passed, and reviewer artifacts report build, targeted tests, YAML parsing, and diff checks passing.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: There is no unresolved required branch work, so a fix-pr pass is not needed.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch changes.",
       "createdAt": "2026-05-20T10:34:56Z",
       "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/322#issuecomment-4497464390",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDF7VuQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review",
+      "createdAt": "2026-05-20T20:47:40Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/322#issuecomment-4502508985",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDF8F2Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Generate context-derived artifact metadata | pass | 7/7 | The diff normalizes generated implement metadata by dropping only a source-inferred `base_pr` when it matches the current PR target and that PR is non-open, while appending a “Base branch note” to the tracking issue body. This preserves the closed PR as context instead of copying command text or using generic metadata. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The workflow passes `TARGET_NUMBER`, `GITHUB_REPOSITORY`, and `GH_TOKEN` into `resolve-dispatch` as separate env fields, and the CLI uses those typed fields to verify the inferred source PR state rather than reparsing the request text. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The implementation reuses existing typed helpers and contracts: `fetchPrMeta`, `normalizeImplementIssueMetadata`, and `buildRequestedRouteDecision`. It does not add a new route parser or duplicate GitHub CLI plumbing. |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Authorization remains in the existing `applyDispatchPolicy(...)` path before route output. The PR only adjusts implement metadata normalization, so explicit `/implement` dispatch still goes through the route policy gate described in the existing router flow. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The diff updates `.agent/docs/actions/agent-actions.md`, `.agent/docs/architecture/request-lifecycle.md`, `.agent/docs/architecture/supported-workflows.md`, and `.github/prompts/agent-implement-metadata.md` to describe closed/merged inferred base PR behavior. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | The new resolver emits warnings when it drops a closed inferred base and when it cannot verify the inferred base, rather than silently producing misleading clean metadata. The explicit `base_pr` resolver error is also clarified to say to omit `base_pr` for default-branch work. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is limited to implement-base metadata handling, the router env handoff, prompt/docs text, and focused regression tests for open vs closed inferred base behavior. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The change is a small synchronous normalization step around existing metadata handling, plus clearer resolver messaging. It adds no new configuration surface or broad workflow redesign. |\n\n## Notes\n\n- Issue #305 asks for closed PRs to remain useful as context without automatically becoming required stack bases; the PR implements that directly while preserving open inferred base PR behavior.\n- Parent issue #314 asked to handle a batch of small fixes and consider stacking to reduce conflicts; this PR stays narrowly scoped to the closed inferred base PR child task.\n- The PR body reports build, targeted node tests, YAML parsing, and `git diff --check`; the diff adds regression coverage for both keeping an open inferred `base_pr` and dropping a closed inferred `base_pr`.\n\n## Findings\n\n- **INFO:** No rubric-specific follow-up needed. The selected applicable rubrics are satisfied by the current diff and linked context.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-20T20:49:23Z",
+      "includesCreatedEdit": false,
       "isMinimized": false,
       "minimizedReason": "",
       "reactionGroups": [],
-      "url": "https://github.com/self-evolving/repo/pull/322#issuecomment-4497464390",
+      "url": "https://github.com/self-evolving/repo/pull/322#issuecomment-4502521305",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDF-ZsQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 716a9b53a0eb093ae5e343bdb316da42497313c7 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\nThe live diff matches the review artifacts: the change is limited to dispatch metadata normalization, a workflow env handoff, focused tests, and docs. The reviewer notes are all INFO-level, with no current inline issue worth posting.## Summary of PR/Issue\nPR #322 fixes #305, part of parent batch #314. It prevents `/implement` requests made from closed or merged PRs from carrying that source PR forward as an inferred `base_pr`. The intended behavior is to keep the closed PR as tracking context while starting implementation from the default branch. The PR also preserves open inferred `base_pr` behavior, improves the explicit closed-base error message, and updates docs, prompt guidance, and regression tests.\n\n## Review\nThe current review artifacts support shipping this PR. Claude, Codex, and rubrics review all found no blocking or warning-level issues; remaining notes are optional INFO-level completeness/readability observations.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues | INFO | The implementation is scoped, tested, documented, and aligned with #305 and #314. Optional notes such as adding a MERGED-state test or clarifying workflow asymmetry do not require branch changes. |\n\n## Progress\n- Used all current review artifacts: `claude-review-322`, `codex-review-322`, and `rubrics-review-322`.\n- Checked the current PR conversation, linked issue #305, and parent issue #314.\n- Re-fetched existing inline review comments and review threads; both are empty.\n- No inline comments were posted, replied to, minimized, or resolved.\n- Current PR head is `716a9b53a0eb093ae5e343bdb316da42497313c7`; the live diff matches the review artifacts.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: There is no unresolved required branch work, so a fix-pr pass is not needed.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch changes.",
+      "createdAt": "2026-05-20T20:55:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/322#issuecomment-4502559153",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDGBsMA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nUpdated [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #322.\n\nAdded one active generic workflow rubric:\n\n`rubrics/workflow/separate-context-from-execution-dependencies.yaml`\n\nIt captures the durable preference from trusted maintainer context in #305: automation may preserve stale/closed artifacts as context, but must validate before using them as active execution dependencies, and should warn/clarify for explicit ineligible dependency requests.\n\nValidated the YAML parses and confirmed this is the only rubrics checkout change.\n",
+      "createdAt": "2026-05-20T21:03:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/322#issuecomment-4502613040",
       "viewerDidAuthor": true
     }
   ],
@@ -125,12 +198,12 @@
       "color": "0e8a16"
     }
   ],
-  "mergedAt": null,
+  "mergedAt": "2026-05-20T21:01:33Z",
   "number": 322,
   "reviewDecision": "",
   "reviews": [],
-  "state": "OPEN",
+  "state": "MERGED",
   "title": "Fall back from closed inferred implement base PRs",
-  "updatedAt": "2026-05-20T10:34:56Z",
+  "updatedAt": "2026-05-20T21:03:32Z",
   "url": "https://github.com/self-evolving/repo/pull/322"
 }

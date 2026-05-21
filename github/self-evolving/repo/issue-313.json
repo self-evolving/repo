@@ -6,7 +6,7 @@
     "name": "Shannon Shen"
   },
   "body": "## Goal\n\nImprove Sepo's first-run/onboarding guidance so repository owners can move from \"installed\" to \"working\" without hunting through GitHub Actions or docs.\n\nThis came from two related examples:\n\n- `self-evolving/agent-oidc-server#19`: the generated `Sepo setup check` issue says things like \"Run Actions > Agent / Memory / Initialization\" but does not link to the actual workflow page.\n- `lm4sci/lm4sci.github.io#3`: the install PR has the right \"Required setup after merge\" checklist, but it is buried after implementation/audit details and the steps are mostly unlinked.\n\n## Desired changes\n\n### 1. Onboarding setup issue/status comment\n\nIn the `Sepo setup check` issue produced by `Agent / Onboarding / Check Setup`, make the next actions directly clickable.\n\nExamples of links to include when `opts.repo` is available:\n\n- Memory initialization workflow: `https://github.com/<owner>/<repo>/actions/workflows/agent-memory-bootstrap.yml`\n- Rubrics initialization workflow: `https://github.com/<owner>/<repo>/actions/workflows/agent-rubrics-initialization.yml`\n- Onboarding/check setup workflow, where relevant: `https://github.com/<owner>/<repo>/actions/workflows/agent-onboarding.yml`\n- The latest run URL as `[GitHub Actions run](...)` instead of a raw URL\n\nAlso consider curated links for common setup destinations:\n\n- Sepo GitHub App install page: https://github.com/apps/sepo-agent-app/installations/select_target\n- target repository Actions secrets/settings page\n- Sepo setup guide in this repo\n\nLikely implementation area: `.agent/src/onboarding.ts` and its onboarding-check tests.\n\n### 2. Install PR body\n\nFor install PRs created by `@sepo-agent /install`, make **Required setup after merge** prominent and actionable.\n\nDesired structure:\n\n1. Summary\n2. **Required setup after merge** — near the top, before detailed source/diff/validation sections\n3. Source revision\n4. Installed files / preserved files / validation details\n5. Source install request link\n\nThe required setup checklist should use curated links rather than plain text where possible, for example:\n\n- Install Sepo GitHub App on the target repo, or choose another auth path from the setup guide\n- Add `OPENAI_API_KEY` and/or `CLAUDE_CODE_OAUTH_TOKEN` in the target repo's Actions secrets\n- Run the target repo's `Agent / Onboarding / Check Setup` workflow\n- Review the `Sepo setup check` issue\n- Run memory/rubrics initialization workflows if needed\n\nLikely implementation areas:\n\n- `.github/prompts/agent-install.md` for the prompt contract/order\n- `.agent/docs/deployment/install-existing-repository.md` and `.skills/install-agent/SKILL.md` for consistency\n- Consider whether some of this should be generated deterministically by helper code instead of relying only on prompt instructions, to avoid PR body drift.\n\n## Acceptance criteria\n\n- The onboarding status comment links directly to target-repo workflows for memory/rubrics initialization and renders `Last checked` as a link when a run URL exists.\n- Install PR bodies put **Required setup after merge** near the top and include target-specific links for the key setup actions.\n- Existing source request linking behavior remains intact.\n- Tests are updated for any deterministic onboarding text changes.\n- Docs/prompt guidance is updated so future install PRs follow the improved structure.\n",
-  "closedAt": null,
+  "closedAt": "2026-05-20T20:43:25Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABDACIhw",
@@ -79,8 +79,8 @@
     }
   ],
   "number": 313,
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Improve Sepo onboarding and install PR setup guidance",
-  "updatedAt": "2026-05-20T08:57:42Z",
+  "updatedAt": "2026-05-20T20:43:25Z",
   "url": "https://github.com/self-evolving/repo/issues/313"
 }

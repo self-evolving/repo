@@ -7,7 +7,7 @@
   },
   "baseRefName": "main",
   "body": "## Summary\n- Switch `agent-self-approve.yml` from ACPX `approve-reads` to `approve-all` so the self-approval agent can run required read-only `gh pr view`, `gh pr diff`, and `git fetch` investigation commands.\n- Keep the workflow's GitHub permissions read-only for the agent job.\n- Update the workflow contract regression test.\n\n## Verification\n- `npm --prefix .agent ci`\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/envelope.test.js`\n\nFixes #328\n",
-  "closedAt": null,
+  "closedAt": "2026-05-20T21:00:49Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABDFcREQ",
@@ -46,8 +46,8 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 189c12e9c4c090c89724a7979a72b618ea381427 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #329 fixes issue #328, where self-approval runs blocked because ACPX `approve-reads` does not allow shell-level inspection commands such as `gh pr view`, `gh pr diff`, or `git fetch`.\n- The PR changes `.github/workflows/agent-self-approve.yml` so the self-approval agent runs with `permission_mode: approve-all`.\n- It keeps the `github_token` passed to the model step as the read-only `${{ github.token }}` and updates the workflow contract test to expect `approve-all`.\n- The intent is sound, but the current implementation widens the model step inside the same job that later performs privileged deterministic approval resolution.\n\n## Review\nThe reviewers agree that the docs are stale, but disagree on whether `approve-all` preserves the self-approval trust boundary. The synthesis treats the trust-boundary concern as blocking because the current workflow still runs privileged resolver steps from the same mutable checkout after the model step.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Self-approval agent can affect privileged resolver | BLOCKING | The changed [`permission_mode: approve-all`](https://github.com/self-evolving/repo/blob/189c12e9c4c090c89724a7979a72b618ea381427/.github/workflows/agent-self-approve.yml#L137) lets the model run arbitrary shell/file operations before [`resolve-self-approve.js`](https://github.com/self-evolving/repo/blob/189c12e9c4c090c89724a7979a72b618ea381427/.github/workflows/agent-self-approve.yml#L180) runs from the same checkout with the resolved Sepo auth token. |\n| Self-approval permission docs are stale | WARNING | The workflow and test now say `approve-all`, but [`request-lifecycle.md`](https://github.com/self-evolving/repo/blob/189c12e9c4c090c89724a7979a72b618ea381427/.agent/docs/architecture/request-lifecycle.md#L46) still lists `approve-reads`, and [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/189c12e9c4c090c89724a7979a72b618ea381427/.agent/docs/architecture/supported-workflows.md#L292) still says read-approved permissions. |\n\n## Progress\n- The PR already updates the workflow contract test for the literal `permission_mode` value.\n- The workflow still passes `${{ github.token }}` to the agent step rather than `steps.auth.outputs.token`.\n- Current PR checks show the `check` job passing; agent/cleanup jobs are skipped.\n- No existing inline review comments or threads were present before synthesis; one inline comment was posted on `.github/workflows/agent-self-approve.yml` line 137 for the blocking trust-boundary issue.\n\n## Issue Details\n\n<details>\n<summary>Self-approval agent can affect privileged resolver</summary>\n\n**Cause:** `runAcpx` inherits `process.env`, the job has `id-token: write`, and the model step now runs with `approve-all` before later privileged steps execute from the same workspace. That means prompt-influenced model execution can tamper with `.agent/dist/cli/resolve-self-approve.js`, affect `$GITHUB_PATH`/`$GITHUB_ENV`, or attempt the hosted OIDC exchange before resolver code uses the Sepo auth token.\n\n**Candidate solutions:** Split model inspection into an unprivileged job with no OIDC/write-capable auth and run resolver code later from a fresh trusted checkout, or pre-gather the required PR context deterministically and keep the model on a non-mutating permission mode. Add/update the workflow contract test to assert the isolation boundary, not only the permission string.\n\n**Comments:** One reviewer considered the read-only `github.token` sufficient, but the current same-job mutable workspace and inherited OIDC environment make that boundary incomplete.\n\n</details>\n\n<details>\n<summary>Self-approval permission docs are stale</summary>\n\n**Cause:** The PR changes the workflow permission mode without updating architecture docs that describe self-approval as `approve-reads` / read-approved.\n\n**Candidate solutions:** Update `request-lifecycle.md` and `supported-workflows.md` to describe the final model after the trust-boundary fix, including the distinction between ACPX tool mode, read-scoped GitHub token, and deterministic resolver authority.\n\n**Comments:** Both reviewers identified documentation drift; the exact wording should follow the final implementation choice.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: The unresolved blocker and docs drift require concrete branch changes, and an automated fix-pr pass can isolate the model inspection path while updating tests and docs.\n\n## Final Verdict\n`NEEDS_REWORK`\n\n## Action Items\n- [ ] Isolate model-driven self-approval inspection from privileged resolution so the `approve-all` agent step cannot use OIDC, mutate later resolver code, or affect privileged-step environment.\n- [ ] Update the workflow contract regression test to assert the final isolation/trusted-runtime boundary.\n- [ ] Update `.agent/docs/architecture/request-lifecycle.md` and `.agent/docs/architecture/supported-workflows.md` to match the final self-approval permission model.",
       "createdAt": "2026-05-20T19:52:31Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/329#issuecomment-4502096272",
       "viewerDidAuthor": true
@@ -131,6 +131,79 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/329#issuecomment-4502350846",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDF6d_A",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review",
+      "createdAt": "2026-05-20T20:45:35Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/329#issuecomment-4502494716",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDF7EUA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 78 | PARTIAL | 6 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Keep Docs In Sync | pass | 7/7 | The PR updates `.agent/docs/architecture/request-lifecycle.md` and `.agent/docs/architecture/supported-workflows.md` to reflect `agent-self-approve` now using `approve-all` while still passing read-scoped `github.token`. |\n| coding_workflow / generic | Reuse Existing Code | pass | 8/8 | The implementation changes the existing `run-agent-task` `permission_mode` input and existing workflow contract test instead of adding new command wrappers, parsers, or alternate inspection paths. |\n| coding_workflow / generic | Make Surgical Changes | pass | 8/8 | The diff is narrowly scoped to one workflow setting, one matching test expectation, and two doc updates. |\n| coding_workflow / generic | Separate Decision Gates From Action Authorization | partial | 5/8 | The deterministic resolver still owns approval submission and uses `steps.auth.outputs.token`, while the model step receives only `${{ github.token }}`. However, the judgment step now has `approve-all` in the same job before privileged resolution, so the action boundary relies on convention and token scoping rather than stronger execution isolation. |\n| coding_workflow / generic | Keep Privileged Workflows On Trusted Runtime Code | partial | 4/8 | The workflow checks out the default branch, which is good, but `approve-all` lets the model step run shell/file operations before `node .agent/dist/cli/resolve-self-approve.js` executes from the same workspace with the resolved Sepo auth token. |\n| coding_workflow / generic | Validate Preview Contracts | not applicable | N/A | This PR does not add or change a dry-run, preview, or read-only mode contract. |\n\n## Notes\n\n- The PR now satisfies the linked issue #328 acceptance criteria: `agent-self-approve.yml` switches the self-approval agent to `approve-all`, keeps the agent token read-scoped, and updates the contract test.\n- The docs drift flagged in the earlier review is fixed in the current diff.\n- The remaining rubric tension is the privileged workflow boundary: the maintainer explicitly asked to relax the prior blocker for now, but the relevant rubrics still score this as partial rather than full pass because model-controlled shell access runs before deterministic privileged resolution in the same job.\n\n## Findings\n\n- **WARNING:** Against the trusted-runtime and decision-gate rubrics, `approve-all` in the self-approval agent step weakens isolation from the later resolver. This is acceptable as a conscious product tradeoff if the project is relaxing the blocker, but it should not be counted as a full rubric pass.\n\n## Final Rubric Verdict\n\nPARTIAL",
+      "createdAt": "2026-05-20T20:47:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/329#issuecomment-4502504528",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDF9yiw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: d136db985197a500147063df8019e2449f59bfb9 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #329 fixes issue #328, where the self-approval agent could not run required PR inspection commands such as `gh pr view`, `gh pr diff`, and occasional `git fetch` under ACPX `approve-reads`.\n- The PR switches [`agent-self-approve.yml`](https://github.com/self-evolving/repo/blob/d136db985197a500147063df8019e2449f59bfb9/.github/workflows/agent-self-approve.yml#L137) to `permission_mode: approve-all` while still passing the read-scoped `${{ github.token }}` to the model step.\n- It updates the workflow contract test and the architecture docs so the documented self-approval permission model matches the implementation.\n- A prior review flagged the same-job trust boundary as blocking, but the maintainer explicitly accepted relaxing that concern for now to allow `approve-all`.\n\n## Review\nThe current review artifacts agree that the PR now satisfies the linked issue and that the earlier documentation drift is fixed. The remaining disagreement is severity: one reviewer recommends `SHIP`, while Codex and the rubrics review keep the self-approval isolation concern as a non-blocking warning.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Accepted self-approval isolation tradeoff | WARNING | `approve-all` lets the model run local shell/file operations before the privileged resolver runs in the same job. This remains a real hardening concern, but it is acknowledged and explicitly accepted for this PR. |\n| Loose test wording around read-only behavior | INFO | The workflow contract test still describes the flow as read-only while now asserting `approve-all`; the important read-scoped `github_token` assertion remains present. |\n\n## Progress\n- The stale docs called out in the earlier synthesis are fixed in `request-lifecycle.md` and `supported-workflows.md`.\n- The PR keeps the model step on `${{ github.token }}` rather than the privileged resolver token.\n- Existing inline feedback already covers the line 137 trust-boundary concern, so no duplicate inline comment was posted.\n- No thread was resolved or minimized; the existing thread is not viewer-resolvable, and the current synthesis treats the concern as accepted rather than fixed.\n\n## Issue Details\n\n<details>\n<summary>Accepted self-approval isolation tradeoff</summary>\n\n**Cause:** The model step now has ACPX `approve-all` in the same job before `resolve-self-approve.js` runs with the resolved Sepo auth token.\n\n**Candidate solutions:** Future hardening could split model inspection into a no-OIDC/read-only job and run resolution from a fresh trusted checkout, or pre-gather PR context deterministically and keep the model on a less permissive mode.\n\n**Comments:** This was the main reviewer disagreement. The maintainer explicitly chose to accept the tradeoff for now, so it should not drive another automated fix-pr pass.\n\n</details>\n\n<details>\n<summary>Loose test wording around read-only behavior</summary>\n\n**Cause:** The test name still leans on “read-only” language even though the ACPX tool mode is now `approve-all`.\n\n**Candidate solutions:** Optionally rename the test or add a narrow assertion that the model step does not receive `steps.auth.outputs.token`.\n\n</details>\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: No unresolved required branch-change work remains; the remaining concerns are accepted or optional follow-up hardening.\n\n## Final Verdict\n`SHIP`\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-20T20:53:34Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/329#issuecomment-4502549131",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDGBHQw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #329.\n\nno rubric changes\n\nI reviewed PR #329’s full comment/review history, linked issue #328, trust signals, and the existing rubric set. The only reusable concerns from the conversation are already covered by active rubrics: docs sync, trusted runtime for privileged workflows, and separating decision gates from action authorization. The human “relax this for now” direction was specific to this PR, so I did not encode it as a durable rubric.\n",
+      "createdAt": "2026-05-20T21:02:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/329#issuecomment-4502603587",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-20T18:56:07Z",
@@ -169,7 +242,7 @@
       "color": "0e8a16"
     }
   ],
-  "mergedAt": null,
+  "mergedAt": "2026-05-20T21:00:49Z",
   "number": 329,
   "reviewDecision": "",
   "reviews": [
@@ -189,8 +262,8 @@
       }
     }
   ],
-  "state": "OPEN",
+  "state": "MERGED",
   "title": "fix: allow self-approval PR inspection",
-  "updatedAt": "2026-05-20T20:23:52Z",
+  "updatedAt": "2026-05-20T21:02:04Z",
   "url": "https://github.com/self-evolving/repo/pull/329"
 }

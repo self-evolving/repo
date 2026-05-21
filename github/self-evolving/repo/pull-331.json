@@ -1,0 +1,253 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n\nDocumentation update spanning structural cleanup, the landing page rewrite, and a new declarative navigation source.\n\n### Structural changes\n- Rename docs files for clarity (commit `12e3cb9`).\n- Remove the now-defunct workflow customization page (commit `8bcc65a`).\n- Move \\`access-policy.md\\` under \\`customization/\\` so it lives in the section it belongs to (commit `ddf3790`).\n- Refresh the docs entry page (\\`.agent/docs/index.md\\`) to reflect the current structure (commit `21303e5`).\n\n### Navigation metadata (new)\n- Add \\`_meta.json\\` files at the docs root and in each section folder (commit `53a8c54`). Each file declares its display \\`label\\` and an ordered list of \\`pages\\` (slug segments). \\`index\\` is implicit.\n- These are inert in the current render: nothing reads them yet. A follow-up stacked PR on \\`self-evolving/repo-docs#19\\` will teach the sync script + \\`DocsExplorer\\` to consume them, retiring the hand-maintained array in \\`quartz/components/DocsExplorer.tsx\\`.\n\n### Title hygiene\n- Normalize four frontmatter titles to sentence case (commit `ed057f8`): \\`Quick Start\\` → \\`Quick start\\`, \\`Repository Skills\\` → \\`Repository skills\\`, \\`Sepo Versioning\\` → \\`Sepo versioning\\`, \\`Install Into An Existing Repository\\` → \\`Install into an existing repository\\`. Makes page H1s and tab titles consistent, and primes the file titles to be safe fallback sidebar labels once the parser PR lands.\n\n## Why \\`_meta.json\\` (vs. frontmatter or hard-coded TS)\n\nThe render side currently encodes nav order as a hard-coded TS array in a different repo (\\`repo-docs/quartz/components/DocsExplorer.tsx\\`), which drifts from the source docs (e.g. it still references the pre-move \\`access-policy\\` slug and the removed workflow-customization page). \\`_meta.json\\` keeps the ordering and labeling co-located with the source markdown, lets the sync script validate consistency, and follows the Nextra-style convention.\n\nJSON over YAML because the render repo is TS/JS (native \\`JSON.parse\\`, no new dep needed in \\`sync-source-docs.mjs\\`).\n\n## Test plan\n\n- [ ] Confirm \\`.agent/docs/_meta.json\\` and per-section \\`_meta.json\\` files list every \\`.md\\` in their folder (no orphans, no unknown entries).\n- [ ] Re-render via the \\`repo-docs\\` sync script and confirm no behavior change (sync copies \\`_meta.json\\` through; nothing reads it yet).\n- [ ] Spot-check that the four retitled pages render with the new sentence-case H1 and tab title.\n\n\nMade with [Cursor](https://cursor.com)",
+  "closedAt": "2026-05-21T00:17:41Z",
+  "comments": [],
+  "createdAt": "2026-05-21T00:16:35Z",
+  "files": [
+    {
+      "path": ".agent/docs/README.md",
+      "additions": 0,
+      "deletions": 45,
+      "changeType": "DELETED"
+    },
+    {
+      "path": ".agent/docs/_meta.json",
+      "additions": 11,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/docs/actions/_meta.json",
+      "additions": 7,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/docs/actions/agent-actions.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/actions/index.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "RENAMED"
+    },
+    {
+      "path": ".agent/docs/actions/internal-actions.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/_meta.json",
+      "additions": 11,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/docs/architecture/goals.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/memory.md",
+      "additions": 4,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/overall-design.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/request-lifecycle.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/rubrics.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/supported-workflows.md",
+      "additions": 7,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/_meta.json",
+      "additions": 9,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/docs/customization/access-policy.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "RENAMED"
+    },
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 4,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/creating-your-own-actions.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/creating-your-own-workflows.md",
+      "additions": 0,
+      "deletions": 3,
+      "changeType": "DELETED"
+    },
+    {
+      "path": ".agent/docs/customization/skills.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/deployment/_meta.json",
+      "additions": 9,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/docs/deployment/index.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "RENAMED"
+    },
+    {
+      "path": ".agent/docs/deployment/install-existing-repository.md",
+      "additions": 4,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/deployment/self-hosted-github-action-runner.md",
+      "additions": 4,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/deployment/setup-guide.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/deployment/using-your-own-github-app.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/index.md",
+      "additions": 127,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/docs/overview/_meta.json",
+      "additions": 7,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/docs/overview/quick-start.md",
+      "additions": 4,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/overview/what-is-self-evolving-repo.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/_meta.json",
+      "additions": 10,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/docs/technical-details/agent-orchestrator.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/developer-notes.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/key-concepts.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/session-continuity.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/versioning.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/docs-index-links.test.ts",
+      "additions": 0,
+      "deletions": 52,
+      "changeType": "DELETED"
+    },
+    {
+      "path": ".agent/src/__tests__/docs-validation.test.ts",
+      "additions": 101,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": "README.md",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "docs/documentation-update",
+  "labels": [],
+  "mergedAt": "2026-05-21T00:17:41Z",
+  "number": 331,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "MERGED",
+  "title": "Update documentation structure and add nav metadata",
+  "updatedAt": "2026-05-21T00:17:41Z",
+  "url": "https://github.com/self-evolving/repo/pull/331"
+}
