@@ -1,0 +1,249 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Rename deployment docs to setup docs and update links\n- Move workflow/action docs into a usage section\n- Move orchestrator docs into architecture\n\n## Validation\n- npm --prefix .agent test\n",
+  "closedAt": "2026-05-21T15:34:54Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDKnCZw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 5 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| communication / generic | Write audience-first documentation | pass | 7/7 | New `.agent/docs/setup/index.md` starts from install/auth/runner decisions, and `.agent/docs/usage/index.md` frames content as “what Sepo can do after it is installed” rather than internal mechanics first. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Moved doc links are updated across README, `.agent/docs/index.md`, quick start, configuration docs, session-continuity docs, skills, source URLs in `.agent/src/install-fork-pr.ts` and `.agent/src/onboarding.ts`, plus path-sensitive tests. |\n| coding_workflow / generic | No per-file inventory tables in docs | pass | 6/6 | The reorg adds section-level docs and navigation metadata rather than a new per-file inventory table. Existing workflow/action reference content is moved under usage without expanding it into a file inventory. |\n| communication / generic | Make setup guidance actionable | pass | 7/7 | The setup section links directly to setup guide, install-existing-repository, self-managed app setup, and self-hosted runner guidance, and README/quick-start links point to the new setup paths. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are scoped to documentation structure, link updates, path constants, and tests that assert those paths; no unrelated behavior or broad refactor appears in the diff. |\n\n## Notes\n\n- The PR satisfies the selected documentation rubrics: the rename from “deployment” to “setup” makes the entry point more reader-task-oriented, while workflow/action docs move into a usage section that better matches user intent.\n- I fetched live PR metadata and diff with `gh`; the PR has no comments, reviews, labels, or parent/tracking issue references in the body.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific issues found.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-21T10:53:26Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/335#issuecomment-4507419239",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDKvf6g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 8e40e3f777cb18e0c3b55484db5850c567132d5d -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #335 reorganizes Sepo documentation sections so first-time setup, normal usage, architecture, and technical details are separated more clearly.\n- It renames `deployment/` docs to `setup/`, moves workflow/action docs into `usage/`, and moves the orchestrator doc into architecture.\n- The PR also updates links in docs, skills, source constants, and path-sensitive tests.\n- The current PR body and discussion do not reference a parent or tracking issue.\n\n## Review\nThe reorganization is sound and most reviewers agree the link/path sweep is complete. The remaining required work is minor terminology cleanup, with one optional label-alignment note for the flat docs index.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Stale deployment terminology remains | WARNING | After renaming the docs section to setup, two visible references still say “deployment” in contexts that point readers at the renamed setup docs. |\n| Flat index still says Actions for Using Sepo | INFO | `.agent/docs/index.md` now links into `usage/`, but the visible flat-list label still says `Actions overview` under `Actions:` instead of matching `Using Sepo`. |\n\n## Progress\n- Rubrics review passed: the PR stays surgical, updates path-sensitive tests, and follows the docs navigation pattern.\n- Codex review reported `npm --prefix .agent test` passed with 672 tests.\n- Existing inline comments and review threads were empty before synthesis.\n- Posted one inline comment on `.agent/docs/index.md:110` for the `Actions overview` / `Using Sepo` label mismatch.\n- No inline comments were replied to, minimized, or resolved.\n\n## Issue Details\n\n<details>\n<summary>Stale deployment terminology remains</summary>\n\n**Cause:** The rename updated paths and section metadata, but unchanged prose still says `deployment` in [`self-hosted-github-action-runner.md#L18`](https://github.com/self-evolving/repo/blob/8e40e3f777cb18e0c3b55484db5850c567132d5d/.agent/docs/setup/self-hosted-github-action-runner.md#L18) and [`README.md#L106`](https://github.com/self-evolving/repo/blob/8e40e3f777cb18e0c3b55484db5850c567132d5d/README.md#L106).\n\n**Candidate solutions:** Change “this deployment page” to “this setup page” and “deployment options” to “setup options” or another setup-oriented phrase.\n\n**Comments:** This is not blocking, but it is directly tied to the PR’s stated rename from deployment docs to setup docs.\n\n</details>\n\n<details>\n<summary>Flat index still says Actions for Using Sepo</summary>\n\n**Cause:** The docs index now points `Actions overview` at `usage/index.md`, while the destination page and sidebar label are `Using Sepo`.\n\n**Candidate solutions:** Rename the flat-list header from `Actions:` to `Using Sepo:` and/or rename `Actions overview` to `Using Sepo overview`.\n\n**Comments:** This is cosmetic and was posted inline at `.agent/docs/index.md:110`: https://github.com/self-evolving/repo/pull/335#discussion_r3280664616\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: the stale setup/deployment wording is a concrete, safe docs cleanup for an automated fix-pr pass.\n\n## Final Verdict\n`MINOR_ISSUES`\n\n## Action Items\n- [ ] Update the remaining setup-related prose that still says “deployment” in the self-hosted runner doc and README.",
+      "createdAt": "2026-05-21T11:06:08Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/335#issuecomment-4507557866",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDM7MUA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #335.\n\nno rubric changes\n\nPR #335 had no trusted maintainer/user feedback that introduced a new durable preference. The only discussion and review comments were bot-authored, and the trusted PR body described the specific docs reorganization rather than a reusable rubric. Existing rubrics already cover the relevant themes: audience-first docs, actionable setup guidance, keeping docs in sync, and surgical changes. Rubrics checkout remains clean.\n",
+      "createdAt": "2026-05-21T15:36:08Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/335#issuecomment-4509846608",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-21T10:51:32Z",
+  "files": [
+    {
+      "path": ".agent/docs/_meta.json",
+      "additions": 3,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/actions/_meta.json",
+      "additions": 0,
+      "deletions": 7,
+      "changeType": "DELETED"
+    },
+    {
+      "path": ".agent/docs/architecture/_meta.json",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/agent-orchestrator.md",
+      "additions": 0,
+      "deletions": 0,
+      "changeType": "RENAMED"
+    },
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 3,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/deployment/index.md",
+      "additions": 0,
+      "deletions": 13,
+      "changeType": "DELETED"
+    },
+    {
+      "path": ".agent/docs/index.md",
+      "additions": 11,
+      "deletions": 11,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/overview/quick-start.md",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/setup/_meta.json",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "RENAMED"
+    },
+    {
+      "path": ".agent/docs/setup/index.md",
+      "additions": 13,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/docs/setup/install-existing-repository.md",
+      "additions": 0,
+      "deletions": 0,
+      "changeType": "RENAMED"
+    },
+    {
+      "path": ".agent/docs/setup/self-hosted-github-action-runner.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "RENAMED"
+    },
+    {
+      "path": ".agent/docs/setup/setup-guide.md",
+      "additions": 0,
+      "deletions": 0,
+      "changeType": "RENAMED"
+    },
+    {
+      "path": ".agent/docs/setup/using-your-own-github-app.md",
+      "additions": 0,
+      "deletions": 0,
+      "changeType": "RENAMED"
+    },
+    {
+      "path": ".agent/docs/technical-details/_meta.json",
+      "additions": 0,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/session-continuity.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/_meta.json",
+      "additions": 8,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/docs/usage/agent-actions.md",
+      "additions": 0,
+      "deletions": 0,
+      "changeType": "RENAMED"
+    },
+    {
+      "path": ".agent/docs/usage/index.md",
+      "additions": 8,
+      "deletions": 7,
+      "changeType": "RENAMED"
+    },
+    {
+      "path": ".agent/docs/usage/internal-actions.md",
+      "additions": 0,
+      "deletions": 0,
+      "changeType": "RENAMED"
+    },
+    {
+      "path": ".agent/docs/usage/supported-workflows.md",
+      "additions": 3,
+      "deletions": 3,
+      "changeType": "RENAMED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 9,
+      "deletions": 9,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/install-fork-pr.ts",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/onboarding.ts",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".skills/install-agent/SKILL.md",
+      "additions": 3,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".skills/update-agent/SKILL.md",
+      "additions": 3,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": "README.md",
+      "additions": 6,
+      "deletions": 6,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "docs/reorganize-documentation",
+  "labels": [],
+  "mergedAt": "2026-05-21T15:34:54Z",
+  "number": 335,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABAnc_SQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-21T11:05:29Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "8e40e3f777cb18e0c3b55484db5850c567132d5d"
+      }
+    }
+  ],
+  "state": "MERGED",
+  "title": "Reorganize Sepo documentation sections",
+  "updatedAt": "2026-05-21T15:36:08Z",
+  "url": "https://github.com/self-evolving/repo/pull/335"
+}
