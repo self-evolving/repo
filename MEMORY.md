@@ -90,3 +90,4 @@
 - INPUT_SECONDARY_GITHUB_TOKEN is additive and read-only for external repo inspection; external writes need route-specific auth.
 - Onboarding and /install setup guidance should be prominent and use target-repo links for workflows, secrets, app install, and docs.
 - Self-approval uses ACPX approve-all for PR inspection but read-scoped github.token; resolver owns approval.
+- Docs use .agent/docs/**/_meta.json for nav order/labels, index.md section roots, and frontmatter titles instead of leading H1s.
