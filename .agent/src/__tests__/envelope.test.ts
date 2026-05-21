@@ -374,7 +374,7 @@ test("project manager defaults label application on behind dry-run", () => {
   const projectManagerWorkflow = readRepoFile(".github/workflows/agent-project-manager.yml");
   const applyLabelsCli = readRepoFile(".agent/src/cli/apply-project-management-labels.ts");
   const configurationList = readRepoFile(".agent/docs/customization/configuration-list.md");
-  const supportedWorkflows = readRepoFile(".agent/docs/architecture/supported-workflows.md");
+  const supportedWorkflows = readRepoFile(".agent/docs/usage/supported-workflows.md");
 
   assert.match(projectManagerWorkflow, /apply_labels:[\s\S]*default:\s*"true"/);
   assert.match(
@@ -498,7 +498,7 @@ test("review synthesis uses a shared reviews directory contract", () => {
   const synthesisPrompt = readRepoFile(".github/prompts/review-synthesize.md");
   const runSource = readRepoFile(".agent/src/run.ts");
   const configurationList = readRepoFile(".agent/docs/customization/configuration-list.md");
-  const supportedWorkflows = readRepoFile(".agent/docs/architecture/supported-workflows.md");
+  const supportedWorkflows = readRepoFile(".agent/docs/usage/supported-workflows.md");
 
   assert.match(reviewWorkflow, /review:\n\s*# Ordering-only:[\s\S]*?needs:\s*\[prepare\]\n\s*if:\s*\$\{\{\s*!cancelled\(\)\s*\}\}\n\s*# Reviewer lanes are best-effort[\s\S]*?continue-on-error:\s*true/);
   assert.match(reviewWorkflow, /synthesize:\n\s*needs:\s*\[prepare,\s*review\]\n\s*if:\s*\$\{\{\s*!cancelled\(\)\s*\}\}/);
@@ -631,7 +631,7 @@ test("agent status label is opt-in and fixed to the AGENT_STATUS_LABEL_ENABLED v
   const createPrCli = readRepoFile(".agent/src/cli/create-pr.ts");
   const addLabelCli = readRepoFile(".agent/src/cli/add-label.ts");
   const configurationList = readRepoFile(".agent/docs/customization/configuration-list.md");
-  const supportedWorkflows = readRepoFile(".agent/docs/architecture/supported-workflows.md");
+  const supportedWorkflows = readRepoFile(".agent/docs/usage/supported-workflows.md");
 
   assert.match(configurationList, /AGENT_STATUS_LABEL_ENABLED/);
   assert.match(supportedWorkflows, /fixed `agent` status label/);
@@ -1136,11 +1136,11 @@ test("workflow docs record the minimal metadata contract and developer notes", (
   const rubricsArchitecture = readRepoFile(".agent/docs/architecture/rubrics.md");
   const rubricsInitializationWorkflow = readRepoFile(".github/workflows/agent-rubrics-initialization.yml");
   const rubricsInitializationPrompt = readRepoFile(".github/prompts/rubrics-initialization.md");
-  const supportedWorkflows = readRepoFile(".agent/docs/architecture/supported-workflows.md");
+  const supportedWorkflows = readRepoFile(".agent/docs/usage/supported-workflows.md");
   const requestLifecycle = readRepoFile(".agent/docs/architecture/request-lifecycle.md");
   const configurationList = readRepoFile(".agent/docs/customization/configuration-list.md");
   const skillsDocs = readRepoFile(".agent/docs/customization/skills.md");
-  const existingRepoInstall = readRepoFile(".agent/docs/deployment/install-existing-repository.md");
+  const existingRepoInstall = readRepoFile(".agent/docs/setup/install-existing-repository.md");
   const installIssueTemplate = readRepoFile(".github/ISSUE_TEMPLATE/install-sepo.yml");
   const installIssueTemplateForm = parseYaml(installIssueTemplate) as unknown;
   const developerNotes = readRepoFile(".agent/docs/technical-details/developer-notes.md");
@@ -1277,7 +1277,7 @@ test("create-action prompt uses native workflows with shared expiration and runt
   const prompt = readRepoFile(".github/prompts/agent-create-action.md");
   const docs = readRepoFile(".agent/docs/customization/creating-your-own-actions.md");
   const template = readRepoFile(".agent/action-templates/agent-action-template.yml");
-  const internalActions = readRepoFile(".agent/docs/actions/internal-actions.md");
+  const internalActions = readRepoFile(".agent/docs/usage/internal-actions.md");
   const action = readRepoFile(".github/actions/check-agent-action-expiration/action.yml");
   const script = readRepoFile(".github/actions/check-agent-action-expiration/check-expiration.sh");
 
@@ -1337,7 +1337,7 @@ test("execution workflows expose automation handoff inputs", () => {
   const orchestrateHandoffCli = readRepoFile(".agent/src/cli/orchestrate-handoff.ts");
   const fixPrPrompt = readRepoFile(".github/prompts/agent-fix-pr.md");
   const orchestratorPrompt = readRepoFile(".github/prompts/agent-orchestrator.md");
-  const orchestratorDoc = readRepoFile(".agent/docs/technical-details/agent-orchestrator.md");
+  const orchestratorDoc = readRepoFile(".agent/docs/architecture/agent-orchestrator.md");
 
   assert.match(entrypointWorkflow, /automation_mode:\s*\$\{\{ vars\.AGENT_AUTOMATION_MODE \|\| 'agent' \}\}/);
   assert.match(labelWorkflow, /automation_mode:\s*\$\{\{ vars\.AGENT_AUTOMATION_MODE \|\| 'agent' \}\}/);
@@ -1441,9 +1441,9 @@ test("orchestrator source handoff context is renderable in planner prompts", () 
 });
 
 test("workflow docs cover hosted auth and self-hosting paths", () => {
-  const setupGuide = readRepoFile(".agent/docs/deployment/setup-guide.md");
+  const setupGuide = readRepoFile(".agent/docs/setup/setup-guide.md");
   const selfHostedRunner = readRepoFile(
-    ".agent/docs/deployment/self-hosted-github-action-runner.md",
+    ".agent/docs/setup/self-hosted-github-action-runner.md",
   );
 
   assert.match(setupGuide, /Official Sepo-hosted app/);

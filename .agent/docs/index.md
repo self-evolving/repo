@@ -24,7 +24,7 @@ Sepo turns a repository into a **self-evolving repository**: a codebase that can
 
 ### Install into an existing repository
 
-Check [Install into an existing repository](deployment/install-existing-repository.md) for the detailed guide.
+Check [Install into an existing repository](setup/install-existing-repository.md) for the detailed guide.
 
 - **Public repositories:** the quickest path is to open the [Install Sepo into another repository](https://github.com/self-evolving/repo/issues/new?template=install-sepo.yml) issue form in `self-evolving/repo` and paste the target URL.
 - **Private repositories:** run an agent locally, give it access to this source checkout and the private target repository, and ask it to use the `.skills/install-agent` skill so private access stays in your trusted environment.
@@ -91,25 +91,25 @@ Getting started:
 
 - [What is a self-evolving repository?](overview/what-is-self-evolving-repo.md)
 - [Quick start](overview/quick-start.md)
-- [Setup guide](deployment/setup-guide.md)
-- [Install into an existing repository](deployment/install-existing-repository.md)
-- [Self-hosted GitHub Action runner](deployment/self-hosted-github-action-runner.md)
-- [Using your own GitHub App](deployment/using-your-own-github-app.md)
+- [Setup guide](setup/setup-guide.md)
+- [Install into an existing repository](setup/install-existing-repository.md)
+- [Self-hosted GitHub Action runner](setup/self-hosted-github-action-runner.md)
+- [Using your own GitHub App](setup/using-your-own-github-app.md)
 
 Understanding the system:
 
 - [Overall design](architecture/overall-design.md)
-- [Supported workflows](architecture/supported-workflows.md)
+- [Supported workflows](usage/supported-workflows.md)
 - [The life cycle of an agent request](architecture/request-lifecycle.md)
 - [Repository goals](architecture/goals.md)
 - [Repository memory](architecture/memory.md)
 - [User/team rubrics](architecture/rubrics.md)
 
-Actions:
+Using Sepo:
 
-- [Actions overview](actions/index.md)
-- [Internal actions](actions/internal-actions.md)
-- [Agent actions](actions/agent-actions.md)
+- [Using Sepo overview](usage/index.md)
+- [Internal actions](usage/internal-actions.md)
+- [Agent actions](usage/agent-actions.md)
 
 Customizing and operating:
 
@@ -122,6 +122,6 @@ Technical details:
 
 - [Key concepts](technical-details/key-concepts.md)
 - [Session continuity](technical-details/session-continuity.md)
-- [Agent orchestrator](technical-details/agent-orchestrator.md)
+- [Agent orchestrator](architecture/agent-orchestrator.md)
 - [Sepo versioning](technical-details/versioning.md)
 - [Developer notes](technical-details/developer-notes.md)

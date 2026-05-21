@@ -7,10 +7,10 @@ title: "Configurations list"
 | Variable | Purpose |
 |---|---|
 | `AGENT_HANDLE` | Override the mention handle. Defaults to `@sepo-agent`. |
-| `AGENT_RUNS_ON` | JSON array string for runner selection. If you are using self-hosted runners, see [Self-hosted GitHub Action runner](../deployment/self-hosted-github-action-runner.md). |
+| `AGENT_RUNS_ON` | JSON array string for runner selection. If you are using self-hosted runners, see [Self-hosted GitHub Action runner](../setup/self-hosted-github-action-runner.md). |
 | `AGENT_DEFAULT_PROVIDER` | Default provider for single-agent runs and review synthesis: `auto`, `codex`, or `claude`. Explicit `codex` / `claude` choices are honored even without matching repository secrets, allowing self-hosted runners to use local provider authentication. `auto` chooses the first configured provider secret, preferring Codex when both secrets are present. |
 | `AGENT_SESSION_BUNDLE_MODE` | Default session-bundle behavior: `auto`, `always`, or `never`. For the trade-offs behind this setting, see [Session continuity](../technical-details/session-continuity.md). |
-| `AGENT_AUTOMATION_MODE` | Orchestrator decision mode. Defaults to `agent` for planner-backed orchestration validated by runtime policy. Set to `heuristics` for deterministic status-based routing with lower model cost. Compatibility alias: `true` = `heuristics`; explicit `false` or legacy `disabled` values fall back to `heuristics` for explicit `/orchestrate` chains. See [Agent orchestrator](../technical-details/agent-orchestrator.md). |
+| `AGENT_AUTOMATION_MODE` | Orchestrator decision mode. Defaults to `agent` for planner-backed orchestration validated by runtime policy. Set to `heuristics` for deterministic status-based routing with lower model cost. Compatibility alias: `true` = `heuristics`; explicit `false` or legacy `disabled` values fall back to `heuristics` for explicit `/orchestrate` chains. See [Agent orchestrator](../architecture/agent-orchestrator.md). |
 | `AGENT_AUTOMATION_MAX_ROUNDS` | Maximum number of explicit orchestration handoff rounds. Defaults to `12`. |
 | `AGENT_ALLOW_SELF_APPROVE` | Opt-in gate for `agent-self-approve.yml`. Defaults to `false`; when enabled, the workflow can approve only an open pull request whose current head matches trusted review synthesis provenance and the self-approval agent's inspected head. Same-actor approval is still blocked unless `AGENT_ALLOW_SELF_MERGE=true` is also enabled for full self-governance mode. |
 | `AGENT_ALLOW_SELF_MERGE` | Opt-in gate for `agent-self-merge.yml`. Defaults to `false`; when enabled with self-approval, trusted current-head self-approved PRs can be marked ready and merged into their configured base with `--match-head-commit`. Together with `AGENT_ALLOW_SELF_APPROVE=true`, this allows Sepo-authored PRs to use an internal current-head self-approval status when GitHub review approval would be same-actor. |
@@ -50,4 +50,4 @@ The bundled workflows intentionally expose one global provider variable. If a re
 | `AGENT_SECONDARY_GITHUB_TOKEN` | Optional read-only secondary fine-grained PAT exposed as `INPUT_SECONDARY_GITHUB_TOKEN` for explicit external repo context; does not replace the primary same-repo token |
 
 
-See [Setup guide](../deployment/setup-guide.md) for how token secrets are used.
+See [Setup guide](../setup/setup-guide.md) for how token secrets are used.

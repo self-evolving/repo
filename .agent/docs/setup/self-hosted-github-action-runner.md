@@ -15,7 +15,7 @@ Self-hosted runners are a good fit when you want:
 
 For the maintained setup scripts and step-by-step instructions, use [`.agent/tools/local-runner`](https://github.com/self-evolving/repo/blob/main/.agent/tools/local-runner/README.md). That folder contains the host requirement check, bootstrap, setup, start, stop, cleanup, and launchd template files for running local macOS self-hosted runners.
 
-Keep this deployment page focused on the decision to use self-hosted runners; keep machine-specific setup details in the local runner tool folder.
+Keep this setup page focused on the decision to use self-hosted runners; keep machine-specific setup details in the local runner tool folder.
 
 ## Runner requirements
 
