@@ -249,6 +249,7 @@ test("single-agent workflows resolve provider before runtime setup", () => {
   assert.match(resolverScript, /DEFAULT_PROVIDER/);
   assert.match(resolverScript, /OPENAI_API_KEY/);
   assert.match(resolverScript, /CLAUDE_CODE_OAUTH_TOKEN/);
+  assert.match(resolverScript, /ANTHROPIC_API_KEY/);
   assert.match(resolverScript, /provider=codex/);
   assert.match(resolverScript, /provider=claude/);
 
@@ -268,6 +269,7 @@ test("single-agent workflows resolve provider before runtime setup", () => {
     assert.match(workflow, /install_claude:\s*\$\{\{\s*steps\.provider\.outputs\.install_claude\s*\}\}/);
     assert.match(workflow, /agent:\s*\$\{\{\s*steps\.provider\.outputs\.provider\s*\}\}/);
     assert.match(workflow, /claude_oauth_token:\s*\$\{\{\s*secrets\.CLAUDE_CODE_OAUTH_TOKEN\s*\}\}/);
+    assert.match(workflow, /anthropic_api_key:\s*\$\{\{\s*secrets\.ANTHROPIC_API_KEY\s*\}\}/);
   }
 
   assert.match(fixPrWorkflow, /lane:\s*fix-pr-\$\{\{\s*steps\.provider\.outputs\.provider\s*\}\}/);
@@ -279,6 +281,7 @@ test("single-agent workflows resolve provider before runtime setup", () => {
   assert.match(reviewWorkflow, /install_claude:\s*\$\{\{\s*steps\.synthesis_provider\.outputs\.install_claude\s*\}\}/);
   assert.match(reviewWorkflow, /agent:\s*\$\{\{\s*steps\.synthesis_provider\.outputs\.provider\s*\}\}/);
   assert.match(reviewWorkflow, /openai_api_key:\s*\$\{\{\s*secrets\.OPENAI_API_KEY\s*\}\}/);
+  assert.match(reviewWorkflow, /anthropic_api_key:\s*\$\{\{\s*secrets\.ANTHROPIC_API_KEY\s*\}\}/);
   assert.doesNotMatch(implementWorkflow, /vars\.AGENT_PROVIDER_IMPLEMENT/);
   assert.doesNotMatch(fixPrWorkflow, /vars\.AGENT_PROVIDER_FIX_PR/);
 

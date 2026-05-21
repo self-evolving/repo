@@ -41,6 +41,7 @@ The bundled workflows intentionally expose one global provider variable. If a re
 | Model provider secrets | |
 | `OPENAI_API_KEY` | Enable Codex-backed runs on runners without local Codex authentication; also lets `AGENT_DEFAULT_PROVIDER=auto` detect Codex |
 | `CLAUDE_CODE_OAUTH_TOKEN` | Enable Claude-backed runs on runners without local Claude authentication; also lets `AGENT_DEFAULT_PROVIDER=auto` detect Claude |
+| `ANTHROPIC_API_KEY` | Enable Claude-backed runs with a direct Anthropic API key; also lets `AGENT_DEFAULT_PROVIDER=auto` detect Claude |
 | GitHub auth secrets |  |
 | `AGENT_APP_ID` | Self-managed GitHub App ID for the bring-your-own-app path; set only with `AGENT_APP_PRIVATE_KEY`. The public Sepo App ID `3527007` is informational for hosted/OIDC usage. |
 | `AGENT_APP_PRIVATE_KEY` | Self-managed GitHub App private key for the bring-your-own-app path |

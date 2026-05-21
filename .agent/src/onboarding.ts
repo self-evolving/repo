@@ -23,6 +23,7 @@ export interface OnboardingOptions {
   providerReason: string;
   openaiConfigured: boolean;
   claudeConfigured: boolean;
+  anthropicConfigured: boolean;
   memoryRef: string;
   rubricsRef: string;
   runUrl: string;
@@ -178,6 +179,7 @@ function credentialNames(opts: OnboardingOptions): string[] {
   const names: string[] = [];
   if (opts.openaiConfigured) names.push("`OPENAI_API_KEY`");
   if (opts.claudeConfigured) names.push("`CLAUDE_CODE_OAUTH_TOKEN`");
+  if (opts.anthropicConfigured) names.push("`ANTHROPIC_API_KEY`");
   return names;
 }
 
@@ -199,7 +201,7 @@ function modelStatusBody(opts: OnboardingOptions, links: OnboardingLinks): strin
   if (names.length === 0) {
     return [
       "- [ ] Model credentials: not configured",
-      `  - Add \`OPENAI_API_KEY\` or \`CLAUDE_CODE_OAUTH_TOKEN\` in ${link("repository Actions secrets", links.actionsSecretsUrl)}.`,
+      `  - Add \`OPENAI_API_KEY\`, \`CLAUDE_CODE_OAUTH_TOKEN\`, or \`ANTHROPIC_API_KEY\` in ${link("repository Actions secrets", links.actionsSecretsUrl)}.`,
       "  - Optional: configure `AGENT_DEFAULT_PROVIDER`.",
       ...providerDetailBody(opts),
     ].join("\n");
