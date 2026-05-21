@@ -92,3 +92,4 @@
 - Self-approval uses ACPX approve-all for PR inspection but read-scoped github.token; resolver owns approval.
 - Docs use .agent/docs/**/_meta.json for nav order/labels, index.md section roots, and frontmatter titles instead of leading H1s.
 - Sepo docs use setup/ for install/auth/runner guidance and usage/ for workflows/actions; deployment/ and actions/ are retired.
+- Inferred /implement base_pr from a closed source PR is context only; drop it and use the default branch.
