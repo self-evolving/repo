@@ -65,6 +65,45 @@ test("buildAcpxArgs uses prompt mode with a named session for persistent routes"
   ]);
 });
 
+test("buildAcpxArgs passes model as a global acpx flag before the agent", () => {
+  const args = buildAcpxArgs({
+    agent: "codex",
+    model: "gpt-5.4",
+    prompt: "answer this",
+    permissionMode: "approve-all",
+    isExecRoute: true,
+  });
+
+  assert.deepEqual(args, [
+    "--approve-all",
+    "--format",
+    "json",
+    "--json-strict",
+    "--suppress-reads",
+    "--model",
+    "gpt-5.4",
+    "codex",
+    "exec",
+    "answer this",
+  ]);
+});
+
+test("buildSessionSetupCommands uses acpx set model for named sessions", () => {
+  const commands = buildSessionSetupCommands({
+    agent: "codex",
+    sessionName: "pull_request-38-fix-pr-default",
+    model: "gpt-5.4",
+    thoughtLevel: "xhigh",
+    permissionMode: "approve-all",
+  });
+
+  assert.deepEqual(commands.map((command) => command.args), [
+    ["codex", "set", "model", "gpt-5.4", "-s", "pull_request-38-fix-pr-default"],
+    ["codex", "set", "-s", "pull_request-38-fix-pr-default", "thought_level", "xhigh"],
+    ["codex", "set-mode", "-s", "pull_request-38-fix-pr-default", "full-access"],
+  ]);
+});
+
 test("buildAcpxArgs keeps track-only synthesis in exec mode without a named session", () => {
   const args = buildAcpxArgs({
     agent: "codex",

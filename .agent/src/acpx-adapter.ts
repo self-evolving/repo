@@ -21,6 +21,8 @@ import { join } from "node:path";
 export interface AcpxRunOptions {
   /** The agent to use (e.g., "codex", "claude") */
   agent: string;
+  /** Optional model id passed through acpx model selection. */
+  model?: string;
   /** The prompt text */
   prompt: string;
   /** Smaller prompt for a successfully resumed destination session. */
@@ -222,6 +224,7 @@ function isCodexAgent(agent: string): boolean {
 
 export function buildAcpxArgs(options: {
   agent: string;
+  model?: string;
   prompt: string;
   permissionMode: PermissionMode;
   timeout?: number;
@@ -236,6 +239,10 @@ export function buildAcpxArgs(options: {
   args.push("--suppress-reads");
   if (options.timeout) {
     args.push("--timeout", String(options.timeout));
+  }
+  const model = options.model?.trim();
+  if (model) {
+    args.push("--model", model);
   }
 
   args.push(options.agent);
@@ -277,6 +284,7 @@ export interface SessionSetupCommand {
 export function buildSessionSetupCommands(options: {
   agent: string;
   sessionName?: string;
+  model?: string;
   thoughtLevel?: string;
   permissionMode?: PermissionMode;
 }): SessionSetupCommand[] {
@@ -285,19 +293,25 @@ export function buildSessionSetupCommands(options: {
   }
 
   const normalizedAgent = options.agent.trim().toLowerCase();
-  if (normalizedAgent === "claude") {
-    if (options.permissionMode === "approve-all") {
-      return [
-        {
-          label: "set-mode",
-          args: [options.agent, "set-mode", "-s", options.sessionName, CLAUDE_BYPASS_MODE],
-        },
-      ];
-    }
-    return [];
+  const commands: SessionSetupCommand[] = [];
+  const model = options.model?.trim();
+  if (model) {
+    commands.push({
+      label: "set model",
+      args: [options.agent, "set", "model", model, "-s", options.sessionName],
+    });
   }
 
-  const commands: SessionSetupCommand[] = [];
+  if (normalizedAgent === "claude") {
+    if (options.permissionMode === "approve-all") {
+      commands.push({
+        label: "set-mode",
+        args: [options.agent, "set-mode", "-s", options.sessionName, CLAUDE_BYPASS_MODE],
+      });
+    }
+    return commands;
+  }
+
   const thoughtLevel = options.thoughtLevel?.trim();
   if (thoughtLevel) {
     commands.push({
@@ -437,6 +451,7 @@ function createTransientSession(
 function runSessionSetupCommands(options: {
   agent: string;
   sessionName: string;
+  model?: string;
   thoughtLevel?: string;
   permissionMode: PermissionMode;
   cwd: string;
@@ -446,6 +461,7 @@ function runSessionSetupCommands(options: {
     for (const command of buildSessionSetupCommands({
       agent: options.agent,
       sessionName: options.sessionName,
+      model: options.model,
       thoughtLevel: options.thoughtLevel,
       permissionMode: options.permissionMode,
     })) {
@@ -644,6 +660,7 @@ export function tailForLog(value: string, maxChars: number): string {
 export function runAcpx(options: AcpxRunOptions): AcpxRunResult {
   const {
     agent,
+    model,
     prompt,
     continuationPrompt,
     cwd,
@@ -686,6 +703,7 @@ export function runAcpx(options: AcpxRunOptions): AcpxRunResult {
     const setupResult = runSessionSetupCommands({
       agent,
       sessionName,
+      model,
       thoughtLevel: normalizedThoughtLevel,
       permissionMode,
       cwd,
@@ -722,6 +740,7 @@ export function runAcpx(options: AcpxRunOptions): AcpxRunResult {
     const setupResult = runSessionSetupCommands({
       agent,
       sessionName,
+      model,
       thoughtLevel,
       permissionMode,
       cwd,
@@ -741,6 +760,7 @@ export function runAcpx(options: AcpxRunOptions): AcpxRunResult {
   }
   const args = buildAcpxArgs({
     agent,
+    model,
     prompt: selectPromptForSessionOutcome({
       fullPrompt: prompt,
       continuationPrompt,

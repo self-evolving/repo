@@ -10,6 +10,7 @@ import {
   formatFixPrComment,
   formatReviewComment,
   formatRubricsUpdateComment,
+  appendRunDisplayFooter,
 } from "../response.js";
 
 // --- determineRunStatus ---
@@ -166,6 +167,12 @@ test("formatReviewComment builds synthesis header", () => {
   assert.match(body, /<!-- sepo-agent-review-synthesis-head: abc123 -->/);
   assert.match(body, /@bob/);
   assert.match(body, /Looks good/);
+});
+
+test("appendRunDisplayFooter appends optional run metadata", () => {
+  const body = appendRunDisplayFooter("Done.\n", "_Run: `codex` / `gpt-5.4` / `xhigh`_");
+  assert.equal(body, "Done.\n\n---\n_Run: `codex` / `gpt-5.4` / `xhigh`_");
+  assert.equal(appendRunDisplayFooter("Done.", ""), "Done.");
 });
 
 // --- formatRubricsUpdateComment ---

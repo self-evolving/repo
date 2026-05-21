@@ -139,6 +139,8 @@ jobs:
           default_provider: ${{ vars.AGENT_DEFAULT_PROVIDER || 'auto' }}
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          model_policy: ${{ vars.AGENT_MODEL_POLICY || '' }}
+          display_model: ${{ vars.AGENT_DISPLAY_MODEL || '' }}
 
       - name: Setup agent runtime
         id: runtime
@@ -185,6 +187,9 @@ jobs:
           secondary_github_token: ${{ secrets.AGENT_SECONDARY_GITHUB_TOKEN }}
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          model: ${{ steps.provider.outputs.model }}
+          display_model: ${{ steps.provider.outputs.display_model }}
+          reasoning_effort: ${{ steps.provider.outputs.reasoning_effort || 'xhigh' }}
           prompt: fix-pr
           route: fix-pr
           lane: fix-pr-${{ steps.provider.outputs.provider }}
@@ -269,6 +274,7 @@ jobs:
           PR_NUMBER: ${{ env.PR_NUMBER }}
           REQUESTED_BY: ${{ inputs.orchestration_enabled == 'true' && (vars.AGENT_HANDLE || '@sepo-agent') || inputs.requested_by || github.actor }}
           RESPONSE_FILE: ${{ steps.agent.outputs.response_file }}
+          MODEL_DISPLAY: ${{ steps.agent.outputs.model_display }}
           RESUME_STATUS: ${{ steps.agent.outputs.resume_status }}
           ROUTE: fix-pr
           STATUS: ${{ (steps.commit.outcome == 'failure' || steps.push-head.outcome == 'failure') && 'failed' || steps.response.outputs.status || 'failed' }}

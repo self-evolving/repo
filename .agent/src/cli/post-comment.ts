@@ -15,6 +15,7 @@ import {
   formatImplementComment,
   formatFixPrComment,
   formatReviewComment,
+  appendRunDisplayFooter,
   normalizeImplementationResponse,
   summaryFromAgentResponse,
   type RunStatus,
@@ -32,6 +33,7 @@ const prUrl = process.env.PR_URL || "";
 const requestedBy = process.env.REQUESTED_BY || "";
 const approvalCommentUrl = process.env.APPROVAL_COMMENT_URL || "";
 const resumeStatus = process.env.RESUME_STATUS || "";
+const modelDisplay = process.env.MODEL_DISPLAY || process.env.AGENT_RUN_DISPLAY || "";
 const repo = process.env.GITHUB_REPOSITORY || "";
 const collapseOldReviews = !["false", "0", "no", "off"].includes(
   (process.env.AGENT_COLLAPSE_OLD_REVIEWS || "").trim().toLowerCase(),
@@ -93,6 +95,8 @@ const continuityNote = formatSessionRestoreNotice({ resumeStatus, runStatus: sta
 if (continuityNote) {
   body = `> ${continuityNote}\n\n${body}`;
 }
+
+body = appendRunDisplayFooter(body, modelDisplay);
 
 if (target === "pr") {
   if (route === "review" && collapseOldReviews) {

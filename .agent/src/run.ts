@@ -299,6 +299,38 @@ function buildSharedEnv(): Record<string, string> {
   return env;
 }
 
+function parseBooleanFlag(value: string | undefined): boolean {
+  return ["true", "1", "yes", "on"].includes(String(value || "").trim().toLowerCase());
+}
+
+function extractSessionModel(sessionLog: string): string {
+  for (const raw of sessionLog.split("\n")) {
+    if (!raw.trim()) continue;
+    try {
+      const entry = JSON.parse(raw) as Record<string, unknown>;
+      if (entry.type === "session" && typeof entry.model === "string" && entry.model.trim()) {
+        return entry.model.trim();
+      }
+    } catch {
+      // Ignore malformed compact log entries.
+    }
+  }
+  return "";
+}
+
+function buildModelDisplay(options: {
+  agent: string;
+  model: string;
+  reasoningEffort: string;
+}): string {
+  const parts = [
+    options.agent.trim(),
+    options.model.trim() || "default model",
+    options.reasoningEffort.trim(),
+  ].filter(Boolean);
+  return parts.length > 0 ? `_Run: ${parts.map((part) => `\`${part}\``).join(" / ")}_` : "";
+}
+
 // --- Main ---
 
 function main(): void {
@@ -380,6 +412,8 @@ function main(): void {
   setOutput("envelope_route", envelope.route);
   setOutput("raw_stdout_file", "");
   setOutput("raw_stderr_file", "");
+  setOutput("model", process.env.MODEL_ID?.trim() || "");
+  setOutput("model_display", "");
   setOutput("resume_status", "not_attempted");
   setOutput("last_resume_error", "");
   setOutput(
@@ -543,9 +577,11 @@ function runDirectPath(opts: {
 
   log("info", "Running acpx", { agent, route: envelope.route, permission_mode: permissionMode });
   const sessionBundleMode = parseSessionBundleMode(process.env.SESSION_BUNDLE_MODE);
+  const requestedModel = process.env.MODEL_ID?.trim() || "";
 
   const result = runAcpx({
     agent,
+    model: requestedModel,
     prompt,
     cwd: repoRoot,
     sessionMode: sessionModeForPolicy(sessionPolicy),
@@ -573,6 +609,16 @@ function runDirectPath(opts: {
     session_log_length: result.sessionLog.length,
     session_ensure_outcome: result.sessionEnsureOutcome.kind,
   });
+
+  const reportedModel = extractSessionModel(result.sessionLog) || requestedModel;
+  setOutput("model", reportedModel);
+  if (parseBooleanFlag(process.env.DISPLAY_MODEL)) {
+    setOutput("model_display", buildModelDisplay({
+      agent,
+      model: reportedModel,
+      reasoningEffort: process.env.MODEL_REASONING_EFFORT || "",
+    }));
+  }
 
   // Display session activity in CI logs
   process.stderr.write("\n--- acpx session log ---\n");

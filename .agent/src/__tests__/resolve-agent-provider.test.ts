@@ -17,7 +17,9 @@ type ResolverEnv = Partial<Record<
   | "DEFAULT_PROVIDER"
   | "OPENAI_API_KEY"
   | "CLAUDE_CODE_OAUTH_TOKEN"
-  | "REQUIRED",
+  | "REQUIRED"
+  | "AGENT_MODEL_POLICY"
+  | "DISPLAY_MODEL",
   string
 >>;
 
@@ -54,6 +56,8 @@ function runResolver(env: ResolverEnv = {}) {
         OPENAI_API_KEY: "",
         CLAUDE_CODE_OAUTH_TOKEN: "",
         REQUIRED: "true",
+        AGENT_MODEL_POLICY: "",
+        DISPLAY_MODEL: "",
         ...env,
       },
     });
@@ -131,6 +135,52 @@ test("provider resolver supports explicit providers without repository secrets",
   assert.match(claude.stderr, /relying on local Claude authentication/);
 });
 
+test("provider resolver applies model policy defaults and provider settings", () => {
+  const resolved = runResolver({
+    DEFAULT_PROVIDER: "auto",
+    AGENT_MODEL_POLICY: JSON.stringify({
+      default: { provider: "claude" },
+      providers: {
+        claude: { model: "claude-sonnet-4-5", reasoning_effort: "max" },
+      },
+      display: { enabled: true },
+    }),
+  });
+
+  assert.equal(resolved.status, 0, resolved.stderr);
+  assert.equal(resolved.outputs.provider, "claude");
+  assert.equal(resolved.outputs.reason, "AGENT_MODEL_POLICY default");
+  assert.equal(resolved.outputs.model, "claude-sonnet-4-5");
+  assert.equal(resolved.outputs.reasoning_effort, "max");
+  assert.equal(resolved.outputs.display_model, "true");
+  assert.match(resolved.stderr, /relying on local Claude authentication/);
+});
+
+test("provider resolver lets route model policy override provider defaults", () => {
+  const resolved = runResolver({
+    OPENAI_API_KEY: "openai-token",
+    CLAUDE_CODE_OAUTH_TOKEN: "claude-token",
+    AGENT_MODEL_POLICY: JSON.stringify({
+      providers: {
+        codex: { model: "gpt-5.4", reasoning_effort: "xhigh" },
+        claude: { model: "claude-sonnet-4-5", reasoning_effort: "max" },
+      },
+      route_overrides: {
+        "test-route": { provider: "claude", model: "claude-haiku-4-5", reasoning_effort: "medium" },
+      },
+      display: { enabled: true },
+    }),
+    DISPLAY_MODEL: "false",
+  });
+
+  assert.equal(resolved.status, 0, resolved.stderr);
+  assert.equal(resolved.outputs.provider, "claude");
+  assert.equal(resolved.outputs.reason, "AGENT_MODEL_POLICY route override for test-route");
+  assert.equal(resolved.outputs.model, "claude-haiku-4-5");
+  assert.equal(resolved.outputs.reasoning_effort, "medium");
+  assert.equal(resolved.outputs.display_model, "false");
+});
+
 test("provider resolver supports nonfatal unresolved setup passes", () => {
   const soft = runResolver({ REQUIRED: "false" });
 
@@ -153,4 +203,12 @@ test("provider resolver rejects invalid providers and required auto without read
 
   assert.notEqual(missingAuto.status, 0);
   assert.match(missingAuto.stderr, /No configured agent provider/);
+
+  const invalidPolicy = runResolver({
+    OPENAI_API_KEY: "openai-token",
+    AGENT_MODEL_POLICY: '{"route_overrides": []}',
+  });
+
+  assert.notEqual(invalidPolicy.status, 0);
+  assert.match(invalidPolicy.stderr, /route_overrides must be an object/);
 });

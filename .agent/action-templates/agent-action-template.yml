@@ -58,6 +58,8 @@ jobs:
           default_provider: ${{ vars.AGENT_DEFAULT_PROVIDER || 'auto' }}
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          model_policy: ${{ vars.AGENT_MODEL_POLICY || '' }}
+          display_model: ${{ vars.AGENT_DISPLAY_MODEL || '' }}
 
       - name: Setup agent runtime
         if: steps.expiration.outputs.expired != 'true'
@@ -85,6 +87,9 @@ jobs:
           secondary_github_token: ${{ secrets.AGENT_SECONDARY_GITHUB_TOKEN }}
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          model: ${{ steps.provider.outputs.model }}
+          display_model: ${{ steps.provider.outputs.display_model }}
+          reasoning_effort: ${{ steps.provider.outputs.reasoning_effort || 'xhigh' }}
           permission_mode: approve-all
           prompt: answer
           route: answer
@@ -108,6 +113,7 @@ jobs:
           env.REPORT_ISSUE_NUMBER != ''
         env:
           BODY_FILE: ${{ steps.agent.outputs.response_file }}
+          MODEL_DISPLAY: ${{ steps.agent.outputs.model_display }}
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           RESPONSE_KIND: issue_comment
