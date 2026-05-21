@@ -74,7 +74,7 @@
 - When self-approval is enabled, SHIP or HUMAN_DECISION review handoffs may dispatch agent-self-approve.
 - Keep entry docs reader-first; put setup trade-offs, auth internals, and limitations in setup/technical docs.
 - Memory GitHub mirrors live under github/<owner>/<repo>/; old flat artifacts are manual cleanup, not auto-migrated.
-- Scheduled daily summaries run by default with skip_no_updates; disable agent-daily-summary.yml via AGENT_SCHEDULE_POLICY override.
+- Scheduled daily summaries are disabled by default; enable agent-daily-summary.yml via AGENT_SCHEDULE_POLICY override.
 - Default orchestration max rounds is 12 across workflows and CLI fallbacks.
 - Explicit non-issue /implement creates tracking metadata from context after auth; metadata uses approve-all.
 - Repository skills use setup.sh for simple setup; complex skill environments should customize the copied agent-router workflow.
