@@ -1,5 +1,5 @@
 ---
-title: "Repository Skills"
+title: "Repository skills"
 ---
 
 A repository skill is a `SKILL.md` file under the configured skill root, which

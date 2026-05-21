@@ -1,5 +1,5 @@
 ---
-title: "Quick Start"
+title: "Quick start"
 ---
 
 ## Start from the template
