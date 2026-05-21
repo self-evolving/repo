@@ -1,4 +1,6 @@
-# Agent actions
+---
+title: "Agent actions"
+---
 
 Agent actions are route-level behaviors exposed by the `.agent` backend. They are selected by the router from mentions, labels, approval comments, or direct workflow dispatch.
 

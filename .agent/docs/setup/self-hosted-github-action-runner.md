@@ -1,4 +1,6 @@
-# Self-hosted GitHub Action runner
+---
+title: "Self-hosted GitHub Action runner"
+---
 
 Self-hosted runners run GitHub Actions jobs on infrastructure you operate, such as a local Mac mini, instead of on GitHub-hosted runners.
 
@@ -11,9 +13,9 @@ Self-hosted runners are a good fit when you want:
 
 ## Local runner setup
 
-For the maintained setup scripts and step-by-step instructions, use [`.agent/tools/local-runner`](../../tools/local-runner/README.md). That folder contains the host requirement check, bootstrap, setup, start, stop, cleanup, and launchd template files for running local macOS self-hosted runners.
+For the maintained setup scripts and step-by-step instructions, use [`.agent/tools/local-runner`](https://github.com/self-evolving/repo/blob/main/.agent/tools/local-runner/README.md). That folder contains the host requirement check, bootstrap, setup, start, stop, cleanup, and launchd template files for running local macOS self-hosted runners.
 
-Keep this deployment page focused on the decision to use self-hosted runners; keep machine-specific setup details in the local runner tool folder.
+Keep this setup page focused on the decision to use self-hosted runners; keep machine-specific setup details in the local runner tool folder.
 
 ## Runner requirements
 

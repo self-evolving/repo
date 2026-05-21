@@ -1,4 +1,6 @@
-# User/team rubrics
+---
+title: "User/team rubrics"
+---
 
 Rubrics are a separate durable system from repository memory.
 

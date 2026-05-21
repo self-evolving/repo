@@ -1,10 +1,12 @@
-# Quick Start
+---
+title: "Quick start"
+---
 
 ## Start from the template
 
 1. Create a new repository with **Use this template**. Forking is supported, but forks often have Issues and/or Actions disabled by default; template-created repos usually avoid those fork-specific defaults.
 2. Install the [Sepo GitHub App](https://github.com/apps/sepo-agent-app/installations/select_target). For first-time setup, choose **Only select repositories** and select the repository you are setting up.
-3. Use the hosted Sepo App path unless your organization requires a self-managed GitHub App. See the [setup guide](../deployment/setup-guide.md) for details.
+3. Use the hosted Sepo App path unless your organization requires a self-managed GitHub App. See the [setup guide](../setup/setup-guide.md) for details.
 4. Before onboarding, confirm the repository is ready:
    - **Issues** are enabled in `Settings > General > Features > Issues`.
    - **Actions** are enabled in `Settings > Actions > General`.
@@ -15,7 +17,7 @@
 
 ## Install into an existing repository
 
-Use [Install into an existing repository](../deployment/install-existing-repository.md) for the minimal non-template flow. It covers copying `.agent/` and `.github/`, configuring secrets, running the onboarding setup check, and bootstrapping `agent/memory` from GitHub Actions.
+Use [Install into an existing repository](../setup/install-existing-repository.md) for the minimal non-template flow. It covers copying `.agent/` and `.github/`, configuring secrets, running the onboarding setup check, and bootstrapping `agent/memory` from GitHub Actions.
 
 ## Trigger Sepo
 
@@ -48,6 +50,6 @@ You can also trigger the same built-in routes with labels:
 | `agent/fix-pr` | Fix PR |
 | `agent/s/<name>` | Skill |
 
-Only authorized repository users can trigger Sepo. By default, repositories allow `OWNER`, `MEMBER`, `COLLABORATOR`, and `CONTRIBUTOR` associations; public repositories can tighten this with `AGENT_ACCESS_POLICY`. See [Trigger access policy](../access-policy.md) to customize that behavior.
+Only authorized repository users can trigger Sepo. By default, repositories allow `OWNER`, `MEMBER`, `COLLABORATOR`, and `CONTRIBUTOR` associations; public repositories can tighten this with `AGENT_ACCESS_POLICY`. See [Trigger access policy](../customization/access-policy.md) to customize that behavior.
 
 `Agent / Onboarding / Check Setup` creates the built-in labels listed above. Custom skill labels still use the `agent/s/<name>` pattern and can be created as needed.

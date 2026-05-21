@@ -1,4 +1,6 @@
-# Internal actions
+---
+title: "Internal actions"
+---
 
 Internal actions are shared composite GitHub Actions under `.github/actions/`. They are implementation building blocks consumed by workflows, not commands users invoke directly.
 

@@ -1,4 +1,6 @@
-# Sepo Versioning
+---
+title: "Sepo versioning"
+---
 
 Sepo uses SemVer for public version labels.
 

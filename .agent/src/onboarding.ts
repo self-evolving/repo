@@ -7,7 +7,7 @@ import { BUILT_IN_TRIGGER_LABELS } from "./trigger-labels.js";
 const ONBOARDING_TITLE = "Sepo setup check";
 const COMMENT_MARKER = "<!-- sepo-agent-onboarding-check -->";
 const SEPO_APP_INSTALL_URL = "https://github.com/apps/sepo-agent-app/installations/select_target";
-const SEPO_SETUP_GUIDE_URL = "https://github.com/self-evolving/repo/blob/main/.agent/docs/deployment/setup-guide.md";
+const SEPO_SETUP_GUIDE_URL = "https://github.com/self-evolving/repo/blob/main/.agent/docs/setup/setup-guide.md";
 const REPOSITORY_MANAGEMENT_LABELS = [
   {
     name: "agent-goal",

@@ -1,8 +1,10 @@
-# Repository memory
+---
+title: "Repository memory"
+---
 
 The agent composes long-lived memory across runs on a dedicated `agent/memory` branch. Memory is **agentic**: the main agent (on `answer`, `implement`, `fix-pr`, `review`, `skill`) reads and writes memory directly during normal tasks, using a pair of CLIs. Dedicated scheduled workflows curate memory outside user-driven work.
 
-Memory is separate from [user/team rubrics](./rubrics.md). Memory captures agent/project continuity and lessons the agent uses to improve its own work; rubrics capture normative user preferences used to steer implementation and score reviews.
+Memory is separate from [user/team rubrics](rubrics.md). Memory captures agent/project continuity and lessons the agent uses to improve its own work; rubrics capture normative user preferences used to steer implementation and score reviews.
 
 ## Branch layout
 

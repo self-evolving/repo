@@ -1,4 +1,6 @@
-# Using your own GitHub App
+---
+title: "Using your own GitHub App"
+---
 
 Use this path when you want a fully self-managed or self-hosted setup. Create your own GitHub App and configure:
 

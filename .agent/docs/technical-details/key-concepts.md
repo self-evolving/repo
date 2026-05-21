@@ -1,4 +1,6 @@
-# Key concepts
+---
+title: "Key concepts"
+---
 
 ## Self-evolving repository
 

@@ -1,4 +1,6 @@
-# Developer notes
+---
+title: "Developer notes"
+---
 
 ## Testing
 
