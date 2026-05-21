@@ -1337,7 +1337,7 @@ test("execution workflows expose automation handoff inputs", () => {
   const orchestrateHandoffCli = readRepoFile(".agent/src/cli/orchestrate-handoff.ts");
   const fixPrPrompt = readRepoFile(".github/prompts/agent-fix-pr.md");
   const orchestratorPrompt = readRepoFile(".github/prompts/agent-orchestrator.md");
-  const orchestratorDoc = readRepoFile(".agent/docs/technical-details/agent-orchestrator.md");
+  const orchestratorDoc = readRepoFile(".agent/docs/architecture/agent-orchestrator.md");
 
   assert.match(entrypointWorkflow, /automation_mode:\s*\$\{\{ vars\.AGENT_AUTOMATION_MODE \|\| 'agent' \}\}/);
   assert.match(labelWorkflow, /automation_mode:\s*\$\{\{ vars\.AGENT_AUTOMATION_MODE \|\| 'agent' \}\}/);
