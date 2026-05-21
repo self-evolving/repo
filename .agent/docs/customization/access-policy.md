@@ -1,4 +1,6 @@
-# Trigger access policy
+---
+title: "Trigger access policy"
+---
 
 `AGENT_ACCESS_POLICY` is an optional repository variable that controls which GitHub author associations can trigger the agent.
 

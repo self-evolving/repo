@@ -1,4 +1,6 @@
-# Creating your own actions
+---
+title: "Creating your own actions"
+---
 
 Durable agent actions are repository-owned GitHub Actions workflows. They let a
 user ask the agent to propose recurring automation, review it as a pull request,

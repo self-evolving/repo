@@ -1,4 +1,6 @@
-# Session continuity
+---
+title: "Session continuity"
+---
 
 Persistent session continuity can optionally use GitHub Actions artifacts to carry local agent session files across runs. This is useful when the next run lands on a fresh machine and local `HOME` state is not sticky.
 

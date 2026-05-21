@@ -1,4 +1,6 @@
-# Repository goals
+---
+title: "Repository goals"
+---
 
 Sepo tracks large repository objectives as GitHub issues with the `agent-goal`
 label. A goal issue is the canonical, reviewable object for a strategic

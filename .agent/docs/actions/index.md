@@ -1,4 +1,6 @@
-# Actions
+---
+title: "Actions"
+---
 
 This section documents the action layer inside the `.agent` backend.
 

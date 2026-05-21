@@ -1,4 +1,6 @@
-# Supported workflows
+---
+title: "Supported workflows"
+---
 
 ## Workflow reference
 
@@ -133,7 +135,7 @@ separate from the deterministic generated-comment cleanup controlled by
 | `agent-memory-pr-closed.yml` | `Agent / Memory / Record PR Closure` | `pull_request_target.closed`, `workflow_dispatch` | Agent-driven memory curation run triggered when a PR closes. Skips unmerged fork PRs. | Auto |
 | `agent-memory-scan.yml` | `Agent / Memory / Curate Recent Activity` | `schedule` (every 6h), `workflow_dispatch` | Scheduled agent-driven memory curation across recent repository activity | Auto |
 
-The `agent-memory-*` workflows and the `agent/memory` branch they share are documented in [Repository memory](./memory.md), including the layout, the `AGENT_MEMORY_POLICY` configuration, and per-route permission rules.
+The `agent-memory-*` workflows and the `agent/memory` branch they share are documented in [Repository memory](memory.md), including the layout, the `AGENT_MEMORY_POLICY` configuration, and per-route permission rules.
 
 ### User/team rubrics workflows
 
@@ -143,7 +145,7 @@ The `agent-memory-*` workflows and the `agent/memory` branch they share are docu
 | `agent-rubrics-review.yml` | `Agent / Rubrics / Review` | `workflow_dispatch`, `workflow_call` | Scores a PR against active rubrics selected from `agent/rubrics` | Auto |
 | `agent-rubrics-update.yml` | `Agent / Rubrics / Update` | merged `pull_request_target.closed`, `workflow_dispatch` | Learns durable user/team preferences from PR interactions and updates `agent/rubrics` | Auto |
 
-Rubrics are documented in [User/team rubrics](./rubrics.md). They are separate from repository memory: memory is agent/project continuity, while rubrics are normative user/team preferences used to steer implementation and evaluate reviews.
+Rubrics are documented in [User/team rubrics](rubrics.md). They are separate from repository memory: memory is agent/project continuity, while rubrics are normative user/team preferences used to steer implementation and evaluate reviews.
 
 `agent-branch-cleanup.yml` and `agent-close-stale-issues.yml` are standalone
 workflows. They listen directly to repository events or schedules and apply
@@ -211,7 +213,7 @@ Supported surfaces:
 | `discussion` | discussion title, discussion body |
 | `discussion_comment` | comment body |
 
-By default, the portal responds to `OWNER`, `MEMBER`, `COLLABORATOR`, and `CONTRIBUTOR` associations. `AGENT_ACCESS_POLICY` can tighten or widen access globally or for specific routes; public repositories that do not want prior contributors to trigger Sepo should remove `CONTRIBUTOR` from the allowlist. Bot authors are always skipped. Implicit mentions are triaged first and then checked against the resolved route, so denied requests get a visible unsupported reply instead of being dropped silently. See [Trigger access policy](../access-policy.md).
+By default, the portal responds to `OWNER`, `MEMBER`, `COLLABORATOR`, and `CONTRIBUTOR` associations. `AGENT_ACCESS_POLICY` can tighten or widen access globally or for specific routes; public repositories that do not want prior contributors to trigger Sepo should remove `CONTRIBUTOR` from the allowlist. Bot authors are always skipped. Implicit mentions are triaged first and then checked against the resolved route, so denied requests get a visible unsupported reply instead of being dropped silently. See [Trigger access policy](../customization/access-policy.md).
 
 Explicit routes are:
 
@@ -276,7 +278,7 @@ built-in labels. The workflow also opens or updates a `Sepo setup check` issue
 with auth/provider readiness, memory and rubrics branch status, and copyable
 commands for first test runs. Skill labels still use `agent/s/<skill>` and are
 created per skill as needed. Onboarding also creates the non-trigger
-`agent-goal` label used by the [repository goals](./goals.md) convention.
+`agent-goal` label used by the [repository goals](goals.md) convention.
 
 After a label-triggered request is accepted by the router, `agent-label.yml` removes the triggering `agent/*` label so label-based runs behave like one-shot queue entries, including policy-denied requests that resolve to `unsupported`.
 

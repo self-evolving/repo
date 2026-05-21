@@ -1,4 +1,6 @@
-# Overall design
+---
+title: "Overall design"
+---
 
 The `.agent` backend exposes a small set of GitHub-native agent workflows. Agent execution goes through the direct `acpx <agent> exec/prompt` path, with session continuity handled by `SessionPolicy` plus git-ref thread state.
 

@@ -1,6 +1,8 @@
-# Install Into An Existing Repository
+---
+title: "Install into an existing repository"
+---
 
-This page documents the minimal path for adding the Sepo agent backend to a repository that did not start from this template. If you are starting from this repository as a template, use the main [README quick start](../../../README.md) instead.
+This page documents the minimal path for adding the Sepo agent backend to a repository that did not start from this template. If you are starting from this repository as a template, use the main [README quick start](https://github.com/self-evolving/repo/blob/main/README.md) instead.
 
 ## Choose an install path
 
