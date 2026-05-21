@@ -96,6 +96,20 @@ test("provider resolver auto-detects configured providers deterministically", ()
   assert.equal(anthropicOnly.outputs.reason, "ANTHROPIC_API_KEY is configured");
   assert.equal(anthropicOnly.outputs.install_codex, "false");
   assert.equal(anthropicOnly.outputs.install_claude, "true");
+
+  const bothClaudeCredentials = runResolver({
+    CLAUDE_CODE_OAUTH_TOKEN: "claude-token",
+    ANTHROPIC_API_KEY: "anthropic-token",
+  });
+
+  assert.equal(bothClaudeCredentials.status, 0, bothClaudeCredentials.stderr);
+  assert.equal(bothClaudeCredentials.outputs.provider, "claude");
+  assert.equal(
+    bothClaudeCredentials.outputs.reason,
+    "CLAUDE_CODE_OAUTH_TOKEN is configured",
+  );
+  assert.equal(bothClaudeCredentials.outputs.install_codex, "false");
+  assert.equal(bothClaudeCredentials.outputs.install_claude, "true");
 });
 
 test("provider resolver honors default and inline route overrides", () => {
