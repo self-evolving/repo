@@ -93,8 +93,8 @@ Getting started:
 Understanding the system:
 
 - [Overall design](.agent/docs/architecture/overall-design.md)
-- [Supported workflows](.agent/docs/architecture/supported-workflows.md)
-- [Agent actions](.agent/docs/actions/agent-actions.md)
+- [Supported workflows](.agent/docs/usage/supported-workflows.md)
+- [Agent actions](.agent/docs/usage/agent-actions.md)
 
 Customizing and operating:
 

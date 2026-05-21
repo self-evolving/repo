@@ -99,7 +99,7 @@ Getting started:
 Understanding the system:
 
 - [Overall design](architecture/overall-design.md)
-- [Supported workflows](architecture/supported-workflows.md)
+- [Supported workflows](usage/supported-workflows.md)
 - [The life cycle of an agent request](architecture/request-lifecycle.md)
 - [Repository goals](architecture/goals.md)
 - [Repository memory](architecture/memory.md)
@@ -107,9 +107,9 @@ Understanding the system:
 
 Actions:
 
-- [Actions overview](actions/index.md)
-- [Internal actions](actions/internal-actions.md)
-- [Agent actions](actions/agent-actions.md)
+- [Actions overview](usage/index.md)
+- [Internal actions](usage/internal-actions.md)
+- [Agent actions](usage/agent-actions.md)
 
 Customizing and operating:
 
