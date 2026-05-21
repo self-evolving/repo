@@ -105,9 +105,9 @@ Understanding the system:
 - [Repository memory](architecture/memory.md)
 - [User/team rubrics](architecture/rubrics.md)
 
-Actions:
+Using Sepo:
 
-- [Actions overview](usage/index.md)
+- [Using Sepo overview](usage/index.md)
 - [Internal actions](usage/internal-actions.md)
 - [Agent actions](usage/agent-actions.md)
 
