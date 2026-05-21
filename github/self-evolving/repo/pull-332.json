@@ -141,8 +141,8 @@
       "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-233/codex-26197424768`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Updated `AGENT_DEFAULT_PROVIDER` and self-hosted runner docs to describe `auto`: `OPENAI_API_KEY` selects Codex; otherwise either Claude credential selects Claude.\n- Added resolver coverage for both Claude credentials together and onboarding CLI coverage for `ANTHROPIC_API_KEY_CONFIGURED=true`.\n- Verified with `npm run build`, focused resolver/onboarding tests, `dist/__tests__/envelope.test.js`, and `git diff --check`.",
       "createdAt": "2026-05-21T11:26:12Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/332#issuecomment-4507731346",
       "viewerDidAuthor": true
@@ -156,8 +156,8 @@
       "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #332 | 4 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on open PR #332 after addressing the latest MINOR_ISSUES review action items; a fresh review should validate the current head before stopping.\n\n<!-- sepo-agent-handoff state:dispatched created:1779362820322 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYyMjI4OTY1MTE6Zml4X3ByOjMzMjpyZXZpZXc6MzMyOjQ -->",
       "createdAt": "2026-05-21T11:27:00Z",
       "includesCreatedEdit": true,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/332#issuecomment-4507736848",
       "viewerDidAuthor": true
@@ -214,8 +214,8 @@
       "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 11 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | Extends existing provider resolver and runtime env plumbing instead of adding a parallel path: [`resolve-provider.sh`](https://github.com/self-evolving/repo/blob/8762dbf66a079cc7d86b98a1244f02a67c60db9f/.github/actions/resolve-agent-provider/resolve-provider.sh#L39-L84), [`run.ts`](https://github.com/self-evolving/repo/blob/8762dbf66a079cc7d86b98a1244f02a67c60db9f/.agent/src/run.ts#L296-L301). |\n| coding_workflow/generic | Make surgical changes | pass | 8/8 | Scope stays on direct `ANTHROPIC_API_KEY` support for Claude runs, matching the narrowed issue #233 request. |\n| coding_style/generic | Prefer simple implementations | pass | 7/7 | Keeps provider choices as `auto`, `codex`, and `claude`; adds `ANTHROPIC_API_KEY` as one Claude readiness signal rather than modeling every Claude enterprise variant. |\n| coding_workflow/generic | Minimal defaults, native escape hatches | pass | 8/8 | `auto` remains simple and deterministic: OpenAI first, otherwise Claude via OAuth or Anthropic key; explicit provider overrides still work without secrets for local auth. |\n| coding_workflow/generic | Prefer explicit structured inputs | pass | 7/7 | Adds explicit `anthropic_api_key` inputs and secret wiring in actions/workflows, not an overloaded credential field. |\n| coding_workflow/generic | Name config by capability | pass | 6/6 | Uses provider-native `ANTHROPIC_API_KEY`, documented as the direct Anthropic API key capability: [`configuration-list.md`](https://github.com/self-evolving/repo/blob/8762dbf66a079cc7d86b98a1244f02a67c60db9f/.agent/docs/customization/configuration-list.md#L41-L44). |\n| coding_workflow/generic | Keep docs in sync | pass | 7/7 | Updates user-facing and technical docs for provider detection and setup, including README and configuration docs: [`README.md`](https://github.com/self-evolving/repo/blob/8762dbf66a079cc7d86b98a1244f02a67c60db9f/README.md#L15-L20), [`configuration-list.md`](https://github.com/self-evolving/repo/blob/8762dbf66a079cc7d86b98a1244f02a67c60db9f/.agent/docs/customization/configuration-list.md#L7-L10). |\n| communication/generic | Make setup guidance actionable | pass | 7/7 | Install/setup guidance names the exact secret and links users to target repo Actions secrets/onboarding workflow: [`install-fork-pr.ts`](https://github.com/self-evolving/repo/blob/8762dbf66a079cc7d86b98a1244f02a67c60db9f/.agent/src/install-fork-pr.ts#L203-L210). |\n| communication/generic | Write audience-first documentation | pass | 7/7 | Entry docs keep the immediate setup checklist prominent and only adjust credential wording, avoiding internal implementation detail. |\n| coding_workflow/generic | Make user-facing automation idempotent | pass | 7/7 | Onboarding still updates the marked setup issue/comment path and now reports `ANTHROPIC_API_KEY` status through the existing credential list: [`onboarding.ts`](https://github.com/self-evolving/repo/blob/8762dbf66a079cc7d86b98a1244f02a67c60db9f/.agent/src/onboarding.ts#L178-L205). |\n| coding_workflow/generic | Read docs and linked context first | pass | 6/6 | PR follows issue #233’s narrowed “simplest first step” request and includes focused tests for resolver and onboarding behavior: [`resolve-agent-provider.test.ts`](https://github.com/self-evolving/repo/blob/8762dbf66a079cc7d86b98a1244f02a67c60db9f/.agent/src/__tests__/resolve-agent-provider.test.ts#L72-L113), [`onboarding-check-cli.test.ts`](https://github.com/self-evolving/repo/blob/8762dbf66a079cc7d86b98a1244f02a67c60db9f/.agent/src/__tests__/onboarding-check-cli.test.ts#L212-L260). |\n\n## Notes\n\n- The current PR head satisfies the applicable rubrics: it threads `ANTHROPIC_API_KEY` through provider resolution, runtime forwarding, workflows, onboarding, docs, and tests without broadening the provider model.\n- Earlier review warnings about stale docs and missing test coverage appear addressed in the current diff.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific issues found.\n\n## Final Rubric Verdict\n\nPASS",
       "createdAt": "2026-05-21T15:31:43Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/332#issuecomment-4509805998",
       "viewerDidAuthor": true
@@ -244,8 +244,8 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #332 implements the narrowed #233 request: support direct `ANTHROPIC_API_KEY` authentication for Claude-backed Sepo runs.\n- It keeps the provider model unchanged as `auto`, `codex`, or `claude`, adding `ANTHROPIC_API_KEY` as another Claude readiness signal.\n- The PR threads the new credential through provider resolution, workflow/action inputs, runtime environment forwarding, onboarding status, docs, and focused tests.\n- The current head also addresses the earlier review follow-ups around stale docs and missing regression coverage.\n\n## Review\nAll current reviewer outputs agree that the PR is ready to ship. I found no remaining blocking or warning-level branch changes, and there were no meaningful reviewer disagreements.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | Current code, docs, tests, rubrics review, and GitHub check status support shipping the PR as-is. |\n\n## Progress\n- Earlier warnings about provider auto-detection docs, dual-Claude credential resolver coverage, and Anthropic onboarding coverage are fixed in the current head.\n- Rubrics review passed with no rubric-specific follow-up.\n- Existing same-agent inline threads for the resolved prior findings were re-fetched, verified against the current PR state, and resolved.\n- No new inline comments were posted; no comments were minimized.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved actionable branch-change work remains, so automation should stop.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
       "createdAt": "2026-05-21T15:38:53Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/332#issuecomment-4509870430",
       "viewerDidAuthor": true
@@ -261,9 +261,112 @@
       "includesCreatedEdit": false,
       "isMinimized": false,
       "minimizedReason": "",
-      "reactionGroups": [],
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
       "url": "https://github.com/self-evolving/repo/pull/332#issuecomment-4509979993",
       "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDNFuYA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | fix-pr | PR #332 | 2 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: The latest user request explicitly asks to resolve merge conflicts on open PR #332, and GitHub reports mergeStateStatus DIRTY. This is a concrete branch-change task suitable for fix-pr rather than review-only automation.\n\nTask for fix-pr:\nResolve the merge conflicts on PR #332 by updating branch `agent/implement-issue-233/codex-26197424768` against `main`. Preserve the PR's intended #233 behavior: add `ANTHROPIC_API_KEY` as a Claude provider readiness signal, pass it through workflows/run-agent-task/runtime env forwarding, and keep the related onboarding/docs/tests. Avoid unrelated refactors or metadata-only changes. After resolving conflicts, run an appropriate verification pass, at minimum build/focused tests if available and `git diff --check`.\n\n<!-- sepo-agent-handoff state:dispatched created:1779378775379 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYyMzY5NDgwMzM6b3JjaGVzdHJhdGU6MzMyOmZpeF9wcjozMzI6Mg -->",
+      "createdAt": "2026-05-21T15:52:55Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/332#issuecomment-4510019168",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDNHMUg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo could not complete the PR fix run.**\n\n<!-- sepo-agent-fix-pr-status -->\n\nInspect the workflow logs and retry if appropriate.\n\n",
+      "createdAt": "2026-05-21T15:54:42Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/332#issuecomment-4510043218",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDNVz8Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-233/codex-26197424768`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Merged `origin/main` into the existing PR branch and resolved the only conflict in `configuration-list.md`.\n- Kept `main`'s docs reorganization link paths while preserving the PR's `ANTHROPIC_API_KEY` provider behavior, docs, onboarding, and tests.\n- Verified with `npm run build`, focused resolver/onboarding/envelope/docs-validation tests, and `git diff --check`.\n- Left the merge staged and uncommitted for the workflow to commit.",
+      "createdAt": "2026-05-21T16:19:34Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/332#issuecomment-4510282737",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDNWWzA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #332 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded after resolving PR #332 merge conflicts; a fresh review should validate the current head and confirm the conflict resolution preserved the intended ANTHROPIC_API_KEY behavior before the chain stops.\n\n<!-- sepo-agent-handoff state:dispatched created:1779380440912 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYyMzcxMzA3ODI6Zml4X3ByOjMzMjpyZXZpZXc6MzMyOjM -->",
+      "createdAt": "2026-05-21T16:20:41Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/332#issuecomment-4510291660",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDNXohA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 11 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | Extends existing provider resolver and runtime env plumbing instead of adding a parallel path: [`resolve-provider.sh`](https://github.com/self-evolving/repo/blob/4baee3c2d6c323899e485a4a07f49a0733dd6f5e/.github/actions/resolve-agent-provider/resolve-provider.sh), [`run.ts`](https://github.com/self-evolving/repo/blob/4baee3c2d6c323899e485a4a07f49a0733dd6f5e/.agent/src/run.ts). |\n| coding_workflow/generic | Make surgical changes | pass | 8/8 | Scope stays on direct `ANTHROPIC_API_KEY` support for Claude runs, matching issue #233’s narrowed “simplest first step” request. |\n| coding_style/generic | Prefer simple implementations | pass | 7/7 | Keeps provider choices as `auto`, `codex`, and `claude`; adds one Claude readiness signal rather than modeling enterprise/provider variants. |\n| coding_workflow/generic | Minimal defaults, native escape hatches | pass | 8/8 | `auto` remains deterministic: OpenAI first, otherwise Claude via OAuth or Anthropic key; explicit provider overrides still work for local runner auth. |\n| coding_workflow/generic | Prefer explicit structured inputs | pass | 7/7 | Adds explicit `anthropic_api_key` inputs and workflow secret wiring rather than overloading existing OAuth/OpenAI fields. |\n| coding_workflow/generic | Name config by capability | pass | 6/6 | Uses provider-native `ANTHROPIC_API_KEY`, documented as the direct Anthropic API key capability. |\n| coding_workflow/generic | Keep docs in sync | pass | 7/7 | Updates README, quick start, configuration list, self-hosted runner docs, internal-actions docs, install docs, and install prompt. |\n| communication/generic | Make setup guidance actionable | pass | 7/7 | Setup/onboarding text names the exact secret and links users to target repo Actions secrets/onboarding workflow via `install-fork-pr.ts`. |\n| communication/generic | Write audience-first documentation | pass | 7/7 | Entry docs keep the immediate setup checklist prominent and only adjust credential wording, avoiding internal implementation detail. |\n| coding_workflow/generic | Make user-facing automation idempotent | pass | 7/7 | Onboarding still updates the existing marked setup issue/comment path and now reports `ANTHROPIC_API_KEY` through the existing credential list. |\n| coding_workflow/generic | Read docs and linked context first | pass | 6/6 | PR follows issue #233’s latest narrowed request and includes focused resolver/onboarding/envelope tests for the new credential path. |\n\n## Notes\n\n- The current PR head satisfies the applicable rubrics: it threads `ANTHROPIC_API_KEY` through provider resolution, workflow/action inputs, runtime forwarding, onboarding, docs, and tests without broadening the provider model.\n- The later conflict-resolution update preserved the intended behavior and kept main’s docs reorganization link paths.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific issues found.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-21T16:22:34Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/332#issuecomment-4510312580",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDNaThg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 4baee3c2d6c323899e485a4a07f49a0733dd6f5e -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #332 implements the narrowed issue #233 request to support direct `ANTHROPIC_API_KEY` authentication for Claude-backed Sepo runs.\n- It keeps the provider model as `auto`, `codex`, or `claude`, adding `ANTHROPIC_API_KEY` as another Claude readiness signal.\n- The change threads the credential through provider resolution, workflow/action inputs, runtime env forwarding, onboarding status, docs, and focused tests.\n- The later conflict-resolution update preserved that behavior while keeping `main`’s docs reorganization.\n\n## Review\nThe available code review and rubrics review both conclude that the current PR head is ready to ship. I found no meaningful reviewer disagreement and no unresolved actionable branch-change work.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | Current review artifacts, resolved inline threads, clean merge state, passing check rollup, and focused verification support shipping the PR as-is. |\n\n## Progress\n- Earlier doc/test warnings are fixed in the current head `4baee3c2d6c323899e485a4a07f49a0733dd6f5e`.\n- Existing same-agent inline review threads for those prior findings are already resolved.\n- Current PR state is `mergeStateStatus: CLEAN`; `Test Scripts / check` succeeded.\n- No new inline comments were posted; no comments were minimized and no threads were resolved during this synthesis.\n- `git diff --check origin/main...origin/pr-332` passed.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved actionable branch-change work remains, so automation should stop.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-21T16:27:56Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/332#issuecomment-4510356358",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-21T00:16:41Z",
@@ -275,32 +378,8 @@
       "changeType": "MODIFIED"
     },
     {
-      "path": ".agent/docs/actions/internal-actions.md",
-      "additions": 1,
-      "deletions": 1,
-      "changeType": "MODIFIED"
-    },
-    {
-      "path": ".agent/docs/architecture/supported-workflows.md",
-      "additions": 1,
-      "deletions": 1,
-      "changeType": "MODIFIED"
-    },
-    {
       "path": ".agent/docs/customization/configuration-list.md",
       "additions": 2,
-      "deletions": 1,
-      "changeType": "MODIFIED"
-    },
-    {
-      "path": ".agent/docs/deployment/install-existing-repository.md",
-      "additions": 3,
-      "deletions": 3,
-      "changeType": "MODIFIED"
-    },
-    {
-      "path": ".agent/docs/deployment/self-hosted-github-action-runner.md",
-      "additions": 1,
       "deletions": 1,
       "changeType": "MODIFIED"
     },
@@ -311,7 +390,31 @@
       "changeType": "MODIFIED"
     },
     {
+      "path": ".agent/docs/setup/install-existing-repository.md",
+      "additions": 3,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/setup/self-hosted-github-action-runner.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
       "path": ".agent/docs/technical-details/key-concepts.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/internal-actions.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/supported-workflows.md",
       "additions": 1,
       "deletions": 1,
       "changeType": "MODIFIED"
@@ -558,6 +661,6 @@
   ],
   "state": "OPEN",
   "title": "Support Anthropic API key for Claude runs",
-  "updatedAt": "2026-05-21T15:49:32Z",
+  "updatedAt": "2026-05-21T16:27:56Z",
   "url": "https://github.com/self-evolving/repo/pull/332"
 }
