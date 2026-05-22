@@ -38,11 +38,16 @@ esac
 
 has_codex=false
 has_claude=false
+claude_reason=""
 if [ -n "${OPENAI_API_KEY:-}" ]; then
   has_codex=true
 fi
 if [ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]; then
   has_claude=true
+  claude_reason="CLAUDE_CODE_OAUTH_TOKEN is configured"
+elif [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+  has_claude=true
+  claude_reason="ANTHROPIC_API_KEY is configured"
 fi
 
 for candidate in "$route_provider" "$default_provider"; do
@@ -74,9 +79,9 @@ elif [ "$has_codex" = true ]; then
   reason="OPENAI_API_KEY is configured"
 elif [ "$has_claude" = true ]; then
   provider=claude
-  reason="CLAUDE_CODE_OAUTH_TOKEN is configured"
+  reason="$claude_reason"
 else
-  echo "No configured agent provider for route '$route'. Set AGENT_DEFAULT_PROVIDER to codex or claude, or configure OPENAI_API_KEY or CLAUDE_CODE_OAUTH_TOKEN." >&2
+  echo "No configured agent provider for route '$route'. Set AGENT_DEFAULT_PROVIDER to codex or claude, or configure OPENAI_API_KEY, CLAUDE_CODE_OAUTH_TOKEN, or ANTHROPIC_API_KEY." >&2
   if [ "$required" = true ]; then
     exit 1
   fi
@@ -91,7 +96,7 @@ if [ "$explicit_provider" = true ] && [ "$provider" = codex ] && [ "$has_codex" 
   echo "Resolved provider codex for route '$route' without OPENAI_API_KEY; relying on local Codex authentication if available." >&2
 fi
 if [ "$explicit_provider" = true ] && [ "$provider" = claude ] && [ "$has_claude" != true ]; then
-  echo "Resolved provider claude for route '$route' without CLAUDE_CODE_OAUTH_TOKEN; relying on local Claude authentication if available." >&2
+  echo "Resolved provider claude for route '$route' without CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY; relying on local Claude authentication if available." >&2
 fi
 
 write_outputs

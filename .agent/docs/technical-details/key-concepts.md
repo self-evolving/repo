@@ -124,7 +124,7 @@ Remaining runner requirements:
 - one GitHub auth mode
 - `id-token: write` for the official hosted auth path
 - `OPENAI_API_KEY` for Codex-backed workflows
-- optional `CLAUDE_CODE_OAUTH_TOKEN` for Claude-backed routes
+- optional `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` for Claude-backed routes
 
 ## Tests
 
