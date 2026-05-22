@@ -143,7 +143,6 @@ test("provider resolver applies model policy defaults and provider settings", ()
       providers: {
         claude: { model: "claude-sonnet-4-5", reasoning_effort: "max" },
       },
-      display: { enabled: true },
     }),
   });
 
@@ -152,8 +151,31 @@ test("provider resolver applies model policy defaults and provider settings", ()
   assert.equal(resolved.outputs.reason, "AGENT_MODEL_POLICY default");
   assert.equal(resolved.outputs.model, "claude-sonnet-4-5");
   assert.equal(resolved.outputs.reasoning_effort, "max");
-  assert.equal(resolved.outputs.display_model, "true");
+  assert.equal(resolved.outputs.display_model, "false");
   assert.match(resolved.stderr, /relying on local Claude authentication/);
+});
+
+test("provider resolver uses AGENT_DISPLAY_MODEL as the only display toggle", () => {
+  const policyDisplay = runResolver({
+    OPENAI_API_KEY: "openai-token",
+    AGENT_MODEL_POLICY: JSON.stringify({
+      display: { enabled: true },
+    }),
+  });
+
+  assert.equal(policyDisplay.status, 0, policyDisplay.stderr);
+  assert.equal(policyDisplay.outputs.display_model, "false");
+
+  const envDisplay = runResolver({
+    OPENAI_API_KEY: "openai-token",
+    DISPLAY_MODEL: "yes",
+    AGENT_MODEL_POLICY: JSON.stringify({
+      display: { enabled: false },
+    }),
+  });
+
+  assert.equal(envDisplay.status, 0, envDisplay.stderr);
+  assert.equal(envDisplay.outputs.display_model, "true");
 });
 
 test("provider resolver lets route model policy override provider defaults", () => {
@@ -168,7 +190,6 @@ test("provider resolver lets route model policy override provider defaults", () 
       route_overrides: {
         "test-route": { provider: "claude", model: "claude-haiku-4-5", reasoning_effort: "medium" },
       },
-      display: { enabled: true },
     }),
     DISPLAY_MODEL: "false",
   });

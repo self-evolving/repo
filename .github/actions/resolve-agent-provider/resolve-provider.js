@@ -59,25 +59,12 @@ function normalizeConfig(value, label, allowProvider) {
   return config;
 }
 
-function normalizeDisplay(value) {
-  if (value === undefined || value === null) return {};
-  if (typeof value !== "object" || Array.isArray(value)) {
-    throw new Error("display must be an object");
-  }
-  if (!Object.prototype.hasOwnProperty.call(value, "enabled")) return {};
-  if (typeof value.enabled !== "boolean") {
-    throw new Error("display.enabled must be a boolean");
-  }
-  return { enabled: value.enabled };
-}
-
 function parsePolicy(raw) {
   const text = String(raw || "").trim();
   const empty = {
     defaultConfig: {},
     providers: {},
     routeOverrides: {},
-    display: {},
   };
   if (!text) return empty;
 
@@ -123,9 +110,6 @@ function parsePolicy(raw) {
         true,
       );
     }
-  }
-  if (Object.prototype.hasOwnProperty.call(payload, "display")) {
-    policy.display = normalizeDisplay(payload.display);
   }
   return policy;
 }
@@ -229,9 +213,7 @@ function main(env) {
     if (required === "true") {
       return 1;
     }
-    const displayModel = parseOptionalBoolean(env.DISPLAY_MODEL || "", "display_model")
-      ?? policy.display.enabled
-      ?? false;
+    const displayModel = parseOptionalBoolean(env.DISPLAY_MODEL || "", "display_model") ?? false;
     writeOutputs({ provider: "", reason: "no configured provider", model: "", reasoningEffort: "", displayModel });
     console.log(`Agent provider for ${route} is unresolved (no configured provider).`);
     return 0;
@@ -249,9 +231,7 @@ function main(env) {
   }
 
   const runConfig = resolveRunConfig(policy, provider, route);
-  const displayModel = parseOptionalBoolean(env.DISPLAY_MODEL || "", "display_model")
-    ?? policy.display.enabled
-    ?? false;
+  const displayModel = parseOptionalBoolean(env.DISPLAY_MODEL || "", "display_model") ?? false;
   writeOutputs({
     provider,
     reason,

@@ -41,8 +41,6 @@ export interface AcpxRunOptions {
   thoughtLevel?: string;
   /** Allow exec lanes to use a fresh session for non-resumable artifacts. */
   preserveExecSession?: boolean;
-  /** Allow exec lanes to use a fresh Codex session only to apply thoughtLevel. */
-  preserveExecThoughtLevel?: boolean;
   /** Prior ACP session ID to resume (when workflow opts in) */
   resumeSessionId?: string;
   /** Extra environment variables */
@@ -669,7 +667,6 @@ export function runAcpx(options: AcpxRunOptions): AcpxRunResult {
     timeout,
     thoughtLevel,
     preserveExecSession,
-    preserveExecThoughtLevel,
     resumeSessionId,
     env: extraEnv,
   } = options;
@@ -680,10 +677,7 @@ export function runAcpx(options: AcpxRunOptions): AcpxRunResult {
   const normalizedThoughtLevel = thoughtLevel?.trim();
   const needsTransientExecSession =
     preserveExecSession === true ||
-    (preserveExecThoughtLevel === true &&
-      isExecRoute &&
-      isCodexAgent(agent) &&
-      Boolean(normalizedThoughtLevel));
+    (isExecRoute && isCodexAgent(agent) && Boolean(normalizedThoughtLevel));
   let sessionName: string | undefined;
   let sessionEnsureOutcome: SessionEnsureOutcome = { kind: "not_applicable" };
   if (isExecRoute && needsTransientExecSession) {

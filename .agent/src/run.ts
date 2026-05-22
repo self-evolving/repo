@@ -590,7 +590,6 @@ function runDirectPath(opts: {
     thoughtLevel: process.env.MODEL_REASONING_EFFORT,
     preserveExecSession:
       sessionPolicy === "track-only" && shouldBackupSessionBundles(sessionBundleMode, sessionPolicy),
-    preserveExecThoughtLevel: sessionPolicy === "track-only",
     resumeSessionId,
     continuationPrompt: continuationPromptAllowed ? continuationPrompt : undefined,
     env: sharedEnv,
