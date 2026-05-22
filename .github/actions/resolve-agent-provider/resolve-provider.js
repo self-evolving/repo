@@ -160,14 +160,16 @@ function resolveProviderRequest(env, policy, route) {
     requestedReason = `route override for ${route}`;
   }
 
-  return { requestedProvider, requestedReason };
+  return { requestedProvider, requestedReason, hasRouteProviderOverride: Boolean(routeProvider) };
 }
 
-function resolveRunConfig(policy, provider, route) {
+function resolveRunConfig(policy, provider, route, options = {}) {
   const config = { model: "", reasoningEffort: "" };
   applyRunConfig(config, policy.defaultConfig);
   applyRunConfig(config, policy.providers[provider] || {});
-  applyRunConfig(config, policy.routeOverrides[route] || {});
+  if (!options.hasRouteProviderOverride) {
+    applyRunConfig(config, policy.routeOverrides[route] || {});
+  }
   return config;
 }
 
@@ -189,7 +191,7 @@ function main(env) {
   }
 
   const policy = parsePolicy(env.AGENT_MODEL_POLICY || "");
-  const { requestedProvider, requestedReason } = resolveProviderRequest(env, policy, route);
+  const { requestedProvider, requestedReason, hasRouteProviderOverride } = resolveProviderRequest(env, policy, route);
 
   const hasCodex = Boolean(env.OPENAI_API_KEY);
   const hasClaudeOauth = Boolean(env.CLAUDE_CODE_OAUTH_TOKEN);
@@ -237,7 +239,7 @@ function main(env) {
     );
   }
 
-  const runConfig = resolveRunConfig(policy, provider, route);
+  const runConfig = resolveRunConfig(policy, provider, route, { hasRouteProviderOverride });
   const displayModel = parseOptionalBoolean(env.DISPLAY_MODEL || "", "display_model") ?? false;
   writeOutputs({
     provider,

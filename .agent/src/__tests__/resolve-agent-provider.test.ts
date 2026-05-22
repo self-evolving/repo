@@ -226,6 +226,29 @@ test("provider resolver lets route model policy override provider defaults", () 
   assert.equal(resolved.outputs.display_model, "false");
 });
 
+test("provider resolver keeps inline route provider from inheriting route policy settings", () => {
+  const resolved = runResolver({
+    ROUTE_PROVIDER: "codex",
+    OPENAI_API_KEY: "openai-token",
+    CLAUDE_CODE_OAUTH_TOKEN: "claude-token",
+    AGENT_MODEL_POLICY: JSON.stringify({
+      providers: {
+        codex: { model: "gpt-5.4", reasoning_effort: "xhigh" },
+        claude: { model: "claude-sonnet-4-5", reasoning_effort: "max" },
+      },
+      route_overrides: {
+        "test-route": { provider: "claude", model: "claude-haiku-4-5", reasoning_effort: "medium" },
+      },
+    }),
+  });
+
+  assert.equal(resolved.status, 0, resolved.stderr);
+  assert.equal(resolved.outputs.provider, "codex");
+  assert.equal(resolved.outputs.reason, "route override for test-route");
+  assert.equal(resolved.outputs.model, "gpt-5.4");
+  assert.equal(resolved.outputs.reasoning_effort, "xhigh");
+});
+
 test("provider resolver supports nonfatal unresolved setup passes", () => {
   const soft = runResolver({ REQUIRED: "false" });
 

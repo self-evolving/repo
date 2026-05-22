@@ -126,8 +126,8 @@ use target-specific links where possible:
 
 1. install the Sepo GitHub App on the target repository, or choose another
    supported auth path from the setup guide
-2. add `OPENAI_API_KEY` and/or `CLAUDE_CODE_OAUTH_TOKEN` in the target
-   repository's Actions secrets
+2. add `OPENAI_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`, and/or
+   `ANTHROPIC_API_KEY` in the target repository's Actions secrets
 3. run the target repository's `Agent / Onboarding / Check Setup` workflow
 4. review the target repository's `Sepo setup check` issue and complete
    remaining setup
