@@ -192,7 +192,14 @@ function main(env) {
   const { requestedProvider, requestedReason } = resolveProviderRequest(env, policy, route);
 
   const hasCodex = Boolean(env.OPENAI_API_KEY);
-  const hasClaude = Boolean(env.CLAUDE_CODE_OAUTH_TOKEN);
+  const hasClaudeOauth = Boolean(env.CLAUDE_CODE_OAUTH_TOKEN);
+  const hasAnthropic = Boolean(env.ANTHROPIC_API_KEY);
+  const hasClaude = hasClaudeOauth || hasAnthropic;
+  const claudeReason = hasClaudeOauth
+    ? "CLAUDE_CODE_OAUTH_TOKEN is configured"
+    : hasAnthropic
+      ? "ANTHROPIC_API_KEY is configured"
+      : "";
   const explicitProvider = requestedProvider !== "auto";
 
   let provider = "";
@@ -205,10 +212,10 @@ function main(env) {
     reason = "OPENAI_API_KEY is configured";
   } else if (hasClaude) {
     provider = "claude";
-    reason = "CLAUDE_CODE_OAUTH_TOKEN is configured";
+    reason = claudeReason;
   } else {
     console.error(
-      `No configured agent provider for route '${route}'. Set AGENT_DEFAULT_PROVIDER to codex or claude, configure AGENT_MODEL_POLICY.default.provider, or configure OPENAI_API_KEY or CLAUDE_CODE_OAUTH_TOKEN.`,
+      `No configured agent provider for route '${route}'. Set AGENT_DEFAULT_PROVIDER to codex or claude, configure AGENT_MODEL_POLICY.default.provider, or configure OPENAI_API_KEY, CLAUDE_CODE_OAUTH_TOKEN, or ANTHROPIC_API_KEY.`,
     );
     if (required === "true") {
       return 1;
@@ -226,7 +233,7 @@ function main(env) {
   }
   if (explicitProvider && provider === "claude" && !hasClaude) {
     console.error(
-      `Resolved provider claude for route '${route}' without CLAUDE_CODE_OAUTH_TOKEN; relying on local Claude authentication if available.`,
+      `Resolved provider claude for route '${route}' without CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY; relying on local Claude authentication if available.`,
     );
   }
 

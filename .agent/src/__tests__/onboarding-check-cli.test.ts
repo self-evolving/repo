@@ -192,7 +192,7 @@ exit 1
     assert.match(log, /Model credentials: not configured/);
     assert.match(
       log,
-      /Add `OPENAI_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` in \[repository Actions secrets\]\(https:\/\/github.com\/self-evolving\/repo\/settings\/secrets\/actions\)\./,
+      /Add `OPENAI_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`, or `ANTHROPIC_API_KEY` in \[repository Actions secrets\]\(https:\/\/github.com\/self-evolving\/repo\/settings\/secrets\/actions\)\./,
     );
     assert.match(log, /Memory: not initialized/);
     assert.match(

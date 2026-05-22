@@ -254,6 +254,7 @@ test("single-agent workflows resolve provider before runtime setup", () => {
   assert.match(resolverImplementation, /AGENT_MODEL_POLICY/);
   assert.match(resolverImplementation, /OPENAI_API_KEY/);
   assert.match(resolverImplementation, /CLAUDE_CODE_OAUTH_TOKEN/);
+  assert.match(resolverImplementation, /ANTHROPIC_API_KEY/);
   assert.match(resolverImplementation, /provider = "codex"/);
   assert.match(resolverImplementation, /provider = "claude"/);
 
@@ -275,6 +276,7 @@ test("single-agent workflows resolve provider before runtime setup", () => {
     assert.match(workflow, /agent:\s*\$\{\{\s*steps\.provider\.outputs\.provider\s*\}\}/);
     assert.match(workflow, /model:\s*\$\{\{\s*steps\.provider\.outputs\.model\s*\}\}/);
     assert.match(workflow, /claude_oauth_token:\s*\$\{\{\s*secrets\.CLAUDE_CODE_OAUTH_TOKEN\s*\}\}/);
+    assert.match(workflow, /anthropic_api_key:\s*\$\{\{\s*secrets\.ANTHROPIC_API_KEY\s*\}\}/);
   }
 
   assert.match(fixPrWorkflow, /lane:\s*fix-pr-\$\{\{\s*steps\.provider\.outputs\.provider\s*\}\}/);
@@ -289,6 +291,7 @@ test("single-agent workflows resolve provider before runtime setup", () => {
   assert.match(reviewWorkflow, /model:\s*\$\{\{\s*steps\.synthesis_provider\.outputs\.model\s*\}\}/);
   assert.match(reviewWorkflow, /reasoning_effort:\s*\$\{\{\s*steps\.synthesis_provider\.outputs\.reasoning_effort \|\| \(steps\.synthesis_provider\.outputs\.provider == 'claude' && 'max' \|\| 'xhigh'\)\s*\}\}/);
   assert.match(reviewWorkflow, /openai_api_key:\s*\$\{\{\s*secrets\.OPENAI_API_KEY\s*\}\}/);
+  assert.match(reviewWorkflow, /anthropic_api_key:\s*\$\{\{\s*secrets\.ANTHROPIC_API_KEY\s*\}\}/);
   const reviewerRunBlock = reviewWorkflow.match(
     /- name: Run \$\{\{ matrix\.agent \}\} review[\s\S]*?(?=\n      - name: Persist review artifacts)/,
   )?.[0] || "";
@@ -853,6 +856,7 @@ test("shared run-agent-task action exists and requires explicit prompt/skill/lan
   assert.match(action, /skill_root:/);
   assert.match(action, /model:/);
   assert.match(action, /display_model:/);
+  assert.match(action, /anthropic_api_key:/);
   assert.match(action, /lane:/);
   assert.match(action, /session_policy:/);
   const sessionPolicyBlock = action.match(/session_policy:[\s\S]*?(?=^  [a-z_]+:|^outputs:)/m)?.[0] || "";
@@ -863,6 +867,7 @@ test("shared run-agent-task action exists and requires explicit prompt/skill/lan
   assert.match(action, /SKILL_ROOT/);
   assert.match(action, /MODEL_ID/);
   assert.match(action, /DISPLAY_MODEL/);
+  assert.match(action, /ANTHROPIC_API_KEY/);
   assert.match(action, /LANE/);
   assert.match(action, /SESSION_POLICY/);
   assert.match(action, /\.agent\/dist\/run\.js/);
