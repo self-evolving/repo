@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "@sepo-agent /answer what are some easy ways to stop all action workflows? or we should add a flag? ",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDXV-Fw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Short answer: for today, use GitHub’s native workflow disable. For Sepo itself, yes, I think we should add a first-class repo variable flag.\n\nEasy options now:\n\n1. Stop **all repo workflows**:\n```bash\ngh workflow list --repo self-evolving/repo --all --json id --jq '.[].id' |\n  xargs -n1 gh workflow disable --repo self-evolving/repo\n```\n\n2. Stop only **Sepo-owned workflows**:\n```bash\ngh workflow list --repo self-evolving/repo --all --json id,path \\\n  --jq '.[] | select(.path | startswith(\".github/workflows/agent-\")) | .id' |\n  xargs -n1 gh workflow disable --repo self-evolving/repo\n```\n\n3. Stop only **scheduled Sepo work**:\nSet `AGENT_SCHEDULE_POLICY` to:\n```json\n{\"default_mode\":\"disabled\"}\n```\nThat matches the existing schedule policy shape, but it only affects `schedule` events; manual `workflow_dispatch` still works. See [`AGENT_SCHEDULE_POLICY`](https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/memory.md#L124-L145).\n\n4. Stop only **multi-step follow-up automation**:\n`AGENT_AUTOMATION_MODE` is not a global stop switch. It controls orchestrator handoff behavior, not mention/label/manual workflow starts. The current entrypoints still call the router from mention and label workflows via [`agent-entrypoint.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-entrypoint.yml#L46-L57) and [`agent-label.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-label.yml#L30-L40).\n\nI’d add a flag. Proposed shape:\n\n```text\nAGENT_ENABLED=false\n```\n\nDefault behavior: enabled unless explicitly set to `false`.\n\nImplementation plan:\n\n1. Add a cheap job-level guard to Sepo entry/manual/scheduled workflows before checkout/runtime setup.\n2. Apply it to `agent-entrypoint.yml`, `agent-label.yml`, approval, orchestrator, implement, review, fix-pr, self-approve, self-merge, memory, rubrics, update, project-manager, cleanup/stale workflows.\n3. Keep `test-scripts.yml` outside the flag because it is normal CI, not Sepo automation.\n4. Document `AGENT_ENABLED` in the configuration list near the existing global variables.\n5. Add an envelope/workflow test that every `agent-*.yml` workflow has the pause guard.\n\nRecommended semantics: when `AGENT_ENABLED=false`, Sepo workflows skip quietly and do not spend provider/runtime setup. For emergency shutdown beyond Sepo, still use GitHub’s native Actions disable.",
+      "createdAt": "2026-05-22T16:46:29Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/338#issuecomment-4520771095",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-22T16:43:42Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 338,
+  "state": "OPEN",
+  "title": "An easy way to stop all actions/workflows?",
+  "updatedAt": "2026-05-22T16:46:30Z",
+  "url": "https://github.com/self-evolving/repo/issues/338"
+}
