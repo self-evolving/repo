@@ -1,0 +1,280 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Add AGENT_MODEL_POLICY parsing to provider resolution for default, provider, and route model/reasoning settings.\n- Thread resolved models into run-agent-task/acpx, including named-session model setup.\n- Add optional model display footers for Sepo comments via AGENT_DISPLAY_MODEL or policy display settings.\n- Document the configuration and keep review lanes fixed; only review synthesis uses the policy.\n\n## Verification\n- npm run build\n- node --test dist/__tests__/resolve-agent-provider.test.js dist/__tests__/acpx-adapter.test.js dist/__tests__/response.test.js dist/__tests__/envelope.test.js\n- node --test dist/__tests__/post-comment-cli.test.js dist/__tests__/post-response-cli.test.js\n- git diff --check\n\nCloses #336\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDPx3og",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #337 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: Implementation succeeded and opened PR #337 for issue #336; an automatic review is the clear next step before human merge/approval.\n\n<!-- sepo-agent-handoff state:dispatched created:1779398133990 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYyNTI3NjQwMzI6aW1wbGVtZW50OjMzNjpyZXZpZXc6MzM3OjM -->",
+      "createdAt": "2026-05-21T21:15:34Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/337#issuecomment-4512839586",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDPzKHA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 91 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Docs add `AGENT_MODEL_POLICY` / `AGENT_DISPLAY_MODEL`, example JSON, and reviewer-lane caveat in [`configuration-list.md`](https://github.com/self-evolving/repo/blob/7406c2f580e0a8638c70364b23a1cb28ce2fae4d/.agent/docs/customization/configuration-list.md#L12-L56), plus related workflow/internal-action docs in the PR diff. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | Adds one JSON policy plus one display toggle, while preserving inline `route_provider` as the workflow-level escape hatch documented at [`configuration-list.md#L56`](https://github.com/self-evolving/repo/blob/7406c2f580e0a8638c70364b23a1cb28ce2fae4d/.agent/docs/customization/configuration-list.md#L56). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Policy parser validates structured `default`, `providers`, `route_overrides`, and `display.enabled` fields with clear errors in [`resolve-provider.js`](https://github.com/self-evolving/repo/blob/7406c2f580e0a8638c70364b23a1cb28ce2fae4d/.github/actions/resolve-agent-provider/resolve-provider.js#L74-L138). |\n| coding_workflow / generic | Name config by capability | pass | 6/6 | Public config names are capability-scoped: `AGENT_MODEL_POLICY` covers provider/model/reasoning defaults and `AGENT_DISPLAY_MODEL` controls model metadata display, not a single route or first-use-specific name. |\n| coding_workflow / generic | Reuse existing code | partial | 6/8 | The PR reuses `resolve-agent-provider` and `run-agent-task` rather than adding a parallel workflow path, but it places a new 274-line parser/resolver in composite-action JS before runtime setup instead of a typed `.agent/src` helper. The pre-runtime constraint explains some of this, but it is still substantial logic in action glue. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are broad because all agent workflows need to pass the resolved model/display fields, but the diff stays scoped to provider/model resolution, acpx wiring, comment display, docs, and focused tests. |\n| communication / generic | Keep status comments compact | pass | 6/6 | The display surface is a short footer only when enabled: [`buildModelDisplay`](https://github.com/self-evolving/repo/blob/7406c2f580e0a8638c70364b23a1cb28ce2fae4d/.agent/src/run.ts#L321-L331) and [`appendRunDisplayFooter`](https://github.com/self-evolving/repo/blob/7406c2f580e0a8638c70364b23a1cb28ce2fae4d/.agent/src/response.ts#L158-L163). |\n| coding_workflow / generic | Reuse existing route/reviewer boundaries | pass | 8/8 | Reviewer lanes remain the fixed Claude/Codex matrix at [`agent-review.yml#L136-L149`](https://github.com/self-evolving/repo/blob/7406c2f580e0a8638c70364b23a1cb28ce2fae4d/.github/workflows/agent-review.yml#L136-L149); the policy is wired only into synthesis at [`agent-review.yml#L293-L332`](https://github.com/self-evolving/repo/blob/7406c2f580e0a8638c70364b23a1cb28ce2fae4d/.github/workflows/agent-review.yml#L293-L332). |\n\n## Notes\n\n- The main score driver is that the implementation satisfies the user’s explicit constraint: it supports model policy and display metadata while keeping reviewer lanes fixed.\n- The only rubric-specific concern is maintainability of the new resolver parser living in `.github/actions/resolve-agent-provider/resolve-provider.js`; a later cleanup could move reusable policy semantics into typed source if the pre-runtime build constraint can be handled cleanly.\n\n## Findings\n\n- **WARNING:** `Reuse existing code` is only partially satisfied because nontrivial model-policy validation/resolution now lives in composite-action JS rather than a typed `.agent/src` module. This is not blocking for this PR because provider resolution runs before `setup-agent-runtime`, but it is the smallest useful follow-up if model policy grows.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-21T21:18:06Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/337#issuecomment-4512860700",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDP30yg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 7406c2f580e0a8638c70364b23a1cb28ce2fae4d -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #337 implements configurable Sepo model policy for issue #336. It adds `AGENT_MODEL_POLICY` for provider, model, and reasoning-effort defaults/route overrides, plus `AGENT_DISPLAY_MODEL` for optional run metadata footers. The requested constraint was to avoid changing reviewer lanes, and the PR keeps the Claude/Codex review matrix fixed while applying policy to review synthesis. Docs and focused tests were updated for the new resolver, ACPX model wiring, workflow envelope, and footer formatting.\n\n## Review\nOverall judgment: the PR is ready to ship. The current review artifacts and PR state do not support any required branch-change work; remaining reviewer notes are optional coverage or maintainability polish.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No required branch-change issues | INFO | No unresolved defect needs automated changes. Optional notes include adding a direct Claude named-session model test and considering a future typed resolver helper if model policy grows. |\n\n## Progress\n- Issue #336’s “do not change reviewer lanes” constraint is satisfied: reviewer lanes remain the fixed Claude/Codex matrix, and policy is wired only into synthesis.\n- Codex review reported verification passing against PR head `7406c2f580e0a8638c70364b23a1cb28ce2fae4d`, including build and focused test suites.\n- Claude raised a minor coverage warning for Claude named-session + model setup; Codex did not treat it as a warning, and rubrics review passed with only a nonblocking maintainability note.\n- Existing inline comments and review threads were empty; no new inline comments were posted.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: no required actionable branch work remains, and the remaining notes are optional maintainer polish.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work.",
+      "createdAt": "2026-05-21T21:29:08Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/337#issuecomment-4512937162",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-21T21:14:36Z",
+  "files": [
+    {
+      "path": ".agent/action-templates/agent-action-template.yml",
+      "additions": 6,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 20,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/setup/self-hosted-github-action-runner.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/internal-actions.md",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/supported-workflows.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/acpx-adapter.test.ts",
+      "additions": 39,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 25,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/resolve-agent-provider.test.ts",
+      "additions": 59,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/response.test.ts",
+      "additions": 7,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/acpx-adapter.ts",
+      "additions": 28,
+      "deletions": 8,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/post-comment.ts",
+      "additions": 4,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/post-response.ts",
+      "additions": 4,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/response.ts",
+      "additions": 8,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/run.ts",
+      "additions": 46,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/resolve-agent-provider/action.yml",
+      "additions": 19,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/resolve-agent-provider/resolve-provider.js",
+      "additions": 274,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/actions/resolve-agent-provider/resolve-provider.sh",
+      "additions": 4,
+      "deletions": 94,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/run-agent-task/action.yml",
+      "additions": 16,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-daily-summary.yml",
+      "additions": 5,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-fix-pr.yml",
+      "additions": 6,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-implement.yml",
+      "additions": 6,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-memory-bootstrap.yml",
+      "additions": 5,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-memory-pr-closed.yml",
+      "additions": 5,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-memory-scan.yml",
+      "additions": 5,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-onboarding.yml",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-orchestrator.yml",
+      "additions": 5,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-project-manager.yml",
+      "additions": 5,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-review.yml",
+      "additions": 6,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-router.yml",
+      "additions": 30,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-rubrics-initialization.yml",
+      "additions": 5,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-rubrics-review.yml",
+      "additions": 6,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-rubrics-update.yml",
+      "additions": 6,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-self-approve.yml",
+      "additions": 6,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-update.yml",
+      "additions": 5,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-336/codex-26252764032",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 337,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "OPEN",
+  "title": "Support configurable agent model policy",
+  "updatedAt": "2026-05-21T21:29:08Z",
+  "url": "https://github.com/self-evolving/repo/pull/337"
+}

@@ -1,0 +1,136 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "@sepo-agent /answer check what's the right way to use acpx to set the model, and allow user to set the default models themselves using a variable (consider how to support both anthropic and codex --> we can have a json like policy structure)? \n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDPgCpA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I checked the current wiring. The right acpx primitive is `--model <id>` for the prompt run, and for an already-created named session `acpx <agent> set model <id> -s <name>` is explicitly routed to ACP `session/set_model`, not generic config. acpx docs call out that this is broader-compatible than `session/set_config_option`: https://github.com/openclaw/acpx/blob/main/docs/CLI.md#L333-L334 and https://github.com/openclaw/acpx/blob/main/docs/CLI.md#L455-L464.\n\nCurrent Sepo shape:\n\n- Provider selection already exists, but only at provider level: `AGENT_DEFAULT_PROVIDER` supports `auto`, `codex`, `claude` and auto prefers Codex when both secrets exist: https://github.com/self-evolving/repo/blob/main/.github/actions/resolve-agent-provider/resolve-provider.sh#L68-L79\n- The router passes that provider into `run-agent-task`: https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L360-L403\n- `run-agent-task` exposes `agent` and `reasoning_effort`, but no model input yet: https://github.com/self-evolving/repo/blob/main/.github/actions/run-agent-task/action.yml#L20-L31\n- `run.ts` passes `MODEL_REASONING_EFFORT` into `runAcpx`, but no model: https://github.com/self-evolving/repo/blob/main/.agent/src/run.ts#L547-L560\n- `buildAcpxArgs` is the central place to add global acpx flags before the agent token, which is exactly where `--model` belongs: https://github.com/self-evolving/repo/blob/main/.agent/src/acpx-adapter.ts#L223-L250\n- The adapter already has session setup hooks for `set` and `set-mode`: https://github.com/self-evolving/repo/blob/main/.agent/src/acpx-adapter.ts#L277-L315\n- acpx model is already visible in raw session metadata and Sepo captures it in compact logs, but Sepo does not expose it as a first-class output/comment detail: https://github.com/self-evolving/repo/blob/main/.agent/src/acpx-adapter.ts#L518-L527\n\nRecommended design: add one JSON repo variable, e.g. `AGENT_MODEL_POLICY`, rather than a pile of separate vars. Keep `AGENT_DEFAULT_PROVIDER` working as a backward-compatible provider-only shortcut.\n\nExample shape:\n\n```json\n{\n  \"default\": {\n    \"provider\": \"auto\",\n    \"model\": null,\n    \"reasoning_effort\": \"xhigh\"\n  },\n  \"providers\": {\n    \"codex\": {\n      \"model\": \"example-codex-model\",\n      \"reasoning_effort\": \"xhigh\"\n    },\n    \"claude\": {\n      \"model\": \"example-anthropic-model\",\n      \"reasoning_effort\": \"max\"\n    }\n  },\n  \"route_overrides\": {\n    \"answer\": {\n      \"provider\": \"codex\",\n      \"model\": \"example-fast-codex-model\"\n    },\n    \"implement\": {\n      \"provider\": \"codex\"\n    },\n    \"fix-pr\": {\n      \"provider\": \"claude\"\n    },\n    \"review\": {\n      \"lanes\": [\n        { \"provider\": \"claude\", \"model\": \"example-anthropic-model\", \"reasoning_effort\": \"max\" },\n        { \"provider\": \"codex\", \"model\": \"example-codex-model\", \"reasoning_effort\": \"xhigh\" }\n      ]\n    },\n    \"review-synthesis\": {\n      \"provider\": \"auto\"\n    }\n  },\n  \"display\": {\n    \"enabled\": false\n  }\n}\n```\n\nImplementation plan I’d propose:\n\n1. Add `.agent/src/model-policy.ts` with parser/validator/resolver, mirroring existing JSON policy patterns like memory/rubrics/schedule policies.\n2. Extend `resolve-agent-provider` or add a sibling `resolve-agent-model` action so each route gets `{provider, model, reasoning_effort, display}` from `AGENT_MODEL_POLICY`, while preserving `AGENT_DEFAULT_PROVIDER`.\n3. Add `model` and `display_model` inputs/outputs to `.github/actions/run-agent-task/action.yml`.\n4. Thread `MODEL_ID` into `.agent/src/run.ts`, add `model?: string` to `AcpxRunOptions`, and push `--model <id>` in `buildAcpxArgs` before the agent token.\n5. For persistent sessions, either rely on `--model` during prompt/reconnect or explicitly add `set model` in session setup. I’d start with `--model` because it is the documented global flag and acpx handles ACP model support/failure clearly.\n6. Surface actual resolved model/provider as outputs. Best source is the compact session entry when available; fallback to the configured requested model.\n7. If `display.enabled` or a simpler `AGENT_DISPLAY_MODEL=true` is set, append a short footer to posted Sepo comments, e.g. `Run: codex / <model> / xhigh`.\n8. Update docs in `.agent/docs/customization/configuration-list.md` and tests around provider resolution, acpx args, workflow envelope snapshots, and comment/display formatting.\n\nOne clarification before coding: should the display flag show only the model, or provider + model + reasoning effort? I’d recommend provider + model + reasoning effort because model IDs alone can be ambiguous across Codex/Anthropic adapters.",
+      "createdAt": "2026-05-21T20:35:16Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/336#issuecomment-4512547492",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDPnRDQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer is adding route_overrides a lot of work?",
+      "createdAt": "2026-05-21T20:51:12Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/336#issuecomment-4512665869",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDPnypQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Not a lot for basic `route_overrides`; moderate if we also make review lanes fully policy-driven.\n\nThe simple version is straightforward:\n\n- Add `AGENT_MODEL_POLICY` parser/resolver, modeled after existing JSON policy helpers like memory/rubrics/schedule.\n- Resolve `default + route_overrides[route]` into `{ provider, model, reasoning_effort }`.\n- Thread those values through `resolve-agent-provider` / `run-agent-task` / `run.ts`.\n- Add tests and docs.\n\nThat handles single-agent routes cleanly: `answer`, `implement`, `fix-pr`, `orchestrator`, `self-approve`, `install`, etc.\n\nThe only part that can grow is `review`, because today it has a static two-lane matrix: Claude review + Codex review, then synthesis. Supporting `route_overrides.review.lanes` means either generating the matrix dynamically or adding a resolver step that emits lane config JSON. That is doable, just more workflow churn and snapshot tests.\n\nI’d phase it:\n\n1. First PR: support `default` and `route_overrides` for single-agent routes plus review synthesis.\n2. Second PR only if needed: make reviewer lanes configurable.\n\nSo: not a big architectural lift, but I would avoid combining provider policy, model policy, display footer, and dynamic review matrix all in one change.",
+      "createdAt": "2026-05-21T20:52:22Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/336#issuecomment-4512674469",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDPqEaw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate -> do not change reviewer lanes though ",
+      "createdAt": "2026-05-21T20:57:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/336#issuecomment-4512711787",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDPqoxw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | implement | Issue #336 | 2 / 40 | Dispatched |\n\nReason: agent planner selected implement: Issue #336 is an open, self-contained feature request and the latest requester comment explicitly asks orchestration to proceed while preserving reviewer lanes.\n\n<!-- sepo-agent-handoff state:dispatched created:1779397139727 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYyNTI2OTk5MjU6b3JjaGVzdHJhdGU6MzM2OmltcGxlbWVudDozMzY6Mg -->",
+      "createdAt": "2026-05-21T20:59:00Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/336#issuecomment-4512721095",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDPxc3A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-336/codex-26252764032`\n- Pull request: https://github.com/self-evolving/repo/pull/337\n\nImplemented AGENT_MODEL_POLICY and AGENT_DISPLAY_MODEL support, threaded resolved model/reasoning metadata through acpx and Sepo comments, updated docs/tests, and kept reviewer lanes unchanged. Verified with npm run build plus focused provider, acpx, response, envelope, and comment CLI tests.",
+      "createdAt": "2026-05-21T21:14:40Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/336#issuecomment-4512832732",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-21T20:31:07Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 336,
+  "state": "OPEN",
+  "title": "Support setting models (also adding an optional flag to display used mode in sepo)",
+  "updatedAt": "2026-05-21T21:14:40Z",
+  "url": "https://github.com/self-evolving/repo/issues/336"
+}
