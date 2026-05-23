@@ -235,6 +235,64 @@ test("provider resolver keeps inline route provider from inheriting route policy
   assert.equal(resolved.outputs.reasoning_effort, "xhigh");
 });
 
+test("provider resolver rejects non-string model policy token values", () => {
+  const cases = [
+    {
+      name: "numeric model",
+      policy: { default: { model: 123 } },
+      error: /default\.model must be a string/,
+    },
+    {
+      name: "boolean model",
+      policy: { providers: { codex: { model: false } } },
+      error: /providers\.codex\.model must be a string/,
+    },
+    {
+      name: "numeric reasoning effort",
+      policy: { default: { reasoning_effort: 123 } },
+      error: /default\.reasoning_effort must be a string/,
+    },
+    {
+      name: "boolean reasoning effort",
+      policy: {
+        route_overrides: {
+          "test-route": { reasoning_effort: true },
+        },
+      },
+      error: /route_overrides\.test-route\.reasoning_effort must be a string/,
+    },
+  ];
+
+  for (const { name, policy, error } of cases) {
+    const resolved = runResolver({
+      OPENAI_API_KEY: "openai-token",
+      AGENT_MODEL_POLICY: JSON.stringify(policy),
+    });
+
+    assert.notEqual(resolved.status, 0, name);
+    assert.match(resolved.stderr, error, name);
+  }
+});
+
+test("provider resolver preserves null and empty model policy token handling", () => {
+  const resolved = runResolver({
+    OPENAI_API_KEY: "openai-token",
+    AGENT_MODEL_POLICY: JSON.stringify({
+      providers: {
+        codex: { model: "gpt-5.4", reasoning_effort: "xhigh" },
+      },
+      route_overrides: {
+        "test-route": { model: "", reasoning_effort: null },
+      },
+    }),
+  });
+
+  assert.equal(resolved.status, 0, resolved.stderr);
+  assert.equal(resolved.outputs.provider, "codex");
+  assert.equal(resolved.outputs.model, "");
+  assert.equal(resolved.outputs.reasoning_effort, "xhigh");
+});
+
 test("provider resolver supports nonfatal unresolved setup passes", () => {
   const soft = runResolver({ REQUIRED: "false" });
 

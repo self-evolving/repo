@@ -20,7 +20,10 @@ function setOutput(name, value) {
 
 function normalizeOptionalToken(value, label) {
   if (value === null || value === undefined) return undefined;
-  const normalized = String(value).trim();
+  if (typeof value !== "string") {
+    throw new Error(`${label} must be a string`);
+  }
+  const normalized = value.trim();
   if (!normalized) return "";
   if (!SAFE_TOKEN.test(normalized)) {
     throw new Error(`${label} must be a non-empty token without whitespace or control characters`);
