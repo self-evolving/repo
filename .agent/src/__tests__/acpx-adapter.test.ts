@@ -65,6 +65,45 @@ test("buildAcpxArgs uses prompt mode with a named session for persistent routes"
   ]);
 });
 
+test("buildAcpxArgs passes model as a global acpx flag before the agent", () => {
+  const args = buildAcpxArgs({
+    agent: "codex",
+    model: "gpt-5.4",
+    prompt: "answer this",
+    permissionMode: "approve-all",
+    isExecRoute: true,
+  });
+
+  assert.deepEqual(args, [
+    "--approve-all",
+    "--format",
+    "json",
+    "--json-strict",
+    "--suppress-reads",
+    "--model",
+    "gpt-5.4",
+    "codex",
+    "exec",
+    "answer this",
+  ]);
+});
+
+test("buildSessionSetupCommands uses acpx set model for named sessions", () => {
+  const commands = buildSessionSetupCommands({
+    agent: "codex",
+    sessionName: "pull_request-38-fix-pr-default",
+    model: "gpt-5.4",
+    thoughtLevel: "xhigh",
+    permissionMode: "approve-all",
+  });
+
+  assert.deepEqual(commands.map((command) => command.args), [
+    ["codex", "set", "model", "gpt-5.4", "-s", "pull_request-38-fix-pr-default"],
+    ["codex", "set", "-s", "pull_request-38-fix-pr-default", "thought_level", "xhigh"],
+    ["codex", "set-mode", "-s", "pull_request-38-fix-pr-default", "full-access"],
+  ]);
+});
+
 test("buildAcpxArgs keeps track-only synthesis in exec mode without a named session", () => {
   const args = buildAcpxArgs({
     agent: "codex",
@@ -123,7 +162,6 @@ if (args.includes("prompt")) {
       threadKey,
       permissionMode: "approve-all",
       thoughtLevel: "xhigh",
-      preserveExecThoughtLevel: true,
       env: { ACPX_TEST_CALLS: callsPath },
     });
 
@@ -157,6 +195,82 @@ if (args.includes("prompt")) {
       ],
     ]);
     assert.equal(calls.some((call) => call.args.includes(stableSessionName)), false);
+  } finally {
+    if (oldPath === undefined) {
+      delete process.env.PATH;
+    } else {
+      process.env.PATH = oldPath;
+    }
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("runAcpx applies Codex thought level for session_policy none exec runs", () => {
+  const dir = mkdtempSync(join(tmpdir(), "acpx-exec-thought-test-"));
+  const oldPath = process.env.PATH;
+  const threadKey = "self-evolving/repo:pull_request:337:answer:default";
+
+  try {
+    const acpxPath = join(dir, "acpx");
+    const callsPath = join(dir, "calls.jsonl");
+    writeFileSync(
+      acpxPath,
+      `#!/usr/bin/env node
+const fs = require("node:fs");
+const args = process.argv.slice(2);
+fs.appendFileSync(process.env.ACPX_TEST_CALLS, JSON.stringify({ args }) + "\\n");
+if (args.includes("prompt")) {
+  process.stdout.write([
+    '{"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess-exec-thought","models":{"currentModelId":"gpt-5.4/xhigh"}}}',
+    '{"jsonrpc":"2.0","method":"session/update","params":{"update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"Done."}}}}',
+    '{"jsonrpc":"2.0","id":2,"result":{"stopReason":"end_turn"}}'
+  ].join("\\n") + "\\n");
+}
+`,
+      "utf8",
+    );
+    chmodSync(acpxPath, 0o755);
+    process.env.PATH = `${dir}${delimiter}${oldPath || ""}`;
+
+    const result = runAcpx({
+      agent: "codex",
+      prompt: "answer this",
+      cwd: process.cwd(),
+      sessionMode: sessionModeForPolicy("none"),
+      threadKey,
+      permissionMode: "approve-all",
+      thoughtLevel: "xhigh",
+      env: { ACPX_TEST_CALLS: callsPath },
+    });
+
+    assert.equal(result.exitCode, 0);
+    assert.equal(result.stdout, "Done.");
+    assert.equal(result.sessionEnsureOutcome.kind, "fresh");
+    assert.match(result.sessionName ?? "", /^pull_request-337-answer-default-exec-[0-9a-f]{12}$/);
+
+    const sessionName = result.sessionName!;
+    const calls = readFileSync(callsPath, "utf8")
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line) as { args: string[] });
+
+    assert.deepEqual(calls.map((call) => call.args), [
+      ["codex", "sessions", "new", "--name", sessionName],
+      ["codex", "set", "-s", sessionName, "thought_level", "xhigh"],
+      ["codex", "set-mode", "-s", sessionName, "full-access"],
+      [
+        "--approve-all",
+        "--format",
+        "json",
+        "--json-strict",
+        "--suppress-reads",
+        "codex",
+        "prompt",
+        "-s",
+        sessionName,
+        "answer this",
+      ],
+    ]);
   } finally {
     if (oldPath === undefined) {
       delete process.env.PATH;

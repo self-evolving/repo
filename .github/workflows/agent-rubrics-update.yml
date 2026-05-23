@@ -69,6 +69,8 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model_policy: ${{ vars.AGENT_MODEL_POLICY || '' }}
+          display_model: ${{ vars.AGENT_DISPLAY_MODEL || '' }}
 
       - name: Setup agent runtime
         uses: ./.github/actions/setup-agent-runtime
@@ -94,6 +96,8 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: ${{ steps.provider.outputs.model }}
+          display_model: ${{ steps.provider.outputs.display_model }}
           permission_mode: approve-all
           prompt: rubrics-update
           route: rubrics-update
@@ -113,7 +117,7 @@ jobs:
           target_kind: pull_request
           target_number: ${{ env.PR_NUMBER }}
           target_url: ${{ env.PR_URL }}
-          reasoning_effort: medium
+          reasoning_effort: ${{ steps.provider.outputs.reasoning_effort || 'medium' }}
           workflow: agent-rubrics-update.yml
 
       - name: Prepare rubrics update summary
@@ -130,6 +134,7 @@ jobs:
         if: always() && steps.rubrics_summary.outputs.body_file != ''
         env:
           BODY_FILE: ${{ steps.rubrics_summary.outputs.body_file }}
+          MODEL_DISPLAY: ${{ steps.rubrics_update.outputs.model_display }}
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           RESPONSE_KIND: issue_comment

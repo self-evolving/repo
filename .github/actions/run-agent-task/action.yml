@@ -21,10 +21,18 @@ inputs:
     description: "acpx agent to use"
     required: false
     default: codex
+  model:
+    description: "Optional acpx model id to request"
+    required: false
+    default: ""
   permission_mode:
     description: "acpx permission mode (approve-all, approve-reads, deny-all)"
     required: false
     default: approve-all
+  display_model:
+    description: "Whether to expose provider/model/reasoning metadata for comments"
+    required: false
+    default: "false"
   reasoning_effort:
     description: "Model reasoning effort level"
     required: false
@@ -142,6 +150,12 @@ outputs:
   session_name:
     description: "acpx session name (if persistent)"
     value: ${{ steps.run.outputs.session_name }}
+  model:
+    description: "acpx model id reported by the run, or the requested model id"
+    value: ${{ steps.run.outputs.model }}
+  model_display:
+    description: "Markdown-ready provider/model/reasoning footer when display_model is enabled"
+    value: ${{ steps.run.outputs.model_display }}
   acpx_record_id:
     description: "acpx record ID"
     value: ${{ steps.run.outputs.acpx_record_id }}
@@ -314,6 +328,8 @@ runs:
       shell: bash
       env:
         ACPX_AGENT: ${{ inputs.agent }}
+        MODEL_ID: ${{ inputs.model }}
+        DISPLAY_MODEL: ${{ inputs.display_model }}
         ACPX_PERMISSION_MODE: ${{ inputs.permission_mode }}
         INPUT_GITHUB_TOKEN: ${{ inputs.github_token }}
         INPUT_SECONDARY_GITHUB_TOKEN: ${{ inputs.secondary_github_token }}

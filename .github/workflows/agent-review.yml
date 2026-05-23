@@ -300,6 +300,8 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model_policy: ${{ vars.AGENT_MODEL_POLICY || '' }}
+          display_model: ${{ vars.AGENT_DISPLAY_MODEL || '' }}
 
       - name: Setup agent runtime
         id: runtime
@@ -326,9 +328,11 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: ${{ steps.synthesis_provider.outputs.model }}
+          display_model: ${{ steps.synthesis_provider.outputs.display_model }}
           permission_mode: approve-all
           prompt: review-synthesize
-          reasoning_effort: ${{ steps.synthesis_provider.outputs.provider == 'claude' && 'max' || 'xhigh' }}
+          reasoning_effort: ${{ steps.synthesis_provider.outputs.reasoning_effort || (steps.synthesis_provider.outputs.provider == 'claude' && 'max' || 'xhigh') }}
           lane: synthesize
           memory_ref: ${{ vars.AGENT_MEMORY_REF || 'agent/memory' }}
           memory_policy: ${{ vars.AGENT_MEMORY_POLICY || '' }}
@@ -356,6 +360,7 @@ jobs:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           REQUESTED_BY: ${{ inputs.requested_by }}
           RESPONSE_FILE: ${{ steps.synthesis.outputs.response_file }}
+          MODEL_DISPLAY: ${{ steps.synthesis.outputs.model_display }}
           REVIEWED_HEAD_SHA: ${{ needs.prepare.outputs.reviewed_head_sha }}
           ROUTE: review
           STATUS: success

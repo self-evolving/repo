@@ -158,6 +158,8 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model_policy: ${{ vars.AGENT_MODEL_POLICY || '' }}
+          display_model: ${{ vars.AGENT_DISPLAY_MODEL || '' }}
 
       - name: Setup branch name
         run: echo "BRANCH=agent/${IMPLEMENTATION_ROUTE}-issue-${ISSUE_NUMBER}/${{ steps.provider.outputs.provider }}-${{ github.run_id }}" >> "$GITHUB_ENV"
@@ -217,6 +219,9 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: ${{ steps.provider.outputs.model }}
+          display_model: ${{ steps.provider.outputs.display_model }}
+          reasoning_effort: ${{ steps.provider.outputs.reasoning_effort || 'xhigh' }}
           prompt: ${{ env.IMPLEMENTATION_PROMPT }}
           route: ${{ env.IMPLEMENTATION_ROUTE }}
           memory_ref: ${{ vars.AGENT_MEMORY_REF || 'agent/memory' }}
@@ -296,6 +301,7 @@ jobs:
           ISSUE_NUMBER: ${{ env.ISSUE_NUMBER }}
           PR_URL: ${{ steps.pr.outputs.pr_url }}
           RESPONSE_FILE: ${{ steps.agent.outputs.response_file }}
+          MODEL_DISPLAY: ${{ steps.agent.outputs.model_display }}
           RESUME_STATUS: ${{ steps.agent.outputs.resume_status }}
           ROUTE: ${{ env.IMPLEMENTATION_ROUTE }}
           STATUS: ${{ steps.response.outputs.status || 'failed' }}

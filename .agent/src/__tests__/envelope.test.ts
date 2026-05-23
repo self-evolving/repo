@@ -242,16 +242,20 @@ test("single-agent workflows resolve provider before runtime setup", () => {
     readRepoFile(".github/workflows/agent-rubrics-update.yml"),
   ];
   const resolverAction = readRepoFile(".github/actions/resolve-agent-provider/action.yml");
-  const resolverScript = readRepoFile(".github/actions/resolve-agent-provider/resolve-provider.sh");
+  const resolverImplementation = readRepoFile(".github/actions/resolve-agent-provider/resolve-provider.js");
   const configurationList = readRepoFile(".agent/docs/customization/configuration-list.md");
 
-  assert.match(resolverAction, /resolve-provider\.sh/);
-  assert.match(resolverScript, /DEFAULT_PROVIDER/);
-  assert.match(resolverScript, /OPENAI_API_KEY/);
-  assert.match(resolverScript, /CLAUDE_CODE_OAUTH_TOKEN/);
-  assert.match(resolverScript, /ANTHROPIC_API_KEY/);
-  assert.match(resolverScript, /provider=codex/);
-  assert.match(resolverScript, /provider=claude/);
+  assert.match(resolverAction, /node "\$\{GITHUB_ACTION_PATH\}\/resolve-provider\.js"/);
+  assert.doesNotMatch(resolverAction, /resolve-provider\.sh/);
+  assert.match(resolverAction, /model_policy:/);
+  assert.match(resolverAction, /display_model:/);
+  assert.match(resolverImplementation, /DEFAULT_PROVIDER/);
+  assert.match(resolverImplementation, /AGENT_MODEL_POLICY/);
+  assert.match(resolverImplementation, /OPENAI_API_KEY/);
+  assert.match(resolverImplementation, /CLAUDE_CODE_OAUTH_TOKEN/);
+  assert.match(resolverImplementation, /ANTHROPIC_API_KEY/);
+  assert.match(resolverImplementation, /provider = "codex"/);
+  assert.match(resolverImplementation, /provider = "claude"/);
 
   assert.match(routerWorkflow, /default:\s*auto/);
   assert.doesNotMatch(routerWorkflow, /vars\.AGENT_PROVIDER_(DISPATCH|ANSWER|SKILL)/);
@@ -265,9 +269,11 @@ test("single-agent workflows resolve provider before runtime setup", () => {
   for (const workflow of [implementWorkflow, fixPrWorkflow, selfApprovalWorkflow, ...autonomousWorkflows]) {
     assert.match(workflow, /uses: \.\/\.github\/actions\/resolve-agent-provider/);
     assert.match(workflow, /default_provider:\s*\$\{\{\s*vars\.AGENT_DEFAULT_PROVIDER \|\|/);
+    assert.match(workflow, /model_policy:\s*\$\{\{\s*vars\.AGENT_MODEL_POLICY \|\| ''\s*\}\}/);
     assert.match(workflow, /install_codex:\s*\$\{\{\s*steps\.provider\.outputs\.install_codex\s*\}\}/);
     assert.match(workflow, /install_claude:\s*\$\{\{\s*steps\.provider\.outputs\.install_claude\s*\}\}/);
     assert.match(workflow, /agent:\s*\$\{\{\s*steps\.provider\.outputs\.provider\s*\}\}/);
+    assert.match(workflow, /model:\s*\$\{\{\s*steps\.provider\.outputs\.model\s*\}\}/);
     assert.match(workflow, /claude_oauth_token:\s*\$\{\{\s*secrets\.CLAUDE_CODE_OAUTH_TOKEN\s*\}\}/);
     assert.match(workflow, /anthropic_api_key:\s*\$\{\{\s*secrets\.ANTHROPIC_API_KEY\s*\}\}/);
   }
@@ -277,15 +283,24 @@ test("single-agent workflows resolve provider before runtime setup", () => {
   assert.match(reviewWorkflow, /id:\s*synthesis_provider/);
   assert.match(reviewWorkflow, /route:\s*review-synthesize/);
   assert.match(reviewWorkflow, /default_provider:\s*\$\{\{\s*vars\.AGENT_DEFAULT_PROVIDER \|\| 'auto'\s*\}\}/);
+  assert.match(reviewWorkflow, /model_policy:\s*\$\{\{\s*vars\.AGENT_MODEL_POLICY \|\| ''\s*\}\}/);
   assert.match(reviewWorkflow, /install_codex:\s*\$\{\{\s*steps\.synthesis_provider\.outputs\.install_codex\s*\}\}/);
   assert.match(reviewWorkflow, /install_claude:\s*\$\{\{\s*steps\.synthesis_provider\.outputs\.install_claude\s*\}\}/);
   assert.match(reviewWorkflow, /agent:\s*\$\{\{\s*steps\.synthesis_provider\.outputs\.provider\s*\}\}/);
+  assert.match(reviewWorkflow, /model:\s*\$\{\{\s*steps\.synthesis_provider\.outputs\.model\s*\}\}/);
+  assert.match(reviewWorkflow, /reasoning_effort:\s*\$\{\{\s*steps\.synthesis_provider\.outputs\.reasoning_effort \|\| \(steps\.synthesis_provider\.outputs\.provider == 'claude' && 'max' \|\| 'xhigh'\)\s*\}\}/);
   assert.match(reviewWorkflow, /openai_api_key:\s*\$\{\{\s*secrets\.OPENAI_API_KEY\s*\}\}/);
   assert.match(reviewWorkflow, /anthropic_api_key:\s*\$\{\{\s*secrets\.ANTHROPIC_API_KEY\s*\}\}/);
+  const reviewerRunBlock = reviewWorkflow.match(
+    /- name: Run \$\{\{ matrix\.agent \}\} review[\s\S]*?(?=\n      - name: Persist review artifacts)/,
+  )?.[0] || "";
+  assert.doesNotMatch(reviewerRunBlock, /model_policy:/);
+  assert.doesNotMatch(reviewerRunBlock, /model:\s*\$\{\{\s*steps\./);
   assert.doesNotMatch(implementWorkflow, /vars\.AGENT_PROVIDER_IMPLEMENT/);
   assert.doesNotMatch(fixPrWorkflow, /vars\.AGENT_PROVIDER_FIX_PR/);
 
   assert.match(configurationList, /AGENT_DEFAULT_PROVIDER/);
+  assert.match(configurationList, /AGENT_MODEL_POLICY/);
   assert.doesNotMatch(configurationList, /AGENT_PROVIDER_IMPLEMENT/);
 });
 
@@ -838,6 +853,9 @@ test("shared run-agent-task action exists and requires explicit prompt/skill/lan
   assert.match(action, /prompt:/);
   assert.match(action, /skill:/);
   assert.match(action, /skill_root:/);
+  assert.match(action, /model:/);
+  assert.match(action, /display_model:/);
+  assert.match(action, /anthropic_api_key:/);
   assert.match(action, /lane:/);
   assert.match(action, /session_policy:/);
   const sessionPolicyBlock = action.match(/session_policy:[\s\S]*?(?=^  [a-z_]+:|^outputs:)/m)?.[0] || "";
@@ -846,6 +864,9 @@ test("shared run-agent-task action exists and requires explicit prompt/skill/lan
   assert.match(action, /PROMPT_NAME/);
   assert.match(action, /SKILL_NAME/);
   assert.match(action, /SKILL_ROOT/);
+  assert.match(action, /MODEL_ID/);
+  assert.match(action, /DISPLAY_MODEL/);
+  assert.match(action, /ANTHROPIC_API_KEY/);
   assert.match(action, /LANE/);
   assert.match(action, /SESSION_POLICY/);
   assert.match(action, /\.agent\/dist\/run\.js/);
@@ -886,6 +907,19 @@ test("shared run-agent-task exposes an optional secondary GitHub token", () => {
   assert.match(basePrompt, /Do not print token values/);
   assert.match(basePrompt, /read-only credential for external GitHub repositories/);
   assert.match(basePrompt, /Do not use the secondary token for external writes/);
+});
+
+test("run-agent-task maps reasoning effort for Claude env and Codex thought level", () => {
+  const action = readRepoFile(".github/actions/run-agent-task/action.yml");
+  const runSource = readRepoFile(".agent/src/run.ts");
+  const acpxSource = readRepoFile(".agent/src/acpx-adapter.ts");
+
+  assert.match(action, /reasoning_effort:\n\s+description: "Model reasoning effort level"/);
+  assert.match(action, /MODEL_REASONING_EFFORT:\s*\$\{\{\s*inputs\.reasoning_effort\s*\}\}/);
+  assert.match(runSource, /env\.MODEL_REASONING_EFFORT = process\.env\.MODEL_REASONING_EFFORT/);
+  assert.match(runSource, /env\.CLAUDE_CODE_EFFORT_LEVEL = process\.env\.MODEL_REASONING_EFFORT/);
+  assert.match(runSource, /thoughtLevel:\s*process\.env\.MODEL_REASONING_EFFORT/);
+  assert.match(acpxSource, /"thought_level", thoughtLevel/);
 });
 
 test("run-agent-task callers pass secondary token without replacing primary auth", () => {

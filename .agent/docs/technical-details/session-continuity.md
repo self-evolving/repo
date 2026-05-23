@@ -13,6 +13,12 @@ The shared `run-agent-task` action accepts `session_policy`:
 - `resume-best-effort`: use a persistent named ACP session when a resumable identity is available, but fall back fresh when continuity cannot be restored
 - `resume-required`: use a persistent named ACP session and fail when an existing thread cannot satisfy the continuity requirement
 
+Codex `none` exec runs that receive a configured reasoning effort may create a
+fresh per-run ACP session only to apply `thought_level`, because ACPX exposes
+that option through session configuration rather than a global exec flag. That
+session name is random, is not written as thread state, and is not restored or
+reused by later runs.
+
 `track-only` intentionally does not ensure or prompt a stable named ACP session.
 Codex `track-only` runs that need a `thought_level` may use a fresh per-run ACP
 session to apply that option; `track-only` runs that upload debug bundles also

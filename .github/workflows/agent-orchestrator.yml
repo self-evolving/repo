@@ -133,6 +133,8 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model_policy: ${{ vars.AGENT_MODEL_POLICY || '' }}
+          display_model: ${{ vars.AGENT_DISPLAY_MODEL || '' }}
 
       - name: Install orchestrator provider
         if: ${{ steps.preflight.outputs.planner_enabled == 'true' }}
@@ -173,9 +175,11 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: ${{ steps.provider.outputs.model }}
+          display_model: ${{ steps.provider.outputs.display_model }}
           permission_mode: approve-all
           prompt: orchestrator
-          reasoning_effort: high
+          reasoning_effort: ${{ steps.provider.outputs.reasoning_effort || 'high' }}
           lane: planner
           memory_mode_override: read-only
           memory_ref: ${{ vars.AGENT_MEMORY_REF || 'agent/memory' }}

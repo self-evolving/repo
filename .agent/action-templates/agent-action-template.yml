@@ -59,6 +59,8 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model_policy: ${{ vars.AGENT_MODEL_POLICY || '' }}
+          display_model: ${{ vars.AGENT_DISPLAY_MODEL || '' }}
 
       - name: Setup agent runtime
         if: steps.expiration.outputs.expired != 'true'
@@ -87,6 +89,9 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: ${{ steps.provider.outputs.model }}
+          display_model: ${{ steps.provider.outputs.display_model }}
+          reasoning_effort: ${{ steps.provider.outputs.reasoning_effort || 'xhigh' }}
           permission_mode: approve-all
           prompt: answer
           route: answer
@@ -110,6 +115,7 @@ jobs:
           env.REPORT_ISSUE_NUMBER != ''
         env:
           BODY_FILE: ${{ steps.agent.outputs.response_file }}
+          MODEL_DISPLAY: ${{ steps.agent.outputs.model_display }}
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           RESPONSE_KIND: issue_comment

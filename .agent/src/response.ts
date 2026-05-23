@@ -155,6 +155,14 @@ export function formatReviewComment(data: {
   return lines.join("\n");
 }
 
+export function appendRunDisplayFooter(body: string, display: string | undefined): string {
+  const normalizedDisplay = String(display || "").trim();
+  if (!normalizedDisplay) return body;
+  const normalizedBody = String(body || "").trimEnd();
+  if (!normalizedBody) return normalizedDisplay;
+  return `${normalizedBody}\n\n---\n${normalizedDisplay}`;
+}
+
 function escapeMarkdownLinkText(text: string): string {
   return text.replace(/\\/g, "\\\\").replace(/\]/g, "\\]");
 }
