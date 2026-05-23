@@ -94,3 +94,4 @@
 - Sepo docs use setup/ for install/auth/runner guidance and usage/ for workflows/actions; deployment/ and actions/ are retired.
 - Inferred /implement base_pr from a closed source PR is context only; drop it and use the default branch.
 - Provider auto-detect: OPENAI_API_KEY selects Codex; otherwise CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY selects Claude.
+- Packaged agent-*.yml jobs carry local vars.AGENT_ENABLED != 'false' guards; duplicate dependent-job guards are intentional.
