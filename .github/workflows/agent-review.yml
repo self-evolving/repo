@@ -80,6 +80,7 @@ permissions:
 
 jobs:
   prepare:
+    if: vars.AGENT_ENABLED != 'false'
     permissions:
       actions: read
       contents: read
@@ -122,7 +123,7 @@ jobs:
     # Ordering-only: capture the reviewed head before reviewer lanes when
     # prepare succeeds. Reviewers still run without provenance if prepare fails.
     needs: [prepare]
-    if: ${{ !cancelled() }}
+    if: ${{ vars.AGENT_ENABLED != 'false' && !cancelled() }}
     # Reviewer lanes are best-effort; synthesis fails later if no lane uploads a review.
     continue-on-error: true
     permissions:
@@ -231,6 +232,7 @@ jobs:
           retention-days: 30
 
   rubrics-review:
+    if: vars.AGENT_ENABLED != 'false'
     uses: ./.github/workflows/agent-rubrics-review.yml
     with:
       pr_number: ${{ inputs.pr_number }}
@@ -245,7 +247,7 @@ jobs:
 
   synthesize:
     needs: [prepare, review]
-    if: ${{ !cancelled() }}
+    if: ${{ vars.AGENT_ENABLED != 'false' && !cancelled() }}
     permissions:
       # Synthesize is the only review-path job that writes memory, so it's the
       # only one that needs contents:write. Running after both reviewers

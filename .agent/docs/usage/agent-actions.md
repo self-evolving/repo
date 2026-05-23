@@ -52,9 +52,11 @@ The `create-action` route creates or updates one standalone workflow, usually
 named `agent-action-<short-slug>.yml`. Generated workflows use native
 `schedule`/`workflow_dispatch` triggers and the existing shared runtime actions
 (`resolve-github-auth`, `resolve-agent-provider`, `setup-agent-runtime`, and
-`run-agent-task`). GitHub does not expire scheduled workflows automatically, so
-generated scheduled workflows use `.github/actions/check-agent-action-expiration`
-and skip provider setup/agent execution once expired.
+`run-agent-task`). The template includes the same `AGENT_ENABLED=false` job
+guard as packaged Sepo workflows. GitHub does not expire scheduled workflows
+automatically, so generated scheduled workflows use
+`.github/actions/check-agent-action-expiration` and skip provider setup/agent
+execution once expired.
 
 The built-in `agent-update.yml` workflow is the default recurring maintenance
 path for Sepo itself. It runs near-biweekly, resolves the update source to the

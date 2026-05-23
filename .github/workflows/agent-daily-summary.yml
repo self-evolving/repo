@@ -28,6 +28,7 @@ concurrency:
 
 jobs:
   pre_gate:
+    if: vars.AGENT_ENABLED != 'false'
     runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
     outputs:
       skip: ${{ steps.gate.outputs.skip }}
@@ -51,7 +52,7 @@ jobs:
 
   signals:
     needs: pre_gate
-    if: needs.pre_gate.outputs.skip != 'true'
+    if: vars.AGENT_ENABLED != 'false' && needs.pre_gate.outputs.skip != 'true'
     runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
     env:
       DISCUSSION_CATEGORY: ${{ inputs.discussion_category || vars.AGENT_PROJECT_MANAGEMENT_DISCUSSION_CATEGORY || 'General' }}
@@ -147,7 +148,10 @@ jobs:
 
   daily-summary:
     needs: signals
-    if: needs.signals.result == 'success' && needs.signals.outputs.skip != 'true'
+    if: >-
+      vars.AGENT_ENABLED != 'false' &&
+      needs.signals.result == 'success' &&
+      needs.signals.outputs.skip != 'true'
     runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
     env:
       DISCUSSION_CATEGORY: ${{ inputs.discussion_category || vars.AGENT_PROJECT_MANAGEMENT_DISCUSSION_CATEGORY || 'General' }}

@@ -123,7 +123,7 @@ The dedicated memory workflows can still bootstrap the memory tree when the bran
 
 ## Scheduled workflow policy: `AGENT_SCHEDULE_POLICY`
 
-`AGENT_SCHEDULE_POLICY` is an optional repository variable that controls scheduled workflow runs. It applies only to `schedule` events; manual `workflow_dispatch` runs remain available for debugging and recovery.
+`AGENT_SCHEDULE_POLICY` is an optional repository variable that controls scheduled workflow runs. It applies only to `schedule` events; manual `workflow_dispatch` runs remain available for debugging and recovery. To pause all Sepo workflow entry points, including manual dispatch, set the global `AGENT_ENABLED` repository variable to `false`.
 
 **Default**: scheduled workflows use `skip_no_updates`, with `agent-daily-summary.yml` set to `disabled` and `agent-memory-sync.yml` set to `always_run`.
 

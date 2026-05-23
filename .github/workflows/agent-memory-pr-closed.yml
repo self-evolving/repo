@@ -30,9 +30,12 @@ jobs:
     # for memory curation. Skip closed-without-merge fork PRs where attacker-
     # controlled title/body would reach the LLM without merge review.
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event.pull_request.head.repo.full_name == github.repository ||
-      github.event.pull_request.merged == true
+      vars.AGENT_ENABLED != 'false' &&
+      (
+        github.event_name == 'workflow_dispatch' ||
+        github.event.pull_request.head.repo.full_name == github.repository ||
+        github.event.pull_request.merged == true
+      )
     runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
     env:
       MEMORY_REF: ${{ inputs.memory_ref || vars.AGENT_MEMORY_REF || 'agent/memory' }}

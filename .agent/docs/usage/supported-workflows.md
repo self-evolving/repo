@@ -26,6 +26,11 @@ title: "Supported workflows"
 | `agent-onboarding.yml` | `workflow_dispatch` | First-run setup check that creates built-in trigger labels and opens or updates a setup issue | None |
 | `test-scripts.yml` | `pull_request`, `workflow_dispatch` | CI for helper tests, YAML parsing, and shell syntax | None |
 
+All packaged `agent-*.yml` workflow jobs honor `AGENT_ENABLED=false` as a
+global Sepo pause before checkout, auth, provider resolution, or runtime setup.
+Unset `AGENT_ENABLED` or any value other than exact `false` leaves Sepo enabled.
+`test-scripts.yml` remains normal CI and is not paused by this flag.
+
 `agent-orchestrator.yml` is started explicitly through `/orchestrate` or
 `agent/orchestrate`. Dispatch triage can also select `orchestrate` for issue and
 pull request requests that ask for orchestration, follow-up automation, or
