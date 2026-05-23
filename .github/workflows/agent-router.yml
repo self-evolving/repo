@@ -109,6 +109,7 @@ permissions:
 jobs:
   # --- Portal: extract context, triage, resolve route ---
   portal:
+    if: vars.AGENT_ENABLED != 'false'
     runs-on: ${{ fromJson(inputs.runs_on || vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
     outputs:
       should_respond: ${{ steps.context.outputs.should_respond }}
@@ -344,6 +345,7 @@ jobs:
   answer:
     needs: portal
     if: >-
+      vars.AGENT_ENABLED != 'false' &&
       needs.portal.outputs.should_respond == 'true' &&
       (needs.portal.outputs.route == 'answer' || needs.portal.outputs.route == 'unsupported')
     runs-on: ${{ fromJson(inputs.runs_on || vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
@@ -457,6 +459,7 @@ jobs:
   skill:
     needs: portal
     if: >-
+      vars.AGENT_ENABLED != 'false' &&
       needs.portal.outputs.should_respond == 'true' &&
       needs.portal.outputs.route == 'skill'
     runs-on: ${{ fromJson(inputs.runs_on || vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
@@ -622,6 +625,7 @@ jobs:
   install:
     needs: portal
     if: >-
+      vars.AGENT_ENABLED != 'false' &&
       needs.portal.outputs.should_respond == 'true' &&
       needs.portal.outputs.route == 'install'
     runs-on: ${{ fromJson(inputs.runs_on || vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
@@ -753,6 +757,7 @@ jobs:
   approval:
     needs: portal
     if: >-
+      vars.AGENT_ENABLED != 'false' &&
       needs.portal.outputs.should_respond == 'true' &&
       needs.portal.outputs.needs_approval == 'true'
     runs-on: ${{ fromJson(inputs.runs_on || vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
@@ -808,6 +813,7 @@ jobs:
   implement:
     needs: portal
     if: >-
+      vars.AGENT_ENABLED != 'false' &&
       needs.portal.outputs.should_respond == 'true' &&
       (needs.portal.outputs.route == 'implement' || needs.portal.outputs.route == 'create-action') &&
       needs.portal.outputs.needs_approval == 'false'
@@ -902,6 +908,7 @@ jobs:
   orchestrate:
     needs: portal
     if: >-
+      vars.AGENT_ENABLED != 'false' &&
       needs.portal.outputs.should_respond == 'true' &&
       needs.portal.outputs.route == 'orchestrate' &&
       (needs.portal.outputs.target_kind == 'issue' || needs.portal.outputs.target_kind == 'pull_request')
@@ -949,6 +956,7 @@ jobs:
   review:
     needs: portal
     if: >-
+      vars.AGENT_ENABLED != 'false' &&
       needs.portal.outputs.should_respond == 'true' &&
       needs.portal.outputs.route == 'review' &&
       needs.portal.outputs.target_kind == 'pull_request' &&
@@ -968,6 +976,7 @@ jobs:
   fix-pr:
     needs: portal
     if: >-
+      vars.AGENT_ENABLED != 'false' &&
       needs.portal.outputs.should_respond == 'true' &&
       needs.portal.outputs.route == 'fix-pr' &&
       needs.portal.outputs.target_kind == 'pull_request' &&

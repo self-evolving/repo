@@ -29,7 +29,7 @@ concurrency:
 
 jobs:
   agent:
-    if: startsWith(github.event.label.name, 'agent/')
+    if: vars.AGENT_ENABLED != 'false' && startsWith(github.event.label.name, 'agent/')
     uses: ./.github/workflows/agent-router.yml
     with:
       runs_on: ${{ vars.AGENT_RUNS_ON || '["ubuntu-latest"]' }}
@@ -51,6 +51,7 @@ jobs:
   cleanup-label:
     needs: agent
     if: >-
+      vars.AGENT_ENABLED != 'false' &&
       needs.agent.result == 'success' &&
       needs.agent.outputs.should_respond == 'true'
     runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}

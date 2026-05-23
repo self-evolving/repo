@@ -289,6 +289,63 @@ test("single-agent workflows resolve provider before runtime setup", () => {
   assert.doesNotMatch(configurationList, /AGENT_PROVIDER_IMPLEMENT/);
 });
 
+test("packaged Sepo workflows have a global AGENT_ENABLED job guard", () => {
+  const workflowFiles = readdirSync(path.join(repoRoot, ".github/workflows"))
+    .filter((file) => file.startsWith("agent-") && file.endsWith(".yml"))
+    .sort();
+  const guardPattern = /vars\.AGENT_ENABLED\s*!=\s*'false'/;
+
+  assert.ok(workflowFiles.length > 0, "expected packaged agent workflows");
+  assert.ok(!workflowFiles.includes("test-scripts.yml"));
+
+  for (const file of workflowFiles) {
+    const workflowPath = `.github/workflows/${file}`;
+    const workflow = parseYaml(readRepoFile(workflowPath)) as unknown;
+    assert.ok(isRecord(workflow), `${workflowPath} should parse as a YAML object`);
+    assert.ok(isRecord(workflow.jobs), `${workflowPath} should define jobs`);
+
+    for (const [jobId, job] of Object.entries(workflow.jobs)) {
+      assert.ok(isRecord(job), `${workflowPath} job ${jobId} should be an object`);
+      const jobIf = job.if;
+      if (typeof jobIf !== "string") {
+        assert.fail(`${workflowPath} job ${jobId} should define a job-level pause guard`);
+      }
+      assert.match(
+        jobIf,
+        guardPattern,
+        `${workflowPath} job ${jobId} should check AGENT_ENABLED before running`,
+      );
+    }
+  }
+
+  const actionTemplate = parseYaml(
+    readRepoFile(".agent/action-templates/agent-action-template.yml"),
+  ) as unknown;
+  assert.ok(isRecord(actionTemplate), "agent action template should parse as a YAML object");
+  assert.ok(isRecord(actionTemplate.jobs), "agent action template should define jobs");
+  const runJob = actionTemplate.jobs.run;
+  assert.ok(isRecord(runJob), "agent action template should define the run job");
+  const runJobIf = runJob.if;
+  if (typeof runJobIf !== "string") {
+    assert.fail("agent action template run job should define a job-level pause guard");
+  }
+  assert.match(runJobIf, guardPattern);
+
+  const configurationList = readRepoFile(".agent/docs/customization/configuration-list.md");
+  const supportedWorkflows = readRepoFile(".agent/docs/usage/supported-workflows.md");
+  const agentActions = readRepoFile(".agent/docs/usage/agent-actions.md");
+  const memoryDocs = readRepoFile(".agent/docs/architecture/memory.md");
+  const readme = readRepoFile("README.md");
+  const docsIndex = readRepoFile(".agent/docs/index.md");
+
+  assert.match(configurationList, /`AGENT_ENABLED`[\s\S]*Global Sepo pause switch/);
+  assert.match(supportedWorkflows, /All packaged `agent-\*\.yml` workflow jobs honor `AGENT_ENABLED=false`/);
+  assert.match(agentActions, /template includes the same `AGENT_ENABLED=false` job/);
+  assert.match(memoryDocs, /pause all Sepo workflow entry points[\s\S]*`AGENT_ENABLED`/);
+  assert.match(readme, /AGENT_ENABLED=false/);
+  assert.match(docsIndex, /AGENT_ENABLED=false/);
+});
+
 test("scheduled workflows evaluate skip gates before provider-dependent jobs", () => {
   const dailySummaryWorkflow = readRepoFile(".github/workflows/agent-daily-summary.yml");
   const memoryScanWorkflow = readRepoFile(".github/workflows/agent-memory-scan.yml");
@@ -301,12 +358,12 @@ test("scheduled workflows evaluate skip gates before provider-dependent jobs", (
   assert.doesNotMatch(gateAction, /\.agent\/dist\/cli\/resolve-scheduled-activity-gate\.js/);
 
   assert.match(memoryScanWorkflow, /gate:\n[\s\S]*Resolve scheduled activity gate/);
-  assert.match(memoryScanWorkflow, /scan:\n\s+needs: gate\n\s+if: needs\.gate\.outputs\.skip != 'true'/);
+  assert.match(memoryScanWorkflow, /scan:\n\s+needs: gate\n\s+if: vars\.AGENT_ENABLED != 'false' && needs\.gate\.outputs\.skip != 'true'/);
   assert.match(memoryScanWorkflow, /Resolve memory scan provider[\s\S]*Setup agent runtime/);
   assert.doesNotMatch(memoryScanWorkflow, /if: steps\.gate\.outputs\.skip != 'true'/);
 
   assert.match(memorySyncWorkflow, /gate:\n[\s\S]*Resolve scheduled activity gate/);
-  assert.match(memorySyncWorkflow, /sync:\n\s+needs: gate\n\s+if: needs\.gate\.outputs\.skip != 'true'/);
+  assert.match(memorySyncWorkflow, /sync:\n\s+needs: gate\n\s+if: vars\.AGENT_ENABLED != 'false' && needs\.gate\.outputs\.skip != 'true'/);
   assert.doesNotMatch(memorySyncWorkflow, /if: steps\.gate\.outputs\.skip != 'true'/);
 
   assert.match(updateWorkflow, /gate:\n[\s\S]*Resolve scheduled activity gate/);
@@ -315,7 +372,7 @@ test("scheduled workflows evaluate skip gates before provider-dependent jobs", (
   assert.doesNotMatch(updateWorkflow, /Resolve canonical source guard/);
   assert.match(updateWorkflow, /Check pending update PR[\s\S]*if: steps\.schedule\.outputs\.skip != 'true'[\s\S]*resolve-pending-update-pr\.sh/);
   assert.match(updateWorkflow, /IGNORE_EXISTING_UPDATE_PR:\s*\$\{\{ inputs\.force && 'true' \|\| 'false' \}\}/);
-  assert.match(updateWorkflow, /update:\n\s+needs: gate\n\s+if: needs\.gate\.outputs\.skip != 'true'/);
+  assert.match(updateWorkflow, /update:\n\s+needs: gate\n\s+if: vars\.AGENT_ENABLED != 'false' && needs\.gate\.outputs\.skip != 'true'/);
   assert.match(updateWorkflow, /existing_pr_branch: \$\{\{ steps\.pending\.outputs\.branch \}\}/);
   assert.match(updateWorkflow, /ref: \$\{\{ github\.event\.repository\.default_branch \}\}/);
   assert.doesNotMatch(updateWorkflow, /ref: \$\{\{ needs\.gate\.outputs\.existing_pr_branch/);
@@ -345,10 +402,10 @@ test("scheduled workflows evaluate skip gates before provider-dependent jobs", (
   assert.doesNotMatch(updateWorkflow, /if: steps\.gate\.outputs\.skip != 'true'/);
 
   assert.match(dailySummaryWorkflow, /pre_gate:\n[\s\S]*Resolve scheduled disabled gate/);
-  assert.match(dailySummaryWorkflow, /signals:\n\s+needs: pre_gate\n\s+if: needs\.pre_gate\.outputs\.skip != 'true'/);
+  assert.match(dailySummaryWorkflow, /signals:\n\s+needs: pre_gate\n\s+if: vars\.AGENT_ENABLED != 'false' && needs\.pre_gate\.outputs\.skip != 'true'/);
   assert.match(
     dailySummaryWorkflow,
-    /daily-summary:\n\s+needs: signals\n\s+if: needs\.signals\.result == 'success' && needs\.signals\.outputs\.skip != 'true'/,
+    /daily-summary:\n\s+needs: signals\n\s+if: >-\n\s+vars\.AGENT_ENABLED != 'false' &&\n\s+needs\.signals\.result == 'success' &&\n\s+needs\.signals\.outputs\.skip != 'true'/,
   );
   assert.match(dailySummaryWorkflow, /daily-summary-signals-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}/);
   assert.match(dailySummaryWorkflow, /Upload summary signals[\s\S]*actions\/upload-artifact@v4/);
@@ -421,7 +478,7 @@ test("review workflow captures reviewed head as best-effort prepare output", () 
   const reviewJob = workflow.jobs.review;
   assert.ok(isRecord(reviewJob), "review workflow should define review job");
   assert.deepEqual(reviewJob.needs, ["prepare"]);
-  assert.equal(reviewJob.if, "${{ !cancelled() }}");
+  assert.equal(reviewJob.if, "${{ vars.AGENT_ENABLED != 'false' && !cancelled() }}");
 
   const rubricsReviewJob = workflow.jobs["rubrics-review"];
   assert.ok(isRecord(rubricsReviewJob), "review workflow should define rubrics-review job");
@@ -503,8 +560,8 @@ test("review synthesis uses a shared reviews directory contract", () => {
   const configurationList = readRepoFile(".agent/docs/customization/configuration-list.md");
   const supportedWorkflows = readRepoFile(".agent/docs/usage/supported-workflows.md");
 
-  assert.match(reviewWorkflow, /review:\n\s*# Ordering-only:[\s\S]*?needs:\s*\[prepare\]\n\s*if:\s*\$\{\{\s*!cancelled\(\)\s*\}\}\n\s*# Reviewer lanes are best-effort[\s\S]*?continue-on-error:\s*true/);
-  assert.match(reviewWorkflow, /synthesize:\n\s*needs:\s*\[prepare,\s*review\]\n\s*if:\s*\$\{\{\s*!cancelled\(\)\s*\}\}/);
+  assert.match(reviewWorkflow, /review:\n\s*# Ordering-only:[\s\S]*?needs:\s*\[prepare\]\n\s*if:\s*\$\{\{\s*vars\.AGENT_ENABLED != 'false' && !cancelled\(\)\s*\}\}\n\s*# Reviewer lanes are best-effort[\s\S]*?continue-on-error:\s*true/);
+  assert.match(reviewWorkflow, /synthesize:\n\s*needs:\s*\[prepare,\s*review\]\n\s*if:\s*\$\{\{\s*vars\.AGENT_ENABLED != 'false' && !cancelled\(\)\s*\}\}/);
   assert.match(reviewWorkflow, /find "\$reviews_dir" -type f -name review\.md/);
   assert.match(reviewWorkflow, /REVIEWS_DIR:\s*\$\{\{\s*steps\.reviews\.outputs\.reviews_dir\s*\}\}/);
   assert.doesNotMatch(reviewWorkflow, /AGENT_INLINE_COMMENT_CLEANUP_MODE/);
@@ -1237,6 +1294,7 @@ test("workflow docs record the minimal metadata contract and developer notes", (
   assert.match(requestLifecycle, /agent\/<route>-<target_kind>-<number>\/<agent>-<run_id>/);
 
   assert.match(configurationList, /AGENT_RUNS_ON/);
+  assert.match(configurationList, /AGENT_ENABLED/);
   assert.match(configurationList, /AGENT_TASK_TIMEOUT_POLICY/);
   assert.match(configurationList, /Values must be 1-360 minutes/);
   assert.match(configurationList, /AGENT_MEMORY_POLICY/);
@@ -1868,13 +1926,13 @@ test("agent-review permissions are scoped per-job: reviewers read-only, synthesi
   // Reviewer job keeps contents:read.
   assert.match(
     reviewWorkflow,
-    /review:\s*\n\s+# Ordering-only:[\s\S]*?needs: \[prepare\]\s*\n\s+if: \$\{\{ !cancelled\(\) \}\}\s*\n\s+# Reviewer lanes are best-effort[\s\S]*?permissions:\s*\n\s+# Reviewer jobs stay read-only[\s\S]*?contents: read/,
+    /review:\s*\n\s+# Ordering-only:[\s\S]*?needs: \[prepare\]\s*\n\s+if: \$\{\{ vars\.AGENT_ENABLED != 'false' && !cancelled\(\) \}\}\s*\n\s+# Reviewer lanes are best-effort[\s\S]*?permissions:\s*\n\s+# Reviewer jobs stay read-only[\s\S]*?contents: read/,
   );
 
   // Synthesize job upgrades to contents:write for the memory commit.
   assert.match(
     reviewWorkflow,
-    /synthesize:\s*\n\s+needs: \[prepare, review\]\s*\n\s+if: \$\{\{ !cancelled\(\) \}\}\s*\n\s+permissions:[\s\S]*?contents: write/,
+    /synthesize:\s*\n\s+needs: \[prepare, review\]\s*\n\s+if: \$\{\{ vars\.AGENT_ENABLED != 'false' && !cancelled\(\) \}\}\s*\n\s+permissions:[\s\S]*?contents: write/,
   );
 });
 

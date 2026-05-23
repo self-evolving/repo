@@ -47,7 +47,9 @@ jobs:
   agent:
     # Broad pre-filter: the real mention validation happens in extract-context.js
     # inside agent-router.yml (boundary-aware, strips code blocks and quotes).
-    if: contains(toJSON(github.event), vars.AGENT_HANDLE || '@sepo-agent')
+    if: >-
+      vars.AGENT_ENABLED != 'false' &&
+      contains(toJSON(github.event), vars.AGENT_HANDLE || '@sepo-agent')
     uses: ./.github/workflows/agent-router.yml
     with:
       agent_handle: ${{ vars.AGENT_HANDLE || '@sepo-agent' }}

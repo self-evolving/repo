@@ -7,6 +7,7 @@ title: "Configurations list"
 | Variable | Purpose |
 |---|---|
 | `AGENT_HANDLE` | Override the mention handle. Defaults to `@sepo-agent`. |
+| `AGENT_ENABLED` | Global Sepo pause switch. Defaults to enabled when unset; set exactly `false` to skip packaged `agent-*.yml` workflows and generated agent-action template jobs before checkout or provider setup. Normal CI workflows such as `test-scripts.yml` are not governed by this flag. |
 | `AGENT_RUNS_ON` | JSON array string for runner selection. If you are using self-hosted runners, see [Self-hosted GitHub Action runner](../setup/self-hosted-github-action-runner.md). |
 | `AGENT_DEFAULT_PROVIDER` | Default provider for single-agent runs and review synthesis: `auto`, `codex`, or `claude`. Explicit `codex` / `claude` choices are honored even without matching repository secrets, allowing self-hosted runners to use local provider authentication. `auto` chooses Codex when `OPENAI_API_KEY` is configured; otherwise it chooses Claude when either `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` is configured. |
 | `AGENT_SESSION_BUNDLE_MODE` | Default session-bundle behavior: `auto`, `always`, or `never`. For the trade-offs behind this setting, see [Session continuity](../technical-details/session-continuity.md). |

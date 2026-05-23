@@ -30,12 +30,15 @@ jobs:
     # keeps unmerged/abandoned PR feedback and trivial merges from becoming
     # normative user preference without review.
     if: >-
-      github.event_name == 'workflow_dispatch' ||
+      vars.AGENT_ENABLED != 'false' &&
       (
-        github.event.pull_request.merged == true &&
+        github.event_name == 'workflow_dispatch' ||
         (
-          github.event.pull_request.comments > 0 ||
-          github.event.pull_request.review_comments > 0
+          github.event.pull_request.merged == true &&
+          (
+            github.event.pull_request.comments > 0 ||
+            github.event.pull_request.review_comments > 0
+          )
         )
       )
     runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}

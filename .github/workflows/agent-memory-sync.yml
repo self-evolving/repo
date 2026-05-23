@@ -31,6 +31,7 @@ concurrency:
 
 jobs:
   gate:
+    if: vars.AGENT_ENABLED != 'false'
     runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
     outputs:
       skip: ${{ steps.gate.outputs.skip }}
@@ -54,7 +55,7 @@ jobs:
 
   sync:
     needs: gate
-    if: needs.gate.outputs.skip != 'true'
+    if: vars.AGENT_ENABLED != 'false' && needs.gate.outputs.skip != 'true'
     runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
     env:
       MEMORY_REF: ${{ inputs.memory_ref || vars.AGENT_MEMORY_REF || 'agent/memory' }}
