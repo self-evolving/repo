@@ -291,8 +291,8 @@
       "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-336/codex-26252764032`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Merged current `origin/main` into the PR working tree without committing; conflicts are resolved, all changed files are staged, and no unmerged paths remain.\n- Fixed `route_provider` precedence so inline route provider overrides skip route-level model/reasoning policy settings, with focused resolver coverage.\n- Updated session-continuity docs for Codex transient exec sessions used to apply `thought_level` under `session_policy: none`.\n\n<details><summary>Verification</summary>\n\n- `npm --prefix .agent run build`\n- `GITHUB_OUTPUT= node --test .agent/dist/__tests__/resolve-agent-provider.test.js .agent/dist/__tests__/envelope.test.js .agent/dist/__tests__/onboarding-check-cli.test.js .agent/dist/__tests__/acpx-adapter.test.js .agent/dist/__tests__/response.test.js`\n- `git diff --check`\n- `git diff --cached --check`\n- `git ls-files -u`\n- `rg -n \"^<<<<<<<|^=======|^>>>>>>>\" .agent .github README.md`\n\n</details>",
       "createdAt": "2026-05-22T07:59:52Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/337#issuecomment-4516678212",
       "viewerDidAuthor": true
@@ -306,8 +306,8 @@
       "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #337 | 7 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr completed successfully on the open PR, so an automated review is warranted to verify the requested fixes and catch regressions before stopping.\n\n<!-- sepo-agent-handoff state:dispatched created:1779436829623 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYyNzU2MTI1NzQ6Zml4X3ByOjMzNzpyZXZpZXc6MzM3Ojc -->",
       "createdAt": "2026-05-22T08:00:30Z",
       "includesCreatedEdit": true,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/337#issuecomment-4516683864",
       "viewerDidAuthor": true
@@ -321,8 +321,8 @@
       "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 94 | PASS | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Docs cover `AGENT_MODEL_POLICY`, `AGENT_DISPLAY_MODEL`, reviewer-lane behavior, and Anthropic credentials in [`configuration-list.md`](https://github.com/self-evolving/repo/blob/d4e11405a61bcd8238869e2ca1414d32b0ad7927/.agent/docs/customization/configuration-list.md#L11-L64), plus the new Codex transient-session exception in [`session-continuity.md`](https://github.com/self-evolving/repo/blob/d4e11405a61bcd8238869e2ca1414d32b0ad7927/.agent/docs/technical-details/session-continuity.md#L15-L21). |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | Display is only controlled by `AGENT_DISPLAY_MODEL`; model policy covers provider/model/effort only, and inline `route_provider` remains the YAML escape hatch ([resolver](https://github.com/self-evolving/repo/blob/d4e11405a61bcd8238869e2ca1414d32b0ad7927/.github/actions/resolve-agent-provider/resolve-provider.js#L166-L172), [docs](https://github.com/self-evolving/repo/blob/d4e11405a61bcd8238869e2ca1414d32b0ad7927/.agent/docs/customization/configuration-list.md#L55)). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | `AGENT_MODEL_POLICY` validates structured `default`, `providers`, and `route_overrides` objects with separate `provider`, `model`, and `reasoning_effort` fields ([resolver](https://github.com/self-evolving/repo/blob/d4e11405a61bcd8238869e2ca1414d32b0ad7927/.github/actions/resolve-agent-provider/resolve-provider.js#L39-L114)). |\n| coding_workflow / generic | Name config by capability | pass | 6/6 | Public config names separate model-selection policy from comment display: `AGENT_MODEL_POLICY` and `AGENT_DISPLAY_MODEL` are documented as distinct capabilities ([docs](https://github.com/self-evolving/repo/blob/d4e11405a61bcd8238869e2ca1414d32b0ad7927/.agent/docs/customization/configuration-list.md#L12-L13)). |\n| coding_workflow / generic | Reuse existing code | partial | 6/8 | The change reuses the existing provider-resolution and `run-agent-task` surfaces, but moves substantial model-policy logic into pre-runtime composite-action JS. The action documents why this remains in action glue before `.agent/dist` is built ([action.yml](https://github.com/self-evolving/repo/blob/d4e11405a61bcd8238869e2ca1414d32b0ad7927/.github/actions/resolve-agent-provider/action.yml#L80-L83)). |\n| coding_workflow / generic | Make surgical changes | pass | 7/8 | The diff is broad because many workflows pass through the resolved model/display/effort fields, but current changes stay scoped to provider/model policy, ACPX wiring, display footers, docs, and focused tests. The earlier `route_provider` precedence issue is now directly fixed and tested ([resolver](https://github.com/self-evolving/repo/blob/d4e11405a61bcd8238869e2ca1414d32b0ad7927/.github/actions/resolve-agent-provider/resolve-provider.js#L166-L172), [test](https://github.com/self-evolving/repo/blob/d4e11405a61bcd8238869e2ca1414d32b0ad7927/.agent/src/__tests__/resolve-agent-provider.test.ts#L229-L249)). |\n| coding_style / generic | Prefer simple implementations | pass | 6/7 | The precedence chain is direct: defaults, provider config, route config unless inline `route_provider` is set, then env-only display parsing ([resolver](https://github.com/self-evolving/repo/blob/d4e11405a61bcd8238869e2ca1414d32b0ad7927/.github/actions/resolve-agent-provider/resolve-provider.js#L134-L183)). |\n| coding_workflow / generic | Separate diagnostics from continuity | pass | 7/7 | Codex exec runs with reasoning effort create random transient sessions only to apply `thought_level`, without turning `session_policy: none` into resumable continuity ([adapter](https://github.com/self-evolving/repo/blob/d4e11405a61bcd8238869e2ca1414d32b0ad7927/.agent/src/acpx-adapter.ts#L678-L705), [docs](https://github.com/self-evolving/repo/blob/d4e11405a61bcd8238869e2ca1414d32b0ad7927/.agent/docs/technical-details/session-continuity.md#L15-L21)). |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Transient session creation/setup failures return explicit run failures instead of silently continuing without the requested thought level ([adapter](https://github.com/self-evolving/repo/blob/d4e11405a61bcd8238869e2ca1414d32b0ad7927/.agent/src/acpx-adapter.ts#L683-L716)). |\n| communication / generic | Keep status comments compact | pass | 6/6 | Optional model display is a single short footer, only appended when enabled ([run.ts](https://github.com/self-evolving/repo/blob/d4e11405a61bcd8238869e2ca1414d32b0ad7927/.agent/src/run.ts#L324-L334), [response.ts](https://github.com/self-evolving/repo/blob/d4e11405a61bcd8238869e2ca1414d32b0ad7927/.agent/src/response.ts#L158-L163)). |\n\n## Notes\n\n- The latest head satisfies the requester-approved fixes: `display.enabled` in `AGENT_MODEL_POLICY` is ignored, `AGENT_DISPLAY_MODEL` is the only display toggle, and Codex `session_policy: none` exec runs with reasoning effort now get `thought_level` through a transient session.\n- Focused regression coverage exists for display precedence, inline `route_provider` precedence, Anthropic auto-detection, and Codex `session_policy: none` reasoning effort.\n- Smallest useful follow-up: keep an eye on the pre-runtime resolver JS if model policy grows; it is the only meaningful rubric deduction.\n\n## Findings\n\n- **INFO:** No blocking rubric-specific follow-up needed. The remaining `Reuse existing code` concern is maintainability-oriented and is partly justified by provider resolution running before runtime setup builds `.agent/dist`.\n\n## Final Rubric Verdict\n\nPASS",
       "createdAt": "2026-05-22T08:02:48Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/337#issuecomment-4516704638",
       "viewerDidAuthor": true
@@ -336,10 +336,150 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: d4e11405a61bcd8238869e2ca1414d32b0ad7927 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #337 implements configurable Sepo model policy for issue #336. It adds `AGENT_MODEL_POLICY` for provider, model, and reasoning-effort defaults/overrides, and keeps `AGENT_DISPLAY_MODEL` as the sole display toggle for optional run metadata footers. The requester’s constraint to keep reviewer lanes fixed is satisfied: policy applies to review synthesis, not to the Claude/Codex reviewer lane matrix. Follow-up fixes addressed the earlier display dual-source, Codex `session_policy: none` reasoning-effort, Anthropic credential, mergeability, route-provider precedence, and session-continuity documentation issues.\n\n## Review\nOverall judgment: current head `d4e11405a61bcd8238869e2ca1414d32b0ad7927` has no required branch-change issues in the current review artifacts or PR state. Codex and rubrics report ship/pass; Claude raised one nonblocking coverage concern around Claude named-session model setup, but current ACPX 0.6.1 exposes generic `set model` support and the concern is best treated as optional coverage polish.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No required branch-change issues | INFO | Current PR head is mergeable, focused verification passed in the review artifacts, and no unresolved defect requires automated branch changes. |\n\n## Progress\n- PR mergeability is now clean: `mergeable: MERGEABLE`, `mergeStateStatus: CLEAN`.\n- The latest check run reported success for `Test Scripts`.\n- `AGENT_DISPLAY_MODEL` is now the only display toggle; policy-controlled `display.enabled` is ignored.\n- Codex exec runs with configured reasoning effort now use transient sessions so ACPX receives `thought_level`, including `session_policy: none`.\n- `ANTHROPIC_API_KEY` readiness/pass-through and inline `route_provider` precedence are restored and covered by focused tests.\n- Resolved the stale same-agent inline thread for the already-fixed `route_provider` precedence issue: https://github.com/self-evolving/repo/pull/337#discussion_r3286805399\n- No new inline comments, replies, or minimizations were added.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: no unresolved required branch work remains; any remaining action is a human merge/readiness decision for the draft PR.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work.",
       "createdAt": "2026-05-22T08:13:40Z",
       "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/337#issuecomment-4516823913",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDa9DRA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer it seems .github/actions/resolve-agent-provider/resolve-provider.sh is not needed anymore? \r\n\r\nalso I think the reason why we had .github/actions/resolve-agent-provider/resolve-provider.sh (instead of js ) previously is that it avoided setting up typescript + npm build etc? \r\n\r\nalso for claude it seems the PR code only applies thought_level for Codex (isCodexAgent(agent)), so Claude reasoning effort is just display/config metadata unless something else maps it later? ",
+      "createdAt": "2026-05-23T07:14:57Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/337#issuecomment-4524557124",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDa9oRA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Agree on `resolve-provider.sh`: in the current PR branch it is now only a trampoline:\n\n[`resolve-provider.sh#L1-L8`](https://github.com/self-evolving/repo/blob/agent/implement-issue-336/codex-26252764032/.github/actions/resolve-agent-provider/resolve-provider.sh#L1-L8)\n\nSo it is not structurally necessary anymore. `action.yml` could call `node \"${GITHUB_ACTION_PATH}/resolve-provider.js\"` directly. The original reason for shell was exactly what you said: provider resolution runs before `setup-agent-runtime`, so it cannot depend on `.agent/dist`, TypeScript compilation, or `npm ci`. The new JS file is plain CommonJS Node, so it still preserves that constraint without needing TS/build. I’d remove the shell wrapper unless we intentionally want a tiny compatibility entrypoint.\n\nOn Claude reasoning effort: it is not only display metadata. The `thought_level` ACPX config path is intentionally Codex-only because ACPX maps Codex `thought_level` to `reasoning_effort`; see the Codex branch in [`acpx-adapter.ts#L303-L319`](https://github.com/self-evolving/repo/blob/agent/implement-issue-336/codex-26252764032/.agent/src/acpx-adapter.ts#L303-L319).\n\nClaude uses a different path: `run.ts` maps `MODEL_REASONING_EFFORT` to `CLAUDE_CODE_EFFORT_LEVEL`, which is then passed into the ACPX process env:\n\n[`run.ts#L290-L294`](https://github.com/self-evolving/repo/blob/agent/implement-issue-336/codex-26252764032/.agent/src/run.ts#L290-L294)  \n[`run.ts#L585-L596`](https://github.com/self-evolving/repo/blob/agent/implement-issue-336/codex-26252764032/.agent/src/run.ts#L585-L596)\n\nSo current behavior is:\n\n- Codex: policy `reasoning_effort` becomes ACPX session config `thought_level`.\n- Claude: policy `reasoning_effort` becomes `CLAUDE_CODE_EFFORT_LEVEL`.\n- Display footer just reports the selected setting; it is not the only consumer.\n\nAlso, the earlier Codex exec gap appears fixed on the latest PR branch: any Codex exec run with a thought level now creates a transient session, including `session_policy: none` runs:\n\n[`acpx-adapter.ts#L677-L680`](https://github.com/self-evolving/repo/blob/agent/implement-issue-336/codex-26252764032/.agent/src/acpx-adapter.ts#L677-L680)  \n[`acpx-adapter.test.ts#L208-L273`](https://github.com/self-evolving/repo/blob/agent/implement-issue-336/codex-26252764032/.agent/src/__tests__/acpx-adapter.test.ts#L208-L273)\n\nOne small follow-up I’d still consider: add a test or explicit comment for the Claude env mapping, since unlike Codex it is not visible in ACPX command args and is easy to misread.",
+      "createdAt": "2026-05-23T07:17:44Z",
+      "includesCreatedEdit": false,
       "isMinimized": false,
       "minimizedReason": "",
       "reactionGroups": [],
-      "url": "https://github.com/self-evolving/repo/pull/337#issuecomment-4516823913",
+      "url": "https://github.com/self-evolving/repo/pull/337#issuecomment-4524566596",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDa-grA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Agree on `resolve-provider.sh`: in the current PR branch it is now only a trampoline:\r\n> \r\n> [`resolve-provider.sh#L1-L8`](https://github.com/self-evolving/repo/blob/agent/implement-issue-336/codex-26252764032/.github/actions/resolve-agent-provider/resolve-provider.sh#L1-L8)\r\n> \r\n> So it is not structurally necessary anymore. `action.yml` could call `node \"${GITHUB_ACTION_PATH}/resolve-provider.js\"` directly. The original reason for shell was exactly what you said: provider resolution runs before `setup-agent-runtime`, so it cannot depend on `.agent/dist`, TypeScript compilation, or `npm ci`. The new JS file is plain CommonJS Node, so it still preserves that constraint without needing TS/build. I’d remove the shell wrapper unless we intentionally want a tiny compatibility entrypoint.\r\n> \r\n> On Claude reasoning effort: it is not only display metadata. The `thought_level` ACPX config path is intentionally Codex-only because ACPX maps Codex `thought_level` to `reasoning_effort`; see the Codex branch in [`acpx-adapter.ts#L303-L319`](https://github.com/self-evolving/repo/blob/agent/implement-issue-336/codex-26252764032/.agent/src/acpx-adapter.ts#L303-L319).\r\n> \r\n> Claude uses a different path: `run.ts` maps `MODEL_REASONING_EFFORT` to `CLAUDE_CODE_EFFORT_LEVEL`, which is then passed into the ACPX process env:\r\n> \r\n> [`run.ts#L290-L294`](https://github.com/self-evolving/repo/blob/agent/implement-issue-336/codex-26252764032/.agent/src/run.ts#L290-L294) [`run.ts#L585-L596`](https://github.com/self-evolving/repo/blob/agent/implement-issue-336/codex-26252764032/.agent/src/run.ts#L585-L596)\r\n> \r\n> So current behavior is:\r\n> \r\n> * Codex: policy `reasoning_effort` becomes ACPX session config `thought_level`.\r\n> * Claude: policy `reasoning_effort` becomes `CLAUDE_CODE_EFFORT_LEVEL`.\r\n> * Display footer just reports the selected setting; it is not the only consumer.\r\n> \r\n> Also, the earlier Codex exec gap appears fixed on the latest PR branch: any Codex exec run with a thought level now creates a transient session, including `session_policy: none` runs:\r\n> \r\n> [`acpx-adapter.ts#L677-L680`](https://github.com/self-evolving/repo/blob/agent/implement-issue-336/codex-26252764032/.agent/src/acpx-adapter.ts#L677-L680) [`acpx-adapter.test.ts#L208-L273`](https://github.com/self-evolving/repo/blob/agent/implement-issue-336/codex-26252764032/.agent/src/__tests__/acpx-adapter.test.ts#L208-L273)\r\n> \r\n> One small follow-up I’d still consider: add a test or explicit comment for the Claude env mapping, since unlike Codex it is not visible in ACPX command args and is easy to misread.\r\n\r\n@sepo-agent /orchestrate ",
+      "createdAt": "2026-05-23T07:20:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/337#issuecomment-4524581036",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDa_IYg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | fix-pr | PR #337 | 2 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: PR #337 is open and the requester explicitly invoked /orchestrate on a concrete follow-up answer recommending branch changes; fix-pr should apply those scoped cleanup/coverage changes before another review.\n\nTask for fix-pr:\nAddress the requester-approved follow-ups on PR #337. 1) Remove the now-unnecessary `.github/actions/resolve-agent-provider/resolve-provider.sh` trampoline and update `.github/actions/resolve-agent-provider/action.yml` to call `node \"${GITHUB_ACTION_PATH}/resolve-provider.js\"` directly, preserving the pre-runtime constraint that provider resolution must not depend on `.agent/dist`, TypeScript compilation, or npm install. Update any tests/docs/snapshots if they mention the shell wrapper. 2) Add focused coverage or a short explicit code comment for the Claude reasoning-effort path showing that `MODEL_REASONING_EFFORT` maps to `CLAUDE_CODE_EFFORT_LEVEL` and is passed through the ACPX process environment, while Codex continues to use `thought_level`. Prefer a test if there is an existing suitable run/env test seam. Keep reviewer lanes unchanged and avoid unrelated refactors. Run focused verification for resolve-agent-provider/run/acpx behavior plus `git diff --check`.\n\n<!-- sepo-agent-handoff state:dispatched created:1779520940643 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYzMjY3ODg4NjY6b3JjaGVzdHJhdGU6MzM3OmZpeF9wcjozMzc6Mg -->",
+      "createdAt": "2026-05-23T07:22:21Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/337#issuecomment-4524591202",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDbAQsg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-336/codex-26252764032`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Removed the unused `resolve-provider.sh` trampoline; the composite action now calls plain CommonJS Node directly before runtime setup.\n- Updated resolver/envelope tests so provider resolution exercises `resolve-provider.js` directly and asserts the shell wrapper is gone.\n- Added focused coverage for reasoning effort plumbing: action input -> `MODEL_REASONING_EFFORT`, Claude `CLAUDE_CODE_EFFORT_LEVEL`, and Codex `thought_level`.\n\n<details><summary>Verification</summary>\n\n- `npm --prefix .agent run build`\n- `GITHUB_OUTPUT= node --test .agent/dist/__tests__/resolve-agent-provider.test.js .agent/dist/__tests__/envelope.test.js .agent/dist/__tests__/acpx-adapter.test.js .agent/dist/__tests__/response.test.js`\n- `git diff --check`\n- `rg -n \"resolve-provider\\.sh\" .agent .github README.md` returned no matches\n\n</details>",
+      "createdAt": "2026-05-23T07:25:35Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/337#issuecomment-4524609714",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDbAcfQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #337 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on open PR #337 after applying the requester-approved cleanup and coverage changes; an automatic review is warranted to validate the new head before stopping or human merge.\n\n<!-- sepo-agent-handoff state:dispatched created:1779521190088 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYzMjY4MjY1NjA6Zml4X3ByOjMzNzpyZXZpZXc6MzM3OjM -->",
+      "createdAt": "2026-05-23T07:26:30Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/337#issuecomment-4524612733",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDbA0qA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 96 | PASS | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Docs cover `AGENT_MODEL_POLICY`, `AGENT_DISPLAY_MODEL`, reviewer-lane behavior, and transient Codex reasoning sessions in the PR diff, including [`configuration-list.md`](https://github.com/self-evolving/repo/blob/bc8cfc8e21f8535ff9e6a1c7e54752ab7866f81b/.agent/docs/customization/configuration-list.md#L11-L13) and [`session-continuity.md`](https://github.com/self-evolving/repo/blob/bc8cfc8e21f8535ff9e6a1c7e54752ab7866f81b/.agent/docs/technical-details/session-continuity.md#L15-L21). |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | Display is only `AGENT_DISPLAY_MODEL`; model policy remains provider/model/effort focused, while inline `route_provider` still overrides route policy ([resolver](https://github.com/self-evolving/repo/blob/bc8cfc8e21f8535ff9e6a1c7e54752ab7866f81b/.github/actions/resolve-agent-provider/resolve-provider.js#L158-L172)). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | `AGENT_MODEL_POLICY` validates typed `default`, `providers`, and `route_overrides` objects with separate `provider`, `model`, and `reasoning_effort` fields ([resolver](https://github.com/self-evolving/repo/blob/bc8cfc8e21f8535ff9e6a1c7e54752ab7866f81b/.github/actions/resolve-agent-provider/resolve-provider.js#L39-L114)). |\n| coding_workflow / generic | Name config by capability | pass | 6/6 | Public surfaces are capability-scoped: `AGENT_MODEL_POLICY` for model/provider/effort and `AGENT_DISPLAY_MODEL` for comment display ([docs](https://github.com/self-evolving/repo/blob/bc8cfc8e21f8535ff9e6a1c7e54752ab7866f81b/.agent/docs/customization/configuration-list.md#L12-L13)). |\n| coding_workflow / generic | Reuse existing code | partial | 6/8 | The PR reuses the existing resolver and `run-agent-task` surfaces, but keeps substantial policy parsing in plain action JS. The action documents this pre-runtime constraint while removing the shell trampoline ([action.yml](https://github.com/self-evolving/repo/blob/bc8cfc8e21f8535ff9e6a1c7e54752ab7866f81b/.github/actions/resolve-agent-provider/action.yml#L80-L83)). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Latest head stays scoped to provider/model policy, ACPX wiring, compact display footers, docs, and focused tests; `resolve-provider.sh` is deleted and the action now invokes the JS resolver directly ([action.yml](https://github.com/self-evolving/repo/blob/bc8cfc8e21f8535ff9e6a1c7e54752ab7866f81b/.github/actions/resolve-agent-provider/action.yml#L80-L83), [envelope test](https://github.com/self-evolving/repo/blob/bc8cfc8e21f8535ff9e6a1c7e54752ab7866f81b/.agent/src/__tests__/envelope.test.ts#L248-L249)). |\n| coding_style / generic | Prefer simple implementations | pass | 6/7 | The resolution chain is direct: defaults, provider config, route config unless inline route provider is set, then env-only display parsing ([resolver](https://github.com/self-evolving/repo/blob/bc8cfc8e21f8535ff9e6a1c7e54752ab7866f81b/.github/actions/resolve-agent-provider/resolve-provider.js#L134-L183)). |\n| coding_workflow / generic | Separate diagnostics from continuity | pass | 7/7 | Codex exec runs with reasoning effort create random transient sessions for `thought_level` without converting `session_policy: none` into resumable continuity ([adapter](https://github.com/self-evolving/repo/blob/bc8cfc8e21f8535ff9e6a1c7e54752ab7866f81b/.agent/src/acpx-adapter.ts#L675-L705)). |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Transient session setup failures return explicit failed results instead of silently running without requested effort ([adapter](https://github.com/self-evolving/repo/blob/bc8cfc8e21f8535ff9e6a1c7e54752ab7866f81b/.agent/src/acpx-adapter.ts#L683-L716)). |\n| communication / generic | Keep status comments compact | pass | 6/6 | Optional model display is a single short footer assembled from provider/model/effort only when enabled ([run.ts](https://github.com/self-evolving/repo/blob/bc8cfc8e21f8535ff9e6a1c7e54752ab7866f81b/.agent/src/run.ts#L324-L334)). |\n\n## Notes\n\n- The latest follow-up satisfies the requester’s concrete rubric-relevant concerns: the shell trampoline is gone, the resolver remains plain CommonJS before runtime setup, and Claude reasoning effort is now both commented and covered through the env mapping test.\n- Focused coverage now checks Anthropic auto-detection, `AGENT_DISPLAY_MODEL` as the sole display toggle, no `resolve-provider.sh` reference, Claude env effort mapping, and Codex `thought_level` handling.\n- Smallest useful follow-up: if model policy grows further, consider moving shared semantics into a typed source helper while preserving the pre-runtime execution constraint.\n\n## Findings\n\n- **INFO:** No blocking rubric-specific follow-up needed. The only deduction is maintainability-oriented: `resolve-provider.js` still contains substantial policy parsing in action glue, but the PR documents why this resolver cannot depend on `.agent/dist`, TypeScript compilation, or npm install.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-23T07:28:37Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/337#issuecomment-4524618920",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDbCKJQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: bc8cfc8e21f8535ff9e6a1c7e54752ab7866f81b -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #337 implements configurable Sepo model policy for issue #336. It adds `AGENT_MODEL_POLICY` for provider, model, and reasoning-effort defaults/overrides, while keeping `AGENT_DISPLAY_MODEL` as the separate opt-in display toggle. The linked issue and PR discussion explicitly constrained the work to keep reviewer lanes fixed, and the current diff applies policy to single-agent routes and review synthesis without changing the Claude/Codex reviewer matrix. Follow-up fixes removed the obsolete resolver shell trampoline and added coverage for Claude and Codex reasoning-effort plumbing.\n\n## Review\nThe current review artifacts agree that PR head `bc8cfc8e21f8535ff9e6a1c7e54752ab7866f81b` is ready to ship. Claude and Codex report no blocking or warning-level issues, and the rubrics review passes with only a nonblocking maintainability note about policy parsing living in pre-runtime action JS.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No required branch-change issues | INFO | Current PR head is mergeable, the `Test Scripts` check succeeded, prior inline threads are resolved, and no reviewer artifact identifies required branch work. |\n\n## Progress\n- Parent issue #336’s reviewer-lane constraint is satisfied: reviewer lanes remain fixed while review synthesis receives model policy.\n- The latest follow-up removed `.github/actions/resolve-agent-provider/resolve-provider.sh`; `action.yml` now invokes plain CommonJS Node directly before runtime setup.\n- Claude reasoning effort is now covered through the `MODEL_REASONING_EFFORT` to `CLAUDE_CODE_EFFORT_LEVEL` path, while Codex continues to use `thought_level`.\n- Earlier concerns around `ANTHROPIC_API_KEY`, inline `route_provider` precedence, display-policy duplication, and Codex `session_policy: none` reasoning effort are fixed or superseded in the current head.\n- Existing inline review threads are already resolved; no new inline comments, replies, minimizations, or thread resolutions were added.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: no unresolved required branch work remains, so the next step is human readiness/merge handling for the draft PR.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work.",
+      "createdAt": "2026-05-23T07:36:34Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/337#issuecomment-4524640805",
       "viewerDidAuthor": true
     }
   ],
@@ -389,14 +529,14 @@
     },
     {
       "path": ".agent/src/__tests__/envelope.test.ts",
-      "additions": 28,
-      "deletions": 6,
+      "additions": 42,
+      "deletions": 8,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/__tests__/resolve-agent-provider.test.ts",
-      "additions": 103,
-      "deletions": 1,
+      "additions": 105,
+      "deletions": 3,
       "changeType": "MODIFIED"
     },
     {
@@ -437,8 +577,8 @@
     },
     {
       "path": ".github/actions/resolve-agent-provider/action.yml",
-      "additions": 19,
-      "deletions": 0,
+      "additions": 22,
+      "deletions": 3,
       "changeType": "MODIFIED"
     },
     {
@@ -449,9 +589,9 @@
     },
     {
       "path": ".github/actions/resolve-agent-provider/resolve-provider.sh",
-      "additions": 4,
-      "deletions": 99,
-      "changeType": "MODIFIED"
+      "additions": 0,
+      "deletions": 103,
+      "changeType": "DELETED"
     },
     {
       "path": ".github/actions/run-agent-task/action.yml",
@@ -602,6 +742,6 @@
   ],
   "state": "OPEN",
   "title": "Support configurable agent model policy",
-  "updatedAt": "2026-05-22T08:13:41Z",
+  "updatedAt": "2026-05-23T07:36:34Z",
   "url": "https://github.com/self-evolving/repo/pull/337"
 }
