@@ -136,6 +136,10 @@ test("extractRequestedRoute detects explicit slash routes after the agent mentio
     "orchestrate",
   );
   assert.equal(
+    extractRequestedRoute("@sepo-agent /add-rubrics prefer concise PR summaries", "@sepo-agent"),
+    "add-rubrics",
+  );
+  assert.equal(
     extractRequestedRoute("@sepo-agent /create-action monitor flaky tests", "@sepo-agent"),
     "create-action",
   );
@@ -296,6 +300,18 @@ test("buildRequestedRouteDecision builds deterministic create-action metadata", 
   assert.match(d.issueBody, /scheduled GitHub Actions workflow/);
 });
 
+test("buildRequestedRouteDecision builds deterministic add-rubrics metadata", () => {
+  const d = buildRequestedRouteDecision(
+    "add-rubrics",
+    "@sepo-agent /add-rubrics prefer concise PR summaries",
+  );
+  assert.equal(d.route, "add-rubrics");
+  assert.equal(d.needsApproval, false);
+  assert.match(d.summary, /rubrics branch/);
+  assert.equal(d.issueTitle, "");
+  assert.equal(d.issueBody, "");
+});
+
 test("buildRequestedRouteDecision supports skill routes", () => {
   const d = buildRequestedRouteDecision("skill", "agent/s/release-notes");
   assert.equal(d.route, "skill");
@@ -312,6 +328,10 @@ test("buildRequestedRouteDecision supports install routes", () => {
 test("resolveRequestedLabel maps built-in and skill labels", () => {
   assert.deepEqual(resolveRequestedLabel("agent/review"), { route: "review", skill: "" });
   assert.deepEqual(resolveRequestedLabel("agent/orchestrate"), { route: "orchestrate", skill: "" });
+  assert.deepEqual(resolveRequestedLabel("agent/add-rubrics"), {
+    route: "add-rubrics",
+    skill: "",
+  });
   assert.deepEqual(resolveRequestedLabel("agent/create-action"), {
     route: "create-action",
     skill: "",
@@ -380,6 +400,38 @@ test("applyDispatchPolicy skips approval gate for explicit create-action request
   );
   assert.equal(d.route, "create-action");
   assert.equal(d.needsApproval, false);
+});
+
+test("applyDispatchPolicy keeps add-rubrics explicit and no-approval", () => {
+  const d = applyDispatchPolicy(
+    normalizeDispatch('{"route":"add-rubrics","needs_approval":true,"summary":"s"}'),
+    "issue",
+    "MEMBER",
+  );
+  assert.equal(d.route, "add-rubrics");
+  assert.equal(d.needsApproval, false);
+  assert.equal(d.issueTitle, "");
+  assert.equal(d.issueBody, "");
+});
+
+test("applyDispatchPolicy denies add-rubrics when route policy disallows it", () => {
+  const d = applyDispatchPolicy(
+    buildRequestedRouteDecision("add-rubrics", "@sepo-agent /add-rubrics add this"),
+    "issue",
+    "CONTRIBUTOR",
+    parseAccessPolicy(
+      JSON.stringify({
+        route_overrides: {
+          "add-rubrics": ["OWNER", "MEMBER"],
+        },
+      }),
+    ),
+    false,
+    true,
+  );
+  assert.equal(d.route, "unsupported");
+  assert.equal(d.needsApproval, false);
+  assert.match(d.summary, /OWNER, MEMBER/);
 });
 
 test("applyDispatchPolicy denies explicit implement when access policy restricts the route", () => {

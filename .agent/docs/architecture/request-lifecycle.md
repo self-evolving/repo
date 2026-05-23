@@ -10,6 +10,7 @@ Every trigger converges on the portal workflow `agent-router.yml`. It extracts c
 
 - Inline answers are posted immediately.
 - Review and `fix-pr` requests on pull requests are dispatched immediately.
+- `/add-rubrics` (or `agent/add-rubrics`) requests dispatch `Agent / Rubrics / Add`, which writes validated add-or-update rubric edits directly to `agent/rubrics` and posts a concise result summary.
 - Explicit `/orchestrate` (or `agent/orchestrate`) requests dispatch the orchestrator workflow, which chooses one follow-up action from current target state.
 - Edited PR events are blocked from re-triggering review and `fix-pr` routes.
 - Mention and label requests that fail route authorization are posted back as inline `unsupported` replies instead of being dropped silently; that path still runs `Setup agent runtime` before `post-response.js` so posting dependencies are available.
@@ -44,6 +45,7 @@ Current route-level `acpx` permission modes:
 |---|---|---|
 | `dispatch` | `approve-all` | classification may gather repo and issue context |
 | `answer` | `approve-all` | may gather context before replying |
+| `add-rubrics` | `approve-all` | may inspect existing rubric files before proposing validated rubric edits |
 | `orchestrator` | `approve-all` | planner may gather target and repository context before choosing the next route |
 | `agent-self-approve` | `approve-all` | final approval judgment may run the PR/repo inspection commands it needs, while deterministic resolver code owns approval submission or internal approval recording |
 | `agent-self-merge` | none | deterministic workflow code owns current-head approval validation and merge submission |

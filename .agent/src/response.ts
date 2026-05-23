@@ -197,6 +197,40 @@ export function formatRubricsUpdateComment(data: {
   return lines.join("\n");
 }
 
+export function formatAddRubricsComment(data: {
+  targetKind: string;
+  targetNumber: string | number;
+  rubricsRef: string;
+  rubricsCommitted: boolean;
+  runSucceeded: boolean;
+  persistenceSucceeded?: boolean;
+  repoSlug?: string;
+  summary?: string;
+}): string {
+  const targetKind = String(data.targetKind || "").trim() || "target";
+  const targetNumber = String(data.targetNumber || "").trim() || "unknown";
+  const rubricsRef = String(data.rubricsRef || "").trim() || "agent/rubrics";
+  const rubricsRefLink = formatBranchReference(rubricsRef, data.repoSlug);
+  const lines = ["## Add Rubrics", ""];
+
+  if (!data.runSucceeded) {
+    lines.push(`Rubric update did not complete successfully for ${targetKind} #${targetNumber}; inspect the workflow logs.`);
+  } else if (data.persistenceSucceeded === false) {
+    lines.push(`Rubric updates were produced for ${targetKind} #${targetNumber}, but they were not persisted to ${rubricsRefLink}; inspect the workflow logs.`);
+  } else if (data.rubricsCommitted) {
+    lines.push(`Updated ${rubricsRefLink} from ${targetKind} #${targetNumber}.`);
+  } else {
+    lines.push(`No changes were committed to ${rubricsRefLink} from ${targetKind} #${targetNumber}.`);
+  }
+
+  const summary = String(data.summary || "").trim();
+  if (summary) {
+    lines.push("", summary);
+  }
+
+  return lines.join("\n");
+}
+
 // --- JSON response parsing ---
 
 /**

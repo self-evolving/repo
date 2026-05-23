@@ -12,6 +12,7 @@ import {
 export const ROUTES = new Set([
   "answer",
   "implement",
+  "add-rubrics",
   "fix-pr",
   "review",
   "orchestrate",
@@ -29,7 +30,7 @@ export interface DispatchDecision {
   basePr?: string;
 }
 
-const EXPLICIT_ROUTE_COMMANDS = ["answer", "implement", "fix-pr", "review", "orchestrate", "create-action", "install"] as const;
+const EXPLICIT_ROUTE_COMMANDS = ["answer", "implement", "add-rubrics", "fix-pr", "review", "orchestrate", "create-action", "install"] as const;
 const LABEL_ROUTE_PREFIX = "agent/";
 const LABEL_SKILL_PREFIX = "agent/s/";
 const VALID_SKILL_LABEL = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
@@ -229,6 +230,17 @@ export function buildRequestedRouteDecision(
     };
   }
 
+  if (normalizedRoute === "add-rubrics") {
+    return {
+      route: "add-rubrics",
+      needsApproval: false,
+      confidence: "high",
+      summary: "I’ll update the rubrics branch from this request.",
+      issueTitle: "",
+      issueBody: "",
+    };
+  }
+
   if (normalizedRoute === "review") {
     return {
       route: "review",
@@ -313,6 +325,9 @@ export function resolveRequestedLabel(labelName: string): RequestedLabelDecision
   }
   if (normalized === "agent/implement") {
     return { route: "implement", skill: "" };
+  }
+  if (normalized === "agent/add-rubrics") {
+    return { route: "add-rubrics", skill: "" };
   }
   if (normalized === "agent/fix-pr") {
     return { route: "fix-pr", skill: "" };
@@ -421,6 +436,13 @@ export function applyDispatchPolicy(
     if (!normalized.issueBody) {
       normalized.issueBody = "Create a scheduled GitHub Actions workflow for the requested automation.";
     }
+    return normalized;
+  }
+
+  if (normalized.route === "add-rubrics") {
+    normalized.needsApproval = false;
+    normalized.issueTitle = "";
+    normalized.issueBody = "";
     return normalized;
   }
 

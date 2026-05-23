@@ -8,6 +8,7 @@ Agent actions are route-level behaviors exposed by the `.agent` backend. They ar
 |---|---|---|---|
 | Answer | `answer` | `.github/prompts/agent-answer.md` | inline response through `agent-router.yml` |
 | Implement | `implement` | `.github/prompts/agent-implement.md` | explicit `/implement` or `agent/implement` label dispatches `agent-implement.yml` directly; triaged implement goes through approval first |
+| Add rubrics | `add-rubrics` | `.github/prompts/agent-add-rubrics.md` | explicit `/add-rubrics` or `agent/add-rubrics` dispatches `agent-add-rubrics.yml` to add or update validated rubric YAML on `agent/rubrics` |
 | Fix PR | `fix-pr` | `.github/prompts/agent-fix-pr.md` | PR-only dispatch to `agent-fix-pr.yml` |
 | Review | `review` | `.github/prompts/review.md` and `.github/prompts/review-synthesize.md` | parallel review jobs plus synthesis in `agent-review.yml` |
 | Orchestrate | `orchestrate` | `.github/prompts/agent-orchestrator.md` | explicit `/orchestrate`, `agent/orchestrate`, or dispatch-triaged issue/PR requests dispatch `agent-orchestrator.yml`, which selects the next action based on current target state |

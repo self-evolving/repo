@@ -4,6 +4,7 @@ import { strict as assert } from "node:assert";
 import {
   determineRunStatus,
   extractJsonObject,
+  formatAddRubricsComment,
   normalizeImplementationResponse,
   summaryFromAgentResponse,
   formatImplementComment,
@@ -215,4 +216,57 @@ test("formatRubricsUpdateComment reports failed runs", () => {
     runSucceeded: false,
   });
   assert.match(body, /did not complete successfully/);
+});
+
+// --- formatAddRubricsComment ---
+
+test("formatAddRubricsComment reports committed updates with summary", () => {
+  const body = formatAddRubricsComment({
+    targetKind: "issue",
+    targetNumber: 343,
+    rubricsRef: "agent/rubrics",
+    rubricsCommitted: true,
+    runSucceeded: true,
+    repoSlug: "self-evolving/repo",
+    summary: "Updated abstract-learned-rubrics.",
+  });
+  assert.match(body, /Add Rubrics/);
+  assert.match(body, /Updated \[`agent\/rubrics`\]\(https:\/\/github\.com\/self-evolving\/repo\/tree\/agent\/rubrics\) from issue #343/);
+  assert.match(body, /Updated abstract-learned-rubrics/);
+});
+
+test("formatAddRubricsComment reports no changes", () => {
+  const body = formatAddRubricsComment({
+    targetKind: "pull_request",
+    targetNumber: "15",
+    rubricsRef: "agent/rubrics",
+    rubricsCommitted: false,
+    runSucceeded: true,
+    repoSlug: "self-evolving/repo",
+    summary: "no rubric changes",
+  });
+  assert.match(body, /No changes were committed to \[`agent\/rubrics`\]\(https:\/\/github\.com\/self-evolving\/repo\/tree\/agent\/rubrics\) from pull_request #15/);
+  assert.match(body, /no rubric changes/);
+});
+
+test("formatAddRubricsComment reports failed runs and persistence failures", () => {
+  const failedRun = formatAddRubricsComment({
+    targetKind: "issue",
+    targetNumber: "343",
+    rubricsRef: "agent/rubrics",
+    rubricsCommitted: false,
+    runSucceeded: false,
+  });
+  assert.match(failedRun, /did not complete successfully/);
+
+  const persistenceFailure = formatAddRubricsComment({
+    targetKind: "issue",
+    targetNumber: "343",
+    rubricsRef: "agent/rubrics",
+    rubricsCommitted: false,
+    runSucceeded: true,
+    persistenceSucceeded: false,
+  });
+  assert.match(persistenceFailure, /were not persisted/);
+  assert.doesNotMatch(persistenceFailure, /No changes were committed/);
 });

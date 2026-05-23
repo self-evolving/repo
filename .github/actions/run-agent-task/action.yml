@@ -30,7 +30,7 @@ inputs:
     required: false
     default: xhigh
   route:
-    description: "Envelope route (implement, review, fix-pr, answer, create-action, dispatch, agent-self-approve, agent-self-merge, skill, install, rubrics-review, rubrics-initialization, rubrics-update)"
+    description: "Envelope route (implement, review, add-rubrics, fix-pr, answer, create-action, dispatch, agent-self-approve, agent-self-merge, skill, install, rubrics-review, rubrics-initialization, rubrics-update)"
     required: true
   lane:
     description: "Logical lane for thread/session identity (defaults to 'default')"
@@ -208,6 +208,12 @@ outputs:
   rubrics_committed:
     description: "Whether the agent produced rubric edits that were committed and pushed"
     value: ${{ steps.commit_rubrics.outputs.committed }}
+  rubrics_validation_outcome:
+    description: "Outcome of rubric validation when rubric writes are enabled"
+    value: ${{ steps.validate_rubrics.outcome }}
+  rubrics_commit_outcome:
+    description: "Outcome of rubric commit/push when rubric writes are enabled"
+    value: ${{ steps.commit_rubrics.outcome }}
   install_status:
     description: "Structured /install publish status from install-fork-pr helper"
     value: ${{ steps.run.outputs.install_status }}

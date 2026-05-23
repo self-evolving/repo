@@ -126,6 +126,7 @@ const PROMPT_TEMPLATES: Record<string, string> = {
   "review-synthesize": ".github/prompts/review-synthesize.md",
   "review-synthesize-finalize": ".github/prompts/review-synthesize-finalize.md",
   "fix-pr": ".github/prompts/agent-fix-pr.md",
+  "add-rubrics": ".github/prompts/agent-add-rubrics.md",
   answer: ".github/prompts/agent-answer.md",
   "create-action": ".github/prompts/agent-create-action.md",
   install: ".github/prompts/agent-install.md",
