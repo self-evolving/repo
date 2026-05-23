@@ -19,8 +19,7 @@ type ResolverEnv = Partial<Record<
   | "CLAUDE_CODE_OAUTH_TOKEN"
   | "ANTHROPIC_API_KEY"
   | "REQUIRED"
-  | "AGENT_MODEL_POLICY"
-  | "DISPLAY_MODEL",
+  | "AGENT_MODEL_POLICY",
   string
 >>;
 
@@ -59,7 +58,6 @@ function runResolver(env: ResolverEnv = {}) {
         ANTHROPIC_API_KEY: "",
         REQUIRED: "true",
         AGENT_MODEL_POLICY: "",
-        DISPLAY_MODEL: "",
         ...env,
       },
     });
@@ -175,11 +173,10 @@ test("provider resolver applies model policy defaults and provider settings", ()
   assert.equal(resolved.outputs.reason, "AGENT_MODEL_POLICY default");
   assert.equal(resolved.outputs.model, "claude-sonnet-4-5");
   assert.equal(resolved.outputs.reasoning_effort, "max");
-  assert.equal(resolved.outputs.display_model, "false");
   assert.match(resolved.stderr, /relying on local Claude authentication/);
 });
 
-test("provider resolver uses AGENT_DISPLAY_MODEL as the only display toggle", () => {
+test("provider resolver ignores display policy because display is handled by run-agent-task", () => {
   const policyDisplay = runResolver({
     OPENAI_API_KEY: "openai-token",
     AGENT_MODEL_POLICY: JSON.stringify({
@@ -188,18 +185,9 @@ test("provider resolver uses AGENT_DISPLAY_MODEL as the only display toggle", ()
   });
 
   assert.equal(policyDisplay.status, 0, policyDisplay.stderr);
-  assert.equal(policyDisplay.outputs.display_model, "false");
-
-  const envDisplay = runResolver({
-    OPENAI_API_KEY: "openai-token",
-    DISPLAY_MODEL: "yes",
-    AGENT_MODEL_POLICY: JSON.stringify({
-      display: { enabled: false },
-    }),
-  });
-
-  assert.equal(envDisplay.status, 0, envDisplay.stderr);
-  assert.equal(envDisplay.outputs.display_model, "true");
+  assert.equal(policyDisplay.outputs.provider, "codex");
+  assert.equal(policyDisplay.outputs.model, "");
+  assert.equal(policyDisplay.outputs.reasoning_effort, "");
 });
 
 test("provider resolver lets route model policy override provider defaults", () => {
@@ -215,7 +203,6 @@ test("provider resolver lets route model policy override provider defaults", () 
         "test-route": { provider: "claude", model: "claude-haiku-4-5", reasoning_effort: "medium" },
       },
     }),
-    DISPLAY_MODEL: "false",
   });
 
   assert.equal(resolved.status, 0, resolved.stderr);
@@ -223,7 +210,6 @@ test("provider resolver lets route model policy override provider defaults", () 
   assert.equal(resolved.outputs.reason, "AGENT_MODEL_POLICY route override for test-route");
   assert.equal(resolved.outputs.model, "claude-haiku-4-5");
   assert.equal(resolved.outputs.reasoning_effort, "medium");
-  assert.equal(resolved.outputs.display_model, "false");
 });
 
 test("provider resolver keeps inline route provider from inheriting route policy settings", () => {

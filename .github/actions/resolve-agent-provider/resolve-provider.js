@@ -114,14 +114,6 @@ function parsePolicy(raw) {
   return policy;
 }
 
-function parseOptionalBoolean(raw, label) {
-  const normalized = String(raw || "").trim().toLowerCase();
-  if (!normalized) return undefined;
-  if (["true", "1", "yes", "on"].includes(normalized)) return true;
-  if (["false", "0", "no", "off"].includes(normalized)) return false;
-  throw new Error(`${label} must be true or false`);
-}
-
 function applyRunConfig(target, config) {
   if (Object.prototype.hasOwnProperty.call(config, "model")) {
     target.model = config.model || "";
@@ -173,14 +165,13 @@ function resolveRunConfig(policy, provider, route, options = {}) {
   return config;
 }
 
-function writeOutputs({ provider, reason, model, reasoningEffort, displayModel }) {
+function writeOutputs({ provider, reason, model, reasoningEffort }) {
   setOutput("provider", provider);
   setOutput("reason", reason);
   setOutput("install_codex", provider === "codex" ? "true" : "false");
   setOutput("install_claude", provider === "claude" ? "true" : "false");
   setOutput("model", model);
   setOutput("reasoning_effort", reasoningEffort);
-  setOutput("display_model", displayModel ? "true" : "false");
 }
 
 function main(env) {
@@ -222,8 +213,7 @@ function main(env) {
     if (required === "true") {
       return 1;
     }
-    const displayModel = parseOptionalBoolean(env.DISPLAY_MODEL || "", "display_model") ?? false;
-    writeOutputs({ provider: "", reason: "no configured provider", model: "", reasoningEffort: "", displayModel });
+    writeOutputs({ provider: "", reason: "no configured provider", model: "", reasoningEffort: "" });
     console.log(`Agent provider for ${route} is unresolved (no configured provider).`);
     return 0;
   }
@@ -240,13 +230,11 @@ function main(env) {
   }
 
   const runConfig = resolveRunConfig(policy, provider, route, { hasRouteProviderOverride });
-  const displayModel = parseOptionalBoolean(env.DISPLAY_MODEL || "", "display_model") ?? false;
   writeOutputs({
     provider,
     reason,
     model: runConfig.model,
     reasoningEffort: runConfig.reasoningEffort,
-    displayModel,
   });
   console.log(`Resolved agent provider for ${route}: ${provider} (${reason}).`);
   if (runConfig.model) {

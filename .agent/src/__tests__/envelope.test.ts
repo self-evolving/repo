@@ -248,7 +248,7 @@ test("single-agent workflows resolve provider before runtime setup", () => {
   assert.match(resolverAction, /node "\$\{GITHUB_ACTION_PATH\}\/resolve-provider\.js"/);
   assert.doesNotMatch(resolverAction, /resolve-provider\.sh/);
   assert.match(resolverAction, /model_policy:/);
-  assert.match(resolverAction, /display_model:/);
+  assert.doesNotMatch(resolverAction, /display_model:/);
   assert.match(resolverImplementation, /DEFAULT_PROVIDER/);
   assert.match(resolverImplementation, /AGENT_MODEL_POLICY/);
   assert.match(resolverImplementation, /OPENAI_API_KEY/);
@@ -265,6 +265,8 @@ test("single-agent workflows resolve provider before runtime setup", () => {
   assert.match(routerWorkflow, /agent:\s*\$\{\{\s*steps\.dispatch_provider\.outputs\.provider\s*\}\}/);
   assert.match(routerWorkflow, /agent:\s*\$\{\{\s*steps\.skill_provider\.outputs\.provider\s*\}\}/);
   assert.match(routerWorkflow, /agent:\s*\$\{\{\s*steps\.provider\.outputs\.provider\s*\}\}/);
+  assert.match(routerWorkflow, /display_model:\s*\$\{\{\s*vars\.AGENT_DISPLAY_MODEL \|\| ''\s*\}\}/);
+  assert.doesNotMatch(routerWorkflow, /outputs\.display_model/);
 
   for (const workflow of [implementWorkflow, fixPrWorkflow, selfApprovalWorkflow, ...autonomousWorkflows]) {
     assert.match(workflow, /uses: \.\/\.github\/actions\/resolve-agent-provider/);
@@ -274,6 +276,8 @@ test("single-agent workflows resolve provider before runtime setup", () => {
     assert.match(workflow, /install_claude:\s*\$\{\{\s*steps\.provider\.outputs\.install_claude\s*\}\}/);
     assert.match(workflow, /agent:\s*\$\{\{\s*steps\.provider\.outputs\.provider\s*\}\}/);
     assert.match(workflow, /model:\s*\$\{\{\s*steps\.provider\.outputs\.model\s*\}\}/);
+    assert.match(workflow, /display_model:\s*\$\{\{\s*vars\.AGENT_DISPLAY_MODEL \|\| ''\s*\}\}/);
+    assert.doesNotMatch(workflow, /outputs\.display_model/);
     assert.match(workflow, /claude_oauth_token:\s*\$\{\{\s*secrets\.CLAUDE_CODE_OAUTH_TOKEN\s*\}\}/);
     assert.match(workflow, /anthropic_api_key:\s*\$\{\{\s*secrets\.ANTHROPIC_API_KEY\s*\}\}/);
   }
@@ -288,6 +292,8 @@ test("single-agent workflows resolve provider before runtime setup", () => {
   assert.match(reviewWorkflow, /install_claude:\s*\$\{\{\s*steps\.synthesis_provider\.outputs\.install_claude\s*\}\}/);
   assert.match(reviewWorkflow, /agent:\s*\$\{\{\s*steps\.synthesis_provider\.outputs\.provider\s*\}\}/);
   assert.match(reviewWorkflow, /model:\s*\$\{\{\s*steps\.synthesis_provider\.outputs\.model\s*\}\}/);
+  assert.match(reviewWorkflow, /display_model:\s*\$\{\{\s*vars\.AGENT_DISPLAY_MODEL \|\| ''\s*\}\}/);
+  assert.doesNotMatch(reviewWorkflow, /outputs\.display_model/);
   assert.match(reviewWorkflow, /reasoning_effort:\s*\$\{\{\s*steps\.synthesis_provider\.outputs\.reasoning_effort \|\| \(steps\.synthesis_provider\.outputs\.provider == 'claude' && 'max' \|\| 'xhigh'\)\s*\}\}/);
   assert.match(reviewWorkflow, /openai_api_key:\s*\$\{\{\s*secrets\.OPENAI_API_KEY\s*\}\}/);
   assert.match(reviewWorkflow, /anthropic_api_key:\s*\$\{\{\s*secrets\.ANTHROPIC_API_KEY\s*\}\}/);
