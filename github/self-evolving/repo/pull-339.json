@@ -1,0 +1,253 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Add `vars.AGENT_ENABLED != 'false'` job guards to packaged `agent-*.yml` workflows and the agent-action template.\n- Document the global pause flag and distinguish it from scheduled-only controls.\n- Add envelope coverage that every packaged agent workflow job carries the guard.\n\n## Verification\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/envelope.test.js`\n- `node --test .agent/dist/__tests__/docs-validation.test.js`\n\nCloses #338\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDZ_0gg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #339 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: Implementation succeeded and produced PR #339, so the next useful automated action is a PR review before any human merge decision.\n\n<!-- sepo-agent-handoff state:dispatched created:1779496696770 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYzMTgzNzkyNTE6aW1wbGVtZW50OjMzODpyZXZpZXc6MzM5OjM -->",
+      "createdAt": "2026-05-23T00:38:17Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/339#issuecomment-4523553922",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDaAH8w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 98 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is scoped to Sepo workflow guards, the generated agent-action template, focused docs, and envelope tests; `test-scripts.yml` is intentionally left outside the flag. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation uses a direct job-level `if: vars.AGENT_ENABLED != 'false'` guard rather than adding new routing, scripts, or state. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR extends existing workflow `if` guards and the existing `.agent/src/__tests__/envelope.test.ts` coverage pattern instead of introducing new helper logic. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Docs are updated in `README.md`, `.agent/docs/index.md`, `.agent/docs/customization/configuration-list.md`, `.agent/docs/usage/supported-workflows.md`, `.agent/docs/usage/agent-actions.md`, and `.agent/docs/architecture/memory.md`. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | The PR adds one minimal repo variable, default-enabled semantics, exact `false` disable behavior, and clearly keeps normal CI outside the Sepo pause. |\n| coding_workflow / generic | Name config by capability | pass | 6/6 | `AGENT_ENABLED` names the broad capability, a global Sepo enablement switch, rather than a narrow first-use case such as schedules or updates. |\n| communication / generic | Make setup guidance actionable | partial | 6/7 | The docs state the exact variable and value to set, but they do not link to GitHub repository variables/settings guidance for users who do not already know where to configure it. |\n\n## Notes\n\n- The implementation matches the linked #338 request: a first-class `AGENT_ENABLED=false` flag that pauses Sepo-owned workflows while leaving normal CI alone.\n- The strongest rubric evidence is the envelope test that enumerates packaged `agent-*.yml` workflows and requires the guard, plus docs explaining the default and exact-value behavior.\n- Smallest useful follow-up: add a link from the configuration docs to GitHub’s repository variables settings/docs so users can find where to set `AGENT_ENABLED`.\n\n## Findings\n\n- **INFO:** No blocking rubric-specific issues found. The only minor gap is setup guidance discoverability for where to configure the repository variable.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-23T00:39:53Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/339#issuecomment-4523558899",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-23T00:37:22Z",
+  "files": [
+    {
+      "path": ".agent/action-templates/agent-action-template.yml",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/memory.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/index.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/agent-actions.md",
+      "additions": 5,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/supported-workflows.md",
+      "additions": 5,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 68,
+      "deletions": 10,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-approve.yml",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-branch-cleanup.yml",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-close-stale-issues.yml",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-daily-summary.yml",
+      "additions": 6,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-entrypoint.yml",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-fix-pr.yml",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-implement.yml",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-label.yml",
+      "additions": 2,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-memory-bootstrap.yml",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-memory-pr-closed.yml",
+      "additions": 6,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-memory-scan.yml",
+      "additions": 2,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-memory-sync.yml",
+      "additions": 2,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-onboarding.yml",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-orchestrator.yml",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-project-manager.yml",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-release-prepare.yml",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-review.yml",
+      "additions": 4,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-router.yml",
+      "additions": 9,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-rubrics-initialization.yml",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-rubrics-review.yml",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-rubrics-update.yml",
+      "additions": 7,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-self-approve.yml",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-self-merge.yml",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-update.yml",
+      "additions": 2,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": "README.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-338/codex-26318379251",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 339,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "OPEN",
+  "title": "Add AGENT_ENABLED pause guard to Sepo workflows",
+  "updatedAt": "2026-05-23T00:39:53Z",
+  "url": "https://github.com/self-evolving/repo/pull/339"
+}
