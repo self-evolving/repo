@@ -242,14 +242,13 @@ test("single-agent workflows resolve provider before runtime setup", () => {
     readRepoFile(".github/workflows/agent-rubrics-update.yml"),
   ];
   const resolverAction = readRepoFile(".github/actions/resolve-agent-provider/action.yml");
-  const resolverScript = readRepoFile(".github/actions/resolve-agent-provider/resolve-provider.sh");
   const resolverImplementation = readRepoFile(".github/actions/resolve-agent-provider/resolve-provider.js");
   const configurationList = readRepoFile(".agent/docs/customization/configuration-list.md");
 
-  assert.match(resolverAction, /resolve-provider\.sh/);
+  assert.match(resolverAction, /node "\$\{GITHUB_ACTION_PATH\}\/resolve-provider\.js"/);
+  assert.doesNotMatch(resolverAction, /resolve-provider\.sh/);
   assert.match(resolverAction, /model_policy:/);
   assert.match(resolverAction, /display_model:/);
-  assert.match(resolverScript, /resolve-provider\.js/);
   assert.match(resolverImplementation, /DEFAULT_PROVIDER/);
   assert.match(resolverImplementation, /AGENT_MODEL_POLICY/);
   assert.match(resolverImplementation, /OPENAI_API_KEY/);
@@ -908,6 +907,19 @@ test("shared run-agent-task exposes an optional secondary GitHub token", () => {
   assert.match(basePrompt, /Do not print token values/);
   assert.match(basePrompt, /read-only credential for external GitHub repositories/);
   assert.match(basePrompt, /Do not use the secondary token for external writes/);
+});
+
+test("run-agent-task maps reasoning effort for Claude env and Codex thought level", () => {
+  const action = readRepoFile(".github/actions/run-agent-task/action.yml");
+  const runSource = readRepoFile(".agent/src/run.ts");
+  const acpxSource = readRepoFile(".agent/src/acpx-adapter.ts");
+
+  assert.match(action, /reasoning_effort:\n\s+description: "Model reasoning effort level"/);
+  assert.match(action, /MODEL_REASONING_EFFORT:\s*\$\{\{\s*inputs\.reasoning_effort\s*\}\}/);
+  assert.match(runSource, /env\.MODEL_REASONING_EFFORT = process\.env\.MODEL_REASONING_EFFORT/);
+  assert.match(runSource, /env\.CLAUDE_CODE_EFFORT_LEVEL = process\.env\.MODEL_REASONING_EFFORT/);
+  assert.match(runSource, /thoughtLevel:\s*process\.env\.MODEL_REASONING_EFFORT/);
+  assert.match(acpxSource, /"thought_level", thoughtLevel/);
 });
 
 test("run-agent-task callers pass secondary token without replacing primary auth", () => {

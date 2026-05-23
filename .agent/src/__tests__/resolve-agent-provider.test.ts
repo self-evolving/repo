@@ -8,7 +8,7 @@ import { strict as assert } from "node:assert";
 const repoRoot = path.resolve(__dirname, "../../..");
 const resolverScript = path.join(
   repoRoot,
-  ".github/actions/resolve-agent-provider/resolve-provider.sh",
+  ".github/actions/resolve-agent-provider/resolve-provider.js",
 );
 
 type ResolverEnv = Partial<Record<
@@ -46,7 +46,7 @@ function runResolver(env: ResolverEnv = {}) {
   const outputFile = path.join(tempDir, "github-output");
 
   try {
-    const result = spawnSync("bash", [resolverScript], {
+    const result = spawnSync(process.execPath, [resolverScript], {
       encoding: "utf8",
       env: {
         ...process.env,
