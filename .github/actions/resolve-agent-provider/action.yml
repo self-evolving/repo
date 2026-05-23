@@ -33,10 +33,6 @@ inputs:
     description: "Optional AGENT_MODEL_POLICY JSON for provider, model, and reasoning effort settings"
     required: false
     default: ""
-  display_model:
-    description: "Optional true/false override for model display footer output"
-    required: false
-    default: ""
 
 outputs:
   provider:
@@ -57,9 +53,6 @@ outputs:
   reasoning_effort:
     description: "Resolved reasoning effort override, if configured"
     value: ${{ steps.resolve.outputs.reasoning_effort }}
-  display_model:
-    description: "Whether this route should display provider/model/effort metadata"
-    value: ${{ steps.resolve.outputs.display_model }}
 
 runs:
   using: composite
@@ -76,7 +69,6 @@ runs:
         ANTHROPIC_API_KEY: ${{ inputs.anthropic_api_key }}
         REQUIRED: ${{ inputs.required }}
         AGENT_MODEL_POLICY: ${{ inputs.model_policy }}
-        DISPLAY_MODEL: ${{ inputs.display_model }}
       run: |
         # Keep this on plain Node/CommonJS because provider resolution runs
         # before setup-agent-runtime builds .agent/dist or installs packages.
