@@ -1,0 +1,39 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "body": "## Goal\nReimplement the model-policy work from a simpler fresh design instead of iterating further on PR #337.\n\n## Context\n- Source request: https://github.com/self-evolving/repo/pull/337#issuecomment-4525794383\n- Existing PR: https://github.com/self-evolving/repo/pull/337\n- Parent issue: https://github.com/self-evolving/repo/issues/336\n- Original goal was to let Sepo users configure default provider/model/reasoning settings via a JSON policy while preserving `AGENT_DEFAULT_PROVIDER` compatibility.\n- The implementation should keep reviewer lanes fixed; only review synthesis and single-agent routes should consume the policy.\n- PR #337 went through several follow-up fixes: display config was simplified to `AGENT_DISPLAY_MODEL`, Codex reasoning effort was fixed for `session_policy: none`, `ANTHROPIC_API_KEY` support was restored, and the resolver shell trampoline was removed. The requester is concerned the accumulated result may be overcomplicated and asked for a from-scratch version.\n\n## Acceptance Criteria\n- Produce a simpler implementation for configurable agent model policy that satisfies issue #336 without carrying over unnecessary complexity from PR #337.\n- Preserve existing provider behavior, including `AGENT_DEFAULT_PROVIDER`, auto-detection, `OPENAI_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`, and `ANTHROPIC_API_KEY` support.\n- Support provider/model/reasoning defaults and route overrides for single-agent routes and review synthesis.\n- Do not make reviewer lanes dynamically configurable or change the fixed Claude/Codex review matrix.\n- Keep display metadata controlled only by `AGENT_DISPLAY_MODEL`, defaulting off.\n- Ensure Codex reasoning effort reaches ACPX correctly, including exec runs with `session_policy: none`; ensure Claude reasoning effort maps through the existing Claude effort environment path.\n- Keep provider/model resolution usable before `.agent/dist`, TypeScript compilation, or npm install are available.\n- Update focused docs and tests for resolver behavior, ACPX/run wiring, display footer behavior, workflow envelope changes, and compatibility paths.\n- Run the relevant build/tests and `git diff --check`.\n\n---\n\nRequested via issue_comment at https://github.com/self-evolving/repo/pull/337\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDcJEwg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-340/codex-26336493584`\n- Pull request: https://github.com/self-evolving/repo/pull/341\n\nRebuilt configurable model policy support on a clean branch: provider resolution now uses a plain pre-runtime Node resolver for AGENT_MODEL_POLICY plus AGENT_DISPLAY_MODEL, resolved model/effort values are threaded through workflows/run-agent-task/acpx, reviewer lanes remain fixed, Codex exec reasoning uses transient sessions when needed, and Claude effort maps through CLAUDE_CODE_EFFORT_LEVEL. Verified with npm --prefix .agent run build, focused node --test suites, and git diff --check.",
+      "createdAt": "2026-05-23T15:28:01Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/340#issuecomment-4525802690",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-23T15:25:04Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 340,
+  "state": "OPEN",
+  "title": "Rebuild model policy implementation from scratch",
+  "updatedAt": "2026-05-23T15:28:01Z",
+  "url": "https://github.com/self-evolving/repo/issues/340"
+}

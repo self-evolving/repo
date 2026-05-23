@@ -5,7 +5,7 @@
   },
   "baseRefName": "main",
   "body": "## Summary\n- Add `vars.AGENT_ENABLED != 'false'` job guards to packaged `agent-*.yml` workflows and the agent-action template.\n- Document the global pause flag and distinguish it from scheduled-only controls.\n- Add envelope coverage that every packaged agent workflow job carries the guard.\n\n## Verification\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/envelope.test.js`\n- `node --test .agent/dist/__tests__/docs-validation.test.js`\n\nCloses #338\n",
-  "closedAt": null,
+  "closedAt": "2026-05-23T16:22:46Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABDZ_0gg",
@@ -35,6 +35,36 @@
       "minimizedReason": "",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/339#issuecomment-4523558899",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDcH-Xw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I checked the review threads. There is one inline comment on `.github/workflows/agent-update.yml`, and it is a good question, not a blocking bug.\n\nYes, it is somewhat duplicated in this workflow:\n\n- `gate` has `if: vars.AGENT_ENABLED != 'false'`\n- `update` also has `if: vars.AGENT_ENABLED != 'false' && needs.gate.outputs.skip != 'true'`\n\nFor the current `agent-update.yml` DAG, the second `AGENT_ENABLED` check is mostly redundant because `update` depends on `gate`; if `gate` is skipped, `update` will not run normally. But the duplication is intentional with the broader PR invariant: every packaged `agent-*.yml` job carries its own local pause guard. That invariant is enforced in `.agent/src/__tests__/envelope.test.ts`, which checks every packaged agent workflow job for `vars.AGENT_ENABLED != 'false'`.\n\nMy recommendation: keep the duplicate guard. It makes the global pause rule mechanically obvious and prevents a future workflow dependency change from accidentally leaving a job unguarded. If you want to improve clarity, the smallest follow-up would be adding a short test/comment explaining that dependent jobs still repeat the guard by design.",
+      "createdAt": "2026-05-23T15:19:18Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/339#issuecomment-4525784671",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDcQwBw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #339.\n\nno rubric changes\n\nI found no trusted, durable user/team rubric to add from PR #339. The only human PR feedback was a one-off question about duplicated guards from `lolipopshock`, whose PR/issue association was `CONTRIBUTOR`; collaborator lookup did not identify admin/maintain status. The broader implementation themes are already covered by existing rubrics like `minimal-defaults-native-escape-hatches`, `name-config-by-capability`, `keep-docs-in-sync`, and `actionable-setup-guidance`.\n\nNo files were changed under `agent-rubrics`.\n",
+      "createdAt": "2026-05-23T16:24:05Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/339#issuecomment-4525928455",
       "viewerDidAuthor": true
     }
   ],
@@ -242,12 +272,35 @@
       "color": "0e8a16"
     }
   ],
-  "mergedAt": null,
+  "mergedAt": "2026-05-23T16:22:46Z",
   "number": 339,
   "reviewDecision": "",
-  "reviews": [],
-  "state": "OPEN",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABA0sX7w",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer check my reviews ",
+      "submittedAt": "2026-05-23T15:17:28Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "3aa057e84d8b93c5c6b162bc1c15a75e5861ecfd"
+      }
+    }
+  ],
+  "state": "MERGED",
   "title": "Add AGENT_ENABLED pause guard to Sepo workflows",
-  "updatedAt": "2026-05-23T00:39:53Z",
+  "updatedAt": "2026-05-23T16:24:05Z",
   "url": "https://github.com/self-evolving/repo/pull/339"
 }
