@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.3.0 - 2026-05-24
+
+### Added
+
+- First-class `/install` support with issue-backed install requests, target fork/branch helpers, source issue links, and guarded publish behavior.
+- Repository goal issue templates and orchestrator guidance for goal-backed parent work.
+- Read-only secondary GitHub token plumbing for explicit external repository inspection.
+- Direct `ANTHROPIC_API_KEY` support for Claude-backed runs, configurable agent model policy, and display-model controls.
+- Global `AGENT_ENABLED=false` pause guards across packaged Sepo agent workflows.
+
+### Changed
+
+- Sepo documentation now uses reader-oriented section roots, `_meta.json` navigation metadata, and the `setup/`, `usage/`, `customization/`, and `technical-details/` structure.
+- Provider resolution now uses the JavaScript resolver action and clearer precedence across route, model-policy, default-provider, and auto-detected settings.
+- Full self-governance approval flows can rely on trusted current-head status evidence when self-approval and self-merge are enabled together.
+- Onboarding and install guidance now link directly to target repository workflows, secrets, App setup, and setup guides.
+
+### Fixed
+
+- Closed or merged PRs inferred from `/implement` context are kept as context instead of becoming invalid stacked bases.
+- Self-approval PR inspection works with read-scoped GitHub tokens while preserving reviewed-head provenance checks.
+- Generated docs index links and docs validation coverage now match the reorganized docs tree.
+- Provider/model handling now preserves Anthropic Claude credential support and route provider precedence.
+
 ## 0.2.0 - 2026-05-19
 
 ### Added
