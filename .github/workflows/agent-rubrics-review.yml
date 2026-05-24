@@ -90,6 +90,7 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model_policy: ${{ vars.AGENT_MODEL_POLICY || '' }}
 
       - name: Setup agent runtime
         uses: ./.github/actions/setup-agent-runtime
@@ -116,6 +117,8 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: ${{ steps.provider.outputs.model }}
+          display_model: ${{ vars.AGENT_DISPLAY_MODEL || '' }}
           permission_mode: approve-all
           prompt: rubrics-review
           route: rubrics-review
@@ -134,7 +137,7 @@ jobs:
           target_kind: pull_request
           target_number: ${{ inputs.pr_number }}
           target_url: ${{ github.server_url }}/${{ github.repository }}/pull/${{ inputs.pr_number }}
-          reasoning_effort: high
+          reasoning_effort: ${{ steps.provider.outputs.reasoning_effort || 'high' }}
           workflow: agent-rubrics-review.yml
 
       - name: Persist rubrics review artifact
@@ -159,6 +162,7 @@ jobs:
         if: inputs.post_comment == 'true' && steps.review.outputs.response_file != ''
         env:
           BODY_FILE: ${{ steps.review.outputs.response_file }}
+          MODEL_DISPLAY: ${{ steps.review.outputs.model_display }}
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           AGENT_COLLAPSE_OLD_REVIEWS: ${{ vars.AGENT_COLLAPSE_OLD_REVIEWS }}

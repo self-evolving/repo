@@ -14,6 +14,7 @@ import {
 import { SELF_APPROVAL_STATUS_MARKER } from "../self-approval.js";
 import { SELF_MERGE_STATUS_MARKER } from "../self-merge.js";
 import { formatSessionRestoreNotice } from "../session-bundle.js";
+import { appendRunDisplayFooter } from "../response.js";
 
 const bodyFile = process.env.BODY_FILE || "";
 const responseKind = process.env.RESPONSE_KIND || "issue_comment";
@@ -24,6 +25,7 @@ const replyToId = process.env.REPLY_TO_ID || undefined;
 const repo = process.env.GITHUB_REPOSITORY || undefined;
 const resumeStatus = process.env.RESUME_STATUS || "";
 const runStatus = process.env.STATUS || "success";
+const modelDisplay = process.env.MODEL_DISPLAY || process.env.AGENT_RUN_DISPLAY || "";
 const collapseOldReviews = !["false", "0", "no", "off"].includes(
   (process.env.AGENT_COLLAPSE_OLD_REVIEWS || "").trim().toLowerCase(),
 );
@@ -45,6 +47,8 @@ const continuityNote = formatSessionRestoreNotice({ resumeStatus, runStatus });
 if (continuityNote) {
   body = `> ${continuityNote}\n\n${body}`;
 }
+
+body = appendRunDisplayFooter(body, modelDisplay);
 
 let posted = false;
 let markerUpsertFailed = false;

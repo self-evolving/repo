@@ -141,6 +141,7 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model_policy: ${{ vars.AGENT_MODEL_POLICY || '' }}
 
       - name: Setup agent runtime
         id: runtime
@@ -188,6 +189,9 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: ${{ steps.provider.outputs.model }}
+          display_model: ${{ vars.AGENT_DISPLAY_MODEL || '' }}
+          reasoning_effort: ${{ steps.provider.outputs.reasoning_effort || 'xhigh' }}
           prompt: fix-pr
           route: fix-pr
           lane: fix-pr-${{ steps.provider.outputs.provider }}
@@ -272,6 +276,7 @@ jobs:
           PR_NUMBER: ${{ env.PR_NUMBER }}
           REQUESTED_BY: ${{ inputs.orchestration_enabled == 'true' && (vars.AGENT_HANDLE || '@sepo-agent') || inputs.requested_by || github.actor }}
           RESPONSE_FILE: ${{ steps.agent.outputs.response_file }}
+          MODEL_DISPLAY: ${{ steps.agent.outputs.model_display }}
           RESUME_STATUS: ${{ steps.agent.outputs.resume_status }}
           ROUTE: fix-pr
           STATUS: ${{ (steps.commit.outcome == 'failure' || steps.push-head.outcome == 'failure') && 'failed' || steps.response.outputs.status || 'failed' }}

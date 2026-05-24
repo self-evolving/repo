@@ -110,6 +110,7 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model_policy: ${{ vars.AGENT_MODEL_POLICY || '' }}
 
       - name: Install self-approval provider
         if: steps.prepare.outputs.should_run == 'true'
@@ -138,6 +139,8 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: ${{ steps.provider.outputs.model }}
+          display_model: ${{ vars.AGENT_DISPLAY_MODEL || '' }}
           permission_mode: approve-all
           prompt: agent-self-approve
           route: agent-self-approve
@@ -157,7 +160,7 @@ jobs:
           target_kind: pull_request
           target_number: ${{ inputs.pr_number }}
           target_url: ${{ github.server_url }}/${{ github.repository }}/pull/${{ inputs.pr_number }}
-          reasoning_effort: xhigh
+          reasoning_effort: ${{ steps.provider.outputs.reasoning_effort || 'xhigh' }}
           workflow: agent-self-approve.yml
         env:
           SELF_APPROVE_EXPECTED_HEAD_SHA: ${{ steps.prepare.outputs.head_sha }}
@@ -190,6 +193,7 @@ jobs:
           (steps.result.outcome == 'failure' || steps.result.outputs.status_post == 'true')
         env:
           BODY_FILE: ${{ steps.result.outputs.body_file }}
+          MODEL_DISPLAY: ${{ steps.agent.outputs.model_display }}
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           RESPONSE_KIND: pr_comment

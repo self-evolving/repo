@@ -23,7 +23,7 @@ At a high level, the runner host needs Node support compatible with `.github/act
 
 ## Provider auth note
 
-On self-hosted runners, an explicit `AGENT_DEFAULT_PROVIDER=codex` or `AGENT_DEFAULT_PROVIDER=claude` is treated as an operator choice. The provider resolver will select that provider even if the matching repository secret is absent, so single-agent runs and review synthesis can use local Codex or Claude authentication already configured on the machine. In `auto` mode, provider detection still relies on repository secrets and chooses Codex when `OPENAI_API_KEY` is configured; otherwise it chooses Claude when either `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` is configured. The review workflow still attempts explicit Claude and Codex reviewer lanes; provider resolution controls the synthesis step that combines successful reviewer outputs.
+On self-hosted runners, an explicit `AGENT_DEFAULT_PROVIDER=codex`, `AGENT_DEFAULT_PROVIDER=claude`, or route-specific `AGENT_MODEL_POLICY` provider override is treated as an operator choice. The provider resolver will select that provider even if the matching repository secret is absent, so single-agent runs and review synthesis can use local Codex or Claude authentication already configured on the machine. In `auto` mode, provider detection still relies on repository secrets and chooses Codex when `OPENAI_API_KEY` is configured; otherwise it chooses Claude when either `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` is configured. The same model policy can pass a provider-specific `model` to acpx. The review workflow still attempts explicit Claude and Codex reviewer lanes; provider and model resolution controls only the synthesis step that combines successful reviewer outputs.
 
 ## Continuity note
 

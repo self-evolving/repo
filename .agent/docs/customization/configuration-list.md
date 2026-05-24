@@ -10,6 +10,8 @@ title: "Configurations list"
 | `AGENT_ENABLED` | Global Sepo pause switch. Defaults to enabled when unset; set exactly `false` to skip packaged `agent-*.yml` workflows and generated agent-action template jobs before checkout or provider setup. Normal CI workflows such as `test-scripts.yml` are not governed by this flag. |
 | `AGENT_RUNS_ON` | JSON array string for runner selection. If you are using self-hosted runners, see [Self-hosted GitHub Action runner](../setup/self-hosted-github-action-runner.md). |
 | `AGENT_DEFAULT_PROVIDER` | Default provider for single-agent runs and review synthesis: `auto`, `codex`, or `claude`. Explicit `codex` / `claude` choices are honored even without matching repository secrets, allowing self-hosted runners to use local provider authentication. `auto` chooses Codex when `OPENAI_API_KEY` is configured; otherwise it chooses Claude when either `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` is configured. |
+| `AGENT_MODEL_POLICY` | Optional JSON policy for model/reasoning defaults, provider-specific model settings, and route overrides. It supports `default` for non-provider defaults, `providers.codex`, `providers.claude`, and `route_overrides`; reviewer lanes stay fixed as the built-in Claude/Codex matrix, while `review-synthesize` uses this policy. Use `AGENT_DEFAULT_PROVIDER` for the global/default provider. |
+| `AGENT_DISPLAY_MODEL` | Optional `true` / `false` toggle for appending run metadata such as provider, model, and reasoning effort to direct agent response comments that use the standard response posting helpers. Defaults to `false`. |
 | `AGENT_SESSION_BUNDLE_MODE` | Default session-bundle behavior: `auto`, `always`, or `never`. For the trade-offs behind this setting, see [Session continuity](../technical-details/session-continuity.md). |
 | `AGENT_AUTOMATION_MODE` | Orchestrator decision mode. Defaults to `agent` for planner-backed orchestration validated by runtime policy. Set to `heuristics` for deterministic status-based routing with lower model cost. Compatibility alias: `true` = `heuristics`; explicit `false` or legacy `disabled` values fall back to `heuristics` for explicit `/orchestrate` chains. See [Agent orchestrator](../architecture/agent-orchestrator.md). |
 | `AGENT_AUTOMATION_MAX_ROUNDS` | Maximum number of explicit orchestration handoff rounds. Defaults to `12`. |
@@ -35,7 +37,22 @@ title: "Configurations list"
 | `AGENT_COMMITTER_NAME` | Custom commit author name for implementation and PR-fix runs |
 | `AGENT_COMMITTER_EMAIL` | Custom commit author email for implementation and PR-fix runs |
 
-The bundled workflows intentionally expose one global provider variable. If a repository needs a route-specific provider, edit that route's `resolve-agent-provider` step in the workflow YAML and set `default_provider` or `route_provider` inline. The review workflow still launches explicit Claude and Codex reviewer lanes; `AGENT_DEFAULT_PROVIDER` controls the single synthesis step that combines whatever review artifacts were produced.
+`AGENT_MODEL_POLICY` example:
+
+```json
+{
+  "providers": {
+    "codex": { "model": "gpt-5.4", "reasoning_effort": "xhigh" },
+    "claude": { "model": "claude-sonnet-4-5", "reasoning_effort": "max" }
+  },
+  "route_overrides": {
+    "answer": { "provider": "codex", "model": "gpt-5.4-mini", "reasoning_effort": "high" },
+    "review-synthesize": { "provider": "claude" }
+  }
+}
+```
+
+The bundled workflows still keep native YAML escape hatches: an inline `route_provider` in a workflow's `resolve-agent-provider` step overrides `AGENT_MODEL_POLICY` for that route. Provider selection precedence is inline `route_provider`, then `AGENT_MODEL_POLICY.route_overrides[route].provider`, then `AGENT_DEFAULT_PROVIDER`, then `auto` detection from configured provider secrets. The review workflow still launches explicit Claude and Codex reviewer lanes; model policy applies to the single synthesis step that combines produced review artifacts, not to the reviewer lane matrix.
 
 ## Repository secrets
 

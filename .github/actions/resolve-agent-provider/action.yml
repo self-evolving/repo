@@ -29,6 +29,10 @@ inputs:
     description: "Whether unresolved auto provider detection should fail the step"
     required: false
     default: "true"
+  model_policy:
+    description: "Optional AGENT_MODEL_POLICY JSON for provider, model, and reasoning effort settings"
+    required: false
+    default: ""
 
 outputs:
   provider:
@@ -43,6 +47,12 @@ outputs:
   install_claude:
     description: "Whether setup-agent-runtime should install Claude"
     value: ${{ steps.resolve.outputs.install_claude }}
+  model:
+    description: "Resolved model id to pass to acpx, if configured"
+    value: ${{ steps.resolve.outputs.model }}
+  reasoning_effort:
+    description: "Resolved reasoning effort override, if configured"
+    value: ${{ steps.resolve.outputs.reasoning_effort }}
 
 runs:
   using: composite
@@ -58,7 +68,8 @@ runs:
         CLAUDE_CODE_OAUTH_TOKEN: ${{ inputs.claude_oauth_token }}
         ANTHROPIC_API_KEY: ${{ inputs.anthropic_api_key }}
         REQUIRED: ${{ inputs.required }}
+        AGENT_MODEL_POLICY: ${{ inputs.model_policy }}
       run: |
-        # Keep this as a composite-action shell helper, matching resolve-github-auth,
-        # because provider resolution runs before setup-agent-runtime builds .agent/dist.
-        bash "${GITHUB_ACTION_PATH}/resolve-provider.sh"
+        # Keep this on plain Node/CommonJS because provider resolution runs
+        # before setup-agent-runtime builds .agent/dist or installs packages.
+        node "${GITHUB_ACTION_PATH}/resolve-provider.js"

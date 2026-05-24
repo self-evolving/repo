@@ -161,6 +161,7 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model_policy: ${{ vars.AGENT_MODEL_POLICY || '' }}
           required: "false"
 
       - name: Setup agent runtime
@@ -216,6 +217,7 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model_policy: ${{ vars.AGENT_MODEL_POLICY || '' }}
 
       - name: Resolve task timeout
         if: >-
@@ -248,6 +250,8 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: ${{ steps.dispatch_provider.outputs.model }}
+          display_model: ${{ vars.AGENT_DISPLAY_MODEL || '' }}
           permission_mode: approve-all
           prompt: dispatch
           route: dispatch
@@ -261,7 +265,7 @@ jobs:
           target_kind: ${{ steps.context.outputs.target_kind }}
           target_number: ${{ steps.context.outputs.target_number }}
           target_url: ${{ steps.context.outputs.target_url }}
-          reasoning_effort: medium
+          reasoning_effort: ${{ steps.dispatch_provider.outputs.reasoning_effort || 'medium' }}
           workflow: agent-router.yml
 
       - name: Generate implement issue metadata
@@ -281,6 +285,8 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: ${{ steps.provider.outputs.model }}
+          display_model: ${{ vars.AGENT_DISPLAY_MODEL || '' }}
           permission_mode: approve-all
           prompt: agent-implement-metadata
           route: dispatch
@@ -294,7 +300,7 @@ jobs:
           target_kind: ${{ steps.context.outputs.target_kind }}
           target_number: ${{ steps.context.outputs.target_number }}
           target_url: ${{ steps.context.outputs.target_url }}
-          reasoning_effort: medium
+          reasoning_effort: ${{ steps.provider.outputs.reasoning_effort || 'medium' }}
           workflow: agent-router.yml
 
       - name: Resolve route
@@ -374,6 +380,7 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model_policy: ${{ vars.AGENT_MODEL_POLICY || '' }}
 
       - name: Setup agent runtime
         id: runtime
@@ -405,6 +412,8 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: ${{ steps.provider.outputs.model }}
+          display_model: ${{ vars.AGENT_DISPLAY_MODEL || '' }}
           permission_mode: approve-all
           prompt: answer
           route: answer
@@ -418,7 +427,7 @@ jobs:
           target_kind: ${{ needs.portal.outputs.target_kind }}
           target_number: ${{ needs.portal.outputs.target_number }}
           target_url: ${{ needs.portal.outputs.target_url }}
-          reasoning_effort: high
+          reasoning_effort: ${{ steps.provider.outputs.reasoning_effort || 'high' }}
           workflow: agent-router.yml
 
       - name: Prepare unsupported response
@@ -432,6 +441,7 @@ jobs:
         if: needs.portal.outputs.route == 'answer'
         env:
           BODY_FILE: ${{ steps.answer.outputs.response_file }}
+          MODEL_DISPLAY: ${{ steps.answer.outputs.model_display }}
           DISCUSSION_ID: ${{ needs.portal.outputs.discussion_node_id }}
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -487,6 +497,7 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model_policy: ${{ vars.AGENT_MODEL_POLICY || '' }}
           required: "false"
 
       - name: Setup agent runtime
@@ -534,6 +545,7 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model_policy: ${{ vars.AGENT_MODEL_POLICY || '' }}
 
       - name: Run skill setup
         id: skill_setup
@@ -591,6 +603,8 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: ${{ steps.skill_provider.outputs.model }}
+          display_model: ${{ vars.AGENT_DISPLAY_MODEL || '' }}
           permission_mode: approve-all
           skill: ${{ needs.portal.outputs.skill }}
           skill_root: ${{ inputs.skill_root }}
@@ -605,13 +619,14 @@ jobs:
           target_kind: ${{ needs.portal.outputs.target_kind }}
           target_number: ${{ needs.portal.outputs.target_number }}
           target_url: ${{ needs.portal.outputs.target_url }}
-          reasoning_effort: high
+          reasoning_effort: ${{ steps.skill_provider.outputs.reasoning_effort || 'high' }}
           workflow: agent-router.yml
 
       - name: Post skill response
         if: steps.skill_check.outputs.exists == 'true' && steps.skill_setup.outcome == 'success' && steps.skill.outcome == 'success'
         env:
           BODY_FILE: ${{ steps.skill.outputs.response_file }}
+          MODEL_DISPLAY: ${{ steps.skill.outputs.model_display }}
           DISCUSSION_ID: ${{ needs.portal.outputs.discussion_node_id }}
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -657,6 +672,7 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model_policy: ${{ vars.AGENT_MODEL_POLICY || '' }}
 
       - name: Setup agent runtime
         id: runtime
@@ -704,6 +720,8 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: ${{ steps.provider.outputs.model }}
+          display_model: ${{ vars.AGENT_DISPLAY_MODEL || '' }}
           permission_mode: approve-all
           prompt: agent-install
           route: install
@@ -718,7 +736,7 @@ jobs:
           target_kind: ${{ needs.portal.outputs.target_kind }}
           target_number: ${{ needs.portal.outputs.target_number }}
           target_url: ${{ needs.portal.outputs.target_url }}
-          reasoning_effort: high
+          reasoning_effort: ${{ steps.provider.outputs.reasoning_effort || 'high' }}
           workflow: agent-router.yml
 
       - name: Post install response
@@ -726,6 +744,7 @@ jobs:
         if: env.AGENT_INSTALL_PAT_CONFIGURED == 'true' && steps.install.outcome == 'success'
         env:
           BODY_FILE: ${{ steps.install.outputs.response_file }}
+          MODEL_DISPLAY: ${{ steps.install.outputs.model_display }}
           DISCUSSION_ID: ${{ needs.portal.outputs.discussion_node_id }}
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
