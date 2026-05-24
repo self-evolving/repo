@@ -365,6 +365,18 @@ test("inferRubricsWriteMode prefers proposal mode for negated direct or explicit
     "proposal_pr",
   );
   assert.equal(
+    inferRubricsWriteMode("@sepo-agent /add-rubrics no direct commit"),
+    "proposal_pr",
+  );
+  assert.equal(
+    inferRubricsWriteMode("@sepo-agent /add-rubrics no commit directly"),
+    "proposal_pr",
+  );
+  assert.equal(
+    inferRubricsWriteMode("@sepo-agent /add-rubrics without direct commits"),
+    "proposal_pr",
+  );
+  assert.equal(
     inferRubricsWriteMode("@sepo-agent /add-rubrics no PR, just add this"),
     "direct_commit",
   );

@@ -1843,11 +1843,14 @@ test("add-rubrics route dispatches dedicated rubric writer workflow", () => {
   assert.match(addRubricsWorkflow, /rubrics_checkout_ref:\s*\$\{\{\s*steps\.write_mode\.outputs\.checkout_ref\s*\}\}/);
   assert.match(addRubricsWorkflow, /rubrics_push_ref:\s*\$\{\{\s*steps\.write_mode\.outputs\.push_ref\s*\}\}/);
   assert.match(addRubricsWorkflow, /expose_github_token_to_agent:\s*'false'/);
+  assert.match(addRubricsWorkflow, /Check rubric proposal diff/);
+  assert.match(addRubricsWorkflow, /steps\.proposal_diff\.outputs\.has_diff == 'true'/);
   assert.match(addRubricsWorkflow, /Open rubric proposal PR/);
   assert.match(addRubricsWorkflow, /create-rubrics-proposal-pr\.js/);
   assert.match(addRubricsWorkflow, /Prepare add-rubrics summary[\s\S]*if:\s*always\(\)/);
   assert.match(addRubricsWorkflow, /RUBRICS_VALIDATION_OUTCOME:\s*\$\{\{\s*steps\.add_rubrics\.outputs\.rubrics_validation_outcome\s*\}\}/);
   assert.match(addRubricsWorkflow, /RUBRICS_COMMIT_OUTCOME:\s*\$\{\{\s*steps\.add_rubrics\.outputs\.rubrics_commit_outcome\s*\}\}/);
+  assert.match(addRubricsWorkflow, /RUBRICS_PROPOSAL_HAS_DIFF:\s*\$\{\{\s*steps\.proposal_diff\.outputs\.has_diff\s*\}\}/);
   assert.match(addRubricsWorkflow, /RUBRIC_PR_URL:\s*\$\{\{\s*steps\.proposal_pr\.outputs\.pr_url\s*\}\}/);
   assert.match(addRubricsWorkflow, /prepare-add-rubrics-summary\.js/);
   assert.match(addRubricsWorkflow, /Post add-rubrics summary/);

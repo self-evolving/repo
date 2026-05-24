@@ -257,8 +257,36 @@ jobs:
           reasoning_effort: medium
           workflow: agent-add-rubrics.yml
 
+      - name: Check rubric proposal diff
+        if: steps.write_mode.outputs.mode == 'proposal_pr'
+        id: proposal_diff
+        env:
+          BASE_BRANCH: ${{ steps.write_mode.outputs.base_ref }}
+          BRANCH: ${{ steps.write_mode.outputs.proposal_ref }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          auth_url="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          has_diff=false
+          if git ls-remote --exit-code --heads "$auth_url" "$BRANCH" >/dev/null 2>&1; then
+            git fetch --no-tags --depth=1 "$auth_url" \
+              "+refs/heads/${BASE_BRANCH}:refs/remotes/sepo-rubrics/base" \
+              "+refs/heads/${BRANCH}:refs/remotes/sepo-rubrics/proposal"
+            if ! git diff --quiet refs/remotes/sepo-rubrics/base refs/remotes/sepo-rubrics/proposal --; then
+              has_diff=true
+            fi
+          fi
+          echo "has_diff=$has_diff" >> "$GITHUB_OUTPUT"
+
       - name: Open rubric proposal PR
-        if: steps.write_mode.outputs.mode == 'proposal_pr' && steps.add_rubrics.outputs.rubrics_committed == 'true'
+        if: >-
+          steps.write_mode.outputs.mode == 'proposal_pr' &&
+          (
+            steps.add_rubrics.outputs.rubrics_committed == 'true' ||
+            steps.proposal_diff.outputs.has_diff == 'true'
+          )
         id: proposal_pr
         continue-on-error: true
         env:
@@ -285,6 +313,7 @@ jobs:
           RUBRICS_REF: ${{ steps.write_mode.outputs.base_ref || env.RUBRICS_REF }}
           RUBRICS_TARGET_REF: ${{ steps.write_mode.outputs.target_ref }}
           RUBRICS_PROPOSAL_REF: ${{ steps.write_mode.outputs.proposal_ref }}
+          RUBRICS_PROPOSAL_HAS_DIFF: ${{ steps.proposal_diff.outputs.has_diff }}
           RUBRICS_WRITE_MODE: ${{ steps.write_mode.outputs.mode || env.RUBRICS_WRITE_MODE }}
           RUBRIC_PR_ACTION: ${{ steps.proposal_pr.outputs.pr_action }}
           RUBRIC_PR_OUTCOME: ${{ steps.proposal_pr.outcome }}
@@ -311,8 +340,11 @@ jobs:
         if: >-
           always() &&
           steps.write_mode.outputs.mode == 'proposal_pr' &&
-          steps.add_rubrics.outputs.rubrics_committed == 'true' &&
+          (
+            steps.add_rubrics.outputs.rubrics_committed == 'true' ||
+            steps.proposal_diff.outputs.has_diff == 'true'
+          ) &&
           steps.proposal_pr.outcome == 'failure'
         run: |
-          echo "Rubric edits were committed to ${{ steps.write_mode.outputs.proposal_ref }}, but the proposal PR was not opened." >&2
+          echo "Rubric proposal branch ${{ steps.write_mode.outputs.proposal_ref }} differs from ${{ steps.write_mode.outputs.base_ref }}, but the proposal PR was not opened." >&2
           exit 1
