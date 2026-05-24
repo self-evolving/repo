@@ -11,3 +11,4 @@
 - Should Sepo add inner/reportable timeouts in run.ts/runAcpx/acpx-adapter after the GitHub-step timeout first pass?
 - Should hosted Sepo be the quick-start default while repo-local Actions remains first-class for control/auditability?
 - Should Sepo add an opt-in self-improvement proposal workflow before any auto-orchestration?
+- Should ACPX sessioned model policy rely on set model only or allow set model plus --model? [[github/self-evolving/repo/issue-342.json]]
