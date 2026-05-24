@@ -1,0 +1,724 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Add `/add-rubrics` and `agent/add-rubrics` routing through dispatch, envelope validation, prompt selection, and onboarding labels.\n- Add `Agent / Rubrics / Add`, a dedicated serialized workflow that writes validated rubric updates to `agent/rubrics` and posts a concise summary.\n- Surface validation/commit persistence failures in the add-rubrics summary instead of reporting them as clean no-change runs.\n- Update docs and tests for the add-or-update rubric behavior while keeping the public route name `/add-rubrics`.\n\n## Verification\n- `npm --prefix .agent run build`\n- `GITHUB_OUTPUT=/tmp/sepo-test-output node --test .agent/dist/__tests__/triage.test.js .agent/dist/__tests__/envelope.test.js .agent/dist/__tests__/response.test.js .agent/dist/__tests__/rubrics.test.js .agent/dist/__tests__/onboarding-check-cli.test.js`\n- `node --test .agent/dist/__tests__/docs-validation.test.js`\n- `git diff --check`\n\nCloses #343\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDdMbiQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \r\n\r\nalso i think there will be two modes of adding rubrics: \r\n1. one is to create a PR and let users approve that \r\n2. one is just commit to that branch\r\n\r\nalso i think the decision should be interpreted from the user input? in that case, could we just make it more \"unstructured\", in that we just only change the prompt and give the agent necessary access: \r\n- in the session, it can by default create an PR \r\n- but if users explicitly say just add then it will skip it. \r\nthere will not be any specific agent action workflows, just a prompt? \r\n\r\nwhat do you think? \r\n",
+      "createdAt": "2026-05-24T00:21:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/344#issuecomment-4526906249",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDdMuDQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I agree with the two modes and with interpreting the mode from natural user input. I would not make the whole thing “just prompt + broad write access,” though.\n\nThe safer split is:\n\n- Default: propose rubric edits in a PR, probably from `agent/rubrics-proposal-*` into `agent/rubrics`, so users can review and merge.\n- Explicit direct mode: if the user says “just add,” “commit directly,” “apply now,” etc., commit validated rubric edits straight to `agent/rubrics`.\n\nThe current PR already adds the deterministic direct-write path: `agent-router.yml` dispatches `add-rubrics` to `agent-add-rubrics.yml`, the workflow enables rubric writes, validates edits, commits them, serializes concurrent writes, and posts a summary. See:\n- https://github.com/self-evolving/repo/pull/344/files#diff-.github/workflows/agent-router.yml\n- https://github.com/self-evolving/repo/pull/344/files#diff-.github/workflows/agent-add-rubrics.yml\n- https://github.com/self-evolving/repo/pull/344/files#diff-.github/prompts/agent-add-rubrics.md\n- https://github.com/self-evolving/repo/pull/344/files#diff-.github/actions/run-agent-task/action.yml\n\nMy recommendation: keep a first-class `add-rubrics` route, but make it select an execution mode:\n\n1. Update dispatch/prompt language so rubric requests route to `add-rubrics`, and add mode guidance:\n   - default `proposal_pr`\n   - explicit “just add/commit/apply directly” -> `direct_commit`\n\n2. Add an input like `rubrics_write_mode` to `agent-add-rubrics.yml`.\n\n3. Keep direct commits using the current validated `run-agent-task` rubric commit path.\n\n4. Add PR mode by checking out `agent/rubrics`, creating a proposal branch, running the same prompt/validation, pushing the proposal branch, and opening a PR targeting `agent/rubrics`.\n\n5. Make the final summary say either “opened rubric PR” or “updated `agent/rubrics` directly.”\n\nThat keeps the user experience unstructured, but keeps side effects deterministic, auditable, serialized, and validated. Prompt-only broad access would make it harder to enforce defaults, report persistence failures, avoid concurrent branch races, and test the behavior.",
+      "createdAt": "2026-05-24T00:24:11Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/344#issuecomment-4526910989",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDdNJCg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "\\\r\n\r\n> I agree with the two modes and with interpreting the mode from natural user input. I would not make the whole thing “just prompt + broad write access,” though.\r\n> \r\n> The safer split is:\r\n> \r\n> * Default: propose rubric edits in a PR, probably from `agent/rubrics-proposal-*` into `agent/rubrics`, so users can review and merge.\r\n> * Explicit direct mode: if the user says “just add,” “commit directly,” “apply now,” etc., commit validated rubric edits straight to `agent/rubrics`.\r\n> \r\n> The current PR already adds the deterministic direct-write path: `agent-router.yml` dispatches `add-rubrics` to `agent-add-rubrics.yml`, the workflow enables rubric writes, validates edits, commits them, serializes concurrent writes, and posts a summary. See:\r\n> \r\n> * https://github.com/self-evolving/repo/pull/344/files#diff-.github/workflows/agent-router.yml\r\n> * https://github.com/self-evolving/repo/pull/344/files#diff-.github/workflows/agent-add-rubrics.yml\r\n> * https://github.com/self-evolving/repo/pull/344/files#diff-.github/prompts/agent-add-rubrics.md\r\n> * https://github.com/self-evolving/repo/pull/344/files#diff-.github/actions/run-agent-task/action.yml\r\n> \r\n> My recommendation: keep a first-class `add-rubrics` route, but make it select an execution mode:\r\n> \r\n> 1. Update dispatch/prompt language so rubric requests route to `add-rubrics`, and add mode guidance:\r\n>    \r\n>    * default `proposal_pr`\r\n>    * explicit “just add/commit/apply directly” -> `direct_commit`\r\n> 2. Add an input like `rubrics_write_mode` to `agent-add-rubrics.yml`.\r\n> 3. Keep direct commits using the current validated `run-agent-task` rubric commit path.\r\n> 4. Add PR mode by checking out `agent/rubrics`, creating a proposal branch, running the same prompt/validation, pushing the proposal branch, and opening a PR targeting `agent/rubrics`.\r\n> 5. Make the final summary say either “opened rubric PR” or “updated `agent/rubrics` directly.”\r\n> \r\n> That keeps the user experience unstructured, but keeps side effects deterministic, auditable, serialized, and validated. Prompt-only broad access would make it harder to enforce defaults, report persistence failures, avoid concurrent branch races, and test the behavior.\r\n\r\n@sepo-agent /orchestrate implement this and review ",
+      "createdAt": "2026-05-24T00:27:31Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/344#issuecomment-4526917898",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDdNU_w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | fix-pr | PR #344 | 2 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: PR #344 is open and the user explicitly asked to implement the requested two-mode add-rubrics behavior on this PR and then review it.\n\nTask for fix-pr:\nUpdate PR #344 to implement the requested add-rubrics execution modes. Read the PR context and linked issue #343 first. Keep `add-rubrics` as a first-class deterministic route. Update dispatch and prompt language so natural rubric requests route to `add-rubrics` with mode selection: default `proposal_pr`; explicit language like \"just add\", \"commit directly\", or \"apply now\" selects `direct_commit`. Add a `rubrics_write_mode` input to `.github/workflows/agent-add-rubrics.yml`. Preserve the existing validated direct-commit path through `run-agent-task` for `direct_commit`. Add `proposal_pr` mode by checking out `agent/rubrics`, creating a proposal branch such as `agent/rubrics-proposal-*`, running the same prompt/validation flow, pushing that branch, and opening a PR targeting `agent/rubrics`. Keep writes serialized and validation failures visible. Update final summaries to say either that a rubric PR was opened or that `agent/rubrics` was updated directly. Update docs/tests as needed and avoid replacing the deterministic workflow with prompt-only broad write access.\n\n<!-- sepo-agent-handoff state:dispatched created:1779582534115 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYzNDc0NDM4MTE6b3JjaGVzdHJhdGU6MzQ0OmZpeF9wcjozNDQ6Mg -->",
+      "createdAt": "2026-05-24T00:28:54Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/344#issuecomment-4526920959",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDdPGBA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-343/codex-26346651957`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Implemented `rubrics_write_mode` plumbing: rubric requests default to `proposal_pr`, while explicit direct wording selects `direct_commit`.\n- Added proposal PR mode using the validated rubric edit path, pushing to `agent/rubrics-proposal-${GITHUB_RUN_ID}` and opening a PR targeting `agent/rubrics`.\n- Updated summaries, prompts, docs, and focused tests for proposal PR vs direct `agent/rubrics` updates.\n\n<details><summary>Verification</summary>\n\n- `npm --prefix .agent run build`\n- `GITHUB_OUTPUT=/tmp/sepo-test-output node --test .agent/dist/__tests__/triage.test.js .agent/dist/__tests__/envelope.test.js .agent/dist/__tests__/response.test.js .agent/dist/__tests__/resolve-dispatch-cli.test.js`\n- `node --test .agent/dist/__tests__/docs-validation.test.js`\n- `git diff --check`\n\n</details>",
+      "createdAt": "2026-05-24T00:42:21Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/344#issuecomment-4526949892",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDdPLJg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #344 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: The requested PR changes were applied successfully, and the original request explicitly asked to review the updated PR afterward.\n\n<!-- sepo-agent-handoff state:dispatched created:1779583380433 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYzNDc0NjcxODI6Zml4X3ByOjM0NDpyZXZpZXc6MzQ0OjM -->",
+      "createdAt": "2026-05-24T00:43:00Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/344#issuecomment-4526951206",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDdQ4Ag",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: eb34251178b66172f4cd1acb807a470b6bb6f68b -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #344 refreshes issue #343 by adding a first-class `/add-rubrics` route.\n- It wires dispatch, envelope validation, onboarding labels, docs, tests, and a dedicated `Agent / Rubrics / Add` workflow.\n- A follow-up request asked for two modes: default proposal PRs targeting `agent/rubrics`, and explicit direct commits when the user asks to skip review.\n- The implementation mostly matches that shape, but the current authorization and credential boundaries still leave direct rubric writes too easy to trigger or bypass.\n\n## Review\nThe PR needs another fix pass before merge. The core route exists, but the direct-write path is not constrained tightly enough for a workflow that can update durable team rubrics.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Proposal Mode Still Has Direct-Write Credentials | BLOCKING | In `proposal_pr` mode, the agent process still receives the write-capable GitHub token and `approve-all`, so the PR boundary depends on prompt compliance rather than workflow enforcement. |\n| Direct Commit Lacks A Stricter Authorization Gate | BLOCKING | `add-rubrics` always clears approval after generic route policy, so a default-allowed `CONTRIBUTOR` can trigger direct writes with explicit wording. |\n| Negated Direct-Write Requests Select Direct Commit | BLOCKING | The direct-mode regexes match negated requests such as “do not commit directly; open a PR,” causing the privileged path to be selected incorrectly. |\n| Missing Rubrics Branch Can Look Like No Changes | WARNING | Write-enabled add-rubrics runs still tolerate a missing `agent/rubrics` checkout, which can skip validation/commit and report a clean no-change result. |\n| Proposal PR Recovery Depends On A New Commit | WARNING | A rerun after “branch pushed but PR creation failed” can reuse the proposal branch, produce no new commit, and skip PR creation again. |\n\n## Progress\n- The PR already implements the route wiring, prompt, workflow, docs, and focused tests for `proposal_pr` vs `direct_commit`.\n- The PR conversation acknowledged the intended two-mode design and rejected a purely prompt-only broad-write approach.\n- Existing inline comments and review threads were empty before synthesis.\n- Posted 4 new inline comments: `.agent/src/triage.ts` lines 73 and 478, `.github/workflows/agent-add-rubrics.yml` line 230, and `.github/actions/run-agent-task/action.yml` line 297.\n- No inline comments were replied to, minimized, or resolved.\n\n## Issue Details\n\n<details><summary>Proposal Mode Still Has Direct-Write Credentials</summary>\n\n**Cause:** `.github/workflows/agent-add-rubrics.yml` passes `steps.auth.outputs.token` into `run-agent-task`, and `run.ts` exposes that token as `GH_TOKEN`/`GITHUB_TOKEN` to the model process. With `permission_mode: approve-all`, proposal mode is not a hard side-effect boundary.\n\n**Candidate solutions:** Split read-only agent credentials from deterministic write credentials, or add a route option that suppresses GitHub write tokens from the model process while preserving them for validation, commit, push, and PR creation steps.\n\n**Comments:** Codex treated this as blocking; Claude considered the architecture sound. The current code supports the blocking concern because the model process has the same token needed to push `agent/rubrics`.\n\n</details>\n\n<details><summary>Direct Commit Lacks A Stricter Authorization Gate</summary>\n\n**Cause:** `applyDispatchPolicy` sets `normalized.needsApproval = false` for all `add-rubrics` requests after generic route access. That does not distinguish proposal PRs from direct commits.\n\n**Candidate solutions:** Require a stricter trusted association for `direct_commit`, downgrade low-trust direct requests to `proposal_pr`, or add an explicit direct-write route policy.\n\n**Comments:** This aligns with the delegated authorization rubric: direct durable rubric writes need their own authorization invariant, not only the entry route’s broad default.\n\n</details>\n\n<details><summary>Negated Direct-Write Requests Select Direct Commit</summary>\n\n**Cause:** `inferRubricsWriteMode` uses positive regex hits only, so negated wording still matches phrases like `commit directly`.\n\n**Candidate solutions:** Give explicit proposal/PR wording and negations precedence, then add regression tests for “do not commit directly,” “don’t just add,” and “open a PR instead.”\n\n</details>\n\n<details><summary>Missing Rubrics Branch Can Look Like No Changes</summary>\n\n**Cause:** `download-agent-rubrics` defaults `continue_on_missing` to `true`, and `run-agent-task` does not override that for write-enabled non-initialization routes.\n\n**Candidate solutions:** Pass `continue_on_missing: false` when rubrics writes are enabled except for initialization, or add an explicit required-rubrics guard before running the agent.\n\n</details>\n\n<details><summary>Proposal PR Recovery Depends On A New Commit</summary>\n\n**Cause:** `Open rubric proposal PR` runs only when `rubrics_committed == 'true'`. A rerun that reuses an already-pushed proposal branch can skip PR creation if no new commit is made.\n\n**Candidate solutions:** Open or update the proposal PR when proposal mode has a branch with a diff from the base, even if the current attempt did not create a new commit.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the unresolved findings require concrete branch changes and are safe for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Enforce proposal mode so the model process cannot push directly to `agent/rubrics`.\n- [ ] Add stricter authorization or downgrade behavior for `direct_commit`.\n- [ ] Make negated or explicit PR wording resolve to `proposal_pr`, with regression tests.\n- [ ] Fail visibly when a write-enabled add-rubrics run cannot find the rubrics branch.",
+      "createdAt": "2026-05-24T00:57:23Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/344#issuecomment-4526979074",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDdQ8AQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #344 | 4 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review concluded needs_rework with recommended next step fix_pr, and the remaining findings are concrete branch changes suitable for automation.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Enforce proposal mode so the model process cannot push directly to `agent/rubrics`.\n- Add stricter authorization or downgrade behavior for `direct_commit`.\n- Make negated or explicit PR wording resolve to `proposal_pr`, with regression tests.\n- Fail visibly when a write-enabled add-rubrics run cannot find the rubrics branch.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1779584278073 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYzNDc3MjU1ODQ6cmV2aWV3OjM0NDpmaXhfcHI6MzQ0OjQ -->",
+      "createdAt": "2026-05-24T00:57:58Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/344#issuecomment-4526980097",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDdR38A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-343/codex-26346651957`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Hardened `add-rubrics` proposal mode so the model process does not receive the primary GitHub token, and sanitized rubric checkout remotes after authenticated clone.\n- Downgraded untrusted `direct_commit` requests to `proposal_pr` while preserving direct commits for OWNER/MEMBER/COLLABORATOR requesters.\n- Made negated direct-write and explicit PR wording resolve to `proposal_pr`, with CLI and triage regression coverage.\n- Made write-enabled rubrics runs fail visibly when the rubrics branch cannot be checked out.\n\n<details><summary>Verification</summary>\n\n- `npm --prefix .agent run build`\n- `GITHUB_OUTPUT=/tmp/sepo-test-output node --test .agent/dist/__tests__/triage.test.js .agent/dist/__tests__/envelope.test.js .agent/dist/__tests__/resolve-dispatch-cli.test.js .agent/dist/__tests__/response.test.js`\n- `node --test .agent/dist/__tests__/docs-validation.test.js`\n- `git diff --check`\n\n</details>",
+      "createdAt": "2026-05-24T01:05:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/344#issuecomment-4526995440",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDdR-vg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #344 | 5 / 40 | Dispatched |\n\nReason: agent planner selected review: The latest fix-pr run succeeded on open PR #344 after addressing blocking review findings, and the original request asked to implement the change and review it afterward.\n\n<!-- sepo-agent-handoff state:dispatched created:1779584805132 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYzNDc5OTQ0NjE6Zml4X3ByOjM0NDpyZXZpZXc6MzQ0OjU -->",
+      "createdAt": "2026-05-24T01:06:45Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/344#issuecomment-4526997182",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDdSQjQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 13 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Prefer permissive command route parsing | pass | 7/7 | `add-rubrics` accepts explicit slash/label routes and natural dispatch; mode is inferred from full request text in `.agent/src/triage.ts:89-103`. |\n| coding_workflow/generic | Prefer explicit structured inputs | pass | 7/7 | `.github/workflows/agent-add-rubrics.yml` adds typed `rubrics_write_mode` with validation for `proposal_pr`/`direct_commit` at lines 187-194. |\n| coding_workflow/generic | Validate delegated route authorization | pass | 8/8 | Direct commits are downgraded to proposal PR unless requester association is `OWNER`, `MEMBER`, or `COLLABORATOR` in `.agent/src/triage.ts:510-520`. |\n| coding_workflow/generic | Keep privileged workflows on trusted runtime code | pass | 8/8 | Workflow checks out the default branch for runtime code, then uses isolated rubric checkout refs for `agent/rubrics`/proposal branches in `.github/workflows/agent-add-rubrics.yml:220-258`. |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | The implementation reuses `run-agent-task`, existing rubric validation, and shared commit helper paths instead of embedding a separate commit/validation implementation. |\n| coding_workflow/generic | Surface stateful failures | pass | 7/7 | Missing write-enabled rubric branches fail via `continue_on_missing: false`, validation/commit failures are surfaced, and proposal PR creation failure is required at `.github/actions/run-agent-task/action.yml:300-302`, `410-456`, and `.github/workflows/agent-add-rubrics.yml:310-318`. |\n| communication/generic | Keep status comments compact | pass | 6/6 | `prepare-add-rubrics-summary` formats a concise user-facing outcome: opened/updated PR, direct update, no changes, or failure. |\n| coding_workflow/generic | Keep docs in sync | pass | 7/7 | Docs and prompt references are updated across README and `.agent/docs`, including add-rubrics behavior and default proposal PR mode. |\n| coding_workflow/generic | Make user-facing automation idempotent | pass | 7/7 | Proposal PR creation reuses/updates an existing PR for the same branch in `.agent/src/cli/create-rubrics-proposal-pr.ts`. |\n| coding_workflow/generic | Prefer agent-derived decisions | pass | 7/7 | The route derives `rubrics_write_mode` from user wording instead of adding a repo setting; normalized outputs are passed through router workflow outputs. |\n| coding_workflow/generic | Surgical changes | pass | 8/8 | Changes stay scoped to the add-rubrics route, workflow/action plumbing, prompts, tests, and relevant docs. |\n| coding_style/generic | Prefer simple implementations | pass | 7/7 | The design keeps two modes and a small deterministic branch/PR path rather than broad prompt-only write access. |\n| communication/generic | Actionable setup guidance | pass | 7/7 | User-facing docs now show `/add-rubrics` and the `agent/add-rubrics` label where route setup/use is documented. |\n\n## Notes\n\n- The latest head addresses the earlier authorization concerns: direct writes require explicit wording plus trusted association, proposal mode withholds the primary GitHub token from the model process, and deterministic workflow steps own commit/push/PR creation.\n- Verification run after rebuilding dist passed: `npm --prefix .agent run build`; `GITHUB_OUTPUT=/tmp/sepo-test-output node --test .agent/dist/__tests__/triage.test.js .agent/dist/__tests__/envelope.test.js .agent/dist/__tests__/resolve-dispatch-cli.test.js .agent/dist/__tests__/response.test.js`.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific blocking or warning findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-24T01:09:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/344#issuecomment-4527001741",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDdUCrA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 74fa747b7a0a79f71978cb6dc59fb8357dcb766b -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #344 refreshes issue #343 by adding a current `/add-rubrics` route for user/team rubric changes.\n- It wires dispatch, envelope validation, onboarding labels, docs, tests, and a serialized `Agent / Rubrics / Add` workflow.\n- The follow-up implementation adds two modes: default proposal PRs targeting `agent/rubrics`, and direct commits only when the user explicitly asks for that.\n- The latest fix pass resolved the earlier authorization and token-boundary concerns, but one direct-write inference bug remains on the current head.\n\n## Review\nThe PR is close, but it still needs a fix pass before merge. Claude and Rubrics Review consider the main architecture sound; Codex flagged one live blocking edge case, and direct local verification confirmed it on head `74fa747b7a0a79f71978cb6dc59fb8357dcb766b`.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Shorthand Negations Still Select Direct Commit | BLOCKING | [`inferRubricsWriteMode`](https://github.com/self-evolving/repo/blob/74fa747b7a0a79f71978cb6dc59fb8357dcb766b/.agent/src/triage.ts#L89-L102) still returns `direct_commit` for requests like `no direct commit` and `no commit directly`, which can invert a trusted user's instruction. |\n| Proposal PR Recovery Requires Fresh Commit | WARNING | [`Open rubric proposal PR`](https://github.com/self-evolving/repo/blob/74fa747b7a0a79f71978cb6dc59fb8357dcb766b/.github/workflows/agent-add-rubrics.yml#L260-L274) only runs when the current attempt made a new rubric commit, so reruns can skip PR creation after a prior push-but-no-PR failure. |\n\n## Progress\n- The PR implements the requested route, proposal/direct modes, docs, workflow wiring, summary handling, and focused tests.\n- Earlier blocking findings are fixed: untrusted direct commits now downgrade to `proposal_pr`, proposal mode withholds the primary GitHub token from the model process, and missing write-enabled rubrics checkout now fails visibly.\n- Replied to existing same-agent inline thread `3293698884` with the remaining shorthand-negation case.\n- Resolved three same-agent inline threads for fixed issues: direct-write authorization, proposal-mode token exposure, and missing-rubrics failure.\n- No comments were minimized. No new standalone inline comment was posted for the proposal-PR recovery warning because that issue is already clearly covered in the PR discussion.\n- Verification run here: `npm --prefix .agent run build` passed; focused triage/dispatch tests passed; a direct probe confirmed the two shorthand negation examples still return `direct_commit`.\n\n## Issue Details\n\n<details><summary>Shorthand Negations Still Select Direct Commit</summary>\n\n**Cause:** The negation patterns cover forms like `do not`, `don't`, and `never`, but not shorthand forms like `no direct commit` or `no commit directly`. The later direct-write patterns still match [`direct commit`](https://github.com/self-evolving/repo/blob/74fa747b7a0a79f71978cb6dc59fb8357dcb766b/.agent/src/triage.ts#L60-L70) and `commit ... directly`.\n\n**Candidate solutions:** Add precedence patterns for `no/without direct commit`, `no commit directly`, and similar shorthand negations, or require direct-write matches to look like execution instructions rather than possible rubric content. Add regression tests for those exact phrases.\n\n**Comments:** Codex reported this as blocking; Claude treated the previous negation fix as complete. The current source and runtime probe support Codex's finding.\n\n</details>\n\n<details><summary>Proposal PR Recovery Requires Fresh Commit</summary>\n\n**Cause:** The proposal PR step is gated on `steps.add_rubrics.outputs.rubrics_committed == 'true'`. If a previous attempt already pushed `agent/rubrics-proposal-${GITHUB_RUN_ID}` but failed before opening the PR, a rerun can reuse that branch, create no new commit, and skip PR creation again.\n\n**Candidate solutions:** Run PR creation/reuse whenever proposal mode has a proposal branch that differs from the base, even if the current attempt did not create a fresh commit. Alternatively, add a deterministic `proposal_has_diff` check and gate the PR and failure handling on that signal.\n\n**Comments:** This remains a warning rather than the main blocker, but it is concrete and safe for the same fix pass.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the shorthand-negation bug requires a concrete branch change, and the proposal recovery warning is also safe to address in the same automated pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Make shorthand negations such as `no direct commit` and `no commit directly` resolve to `proposal_pr`, with regression tests.\n- [ ] Make proposal PR creation/reuse recover when the proposal branch already differs from `agent/rubrics` even if the current run did not create a new commit.",
+      "createdAt": "2026-05-24T01:24:58Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/344#issuecomment-4527030956",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDdUGQQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #344 | 6 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review concluded needs_rework and recommended fix_pr with two concrete branch changes still required.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Make shorthand negations such as `no direct commit` and `no commit directly` resolve to `proposal_pr`, with regression tests.\n- Make proposal PR creation/reuse recover when the proposal branch already differs from `agent/rubrics` even if the current run did not create a new commit.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1779585929298 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYzNDgxNjA0MDk6cmV2aWV3OjM0NDpmaXhfcHI6MzQ0OjY -->",
+      "createdAt": "2026-05-24T01:25:29Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/344#issuecomment-4527031873",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDdUi8Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-343/codex-26346651957`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Added shorthand negation handling so `no direct commit`, `no commit directly`, and similar wording resolve to `proposal_pr`.\n- Added proposal-branch diff detection so proposal PR creation/reuse runs when an existing proposal branch already differs from `agent/rubrics`, even without a fresh commit.\n- Threaded the proposal diff signal into add-rubrics summaries and failure gating.\n\n<details><summary>Verification</summary>\n\n- `npm --prefix .agent run build`\n- `GITHUB_OUTPUT=/tmp/sepo-test-output node --test .agent/dist/__tests__/triage.test.js .agent/dist/__tests__/envelope.test.js .agent/dist/__tests__/resolve-dispatch-cli.test.js .agent/dist/__tests__/response.test.js`\n- `node --test .agent/dist/__tests__/docs-validation.test.js`\n- `git diff --check`\n\n</details>",
+      "createdAt": "2026-05-24T01:29:34Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/344#issuecomment-4527039217",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDdUnVQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #344 | 7 / 40 | Dispatched |\n\nReason: agent planner selected review: The latest fix-pr run succeeded on the open PR, so one follow-up review is warranted to verify the applied changes and the original requested behavior.\n\n<!-- sepo-agent-handoff state:dispatched created:1779586210263 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYzNDg1MDU0NzI6Zml4X3ByOjM0NDpyZXZpZXc6MzQ0Ojc -->",
+      "createdAt": "2026-05-24T01:30:10Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/344#issuecomment-4527040341",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDdU9gA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 13 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Prefer permissive command route parsing | pass | 7/7 | `add-rubrics` is a first-class route, accepts explicit `/add-rubrics`, label routing, and natural dispatch; mode is inferred from the full request text, not a narrow command tail. Evidence: [`triage.ts`](https://github.com/self-evolving/repo/blob/58eecbf20cd8a2b7c4376c67ef7ba21328033b44/.agent/src/triage.ts#L34), [`agent-dispatch.md`](https://github.com/self-evolving/repo/blob/58eecbf20cd8a2b7c4376c67ef7ba21328033b44/.github/prompts/agent-dispatch.md#L34-L38). |\n| coding_workflow/generic | Prefer explicit structured inputs | pass | 7/7 | `rubrics_write_mode` is a typed workflow input and is validated to `proposal_pr` or `direct_commit` before execution. Evidence: [`agent-add-rubrics.yml`](https://github.com/self-evolving/repo/blob/58eecbf20cd8a2b7c4376c67ef7ba21328033b44/.github/workflows/agent-add-rubrics.yml#L177-L194). |\n| coding_workflow/generic | Validate delegated route authorization | pass | 8/8 | Direct commits are downgraded to proposal PR unless the requester association is `OWNER`, `MEMBER`, or `COLLABORATOR`, after normal route access policy checks. Evidence: [`triage.ts`](https://github.com/self-evolving/repo/blob/58eecbf20cd8a2b7c4376c67ef7ba21328033b44/.agent/src/triage.ts#L511-L524). |\n| coding_workflow/generic | Keep privileged workflows on trusted runtime code | pass | 8/8 | The workflow checks out the default branch for runtime code, then uses separate rubric refs/branches as edit targets; proposal mode also withholds the primary GitHub token from the model process. Evidence: [`agent-add-rubrics.yml`](https://github.com/self-evolving/repo/blob/58eecbf20cd8a2b7c4376c67ef7ba21328033b44/.github/workflows/agent-add-rubrics.yml#L220-L258), [`run-agent-task/action.yml`](https://github.com/self-evolving/repo/blob/58eecbf20cd8a2b7c4376c67ef7ba21328033b44/.github/actions/run-agent-task/action.yml#L334-L340). |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | The implementation reuses `run-agent-task`, existing rubric checkout/validation/commit plumbing, and adds small typed CLIs for proposal PR and summary handling. Evidence: [`run-agent-task/action.yml`](https://github.com/self-evolving/repo/blob/58eecbf20cd8a2b7c4376c67ef7ba21328033b44/.github/actions/run-agent-task/action.yml#L295-L303), [`create-rubrics-proposal-pr.ts`](https://github.com/self-evolving/repo/blob/58eecbf20cd8a2b7c4376c67ef7ba21328033b44/.agent/src/cli/create-rubrics-proposal-pr.ts#L1-L12). |\n| coding_workflow/generic | Surface stateful failures | pass | 7/7 | Write-enabled rubric branch checkout no longer silently tolerates missing branches, validation/commit outcomes are surfaced, and proposal PR creation is required when a proposal branch has changes. Evidence: [`run-agent-task/action.yml`](https://github.com/self-evolving/repo/blob/58eecbf20cd8a2b7c4376c67ef7ba21328033b44/.github/actions/run-agent-task/action.yml#L295-L303), [`agent-add-rubrics.yml`](https://github.com/self-evolving/repo/blob/58eecbf20cd8a2b7c4376c67ef7ba21328033b44/.github/workflows/agent-add-rubrics.yml#L339-L350). |\n| communication/generic | Keep status comments compact | pass | 6/6 | The summary formatter reports the user-facing outcome directly: opened/updated PR, direct update, no changes, failed run, or persistence/PR failure. Evidence: [`response.ts`](https://github.com/self-evolving/repo/blob/58eecbf20cd8a2b7c4376c67ef7ba21328033b44/.agent/src/response.ts#L200-L245). |\n| coding_workflow/generic | Keep docs in sync | pass | 7/7 | README and `.agent/docs` describe `/add-rubrics`, labels, default proposal PR behavior, and direct commits on explicit request. Evidence: [`README.md`](https://github.com/self-evolving/repo/blob/58eecbf20cd8a2b7c4376c67ef7ba21328033b44/README.md#L38-L65), [`rubrics.md`](https://github.com/self-evolving/repo/blob/58eecbf20cd8a2b7c4376c67ef7ba21328033b44/.agent/docs/architecture/rubrics.md#L83-L118). |\n| coding_workflow/generic | Make user-facing automation idempotent | pass | 7/7 | Proposal PR creation reuses/updates an existing PR for the same proposal branch, and the workflow detects existing branch diffs even when no fresh commit was made. Evidence: [`create-rubrics-proposal-pr.ts`](https://github.com/self-evolving/repo/blob/58eecbf20cd8a2b7c4376c67ef7ba21328033b44/.agent/src/cli/create-rubrics-proposal-pr.ts#L67-L82), [`agent-add-rubrics.yml`](https://github.com/self-evolving/repo/blob/58eecbf20cd8a2b7c4376c67ef7ba21328033b44/.github/workflows/agent-add-rubrics.yml#L260-L302). |\n| coding_workflow/generic | Prefer agent-derived decisions | pass | 7/7 | The route derives `rubrics_write_mode` from user wording and passes the structured result through router outputs instead of adding a repo setting. Evidence: [`triage.ts`](https://github.com/self-evolving/repo/blob/58eecbf20cd8a2b7c4376c67ef7ba21328033b44/.agent/src/triage.ts#L90-L115), [`agent-router.yml`](https://github.com/self-evolving/repo/blob/58eecbf20cd8a2b7c4376c67ef7ba21328033b44/.github/workflows/agent-router.yml#L125-L140). |\n| coding_workflow/generic | Surgical changes | pass | 8/8 | Changes are scoped to the add-rubrics route, workflow/action plumbing, prompts, docs, and focused tests. |\n| coding_style/generic | Prefer simple implementations | pass | 7/7 | The implementation keeps two explicit modes and deterministic workflow steps rather than expanding to prompt-only broad write access. |\n| communication/generic | Actionable setup guidance | pass | 7/7 | User-facing docs show `/add-rubrics` and `agent/add-rubrics` alongside existing trigger routes. Evidence: [`quick-start.md`](https://github.com/self-evolving/repo/blob/58eecbf20cd8a2b7c4376c67ef7ba21328033b44/.agent/docs/overview/quick-start.md#L33-L47). |\n\n## Notes\n\n- The current head addresses the earlier rubric-specific risks: direct write inference has safe negation precedence, untrusted direct requests downgrade to proposal PR, proposal mode does not expose the primary GitHub token to the model process, and proposal PR recovery handles already-pushed branch diffs.\n- Verification on the fetched PR head passed: `npm --prefix .agent run build`; focused triage/envelope/dispatch/response tests; docs validation.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific blocking or warning findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-24T01:33:11Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/344#issuecomment-4527046016",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDdV2bg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 58eecbf20cd8a2b7c4376c67ef7ba21328033b44 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #344 implements issue #343 by adding a current `/add-rubrics` route.\n- It wires dispatch, envelope validation, onboarding labels, docs, tests, and a serialized `Agent / Rubrics / Add` workflow.\n- The PR also implements the follow-up two-mode design: default proposal PRs targeting `agent/rubrics`, and explicit trusted direct commits when user wording asks for that.\n- Most earlier review concerns are fixed on current head `58eecbf20cd8a2b7c4376c67ef7ba21328033b44`, but one direct-mode inference bug remains.\n\n## Review\nThe PR is close, but it still needs one fix before merge. Codex found a live negation bug; Claude and Rubrics Review considered the architecture sound, but their negation coverage did not include the currently failing “use direct commit” / “avoid direct commit” forms.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Negated Direct-Commit Wording Still Selects Direct Mode | BLOCKING | [`inferRubricsWriteMode`](https://github.com/self-evolving/repo/blob/58eecbf20cd8a2b7c4376c67ef7ba21328033b44/.agent/src/triage.ts#L89-L102) still returns `direct_commit` for negated requests like `do not use direct commit`, `don't use direct commit`, and `avoid direct commit`. This can invert a trusted user’s instruction into the privileged direct-write path. |\n\n## Progress\n- The requested route, proposal/direct modes, docs, workflow wiring, summary handling, and focused tests are already implemented.\n- Earlier blocking issues are fixed: untrusted direct requests downgrade to `proposal_pr`, proposal mode withholds the primary GitHub token from the model process, missing write-enabled rubric checkout fails visibly, and proposal PR recovery now checks for existing branch diffs.\n- Replied to the existing same-agent inline thread on `.agent/src/triage.ts` with the still-live negated wording examples.\n- No new standalone inline comments were posted, and no comments or threads were minimized or resolved in this synthesis.\n- Direct probe of the current regex behavior confirmed the failing examples return `direct_commit`; `no direct commit` and `no commit directly` now return `proposal_pr`.\n\n## Issue Details\n\n<details><summary>Negated Direct-Commit Wording Still Selects Direct Mode</summary>\n\n**Cause:** The negation patterns cover `do not commit directly`, `no direct commit`, and similar forms, but not “do not use direct commit”, “don't use direct commit”, or “avoid direct commit”. Those requests then hit the broad positive [`direct commit`](https://github.com/self-evolving/repo/blob/58eecbf20cd8a2b7c4376c67ef7ba21328033b44/.agent/src/triage.ts#L60) pattern.\n\n**Candidate solutions:** Add negation precedence for `do not/don't/use/avoid direct commit` style wording, or narrow the positive `direct commit` match so it requires an execution instruction such as “make a direct commit” or “commit directly”. Add regression tests for the failing examples.\n\n**Comments:** Codex reported this as blocking. Claude and Rubrics Review found no blocking issues, but the current source and direct probe support Codex’s finding for these broader negated forms.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the remaining issue is a concrete branch change in mode inference and is safe for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Make negated wording such as `do not use direct commit`, `don't use direct commit`, and `avoid direct commit` resolve to `proposal_pr`, with regression tests.",
+      "createdAt": "2026-05-24T01:41:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/344#issuecomment-4527060590",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDdV5wA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #344 | 8 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review concluded needs_rework and recommended fix_pr for one concrete unresolved behavior change with tests.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Make negated wording such as `do not use direct commit`, `don't use direct commit`, and `avoid direct commit` resolve to `proposal_pr`, with regression tests.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1779586891731 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYzNDg1ODk3NTA6cmV2aWV3OjM0NDpmaXhfcHI6MzQ0Ojg -->",
+      "createdAt": "2026-05-24T01:41:32Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/344#issuecomment-4527061440",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDdWHXg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-343/codex-26346651957`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Made broader negated direct-commit wording resolve to `proposal_pr`, including `do not use direct commit`, `don't use direct commit`, and `avoid direct commit`.\n- Added regression tests for those exact add-rubrics mode inference cases.\n\n<details><summary>Verification</summary>\n\n- `npm --prefix .agent run build`\n- `GITHUB_OUTPUT=/tmp/sepo-test-output node --test .agent/dist/__tests__/triage.test.js .agent/dist/__tests__/resolve-dispatch-cli.test.js`\n- `git diff --check`\n\n</details>",
+      "createdAt": "2026-05-24T01:43:31Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/344#issuecomment-4527064926",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDdWMxA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #344 | 9 / 40 | Dispatched |\n\nReason: agent planner selected review: The latest fix-pr run succeeded on open PR #344 after addressing the remaining negated direct-commit inference issue, and the original request asked to implement and review the PR.\n\n<!-- sepo-agent-handoff state:dispatched created:1779587055233 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYzNDg4MDA0OTQ6Zml4X3ByOjM0NDpyZXZpZXc6MzQ0Ojk -->",
+      "createdAt": "2026-05-24T01:44:15Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/344#issuecomment-4527066308",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDdWdIg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 13 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Prefer permissive command route parsing | pass | 7/7 | `add-rubrics` is first-class for explicit slash commands, labels, and natural dispatch; mode is inferred from full request text. Evidence: [`triage.ts`](https://github.com/self-evolving/repo/blob/c3ec615f13c5491f0ba895f762e8a4b3437ef629/.agent/src/triage.ts#L34), [`agent-router.yml`](https://github.com/self-evolving/repo/blob/c3ec615f13c5491f0ba895f762e8a4b3437ef629/.github/workflows/agent-router.yml#L908). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | `rubrics_write_mode` is a typed workflow input and validated to `proposal_pr` or `direct_commit`. Evidence: [`agent-add-rubrics.yml`](https://github.com/self-evolving/repo/blob/c3ec615f13c5491f0ba895f762e8a4b3437ef629/.github/workflows/agent-add-rubrics.yml#L42), [`agent-add-rubrics.yml`](https://github.com/self-evolving/repo/blob/c3ec615f13c5491f0ba895f762e8a4b3437ef629/.github/workflows/agent-add-rubrics.yml#L177). |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Direct rubric commits are downgraded to proposal PR unless the requester is `OWNER`, `MEMBER`, or `COLLABORATOR`. Evidence: [`triage.ts`](https://github.com/self-evolving/repo/blob/c3ec615f13c5491f0ba895f762e8a4b3437ef629/.agent/src/triage.ts#L41), [`triage.ts`](https://github.com/self-evolving/repo/blob/c3ec615f13c5491f0ba895f762e8a4b3437ef629/.agent/src/triage.ts#L512). |\n| coding_workflow / generic | Keep privileged workflows on trusted runtime code | pass | 8/8 | The workflow checks out the default branch for runtime code, uses a separate rubrics checkout/proposal branch target, and withholds the primary token from the model process. Evidence: [`agent-add-rubrics.yml`](https://github.com/self-evolving/repo/blob/c3ec615f13c5491f0ba895f762e8a4b3437ef629/.github/workflows/agent-add-rubrics.yml#L126), [`agent-add-rubrics.yml`](https://github.com/self-evolving/repo/blob/c3ec615f13c5491f0ba895f762e8a4b3437ef629/.github/workflows/agent-add-rubrics.yml#L223). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The implementation reuses `run-agent-task`, existing rubric checkout/validation/commit plumbing, and small typed CLIs for PR/summary handling. Evidence: [`run-agent-task/action.yml`](https://github.com/self-evolving/repo/blob/c3ec615f13c5491f0ba895f762e8a4b3437ef629/.github/actions/run-agent-task/action.yml#L295), [`create-rubrics-proposal-pr.ts`](https://github.com/self-evolving/repo/blob/c3ec615f13c5491f0ba895f762e8a4b3437ef629/.agent/src/cli/create-rubrics-proposal-pr.ts#L1). |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Write-enabled rubric checkout fails when missing, validation/commit failures are surfaced, and proposal PR creation is required when a proposal branch has changes. Evidence: [`run-agent-task/action.yml`](https://github.com/self-evolving/repo/blob/c3ec615f13c5491f0ba895f762e8a4b3437ef629/.github/actions/run-agent-task/action.yml#L301), [`agent-add-rubrics.yml`](https://github.com/self-evolving/repo/blob/c3ec615f13c5491f0ba895f762e8a4b3437ef629/.github/workflows/agent-add-rubrics.yml#L339). |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Proposal PR creation reuses/updates an existing PR for the proposal branch, and the workflow checks existing branch diffs even without a fresh commit. Evidence: [`create-rubrics-proposal-pr.ts`](https://github.com/self-evolving/repo/blob/c3ec615f13c5491f0ba895f762e8a4b3437ef629/.agent/src/cli/create-rubrics-proposal-pr.ts#L67), [`agent-add-rubrics.yml`](https://github.com/self-evolving/repo/blob/c3ec615f13c5491f0ba895f762e8a4b3437ef629/.github/workflows/agent-add-rubrics.yml#L260). |\n| communication / generic | Keep status comments compact | pass | 6/6 | Add-rubrics summaries report the outcome directly: opened/updated PR, direct update, no changes, failure, or persistence/PR failure. Evidence: [`response.ts`](https://github.com/self-evolving/repo/blob/c3ec615f13c5491f0ba895f762e8a4b3437ef629/.agent/src/response.ts#L200). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | README and `.agent/docs` document `/add-rubrics`, label routing, default proposal PR behavior, and explicit direct commits. Evidence: [`README.md`](https://github.com/self-evolving/repo/blob/c3ec615f13c5491f0ba895f762e8a4b3437ef629/README.md#L38), [`rubrics.md`](https://github.com/self-evolving/repo/blob/c3ec615f13c5491f0ba895f762e8a4b3437ef629/.agent/docs/architecture/rubrics.md#L91). |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | The route derives `rubrics_write_mode` from user wording and passes the structured result through router outputs instead of adding a repo setting. Evidence: [`triage.ts`](https://github.com/self-evolving/repo/blob/c3ec615f13c5491f0ba895f762e8a4b3437ef629/.agent/src/triage.ts#L91), [`agent-router.yml`](https://github.com/self-evolving/repo/blob/c3ec615f13c5491f0ba895f762e8a4b3437ef629/.github/workflows/agent-router.yml#L140). |\n| coding_workflow / generic | Surgical changes | pass | 8/8 | The diff is scoped to the add-rubrics route, workflow/action plumbing, prompts, docs, and focused tests. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation keeps two explicit modes and deterministic workflow steps rather than replacing the route with prompt-only broad write access. |\n| communication / generic | Actionable setup guidance | pass | 7/7 | User-facing docs list `/add-rubrics` and `agent/add-rubrics` alongside existing trigger routes. Evidence: [`quick-start.md`](https://github.com/self-evolving/repo/blob/c3ec615f13c5491f0ba895f762e8a4b3437ef629/.agent/docs/overview/quick-start.md#L36). |\n\n## Notes\n\n- The current PR head addresses the prior rubric-specific risks: default mode is `proposal_pr`, explicit direct wording is required for `direct_commit`, negated direct-commit wording resolves to proposal mode, and untrusted direct requests are downgraded.\n- Proposal mode is enforced by workflow mechanics: the agent process does not receive the primary GitHub token, validated edits are pushed to `agent/rubrics-proposal-*`, and the PR targets `agent/rubrics`.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific blocking or warning findings.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-24T01:46:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/344#issuecomment-4527070498",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDdaqLg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: c3ec615f13c5491f0ba895f762e8a4b3437ef629 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #344 refreshes issue #343 by adding a current `/add-rubrics` route.\n- It wires dispatch, envelope validation, onboarding labels, docs, tests, and a serialized `Agent / Rubrics / Add` workflow.\n- The PR also implements the follow-up two-mode design: default proposal PRs targeting `agent/rubrics`, and explicit trusted direct commits when user wording asks for that.\n- Current head `c3ec615f13c5491f0ba895f762e8a4b3437ef629` fixes the earlier authorization, token exposure, missing-rubrics, and negated-direct-mode findings.\n\n## Review\nThe core architecture now matches the requested behavior, and no blocking findings remain. One user-visible formatting bug remains in generated rubric proposal PR bodies and should be fixed before merge.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Proposal PR Body Drops Section Spacing | WARNING | [`create-rubrics-proposal-pr.ts`](https://github.com/self-evolving/repo/blob/c3ec615f13c5491f0ba895f762e8a4b3437ef629/.agent/src/cli/create-rubrics-proposal-pr.ts#L50-L61) uses `filter(Boolean)`, which removes the intentional blank lines between PR body sections. Generated proposal PRs will still work, but their body formatting collapses. |\n\n## Progress\n- The requested route, proposal/direct modes, docs, workflow wiring, summary handling, and focused tests are implemented.\n- Earlier blocking issues are fixed: untrusted direct requests downgrade to `proposal_pr`, proposal mode withholds the primary GitHub token from the model process, missing write-enabled rubric checkout fails visibly, proposal PR recovery checks existing branch diffs, and direct-commit negations now resolve to `proposal_pr`.\n- Verification passed on the fetched PR head after installing pinned `.agent` dependencies: `npm --prefix .agent run build`, focused `node --test` run with 165 passing tests, direct `inferRubricsWriteMode` probe, and `git diff --check`.\n- Posted 1 new inline comment on `.agent/src/cli/create-rubrics-proposal-pr.ts` line 61.\n- Resolved 1 same-agent inline review thread on `.agent/src/triage.ts` after verifying the issue is fixed. No comments were minimized or deleted.\n\n## Issue Details\n\n<details><summary>Proposal PR Body Drops Section Spacing</summary>\n\n**Cause:** The body array uses empty strings as intentional Markdown separators, then calls `.filter(Boolean)`, which removes those separators along with the optional `requestedBy` row.\n\n**Candidate solutions:** Use `null` or `undefined` only for omitted optional rows and filter that sentinel, or push the optional `requestedBy` line conditionally while preserving explicit blank-line entries.\n\n**Comments:** Rubrics Review found no rubric-specific follow-up, while the code review flagged this formatting bug. The current source supports the warning.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the remaining issue is a concrete, low-risk branch change suitable for automated fixing.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Preserve blank-line separators in generated rubric proposal PR bodies while still omitting the optional `requestedBy` row when absent.",
+      "createdAt": "2026-05-24T02:18:56Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/344#issuecomment-4527139374",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDda0NA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #344 | 10 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review reported MINOR_ISSUES with recommended next step FIX_PR, and the remaining item is a concrete branch change suitable for automation.\n\nTask for fix-pr:\nAddress only the latest review synthesis action item: preserve blank-line separators in generated rubric proposal PR bodies while still omitting the optional `requestedBy` row when absent. Constraints: ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by that action item.\n\n<!-- sepo-agent-handoff state:dispatched created:1779589169444 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYzNDg4NTAzMjI6cmV2aWV3OjM0NDpmaXhfcHI6MzQ0OjEw -->",
+      "createdAt": "2026-05-24T02:19:29Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/344#issuecomment-4527141940",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDdeuiQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo could not complete the PR fix run.**\n\n<!-- sepo-agent-fix-pr-status -->\n\nInspect the workflow logs and retry if appropriate.\n\n",
+      "createdAt": "2026-05-24T02:50:00Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/344#issuecomment-4527206025",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDdezWw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo orchestration needs clarification before it can continue.\n\nSepo could not complete the automated fix for the remaining review item. The unresolved item is to preserve blank-line separators in generated rubric proposal PR bodies while still omitting the optional `requestedBy` row when absent. Please inspect the failed workflow run logs for run ID 26349518700 and retry or fix manually if appropriate.\n\n- Source action: `fix-pr`\n- Source conclusion: `failed`\n- Target: `pull_request #344`\n- Round: `10/40`\n- Reason: agent planner blocked: The latest fix-pr run failed, and runtime policy forbids handing a failed fix-pr directly to another automatic review or fix attempt.\n- Source run ID: `26349518700`\n\nNo follow-up workflow was dispatched. Reply with the requested context, then continue with `/orchestrate`, `/implement`, or `/answer` when ready.\n\n<!-- sepo-agent-orchestrate-stop -->",
+      "createdAt": "2026-05-24T02:50:45Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/344#issuecomment-4527207259",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-23T23:56:29Z",
+  "files": [
+    {
+      "path": ".agent/docs/architecture/request-lifecycle.md",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/rubrics.md",
+      "additions": 6,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/index.md",
+      "additions": 5,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/overview/quick-start.md",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/setup/install-existing-repository.md",
+      "additions": 3,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/key-concepts.md",
+      "additions": 3,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/agent-actions.md",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/supported-workflows.md",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 81,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/resolve-dispatch-cli.test.ts",
+      "additions": 92,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/response.test.ts",
+      "additions": 89,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/triage.test.ts",
+      "additions": 166,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/create-rubrics-proposal-pr.ts",
+      "additions": 95,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/prepare-add-rubrics-summary.ts",
+      "additions": 81,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/resolve-dispatch.ts",
+      "additions": 4,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/envelope.ts",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/response.ts",
+      "additions": 58,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/rubrics.ts",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/run.ts",
+      "additions": 4,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/triage.ts",
+      "additions": 103,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/trigger-labels.ts",
+      "additions": 6,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/download-agent-rubrics/action.yml",
+      "additions": 3,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/run-agent-task/action.yml",
+      "additions": 30,
+      "deletions": 7,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/_rubrics.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-add-rubrics.md",
+      "additions": 38,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/prompts/agent-dispatch.md",
+      "additions": 5,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/rubrics-initialization.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/rubrics-update.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-add-rubrics.yml",
+      "additions": 350,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/workflows/agent-router.yml",
+      "additions": 27,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": "AGENT.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": "README.md",
+      "additions": 5,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-343/codex-26346651957",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 344,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABA2CRMQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-24T00:55:46Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "eb34251178b66172f4cd1acb807a470b6bb6f68b"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABA2CRjg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-24T00:55:53Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "eb34251178b66172f4cd1acb807a470b6bb6f68b"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABA2CR2Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-24T00:56:00Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "eb34251178b66172f4cd1acb807a470b6bb6f68b"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABA2CSKg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-24T00:56:07Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "eb34251178b66172f4cd1acb807a470b6bb6f68b"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABA2DYWw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-24T01:23:24Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "74fa747b7a0a79f71978cb6dc59fb8357dcb766b"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABA2EDSg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-24T01:40:11Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "58eecbf20cd8a2b7c4376c67ef7ba21328033b44"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABA2F_Aw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-24T02:18:03Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "c3ec615f13c5491f0ba895f762e8a4b3437ef629"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Add explicit add-rubrics route",
+  "updatedAt": "2026-05-24T02:50:45Z",
+  "url": "https://github.com/self-evolving/repo/pull/344"
+}

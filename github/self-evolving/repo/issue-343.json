@@ -1,0 +1,39 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "body": "## Goal\nCreate a fresh implementation/version of the `/add-rubrics` route work because PR #15 is now significantly outdated.\n\n## Context\n- Request came from PR #15: https://github.com/self-evolving/repo/pull/15\n- PR #15 originally implemented issue #9: https://github.com/self-evolving/repo/issues/9\n- The original goal was a minimal explicit route that lets a user describe rubric changes in chat, converts that into valid rubric YAML, writes to `agent/rubrics`, validates changes, and posts a concise in-thread status.\n- PR #15 added route wiring, envelope/runtime support, `.github/workflows/agent-add-rubrics.yml`, `.github/prompts/agent-add-rubrics.md`, summary formatting, tests, and docs, but it has aged relative to current `main`.\n- Later PR discussion raised follow-up concerns: review existing rubrics before adding new ones, prefer updating existing rubrics when appropriate, keep the public route name `/add-rubrics`, and document it as add-or-update behavior rather than renaming it to `/update-rubrics`.\n\n## Acceptance Criteria\n- Reassess current `main` before porting any old PR #15 changes.\n- Implement a current, minimal `/add-rubrics` route if it is still missing or incomplete.\n- Preserve existing route naming unless current code/docs establish a newer convention.\n- Ensure the route can add or update rubrics on `agent/rubrics` with validation and a clear user-facing summary.\n- Address known robustness concerns from the old PR where still relevant: serialized direct writes, visible persistence failures, and prompt/docs consistency.\n- Update tests and docs alongside behavior changes.\n- Do not blindly merge or revive the old branch; use PR #15 as context for intent and prior review findings.\n\n---\n\nRequested via issue_comment at https://github.com/self-evolving/repo/pull/15\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDdJM4A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-343/codex-26346651957`\n- Pull request: https://github.com/self-evolving/repo/pull/344\n\nImplemented a fresh `/add-rubrics` route on current main: route/label dispatch, runtime envelope and prompt mapping, a dedicated serialized `Agent / Rubrics / Add` workflow, rubric add/update prompt, user-facing summary formatting that surfaces validation/commit failures, onboarding label wiring, docs, and focused tests. Verification passed: `npm --prefix .agent run build`, focused route/workflow/response/rubrics/onboarding tests with `GITHUB_OUTPUT=/tmp/sepo-test-output`, `node --test .agent/dist/__tests__/docs-validation.test.js`, and `git diff --check`.",
+      "createdAt": "2026-05-23T23:56:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/343#issuecomment-4526853344",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-23T23:43:46Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 343,
+  "state": "OPEN",
+  "title": "Refresh add-rubrics route implementation",
+  "updatedAt": "2026-05-23T23:56:32Z",
+  "url": "https://github.com/self-evolving/repo/issues/343"
+}

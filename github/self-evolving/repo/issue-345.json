@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "- For example, in the user input, it can just ask \"run two steps\" and the orchestrator can stop there. \n- So taking this input, instead of running non-stoppingly for many steps, it will interpret user input and stop ahead. \n- but i am not sure in which way this will impact other routes?\n\n@sepo-agent /answer ",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDdNANw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, I think this should be supported, but as an **orchestrator-only stop budget**, not as a new public route.\n\nCurrent state:\n- The planner already has a `stop` decision in [`agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-orchestrator.md).\n- Runtime already honors planner stop and max-round exhaustion in [`handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts).\n- `/orchestrate` enters through [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml), then dispatches [`agent-orchestrator.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-orchestrator.yml).\n- Follow-up routes only hand back when `orchestration_enabled == 'true'`, so direct `/implement`, `/review`, and `/fix-pr` should stay one-shot.\n\nRecommended approach:\n1. Parse explicit bounded-step language from the original `request_text`, for example “run two steps”, “stop after 2 actions”, “do one pass”.\n2. Convert that into an effective orchestration budget before dispatching follow-up work.\n3. Preserve the existing hard cap from `automation_max_rounds`.\n4. Tell the planner about the user-requested limit so it can choose `stop` naturally when the requested number of steps is reached.\n5. Add tests around the off-by-one behavior.\n\nImportant detail: current `automation_current_round` starts at `1` before the first dispatched action. So if the user says “run two steps”, we need to decide whether that means:\n- two **workflow actions** after `/orchestrate`, e.g. `implement` then `review`; or\n- two **orchestrator rounds**, which currently would stop after only one dispatched action.\n\nI’d define user language as **workflow actions**, because that is what users mean by “steps”. Internally that likely means setting the effective max round to `requested_steps + 1`.\n\nImpact on other routes should be limited if implemented this way:\n- Direct `/implement`, `/review`, `/fix-pr`: no behavior change.\n- Explicit `/orchestrate`: gains bounded natural-language stopping.\n- Label-triggered or dispatch-triaged orchestrate: can share the same parser if `request_text` contains a limit.\n- Heuristic/manual orchestrate mode: should use the parsed budget deterministically, since the planner may not run there.\n\nExecution plan:\n1. Add a small parser/helper for requested step limits from `request_text`.\n2. Apply it in [`dispatch-agent-orchestrator.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/dispatch-agent-orchestrator.ts) or early in [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts).\n3. Clamp it against `AGENT_AUTOMATION_MAX_ROUNDS`.\n4. Pass the effective limit through existing `automation_max_rounds`.\n5. Update orchestrator prompt wording to explicitly respect user-requested step limits.\n6. Add tests in the existing orchestrator/handoff test suites.\n\nI’d proceed with that implementation after approval.",
+      "createdAt": "2026-05-24T00:26:29Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/345#issuecomment-4526915639",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-24T00:24:20Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 345,
+  "state": "OPEN",
+  "title": "In orchestrate, there should also be an explicit \"stop\" step",
+  "updatedAt": "2026-05-24T00:26:29Z",
+  "url": "https://github.com/self-evolving/repo/issues/345"
+}

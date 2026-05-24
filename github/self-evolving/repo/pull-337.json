@@ -659,8 +659,8 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 736cc7b32caefbb0744b004e0491d860f41c8b89 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #337 implements issue #336 by adding `AGENT_MODEL_POLICY` for provider/model/reasoning defaults and route overrides.\n- It keeps reviewer lanes fixed and applies model policy to single-agent routes plus review synthesis.\n- Follow-up work removed display handling from provider resolution, leaving `AGENT_DISPLAY_MODEL` as the separate display toggle passed directly to `run-agent-task`.\n- Current PR head is `736cc7b32caefbb0744b004e0491d860f41c8b89`, draft, merge-clean, with the `Test Scripts` check passing.\n\n## Review\nNo BLOCKING issue is supported by the current review artifacts or diff. Claude raised nonblocking concerns; Codex and rubrics review both found the current head shippable/passable, so the remaining decision is whether to do one small polish pass before human merge readiness.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Sessioned model path is double-applied | WARNING | Current code can both run `acpx set model ... -s <session>` and pass global `--model` to the same named-session prompt. This is likely redundant, but untested for acpx named prompt sessions. |\n| `AGENT_DISPLAY_MODEL` wording is broader than the actual posting surface | INFO | Docs say the footer appends to Sepo comments generally, while discussion/project/orchestrator helper comments do not all append `model_display`. This is a scope/docs polish issue, not a runtime blocker. |\n\n## Progress\n- Earlier `ANTHROPIC_API_KEY` and inline `route_provider` review threads are already resolved and fixed in the current head.\n- The #341-inspired display simplification is present: `resolve-agent-provider` no longer owns display metadata, and workflows pass `vars.AGENT_DISPLAY_MODEL || ''` directly to `run-agent-task`.\n- Review artifacts report focused build/test coverage passing for resolver, ACPX adapter, response, envelope, and posting CLIs.\n- Existing inline review threads were already resolved; I posted one new inline comment on `.agent/src/acpx-adapter.ts` line 241. No replies, minimizations, or thread resolutions were added.\n\n## Issue Details\n\n<details>\n<summary>Sessioned model path is double-applied</summary>\n\n**Cause:** [`buildAcpxArgs`](https://github.com/self-evolving/repo/blob/736cc7b32caefbb0744b004e0491d860f41c8b89/.agent/src/acpx-adapter.ts#L241-L244) always adds global `--model` when configured, while [`buildSessionSetupCommands`](https://github.com/self-evolving/repo/blob/736cc7b32caefbb0744b004e0491d860f41c8b89/.agent/src/acpx-adapter.ts#L295-L300) also sets the same model on named/transient sessions.\n\n**Candidate solutions:** Limit global `--model` to no-session exec runs, or add focused coverage proving acpx accepts the combined named-session `set model` plus `--model` prompt path.\n\n**Comments:** Claude flagged this as a warning; Codex did not treat it as merge-blocking. I posted an inline comment because the issue is line-specific and not already covered by current inline feedback.\n</details>\n\n<details>\n<summary>`AGENT_DISPLAY_MODEL` wording is broader than the actual posting surface</summary>\n\n**Cause:** [`configuration-list.md`](https://github.com/self-evolving/repo/blob/736cc7b32caefbb0744b004e0491d860f41c8b89/.agent/docs/customization/configuration-list.md#L13) describes appending metadata to Sepo comments broadly, but some generated surfaces, such as daily summary discussion creation and orchestrator handoff comments, do not append the run footer.\n\n**Candidate solutions:** Narrow the docs to “direct route response comments,” or wire `model_display` into the remaining helper posting paths if maintainers want universal display coverage.\n\n**Comments:** This is an operator-expectation clarification. Rubrics review still passed the compact-status-comment requirement.\n</details>\n\n## Recommended Next Step\n`HUMAN_DECISION`: the remaining concerns are nonblocking and partly judgment-based, so a maintainer should decide whether to request a small polish pass or proceed with draft readiness/merge handling.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] No required branch-change work.",
       "createdAt": "2026-05-23T17:37:42Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/337#issuecomment-4526094682",
       "viewerDidAuthor": true
@@ -754,8 +754,8 @@
       "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-336/codex-26252764032`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Created follow-up issue #342: https://github.com/self-evolving/repo/issues/342 for the named/transient session ACPX model-selection cleanup.\n- Narrowed `AGENT_DISPLAY_MODEL` docs to direct agent response comments using standard response posting helpers.\n- Left current sessioned model behavior unchanged.\n- Verification passed after rebuilding dist: `npm --prefix .agent run build`, `node --test .agent/dist/__tests__/envelope.test.js`, and `git diff --check`.",
       "createdAt": "2026-05-23T19:31:51Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/337#issuecomment-4526333385",
       "viewerDidAuthor": true
@@ -769,8 +769,8 @@
       "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #337 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on open PR #337, so an automatic review is warranted to verify the requested display-policy simplification and Codex reasoning-effort fix before stopping.\n\n<!-- sepo-agent-handoff state:dispatched created:1779564749731 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYzNDE1NTAxNjI6Zml4X3ByOjMzNzpyZXZpZXc6MzM3OjM -->",
       "createdAt": "2026-05-23T19:32:30Z",
       "includesCreatedEdit": true,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/337#issuecomment-4526334783",
       "viewerDidAuthor": true
@@ -784,8 +784,8 @@
       "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 96 | PASS | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Docs add `AGENT_MODEL_POLICY`, narrowed `AGENT_DISPLAY_MODEL` wording, examples, fixed review-lane scope, and session-continuity notes. See [`configuration-list.md`](https://github.com/self-evolving/repo/blob/4452eba51316bbc29d492ca1d1d9e72a488bb21d/.agent/docs/customization/configuration-list.md#L12-L55) and [`session-continuity.md`](https://github.com/self-evolving/repo/blob/4452eba51316bbc29d492ca1d1d9e72a488bb21d/.agent/docs/technical-details/session-continuity.md#L16-L20). |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | Keeps a single JSON model policy plus separate `AGENT_DISPLAY_MODEL`; inline `route_provider` remains the native YAML override. See [`configuration-list.md`](https://github.com/self-evolving/repo/blob/4452eba51316bbc29d492ca1d1d9e72a488bb21d/.agent/docs/customization/configuration-list.md#L12-L13) and [`#L55`](https://github.com/self-evolving/repo/blob/4452eba51316bbc29d492ca1d1d9e72a488bb21d/.agent/docs/customization/configuration-list.md#L55). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | `AGENT_MODEL_POLICY` validates `default`, `providers`, and `route_overrides` with typed `provider`, `model`, and `reasoning_effort` fields. See [`resolve-provider.js`](https://github.com/self-evolving/repo/blob/4452eba51316bbc29d492ca1d1d9e72a488bb21d/.github/actions/resolve-agent-provider/resolve-provider.js#L39-L114). |\n| coding_workflow / generic | Name config by capability | pass | 6/6 | Public config is capability-scoped: `AGENT_MODEL_POLICY` owns provider/model/reasoning policy, while `AGENT_DISPLAY_MODEL` separately owns display. See [`configuration-list.md`](https://github.com/self-evolving/repo/blob/4452eba51316bbc29d492ca1d1d9e72a488bb21d/.agent/docs/customization/configuration-list.md#L12-L13). |\n| coding_workflow / generic | Reuse existing code | partial | 6/8 | Reuses `resolve-agent-provider` and `run-agent-task`, but substantial resolver logic now lives in composite-action JS. The action notes the pre-runtime constraint. See [`action.yml`](https://github.com/self-evolving/repo/blob/4452eba51316bbc29d492ca1d1d9e72a488bb21d/.github/actions/resolve-agent-provider/action.yml#L72-L75). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is broad because many workflows must pass resolved model/display fields, but it stays within model policy, ACPX wiring, docs, and focused tests. Review lanes remain static. See [`agent-review.yml`](https://github.com/self-evolving/repo/blob/4452eba51316bbc29d492ca1d1d9e72a488bb21d/.github/workflows/agent-review.yml#L136-L149). |\n| coding_style / generic | Prefer simple implementations | pass | 6/7 | Resolver precedence is direct: defaults, provider config, route overrides unless inline route provider wins, then env detection. Some complexity remains concentrated in one pre-runtime script. See [`resolve-provider.js`](https://github.com/self-evolving/repo/blob/4452eba51316bbc29d492ca1d1d9e72a488bb21d/.github/actions/resolve-agent-provider/resolve-provider.js#L126-L238). |\n| coding_workflow / generic | Separate diagnostics from continuity | pass | 7/7 | Codex exec reasoning uses random transient sessions for `thought_level` without writing reusable continuity state. See [`acpx-adapter.ts`](https://github.com/self-evolving/repo/blob/4452eba51316bbc29d492ca1d1d9e72a488bb21d/.agent/src/acpx-adapter.ts#L677-L705). |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Transient session setup failures return explicit failed results instead of silently continuing without requested reasoning settings. See [`acpx-adapter.ts`](https://github.com/self-evolving/repo/blob/4452eba51316bbc29d492ca1d1d9e72a488bb21d/.agent/src/acpx-adapter.ts#L683-L716). |\n| communication / generic | Keep status comments compact | pass | 6/6 | Model metadata is opt-in and appended as a short footer through standard response helpers. See [`run.ts`](https://github.com/self-evolving/repo/blob/4452eba51316bbc29d492ca1d1d9e72a488bb21d/.agent/src/run.ts#L324-L335) and [`response.ts`](https://github.com/self-evolving/repo/blob/4452eba51316bbc29d492ca1d1d9e72a488bb21d/.agent/src/response.ts#L158-L164). |\n\n## Notes\n\n- The current PR head satisfies the linked issue constraint: reviewer lanes remain fixed, while model policy applies to single-agent routes and review synthesis.\n- The latest requester-approved follow-up is reflected: sessioned model duplication was left unchanged and tracked separately in issue #342, while `AGENT_DISPLAY_MODEL` docs were narrowed to direct standard response comments.\n- Focused coverage includes provider auto-detection, display being outside the resolver, route overrides, workflow envelope wiring, footer formatting, and Codex `session_policy: none` reasoning effort.\n\n## Findings\n\n- **INFO:** No blocking rubric-specific follow-up needed. The only deduction is maintainability-oriented: model policy parsing/resolution is substantial action-side JavaScript, but the pre-runtime constraint is documented and the behavior is covered by focused tests.\n\n## Final Rubric Verdict\n\nPASS",
       "createdAt": "2026-05-23T19:34:37Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/337#issuecomment-4526339276",
       "viewerDidAuthor": true
@@ -811,6 +811,273 @@
       ],
       "url": "https://github.com/self-evolving/repo/pull/337#issuecomment-4526341874",
       "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDcqI2A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "If `AGENT_MODEL_POLICY` is unset or does not specify `model`, the resolved model is an empty string. That flows into `run-agent-task` as `MODEL_ID=\"\"`, and the ACPX adapter does **not** pass `--model` or `set model`. The actual model is then whatever the selected provider/adapter defaults to.\n\nDefaults today:\n\n- Provider: `AGENT_DEFAULT_PROVIDER || auto`; `auto` picks Codex if `OPENAI_API_KEY` exists, otherwise Claude if Claude credentials exist.\n- Model: no Sepo default. Empty means provider default.\n- Reasoning effort: policy can override; otherwise workflows keep their existing route defaults like `xhigh`, `high`, or `medium`. Review lanes remain fixed: Claude `max`, Codex `xhigh`.\n- `AGENT_DISPLAY_MODEL`: false when unset.\n\nI would **not** normalize unset model to “latest” models in Sepo. That would make Sepo own a moving provider-version policy and could silently change cost/latency/behavior, or break older ACPX/provider installs that do not advertise the chosen model. The better contract is:\n\n- unset model = provider default\n- explicit model = operator policy through `AGENT_MODEL_POLICY`\n- docs may show example recommended models, but resolver should not rewrite empty to “latest”\n\nSo for #341, I’d keep no model default and avoid adding model normalization.",
+      "createdAt": "2026-05-23T19:37:13Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/337#issuecomment-4526344408",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDcreXg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 4452eba51316bbc29d492ca1d1d9e72a488bb21d -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\nPR #337 adds `AGENT_MODEL_POLICY` so Sepo can resolve provider, model, and reasoning-effort defaults plus route overrides for agent runs. It also keeps `AGENT_DISPLAY_MODEL` as the separate opt-in toggle for displaying run metadata in standard direct response comments. The linked issue #336 specifically asked for configurable model selection while keeping reviewer lanes fixed, and the PR preserves the static Claude/Codex review matrix while applying policy only to synthesis. Follow-up issue #342 now tracks the intentionally deferred ACPX sessioned-model cleanup.\n\n## Review\n\nThe current PR head addresses the earlier blocking concerns around Anthropic auth, route-provider precedence, display wording, and Codex `session_policy: none` reasoning effort. One small typed-config validation issue remains and is safe for an automated fix.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| `AGENT_MODEL_POLICY` token fields coerce non-string JSON | WARNING | The resolver stringifies `model` and `reasoning_effort` values before validation, so malformed policy like numeric models or boolean reasoning values can be accepted and emitted. |\n| Sessioned model behavior deferred to #342 | INFO | The `set model` plus global `--model` concern remains intentionally unchanged, but the requester accepted deferring it to follow-up issue #342. |\n\n## Progress\n\n- PR head `4452eba51316bbc29d492ca1d1d9e72a488bb21d` is open and merge-clean.\n- Prior inline findings for `ANTHROPIC_API_KEY` support and inline `route_provider` precedence are resolved in current code and their threads are resolved.\n- The requester-approved display docs narrowing is present, and issue #342 tracks the sessioned-model follow-up.\n- Posted one new inline comment on `.github/actions/resolve-agent-provider/resolve-provider.js:23` for the token coercion issue.\n- Resolved the older same-agent inline thread on `.agent/src/acpx-adapter.ts:241` after verifying it was superseded by #342.\n\n## Issue Details\n\n<details>\n<summary>`AGENT_MODEL_POLICY` token fields coerce non-string JSON</summary>\n\n**Cause:** [`normalizeOptionalToken`](https://github.com/self-evolving/repo/blob/4452eba51316bbc29d492ca1d1d9e72a488bb21d/.github/actions/resolve-agent-provider/resolve-provider.js#L21-L28) calls `String(value).trim()` before type checking, and `normalizeConfig` uses it for both `model` and `reasoning_effort`.\n\n**Candidate solutions:** Reject non-string values when these fields are present, while preserving intentional `null`/empty handling for unset or cleared values. Add focused resolver tests for numeric and boolean `model` / `reasoning_effort`.\n\n**Comments:** Codex flagged this as a WARNING; Claude and rubrics did not flag it. This is not a default-path regression, but it weakens the new structured config boundary.\n\n</details>\n\n## Recommended Next Step\n\n`FIX_PR`: the remaining warning is a concrete parser/test change and is safe for an automated fix-pr pass.\n\n## Final Verdict\n\nMINOR_ISSUES\n\n## Action Items\n\n- [ ] Reject non-string `model` and `reasoning_effort` values in `AGENT_MODEL_POLICY` parsing and add focused resolver coverage for numeric/boolean inputs.",
+      "createdAt": "2026-05-23T19:47:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/337#issuecomment-4526366302",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDcrjUw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #337 | 4 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis is MINOR_ISSUES with Recommended Next Step FIX_PR; PR #337 is open, round budget remains, and the remaining item is a concrete parser/test change safe for automation.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Reject non-string `model` and `reasoning_effort` values in `AGENT_MODEL_POLICY` parsing.\n- Add focused resolver coverage for numeric/boolean inputs for both fields.\n\nConstraints: preserve intentional null/empty handling for unset or cleared values. Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1779565692770 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYzNDE2MDEyNjI6cmV2aWV3OjMzNzpmaXhfcHI6MzM3OjQ -->",
+      "createdAt": "2026-05-23T19:48:13Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/337#issuecomment-4526367571",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDcr0RA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-336/codex-26252764032`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Tightened `AGENT_MODEL_POLICY` token parsing so present `model` and `reasoning_effort` values must be strings.\n- Added focused resolver coverage for numeric and boolean values for both fields.\n- Preserved existing null/empty handling for unset or cleared policy values.\n- Verification passed: `npm --prefix .agent run build`, `node --test .agent/dist/__tests__/resolve-agent-provider.test.js`, and `git diff --check`.",
+      "createdAt": "2026-05-23T19:50:18Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/337#issuecomment-4526371908",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDcr7nA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #337 | 5 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on open PR #337 after applying the latest parser/test fix; an automatic review is warranted to validate the current head before stopping or human merge.\n\n<!-- sepo-agent-handoff state:dispatched created:1779565873957 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYzNDE5MjI1NTA6Zml4X3ByOjMzNzpyZXZpZXc6MzM3OjU -->",
+      "createdAt": "2026-05-23T19:51:14Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/337#issuecomment-4526373788",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDcsKIA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 96 | PASS | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Docs cover `AGENT_MODEL_POLICY`, `AGENT_DISPLAY_MODEL`, fixed reviewer-lane scope, and transient Codex session behavior. See [`configuration-list.md`](https://github.com/self-evolving/repo/blob/2676474382f74455618bd6d634d9e93e0fe5c03a/.agent/docs/customization/configuration-list.md#L12) and [`session-continuity.md`](https://github.com/self-evolving/repo/blob/2676474382f74455618bd6d634d9e93e0fe5c03a/.agent/docs/technical-details/session-continuity.md#L16). |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | Keeps model policy as one JSON capability and `AGENT_DISPLAY_MODEL` as a separate display toggle; inline `route_provider` remains the workflow-native override. See [`configuration-list.md#L55`](https://github.com/self-evolving/repo/blob/2676474382f74455618bd6d634d9e93e0fe5c03a/.agent/docs/customization/configuration-list.md#L55). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The resolver validates typed `default`, `providers`, and `route_overrides` objects, and now rejects non-string `model` / `reasoning_effort` values. See [`resolve-provider.js#L21`](https://github.com/self-evolving/repo/blob/2676474382f74455618bd6d634d9e93e0fe5c03a/.github/actions/resolve-agent-provider/resolve-provider.js#L21). |\n| coding_workflow / generic | Name config by capability | pass | 6/6 | Public config names are capability-scoped: `AGENT_MODEL_POLICY` owns provider/model/reasoning policy, while `AGENT_DISPLAY_MODEL` owns display. See [`configuration-list.md#L12-L13`](https://github.com/self-evolving/repo/blob/2676474382f74455618bd6d634d9e93e0fe5c03a/.agent/docs/customization/configuration-list.md#L12). |\n| coding_workflow / generic | Reuse existing code | partial | 6/8 | The PR reuses `resolve-agent-provider` and `run-agent-task`, but replaces the shell resolver with substantial action-side JS. This is partly justified by pre-runtime provider resolution. See [`resolve-provider.js`](https://github.com/self-evolving/repo/blob/2676474382f74455618bd6d634d9e93e0fe5c03a/.github/actions/resolve-agent-provider/resolve-provider.js#L1). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is broad because many workflows must pass resolved model fields, but changes stay scoped to model policy, ACPX wiring, docs, and focused tests. |\n| coding_style / generic | Prefer simple implementations | pass | 6/7 | Resolver precedence is direct and centralized, though the pre-runtime resolver necessarily carries some parsing complexity. See [`resolve-provider.js#L126-L170`](https://github.com/self-evolving/repo/blob/2676474382f74455618bd6d634d9e93e0fe5c03a/.github/actions/resolve-agent-provider/resolve-provider.js#L126). |\n| coding_workflow / generic | Separate diagnostics from continuity | pass | 7/7 | Codex exec runs with reasoning effort use fresh transient sessions and do not write resumable continuity state. See [`acpx-adapter.ts#L678-L706`](https://github.com/self-evolving/repo/blob/2676474382f74455618bd6d634d9e93e0fe5c03a/.agent/src/acpx-adapter.ts#L678). |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Transient session creation/setup failures return explicit failed results instead of silently running without requested reasoning settings. See [`acpx-adapter.ts#L683-L716`](https://github.com/self-evolving/repo/blob/2676474382f74455618bd6d634d9e93e0fe5c03a/.agent/src/acpx-adapter.ts#L683). |\n| communication / generic | Keep status comments compact | pass | 6/6 | Model metadata is opt-in and emitted as a short standard response footer through `model_display`. See [`run.ts#L324`](https://github.com/self-evolving/repo/blob/2676474382f74455618bd6d634d9e93e0fe5c03a/.agent/src/run.ts#L324). |\n\n## Notes\n\n- The current PR head satisfies the main applicable rubrics: structured model policy, narrow display toggle, fixed reviewer lanes, docs in sync, and regression coverage for the recently fixed parser and Codex reasoning-effort paths.\n- The only meaningful deduction is maintainability-oriented: model policy parsing now lives in composite-action JavaScript instead of a typed `.agent/src` helper, but the pre-runtime constraint makes that reasonable for this PR.\n\n## Findings\n\n- **INFO:** No blocking rubric-specific follow-up needed. The current head includes focused tests for non-string policy tokens and Codex `session_policy: none` reasoning effort, plus docs for the user-facing behavior.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-23T19:53:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/337#issuecomment-4526377504",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDctdfA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 2676474382f74455618bd6d634d9e93e0fe5c03a -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\nI resolved the one stale same-agent inline thread after confirming the current code and tests address it. I’m not adding new inline comments because the remaining review disagreement is either already tracked in #342 or optional coverage/plumbing judgment rather than a fresh line-specific defect that needs duplicate inline feedback.## Summary of PR/Issue\nPR #337 adds `AGENT_MODEL_POLICY` so Sepo can resolve provider, model, and reasoning-effort defaults plus route overrides for agent runs. It keeps reviewer lanes fixed as requested in #336, while applying policy to the review synthesis route. The PR also keeps `AGENT_DISPLAY_MODEL` as the separate opt-in display toggle for standard response comments. Follow-up fixes have already addressed the earlier Anthropic auth, inline route override, Codex reasoning-effort, and non-string token parsing issues.\n\n## Review\nThe current head has no blocking defect supported by the latest review artifacts. Codex and rubrics both say the PR can ship; Claude flags optional polish around display/model reporting coverage and unused display output plumbing, so the remaining decision is maintainer judgment rather than another automatic fix.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Display/model reporting polish needs maintainer choice | WARNING | Claude recommends adding direct coverage for `extractSessionModel` and cleaning up `agent-update.yml` display wiring; Codex and rubrics do not treat this as required. |\n| Sessioned model behavior is deferred | INFO | The `set model` plus global `--model` concern is already tracked in #342 and was intentionally left out of the current PR scope. |\n\n## Progress\n- PR head `2676474382f74455618bd6d634d9e93e0fe5c03a` is open, draft, merge-clean, and the latest visible check passed.\n- Prior required fixes are present: `ANTHROPIC_API_KEY` support, inline `route_provider` precedence, `AGENT_DISPLAY_MODEL` simplification, Codex `session_policy: none` reasoning effort, and non-string policy token rejection.\n- Resolved the stale same-agent inline thread for the token coercion issue after re-fetching and confirming it was addressed.\n- No new inline comments were posted.\n\n## Issue Details\n<details>\n<summary>Display/model reporting polish needs maintainer choice</summary>\n\n**Cause:** [`extractSessionModel`](https://github.com/self-evolving/repo/blob/2676474382f74455618bd6d634d9e93e0fe5c03a/.agent/src/run.ts#L309-L321) parses compact session logs without direct unit coverage. Separately, [`agent-update.yml`](https://github.com/self-evolving/repo/blob/2676474382f74455618bd6d634d9e93e0fe5c03a/.github/workflows/agent-update.yml#L237-L293) passes `display_model` but writes only `response_file` to the job summary, so `model_display` is not consumed there.\n\n**Candidate solutions:** Add focused tests for session-model extraction, and either remove `display_model` from `agent-update.yml` or explicitly append the footer to the update summary if maintainers want display metadata there.\n\n**Comments:** This is a reviewer disagreement: Claude wants this before merge, while Codex and rubrics consider current behavior acceptable. The docs scope display to standard response comments, so this is not clearly required branch work.\n\n</details>\n\n## Recommended Next Step\n`HUMAN_DECISION`: remaining concerns are optional polish or scoped follow-up, so maintainers should decide whether to require them before marking the draft ready.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] No required branch-change work.",
+      "createdAt": "2026-05-23T20:03:24Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/337#issuecomment-4526398844",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDdLjGA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer in this case, it seems provider and model policy is duplicated? ",
+      "createdAt": "2026-05-24T00:15:20Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/337#issuecomment-4526891800",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDdLvBA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, there is overlap, but it is specifically **provider selection** overlap, not model policy duplication.\n\nCurrent precedence in #341 is:\n\n1. inline workflow `route_provider`\n2. `AGENT_MODEL_POLICY.route_overrides[route].provider`\n3. `AGENT_MODEL_POLICY.default.provider`\n4. `AGENT_DEFAULT_PROVIDER`\n\nThat is encoded here: [`resolve-provider.js#L140-L154`](https://github.com/self-evolving/repo/blob/agent/implement-issue-340/codex-26336493584/.github/actions/resolve-agent-provider/resolve-provider.js#L140-L154).\n\nSo `AGENT_DEFAULT_PROVIDER` and `AGENT_MODEL_POLICY.default.provider` can express the same global provider choice. The reason to keep both is compatibility and ergonomics:\n\n- `AGENT_DEFAULT_PROVIDER` is the existing/simple knob.\n- `AGENT_MODEL_POLICY` is the advanced structured knob for provider + model + reasoning + route overrides.\n- Model settings need provider context because `providers.codex.model` and `providers.claude.model` are different namespaces.\n\nI would not remove `AGENT_DEFAULT_PROVIDER` in this PR; that would be a breaking config change. I also would not split provider entirely out of `AGENT_MODEL_POLICY`, because route-level overrides like “use Claude for synthesis with its model/reasoning defaults” are useful.\n\nThe small improvement I’d make is docs wording: explicitly call `AGENT_DEFAULT_PROVIDER` the simple fallback and `AGENT_MODEL_POLICY` the advanced override, and document the precedence. That makes the duplication intentional instead of surprising.",
+      "createdAt": "2026-05-24T00:16:42Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/337#issuecomment-4526894852",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDdMAvg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \r\nit seems the cleanest fix now is that for `AGENT_MODEL_POLICY` we should not set default provider there instead we reply on `AGENT_DEFAULT_PROVIDER` only? ",
+      "createdAt": "2026-05-24T00:18:51Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/337#issuecomment-4526899390",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDdMJxQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, I think that is the cleanest fix.\n\n`AGENT_DEFAULT_PROVIDER` should remain the one global/default provider knob. `AGENT_MODEL_POLICY.default.provider` duplicates it and makes precedence harder to explain.\n\nI’d change the contract to:\n\n```json\n{\n  \"providers\": {\n    \"codex\": { \"model\": \"gpt-5.4\", \"reasoning_effort\": \"xhigh\" },\n    \"claude\": { \"model\": \"claude-sonnet-4-5\", \"reasoning_effort\": \"max\" }\n  },\n  \"route_overrides\": {\n    \"answer\": { \"provider\": \"codex\", \"model\": \"gpt-5.4-mini\", \"reasoning_effort\": \"high\" },\n    \"review-synthesize\": { \"provider\": \"claude\" }\n  }\n}\n```\n\nThen precedence is simpler:\n\n1. inline workflow `route_provider`\n2. `AGENT_MODEL_POLICY.route_overrides[route].provider`\n3. `AGENT_DEFAULT_PROVIDER`\n4. `auto` provider detection\n\nThat keeps the useful part of policy, route-specific provider/model/reasoning bundles, without adding a second global provider setting.\n\nImplementation-wise, I’d reject or ignore `AGENT_MODEL_POLICY.default.provider`, remove it from docs/examples/tests, and keep `AGENT_MODEL_POLICY.default` only for non-provider defaults if we still want that layer. For models, provider-specific defaults should usually live under `providers.codex` / `providers.claude` anyway.",
+      "createdAt": "2026-05-24T00:19:57Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/337#issuecomment-4526901701",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDdMeXA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Yes, I think that is the cleanest fix.\r\n> \r\n> `AGENT_DEFAULT_PROVIDER` should remain the one global/default provider knob. `AGENT_MODEL_POLICY.default.provider` duplicates it and makes precedence harder to explain.\r\n> \r\n> I’d change the contract to:\r\n> \r\n> ```json\r\n> {\r\n>   \"providers\": {\r\n>     \"codex\": { \"model\": \"gpt-5.4\", \"reasoning_effort\": \"xhigh\" },\r\n>     \"claude\": { \"model\": \"claude-sonnet-4-5\", \"reasoning_effort\": \"max\" }\r\n>   },\r\n>   \"route_overrides\": {\r\n>     \"answer\": { \"provider\": \"codex\", \"model\": \"gpt-5.4-mini\", \"reasoning_effort\": \"high\" },\r\n>     \"review-synthesize\": { \"provider\": \"claude\" }\r\n>   }\r\n> }\r\n> ```\r\n> \r\n> Then precedence is simpler:\r\n> \r\n> 1. inline workflow `route_provider`\r\n> 2. `AGENT_MODEL_POLICY.route_overrides[route].provider`\r\n> 3. `AGENT_DEFAULT_PROVIDER`\r\n> 4. `auto` provider detection\r\n> \r\n> That keeps the useful part of policy, route-specific provider/model/reasoning bundles, without adding a second global provider setting.\r\n> \r\n> Implementation-wise, I’d reject or ignore `AGENT_MODEL_POLICY.default.provider`, remove it from docs/examples/tests, and keep `AGENT_MODEL_POLICY.default` only for non-provider defaults if we still want that layer. For models, provider-specific defaults should usually live under `providers.codex` / `providers.claude` anyway.\r\n\r\n@sepo-agent /orchestrate launch a targeted fix for this; and then review it. ",
+      "createdAt": "2026-05-24T00:22:14Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/337#issuecomment-4526906972",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDdMlSQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | fix-pr | PR #337 | 2 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: User explicitly requested a targeted PR fix for the AGENT_MODEL_POLICY.default.provider contract change; PR-level orchestration should hand off to fix-pr first, then normal fix-pr success can trigger review.\n\nTask for fix-pr:\nImplement the requested targeted fix on PR #337: remove AGENT_MODEL_POLICY.default.provider as a supported global provider knob so AGENT_DEFAULT_PROVIDER remains the only global/default provider setting. Keep provider precedence as: inline workflow route_provider, AGENT_MODEL_POLICY.route_overrides[route].provider, AGENT_DEFAULT_PROVIDER, then auto provider detection. Reject or ignore AGENT_MODEL_POLICY.default.provider consistently, remove it from docs/examples/tests, and keep AGENT_MODEL_POLICY.default only for non-provider defaults if still needed. Update focused tests for provider precedence and policy parsing. Avoid unrelated changes.\n\n<!-- sepo-agent-handoff state:dispatched created:1779582187969 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYzNDczNDk5OTQ6b3JjaGVzdHJhdGU6MzM3OmZpeF9wcjozMzc6Mg -->",
+      "createdAt": "2026-05-24T00:23:08Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/337#issuecomment-4526908745",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDdNGcw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-336/codex-26252764032`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Removed `AGENT_MODEL_POLICY.default.provider` support; resolver now rejects it and keeps `AGENT_DEFAULT_PROVIDER` as the only global/default provider knob.\n- Preserved non-provider `default` policy handling plus provider precedence: inline `route_provider`, route policy provider, `AGENT_DEFAULT_PROVIDER`, then auto detection.\n- Updated resolver coverage and docs/examples to match the simplified provider contract.\n- Verification passed: `npm --prefix .agent run build`, `node --test .agent/dist/__tests__/resolve-agent-provider.test.js .agent/dist/__tests__/envelope.test.js`, and `git diff --check`.",
+      "createdAt": "2026-05-24T00:27:14Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/337#issuecomment-4526917235",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDdNOpw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #337 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: The targeted fix-pr action succeeded on open PR #337, and the original request explicitly asked to review the fix after applying it.\n\n<!-- sepo-agent-handoff state:dispatched created:1779582487909 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjYzNDczNjQ4NzE6Zml4X3ByOjMzNzpyZXZpZXc6MzM3OjM -->",
+      "createdAt": "2026-05-24T00:28:08Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/337#issuecomment-4526919335",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDdOlww",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: f80521acd4dc186eea81755fe6e47bb553237a2c -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #337 adds `AGENT_MODEL_POLICY` so Sepo can configure model and reasoning defaults, provider-specific settings, and route overrides. It keeps `AGENT_DEFAULT_PROVIDER` as the single global/default provider knob and keeps reviewer lanes fixed, matching issue #336 and the latest requester guidance. The latest targeted fix rejects `AGENT_MODEL_POLICY.default.provider`, updates precedence to inline `route_provider`, route policy provider, `AGENT_DEFAULT_PROVIDER`, then auto detection, and aligns docs/tests. Optional model display remains controlled by `AGENT_DISPLAY_MODEL`.\n\n## Review\nBoth current review artifacts support shipping the current head. Claude notes only INFO-level edge observations, while Codex reports no BLOCKING or WARNING findings.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable branch-change issues | INFO | The current PR head matches the requested provider-policy contract, and the fresh reviewers do not identify required follow-up work. |\n\n## Progress\n- Current PR head `f80521acd4dc186eea81755fe6e47bb553237a2c` is open, draft, merge-clean, and its latest visible check passed.\n- The targeted `default.provider` fix is present in [`resolve-provider.js`](https://github.com/self-evolving/repo/blob/f80521acd4dc186eea81755fe6e47bb553237a2c/.github/actions/resolve-agent-provider/resolve-provider.js#L80), with matching resolver tests and docs.\n- Earlier same-agent inline review threads are already resolved; I posted no new inline comments and made no inline-thread mutations.\n- Remaining reviewer notes are INFO-level observations, not concrete required branch changes.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: no unresolved actionable branch work remains, so the next decision is whether maintainers are ready to mark the draft ready and merge.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work.",
+      "createdAt": "2026-05-24T00:38:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/337#issuecomment-4526941635",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-21T21:14:36Z",
@@ -823,7 +1090,7 @@
     },
     {
       "path": ".agent/docs/customization/configuration-list.md",
-      "additions": 19,
+      "additions": 18,
       "deletions": 1,
       "changeType": "MODIFIED"
     },
@@ -865,7 +1132,7 @@
     },
     {
       "path": ".agent/src/__tests__/resolve-agent-provider.test.ts",
-      "additions": 91,
+      "additions": 162,
       "deletions": 3,
       "changeType": "MODIFIED"
     },
@@ -913,7 +1180,7 @@
     },
     {
       "path": ".github/actions/resolve-agent-provider/resolve-provider.js",
-      "additions": 251,
+      "additions": 257,
       "deletions": 0,
       "changeType": "ADDED"
     },
@@ -1083,10 +1350,25 @@
       "commit": {
         "oid": "736cc7b32caefbb0744b004e0491d860f41c8b89"
       }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABA1xvKw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-23T19:46:12Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "4452eba51316bbc29d492ca1d1d9e72a488bb21d"
+      }
     }
   ],
   "state": "OPEN",
   "title": "Support configurable agent model policy",
-  "updatedAt": "2026-05-23T19:36:06Z",
+  "updatedAt": "2026-05-24T00:38:32Z",
   "url": "https://github.com/self-evolving/repo/pull/337"
 }
