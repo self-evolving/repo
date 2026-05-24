@@ -63,6 +63,10 @@ inputs:
   github_token:
     description: "GitHub token for API access"
     required: true
+  expose_github_token_to_agent:
+    description: "Whether to expose github_token to the model process as INPUT_GITHUB_TOKEN/GH_TOKEN"
+    required: false
+    default: "true"
   secondary_github_token:
     description: "Optional read-only secondary GitHub token for external repo context"
     required: false
@@ -295,6 +299,7 @@ runs:
       with:
         github_token: ${{ inputs.github_token }}
         ref: ${{ inputs.rubrics_checkout_ref || inputs.rubrics_ref }}
+        continue_on_missing: ${{ steps.rubrics_mode.outputs.write_enabled == 'true' && inputs.route != 'rubrics-initialization' && 'false' || 'true' }}
         bootstrap_if_missing: ${{ inputs.route == 'rubrics-initialization' && inputs.rubrics_mode_override == 'enabled' && 'true' || 'false' }}
 
     - name: Select applicable rubrics
@@ -332,7 +337,7 @@ runs:
       env:
         ACPX_AGENT: ${{ inputs.agent }}
         ACPX_PERMISSION_MODE: ${{ inputs.permission_mode }}
-        INPUT_GITHUB_TOKEN: ${{ inputs.github_token }}
+        INPUT_GITHUB_TOKEN: ${{ inputs.expose_github_token_to_agent == 'true' && inputs.github_token || '' }}
         INPUT_SECONDARY_GITHUB_TOKEN: ${{ inputs.secondary_github_token }}
         INPUT_OPENAI_API_KEY: ${{ inputs.openai_api_key }}
         CLAUDE_CODE_OAUTH_TOKEN: ${{ inputs.claude_oauth_token }}

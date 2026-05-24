@@ -38,6 +38,24 @@ const VALID_SKILL_LABEL = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 export const INSTALL_ROUTE = "install";
 const DEFAULT_IMPLEMENT_ISSUE_TITLE = "Implement requested change";
 export type RubricsWriteMode = "proposal_pr" | "direct_commit";
+const DIRECT_RUBRICS_ALLOWED_ASSOCIATIONS = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
+
+const NEGATED_DIRECT_RUBRICS_WRITE_PATTERNS = [
+  /\b(?:do\s+not|don't|dont|never)\s+(?:just\s+)?(?:add|apply|commit|push|write|update)\b/i,
+  /\b(?:do\s+not|don't|dont|never)\s+[\s\S]{0,80}\b(?:directly|straight\s+(?:to|onto)|agent\/rubrics)\b/i,
+];
+
+const DIRECT_RUBRICS_REVIEW_BYPASS_PATTERNS = [
+  /\b(?:do\s+not|don't|dont|never)\s+(?:open|create|make)\s+(?:a\s+)?(?:rubric\s+)?(?:pr|pull request|proposal)\b/i,
+  /\b(?:no|without)\s+(?:a\s+|the\s+)?(?:rubric\s+)?(?:pr|pull request|review)\b/i,
+];
+
+const PROPOSAL_RUBRICS_WRITE_PATTERNS = [
+  /\b(?:open|create|make)\s+(?:a\s+)?(?:rubric\s+)?(?:pr|pull request|proposal)\b/i,
+  /\b(?:proposal|review)\s+(?:pr|pull request|branch)\b/i,
+  /\b(?:via|through|with)\s+(?:a\s+)?(?:pr|pull request|proposal)\b/i,
+  /\binstead\s+of\s+(?:committing|commit|pushing|push|writing|write|adding|add)\b/i,
+];
 
 const DIRECT_RUBRICS_WRITE_PATTERNS = [
   /\bjust\s+(?:add|apply|commit|write|update)\b/i,
@@ -70,9 +88,24 @@ export interface ImplementIssueMetadata {
 
 export function inferRubricsWriteMode(requestText: string): RubricsWriteMode {
   const text = String(requestText || "");
+  if (NEGATED_DIRECT_RUBRICS_WRITE_PATTERNS.some((pattern) => pattern.test(text))) {
+    return "proposal_pr";
+  }
+  if (DIRECT_RUBRICS_REVIEW_BYPASS_PATTERNS.some((pattern) => pattern.test(text))) {
+    return "direct_commit";
+  }
+  if (PROPOSAL_RUBRICS_WRITE_PATTERNS.some((pattern) => pattern.test(text))) {
+    return "proposal_pr";
+  }
   return DIRECT_RUBRICS_WRITE_PATTERNS.some((pattern) => pattern.test(text))
     ? "direct_commit"
     : "proposal_pr";
+}
+
+function canDirectCommitRubrics(authorAssociation?: string): boolean {
+  return DIRECT_RUBRICS_ALLOWED_ASSOCIATIONS.has(
+    String(authorAssociation || "").trim().toUpperCase(),
+  );
 }
 
 function normalizeRubricsWriteMode(_value: unknown, requestText: string): RubricsWriteMode {
@@ -479,6 +512,14 @@ export function applyDispatchPolicy(
     normalized.issueTitle = "";
     normalized.issueBody = "";
     normalized.rubricsWriteMode = normalized.rubricsWriteMode || "proposal_pr";
+    if (
+      normalized.rubricsWriteMode === "direct_commit" &&
+      !canDirectCommitRubrics(authorAssociation)
+    ) {
+      normalized.rubricsWriteMode = "proposal_pr";
+      normalized.summary =
+        "I'll open a rubric proposal PR for review because direct rubric commits require OWNER, MEMBER, or COLLABORATOR access.";
+    }
     return normalized;
   }
 

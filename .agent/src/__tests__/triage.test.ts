@@ -351,6 +351,25 @@ test("inferRubricsWriteMode recognizes explicit direct add-rubrics language", ()
   );
 });
 
+test("inferRubricsWriteMode prefers proposal mode for negated direct or explicit PR wording", () => {
+  assert.equal(
+    inferRubricsWriteMode("@sepo-agent /add-rubrics do not commit directly; open a PR"),
+    "proposal_pr",
+  );
+  assert.equal(
+    inferRubricsWriteMode("@sepo-agent /add-rubrics don't just add this; open a PR instead"),
+    "proposal_pr",
+  );
+  assert.equal(
+    inferRubricsWriteMode("@sepo-agent /add-rubrics open a PR instead of committing directly"),
+    "proposal_pr",
+  );
+  assert.equal(
+    inferRubricsWriteMode("@sepo-agent /add-rubrics no PR, just add this"),
+    "direct_commit",
+  );
+});
+
 test("buildRequestedRouteDecision supports skill routes", () => {
   const d = buildRequestedRouteDecision("skill", "agent/s/release-notes");
   assert.equal(d.route, "skill");
@@ -452,6 +471,36 @@ test("applyDispatchPolicy keeps add-rubrics explicit and no-approval", () => {
   assert.equal(d.issueTitle, "");
   assert.equal(d.issueBody, "");
   assert.equal(d.rubricsWriteMode, "proposal_pr");
+});
+
+test("applyDispatchPolicy downgrades untrusted direct add-rubrics requests to proposal PR", () => {
+  const d = applyDispatchPolicy(
+    normalizeDispatch(
+      '{"route":"add-rubrics","needs_approval":false,"summary":"s"}',
+      "@sepo-agent /add-rubrics just add this",
+    ),
+    "issue",
+    "CONTRIBUTOR",
+  );
+  assert.equal(d.route, "add-rubrics");
+  assert.equal(d.needsApproval, false);
+  assert.equal(d.rubricsWriteMode, "proposal_pr");
+  assert.match(d.summary, /direct rubric commits require OWNER, MEMBER, or COLLABORATOR access/);
+});
+
+test("applyDispatchPolicy preserves trusted direct add-rubrics requests", () => {
+  for (const association of ["OWNER", "MEMBER", "COLLABORATOR"]) {
+    const d = applyDispatchPolicy(
+      normalizeDispatch(
+        '{"route":"add-rubrics","needs_approval":false,"summary":"s"}',
+        "@sepo-agent /add-rubrics commit directly to agent/rubrics",
+      ),
+      "issue",
+      association,
+    );
+    assert.equal(d.route, "add-rubrics");
+    assert.equal(d.rubricsWriteMode, "direct_commit");
+  }
 });
 
 test("applyDispatchPolicy denies add-rubrics when route policy disallows it", () => {

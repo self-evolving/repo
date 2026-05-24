@@ -105,6 +105,54 @@ test("resolve-dispatch emits add-rubrics write mode from request wording", () =>
   }
 });
 
+test("resolve-dispatch downgrades direct add-rubrics mode for untrusted requesters", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-resolve-dispatch-"));
+
+  try {
+    const outputPath = join(tempDir, "github-output.txt");
+    const responsePath = join(tempDir, "dispatch.json");
+    writeFileSync(outputPath, "", "utf8");
+    writeFileSync(
+      responsePath,
+      JSON.stringify({
+        route: "add-rubrics",
+        needs_approval: false,
+        summary: "Add the rubric.",
+        confidence: "high",
+        rubrics_write_mode: "proposal_pr",
+      }),
+      "utf8",
+    );
+
+    const result = spawnSync("node", [".agent/dist/cli/resolve-dispatch.js"], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        GITHUB_OUTPUT: outputPath,
+        RESPONSE_FILE: responsePath,
+        REQUEST_TEXT: "@sepo-agent please just add this rubric",
+        TARGET_KIND: "issue",
+        AUTHOR_ASSOCIATION: "CONTRIBUTOR",
+        ACCESS_POLICY: "",
+        REPOSITORY_PRIVATE: "true",
+      },
+      encoding: "utf8",
+    });
+
+    assert.equal(result.status, 0);
+    const outputs = parseGithubOutput(outputPath);
+    assert.equal(outputs.get("route"), "add-rubrics");
+    assert.equal(outputs.get("rubrics_write_mode"), "proposal_pr");
+    assert.equal(outputs.get("needs_approval"), "false");
+    assert.match(
+      outputs.get("summary") || "",
+      /direct rubric commits require OWNER, MEMBER, or COLLABORATOR access/,
+    );
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("resolve-dispatch keeps open inferred base PR metadata", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-resolve-dispatch-"));
 

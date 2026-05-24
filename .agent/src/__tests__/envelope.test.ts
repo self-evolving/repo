@@ -921,6 +921,10 @@ test("shared run-agent-task exposes an optional secondary GitHub token", () => {
   assert.ok(isRecord(secondaryInput), "run-agent-task should define secondary_github_token");
   assert.equal(secondaryInput.required, false);
   assert.equal(secondaryInput.default, "");
+  const exposeGithubTokenInput = parsedAction.inputs.expose_github_token_to_agent;
+  assert.ok(isRecord(exposeGithubTokenInput), "run-agent-task should define expose_github_token_to_agent");
+  assert.equal(exposeGithubTokenInput.required, false);
+  assert.equal(exposeGithubTokenInput.default, "true");
 
   assert.ok(isRecord(parsedAction.runs), "run-agent-task should define runs");
   assert.ok(Array.isArray(parsedAction.runs.steps), "run-agent-task should define steps");
@@ -933,7 +937,10 @@ test("shared run-agent-task exposes an optional secondary GitHub token", () => {
     runStep.env.INPUT_SECONDARY_GITHUB_TOKEN,
     "${{ inputs.secondary_github_token }}",
   );
-  assert.equal(runStep.env.INPUT_GITHUB_TOKEN, "${{ inputs.github_token }}");
+  assert.equal(
+    runStep.env.INPUT_GITHUB_TOKEN,
+    "${{ inputs.expose_github_token_to_agent == 'true' && inputs.github_token || '' }}",
+  );
 
   assert.match(runSource, /INPUT_SECONDARY_GITHUB_TOKEN/);
   assert.doesNotMatch(
@@ -1746,10 +1753,15 @@ test("run-agent-task resolves memory mode from policy and threads memory env to 
 test("run-agent-task only bootstraps missing rubrics for first-run initialization", () => {
   const action = readRepoFile(".github/actions/run-agent-task/action.yml");
   const rubricsPrompt = readRepoFile(".github/prompts/_rubrics.md");
+  const downloadRubricsAction = readRepoFile(".github/actions/download-agent-rubrics/action.yml");
 
   assert.match(
     action,
     /ref:\s*\$\{\{\s*inputs\.rubrics_checkout_ref \|\| inputs\.rubrics_ref\s*\}\}/,
+  );
+  assert.match(
+    action,
+    /continue_on_missing:\s*\$\{\{\s*steps\.rubrics_mode\.outputs\.write_enabled == 'true' && inputs\.route != 'rubrics-initialization' && 'false' \|\| 'true'\s*\}\}/,
   );
   assert.match(
     action,
@@ -1764,6 +1776,9 @@ test("run-agent-task only bootstraps missing rubrics for first-run initializatio
   assert.match(action, /RUBRICS_LIMIT:\s*\$\{\{\s*inputs\.route == 'rubrics-review' && 'all' \|\| inputs\.rubrics_limit\s*\}\}/);
   assert.match(action, /all_route_args\+=\(--all-routes\)/);
   assert.match(action, /"\$\{all_route_args\[@\]\}"/);
+  assert.match(downloadRubricsAction, /safe_url="https:\/\/github\.com\/\$\{repo\}\.git"/);
+  assert.match(downloadRubricsAction, /git -C "\$dest" remote set-url origin "\$safe_url"/);
+  assert.match(downloadRubricsAction, /git remote set-url origin "\$safe_url"/);
   assert.match(rubricsPrompt, /Agent \/ Rubrics \/ Initialization, Agent \/ Rubrics \/ Add, and Agent \/ Rubrics \/ Update/);
 });
 
@@ -1811,6 +1826,7 @@ test("add-rubrics route dispatches dedicated rubric writer workflow", () => {
   const addRubricsPrompt = readRepoFile(".github/prompts/agent-add-rubrics.md");
   const runSource = readRepoFile(".agent/src/run.ts");
   const action = readRepoFile(".github/actions/run-agent-task/action.yml");
+  const downloadRubricsAction = readRepoFile(".github/actions/download-agent-rubrics/action.yml");
 
   assert.match(routerWorkflow, /needs\.portal\.outputs\.route == 'add-rubrics'/);
   assert.match(routerWorkflow, /rubrics_write_mode:\s*\$\{\{\s*needs\.portal\.outputs\.rubrics_write_mode \|\| 'proposal_pr'\s*\}\}/);
@@ -1826,6 +1842,7 @@ test("add-rubrics route dispatches dedicated rubric writer workflow", () => {
   assert.match(addRubricsWorkflow, /lane:\s*add-rubrics/);
   assert.match(addRubricsWorkflow, /rubrics_checkout_ref:\s*\$\{\{\s*steps\.write_mode\.outputs\.checkout_ref\s*\}\}/);
   assert.match(addRubricsWorkflow, /rubrics_push_ref:\s*\$\{\{\s*steps\.write_mode\.outputs\.push_ref\s*\}\}/);
+  assert.match(addRubricsWorkflow, /expose_github_token_to_agent:\s*'false'/);
   assert.match(addRubricsWorkflow, /Open rubric proposal PR/);
   assert.match(addRubricsWorkflow, /create-rubrics-proposal-pr\.js/);
   assert.match(addRubricsWorkflow, /Prepare add-rubrics summary[\s\S]*if:\s*always\(\)/);
@@ -1841,9 +1858,12 @@ test("add-rubrics route dispatches dedicated rubric writer workflow", () => {
   assert.match(runSource, /"RUBRICS_WRITE_MODE"/);
   assert.match(action, /rubrics_checkout_ref:/);
   assert.match(action, /rubrics_push_ref:/);
+  assert.match(action, /expose_github_token_to_agent:/);
+  assert.match(action, /INPUT_GITHUB_TOKEN:\s*\$\{\{\s*inputs\.expose_github_token_to_agent == 'true' && inputs\.github_token \|\| ''\s*\}\}/);
   assert.match(action, /PUSH_REF:\s*\$\{\{\s*inputs\.rubrics_push_ref\s*\}\}/);
   assert.match(action, /rubrics_validation_outcome:/);
   assert.match(action, /rubrics_commit_outcome:/);
+  assert.match(downloadRubricsAction, /git -C "\$dest" remote set-url origin "\$safe_url"/);
 });
 
 test("rubrics-review prompt chooses from full active rubric context", () => {
