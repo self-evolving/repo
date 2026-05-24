@@ -159,19 +159,19 @@ test("provider resolver supports explicit providers without repository secrets",
 
 test("provider resolver applies model policy defaults and provider settings", () => {
   const resolved = runResolver({
-    DEFAULT_PROVIDER: "auto",
+    DEFAULT_PROVIDER: "claude",
     AGENT_MODEL_POLICY: JSON.stringify({
-      default: { provider: "claude" },
+      default: { model: "claude-default", reasoning_effort: "high" },
       providers: {
-        claude: { model: "claude-sonnet-4-5", reasoning_effort: "max" },
+        claude: { reasoning_effort: "max" },
       },
     }),
   });
 
   assert.equal(resolved.status, 0, resolved.stderr);
   assert.equal(resolved.outputs.provider, "claude");
-  assert.equal(resolved.outputs.reason, "AGENT_MODEL_POLICY default");
-  assert.equal(resolved.outputs.model, "claude-sonnet-4-5");
+  assert.equal(resolved.outputs.reason, "AGENT_DEFAULT_PROVIDER");
+  assert.equal(resolved.outputs.model, "claude-default");
   assert.equal(resolved.outputs.reasoning_effort, "max");
   assert.match(resolved.stderr, /relying on local Claude authentication/);
 });
@@ -192,6 +192,7 @@ test("provider resolver ignores display policy because display is handled by run
 
 test("provider resolver lets route model policy override provider defaults", () => {
   const resolved = runResolver({
+    DEFAULT_PROVIDER: "codex",
     OPENAI_API_KEY: "openai-token",
     CLAUDE_CODE_OAUTH_TOKEN: "claude-token",
     AGENT_MODEL_POLICY: JSON.stringify({
@@ -233,6 +234,18 @@ test("provider resolver keeps inline route provider from inheriting route policy
   assert.equal(resolved.outputs.reason, "route override for test-route");
   assert.equal(resolved.outputs.model, "gpt-5.4");
   assert.equal(resolved.outputs.reasoning_effort, "xhigh");
+});
+
+test("provider resolver rejects model policy default provider", () => {
+  const resolved = runResolver({
+    OPENAI_API_KEY: "openai-token",
+    AGENT_MODEL_POLICY: JSON.stringify({
+      default: { provider: "claude" },
+    }),
+  });
+
+  assert.notEqual(resolved.status, 0);
+  assert.match(resolved.stderr, /default\.provider is not supported; use AGENT_DEFAULT_PROVIDER/);
 });
 
 test("provider resolver rejects non-string model policy token values", () => {

@@ -78,7 +78,15 @@ function parsePolicy(raw) {
 
   const policy = { ...empty };
   if (Object.prototype.hasOwnProperty.call(payload, "default")) {
-    policy.defaultConfig = normalizeConfig(payload.default, "default", true);
+    if (
+      payload.default &&
+      typeof payload.default === "object" &&
+      !Array.isArray(payload.default) &&
+      Object.prototype.hasOwnProperty.call(payload.default, "provider")
+    ) {
+      throw new Error("default.provider is not supported; use AGENT_DEFAULT_PROVIDER");
+    }
+    policy.defaultConfig = normalizeConfig(payload.default, "default", false);
   }
   if (Object.prototype.hasOwnProperty.call(payload, "providers")) {
     const providers = payload.providers;
@@ -138,11 +146,6 @@ function resolveProviderRequest(env, policy, route) {
 
   let requestedProvider = defaultProvider;
   let requestedReason = "AGENT_DEFAULT_PROVIDER";
-
-  if (policy.defaultConfig.provider) {
-    requestedProvider = policy.defaultConfig.provider;
-    requestedReason = "AGENT_MODEL_POLICY default";
-  }
 
   const routeConfig = policy.routeOverrides[route];
   if (routeConfig?.provider) {
@@ -211,7 +214,7 @@ function main(env) {
     reason = claudeReason;
   } else {
     console.error(
-      `No configured agent provider for route '${route}'. Set AGENT_DEFAULT_PROVIDER to codex or claude, configure AGENT_MODEL_POLICY.default.provider, or configure OPENAI_API_KEY, CLAUDE_CODE_OAUTH_TOKEN, or ANTHROPIC_API_KEY.`,
+      `No configured agent provider for route '${route}'. Set AGENT_DEFAULT_PROVIDER to codex or claude, or configure OPENAI_API_KEY, CLAUDE_CODE_OAUTH_TOKEN, or ANTHROPIC_API_KEY.`,
     );
     if (required === "true") {
       return 1;
