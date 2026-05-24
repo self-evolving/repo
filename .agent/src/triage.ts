@@ -28,6 +28,7 @@ export interface DispatchDecision {
   issueTitle: string;
   issueBody: string;
   basePr?: string;
+  rubricsWriteMode?: RubricsWriteMode;
 }
 
 const EXPLICIT_ROUTE_COMMANDS = ["answer", "implement", "add-rubrics", "fix-pr", "review", "orchestrate", "create-action", "install"] as const;
@@ -36,6 +37,20 @@ const LABEL_SKILL_PREFIX = "agent/s/";
 const VALID_SKILL_LABEL = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 export const INSTALL_ROUTE = "install";
 const DEFAULT_IMPLEMENT_ISSUE_TITLE = "Implement requested change";
+export type RubricsWriteMode = "proposal_pr" | "direct_commit";
+
+const DIRECT_RUBRICS_WRITE_PATTERNS = [
+  /\bjust\s+(?:add|apply|commit|write|update)\b/i,
+  /\bdirect\s+commit\b/i,
+  /\b(?:add|apply|commit|push|write|update)\s+(?:it|them|this|these|the\s+rubric(?:s)?|rubric(?:s)?)?\s*directly\b/i,
+  /\bdirectly\s+(?:add|apply|commit|push|write|update)\b/i,
+  /\bapply\s+(?:it|them|this|these|the\s+rubric(?:s)?|rubric(?:s)?)?\s*now\b/i,
+  /\b(?:skip|bypass)\s+(?:the\s+)?(?:rubric\s+)?(?:pr|pull request|review)\b/i,
+  /\b(?:no|without)\s+(?:a\s+|the\s+)?(?:rubric\s+)?(?:pr|pull request|review)\b/i,
+  /\bstraight\s+(?:to|onto)\s+(?:the\s+)?`?agent\/rubrics`?\b/i,
+  /\bcommit\s+(?:it|them|this|these|the\s+rubric(?:s)?|rubric(?:s)?)?\s*(?:to|onto)\s+(?:the\s+)?(?:rubrics\s+)?branch\b/i,
+  /\bcommit\s+(?:it|them|this|these|the\s+rubric(?:s)?|rubric(?:s)?)?\s*(?:to|onto)\s+`?agent\/rubrics`?\b/i,
+];
 
 export interface RequestedLabelDecision {
   route: string;
@@ -51,6 +66,19 @@ export interface ImplementIssueMetadata {
   issueTitle: string;
   issueBody: string;
   basePr?: string;
+}
+
+export function inferRubricsWriteMode(requestText: string): RubricsWriteMode {
+  const text = String(requestText || "");
+  return DIRECT_RUBRICS_WRITE_PATTERNS.some((pattern) => pattern.test(text))
+    ? "direct_commit"
+    : "proposal_pr";
+}
+
+function normalizeRubricsWriteMode(_value: unknown, requestText: string): RubricsWriteMode {
+  // Direct writes must be grounded in explicit user wording, not only in an
+  // agent-selected JSON flag. The default remains proposal_pr.
+  return inferRubricsWriteMode(requestText);
 }
 
 function normalizeOptionalBasePr(value: unknown): string {
@@ -231,13 +259,17 @@ export function buildRequestedRouteDecision(
   }
 
   if (normalizedRoute === "add-rubrics") {
+    const rubricsWriteMode = inferRubricsWriteMode(requestText);
     return {
       route: "add-rubrics",
       needsApproval: false,
       confidence: "high",
-      summary: "I’ll update the rubrics branch from this request.",
+      summary: rubricsWriteMode === "direct_commit"
+        ? "I’ll update the rubrics branch directly from this request."
+        : "I’ll open a rubric proposal PR from this request.",
       issueTitle: "",
       issueBody: "",
+      rubricsWriteMode,
     };
   }
 
@@ -355,7 +387,7 @@ export function resolveRequestedLabel(labelName: string): RequestedLabelDecision
 /**
  * Validates and normalizes the portal dispatch decision emitted by the model.
  */
-export function normalizeDispatch(raw: string): DispatchDecision {
+export function normalizeDispatch(raw: string, requestText = ""): DispatchDecision {
   const text = (raw ?? "").trim();
   if (!text) {
     throw new Error("Dispatch output was empty");
@@ -379,6 +411,9 @@ export function normalizeDispatch(raw: string): DispatchDecision {
     summary: String(payload.summary || "").trim(),
     issueTitle: String(payload.issue_title || "").trim(),
     issueBody: String(payload.issue_body || "").trim(),
+    rubricsWriteMode: route === "add-rubrics"
+      ? normalizeRubricsWriteMode(payload.rubrics_write_mode ?? payload.rubricsWriteMode, requestText)
+      : undefined,
   };
 }
 
@@ -443,6 +478,7 @@ export function applyDispatchPolicy(
     normalized.needsApproval = false;
     normalized.issueTitle = "";
     normalized.issueBody = "";
+    normalized.rubricsWriteMode = normalized.rubricsWriteMode || "proposal_pr";
     return normalized;
   }
 

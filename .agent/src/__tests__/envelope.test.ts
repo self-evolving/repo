@@ -1289,7 +1289,7 @@ test("workflow docs record the minimal metadata contract and developer notes", (
   assert.match(rubricsInitializationPrompt, /Initialization context:/);
   assert.match(rubricsInitializationPrompt, /OWNER[\s\S]*MEMBER[\s\S]*COLLABORATOR/);
   assert.match(rubricsArchitecture, /Only rubric initialization bootstraps a missing branch/);
-  assert.match(rubricsArchitecture, /Agent \/ Rubrics \/ Add[\s\S]*serializes direct writes/);
+  assert.match(rubricsArchitecture, /Agent \/ Rubrics \/ Add[\s\S]*rubrics_write_mode[\s\S]*proposal_pr[\s\S]*direct_commit/);
   assert.match(rubricsArchitecture, /Dispatch triage is always rubric-disabled/);
   assert.match(rubricsArchitecture, /honor `AGENT_RUBRICS_POLICY`/);
   assert.match(existingRepoInstall, /cannot silently skip persistence/);
@@ -1749,6 +1749,10 @@ test("run-agent-task only bootstraps missing rubrics for first-run initializatio
 
   assert.match(
     action,
+    /ref:\s*\$\{\{\s*inputs\.rubrics_checkout_ref \|\| inputs\.rubrics_ref\s*\}\}/,
+  );
+  assert.match(
+    action,
     /bootstrap_if_missing:\s*\$\{\{\s*inputs\.route == 'rubrics-initialization' && inputs\.rubrics_mode_override == 'enabled' && 'true' \|\| 'false'\s*\}\}/,
   );
   assert.match(action, /Require rubric initialization commit/);
@@ -1809,20 +1813,35 @@ test("add-rubrics route dispatches dedicated rubric writer workflow", () => {
   const action = readRepoFile(".github/actions/run-agent-task/action.yml");
 
   assert.match(routerWorkflow, /needs\.portal\.outputs\.route == 'add-rubrics'/);
+  assert.match(routerWorkflow, /rubrics_write_mode:\s*\$\{\{\s*needs\.portal\.outputs\.rubrics_write_mode \|\| 'proposal_pr'\s*\}\}/);
   assert.match(routerWorkflow, /uses:\s*\.\/\.github\/workflows\/agent-add-rubrics\.yml/);
   assert.match(addRubricsWorkflow, /^name: Agent \/ Rubrics \/ Add$/m);
   assert.match(addRubricsWorkflow, /concurrency:[\s\S]*cancel-in-progress:\s*false/);
+  assert.match(addRubricsWorkflow, /rubrics_write_mode:/);
+  assert.match(addRubricsWorkflow, /Resolve rubrics write mode/);
+  assert.match(addRubricsWorkflow, /agent\/rubrics-proposal-\$\{GITHUB_RUN_ID\}/);
   assert.match(addRubricsWorkflow, /Resolve add-rubrics provider/);
   assert.match(addRubricsWorkflow, /prompt:\s*add-rubrics/);
   assert.match(addRubricsWorkflow, /route:\s*add-rubrics/);
   assert.match(addRubricsWorkflow, /lane:\s*add-rubrics/);
+  assert.match(addRubricsWorkflow, /rubrics_checkout_ref:\s*\$\{\{\s*steps\.write_mode\.outputs\.checkout_ref\s*\}\}/);
+  assert.match(addRubricsWorkflow, /rubrics_push_ref:\s*\$\{\{\s*steps\.write_mode\.outputs\.push_ref\s*\}\}/);
+  assert.match(addRubricsWorkflow, /Open rubric proposal PR/);
+  assert.match(addRubricsWorkflow, /create-rubrics-proposal-pr\.js/);
   assert.match(addRubricsWorkflow, /Prepare add-rubrics summary[\s\S]*if:\s*always\(\)/);
   assert.match(addRubricsWorkflow, /RUBRICS_VALIDATION_OUTCOME:\s*\$\{\{\s*steps\.add_rubrics\.outputs\.rubrics_validation_outcome\s*\}\}/);
   assert.match(addRubricsWorkflow, /RUBRICS_COMMIT_OUTCOME:\s*\$\{\{\s*steps\.add_rubrics\.outputs\.rubrics_commit_outcome\s*\}\}/);
+  assert.match(addRubricsWorkflow, /RUBRIC_PR_URL:\s*\$\{\{\s*steps\.proposal_pr\.outputs\.pr_url\s*\}\}/);
   assert.match(addRubricsWorkflow, /prepare-add-rubrics-summary\.js/);
   assert.match(addRubricsWorkflow, /Post add-rubrics summary/);
+  assert.match(addRubricsWorkflow, /Require rubric proposal PR/);
   assert.match(addRubricsPrompt, /no rubric changes/);
+  assert.match(addRubricsPrompt, /Write mode: `\$\{RUBRICS_WRITE_MODE\}`/);
   assert.match(runSource, /"add-rubrics": ".github\/prompts\/agent-add-rubrics\.md"/);
+  assert.match(runSource, /"RUBRICS_WRITE_MODE"/);
+  assert.match(action, /rubrics_checkout_ref:/);
+  assert.match(action, /rubrics_push_ref:/);
+  assert.match(action, /PUSH_REF:\s*\$\{\{\s*inputs\.rubrics_push_ref\s*\}\}/);
   assert.match(action, /rubrics_validation_outcome:/);
   assert.match(action, /rubrics_commit_outcome:/);
 });

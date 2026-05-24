@@ -51,9 +51,14 @@ on:
         default: ""
         type: string
       rubrics_ref:
-        description: "Rubrics branch to update"
+        description: "Rubrics base branch to update directly or target with a proposal PR"
         required: false
         default: agent/rubrics
+        type: string
+      rubrics_write_mode:
+        description: "Rubrics write mode (proposal_pr by default, direct_commit when explicitly requested)"
+        required: false
+        default: proposal_pr
         type: string
       runs_on:
         description: "Runner labels as JSON array"
@@ -93,9 +98,13 @@ on:
         required: false
         default: ""
       rubrics_ref:
-        description: "Rubrics branch to update"
+        description: "Rubrics base branch to update directly or target with a proposal PR"
         required: false
         default: agent/rubrics
+      rubrics_write_mode:
+        description: "Rubrics write mode (proposal_pr or direct_commit)"
+        required: false
+        default: proposal_pr
 
 permissions:
   contents: write
@@ -121,6 +130,7 @@ jobs:
       REQUEST_TEXT: ${{ inputs.request_text }}
       REQUESTED_BY: ${{ inputs.requested_by }}
       RUBRICS_REF: ${{ inputs.rubrics_ref || vars.AGENT_RUBRICS_REF || 'agent/rubrics' }}
+      RUBRICS_WRITE_MODE: ${{ inputs.rubrics_write_mode || 'proposal_pr' }}
       REVIEW_COMMENT_ID: ${{ inputs.review_comment_id }}
       DISCUSSION_ID: ${{ inputs.discussion_id }}
       REPLY_TO_ID: ${{ inputs.reply_to_id }}
@@ -164,10 +174,57 @@ jobs:
           ROUTE: add-rubrics
         run: node .agent/dist/cli/resolve-task-timeout.js
 
+      - name: Resolve rubrics write mode
+        id: write_mode
+        env:
+          INPUT_RUBRICS_WRITE_MODE: ${{ env.RUBRICS_WRITE_MODE }}
+          RUBRICS_BASE_REF: ${{ env.RUBRICS_REF }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+        run: |
+          set -euo pipefail
+
+          mode="${INPUT_RUBRICS_WRITE_MODE:-proposal_pr}"
+          case "$mode" in
+            proposal_pr|direct_commit) ;;
+            *)
+              echo "Unsupported rubrics_write_mode '${mode}'. Expected proposal_pr or direct_commit." >&2
+              exit 1
+              ;;
+          esac
+
+          proposal_ref="agent/rubrics-proposal-${GITHUB_RUN_ID}"
+          checkout_ref="$RUBRICS_BASE_REF"
+          target_ref="$RUBRICS_BASE_REF"
+          push_ref=""
+
+          if [ "$mode" = "proposal_pr" ]; then
+            target_ref="$proposal_ref"
+            auth_url="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+            if git ls-remote --exit-code --heads "$auth_url" "$proposal_ref" >/dev/null 2>&1; then
+              checkout_ref="$proposal_ref"
+            else
+              push_ref="$proposal_ref"
+            fi
+          fi
+
+          {
+            echo "mode=$mode"
+            echo "base_ref=$RUBRICS_BASE_REF"
+            echo "proposal_ref=$proposal_ref"
+            echo "checkout_ref=$checkout_ref"
+            echo "target_ref=$target_ref"
+            echo "push_ref=$push_ref"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Add or update rubrics from request
         id: add_rubrics
         timeout-minutes: ${{ fromJson(steps.task_timeout.outputs.minutes || '30') }}
         uses: ./.github/actions/run-agent-task
+        env:
+          RUBRICS_BASE_REF: ${{ steps.write_mode.outputs.base_ref }}
+          RUBRICS_PROPOSAL_REF: ${{ steps.write_mode.outputs.proposal_ref }}
+          RUBRICS_WRITE_MODE: ${{ steps.write_mode.outputs.mode }}
         with:
           agent: ${{ steps.provider.outputs.provider }}
           github_token: ${{ steps.auth.outputs.token }}
@@ -183,7 +240,9 @@ jobs:
           memory_ref: ${{ vars.AGENT_MEMORY_REF || 'agent/memory' }}
           memory_policy: ${{ vars.AGENT_MEMORY_POLICY || '' }}
           rubrics_mode_override: 'enabled'
-          rubrics_ref: ${{ env.RUBRICS_REF }}
+          rubrics_ref: ${{ steps.write_mode.outputs.target_ref }}
+          rubrics_checkout_ref: ${{ steps.write_mode.outputs.checkout_ref }}
+          rubrics_push_ref: ${{ steps.write_mode.outputs.push_ref }}
           rubrics_policy: ${{ vars.AGENT_RUBRICS_POLICY || '' }}
           rubrics_limit: ${{ vars.AGENT_RUBRICS_LIMIT || '10' }}
           session_policy: none
@@ -197,6 +256,22 @@ jobs:
           reasoning_effort: medium
           workflow: agent-add-rubrics.yml
 
+      - name: Open rubric proposal PR
+        if: steps.write_mode.outputs.mode == 'proposal_pr' && steps.add_rubrics.outputs.rubrics_committed == 'true'
+        id: proposal_pr
+        continue-on-error: true
+        env:
+          BASE_BRANCH: ${{ steps.write_mode.outputs.base_ref }}
+          BRANCH: ${{ steps.write_mode.outputs.proposal_ref }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          RESPONSE_FILE: ${{ steps.add_rubrics.outputs.response_file }}
+          REQUESTED_BY: ${{ env.REQUESTED_BY || github.actor }}
+          TARGET_KIND: ${{ env.TARGET_KIND }}
+          TARGET_NUMBER: ${{ env.TARGET_NUMBER }}
+          TARGET_URL: ${{ env.TARGET_URL }}
+        run: node .agent/dist/cli/create-rubrics-proposal-pr.js
+
       - name: Prepare add-rubrics summary
         if: always()
         id: add_rubrics_summary
@@ -206,7 +281,13 @@ jobs:
           RUBRICS_VALIDATION_OUTCOME: ${{ steps.add_rubrics.outputs.rubrics_validation_outcome }}
           RUBRICS_COMMIT_OUTCOME: ${{ steps.add_rubrics.outputs.rubrics_commit_outcome }}
           RUBRICS_STEP_OUTCOME: ${{ steps.add_rubrics.outcome }}
-          RUBRICS_REF: ${{ env.RUBRICS_REF }}
+          RUBRICS_REF: ${{ steps.write_mode.outputs.base_ref || env.RUBRICS_REF }}
+          RUBRICS_TARGET_REF: ${{ steps.write_mode.outputs.target_ref }}
+          RUBRICS_PROPOSAL_REF: ${{ steps.write_mode.outputs.proposal_ref }}
+          RUBRICS_WRITE_MODE: ${{ steps.write_mode.outputs.mode || env.RUBRICS_WRITE_MODE }}
+          RUBRIC_PR_ACTION: ${{ steps.proposal_pr.outputs.pr_action }}
+          RUBRIC_PR_OUTCOME: ${{ steps.proposal_pr.outcome }}
+          RUBRIC_PR_URL: ${{ steps.proposal_pr.outputs.pr_url }}
           TARGET_KIND: ${{ env.TARGET_KIND }}
           TARGET_NUMBER: ${{ env.TARGET_NUMBER }}
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -224,3 +305,13 @@ jobs:
           DISCUSSION_ID: ${{ env.DISCUSSION_ID }}
           REPLY_TO_ID: ${{ env.REPLY_TO_ID }}
         run: node .agent/dist/cli/post-response.js
+
+      - name: Require rubric proposal PR
+        if: >-
+          always() &&
+          steps.write_mode.outputs.mode == 'proposal_pr' &&
+          steps.add_rubrics.outputs.rubrics_committed == 'true' &&
+          steps.proposal_pr.outcome == 'failure'
+        run: |
+          echo "Rubric edits were committed to ${{ steps.write_mode.outputs.proposal_ref }}, but the proposal PR was not opened." >&2
+          exit 1

@@ -121,6 +121,14 @@ inputs:
     description: "Rubrics branch to clone when rubrics are enabled"
     required: false
     default: agent/rubrics
+  rubrics_checkout_ref:
+    description: "Optional rubrics branch/ref to clone before committing; defaults to rubrics_ref"
+    required: false
+    default: ""
+  rubrics_push_ref:
+    description: "Optional remote branch/ref to receive rubric commits as HEAD:<ref>"
+    required: false
+    default: ""
   rubrics_limit:
     description: "Maximum selected rubrics to inject into the prompt"
     required: false
@@ -208,6 +216,9 @@ outputs:
   rubrics_committed:
     description: "Whether the agent produced rubric edits that were committed and pushed"
     value: ${{ steps.commit_rubrics.outputs.committed }}
+  rubrics_commit_branch:
+    description: "Branch/ref that received rubric commits"
+    value: ${{ steps.commit_rubrics.outputs.branch }}
   rubrics_validation_outcome:
     description: "Outcome of rubric validation when rubric writes are enabled"
     value: ${{ steps.validate_rubrics.outcome }}
@@ -283,7 +294,7 @@ runs:
       uses: ./.github/actions/download-agent-rubrics
       with:
         github_token: ${{ inputs.github_token }}
-        ref: ${{ inputs.rubrics_ref }}
+        ref: ${{ inputs.rubrics_checkout_ref || inputs.rubrics_ref }}
         bootstrap_if_missing: ${{ inputs.route == 'rubrics-initialization' && inputs.rubrics_mode_override == 'enabled' && 'true' || 'false' }}
 
     - name: Select applicable rubrics
@@ -405,7 +416,7 @@ runs:
       if: always() && steps.validate_rubrics.outcome == 'failure'
       shell: bash
       env:
-        RUBRICS_REF: ${{ inputs.rubrics_ref }}
+        RUBRICS_REF: ${{ inputs.rubrics_push_ref || inputs.rubrics_ref }}
         ROUTE: ${{ inputs.route }}
       run: |
         echo "::warning title=Rubrics validation failed::Rubric edits for route '${ROUTE}' failed validation and were not committed to '${RUBRICS_REF}'. Check the 'Validate rubric edits' step for schema errors."
@@ -421,19 +432,20 @@ runs:
       continue-on-error: true
       shell: bash
       env:
-        BRANCH: ${{ inputs.rubrics_ref }}
+        BRANCH: ${{ inputs.rubrics_push_ref || inputs.rubrics_ref }}
         COMMIT_CWD: ${{ steps.rubrics.outputs.rubrics_dir }}
         COMMIT_MESSAGE: "chore(rubrics): agent updates"
         GH_TOKEN: ${{ inputs.github_token }}
         GITHUB_REPOSITORY: ${{ github.repository }}
-        SET_UPSTREAM: "true"
+        PUSH_REF: ${{ inputs.rubrics_push_ref }}
+        SET_UPSTREAM: ${{ inputs.rubrics_push_ref == '' && 'true' || 'false' }}
       run: node ${{ github.workspace }}/.agent/dist/cli/commit.js
 
     - name: Report rubrics commit failure
       if: always() && steps.commit_rubrics.outcome == 'failure'
       shell: bash
       env:
-        RUBRICS_REF: ${{ inputs.rubrics_ref }}
+        RUBRICS_REF: ${{ inputs.rubrics_push_ref || inputs.rubrics_ref }}
         ROUTE: ${{ inputs.route }}
       run: |
         echo "::warning title=Rubrics commit failed::Failed to persist rubric updates for route '${ROUTE}' to '${RUBRICS_REF}'. Check the 'Commit rubric edits' step for the push error."

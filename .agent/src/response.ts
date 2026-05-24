@@ -201,26 +201,50 @@ export function formatAddRubricsComment(data: {
   targetKind: string;
   targetNumber: string | number;
   rubricsRef: string;
+  rubricsTargetRef?: string;
+  writeMode?: "proposal_pr" | "direct_commit" | string;
   rubricsCommitted: boolean;
   runSucceeded: boolean;
   persistenceSucceeded?: boolean;
+  proposalPrSucceeded?: boolean;
+  proposalPrAction?: string;
+  proposalPrUrl?: string;
+  proposalBranch?: string;
   repoSlug?: string;
   summary?: string;
 }): string {
   const targetKind = String(data.targetKind || "").trim() || "target";
   const targetNumber = String(data.targetNumber || "").trim() || "unknown";
   const rubricsRef = String(data.rubricsRef || "").trim() || "agent/rubrics";
+  const rubricsTargetRef = String(data.rubricsTargetRef || "").trim() || rubricsRef;
+  const proposalBranch = String(data.proposalBranch || rubricsTargetRef).trim();
+  const writeMode = data.writeMode === "direct_commit" ? "direct_commit" : "proposal_pr";
   const rubricsRefLink = formatBranchReference(rubricsRef, data.repoSlug);
+  const rubricsTargetRefLink = formatBranchReference(rubricsTargetRef, data.repoSlug);
+  const proposalBranchLink = formatBranchReference(proposalBranch, data.repoSlug);
   const lines = ["## Add Rubrics", ""];
 
   if (!data.runSucceeded) {
     lines.push(`Rubric update did not complete successfully for ${targetKind} #${targetNumber}; inspect the workflow logs.`);
+  } else if (writeMode === "proposal_pr" && data.rubricsCommitted && data.proposalPrSucceeded === false) {
+    lines.push(`Rubric updates were pushed to ${proposalBranchLink}, but a PR targeting ${rubricsRefLink} was not opened; inspect the workflow logs.`);
   } else if (data.persistenceSucceeded === false) {
-    lines.push(`Rubric updates were produced for ${targetKind} #${targetNumber}, but they were not persisted to ${rubricsRefLink}; inspect the workflow logs.`);
+    lines.push(`Rubric updates were produced for ${targetKind} #${targetNumber}, but they were not persisted to ${rubricsTargetRefLink}; inspect the workflow logs.`);
+  } else if (writeMode === "direct_commit") {
+    if (data.rubricsCommitted) {
+      lines.push(`Updated ${rubricsRefLink} directly from ${targetKind} #${targetNumber}.`);
+    } else {
+      lines.push(`No changes were committed to ${rubricsRefLink} from ${targetKind} #${targetNumber}.`);
+    }
+  } else if (data.rubricsCommitted && data.proposalPrUrl) {
+    const action = String(data.proposalPrAction || "").trim() === "created"
+      ? "Opened"
+      : "Updated";
+    lines.push(`${action} rubric PR ${data.proposalPrUrl} targeting ${rubricsRefLink} from ${targetKind} #${targetNumber}.`);
   } else if (data.rubricsCommitted) {
-    lines.push(`Updated ${rubricsRefLink} from ${targetKind} #${targetNumber}.`);
+    lines.push(`Rubric updates were pushed to ${proposalBranchLink}, but a PR targeting ${rubricsRefLink} was not opened; inspect the workflow logs.`);
   } else {
-    lines.push(`No changes were committed to ${rubricsRefLink} from ${targetKind} #${targetNumber}.`);
+    lines.push(`No rubric PR was opened for ${targetKind} #${targetNumber}; no changes were proposed for ${rubricsRefLink}.`);
   }
 
   const summary = String(data.summary || "").trim();

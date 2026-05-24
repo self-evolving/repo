@@ -113,7 +113,7 @@ The agent composes long-lived memory across runs on a dedicated `agent/memory` b
 
 ## User/team rubrics
 
-Rubrics live on a separate `agent/rubrics` branch, governed by `AGENT_RUBRICS_POLICY`. Rubrics are normative user/team preferences: what users want the agent to optimize for during implementation and what review should score against. Normal implementation and review runs read rubrics; `Agent / Rubrics / Add` handles direct user-requested rubric edits, and `Agent / Rubrics / Update` learns from merged PR conversations. See [User/team rubrics](../architecture/rubrics.md).
+Rubrics live on a separate `agent/rubrics` branch, governed by `AGENT_RUBRICS_POLICY`. Rubrics are normative user/team preferences: what users want the agent to optimize for during implementation and what review should score against. Normal implementation and review runs read rubrics; `Agent / Rubrics / Add` handles user-requested rubric edits through proposal PRs by default or direct commits on explicit request, and `Agent / Rubrics / Update` learns from merged PR conversations. See [User/team rubrics](../architecture/rubrics.md).
 
 ## Runtime dependencies
 

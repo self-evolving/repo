@@ -147,7 +147,7 @@ The `agent-memory-*` workflows and the `agent/memory` branch they share are docu
 | Workflow | Actions name | Trigger | Purpose | Model |
 |---|---|---|---|---|
 | `agent-rubrics-initialization.yml` | `Agent / Rubrics / Initialization` | `workflow_dispatch` | Creates `agent/rubrics`, seeds the layout, and optionally populates initial rubrics from supplied context or repository history | Auto |
-| `agent-add-rubrics.yml` | `Agent / Rubrics / Add` | explicit `/add-rubrics`, `agent/add-rubrics`, `workflow_dispatch` | Adds or updates rubric YAML directly from a trusted request and posts a summary | Auto |
+| `agent-add-rubrics.yml` | `Agent / Rubrics / Add` | rubric requests, explicit `/add-rubrics`, `agent/add-rubrics`, `workflow_dispatch` | Adds or updates rubric YAML from a trusted request by opening a proposal PR by default, or by direct commit when explicitly requested, then posts a summary | Auto |
 | `agent-rubrics-review.yml` | `Agent / Rubrics / Review` | `workflow_dispatch`, `workflow_call` | Scores a PR against active rubrics selected from `agent/rubrics` | Auto |
 | `agent-rubrics-update.yml` | `Agent / Rubrics / Update` | merged `pull_request_target.closed`, `workflow_dispatch` | Learns durable user/team preferences from PR interactions and updates `agent/rubrics` | Auto |
 

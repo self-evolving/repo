@@ -10,7 +10,7 @@ ${MENTION_BODY}
 Choose exactly one route:
 - `answer`: answer inline now
 - `implement`: request approval to run the implementation workflow
-- `add-rubrics`: update `agent/rubrics` directly from a rubric-request message
+- `add-rubrics`: propose or apply validated user/team rubric edits from a rubric-request message
 - `fix-pr`: start the PR-fix workflow immediately; only valid for `pull_request`
 - `review`: start the review workflow immediately; only valid for `pull_request`
 - `orchestrate`: start the orchestrator workflow immediately; only valid for `issue` or `pull_request`
@@ -25,6 +25,7 @@ Return exactly one JSON object and nothing else:
   "needs_approval": true,
   "summary": "One short sentence for the user describing what the agent will do next.",
   "confidence": "low | medium | high",
+  "rubrics_write_mode": "proposal_pr | direct_commit",
   "issue_title": "",
   "issue_body": ""
 }
@@ -33,6 +34,7 @@ Return exactly one JSON object and nothing else:
 Rules:
 - Use `implement` when the user is explicitly asking the agent to make code changes.
 - Use `add-rubrics` when the user asks to add, update, or refine user/team rubric preferences directly from the conversation.
+- For `add-rubrics`, set `rubrics_write_mode` to `proposal_pr` by default. Use `direct_commit` only when the user explicitly says to skip review or directly apply the rubric update, such as "just add", "commit directly", "apply now", "no PR", or "write to agent/rubrics".
 - Use `fix-pr` when the user is explicitly asking the agent to update an existing PR to address review feedback or requested changes.
 - Use `review` only when the user is explicitly asking for a PR review or another review pass.
 - Use `orchestrate` when the user explicitly asks for orchestration, follow-up automation, or a bounded multi-step agent workflow on an issue or pull request.

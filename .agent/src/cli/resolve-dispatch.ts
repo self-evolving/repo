@@ -4,7 +4,7 @@
 //      REQUESTED_ROUTE, REQUEST_TEXT, REQUESTED_SKILL, ACCESS_POLICY,
 //      REPOSITORY_PRIVATE, GITHUB_REPOSITORY, GH_TOKEN
 // Outputs: route, needs_approval, confidence, summary, issue_title, issue_body,
-//          skill, base_pr
+//          skill, base_pr, rubrics_write_mode
 
 import { readFileSync } from "node:fs";
 import { type AccessPolicy, parseAccessPolicy } from "../access-policy.js";
@@ -97,7 +97,7 @@ function emitDecision(accessPolicy: AccessPolicy): void {
       : null;
     const decision = isExplicit
       ? buildRequestedRouteDecision(requestedRoute, requestText, implementMetadata)
-      : normalizeDispatch(raw);
+      : normalizeDispatch(raw, requestText);
     const result = applyDispatchPolicy(
       decision,
       targetKind,
@@ -115,6 +115,7 @@ function emitDecision(accessPolicy: AccessPolicy): void {
     setOutput("issue_body", result.issueBody);
     setOutput("skill", result.route === "skill" ? requestedSkill : "");
     setOutput("base_pr", result.route === "implement" ? result.basePr || "" : "");
+    setOutput("rubrics_write_mode", result.route === "add-rubrics" ? result.rubricsWriteMode || "proposal_pr" : "");
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`Dispatch resolution failed: ${msg}`);
@@ -127,6 +128,7 @@ function emitDecision(accessPolicy: AccessPolicy): void {
     setOutput("issue_body", "");
     setOutput("skill", "");
     setOutput("base_pr", "");
+    setOutput("rubrics_write_mode", "");
   }
 }
 

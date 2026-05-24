@@ -40,7 +40,7 @@ Check [Install into an existing repository](setup/install-existing-repository.md
 # Use an explicit slash route when you already know the action
 @sepo-agent /implement implement issue #2
 
-# Add or update team rubrics directly
+# Propose team rubric updates
 @sepo-agent /add-rubrics prefer concise PR summaries
 
 # Invoke arbitrary skills
@@ -63,7 +63,7 @@ Check [Install into an existing repository](setup/install-existing-repository.md
 
 ### You can also trigger the same built-in routes by adding `agent/*` labels to PRs
 
-For example, adding the `agent/review` label will run the review agent. The `Agent / Onboarding / Check Setup` workflow creates the built-in trigger labels on first run, including `agent/add-rubrics` for direct rubric updates.
+For example, adding the `agent/review` label will run the review agent. The `Agent / Onboarding / Check Setup` workflow creates the built-in trigger labels on first run, including `agent/add-rubrics` for rubric update requests.
 
 ### Task Orchestration Route
 
@@ -71,7 +71,7 @@ Use `@sepo-agent /orchestrate` (or `agent/orchestrate`) to run the orchestration
 
 ### Tracking Workspace Memory and Rubrics
 
-Sepo persists long-lived context in `agent/memory` and preference rules in `agent/rubrics`, both as repository-owned branches. This lets later runs resume with durable project context and team-specific guidance. Use `/add-rubrics` when a trusted user wants to add or update those preferences from a conversation.
+Sepo persists long-lived context in `agent/memory` and preference rules in `agent/rubrics`, both as repository-owned branches. This lets later runs resume with durable project context and team-specific guidance. Use `/add-rubrics` when a trusted user wants to add or update those preferences from a conversation; it opens a proposal PR by default and commits directly only when the request explicitly asks for that.
 
 ### Scheduled Jobs
 

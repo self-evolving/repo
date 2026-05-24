@@ -220,18 +220,38 @@ test("formatRubricsUpdateComment reports failed runs", () => {
 
 // --- formatAddRubricsComment ---
 
-test("formatAddRubricsComment reports committed updates with summary", () => {
+test("formatAddRubricsComment reports opened proposal PRs with summary", () => {
   const body = formatAddRubricsComment({
     targetKind: "issue",
     targetNumber: 343,
     rubricsRef: "agent/rubrics",
+    rubricsTargetRef: "agent/rubrics-proposal-123",
+    writeMode: "proposal_pr",
+    rubricsCommitted: true,
+    runSucceeded: true,
+    proposalBranch: "agent/rubrics-proposal-123",
+    proposalPrAction: "created",
+    proposalPrUrl: "https://github.com/self-evolving/repo/pull/350",
+    repoSlug: "self-evolving/repo",
+    summary: "Updated abstract-learned-rubrics.",
+  });
+  assert.match(body, /Add Rubrics/);
+  assert.match(body, /Opened rubric PR https:\/\/github\.com\/self-evolving\/repo\/pull\/350 targeting \[`agent\/rubrics`\]\(https:\/\/github\.com\/self-evolving\/repo\/tree\/agent\/rubrics\) from issue #343/);
+  assert.match(body, /Updated abstract-learned-rubrics/);
+});
+
+test("formatAddRubricsComment reports direct commits with summary", () => {
+  const body = formatAddRubricsComment({
+    targetKind: "issue",
+    targetNumber: 343,
+    rubricsRef: "agent/rubrics",
+    writeMode: "direct_commit",
     rubricsCommitted: true,
     runSucceeded: true,
     repoSlug: "self-evolving/repo",
     summary: "Updated abstract-learned-rubrics.",
   });
-  assert.match(body, /Add Rubrics/);
-  assert.match(body, /Updated \[`agent\/rubrics`\]\(https:\/\/github\.com\/self-evolving\/repo\/tree\/agent\/rubrics\) from issue #343/);
+  assert.match(body, /Updated \[`agent\/rubrics`\]\(https:\/\/github\.com\/self-evolving\/repo\/tree\/agent\/rubrics\) directly from issue #343/);
   assert.match(body, /Updated abstract-learned-rubrics/);
 });
 
@@ -245,7 +265,7 @@ test("formatAddRubricsComment reports no changes", () => {
     repoSlug: "self-evolving/repo",
     summary: "no rubric changes",
   });
-  assert.match(body, /No changes were committed to \[`agent\/rubrics`\]\(https:\/\/github\.com\/self-evolving\/repo\/tree\/agent\/rubrics\) from pull_request #15/);
+  assert.match(body, /No rubric PR was opened for pull_request #15; no changes were proposed for \[`agent\/rubrics`\]\(https:\/\/github\.com\/self-evolving\/repo\/tree\/agent\/rubrics\)/);
   assert.match(body, /no rubric changes/);
 });
 
@@ -269,4 +289,19 @@ test("formatAddRubricsComment reports failed runs and persistence failures", () 
   });
   assert.match(persistenceFailure, /were not persisted/);
   assert.doesNotMatch(persistenceFailure, /No changes were committed/);
+
+  const proposalPrFailure = formatAddRubricsComment({
+    targetKind: "issue",
+    targetNumber: "343",
+    rubricsRef: "agent/rubrics",
+    rubricsTargetRef: "agent/rubrics-proposal-123",
+    writeMode: "proposal_pr",
+    rubricsCommitted: true,
+    runSucceeded: true,
+    proposalPrSucceeded: false,
+    proposalBranch: "agent/rubrics-proposal-123",
+    repoSlug: "self-evolving/repo",
+  });
+  assert.match(proposalPrFailure, /pushed to \[`agent\/rubrics-proposal-123`\]/);
+  assert.match(proposalPrFailure, /PR targeting \[`agent\/rubrics`\]/);
 });

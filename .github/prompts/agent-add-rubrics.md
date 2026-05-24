@@ -2,6 +2,10 @@
 
 The user asked to add or update user/team rubrics from this request.
 
+Write mode: `${RUBRICS_WRITE_MODE}`.
+- `proposal_pr` means the workflow will commit validated edits to a proposal branch and open a PR targeting `${RUBRICS_BASE_REF}`.
+- `direct_commit` means the workflow will commit validated edits directly to `${RUBRICS_BASE_REF}`.
+
 User request:
 ${REQUEST_TEXT}
 

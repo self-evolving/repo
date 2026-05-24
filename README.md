@@ -38,7 +38,7 @@ Check [Install into an existing repository](.agent/docs/setup/install-existing-r
 # Use an explicit slash route when you already know the action
 @sepo-agent /implement implement issue #2
 
-# Add or update team rubrics directly
+# Propose team rubric updates
 @sepo-agent /add-rubrics prefer concise PR summaries
 
 # Invoke arbitrary skills
@@ -62,13 +62,13 @@ Check [Install into an existing repository](.agent/docs/setup/install-existing-r
 
 ### You can also trigger the same built-in routes by adding `agent/*` labels to PRs
 
-For example, adding the `agent/review` label will run the review agent. The `Agent / Onboarding / Check Setup` workflow creates the built-in trigger labels on first run, including `agent/add-rubrics` for direct rubric updates.
+For example, adding the `agent/review` label will run the review agent. The `Agent / Onboarding / Check Setup` workflow creates the built-in trigger labels on first run, including `agent/add-rubrics` for rubric update requests.
 
 ### Task Orchestration Route
 Use `@sepo-agent /orchestrate` (or `agent/orchestrate`) to run the orchestration route explicitly. It checks current target state, dispatches the right built-in action (`implement`, `review`, or `fix-pr`), and keeps that explicitly started chain moving through bounded follow-up handoffs until a stop condition is reached. Direct `/implement`, `/review`, and `/fix-pr` requests remain one-shot.
 
 ### Tracking Workspace Memory and Rubrics
-Sepo persists long-lived context in `agent/memory` and preference rules in `agent/rubrics`, both as repository-owned branches. This lets later runs resume with durable project context and team-specific guidance. Use `/add-rubrics` when a trusted user wants to add or update those preferences from a conversation.
+Sepo persists long-lived context in `agent/memory` and preference rules in `agent/rubrics`, both as repository-owned branches. This lets later runs resume with durable project context and team-specific guidance. Use `/add-rubrics` when a trusted user wants to add or update those preferences from a conversation; it opens a proposal PR by default and commits directly only when the request explicitly asks for that.
 
 ### Scheduled Jobs
 You can run Sepo on a schedule to handle recurring maintenance, triage, or monitoring tasks without a manual mention. For example, [`agent-daily-summary.yml`](.github/workflows/agent-daily-summary.yml) can publish a daily repository activity summary discussion when enabled, and [`agent-update.yml`](.github/workflows/agent-update.yml) checks near-biweekly for Sepo agent infrastructure updates from the latest stable release tag. The packaged daily summary cron is disabled by default, while manual dispatch remains available. Manual update runs can pass `source_ref` to test `main`, a branch, or a specific tag; if no release exists yet, the workflow falls back to `main` and records that in the run summary. If an update PR is already open, later runs update that PR instead of opening a duplicate. Set `AGENT_AUTO_UPDATE=false` to disable the scheduled update check, or set `AGENT_ENABLED=false` to pause all Sepo agent workflows. Scheduled workflows still route through the same policy and memory layers, so they behave consistently with on-demand runs.

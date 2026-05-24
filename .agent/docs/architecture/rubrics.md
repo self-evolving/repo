@@ -83,7 +83,7 @@ Read-only selection is best-effort: invalid rubric files are emitted as workflow
 | Workflow | Trigger | Purpose | Writes `agent/rubrics`? |
 |---|---|---|---|
 | `agent-rubrics-initialization.yml` (`Agent / Rubrics / Initialization`) | `workflow_dispatch` | Creates `agent/rubrics`, seeds the branch layout, and asks an agent to populate initial rubrics from supplied context or repository history | Yes |
-| `agent-add-rubrics.yml` (`Agent / Rubrics / Add`) | explicit `/add-rubrics`, `agent/add-rubrics`, `workflow_dispatch` | Adds or updates rubric YAML directly from a trusted request and posts a summary | Yes |
+| `agent-add-rubrics.yml` (`Agent / Rubrics / Add`) | rubric requests, explicit `/add-rubrics`, `agent/add-rubrics`, `workflow_dispatch` | Adds or updates rubric YAML from a trusted request, opening a proposal PR by default or committing directly when explicitly requested, and posts a summary | Direct mode only |
 | `agent-rubrics-review.yml` (`Agent / Rubrics / Review`) | `workflow_dispatch`, `workflow_call` | Scores a PR against selected active rubrics and uploads or posts a review artifact | No |
 | `agent-rubrics-update.yml` (`Agent / Rubrics / Update`) | merged `pull_request_target.closed` with review interaction, `workflow_dispatch` | Distills durable user/team preferences from merged PR conversations | Yes |
 
@@ -91,7 +91,7 @@ Read-only selection is best-effort: invalid rubric files are emitted as workflow
 
 `Agent / Rubrics / Initialization` is the recommended first-run setup path. It rejects existing rubrics branches, bootstraps the branch skeleton, then runs an initialization prompt. Operators can provide arbitrary context, such as desired team preferences or links to important PRs/issues. When context is omitted, the agent inspects recent merged PRs and trusted contributor feedback to seed only durable rubrics. Initialization fails if the workflow cannot commit and push the new rubrics branch.
 
-`Agent / Rubrics / Add` is the user-facing add-or-update path for conversation requests. It reads existing rubrics first, prefers updating active rubrics over creating near-duplicates, validates the full checkout before committing, serializes direct writes to the rubrics branch, and posts a summary even when the run or persistence step fails.
+`Agent / Rubrics / Add` is the user-facing add-or-update path for conversation requests. Dispatch triage sends natural rubric requests to this route and resolves `rubrics_write_mode`: the default `proposal_pr` checks out `agent/rubrics`, commits validated edits to an `agent/rubrics-proposal-*` branch, and opens a PR targeting `agent/rubrics`; explicit phrases such as "just add", "commit directly", or "apply now" select `direct_commit`, which writes validated edits straight to `agent/rubrics`. Both modes read existing rubrics first, prefer updating active rubrics over creating near-duplicates, validate the full checkout before persisting, serialize writes against the rubrics branch, and post a summary even when the run or persistence step fails.
 
 `Agent / Rubrics / Update` posts a short PR summary after each completed learning run. The summary says whether `agent/rubrics` was committed and includes the agent's explanation, including `no rubric changes` decisions, so skipped learning is visible without opening Actions logs.
 

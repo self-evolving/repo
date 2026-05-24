@@ -10,6 +10,7 @@ import {
   extractRequestedRoute,
   extractRequestedRouteDecision,
   buildRequestedRouteDecision,
+  inferRubricsWriteMode,
   normalizeImplementIssueMetadata,
   resolveRequestedLabel,
 } from "../triage.js";
@@ -49,7 +50,7 @@ test("dispatch prompt enumerates every supported dispatch route", () => {
 
 test("normalizeDispatch reads raw JSON", () => {
   const d = normalizeDispatch(
-    '{"route":"answer","needs_approval":false,"summary":"Will answer.","confidence":"high","issue_title":"","issue_body":""}',
+    '{"route":"answer","needs_approval":false,"summary":"Will answer.","confidence":"high","rubrics_write_mode":"proposal_pr","issue_title":"","issue_body":""}',
   );
   assert.equal(d.route, "answer");
   assert.equal(d.needsApproval, false);
@@ -67,6 +68,24 @@ test("normalizeDispatch reads fenced JSON", () => {
 test("normalizeDispatch lowercases mixed-case routes", () => {
   const d = normalizeDispatch('{"route":"Review","summary":"rev"}');
   assert.equal(d.route, "review");
+});
+
+test("normalizeDispatch defaults add-rubrics to proposal PR mode", () => {
+  const d = normalizeDispatch(
+    '{"route":"add-rubrics","needs_approval":false,"summary":"rubrics","confidence":"high","rubrics_write_mode":"direct_commit"}',
+    "@sepo-agent please add a rubric about concise summaries",
+  );
+  assert.equal(d.route, "add-rubrics");
+  assert.equal(d.rubricsWriteMode, "proposal_pr");
+});
+
+test("normalizeDispatch selects direct add-rubrics mode from explicit wording", () => {
+  const d = normalizeDispatch(
+    '{"route":"add-rubrics","needs_approval":false,"summary":"rubrics","confidence":"high","rubrics_write_mode":"proposal_pr"}',
+    "@sepo-agent add this rubric and commit directly to agent/rubrics",
+  );
+  assert.equal(d.route, "add-rubrics");
+  assert.equal(d.rubricsWriteMode, "direct_commit");
 });
 
 test("normalizeDispatch rejects empty input", () => {
@@ -307,9 +326,29 @@ test("buildRequestedRouteDecision builds deterministic add-rubrics metadata", ()
   );
   assert.equal(d.route, "add-rubrics");
   assert.equal(d.needsApproval, false);
-  assert.match(d.summary, /rubrics branch/);
+  assert.equal(d.rubricsWriteMode, "proposal_pr");
+  assert.match(d.summary, /proposal PR/);
   assert.equal(d.issueTitle, "");
   assert.equal(d.issueBody, "");
+});
+
+test("inferRubricsWriteMode recognizes explicit direct add-rubrics language", () => {
+  assert.equal(
+    inferRubricsWriteMode("@sepo-agent /add-rubrics prefer concise summaries"),
+    "proposal_pr",
+  );
+  assert.equal(
+    inferRubricsWriteMode("@sepo-agent /add-rubrics just add this"),
+    "direct_commit",
+  );
+  assert.equal(
+    inferRubricsWriteMode("@sepo-agent /add-rubrics commit directly to agent/rubrics"),
+    "direct_commit",
+  );
+  assert.equal(
+    inferRubricsWriteMode("@sepo-agent /add-rubrics apply now, no PR"),
+    "direct_commit",
+  );
 });
 
 test("buildRequestedRouteDecision supports skill routes", () => {
@@ -412,6 +451,7 @@ test("applyDispatchPolicy keeps add-rubrics explicit and no-approval", () => {
   assert.equal(d.needsApproval, false);
   assert.equal(d.issueTitle, "");
   assert.equal(d.issueBody, "");
+  assert.equal(d.rubricsWriteMode, "proposal_pr");
 });
 
 test("applyDispatchPolicy denies add-rubrics when route policy disallows it", () => {
