@@ -43,6 +43,7 @@ const DIRECT_RUBRICS_ALLOWED_ASSOCIATIONS = new Set(["OWNER", "MEMBER", "COLLABO
 const NEGATED_DIRECT_RUBRICS_WRITE_PATTERNS = [
   /\b(?:do\s+not|don't|dont|never)\s+(?:just\s+)?(?:add|apply|commit|push|write|update)\b/i,
   /\b(?:do\s+not|don't|dont|never)\s+[\s\S]{0,80}\b(?:directly|straight\s+(?:to|onto)|agent\/rubrics)\b/i,
+  /\b(?:do\s+not|don't|dont|never|avoid)\s+(?:(?:use|using)\s+)?(?:a\s+|any\s+)?(?:direct\s+)?(?:commits?|push(?:es)?|writes?|updates?)(?:\s+directly)?\b/i,
   /\b(?:no|without)\s+(?:a\s+|any\s+)?(?:direct\s+)?(?:commits?|push(?:es)?|writes?|updates?)(?:\s+directly)?\b/i,
 ];
 
