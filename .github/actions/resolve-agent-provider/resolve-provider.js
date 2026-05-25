@@ -2,7 +2,8 @@
 
 const fs = require("node:fs");
 
-const VALID_PROVIDERS = new Set(["auto", "codex", "claude"]);
+const VALID_PROVIDERS = new Set(["auto", "codex", "claude", "pi"]);
+const POLICY_PROVIDER_KEYS = new Set(["codex", "claude", "pi"]);
 const VALID_ROUTE_KEY = /^[a-z0-9][a-z0-9._-]*$/;
 const SAFE_TOKEN = /^[A-Za-z0-9][A-Za-z0-9._:/+-]*$/;
 
@@ -34,9 +35,17 @@ function normalizeOptionalToken(value, label) {
 function normalizeOptionalProvider(value, label) {
   const normalized = normalizeProvider(value);
   if (!normalized || !validateProvider(normalized)) {
-    throw new Error(`${label} must be auto, codex, or claude`);
+    throw new Error(`${label} must be auto, codex, claude, or pi`);
   }
   return normalized;
+}
+
+function parseConfiguredFlag(value, label) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (!normalized) return false;
+  if (["true", "1", "yes", "on"].includes(normalized)) return true;
+  if (["false", "0", "no", "off"].includes(normalized)) return false;
+  throw new Error(`${label} must be true or false`);
 }
 
 function normalizeConfig(value, label, allowProvider) {
@@ -95,7 +104,7 @@ function parsePolicy(raw) {
     }
     for (const [provider, config] of Object.entries(providers)) {
       const normalizedProvider = normalizeProvider(provider);
-      if (normalizedProvider !== "codex" && normalizedProvider !== "claude") {
+      if (!POLICY_PROVIDER_KEYS.has(normalizedProvider)) {
         throw new Error(`Invalid provider key in model policy: ${normalizedProvider || "missing"}`);
       }
       policy.providers[normalizedProvider] = normalizeConfig(
@@ -140,7 +149,7 @@ function resolveProviderRequest(env, policy, route) {
 
   for (const candidate of [routeProvider, defaultProvider]) {
     if (candidate && !validateProvider(candidate)) {
-      throw new Error(`Invalid agent provider '${candidate}' for route '${route}'. Use auto, codex, or claude.`);
+      throw new Error(`Invalid agent provider '${candidate}' for route '${route}'. Use auto, codex, claude, or pi.`);
     }
   }
 
@@ -176,6 +185,7 @@ function writeOutputs({ provider, reason, model, reasoningEffort }) {
   setOutput("reason", reason);
   setOutput("install_codex", provider === "codex" ? "true" : "false");
   setOutput("install_claude", provider === "claude" ? "true" : "false");
+  setOutput("install_pi", provider === "pi" ? "true" : "false");
   setOutput("model", model);
   setOutput("reasoning_effort", reasoningEffort);
 }
@@ -194,10 +204,19 @@ function main(env) {
   const hasClaudeOauth = Boolean(env.CLAUDE_CODE_OAUTH_TOKEN);
   const hasAnthropic = Boolean(env.ANTHROPIC_API_KEY);
   const hasClaude = hasClaudeOauth || hasAnthropic;
+  const hasPiAuthJsonB64 = parseConfiguredFlag(env.PI_AUTH_JSON_B64_CONFIGURED, "PI_AUTH_JSON_B64_CONFIGURED");
+  const hasPiAuthJson = parseConfiguredFlag(env.PI_AUTH_JSON_CONFIGURED, "PI_AUTH_JSON_CONFIGURED");
+  const hasPiAuth = hasPiAuthJsonB64 || hasPiAuthJson;
+  const hasPiReadiness = hasPiAuth || hasCodex || hasClaude;
   const claudeReason = hasClaudeOauth
     ? "CLAUDE_CODE_OAUTH_TOKEN is configured"
     : hasAnthropic
       ? "ANTHROPIC_API_KEY is configured"
+      : "";
+  const piReason = hasPiAuthJsonB64
+    ? "PI_AUTH_JSON_B64 is configured"
+    : hasPiAuthJson
+      ? "PI_AUTH_JSON is configured"
       : "";
   const explicitProvider = requestedProvider !== "auto";
 
@@ -212,9 +231,12 @@ function main(env) {
   } else if (hasClaude) {
     provider = "claude";
     reason = claudeReason;
+  } else if (hasPiAuth) {
+    provider = "pi";
+    reason = piReason;
   } else {
     console.error(
-      `No configured agent provider for route '${route}'. Set AGENT_DEFAULT_PROVIDER to codex or claude, or configure OPENAI_API_KEY, CLAUDE_CODE_OAUTH_TOKEN, or ANTHROPIC_API_KEY.`,
+      `No configured agent provider for route '${route}'. Set AGENT_DEFAULT_PROVIDER to codex, claude, or pi, or configure OPENAI_API_KEY, CLAUDE_CODE_OAUTH_TOKEN, ANTHROPIC_API_KEY, PI_AUTH_JSON_B64, or PI_AUTH_JSON.`,
     );
     if (required === "true") {
       return 1;
@@ -232,6 +254,11 @@ function main(env) {
   if (explicitProvider && provider === "claude" && !hasClaude) {
     console.error(
       `Resolved provider claude for route '${route}' without CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY; relying on local Claude authentication if available.`,
+    );
+  }
+  if (explicitProvider && provider === "pi" && !hasPiReadiness) {
+    console.error(
+      `Resolved provider pi for route '${route}' without provider API keys or PI_AUTH_JSON_B64/PI_AUTH_JSON; relying on local Pi authentication if available.`,
     );
   }
 

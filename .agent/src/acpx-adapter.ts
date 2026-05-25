@@ -220,6 +220,10 @@ function isCodexAgent(agent: string): boolean {
   return agent.trim().toLowerCase() === "codex";
 }
 
+function isPiAgent(agent: string): boolean {
+  return agent.trim().toLowerCase() === "pi";
+}
+
 export function buildAcpxArgs(options: {
   agent: string;
   model?: string;
@@ -307,6 +311,10 @@ export function buildSessionSetupCommands(options: {
         args: [options.agent, "set-mode", "-s", options.sessionName, CLAUDE_BYPASS_MODE],
       });
     }
+    return commands;
+  }
+
+  if (normalizedAgent === "pi") {
     return commands;
   }
 
@@ -677,7 +685,7 @@ export function runAcpx(options: AcpxRunOptions): AcpxRunResult {
   const normalizedThoughtLevel = thoughtLevel?.trim();
   const needsTransientExecSession =
     preserveExecSession === true ||
-    (isExecRoute && isCodexAgent(agent) && Boolean(normalizedThoughtLevel));
+    (isExecRoute && isCodexAgent(agent) && !isPiAgent(agent) && Boolean(normalizedThoughtLevel));
   let sessionName: string | undefined;
   let sessionEnsureOutcome: SessionEnsureOutcome = { kind: "not_applicable" };
   if (isExecRoute && needsTransientExecSession) {

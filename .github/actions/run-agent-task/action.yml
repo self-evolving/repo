@@ -86,6 +86,14 @@ inputs:
     description: "Anthropic API key for Claude Code"
     required: false
     default: ""
+  pi_auth_json_b64:
+    description: "Optional base64-encoded Pi auth.json secret"
+    required: false
+    default: ""
+  pi_auth_json:
+    description: "Optional literal Pi auth.json secret"
+    required: false
+    default: ""
   session_policy:
     description: "Session continuity policy (none, track-only, resume-best-effort, resume-required)"
     required: true
@@ -323,6 +331,14 @@ runs:
           --limit "${RUBRICS_LIMIT}" \
           --output-file "${RUBRICS_CONTEXT_FILE}"
 
+    - name: Restore Pi auth
+      if: ${{ inputs.agent == 'pi' }}
+      shell: bash
+      env:
+        PI_AUTH_JSON_B64: ${{ inputs.pi_auth_json_b64 }}
+        PI_AUTH_JSON: ${{ inputs.pi_auth_json }}
+      run: bash "${GITHUB_ACTION_PATH}/restore-pi-auth.sh"
+
     - name: Run agent task
       id: run
       shell: bash
@@ -373,6 +389,17 @@ runs:
         exit_code=$?
         echo "exit_code=${exit_code}" >> "$GITHUB_OUTPUT"
         exit 0
+
+    - name: Clean up restored Pi auth
+      if: always()
+      shell: bash
+      run: |
+        if [ "${PI_AUTH_RESTORED:-}" != "true" ]; then
+          exit 0
+        fi
+        if [ -n "${PI_CODING_AGENT_DIR:-}" ]; then
+          rm -f "${PI_CODING_AGENT_DIR%/}/auth.json"
+        fi
 
     - name: Commit memory edits
       if: >-

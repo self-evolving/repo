@@ -9,8 +9,8 @@ title: "Configurations list"
 | `AGENT_HANDLE` | Override the mention handle. Defaults to `@sepo-agent`. |
 | `AGENT_ENABLED` | Global Sepo pause switch. Defaults to enabled when unset; set exactly `false` to skip packaged `agent-*.yml` workflows and generated agent-action template jobs before checkout or provider setup. Normal CI workflows such as `test-scripts.yml` are not governed by this flag. |
 | `AGENT_RUNS_ON` | JSON array string for runner selection. If you are using self-hosted runners, see [Self-hosted GitHub Action runner](../setup/self-hosted-github-action-runner.md). |
-| `AGENT_DEFAULT_PROVIDER` | Default provider for single-agent runs and review synthesis: `auto`, `codex`, or `claude`. Explicit `codex` / `claude` choices are honored even without matching repository secrets, allowing self-hosted runners to use local provider authentication. `auto` chooses Codex when `OPENAI_API_KEY` is configured; otherwise it chooses Claude when either `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` is configured. |
-| `AGENT_MODEL_POLICY` | Optional JSON policy for model/reasoning defaults, provider-specific model settings, and route overrides. It supports `default` for non-provider defaults, `providers.codex`, `providers.claude`, and `route_overrides`; reviewer lanes stay fixed as the built-in Claude/Codex matrix, while `review-synthesize` uses this policy. Use `AGENT_DEFAULT_PROVIDER` for the global/default provider. |
+| `AGENT_DEFAULT_PROVIDER` | Default provider for single-agent runs and review synthesis: `auto`, `codex`, `claude`, or `pi`. Explicit `codex` / `claude` / `pi` choices are honored even without matching repository secrets, allowing self-hosted runners to use local provider authentication. `auto` chooses Codex when `OPENAI_API_KEY` is configured, otherwise Claude when either `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` is configured, otherwise Pi when `PI_AUTH_JSON_B64` or `PI_AUTH_JSON` is configured. |
+| `AGENT_MODEL_POLICY` | Optional JSON policy for model/reasoning defaults, provider-specific model settings, and route overrides. It supports `default` for non-provider defaults, `providers.codex`, `providers.claude`, `providers.pi`, and `route_overrides`; reviewer lanes stay fixed as the built-in Claude/Codex matrix, while `review-synthesize` uses this policy. Use `AGENT_DEFAULT_PROVIDER` for the global/default provider. |
 | `AGENT_DISPLAY_MODEL` | Optional `true` / `false` toggle for appending run metadata such as provider, model, and reasoning effort to direct agent response comments that use the standard response posting helpers. Defaults to `false`. |
 | `AGENT_SESSION_BUNDLE_MODE` | Default session-bundle behavior: `auto`, `always`, or `never`. For the trade-offs behind this setting, see [Session continuity](../technical-details/session-continuity.md). |
 | `AGENT_AUTOMATION_MODE` | Orchestrator decision mode. Defaults to `agent` for planner-backed orchestration validated by runtime policy. Set to `heuristics` for deterministic status-based routing with lower model cost. Compatibility alias: `true` = `heuristics`; explicit `false` or legacy `disabled` values fall back to `heuristics` for explicit `/orchestrate` chains. See [Agent orchestrator](../architecture/agent-orchestrator.md). |
@@ -43,7 +43,8 @@ title: "Configurations list"
 {
   "providers": {
     "codex": { "model": "gpt-5.4", "reasoning_effort": "xhigh" },
-    "claude": { "model": "claude-sonnet-4-5", "reasoning_effort": "max" }
+    "claude": { "model": "claude-sonnet-4-5", "reasoning_effort": "max" },
+    "pi": { "model": "gpt-5.4-mini" }
   },
   "route_overrides": {
     "answer": { "provider": "codex", "model": "gpt-5.4-mini", "reasoning_effort": "high" },
@@ -62,6 +63,8 @@ The bundled workflows still keep native YAML escape hatches: an inline `route_pr
 | `OPENAI_API_KEY` | Enable Codex-backed runs on runners without local Codex authentication; also lets `AGENT_DEFAULT_PROVIDER=auto` detect Codex |
 | `CLAUDE_CODE_OAUTH_TOKEN` | Enable Claude-backed runs on runners without local Claude authentication; also lets `AGENT_DEFAULT_PROVIDER=auto` detect Claude |
 | `ANTHROPIC_API_KEY` | Enable Claude-backed runs with a direct Anthropic API key; also lets `AGENT_DEFAULT_PROVIDER=auto` detect Claude |
+| `PI_AUTH_JSON_B64` | Optional base64-encoded Pi `auth.json` restored only for Pi-selected runs; Secret-only, never a repository Variable |
+| `PI_AUTH_JSON` | Optional literal Pi `auth.json` restored only for Pi-selected runs; Secret-only, never a repository Variable |
 | GitHub auth secrets |  |
 | `AGENT_APP_ID` | Self-managed GitHub App ID for the bring-your-own-app path; set only with `AGENT_APP_PRIVATE_KEY`. The public Sepo App ID `3527007` is informational for hosted/OIDC usage. |
 | `AGENT_APP_PRIVATE_KEY` | Self-managed GitHub App private key for the bring-your-own-app path |
@@ -70,3 +73,5 @@ The bundled workflows still keep native YAML escape hatches: an inline `route_pr
 
 
 See [Setup guide](../setup/setup-guide.md) for how token secrets are used.
+
+Pi auth restoration writes either `PI_AUTH_JSON_B64` or `PI_AUTH_JSON` to `$RUNNER_TEMP/pi-agent/auth.json`, sets `PI_CODING_AGENT_DIR` for the agent run, and fails if both secrets are configured. Prefer provider API keys such as `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` for GitHub-hosted CI. `PI_AUTH_JSON` / `PI_AUTH_JSON_B64` are convenient for API-key-style Pi auth entries and testing, but Pi OAuth/subscription auth may rotate refresh tokens during a run; on ephemeral GitHub-hosted runners the updated file stays in `$RUNNER_TEMP` and the repository Secret keeps the old refresh token. Persistent self-hosted runners with local `~/.pi/agent/auth.json` are the better fit for OAuth/subscription refresh rotation.

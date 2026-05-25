@@ -492,6 +492,23 @@ test("buildSessionSetupCommands skips claude setup when not approve-all", () => 
   assert.deepEqual(commands, []);
 });
 
+test("buildSessionSetupCommands keeps Pi setup conservative", () => {
+  const commands = buildSessionSetupCommands({
+    agent: "pi",
+    sessionName: "issue-350-implement-default",
+    model: "gpt-5.4-mini",
+    thoughtLevel: "xhigh",
+    permissionMode: "approve-all",
+  });
+
+  assert.deepEqual(commands, [
+    {
+      label: "set model",
+      args: ["pi", "set", "model", "gpt-5.4-mini", "-s", "issue-350-implement-default"],
+    },
+  ]);
+});
+
 test("extractAssistantText returns the last message from a compacted log", () => {
   const log = [
     '{"type":"message","text":"Checking the repo."}',

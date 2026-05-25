@@ -254,6 +254,8 @@ test("single-agent workflows resolve provider before runtime setup", () => {
   assert.match(resolverImplementation, /OPENAI_API_KEY/);
   assert.match(resolverImplementation, /CLAUDE_CODE_OAUTH_TOKEN/);
   assert.match(resolverImplementation, /ANTHROPIC_API_KEY/);
+  assert.match(resolverImplementation, /PI_AUTH_JSON_B64_CONFIGURED/);
+  assert.match(resolverImplementation, /provider = "pi"/);
   assert.match(resolverImplementation, /provider = "codex"/);
   assert.match(resolverImplementation, /provider = "claude"/);
 
@@ -274,12 +276,15 @@ test("single-agent workflows resolve provider before runtime setup", () => {
     assert.match(workflow, /model_policy:\s*\$\{\{\s*vars\.AGENT_MODEL_POLICY \|\| ''\s*\}\}/);
     assert.match(workflow, /install_codex:\s*\$\{\{\s*steps\.provider\.outputs\.install_codex\s*\}\}/);
     assert.match(workflow, /install_claude:\s*\$\{\{\s*steps\.provider\.outputs\.install_claude\s*\}\}/);
+    assert.match(workflow, /install_pi:\s*\$\{\{\s*steps\.provider\.outputs\.install_pi\s*\}\}/);
     assert.match(workflow, /agent:\s*\$\{\{\s*steps\.provider\.outputs\.provider\s*\}\}/);
     assert.match(workflow, /model:\s*\$\{\{\s*steps\.provider\.outputs\.model\s*\}\}/);
     assert.match(workflow, /display_model:\s*\$\{\{\s*vars\.AGENT_DISPLAY_MODEL \|\| ''\s*\}\}/);
     assert.doesNotMatch(workflow, /outputs\.display_model/);
     assert.match(workflow, /claude_oauth_token:\s*\$\{\{\s*secrets\.CLAUDE_CODE_OAUTH_TOKEN\s*\}\}/);
     assert.match(workflow, /anthropic_api_key:\s*\$\{\{\s*secrets\.ANTHROPIC_API_KEY\s*\}\}/);
+    assert.match(workflow, /pi_auth_json_b64_configured:\s*\$\{\{\s*secrets\.PI_AUTH_JSON_B64 != '' && 'true' \|\| 'false'\s*\}\}/);
+    assert.match(workflow, /pi_auth_json_configured:\s*\$\{\{\s*secrets\.PI_AUTH_JSON != '' && 'true' \|\| 'false'\s*\}\}/);
   }
 
   assert.match(fixPrWorkflow, /lane:\s*fix-pr-\$\{\{\s*steps\.provider\.outputs\.provider\s*\}\}/);
@@ -290,6 +295,7 @@ test("single-agent workflows resolve provider before runtime setup", () => {
   assert.match(reviewWorkflow, /model_policy:\s*\$\{\{\s*vars\.AGENT_MODEL_POLICY \|\| ''\s*\}\}/);
   assert.match(reviewWorkflow, /install_codex:\s*\$\{\{\s*steps\.synthesis_provider\.outputs\.install_codex\s*\}\}/);
   assert.match(reviewWorkflow, /install_claude:\s*\$\{\{\s*steps\.synthesis_provider\.outputs\.install_claude\s*\}\}/);
+  assert.match(reviewWorkflow, /install_pi:\s*\$\{\{\s*steps\.synthesis_provider\.outputs\.install_pi\s*\}\}/);
   assert.match(reviewWorkflow, /agent:\s*\$\{\{\s*steps\.synthesis_provider\.outputs\.provider\s*\}\}/);
   assert.match(reviewWorkflow, /model:\s*\$\{\{\s*steps\.synthesis_provider\.outputs\.model\s*\}\}/);
   assert.match(reviewWorkflow, /display_model:\s*\$\{\{\s*vars\.AGENT_DISPLAY_MODEL \|\| ''\s*\}\}/);
@@ -297,6 +303,7 @@ test("single-agent workflows resolve provider before runtime setup", () => {
   assert.match(reviewWorkflow, /reasoning_effort:\s*\$\{\{\s*steps\.synthesis_provider\.outputs\.reasoning_effort \|\| \(steps\.synthesis_provider\.outputs\.provider == 'claude' && 'max' \|\| 'xhigh'\)\s*\}\}/);
   assert.match(reviewWorkflow, /openai_api_key:\s*\$\{\{\s*secrets\.OPENAI_API_KEY\s*\}\}/);
   assert.match(reviewWorkflow, /anthropic_api_key:\s*\$\{\{\s*secrets\.ANTHROPIC_API_KEY\s*\}\}/);
+  assert.match(reviewWorkflow, /pi_auth_json_b64_configured:\s*\$\{\{\s*secrets\.PI_AUTH_JSON_B64 != '' && 'true' \|\| 'false'\s*\}\}/);
   const reviewerRunBlock = reviewWorkflow.match(
     /- name: Run \$\{\{ matrix\.agent \}\} review[\s\S]*?(?=\n      - name: Persist review artifacts)/,
   )?.[0] || "";
@@ -767,6 +774,10 @@ test("agent router posts unsupported route summaries directly instead of running
     runnerWorkflow,
     /install_claude:\s*\$\{\{\s*needs\.portal\.outputs\.route == 'answer' && steps\.provider\.outputs\.install_claude \|\| 'false'\s*\}\}/,
   );
+  assert.match(
+    runnerWorkflow,
+    /install_pi:\s*\$\{\{\s*needs\.portal\.outputs\.route == 'answer' && steps\.provider\.outputs\.install_pi \|\| 'false'\s*\}\}/,
+  );
   assert.match(runnerWorkflow, /SUMMARY:\s*\$\{\{\s*needs\.portal\.outputs\.summary\s*\}\}/);
   assert.match(runnerWorkflow, /Post unsupported response/);
   assert.match(
@@ -981,8 +992,53 @@ test("run-agent-task maps reasoning effort for Claude env and Codex thought leve
   assert.match(action, /MODEL_REASONING_EFFORT:\s*\$\{\{\s*inputs\.reasoning_effort\s*\}\}/);
   assert.match(runSource, /env\.MODEL_REASONING_EFFORT = process\.env\.MODEL_REASONING_EFFORT/);
   assert.match(runSource, /env\.CLAUDE_CODE_EFFORT_LEVEL = process\.env\.MODEL_REASONING_EFFORT/);
-  assert.match(runSource, /thoughtLevel:\s*process\.env\.MODEL_REASONING_EFFORT/);
+  assert.match(runSource, /agent\.trim\(\)\.toLowerCase\(\) === "pi"[\s\S]*reasoningEffort/);
+  assert.match(runSource, /thoughtLevel:\s*reasoningEffort/);
   assert.match(acpxSource, /"thought_level", thoughtLevel/);
+});
+
+test("run-agent-task restores Pi auth only for Pi runs", () => {
+  const action = readRepoFile(".github/actions/run-agent-task/action.yml");
+  const runSource = readRepoFile(".agent/src/run.ts");
+  const acpxSource = readRepoFile(".agent/src/acpx-adapter.ts");
+  const configurationList = readRepoFile(".agent/docs/customization/configuration-list.md");
+  const selfHostedDocs = readRepoFile(".agent/docs/setup/self-hosted-github-action-runner.md");
+
+  assert.match(action, /pi_auth_json_b64:/);
+  assert.match(action, /pi_auth_json:/);
+  assert.match(action, /if:\s*\$\{\{\s*inputs\.agent == 'pi'\s*\}\}/);
+  assert.match(action, /restore-pi-auth\.sh/);
+  assert.match(action, /Clean up restored Pi auth/);
+  assert.match(runSource, /PI_CODING_AGENT_DIR/);
+  assert.match(runSource, /PI_CODING_AGENT_SESSION_DIR/);
+  assert.match(acpxSource, /normalizedAgent === "pi"[\s\S]*return commands/);
+  assert.match(configurationList, /PI_AUTH_JSON_B64/);
+  assert.match(configurationList, /Secret-only/);
+  assert.match(selfHostedDocs, /refresh-token rotation/);
+});
+
+test("run-agent-task callers pass optional Pi auth secrets", () => {
+  const workflowPaths = readdirSync(path.join(repoRoot, ".github/workflows"))
+    .filter((file) => file.endsWith(".yml"))
+    .map((file) => `.github/workflows/${file}`)
+    .concat(".agent/action-templates/agent-action-template.yml");
+
+  for (const workflowPath of workflowPaths) {
+    const workflow = parseYaml(readRepoFile(workflowPath)) as unknown;
+    assert.ok(isRecord(workflow), `${workflowPath} should parse as a YAML object`);
+    const jobs = workflow.jobs;
+    if (!isRecord(jobs)) continue;
+
+    for (const [jobId, job] of Object.entries(jobs)) {
+      if (!isRecord(job) || !Array.isArray(job.steps)) continue;
+      for (const step of job.steps) {
+        if (!isRecord(step) || step.uses !== "./.github/actions/run-agent-task") continue;
+        assert.ok(isRecord(step.with), `${workflowPath} job ${jobId} run-agent-task needs with`);
+        assert.equal(step.with.pi_auth_json_b64, "${{ secrets.PI_AUTH_JSON_B64 }}");
+        assert.equal(step.with.pi_auth_json, "${{ secrets.PI_AUTH_JSON }}");
+      }
+    }
+  }
 });
 
 test("run-agent-task callers pass secondary token without replacing primary auth", () => {
@@ -1043,6 +1099,8 @@ test("shared setup-agent-runtime action exists and is referenced by reusable wor
   assert.match(action, /actions\/setup-node/);
   assert.match(action, /npm ci/);
   assert.match(action, /npm run build/);
+  assert.match(action, /install_pi:/);
+  assert.match(action, /@mariozechner\/pi-coding-agent/);
   assert.match(runnerWorkflow, /\.\/\.github\/actions\/setup-agent-runtime/);
 });
 
@@ -1457,6 +1515,7 @@ test("execution workflows expose automation handoff inputs", () => {
     /Plan next action with agent[\s\S]*if:\s*\$\{\{\s*steps\.preflight\.outputs\.planner_enabled == 'true'\s*\}\}/,
   );
   assert.match(orchestratorWorkflow, /install_claude:\s*\$\{\{\s*steps\.provider\.outputs\.install_claude\s*\}\}/);
+  assert.match(orchestratorWorkflow, /install_pi:\s*\$\{\{\s*steps\.provider\.outputs\.install_pi\s*\}\}/);
   assert.match(orchestratorWorkflow, /prompt:\s*orchestrator/);
   assert.match(orchestratorWorkflow, /permission_mode:\s*approve-all/);
   assert.match(orchestratorWorkflow, /session_policy:\s*resume-best-effort/);
@@ -1858,6 +1917,7 @@ test("memory workflows exist and point at the right CLIs / prompts", () => {
   assert.match(bootstrapWorkflow, /Resolve memory bootstrap provider/);
   assert.match(bootstrapWorkflow, /install_codex:\s*\$\{\{\s*steps\.provider\.outputs\.install_codex\s*\}\}/);
   assert.match(bootstrapWorkflow, /install_claude:\s*\$\{\{\s*steps\.provider\.outputs\.install_claude\s*\}\}/);
+  assert.match(bootstrapWorkflow, /install_pi:\s*\$\{\{\s*steps\.provider\.outputs\.install_pi\s*\}\}/);
   assert.match(bootstrapWorkflow, /node \.agent\/dist\/cli\/memory\/read-sync-state\.js/);
   assert.match(bootstrapWorkflow, /node \.agent\/dist\/cli\/memory\/sync-github-artifacts\.js/);
   assert.match(bootstrapWorkflow, /node \.agent\/dist\/cli\/memory\/write-sync-state\.js/);

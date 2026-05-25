@@ -262,6 +262,15 @@ export function discoverSessionBundleFiles(args: {
         addBundleFile(files, match, homeDir);
       }
     }
+
+    if (normalizedAgent === "pi") {
+      for (const match of findFilesByName(
+        join(homeDir, ".pi", "agent", "sessions"),
+        `*${escapeFindNamePattern(args.acpxSessionId)}*.jsonl`,
+      )) {
+        addBundleFile(files, match, homeDir);
+      }
+    }
   }
 
   return Array.from(files.values()).sort((a, b) =>

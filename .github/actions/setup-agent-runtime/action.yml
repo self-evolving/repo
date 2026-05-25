@@ -26,6 +26,14 @@ inputs:
     description: Optional Claude Code version to install when the CLI is missing.
     required: false
     default: ""
+  install_pi:
+    description: Whether to install the Pi CLI when missing.
+    required: false
+    default: "false"
+  pi_version:
+    description: Optional @mariozechner/pi-coding-agent version to install when the CLI is missing.
+    required: false
+    default: ""
 
 runs:
   using: composite
@@ -138,3 +146,22 @@ runs:
         fi
 
         echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+    - name: Install Pi CLI
+      if: ${{ inputs.install_pi == 'true' }}
+      shell: bash
+      env:
+        PI_VERSION: ${{ inputs.pi_version }}
+      run: |
+        if command -v pi >/dev/null 2>&1; then
+          echo "Pi CLI already available."
+          exit 0
+        fi
+
+        pkg="@mariozechner/pi-coding-agent"
+        if [ -n "$PI_VERSION" ]; then
+          pkg="$pkg@$PI_VERSION"
+        fi
+
+        npm install -g "$pkg"
+        echo "$(npm prefix -g)/bin" >> "$GITHUB_PATH"

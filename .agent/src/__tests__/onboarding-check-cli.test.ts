@@ -192,7 +192,7 @@ exit 1
     assert.match(log, /Model credentials: not configured/);
     assert.match(
       log,
-      /Add `OPENAI_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`, or `ANTHROPIC_API_KEY` in \[repository Actions secrets\]\(https:\/\/github.com\/self-evolving\/repo\/settings\/secrets\/actions\)\./,
+      /Add `OPENAI_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`, `ANTHROPIC_API_KEY`, `PI_AUTH_JSON_B64`, or `PI_AUTH_JSON` in \[repository Actions secrets\]\(https:\/\/github.com\/self-evolving\/repo\/settings\/secrets\/actions\)\./,
     );
     assert.match(log, /Memory: not initialized/);
     assert.match(
@@ -203,6 +203,7 @@ exit 1
       log,
       /Configure one model provider credential in \[repository Actions secrets\]\(https:\/\/github.com\/self-evolving\/repo\/settings\/secrets\/actions\)\./,
     );
+    assert.match(log, /`PI_AUTH_JSON_B64`/);
     assert.doesNotMatch(log, /Built-in trigger labels:/);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
@@ -257,6 +258,60 @@ exit 1
     const log = readFileSync(logPath, "utf8");
     assert.match(log, /Model credentials: `ANTHROPIC_API_KEY` configured/);
     assert.match(log, /Agent provider: `claude` \(ANTHROPIC_API_KEY is configured\)/);
+    assert.doesNotMatch(log, /Model credentials: not configured/);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("onboarding-check CLI reports configured Pi auth secret", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-onboarding-"));
+
+  try {
+    const logPath = join(tempDir, "gh.log");
+    writeFakeGh(
+      tempDir,
+      `#!/usr/bin/env bash
+printf '%s\\n' "$*" >> "$FAKE_GH_LOG"
+if [ "$1" = "label" ] && [ "$2" = "list" ]; then
+  printf '%s\\n' "$4"
+  exit 0
+fi
+if [ "$1" = "api" ] && [[ "$2" == repos/*/git/matching-refs/heads/* ]]; then
+  exit 0
+fi
+if [ "$1" = "issue" ] && [ "$2" = "list" ]; then
+  printf '[{"number":9,"title":"Sepo setup check"}]'
+  exit 0
+fi
+if [ "$1" = "api" ] && [[ "$2" == repos/*/issues/9/comments ]]; then
+  printf '[{"id":456,"body":"<!-- sepo-agent-onboarding-check --> old"}]'
+  exit 0
+fi
+if [ "$1" = "issue" ] && [ "$2" = "edit" ]; then
+  exit 0
+fi
+if [ "$1" = "api" ] && [ "$2" = "-X" ] && [ "$3" = "PATCH" ]; then
+  exit 0
+fi
+printf 'unexpected gh args: %s\\n' "$*" >&2
+exit 1
+`,
+    );
+
+    const result = runOnboarding(tempDir, {
+      AGENT_PROVIDER: "pi",
+      AGENT_PROVIDER_REASON: "PI_AUTH_JSON_B64 is configured",
+      AUTH_MODE: "oidc_broker",
+      FAKE_GH_LOG: logPath,
+      GITHUB_REPOSITORY: "self-evolving/repo",
+      PI_AUTH_JSON_B64_CONFIGURED: "true",
+    });
+
+    assert.equal(result.status, 0, result.stderr);
+    const log = readFileSync(logPath, "utf8");
+    assert.match(log, /Model credentials: `PI_AUTH_JSON_B64` configured/);
+    assert.match(log, /Agent provider: `pi` \(PI_AUTH_JSON_B64 is configured\)/);
     assert.doesNotMatch(log, /Model credentials: not configured/);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });

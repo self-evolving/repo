@@ -209,6 +209,38 @@ test("discoverSessionBundleFiles treats session ids as literal text inside find 
   }
 });
 
+test("discoverSessionBundleFiles captures Pi session logs without auth secrets", () => {
+  const home = makeTempDir("session-bundle-home-pi-");
+  try {
+    mkdirSync(join(home, ".acpx", "sessions"), { recursive: true });
+    mkdirSync(join(home, ".pi", "agent", "sessions", "--repo--"), { recursive: true });
+
+    writeFileSync(join(home, ".acpx", "sessions", "rec-pi.json"), "{}\n");
+    writeFileSync(
+      join(home, ".pi", "agent", "sessions", "--repo--", "20260525_ses-pi.jsonl"),
+      "session\n",
+    );
+    writeFileSync(join(home, ".pi", "agent", "auth.json"), '{"refreshToken":"secret"}\n');
+
+    const files = discoverSessionBundleFiles({
+      agent: "pi",
+      acpxRecordId: "rec-pi",
+      acpxSessionId: "ses-pi",
+      homeDir: home,
+    });
+
+    assert.deepEqual(
+      files.map((file) => file.relative_path),
+      [
+        ".acpx/sessions/rec-pi.json",
+        ".pi/agent/sessions/--repo--/20260525_ses-pi.jsonl",
+      ],
+    );
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
 test("createSessionBundle and restoreSessionBundle round-trip files", () => {
   const sourceHome = makeTempDir("session-bundle-source-");
   const restoreHome = makeTempDir("session-bundle-restore-");

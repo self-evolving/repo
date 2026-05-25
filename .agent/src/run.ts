@@ -277,8 +277,9 @@ function persistFailureOutputs(
   return { rawStdoutFile, rawStderrFile };
 }
 
-function buildSharedEnv(): Record<string, string> {
+function buildSharedEnv(agent: string): Record<string, string> {
   const env: Record<string, string> = {};
+  const isPiAgent = agent.trim().toLowerCase() === "pi";
   if (process.env.INPUT_GITHUB_TOKEN) {
     env.GH_TOKEN = process.env.INPUT_GITHUB_TOKEN;
     env.GITHUB_TOKEN = process.env.INPUT_GITHUB_TOKEN;
@@ -287,7 +288,7 @@ function buildSharedEnv(): Record<string, string> {
   if (process.env.INPUT_OPENAI_API_KEY) {
     env.OPENAI_API_KEY = process.env.INPUT_OPENAI_API_KEY;
   }
-  if (process.env.MODEL_REASONING_EFFORT) {
+  if (process.env.MODEL_REASONING_EFFORT && !isPiAgent) {
     env.MODEL_REASONING_EFFORT = process.env.MODEL_REASONING_EFFORT;
     // Claude Code reads effort from this env var directly, so both the
     // flow path and the direct path pick it up without session setup.
@@ -298,6 +299,12 @@ function buildSharedEnv(): Record<string, string> {
   }
   if (process.env.ANTHROPIC_API_KEY) {
     env.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+  }
+  if (process.env.PI_CODING_AGENT_DIR) {
+    env.PI_CODING_AGENT_DIR = process.env.PI_CODING_AGENT_DIR;
+  }
+  if (process.env.PI_CODING_AGENT_SESSION_DIR) {
+    env.PI_CODING_AGENT_SESSION_DIR = process.env.PI_CODING_AGENT_SESSION_DIR;
   }
   return env;
 }
@@ -433,7 +440,7 @@ function main(): void {
 
   const runnerTemp = process.env.RUNNER_TEMP || "/tmp";
   const fileId = randomBytes(8).toString("hex");
-  const sharedEnv = buildSharedEnv();
+  const sharedEnv = buildSharedEnv(agent);
   const permissionMode = parsePermissionModeOrSetDefault(process.env.ACPX_PERMISSION_MODE);
   runDirectPath({
     agent,
@@ -581,6 +588,9 @@ function runDirectPath(opts: {
   log("info", "Running acpx", { agent, route: envelope.route, permission_mode: permissionMode });
   const sessionBundleMode = parseSessionBundleMode(process.env.SESSION_BUNDLE_MODE);
   const requestedModel = process.env.MODEL_ID?.trim() || "";
+  const reasoningEffort = agent.trim().toLowerCase() === "pi"
+    ? ""
+    : process.env.MODEL_REASONING_EFFORT || "";
 
   const result = runAcpx({
     agent,
@@ -590,7 +600,7 @@ function runDirectPath(opts: {
     sessionMode: sessionModeForPolicy(sessionPolicy),
     threadKey: envelope.thread_key,
     permissionMode,
-    thoughtLevel: process.env.MODEL_REASONING_EFFORT,
+    thoughtLevel: reasoningEffort,
     preserveExecSession:
       sessionPolicy === "track-only" && shouldBackupSessionBundles(sessionBundleMode, sessionPolicy),
     resumeSessionId,
@@ -618,7 +628,7 @@ function runDirectPath(opts: {
     setOutput("model_display", buildModelDisplay({
       agent,
       model: reportedModel,
-      reasoningEffort: process.env.MODEL_REASONING_EFFORT || "",
+      reasoningEffort,
     }));
   }
 

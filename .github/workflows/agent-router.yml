@@ -33,7 +33,7 @@ on:
         type: string
         default: "@sepo-agent"
       default_agent:
-        description: "Default acpx agent provider (auto, codex, claude)"
+        description: "Default acpx agent provider (auto, codex, claude, pi)"
         type: string
         default: auto
       session_bundle_mode:
@@ -92,6 +92,12 @@ on:
         required: false
       ANTHROPIC_API_KEY:
         description: "Anthropic API key for Claude Code"
+        required: false
+      PI_AUTH_JSON_B64:
+        description: "Optional base64-encoded Pi auth.json secret"
+        required: false
+      PI_AUTH_JSON:
+        description: "Optional literal Pi auth.json secret"
         required: false
 
 permissions:
@@ -161,6 +167,8 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          pi_auth_json_b64_configured: ${{ secrets.PI_AUTH_JSON_B64 != '' && 'true' || 'false' }}
+          pi_auth_json_configured: ${{ secrets.PI_AUTH_JSON != '' && 'true' || 'false' }}
           model_policy: ${{ vars.AGENT_MODEL_POLICY || '' }}
           required: "false"
 
@@ -170,6 +178,7 @@ jobs:
         with:
           install_codex: ${{ steps.provider.outputs.install_codex }}
           install_claude: ${{ steps.provider.outputs.install_claude }}
+          install_pi: ${{ steps.provider.outputs.install_pi }}
 
       - name: Extract context
         id: context
@@ -217,6 +226,8 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          pi_auth_json_b64_configured: ${{ secrets.PI_AUTH_JSON_B64 != '' && 'true' || 'false' }}
+          pi_auth_json_configured: ${{ secrets.PI_AUTH_JSON != '' && 'true' || 'false' }}
           model_policy: ${{ vars.AGENT_MODEL_POLICY || '' }}
 
       - name: Resolve task timeout
@@ -250,6 +261,8 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          pi_auth_json_b64: ${{ secrets.PI_AUTH_JSON_B64 }}
+          pi_auth_json: ${{ secrets.PI_AUTH_JSON }}
           model: ${{ steps.dispatch_provider.outputs.model }}
           display_model: ${{ vars.AGENT_DISPLAY_MODEL || '' }}
           permission_mode: approve-all
@@ -285,6 +298,8 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          pi_auth_json_b64: ${{ secrets.PI_AUTH_JSON_B64 }}
+          pi_auth_json: ${{ secrets.PI_AUTH_JSON }}
           model: ${{ steps.provider.outputs.model }}
           display_model: ${{ vars.AGENT_DISPLAY_MODEL || '' }}
           permission_mode: approve-all
@@ -380,6 +395,8 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          pi_auth_json_b64_configured: ${{ secrets.PI_AUTH_JSON_B64 != '' && 'true' || 'false' }}
+          pi_auth_json_configured: ${{ secrets.PI_AUTH_JSON != '' && 'true' || 'false' }}
           model_policy: ${{ vars.AGENT_MODEL_POLICY || '' }}
 
       - name: Setup agent runtime
@@ -391,6 +408,7 @@ jobs:
         with:
           install_codex: ${{ needs.portal.outputs.route == 'answer' && steps.provider.outputs.install_codex || 'false' }}
           install_claude: ${{ needs.portal.outputs.route == 'answer' && steps.provider.outputs.install_claude || 'false' }}
+          install_pi: ${{ needs.portal.outputs.route == 'answer' && steps.provider.outputs.install_pi || 'false' }}
 
       - name: Resolve task timeout
         if: needs.portal.outputs.route == 'answer'
@@ -412,6 +430,8 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          pi_auth_json_b64: ${{ secrets.PI_AUTH_JSON_B64 }}
+          pi_auth_json: ${{ secrets.PI_AUTH_JSON }}
           model: ${{ steps.provider.outputs.model }}
           display_model: ${{ vars.AGENT_DISPLAY_MODEL || '' }}
           permission_mode: approve-all
@@ -497,6 +517,8 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          pi_auth_json_b64_configured: ${{ secrets.PI_AUTH_JSON_B64 != '' && 'true' || 'false' }}
+          pi_auth_json_configured: ${{ secrets.PI_AUTH_JSON != '' && 'true' || 'false' }}
           model_policy: ${{ vars.AGENT_MODEL_POLICY || '' }}
           required: "false"
 
@@ -506,6 +528,7 @@ jobs:
         with:
           install_codex: ${{ steps.provider.outputs.install_codex }}
           install_claude: ${{ steps.provider.outputs.install_claude }}
+          install_pi: ${{ steps.provider.outputs.install_pi }}
 
       - name: Check skill
         id: skill_check
@@ -545,6 +568,8 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          pi_auth_json_b64_configured: ${{ secrets.PI_AUTH_JSON_B64 != '' && 'true' || 'false' }}
+          pi_auth_json_configured: ${{ secrets.PI_AUTH_JSON != '' && 'true' || 'false' }}
           model_policy: ${{ vars.AGENT_MODEL_POLICY || '' }}
 
       - name: Run skill setup
@@ -603,6 +628,8 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          pi_auth_json_b64: ${{ secrets.PI_AUTH_JSON_B64 }}
+          pi_auth_json: ${{ secrets.PI_AUTH_JSON }}
           model: ${{ steps.skill_provider.outputs.model }}
           display_model: ${{ vars.AGENT_DISPLAY_MODEL || '' }}
           permission_mode: approve-all
@@ -672,6 +699,8 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          pi_auth_json_b64_configured: ${{ secrets.PI_AUTH_JSON_B64 != '' && 'true' || 'false' }}
+          pi_auth_json_configured: ${{ secrets.PI_AUTH_JSON != '' && 'true' || 'false' }}
           model_policy: ${{ vars.AGENT_MODEL_POLICY || '' }}
 
       - name: Setup agent runtime
@@ -680,6 +709,7 @@ jobs:
         with:
           install_codex: ${{ steps.provider.outputs.install_codex }}
           install_claude: ${{ steps.provider.outputs.install_claude }}
+          install_pi: ${{ steps.provider.outputs.install_pi }}
 
       - name: Post install configuration blocked response
         if: env.AGENT_INSTALL_PAT_CONFIGURED != 'true'
@@ -720,6 +750,8 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          pi_auth_json_b64: ${{ secrets.PI_AUTH_JSON_B64 }}
+          pi_auth_json: ${{ secrets.PI_AUTH_JSON }}
           model: ${{ steps.provider.outputs.model }}
           display_model: ${{ vars.AGENT_DISPLAY_MODEL || '' }}
           permission_mode: approve-all

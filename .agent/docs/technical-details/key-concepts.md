@@ -116,15 +116,16 @@ Rubrics live on a separate `agent/rubrics` branch, governed by `AGENT_RUBRICS_PO
 
 ## Runtime dependencies
 
-The reusable workflows bootstrap the runtime in place by checking out the repository, running `.github/actions/setup-agent-runtime`, installing dependencies inside `.agent/`, building `.agent/dist/`, and optionally installing `codex` or `claude`.
+The reusable workflows bootstrap the runtime in place by checking out the repository, running `.github/actions/setup-agent-runtime`, installing dependencies inside `.agent/`, building `.agent/dist/`, and optionally installing `codex`, `claude`, or `pi`.
 
 Remaining runner requirements:
 
 - `git`, `gh`, `jq`, `curl`, `bash`, and network access
 - one GitHub auth mode
 - `id-token: write` for the official hosted auth path
-- `OPENAI_API_KEY` for Codex-backed workflows
-- optional `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` for Claude-backed routes
+- `OPENAI_API_KEY` for Codex-backed workflows or Pi provider API-key auth
+- optional `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` for Claude-backed routes or Pi provider API-key auth
+- optional Secret-only `PI_AUTH_JSON_B64` or `PI_AUTH_JSON` for Pi auth restoration
 
 ## Tests
 

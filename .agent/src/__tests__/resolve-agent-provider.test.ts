@@ -18,6 +18,8 @@ type ResolverEnv = Partial<Record<
   | "OPENAI_API_KEY"
   | "CLAUDE_CODE_OAUTH_TOKEN"
   | "ANTHROPIC_API_KEY"
+  | "PI_AUTH_JSON_B64_CONFIGURED"
+  | "PI_AUTH_JSON_CONFIGURED"
   | "REQUIRED"
   | "AGENT_MODEL_POLICY",
   string
@@ -56,6 +58,8 @@ function runResolver(env: ResolverEnv = {}) {
         OPENAI_API_KEY: "",
         CLAUDE_CODE_OAUTH_TOKEN: "",
         ANTHROPIC_API_KEY: "",
+        PI_AUTH_JSON_B64_CONFIGURED: "false",
+        PI_AUTH_JSON_CONFIGURED: "false",
         REQUIRED: "true",
         AGENT_MODEL_POLICY: "",
         ...env,
@@ -82,6 +86,7 @@ test("provider resolver auto-detects configured providers deterministically", ()
   assert.equal(both.outputs.reason, "OPENAI_API_KEY is configured");
   assert.equal(both.outputs.install_codex, "true");
   assert.equal(both.outputs.install_claude, "false");
+  assert.equal(both.outputs.install_pi, "false");
 
   const claudeOnly = runResolver({ CLAUDE_CODE_OAUTH_TOKEN: "claude-token" });
 
@@ -90,6 +95,7 @@ test("provider resolver auto-detects configured providers deterministically", ()
   assert.equal(claudeOnly.outputs.reason, "CLAUDE_CODE_OAUTH_TOKEN is configured");
   assert.equal(claudeOnly.outputs.install_codex, "false");
   assert.equal(claudeOnly.outputs.install_claude, "true");
+  assert.equal(claudeOnly.outputs.install_pi, "false");
 
   const anthropicOnly = runResolver({ ANTHROPIC_API_KEY: "anthropic-token" });
 
@@ -98,6 +104,7 @@ test("provider resolver auto-detects configured providers deterministically", ()
   assert.equal(anthropicOnly.outputs.reason, "ANTHROPIC_API_KEY is configured");
   assert.equal(anthropicOnly.outputs.install_codex, "false");
   assert.equal(anthropicOnly.outputs.install_claude, "true");
+  assert.equal(anthropicOnly.outputs.install_pi, "false");
 
   const bothClaudeCredentials = runResolver({
     CLAUDE_CODE_OAUTH_TOKEN: "claude-token",
@@ -112,6 +119,25 @@ test("provider resolver auto-detects configured providers deterministically", ()
   );
   assert.equal(bothClaudeCredentials.outputs.install_codex, "false");
   assert.equal(bothClaudeCredentials.outputs.install_claude, "true");
+  assert.equal(bothClaudeCredentials.outputs.install_pi, "false");
+
+  const piOnly = runResolver({ PI_AUTH_JSON_B64_CONFIGURED: "true" });
+
+  assert.equal(piOnly.status, 0, piOnly.stderr);
+  assert.equal(piOnly.outputs.provider, "pi");
+  assert.equal(piOnly.outputs.reason, "PI_AUTH_JSON_B64 is configured");
+  assert.equal(piOnly.outputs.install_codex, "false");
+  assert.equal(piOnly.outputs.install_claude, "false");
+  assert.equal(piOnly.outputs.install_pi, "true");
+
+  const openaiAndPi = runResolver({
+    OPENAI_API_KEY: "openai-token",
+    PI_AUTH_JSON_CONFIGURED: "true",
+  });
+
+  assert.equal(openaiAndPi.status, 0, openaiAndPi.stderr);
+  assert.equal(openaiAndPi.outputs.provider, "codex");
+  assert.equal(openaiAndPi.outputs.reason, "OPENAI_API_KEY is configured");
 });
 
 test("provider resolver honors default and inline route overrides", () => {
@@ -154,7 +180,18 @@ test("provider resolver supports explicit providers without repository secrets",
   assert.equal(claude.outputs.reason, "route override for test-route");
   assert.equal(claude.outputs.install_codex, "false");
   assert.equal(claude.outputs.install_claude, "true");
+  assert.equal(claude.outputs.install_pi, "false");
   assert.match(claude.stderr, /relying on local Claude authentication/);
+
+  const pi = runResolver({ ROUTE_PROVIDER: "pi" });
+
+  assert.equal(pi.status, 0, pi.stderr);
+  assert.equal(pi.outputs.provider, "pi");
+  assert.equal(pi.outputs.reason, "route override for test-route");
+  assert.equal(pi.outputs.install_codex, "false");
+  assert.equal(pi.outputs.install_claude, "false");
+  assert.equal(pi.outputs.install_pi, "true");
+  assert.match(pi.stderr, /relying on local Pi authentication/);
 });
 
 test("provider resolver applies model policy defaults and provider settings", () => {
@@ -164,6 +201,7 @@ test("provider resolver applies model policy defaults and provider settings", ()
       default: { model: "claude-default", reasoning_effort: "high" },
       providers: {
         claude: { reasoning_effort: "max" },
+        pi: { model: "gpt-5.4-mini", reasoning_effort: "high" },
       },
     }),
   });
@@ -174,6 +212,21 @@ test("provider resolver applies model policy defaults and provider settings", ()
   assert.equal(resolved.outputs.model, "claude-default");
   assert.equal(resolved.outputs.reasoning_effort, "max");
   assert.match(resolved.stderr, /relying on local Claude authentication/);
+
+  const pi = runResolver({
+    DEFAULT_PROVIDER: "pi",
+    AGENT_MODEL_POLICY: JSON.stringify({
+      default: { model: "default-model", reasoning_effort: "medium" },
+      providers: {
+        pi: { model: "pi-model", reasoning_effort: "high" },
+      },
+    }),
+  });
+
+  assert.equal(pi.status, 0, pi.stderr);
+  assert.equal(pi.outputs.provider, "pi");
+  assert.equal(pi.outputs.model, "pi-model");
+  assert.equal(pi.outputs.reasoning_effort, "high");
 });
 
 test("provider resolver ignores display policy because display is handled by run-agent-task", () => {
@@ -199,6 +252,7 @@ test("provider resolver lets route model policy override provider defaults", () 
       providers: {
         codex: { model: "gpt-5.4", reasoning_effort: "xhigh" },
         claude: { model: "claude-sonnet-4-5", reasoning_effort: "max" },
+        pi: { model: "gpt-5.4-mini", reasoning_effort: "high" },
       },
       route_overrides: {
         "test-route": { provider: "claude", model: "claude-haiku-4-5", reasoning_effort: "medium" },
@@ -211,6 +265,26 @@ test("provider resolver lets route model policy override provider defaults", () 
   assert.equal(resolved.outputs.reason, "AGENT_MODEL_POLICY route override for test-route");
   assert.equal(resolved.outputs.model, "claude-haiku-4-5");
   assert.equal(resolved.outputs.reasoning_effort, "medium");
+
+  const pi = runResolver({
+    DEFAULT_PROVIDER: "codex",
+    OPENAI_API_KEY: "openai-token",
+    AGENT_MODEL_POLICY: JSON.stringify({
+      providers: {
+        codex: { model: "gpt-5.4", reasoning_effort: "xhigh" },
+        pi: { model: "pi-default", reasoning_effort: "high" },
+      },
+      route_overrides: {
+        "test-route": { provider: "pi", model: "pi-route", reasoning_effort: "medium" },
+      },
+    }),
+  });
+
+  assert.equal(pi.status, 0, pi.stderr);
+  assert.equal(pi.outputs.provider, "pi");
+  assert.equal(pi.outputs.reason, "AGENT_MODEL_POLICY route override for test-route");
+  assert.equal(pi.outputs.model, "pi-route");
+  assert.equal(pi.outputs.reasoning_effort, "medium");
 });
 
 test("provider resolver keeps inline route provider from inheriting route policy settings", () => {
@@ -314,6 +388,7 @@ test("provider resolver supports nonfatal unresolved setup passes", () => {
   assert.equal(soft.outputs.reason, "no configured provider");
   assert.equal(soft.outputs.install_codex, "false");
   assert.equal(soft.outputs.install_claude, "false");
+  assert.equal(soft.outputs.install_pi, "false");
   assert.match(soft.stderr, /No configured agent provider/);
   assert.match(soft.stdout, /unresolved/);
 });
