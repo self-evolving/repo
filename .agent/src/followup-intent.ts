@@ -59,10 +59,10 @@ export function hasAgentStatusLabel(eventName: string, payload: Payload): boolea
 export function isSupportedImplicitFollowupEvent(eventName: string, payload: Payload): boolean {
   const action = String(payload.action || "").trim().toLowerCase();
   if (eventName === "issue_comment" || eventName === "pull_request_review_comment") {
-    return !action || action === "created" || action === "edited";
+    return action === "created";
   }
   if (eventName === "pull_request_review") {
-    return !action || action === "submitted";
+    return action === "submitted";
   }
   return false;
 }

@@ -1299,3 +1299,28 @@ test("extract-context skips unmentioned agent-labeled comments when follow-up in
 
   assert.equal(outputs.get("should_respond"), "false");
 });
+
+test("extract-context skips edited unmentioned agent-labeled comments", () => {
+  const outputs = runExtractContextCli({
+    eventName: "issue_comment",
+    payload: {
+      action: "edited",
+      sender: { login: "alice", type: "User" },
+      comment: {
+        id: 305,
+        node_id: "IC_305",
+        html_url: "https://github.com/self-evolving/repo/issues/305#issuecomment-305",
+        body: "Can you explain the tradeoff?",
+        author_association: "CONTRIBUTOR",
+        user: { login: "alice" },
+      },
+      issue: {
+        number: 305,
+        labels: [{ name: "agent" }],
+        html_url: "https://github.com/self-evolving/repo/issues/305",
+      },
+    },
+  });
+
+  assert.equal(outputs.get("should_respond"), "false");
+});

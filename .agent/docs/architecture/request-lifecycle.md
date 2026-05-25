@@ -6,7 +6,7 @@ title: "The life cycle of an agent request"
 
 Every trigger converges on the portal workflow `agent-router.yml`. It extracts context, validates mentions, records the caller association, optionally runs dispatch triage, applies route authorization, and routes the request to a specialized workflow or inline answer path.
 
-Explicit mentions remain the primary trigger. When `AGENT_FOLLOWUP_INTENT_MODE` is `agent-label` (the default), unmentioned comments and PR reviews on issue/PR targets with the fixed `agent` label can also enter the portal as `implicit_followup=true`. Those candidates run a dedicated intent gate with the same communication-rubric selection used by answer runs. The gate can only return `respond` or `ignore`; `respond` is forced to the inline `answer` route, while `ignore` posts nothing.
+Explicit mentions remain the primary trigger. When `AGENT_FOLLOWUP_INTENT_MODE` is `agent-label` (the default), new unmentioned issue/PR comments, new PR review comments, and submitted PR reviews on targets with the fixed `agent` label can also enter the portal as `implicit_followup=true`. The portal checks `answer` route authorization before running the dedicated intent gate with the same communication-rubric selection used by answer runs. The gate can only return `respond` or `ignore`; `respond` is forced to the inline `answer` route, while `ignore` posts nothing.
 
 ## Approval model
 

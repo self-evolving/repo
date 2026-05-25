@@ -436,3 +436,38 @@ test("resolve-dispatch ignores implicit follow-ups when answer is not authorized
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
+
+test("resolve-dispatch preflights answer authorization without intent output", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-resolve-dispatch-"));
+
+  try {
+    const outputPath = join(tempDir, "github-output.txt");
+    writeFileSync(outputPath, "", "utf8");
+
+    const result = spawnSync("node", [".agent/dist/cli/resolve-dispatch.js"], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        GITHUB_OUTPUT: outputPath,
+        REQUESTED_ROUTE: "answer",
+        REQUEST_TEXT: "Can you explain the tradeoff?",
+        TARGET_KIND: "issue",
+        AUTHOR_ASSOCIATION: "CONTRIBUTOR",
+        ACCESS_POLICY: JSON.stringify({
+          route_overrides: {
+            answer: ["OWNER", "MEMBER"],
+          },
+        }),
+        REPOSITORY_PRIVATE: "true",
+      },
+      encoding: "utf8",
+    });
+
+    assert.equal(result.status, 0);
+    const outputs = parseGithubOutput(outputPath);
+    assert.equal(outputs.get("route"), "unsupported");
+    assert.match(outputs.get("summary") || "", /answer requests currently require/);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});

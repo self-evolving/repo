@@ -51,6 +51,39 @@ test("shouldConsiderImplicitFollowup requires a supported labeled follow-up even
   );
   assert.equal(
     shouldConsiderImplicitFollowup(
+      "issue_comment",
+      {
+        action: "edited",
+        issue: { labels: ["agent"] },
+      },
+      "agent-label",
+    ),
+    false,
+  );
+  assert.equal(
+    shouldConsiderImplicitFollowup(
+      "pull_request_review_comment",
+      {
+        action: "edited",
+        pull_request: { labels: ["agent"] },
+      },
+      "agent-label",
+    ),
+    false,
+  );
+  assert.equal(
+    shouldConsiderImplicitFollowup(
+      "pull_request_review",
+      {
+        action: "submitted",
+        pull_request: { labels: ["agent"] },
+      },
+      "agent-label",
+    ),
+    true,
+  );
+  assert.equal(
+    shouldConsiderImplicitFollowup(
       "pull_request_review",
       {
         action: "submitted",

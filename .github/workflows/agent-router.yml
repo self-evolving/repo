@@ -169,12 +169,45 @@ jobs:
           model_policy: ${{ vars.AGENT_MODEL_POLICY || '' }}
           required: "false"
 
+      - name: Resolve answer provider
+        id: answer_provider
+        if: >-
+          (inputs.followup_intent_mode || vars.AGENT_FOLLOWUP_INTENT_MODE || 'agent-label') != 'disabled' &&
+          (inputs.followup_intent_mode || vars.AGENT_FOLLOWUP_INTENT_MODE || 'agent-label') != 'false' &&
+          github.event.sender.type != 'Bot' &&
+          (
+            (
+              github.event_name == 'issue_comment' &&
+              github.event.action == 'created' &&
+              contains(github.event.issue.labels.*.name, 'agent')
+            ) ||
+            (
+              github.event_name == 'pull_request_review_comment' &&
+              github.event.action == 'created' &&
+              contains(github.event.pull_request.labels.*.name, 'agent')
+            ) ||
+            (
+              github.event_name == 'pull_request_review' &&
+              github.event.action == 'submitted' &&
+              contains(github.event.pull_request.labels.*.name, 'agent')
+            )
+          )
+        uses: ./.github/actions/resolve-agent-provider
+        with:
+          route: answer
+          default_provider: ${{ vars.AGENT_DEFAULT_PROVIDER || inputs.default_agent || 'auto' }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model_policy: ${{ vars.AGENT_MODEL_POLICY || '' }}
+          required: "false"
+
       - name: Setup agent runtime
         id: runtime
         uses: ./.github/actions/setup-agent-runtime
         with:
-          install_codex: ${{ steps.provider.outputs.install_codex }}
-          install_claude: ${{ steps.provider.outputs.install_claude }}
+          install_codex: ${{ (steps.provider.outputs.install_codex == 'true' || steps.answer_provider.outputs.install_codex == 'true') && 'true' || 'false' }}
+          install_claude: ${{ (steps.provider.outputs.install_claude == 'true' || steps.answer_provider.outputs.install_claude == 'true') && 'true' || 'false' }}
 
       - name: Extract context
         id: context
@@ -213,6 +246,21 @@ jobs:
           REPOSITORY_PRIVATE: ${{ github.event.repository.private && 'true' || 'false' }}
         run: node .agent/dist/cli/resolve-dispatch.js
 
+      - name: Authorize implicit follow-up answer
+        if: >-
+          steps.context.outputs.should_respond == 'true' &&
+          steps.context.outputs.implicit_followup == 'true'
+        id: followup_authorization
+        env:
+          REQUESTED_ROUTE: answer
+          REQUEST_TEXT: ${{ steps.context.outputs.body }}
+          TARGET_KIND: ${{ steps.context.outputs.target_kind }}
+          TARGET_NUMBER: ${{ steps.context.outputs.target_number }}
+          AUTHOR_ASSOCIATION: ${{ steps.context.outputs.association }}
+          ACCESS_POLICY: ${{ inputs.access_policy }}
+          REPOSITORY_PRIVATE: ${{ github.event.repository.private && 'true' || 'false' }}
+        run: node .agent/dist/cli/resolve-dispatch.js
+
       - name: Require dispatch provider
         id: dispatch_provider
         if: >-
@@ -232,7 +280,8 @@ jobs:
         id: followup_provider
         if: >-
           steps.context.outputs.should_respond == 'true' &&
-          steps.context.outputs.implicit_followup == 'true'
+          steps.context.outputs.implicit_followup == 'true' &&
+          steps.followup_authorization.outputs.route == 'answer'
         uses: ./.github/actions/resolve-agent-provider
         with:
           route: answer
@@ -246,7 +295,13 @@ jobs:
         if: >-
           steps.context.outputs.should_respond == 'true' &&
           (
-            steps.context.outputs.requested_route == '' ||
+            (
+              steps.context.outputs.requested_route == '' &&
+              (
+                steps.context.outputs.implicit_followup != 'true' ||
+                steps.followup_authorization.outputs.route == 'answer'
+              )
+            ) ||
             (
               steps.explicit_dispatch.outputs.route == 'implement' &&
               steps.context.outputs.target_kind != 'issue' &&
@@ -295,7 +350,8 @@ jobs:
       - name: Run follow-up intent gate
         if: >-
           steps.context.outputs.should_respond == 'true' &&
-          steps.context.outputs.implicit_followup == 'true'
+          steps.context.outputs.implicit_followup == 'true' &&
+          steps.followup_authorization.outputs.route == 'answer'
         id: followup_intent
         timeout-minutes: ${{ fromJson(steps.task_timeout.outputs.minutes || '30') }}
         uses: ./.github/actions/run-agent-task
@@ -365,7 +421,12 @@ jobs:
           workflow: agent-router.yml
 
       - name: Resolve route
-        if: steps.context.outputs.should_respond == 'true'
+        if: >-
+          steps.context.outputs.should_respond == 'true' &&
+          (
+            steps.context.outputs.implicit_followup != 'true' ||
+            steps.followup_authorization.outputs.route == 'answer'
+          )
         id: dispatch
         env:
           RESPONSE_FILE: ${{ steps.followup_intent.outputs.response_file || steps.triage.outputs.response_file || steps.implement_metadata.outputs.response_file }}

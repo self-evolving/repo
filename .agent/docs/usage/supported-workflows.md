@@ -206,7 +206,7 @@ Single-agent routes, autonomous agent workflows, and the review synthesis step r
 
 The broad pre-filter starts the router when the event contains `@sepo-agent`. Real mention validation happens in `agent-router.yml` through `extract-context.js`. That validation is boundary-aware and strips code blocks and quoted text before deciding whether a mention is live.
 
-When `AGENT_FOLLOWUP_INTENT_MODE` is unset or `agent-label`, unmentioned issue/PR comments, PR review comments, and submitted PR reviews can also wake the router if the target already has the fixed `agent` label. The router marks these as `implicit_followup=true`, runs a communication-rubric-aware intent gate, and only continues to the inline `answer` route when the gate returns `respond`. `ignore` posts nothing. Set `AGENT_FOLLOWUP_INTENT_MODE=disabled` or `false` to require explicit mentions only.
+When `AGENT_FOLLOWUP_INTENT_MODE` is unset or `agent-label`, new unmentioned issue/PR comments, new PR review comments, and submitted PR reviews can also wake the router if the target already has the fixed `agent` label. The router marks these as `implicit_followup=true`, checks `answer` route authorization before the intent gate, and only continues to the inline `answer` route when the communication-rubric-aware gate returns `respond`. `ignore` posts nothing. Set `AGENT_FOLLOWUP_INTENT_MODE=disabled` or `false` to require explicit mentions only.
 
 Supported surfaces:
 
