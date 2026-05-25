@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "@sepo-agent /answer For now, sometimes there will be different sources of server side errors: \n\n1. 500 errors from pushing \n2. 400 (?) errors from auth key issuing \n\nI am collecting these issues \n- https://github.com/self-evolving/repo/actions/runs/26337370165/job/77533245853#step:10:1 \nBut it would be better if we could review the code and make it more robust ",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDmgEOQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I reviewed the relevant paths. This is worth doing, but I’d treat it as a small robustness implementation rather than only adding blind retries.\n\nKey findings:\n\n- The linked run shows a pre-run thread-state push failure before ACPX starts, from `writeThreadState()` pushing `refs/agent-state/...`: [.agent/src/thread-state.ts#L310-L344](https://github.com/self-evolving/repo/blob/main/.agent/src/thread-state.ts#L310-L344). That path currently does a single `git push`.\n- Main implementation and fix-pr persistence both flow through `commit.js` into `commitAndPush()` / `pushToRef()` / `pushBranch()`: [.github/workflows/agent-implement.yml#L257-L268](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-implement.yml#L257-L268), [.github/workflows/agent-fix-pr.yml#L244-L266](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-fix-pr.yml#L244-L266), [.agent/src/git.ts#L91-L127](https://github.com/self-evolving/repo/blob/main/.agent/src/git.ts#L91-L127).\n- The direct GitHub App token path delegates to `actions/create-github-app-token@v1`, so Sepo does not currently control retry/classification there: [.github/actions/resolve-github-auth/action.yml#L50-L57](https://github.com/self-evolving/repo/blob/main/.github/actions/resolve-github-auth/action.yml#L50-L57).\n- The hosted OIDC exchange has a `run_with_retries()` helper, but the broker POST uses `curl` without `--fail`, so HTTP 5xx/429 responses are not retried; they are handled only after the request completes: [.github/actions/resolve-github-auth/exchange-oidc.sh#L78-L97](https://github.com/self-evolving/repo/blob/main/.github/actions/resolve-github-auth/exchange-oidc.sh#L78-L97).\n- Other ref-state push paths have the same single-attempt pattern, e.g. scheduled state and memory sync state: [.agent/src/scheduled-activity.ts#L138-L143](https://github.com/self-evolving/repo/blob/main/.agent/src/scheduled-activity.ts#L138-L143), [.agent/src/memory-sync-state.ts#L194-L200](https://github.com/self-evolving/repo/blob/main/.agent/src/memory-sync-state.ts#L194-L200).\n\nRecommended implementation plan:\n\n1. Add a shared retry helper for child-process Git/GH calls, probably in `.agent/src/git.ts` and/or a small `.agent/src/retry.ts`.\n   - Retry transient GitHub/server/network failures: HTTP 500/502/503/504, 429/rate-limit, connection reset/timeout, temporary DNS/TLS failures.\n   - Do not retry deterministic failures by default: 401/403 permission failures, non-fast-forward / lease failures, validation errors, missing refs.\n   - Use bounded exponential backoff with jitter, e.g. 3 attempts by default.\n\n2. Route all Sepo-owned push operations through that helper:\n   - `pushBranch()`\n   - `pushToRef()`\n   - `pushHeadUpdate()` indirectly through `pushToRef()`\n   - `writeThreadState()`\n   - `writeScheduledState()`\n   - `writeMemorySyncState()`\n   - install fork publish push in [.agent/src/install-fork-pr.ts#L836-L843](https://github.com/self-evolving/repo/blob/main/.agent/src/install-fork-pr.ts#L836-L843)\n\n3. Improve hosted OIDC broker retry behavior in `exchange-oidc.sh`.\n   - Keep retrying GitHub OIDC token fetch on curl/network failure.\n   - For the broker POST, retry 429 and 5xx responses.\n   - Treat most 400s as terminal, but log the sanitized broker message. If the collected examples prove the “400” is actually a transient upstream classification bug, add a narrow retry predicate for that exact broker error string rather than retrying all 400s.\n\n4. Decide how far to go for direct GitHub App token issuing.\n   - Minimal: keep `actions/create-github-app-token@v1` and improve only hosted OIDC.\n   - More robust: replace the direct app token `uses:` step with a local Node helper that signs the App JWT and requests the installation token with the same retry classifier. Since `.agent` currently has no Octokit dependency, this can use Node `crypto` + `fetch` without adding runtime dependencies.\n\n5. Add focused tests.\n   - Unit tests for retry classification and attempt count.\n   - Git helper tests proving transient push failures retry and lease/permission failures do not.\n   - Shell tests for OIDC exchange retrying 5xx/429 but not generic 400.\n   - Keep docs small, likely update `.agent/docs/usage/internal-actions.md` to mention retry behavior for auth resolution.\n\nI’d implement this in one PR, with the first pass focused on Sepo-owned push operations plus hosted OIDC retry handling. The direct `actions/create-github-app-token` replacement is the only part I’d consider optional, because it is a slightly larger auth change.",
+      "createdAt": "2026-05-25T19:23:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/353#issuecomment-4536665145",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-25T19:21:41Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 353,
+  "state": "OPEN",
+  "title": "Adding retries for more robust service",
+  "updatedAt": "2026-05-25T19:23:54Z",
+  "url": "https://github.com/self-evolving/repo/issues/353"
+}

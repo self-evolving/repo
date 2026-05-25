@@ -1,0 +1,325 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- add `pi` to provider resolution, model policy, workflow setup, and runtime installation\n- restore `PI_AUTH_JSON_B64` / `PI_AUTH_JSON` only for Pi runs with isolated auth and cleanup\n- keep Pi session setup conservative and bundle Pi session logs without auth secrets\n- update onboarding and docs for Pi configuration and OAuth refresh-token caveats\n\n## Tests\n- `npm test`\n- `git diff --check`\n\nCloses #350\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDmmMlA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #354 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: Implementation succeeded and produced open PR #354 for issue #350; the next useful automated step is review before any human approval or merge decision.\n\n<!-- sepo-agent-handoff state:dispatched created:1779737983548 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY0MTYyMjY1MDU6aW1wbGVtZW50OjM1MDpyZXZpZXc6MzU0OjM -->",
+      "createdAt": "2026-05-25T19:39:43Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/354#issuecomment-4536765588",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDmnP9Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 93 | PASS | 11 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 10/10 | Reuses generic `acpx <agent>` path instead of adding a Pi protocol adapter; Pi flows through `buildAcpxArgs` and provider plumbing. Evidence: [acpx-adapter.ts](https://github.com/self-evolving/repo/blob/d580b974ff3d5507f1fb7bd7956c38e7c211e126/.agent/src/acpx-adapter.ts#L227-L259). |\n| coding_style / generic | Prefer simple implementations | pass | 9/10 | Pi support is mostly small resolver/setup/runtime branches, with no new adapter layer. Minor complexity is isolated to auth restoration. Evidence: [resolve-provider.js](https://github.com/self-evolving/repo/blob/d580b974ff3d5507f1fb7bd7956c38e7c211e126/.github/actions/resolve-agent-provider/resolve-provider.js#L5-L6), [setup-agent-runtime/action.yml](https://github.com/self-evolving/repo/blob/d580b974ff3d5507f1fb7bd7956c38e7c211e126/.github/actions/setup-agent-runtime/action.yml#L150-L167). |\n| coding_workflow / generic | Make surgical changes | pass | 9/10 | The broad file count is expected because provider selection is wired through packaged workflows and docs; no unrelated refactor stood out. Evidence: PR diff touches resolver, setup, run-task wiring, session setup, bundles, tests, and provider docs. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 10/10 | Adds separate typed-ish inputs/outputs for `install_pi`, `pi_version`, `pi_auth_json_b64`, and `pi_auth_json`, and fails on ambiguous dual auth inputs. Evidence: [setup-agent-runtime/action.yml](https://github.com/self-evolving/repo/blob/d580b974ff3d5507f1fb7bd7956c38e7c211e126/.github/actions/setup-agent-runtime/action.yml#L29-L36), [run-agent-task/action.yml](https://github.com/self-evolving/repo/blob/d580b974ff3d5507f1fb7bd7956c38e7c211e126/.github/actions/run-agent-task/action.yml#L89-L96), [restore-pi-auth.sh](https://github.com/self-evolving/repo/blob/d580b974ff3d5507f1fb7bd7956c38e7c211e126/.github/actions/run-agent-task/restore-pi-auth.sh#L4-L7). |\n| coding_workflow / generic | Name config by capability | pass | 9/10 | Public config remains capability-scoped where generic (`AGENT_DEFAULT_PROVIDER`, `AGENT_MODEL_POLICY`) and intentionally Pi-specific only for Pi `auth.json` restoration. Evidence: [configuration-list.md](https://github.com/self-evolving/repo/blob/d580b974ff3d5507f1fb7bd7956c38e7c211e126/.agent/docs/customization/configuration-list.md#L12-L13), [configuration-list.md](https://github.com/self-evolving/repo/blob/d580b974ff3d5507f1fb7bd7956c38e7c211e126/.agent/docs/customization/configuration-list.md#L66-L67). |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 9/10 | Keeps Pi as minimal provider plumbing, preserves inline `route_provider` and model-policy escape hatches, and documents that reviewer lanes remain static. Evidence: [supported-workflows.md](https://github.com/self-evolving/repo/blob/d580b974ff3d5507f1fb7bd7956c38e7c211e126/.agent/docs/usage/supported-workflows.md#L201-L203). |\n| coding_workflow / generic | Keep docs in sync | pass | 10/10 | Updates configuration, supported workflows, internal actions, setup, self-hosted runner, quick-start, and key concepts docs for Pi provider/auth behavior. Evidence: [configuration-list.md](https://github.com/self-evolving/repo/blob/d580b974ff3d5507f1fb7bd7956c38e7c211e126/.agent/docs/customization/configuration-list.md#L58-L77), [self-hosted runner docs](https://github.com/self-evolving/repo/blob/d580b974ff3d5507f1fb7bd7956c38e7c211e126/.agent/docs/setup/self-hosted-github-action-runner.md#L20-L28). |\n| communication / generic | Write audience-first documentation | pass | 8/10 | Entry docs stay task-oriented, while detailed OAuth rotation caveats live in deeper config/self-hosted/workflow docs. The quick-start prerequisite is denser than before but still actionable. Evidence: [quick-start.md](https://github.com/self-evolving/repo/blob/d580b974ff3d5507f1fb7bd7956c38e7c211e126/.agent/docs/overview/quick-start.md#L11-L16), [configuration-list.md](https://github.com/self-evolving/repo/blob/d580b974ff3d5507f1fb7bd7956c38e7c211e126/.agent/docs/customization/configuration-list.md#L77). |\n| communication / generic | Make setup guidance actionable | pass | 9/10 | Setup docs tell users which secrets/config to add and when persistent self-hosted auth is preferable for OAuth rotation. Evidence: [install-existing-repository.md](https://github.com/self-evolving/repo/blob/d580b974ff3d5507f1fb7bd7956c38e7c211e126/.agent/docs/setup/install-existing-repository.md#L101-L107), [self-hosted runner docs](https://github.com/self-evolving/repo/blob/d580b974ff3d5507f1fb7bd7956c38e7c211e126/.agent/docs/setup/self-hosted-github-action-runner.md#L26-L28). |\n| coding_workflow / generic | Separate diagnostics from continuity | pass | 10/10 | Pi session logs are bundled, while auth secrets are not restored or captured as continuity state. Evidence: [session-bundle.ts](https://github.com/self-evolving/repo/blob/d580b974ff3d5507f1fb7bd7956c38e7c211e126/.agent/src/session-bundle.ts#L266-L273), [session-bundle.test.ts](https://github.com/self-evolving/repo/blob/d580b974ff3d5507f1fb7bd7956c38e7c211e126/.agent/src/__tests__/session-bundle.test.ts#L212-L238). |\n| coding_workflow / generic | Surface stateful failures | pass | 9/10 | Auth restore fails clearly for ambiguous secrets and missing runtime env, and tests cover dual-secret failure plus isolated file permissions. Evidence: [restore-pi-auth.sh](https://github.com/self-evolving/repo/blob/d580b974ff3d5507f1fb7bd7956c38e7c211e126/.github/actions/run-agent-task/restore-pi-auth.sh#L4-L20), [pi-auth.test.ts](https://github.com/self-evolving/repo/blob/d580b974ff3d5507f1fb7bd7956c38e7c211e126/.agent/src/__tests__/pi-auth.test.ts#L34-L80). |\n\n## Notes\n\n- The strongest rubric fit is the revised design direction: this PR uses existing ACPX provider plumbing and adds Pi at the resolver/setup/session/auth boundaries instead of creating a parallel adapter.\n- Conservative Pi session setup is handled explicitly: Pi receives configured model setup but returns before Codex `thought_level` and `set-mode full-access` commands. Evidence: [acpx-adapter.ts](https://github.com/self-evolving/repo/blob/d580b974ff3d5507f1fb7bd7956c38e7c211e126/.agent/src/acpx-adapter.ts#L297-L319), [acpx-adapter.test.ts](https://github.com/self-evolving/repo/blob/d580b974ff3d5507f1fb7bd7956c38e7c211e126/.agent/src/__tests__/acpx-adapter.test.ts#L495-L510).\n- Regression coverage is focused on the requested surfaces: resolver auto/override behavior, Pi auth restoration, conservative setup, workflow wiring, onboarding, and session bundles.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No blocking or warning-level rubric findings. The implementation satisfies the applicable selected rubrics with only small documentation-density and auth-glue complexity trade-offs.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-25T19:42:58Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/354#issuecomment-4536782837",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-25T19:39:03Z",
+  "files": [
+    {
+      "path": ".agent/action-templates/agent-action-template.yml",
+      "additions": 5,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 8,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/index.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/overview/quick-start.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/setup/install-existing-repository.md",
+      "additions": 3,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/setup/self-hosted-github-action-runner.md",
+      "additions": 4,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/key-concepts.md",
+      "additions": 4,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/internal-actions.md",
+      "additions": 3,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/supported-workflows.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/acpx-adapter.test.ts",
+      "additions": 17,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 61,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/onboarding-check-cli.test.ts",
+      "additions": 56,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/pi-auth.test.ts",
+      "additions": 80,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/resolve-agent-provider.test.ts",
+      "additions": 75,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/session-bundle.test.ts",
+      "additions": 32,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/acpx-adapter.ts",
+      "additions": 9,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/onboarding-check.ts",
+      "additions": 4,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/onboarding.ts",
+      "additions": 5,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/run.ts",
+      "additions": 15,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/session-bundle.ts",
+      "additions": 9,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/resolve-agent-provider/action.yml",
+      "additions": 14,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/resolve-agent-provider/resolve-provider.js",
+      "additions": 32,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/run-agent-task/action.yml",
+      "additions": 27,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/run-agent-task/restore-pi-auth.sh",
+      "additions": 58,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/actions/setup-agent-runtime/action.yml",
+      "additions": 27,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-daily-summary.yml",
+      "additions": 5,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-entrypoint.yml",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-fix-pr.yml",
+      "additions": 5,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-implement.yml",
+      "additions": 5,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-label.yml",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-memory-bootstrap.yml",
+      "additions": 5,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-memory-pr-closed.yml",
+      "additions": 5,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-memory-scan.yml",
+      "additions": 5,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-onboarding.yml",
+      "additions": 5,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-orchestrator.yml",
+      "additions": 5,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-project-manager.yml",
+      "additions": 5,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-release-prepare.yml",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-review.yml",
+      "additions": 8,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-router.yml",
+      "additions": 33,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-rubrics-initialization.yml",
+      "additions": 5,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-rubrics-review.yml",
+      "additions": 5,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-rubrics-update.yml",
+      "additions": 5,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-self-approve.yml",
+      "additions": 5,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-update.yml",
+      "additions": 5,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-350/codex-26416226505",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 354,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "OPEN",
+  "title": "Add Pi provider support for agent runs",
+  "updatedAt": "2026-05-25T19:42:58Z",
+  "url": "https://github.com/self-evolving/repo/pull/354"
+}

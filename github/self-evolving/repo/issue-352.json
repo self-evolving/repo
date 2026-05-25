@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "@sepo-agent /answer \n\nfor now, we have quite a few routes for users to pick from. however it adds mental burden for users to pick and understand. Can we somewhat make the default entry point more powerful (also related to #124 ? ) ",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDmflUA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes. I’d treat #352 as the broader UX layer, with #124/#349 as the first backend capability it needs.\n\nCurrent shape:\n\n- [`agent-entrypoint.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-entrypoint.yml#L48-L53) only wakes on `@sepo-agent`.\n- [`extract-context.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/extract-context.ts#L192-L220) decides whether there is a live mention and extracts any explicit route.\n- If there is no explicit route, [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L239-L321) runs dispatch triage and resolves the route.\n- The dispatch prompt already supports a powerful default path across `answer`, `implement`, `fix-pr`, `review`, `orchestrate`, `create-action`, and `unsupported`: [`agent-dispatch.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-dispatch.md#L10-L18).\n- Explicit slash routes are really shortcuts/overrides: [`triage.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/triage.ts#L128-L158), [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/usage/supported-workflows.md#L223-L235).\n\nSo I’d make the default UX:\n\n```text\n@sepo-agent <natural language request>\n```\n\nand demote slash commands to “advanced/direct control.”\n\nConcrete plan:\n\n1. Merge/ship #124’s implicit-follow-up work from PR #349 first. That makes agent-labeled threads smarter by allowing clear follow-up questions without repeating `@sepo-agent`, while still forcing implicit replies to `answer` only.\n\n2. Update user-facing docs so the first recommendation is natural language:\n   - “Ask Sepo what you want.”\n   - “Use `/implement`, `/review`, `/fix-pr`, `/orchestrate` only when you want to force a specific path.”\n   Primary docs to edit: [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/usage/supported-workflows.md) and quick-start/setup docs.\n\n3. Strengthen the dispatch prompt around default behavior:\n   - Use `answer` for questions/planning.\n   - Use `implement` only for clear code-change requests, keeping the existing approval guard for triaged implementation.\n   - Use `orchestrate` for broad/multi-step work instead of making users choose it.\n   - Keep `review`/`fix-pr` constrained to PR targets.\n\n4. Add tests that encode the desired UX:\n   - `@sepo-agent can you streamline this UX?` routes to `answer` or `implement` depending on wording.\n   - `@sepo-agent please handle this end to end` can route to `orchestrate`.\n   - Explicit `/review`, `/fix-pr`, etc. still bypass dispatch.\n   - Ambiguous implementation requests continue to require approval.\n\n5. Optionally add an inline “route suggestion” convention in answer responses: when Sepo answers a planning question and implementation is clearly the next step, it can end with “I can implement this next with `/implement` or `/orchestrate`.” That keeps control visible without forcing users to know every route upfront.\n\nI would not remove the existing routes. They are useful power-user controls. The UX improvement is to make them unnecessary for normal usage: default mention plus intent detection should be the main entry point, with #124 handling continued conversation once the thread is agent-labeled.\n\nIf approved, I’d implement this as a small docs + dispatch-prompt + tests slice after #349 lands.",
+      "createdAt": "2026-05-25T19:22:24Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/352#issuecomment-4536657232",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-25T19:20:10Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 352,
+  "state": "OPEN",
+  "title": "UX: streamline the UX",
+  "updatedAt": "2026-05-25T19:22:25Z",
+  "url": "https://github.com/self-evolving/repo/issues/352"
+}

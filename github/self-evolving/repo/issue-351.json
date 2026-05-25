@@ -1,0 +1,78 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "@sepo-agent /answer ",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDmaCnQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, Sepo can do this, but it does **not** currently have a post-merge CI check in the orchestrator chain.\n\nCurrent behavior:\n- `/orchestrate` keeps a bounded handoff chain only for explicitly orchestrated runs: [README.md](https://github.com/self-evolving/repo/blob/main/README.md#L64-L65), [README.md](https://github.com/self-evolving/repo/blob/main/README.md#L83-L83).\n- After `fix-pr` succeeds, the chain dispatches `review`, not a CI watcher: [.agent/src/handoff.ts](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L460-L474).\n- The `fix-pr` workflow only hands back while the PR is still open: [.github/workflows/agent-fix-pr.yml](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-fix-pr.yml#L300-L318).\n- Self-merge checks PR status checks before merging or enables GitHub auto-merge while checks are pending: [.agent/src/self-merge.ts](https://github.com/self-evolving/repo/blob/main/.agent/src/self-merge.ts#L280-L321).\n- Once `agent-self-merge` reports `merged`, the orchestrator stops: [.agent/src/handoff.ts](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L539-L540).\n- Existing merged-PR workflows cover memory, rubrics, and agent branch cleanup, not post-merge CI monitoring: [.github/workflows/agent-branch-cleanup.yml](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-branch-cleanup.yml#L3-L20).\n\nImplementation approach I’d recommend:\n\n1. Add a deterministic post-merge CI status route, probably `agent-post-merge-ci.yml`, triggered by `pull_request_target.closed` where `merged == true`.\n2. Gate it narrowly so it only runs for Sepo-relevant merges, for example PRs with a Sepo self-merge marker, fix-pr status marker, orchestrator marker, or trusted `agent/*` head branch.\n3. Add typed helpers under `.agent/src` to resolve the merged PR’s merge commit/default-branch head and inspect check runs/statuses with `checks: read` and `statuses: read`.\n4. Treat pending CI as a bounded wait/poll, not an orchestrator LLM step. If checks are pending, wait a short configured window; if still pending, post “pending” with run links and stop.\n5. If post-merge CI fails, post a visible status comment on the merged PR and optionally dispatch a new orchestrated follow-up issue or implementation route, depending on the policy we want.\n6. Add tests around status summarization, event gating, and comment formatting.\n7. Update the orchestrator docs to say pre-merge self-merge checks are already enforced, and post-merge CI is handled by the new merged-PR workflow.\n\nClarification before coding: should a post-merge CI failure only **report** on the merged PR, or should Sepo also create/dispatch a follow-up fix automatically?",
+      "createdAt": "2026-05-25T19:04:22Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/351#issuecomment-4536566429",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDmd5sQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer perhaps an easier way is the following: \n\n1. we just add in the orchestrator prompt, saying that after fix-pr, you can optionally check and watch the ci status -> \n2. such that the agent can plan accordingly? ",
+      "createdAt": "2026-05-25T19:17:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/351#issuecomment-4536629681",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDmeagg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, that easier path is reasonable **for an opportunistic CI check**, but I would not describe it as “watch CI after merge.”\n\nWhat a prompt-only change can do:\n- Tell the orchestrator planner to inspect current PR/check status after a successful `fix-pr`.\n- If CI is already failing or clearly pending, it can choose `blocked`/`stop` with a visible message instead of immediately handing off to `review`.\n- If CI is green, it can continue with the existing allowed `fix-pr -> review` path.\n\nWhat it cannot do by itself:\n- Add a new `ci-status` action. The prompt schema only allows `implement | review | fix-pr | agent-self-approve | agent-self-merge`: [.github/prompts/agent-orchestrator.md](https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-orchestrator.md#L71-L83).\n- Override runtime policy. The prompt explicitly says runtime validates the planner decision: [.github/prompts/agent-orchestrator.md](https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-orchestrator.md#L20-L40).\n- Keep watching after the PR is merged. `agent-fix-pr.yml` only dispatches the orchestrator while the PR is still open: [.github/workflows/agent-fix-pr.yml](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-fix-pr.yml#L300-L318).\n- Change the allowed post-`fix-pr` handoff. Runtime currently allows successful `fix-pr` to hand off to `review`, and rejects other handoff actions through the policy path: [.agent/src/handoff.ts](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L658-L670).\n\nSuggested small implementation:\n1. Update `.github/prompts/agent-orchestrator.md` to say: after successful `fix-pr`, inspect current PR CI/check status when available before choosing the next step.\n2. Instruct it to:\n   - hand off to `review` when fixes succeeded and checks are green or unavailable;\n   - choose `blocked`/`stop` with `user_message` when checks are failing;\n   - optionally choose `blocked`/`stop` when checks are still pending and another automatic review would be premature.\n3. Update `.agent/docs/architecture/agent-orchestrator.md` to document this as “opportunistic CI inspection,” not durable post-merge monitoring.\n4. Add/adjust prompt tests only if there is existing coverage for orchestrator prompt content or planner policy expectations.\n\nSo: prompt-only is a good first pass for “check CI before continuing.” For true “watch CI after merge,” we still need a merged-PR or workflow-run based workflow.",
+      "createdAt": "2026-05-25T19:18:26Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/351#issuecomment-4536638082",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-25T19:01:50Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 351,
+  "state": "OPEN",
+  "title": "Can sepo orchestrator check the ci status after a fix-pr is merged?",
+  "updatedAt": "2026-05-25T19:18:26Z",
+  "url": "https://github.com/self-evolving/repo/issues/351"
+}

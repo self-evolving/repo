@@ -59,6 +59,116 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/124#issuecomment-4532881291",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDlnI5Q",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer good. There should also be rubrics for it as well? The agent should learn with the communication model? \n\n",
+      "createdAt": "2026-05-25T16:32:48Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/124#issuecomment-4535732453",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDlnb-Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes. I’d add rubrics, but I would not frame it as training the model. Sepo should “learn” this through **rubrics + memory**, not by changing model weights.\n\nFor this feature, I’d use rubrics in two layers:\n\n1. **Intent inference rubric**\n   A communication rubric should define when an unmentioned comment is likely addressed to Sepo.\n\n   Example guidance:\n\n   - Respond when the comment is a direct follow-up question about a prior Sepo answer.\n   - Respond when the user asks for clarification, tradeoffs, or a refined plan.\n   - Ignore thanks, status updates, human-to-human discussion, and ambiguous comments.\n   - When uncertain, prefer silence.\n   - Never infer implementation/review/fix intent from an unmentioned comment; implicit follow-ups can only route to `answer`.\n\n2. **Answer communication rubric**\n   Once Sepo decides to reply, the answer route should use communication rubrics to keep the response concise, non-intrusive, and context-aware.\n\n   Example guidance:\n\n   - Do not over-explain why Sepo replied unless useful.\n   - Treat the comment as a continuation of the thread.\n   - Answer the latest user intent directly.\n   - Avoid turning every follow-up into a new plan unless the user asks for one.\n\nOne implementation detail: if we make this a new intent-classifier route, it should be able to read communication rubrics. I would avoid putting the whole behavior inside the existing `dispatch` route if dispatch intentionally stays rubric-disabled. A small dedicated route like `intent` or `followup-intent` would be cleaner.\n\nSo the fuller design becomes:\n\n```text\nunmentioned comment on agent-labeled issue/PR\n-> deterministic candidate gate\n-> followup intent classifier with communication rubrics\n-> respond only if classifier says answer\n-> answer route with normal communication rubrics\n```\n\nMemory can help too, but only for stable lessons, for example: “Implicit follow-ups should prefer silence unless the user is clearly addressing Sepo.” Rubrics are the better place for the normative communication policy.",
+      "createdAt": "2026-05-25T16:33:51Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/124#issuecomment-4535737337",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDlq8Yg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate",
+      "createdAt": "2026-05-25T16:45:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/124#issuecomment-4535794786",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDlriqw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is starting a focused child task for this orchestration.\n\n| Child task | Focus | Parent issue | Status |\n| --- | --- | --- | --- |\n| #348 | implicit-followup-core | #124 | Running |\n\nI'll report back here when the child task finishes.\n\n<!-- sepo-sub-orchestrator-child parent:124 stage:implicit-followup-core child:348 -->",
+      "createdAt": "2026-05-25T16:47:00Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/124#issuecomment-4535804587",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDl6EJw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Child task completed.\n\n| Child task | PR | Outcome | Parent round | Next step |\n| --- | --- | --- | --- | --- |\n| #348 | #349 | Ready to ship | 2 / 40 | Resuming parent orchestration |\n\nSummary: review verdict is SHIP\n\n<!-- sepo-sub-orchestrator-report child:348 resume:dispatched -->",
+      "createdAt": "2026-05-25T17:30:59Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/124#issuecomment-4536042535",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDl61xg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo orchestration stopped after `orchestrate` concluded `done`.\n\n- Source action: `orchestrate`\n- Source conclusion: `done`\n- Target: `issue #124`\n- Round: `2/40`\n- Reason: agent planner stop: Child issue #348 completed with PR #349 and the latest review synthesis verdict is SHIP with Recommended Next Step NO_AUTOMATED_ACTION. Self-approval and self-merge are disabled, and no further bounded parent subgoal is defined, so the remaining step is human PR handling.\n- Source run ID: `26412075984`\n\nNo follow-up workflow was dispatched. Inspect the source action status comment and workflow logs before retrying or continuing manually.\n\n<!-- sepo-agent-orchestrate-stop -->",
+      "createdAt": "2026-05-25T17:32:17Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/124#issuecomment-4536055238",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-04T01:06:55Z",
@@ -85,6 +195,6 @@
   "number": 124,
   "state": "OPEN",
   "title": "Add smarter user intention detection",
-  "updatedAt": "2026-05-25T08:42:24Z",
+  "updatedAt": "2026-05-25T17:32:17Z",
   "url": "https://github.com/self-evolving/repo/issues/124"
 }
