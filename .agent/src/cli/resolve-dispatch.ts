@@ -2,7 +2,7 @@
 // Usage: node .agent/dist/cli/resolve-dispatch.js
 // Env: RESPONSE_FILE, TARGET_KIND, TARGET_NUMBER, AUTHOR_ASSOCIATION,
 //      REQUESTED_ROUTE, REQUEST_TEXT, REQUESTED_SKILL, ACCESS_POLICY,
-//      REPOSITORY_PRIVATE, GITHUB_REPOSITORY, GH_TOKEN
+//      REPOSITORY_PRIVATE, GITHUB_REPOSITORY, GH_TOKEN, IMPLICIT_FOLLOWUP
 // Outputs: route, needs_approval, confidence, summary, issue_title, issue_body,
 //          skill, base_pr
 
@@ -10,6 +10,7 @@ import { readFileSync } from "node:fs";
 import { type AccessPolicy, parseAccessPolicy } from "../access-policy.js";
 import { fetchPrMeta } from "../github.js";
 import { setOutput } from "../output.js";
+import { normalizeFollowupIntent } from "../followup-intent.js";
 import {
   type ImplementIssueMetadata,
   normalizeDispatch,
@@ -27,6 +28,7 @@ const requestedSkill = String(process.env.REQUESTED_SKILL || "").trim();
 const requestText = process.env.REQUEST_TEXT || "";
 const isPublicRepo = String(process.env.REPOSITORY_PRIVATE || "").trim().toLowerCase() === "false";
 const repo = process.env.GITHUB_REPOSITORY || "";
+const implicitFollowup = String(process.env.IMPLICIT_FOLLOWUP || "").trim().toLowerCase() === "true";
 
 function loadAccessPolicy(): AccessPolicy | null {
   try {
@@ -83,6 +85,11 @@ function normalizeInferredImplementBase(metadata: ImplementIssueMetadata | null)
 
 function emitDecision(accessPolicy: AccessPolicy): void {
   try {
+    if (implicitFollowup) {
+      emitImplicitFollowupDecision(accessPolicy);
+      return;
+    }
+
     const isExplicit = Boolean(requestedRoute);
     const implementMetadata = isExplicit && requestedRoute === "implement" && raw.trim()
       ? (() => {
@@ -118,6 +125,17 @@ function emitDecision(accessPolicy: AccessPolicy): void {
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`Dispatch resolution failed: ${msg}`);
+    if (implicitFollowup) {
+      setOutput("route", "");
+      setOutput("needs_approval", "false");
+      setOutput("confidence", "low");
+      setOutput("summary", "Could not parse follow-up intent response; ignoring implicit follow-up.");
+      setOutput("issue_title", "");
+      setOutput("issue_body", "");
+      setOutput("skill", "");
+      setOutput("base_pr", "");
+      return;
+    }
     // Fall back to answer route on parse failure
     setOutput("route", "answer");
     setOutput("needs_approval", "false");
@@ -130,6 +148,58 @@ function emitDecision(accessPolicy: AccessPolicy): void {
   }
 }
 
+function emitImplicitFollowupDecision(accessPolicy: AccessPolicy): void {
+  const intent = normalizeFollowupIntent(raw);
+  if (intent.outcome === "ignore") {
+    setOutput("route", "");
+    setOutput("needs_approval", "false");
+    setOutput("confidence", intent.confidence || "medium");
+    setOutput("summary", intent.summary || "Ignoring implicit follow-up.");
+    setOutput("issue_title", "");
+    setOutput("issue_body", "");
+    setOutput("skill", "");
+    setOutput("base_pr", "");
+    return;
+  }
+
+  const answerDecision = applyDispatchPolicy(
+    {
+      route: "answer",
+      needsApproval: false,
+      confidence: intent.confidence || "medium",
+      summary: intent.summary || "I’ll answer this follow-up inline.",
+      issueTitle: "",
+      issueBody: "",
+    },
+    targetKind,
+    authorAssociation,
+    accessPolicy,
+    isPublicRepo,
+    true,
+  );
+
+  if (answerDecision.route !== "answer") {
+    setOutput("route", "");
+    setOutput("needs_approval", "false");
+    setOutput("confidence", answerDecision.confidence || intent.confidence || "medium");
+    setOutput("summary", answerDecision.summary || "Implicit follow-up answer is not authorized.");
+    setOutput("issue_title", "");
+    setOutput("issue_body", "");
+    setOutput("skill", "");
+    setOutput("base_pr", "");
+    return;
+  }
+
+  setOutput("route", "answer");
+  setOutput("needs_approval", "false");
+  setOutput("confidence", answerDecision.confidence);
+  setOutput("summary", answerDecision.summary);
+  setOutput("issue_title", "");
+  setOutput("issue_body", "");
+  setOutput("skill", "");
+  setOutput("base_pr", "");
+}
+
 let raw = "";
 if (responseFile) {
   try {
@@ -140,7 +210,7 @@ if (responseFile) {
   }
 }
 
-if (requestedRoute || raw) {
+if (requestedRoute || raw || implicitFollowup) {
   const accessPolicy = loadAccessPolicy();
   if (!accessPolicy) {
     process.exitCode = 2;

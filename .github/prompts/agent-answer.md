@@ -1,8 +1,13 @@
 ## Task Description
 
-Your task is to directly respond to the following user's mention:
+Your task is to directly respond to the following user's request or follow-up comment:
 
 ${MENTION_BODY}
+
+Request metadata:
+- Source kind: `${SOURCE_KIND}`
+- Triggering comment/review ID: `${REQUEST_COMMENT_ID}`
+- Triggering comment/review URL: `${REQUEST_COMMENT_URL}`
 
 Instructions:
 - Answer the user's question directly, or explain the limitation if the routed request is unsupported.

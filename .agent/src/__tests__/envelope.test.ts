@@ -652,7 +652,7 @@ test("agent router bypasses dispatch triage for explicit mention slash routes", 
   );
   assert.match(
     runnerWorkflow,
-    /RESPONSE_FILE:\s*\$\{\{\s*steps\.triage\.outputs\.response_file \|\| steps\.implement_metadata\.outputs\.response_file\s*\}\}/,
+    /RESPONSE_FILE:\s*\$\{\{\s*steps\.followup_intent\.outputs\.response_file \|\| steps\.triage\.outputs\.response_file \|\| steps\.implement_metadata\.outputs\.response_file\s*\}\}/,
   );
   assert.match(runnerWorkflow, /REQUESTED_ROUTE:\s*\$\{\{\s*steps\.context\.outputs\.requested_route\s*\}\}/);
   assert.match(runnerWorkflow, /base_pr:\s*\$\{\{\s*steps\.dispatch\.outputs\.base_pr\s*\}\}/);
