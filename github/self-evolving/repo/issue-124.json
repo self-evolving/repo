@@ -22,6 +22,43 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/124#issuecomment-4367659780",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDi4XKQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer can you think more about the plans and ideas? ",
+      "createdAt": "2026-05-25T08:40:37Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/124#issuecomment-4532868905",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDi5Hiw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I’d refine the plan around one principle: **separate “should this workflow wake up?” from “should the agent reply?”** The first should be deterministic and cheap; the second can use smarter intent detection.\n\nCurrent blocker: [`agent-entrypoint.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-entrypoint.yml#L48-L57) only starts when the event JSON contains `@sepo-agent`, so an unmentioned follow-up cannot reach the router at all.\n\nRecommended design:\n\n1. **Wake-up gate**\n   Keep explicit mentions unchanged, but also start the router when all are true:\n\n   - repo variable does not disable it\n   - event is an issue/PR comment, PR review, or PR review comment\n   - target issue/PR has the `agent` label\n   - sender is not a bot\n\n   I’d interpret “agent tag” as the fixed `agent` label. That is cleaner and auditable than scanning all prior comments for old mentions.\n\n2. **Intent gate**\n   Add an implicit follow-up classifier before dispatch. For explicit mentions, skip this gate. For unmentioned labeled-thread comments, classify into:\n\n   - `respond`: likely addressed to Sepo as a follow-up question\n   - `ignore`: normal human discussion, thanks, status notes, unrelated review comments\n\n   Only `respond` should proceed, and it should proceed as `answer` only. I would not let implicit comments trigger `implement`, `review`, `fix-pr`, or `orchestrate`.\n\n3. **Intent signals**\n   Strong positive signals:\n\n   - “can you explain…”, “what do you mean…”, “why…”, “how would…”\n   - references to prior agent output: “your plan”, “that answer”, “the approach above”\n   - direct second-person follow-up in an agent-labeled thread\n\n   Strong negative signals:\n\n   - “thanks”, “LGTM”, “I’ll handle this”\n   - human-to-human coordination\n   - commit/status/update comments\n   - ambiguous statements without a question or agent-directed wording\n\n4. **Config name**\n   I’d use one of these:\n\n   - Simple boolean: `AGENT_IMPLICIT_FOLLOWUPS_ENABLED`\n   - More future-proof mode: `AGENT_FOLLOWUP_INTENT_MODE`\n\n   My preference is `AGENT_FOLLOWUP_INTENT_MODE`, with:\n\n   ```text\n   disabled\n   agent-label\n   ```\n\n   Default could be `agent-label`, while `false` remains accepted as an alias for `disabled`.\n\n5. **Router shape**\n   Existing context extraction already centralizes mention gating in [`extract-context.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/extract-context.ts#L146-L220). I’d extend it to output:\n\n   ```text\n   implicit_followup=true|false\n   ```\n\n   Then the router can run the lightweight classifier only for `implicit_followup=true`.\n\n6. **Avoid noisy replies**\n   The classifier should support an internal `ignore` result that posts nothing. This is better than mapping “not intended for agent” to `unsupported`, because `unsupported` would still create noise.\n\n7. **Extra context**\n   For implicit follow-ups, the answer agent should receive the triggering comment URL/ID and enough thread context to understand “what about that?” style replies. The runtime already supports supplemental prompt vars like `REQUEST_COMMENT_ID` and `REQUEST_COMMENT_URL` in [`run.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/run.ts#L65-L86), so the answer route should forward those consistently.\n\nSuggested implementation order:\n\n1. Add config parsing for `AGENT_FOLLOWUP_INTENT_MODE`.\n2. Loosen `agent-entrypoint.yml` only for labeled issue/PR follow-up events.\n3. Extend `extract-context` to detect implicit candidates and emit metadata.\n4. Add intent classification with `respond` / `ignore`.\n5. Force implicit `respond` to `answer`.\n6. Add unit tests for explicit mention behavior, labeled follow-up question, unlabeled skip, disabled skip, and “thanks” ignored.\n7. Update configuration and architecture docs.",
+      "createdAt": "2026-05-25T08:42:24Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/124#issuecomment-4532881291",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-04T01:06:55Z",
@@ -48,6 +85,6 @@
   "number": 124,
   "state": "OPEN",
   "title": "Add smarter user intention detection",
-  "updatedAt": "2026-05-04T04:10:22Z",
+  "updatedAt": "2026-05-25T08:42:24Z",
   "url": "https://github.com/self-evolving/repo/issues/124"
 }
