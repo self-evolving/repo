@@ -96,3 +96,4 @@
 - Provider auto-detect: OPENAI_API_KEY selects Codex; otherwise CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY selects Claude.
 - Packaged agent-*.yml jobs carry local vars.AGENT_ENABLED != 'false' guards; duplicate dependent-job guards are intentional.
 - AGENT_DEFAULT_PROVIDER is the only global provider knob; AGENT_MODEL_POLICY.default.provider is invalid.
+- Docs should describe setup checks as manual Agent / Onboarding / Check Setup runs, not template auto-run behavior.
