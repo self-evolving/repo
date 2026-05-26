@@ -1,0 +1,111 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjE1NzM5NTk=",
+    "is_bot": false,
+    "login": "grp06",
+    "name": "George Pickett"
+  },
+  "baseRefName": "main",
+  "body": "Summary:\n- Use session setup as the single model-selection path for named ACPX sessions.\n- Keep global `--model` on no-session exec commands.\n- Add coverage for persistent and transient session command construction.\n\nTesting:\n- from the package directory: `npm ci`\n- from the package directory: `npm run build`\n- from the package directory: `node --test dist/__tests__/acpx-adapter.test.js`\n- from the package directory: `npm test`\n- `git diff --check`\n\nCloses #342\n",
+  "closedAt": "2026-05-26T20:11:53Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDxh2uw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | review | PR #357 | 2 / 40 | Dispatched |\n\nReason: agent planner selected review: PR #357 is open, labeled for agent review, and there is no latest review synthesis or concrete fix-pr finding yet; run review first.\n\n<!-- sepo-agent-handoff state:dispatched created:1779825605009 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY0NzE4MjA4Njk6b3JjaGVzdHJhdGU6MzU3OnJldmlldzozNTc6Mg -->",
+      "createdAt": "2026-05-26T20:00:05Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/357#issuecomment-4548228795",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDxjkDQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 96 | PASS | 5 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 19/20 | The change keeps model selection on existing typed inputs (`model`, `sessionName`, `isExecRoute`) and removes the duplicate global model path for named sessions via `usesNamedSession` in [`acpx-adapter.ts`](https://github.com/self-evolving/repo/blob/6fdfcc65802ed81b81a60f39b901675619439369/.agent/src/acpx-adapter.ts#L241-L244). |\n| coding_workflow / generic | Reuse existing code | pass | 19/20 | The implementation changes the central `buildAcpxArgs` helper and continues to rely on existing `buildSessionSetupCommands` for session model setup in [`acpx-adapter.ts`](https://github.com/self-evolving/repo/blob/6fdfcc65802ed81b81a60f39b901675619439369/.agent/src/acpx-adapter.ts#L283-L301). |\n| coding_workflow / generic | Make surgical changes | pass | 20/20 | The PR touches only `.agent/src/acpx-adapter.ts` and `.agent/src/__tests__/acpx-adapter.test.ts`, with a minimal conditional change plus focused assertions. |\n| coding_style / generic | Prefer simple implementations | pass | 20/20 | The behavior is implemented with a straightforward `usesNamedSession` boolean rather than adding configuration, new routing, or alternate model-selection machinery. |\n| coding_workflow / generic | Separate diagnostics from continuity | pass | 18/20 | Transient session coverage still verifies track-only exec runs avoid stable session reuse while now applying `set model` during transient session setup and omitting global `--model` from the prompt command in [`acpx-adapter.test.ts`](https://github.com/self-evolving/repo/blob/6fdfcc65802ed81b81a60f39b901675619439369/.agent/src/__tests__/acpx-adapter.test.ts#L158-L199). |\n\n## Notes\n\n- The PR directly resolves the issue’s intended contract: named ACPX sessions use session setup for model selection, while no-session exec commands still receive global `--model`.\n- Coverage is focused and relevant: persistent named-session argument construction is checked in [`buildAcpxArgs`](https://github.com/self-evolving/repo/blob/6fdfcc65802ed81b81a60f39b901675619439369/.agent/src/__tests__/acpx-adapter.test.ts#L45-L67), no-session exec model behavior remains covered in [`buildAcpxArgs`](https://github.com/self-evolving/repo/blob/6fdfcc65802ed81b81a60f39b901675619439369/.agent/src/__tests__/acpx-adapter.test.ts#L69-L90), and transient session command construction is covered through `runAcpx`.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** The implementation satisfies the applicable selected rubrics. No blocking or warning-level rubric gaps found.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-26T20:02:10Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/357#issuecomment-4548256781",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDxnO5A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 6fdfcc65802ed81b81a60f39b901675619439369 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #357 resolves issue #342 by choosing a single ACPX model-selection path for sessioned runs.\n- Named and transient sessions now rely on session setup via `acpx <agent> set model <id> -s <session>`.\n- No-session exec commands still receive the global `--model` flag because they do not have a setup phase.\n- The PR is intentionally small, touching only the ACPX adapter and focused adapter tests.\n\n## Review\nThe independent Claude, Codex, and rubrics reviews all found no BLOCKING or WARNING issues. Current PR head `6fdfcc65802ed81b81a60f39b901675619439369` matches that conclusion: the diff suppresses duplicate model flags for named-session prompt paths while preserving exec behavior.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues | INFO | The implementation is minimal, aligned with issue #342, and covered by focused tests for named-session argument construction and transient session setup. |\n\n## Progress\n- Linked issue #342 was reviewed and the PR implements option 1 from that issue: use global `--model` only for no-session exec runs.\n- Existing PR conversation has a rubrics PASS and no blocking discussion.\n- Existing inline comments and review threads were re-fetched; none were present.\n- No inline comments were posted, replied to, minimized, or resolved.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: No unresolved actionable branch-change work remains for an automated fix-pr pass.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch changes.",
+      "createdAt": "2026-05-26T20:06:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/357#issuecomment-4548316900",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDxrVrQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #357.\n\nno rubric changes\n\nI found no trusted contributor feedback in PR #357 that warranted a durable rubric update. The PR conversation contained only bot comments/reviews, no inline review comments, and the linked issue #342 was bot-authored. The PR author was `CONTRIBUTOR`; the merge actor/requester `lolipopshock` did not author an explicit rubric preference in the conversation.\n\nExisting rubrics already cover the implementation themes reflected by the PR: explicit structured inputs, surgical changes, simple implementation, and separating diagnostics from continuity. No files were changed under `agent-rubrics`.\n",
+      "createdAt": "2026-05-26T20:12:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/357#issuecomment-4548384173",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-26T17:47:02Z",
+  "files": [
+    {
+      "path": ".agent/src/__tests__/acpx-adapter.test.ts",
+      "additions": 4,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/acpx-adapter.ts",
+      "additions": 2,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "fix-session-model-flag",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDSNKQ",
+      "name": "agent/review",
+      "description": "",
+      "color": "8301C0"
+    },
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": "2026-05-26T20:11:53Z",
+  "number": 357,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "MERGED",
+  "title": "Avoid duplicate model flags for session runs",
+  "updatedAt": "2026-05-26T20:12:50Z",
+  "url": "https://github.com/self-evolving/repo/pull/357"
+}

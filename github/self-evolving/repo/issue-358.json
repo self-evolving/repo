@@ -1,0 +1,115 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "https://github.com/self-evolving/repo/issues/355#issuecomment-4537756633\n\nI thought we fixed it before? @sepo-agent",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDw-FwA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "It looks like a real remaining edge case, not Sherry lacking access.\n\nThe failed run for #355 was the `issues` event run at `bec5976`. The portal reached route resolution with `AUTHOR_ASSOCIATION: NONE`, triaged the request as `implement`, then the dispatch policy rejected it because `implement` defaults to `OWNER, MEMBER, COLLABORATOR, CONTRIBUTOR` only. That produced the linked denial.\n\nWe did fix related cases before: issue mentions try to refresh `author_association`, then promote weak associations when the actor is a repo collaborator: [`extract-context.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/extract-context.ts#L117-L160). But this failure shows a hole in that fallback path: for a fresh issue-body mention, GitHub still resolved the requester as `NONE` at dispatch time, and the collaborator fallback did not promote it. Since the GitHub helper intentionally swallows best-effort API lookup failures, there was no visible diagnostic explaining which lookup failed: [`github.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/github.ts#L18-L28).\n\nThat is why retrying as a normal issue comment worked: GitHub reported the comment author as `COLLABORATOR`, so the same route passed auth.\n\nRecommended fix:\n- Add logging around raw event association, refreshed issue association, and collaborator fallback result.\n- For `issues` events with weak/`NONE` association, verify repo permission via the permission endpoint, not only the collaborator boolean check.\n- Add a regression test for: issue event says `NONE`, issue refresh still says `NONE`, requester has repo permission, dispatch should allow `implement` and request approval instead of denying.\n\nSo yes, “fixed before” covered part of the problem, but #355 exposed a remaining issue-body race/fallback gap.",
+      "createdAt": "2026-05-26T18:59:30Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/358#issuecomment-4547642816",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDxd8zw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent Or maybe the action is to add a small time delay (if it fails to pass auth check)? When the author comment finished posting on the issues, then we can reliably check their auth? ",
+      "createdAt": "2026-05-26T19:55:20Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/358#issuecomment-4548164815",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDxftUQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, a small targeted delay/retry is reasonable, but I would not make it the only fix.\n\nFor issue-body mentions, the issue has already been created when the `issues` webhook fires, but GitHub’s derived `author_association` can still be stale. In #355 the router saw `AUTHOR_ASSOCIATION: NONE`, then dispatch denied the triaged `implement` route. A later issue comment from the same person came through as `COLLABORATOR`, so the retry worked.\n\nThe best fix is probably:\n\n1. In `extract-context`, only when the trigger is an `issues` event and the association is weak/`NONE`, retry the issue refresh a few times with a short backoff before returning `NONE`: [`extract-context.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/extract-context.ts#L117-L160).\n2. Also use the stronger repo permission check as fallback, not just the boolean collaborator endpoint. We already have `hasRepositoryPermission()` for label-trigger auth, but mention fallback currently uses `hasRepositoryCollaborator()` instead.\n3. Log the raw association, refreshed association, permission fallback result, and final association. Right now `ghApi()`/`ghApiOk()` intentionally swallow failures, so a real permission/API miss looks identical to “not a collaborator”: [`github.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/github.ts#L18-L38).\n4. Add a regression test where the issue payload says `NONE`, the first issue API refresh still says `NONE`, and the later retry or permission endpoint resolves to `COLLABORATOR`.\n\nSo: yes to a small delay, but scoped to weak issue-author auth resolution. A blind sleep before every auth check would hide the race and slow every route; a retry + permission fallback would make the behavior deterministic and debuggable.",
+      "createdAt": "2026-05-26T19:57:23Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/358#issuecomment-4548193617",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDxuaWg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "Ok I'm trying to understand the rationale of why the user posting 2nd time can resolve the issue:\n\nIsn't it because the user is added to the chat thread and then GitHub updates the data? \n\n@sepo-agent /answer ",
+      "createdAt": "2026-05-26T20:17:23Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/358#issuecomment-4548434522",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDxvGTQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Not quite. It is probably not because the user gets “added to the chat thread.”\n\nWhat likely changed is the **GitHub event surface and timing**:\n\n- On the first trigger, Sepo handled an `issues` event from the issue body. For that event, GitHub exposed the issue author as `author_association: NONE`, or the follow-up API refresh still returned/stuck at `NONE`.\n- Sepo then triaged the request as `implement`, and the route policy rejected `NONE`.\n- On the second trigger, the user posted an `issue_comment`. GitHub includes `comment.author_association` on that comment object, and by then it reported `COLLABORATOR`, so Sepo passed auth.\n\nSo the second post helps for two reasons:\n\n1. It is a new object/event (`issue_comment`) with its own `author_association`.\n2. It happens later, after GitHub’s derived permission/association data may have settled.\n\nThe practical bug is that Sepo treats the first stale/weak `NONE` as authoritative too early. A retry/backoff plus repo-permission fallback for weak issue-body associations would make the first trigger behave like the second one without requiring the user to comment again.",
+      "createdAt": "2026-05-26T20:18:27Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/358#issuecomment-4548445773",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-26T18:54:10Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 358,
+  "state": "OPEN",
+  "title": "Why is user auth still buggy?",
+  "updatedAt": "2026-05-26T20:18:27Z",
+  "url": "https://github.com/self-evolving/repo/issues/358"
+}

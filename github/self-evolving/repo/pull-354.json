@@ -51,6 +51,43 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/354#issuecomment-4536864062",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDxktOg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer is the base64 version really that helpful? ",
+      "createdAt": "2026-05-26T20:03:34Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/354#issuecomment-4548275514",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDxmTUw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "If you mean `PI_AUTH_JSON_B64`: it is only modestly helpful.\n\nIt does **not** add security. It is just an ergonomics fallback for putting Pi `auth.json` into a single-line GitHub Secret and avoiding multiline JSON quoting/copy-paste issues across secret UIs, workflow inputs, and shells. The implementation already treats it correctly: restore only for `agent == 'pi'`, fail if both `PI_AUTH_JSON_B64` and `PI_AUTH_JSON` are set, write to `$RUNNER_TEMP/pi-agent/auth.json`, and clean up afterward.\n\nI would keep it as an optional escape hatch, but avoid presenting it as preferred. The docs should frame the hierarchy as:\n\n1. provider API keys for normal GitHub-hosted CI;\n2. persistent self-hosted `~/.pi/agent/auth.json` for Pi OAuth/subscription auth;\n3. `PI_AUTH_JSON` / `PI_AUTH_JSON_B64` for testing or simple secret-based restore.\n\nIf you want to reduce surface area, dropping `_B64` is also reasonable. The only real loss is convenience for users whose secret-management path handles one-line values better than multiline JSON.",
+      "createdAt": "2026-05-26T20:05:36Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/354#issuecomment-4548301651",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-25T19:39:03Z",
@@ -335,6 +372,6 @@
   "reviews": [],
   "state": "OPEN",
   "title": "Add Pi provider support for agent runs",
-  "updatedAt": "2026-05-25T19:57:51Z",
+  "updatedAt": "2026-05-26T20:05:36Z",
   "url": "https://github.com/self-evolving/repo/pull/354"
 }

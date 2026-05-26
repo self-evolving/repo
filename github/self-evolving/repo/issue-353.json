@@ -22,6 +22,43 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/353#issuecomment-4536665145",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDxmwCA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "Further note on bugs:\n\nDispatch error: Command failed: gh api -X POST repos/xxx/actions/workflows/agent-review.yml/dispatches --input -\ngh: Failed to run workflow dispatch (HTTP 500)\n\ngh: Failed to run workflow dispatch (HTTP 500)\n\n\n@sepo-agent /answer add to your consideration ",
+      "createdAt": "2026-05-26T20:06:10Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/353#issuecomment-4548309000",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDxn7Kg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Good catch. I’d add workflow dispatch to the same retry scope.\n\nCurrent dispatch path is [.agent/src/github.ts#L453-L507](https://github.com/self-evolving/repo/blob/main/.agent/src/github.ts#L453-L507). It only retries one semantic case today: removing unsupported workflow inputs. It does **not** retry transient GitHub API failures like:\n\n```text\ngh api -X POST repos/.../actions/workflows/agent-review.yml/dispatches --input -\ngh: Failed to run workflow dispatch (HTTP 500)\n```\n\nUpdated plan:\n\n- Add a shared retry helper for Sepo-owned external calls, not just `git push`.\n- Apply it to `dispatchWorkflowPayload()` for workflow dispatches.\n- Retry HTTP `500`, `502`, `503`, `504`, likely `429`, and network/timeout failures.\n- Keep current unsupported-input fallback, but make the order explicit:\n  1. Try dispatch with full inputs.\n  2. If failure is unsupported inputs, retry once with those inputs removed.\n  3. If failure is transient HTTP/server/network, retry the same valid payload with backoff.\n  4. Do not retry deterministic dispatch failures like `401`, `403`, `404`, invalid workflow, disabled workflow, or invalid ref.\n- Add tests in [.agent/src/__tests__/github.test.ts](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/github.test.ts) for HTTP 500 dispatch retry, unsupported-input behavior, and non-retryable failures.\n\nSo the robustness surface should cover three buckets now:\n\n1. Git/ref pushes.\n2. Auth token issuing/exchange.\n3. GitHub workflow dispatch API calls.",
+      "createdAt": "2026-05-26T20:07:42Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/353#issuecomment-4548328234",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-25T19:21:41Z",
@@ -36,6 +73,6 @@
   "number": 353,
   "state": "OPEN",
   "title": "Adding retries for more robust service",
-  "updatedAt": "2026-05-25T19:23:54Z",
+  "updatedAt": "2026-05-26T20:07:42Z",
   "url": "https://github.com/self-evolving/repo/issues/353"
 }
