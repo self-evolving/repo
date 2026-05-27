@@ -59,6 +59,43 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/353#issuecomment-4548328234",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDx0X4A",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "I think there will be two types of robustness fixes:\n\nInside agent session -- we should start with adding prompts to tell agents that, when encountering such errors it should wait (up to a few minutes) and retry\n\nOutside the agent (sepo harness layer) we should implement the proper needed layer for retrying and catching errors? I saw bugs mostly from issuing auth keys for now.\n\n@sepo-agent /answer we dont want to make a super broad fix but want make our fix relative targeted. We can open and fix new issues in the future ",
+      "createdAt": "2026-05-26T20:29:01Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/353#issuecomment-4548532192",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDx07GQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Agreed. I’d split this into two targeted tracks and **not** make a broad “retry every GitHub thing” change yet.\n\nFor this issue, I’d scope the fix to:\n\n1. **Inside agent session: prompt guidance**\n   - Add a short instruction to the shared base prompt at [.github/prompts/_base.md](https://github.com/self-evolving/repo/blob/main/.github/prompts/_base.md).\n   - Tell agents that if a `gh`, `git`, or network-backed command fails with a likely transient server/rate-limit error, they may wait and retry for a bounded period, e.g. up to a few minutes.\n   - Also tell them **not** to retry deterministic errors indefinitely: auth denied, missing permission, invalid ref, validation failure, non-fast-forward/lease conflict, etc.\n\n2. **Outside agent / Sepo harness: auth-token robustness first**\n   - Focus on `.github/actions/resolve-github-auth`, because auth issuing happens before the agent can help.\n   - The hosted OIDC path already has a retry helper, but the exchange POST currently does not actually retry HTTP `5xx`/`429` responses because the curl command records the HTTP code and exits successfully: [.github/actions/resolve-github-auth/exchange-oidc.sh#L78-L97](https://github.com/self-evolving/repo/blob/main/.github/actions/resolve-github-auth/exchange-oidc.sh#L78-L97).\n   - Make that path retry only likely transient statuses: `429`, `500`, `502`, `503`, `504`, plus curl/network timeouts.\n   - Keep generic `400` as terminal unless we identify a specific known-transient broker message. Retrying all `400`s would hide real request/auth bugs.\n\nI’d keep workflow dispatch `HTTP 500` and git push `500` as **follow-up issues** for now, not part of this first patch. They are valid robustness targets, but they touch broader harness behavior. A good next sequence would be:\n\n- Issue A: prompt-level bounded retry guidance.\n- Issue B: auth issuing retry hardening in `resolve-github-auth`.\n- Later issues, only if failures continue: workflow dispatch retry and git/ref push retry.\n\nThis keeps the first fix small, tied to the failures we’ve actually seen most often, and leaves room to add narrower fixes as more concrete failure modes show up.",
+      "createdAt": "2026-05-26T20:30:12Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/353#issuecomment-4548541209",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-25T19:21:41Z",
@@ -73,6 +110,6 @@
   "number": 353,
   "state": "OPEN",
   "title": "Adding retries for more robust service",
-  "updatedAt": "2026-05-26T20:07:42Z",
+  "updatedAt": "2026-05-26T20:30:13Z",
   "url": "https://github.com/self-evolving/repo/issues/353"
 }

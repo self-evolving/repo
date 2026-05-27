@@ -59,6 +59,43 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/351#issuecomment-4536638082",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDx03Gg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\nIf CI is already failing or clearly pending, it can choose blocked/stop with a visible message instead of immediately handing off to review.\n\nWhy? Why not decide whether they can fix it again? ",
+      "createdAt": "2026-05-26T20:30:03Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/351#issuecomment-4548540186",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDx1Y5Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Because a direct `fix-pr -> fix-pr` loop is not currently an allowed orchestrator transition.\n\nRight now, after `fix-pr` succeeds, runtime policy only allows the chain to hand back to `review`: [.agent/src/handoff.ts](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L460-L474). The planner can choose `stop`/`blocked`, but if it tries to dispatch another `fix-pr`, runtime validation rejects it because the allowed next action is `review`: [.agent/src/handoff.ts](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L658-L670).\n\nSo the better prompt-only behavior is probably:\n\n- If CI is **pending**, wait/check briefly if practical; otherwise block with “CI still pending.”\n- If CI is **green**, hand off to `review`.\n- If CI is **failing and actionable**, still hand off to `review`, because review is the existing policy gate that can synthesize the CI failure into a concrete `FIX_PR` recommendation.\n- If CI is **failing but flaky/environmental/unclear**, block or stop with a visible message.\n\nThat preserves the current loop shape:\n\n`fix-pr -> review -> fix-pr`\n\ninstead of adding a new direct loop:\n\n`fix-pr -> fix-pr -> fix-pr`\n\nThe direct loop may be useful later, but it needs runtime support: a new allowed transition, stricter round limits, failure classification, and clear handoff context so the agent does not keep pushing speculative fixes for flaky CI or infra failures.",
+      "createdAt": "2026-05-26T20:31:11Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/351#issuecomment-4548548837",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-25T19:01:50Z",
@@ -73,6 +110,6 @@
   "number": 351,
   "state": "OPEN",
   "title": "Can sepo orchestrator check the ci status after a fix-pr is merged?",
-  "updatedAt": "2026-05-25T19:18:26Z",
+  "updatedAt": "2026-05-26T20:31:11Z",
   "url": "https://github.com/self-evolving/repo/issues/351"
 }

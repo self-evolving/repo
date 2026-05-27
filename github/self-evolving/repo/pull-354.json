@@ -88,6 +88,43 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/354#issuecomment-4548301651",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDyxq4w",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer can we make sure the model / reasoning effort is set in the right way for pi? \n\n",
+      "createdAt": "2026-05-26T22:24:33Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/354#issuecomment-4549536483",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABDyye8Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes. The right behavior for Pi should be:\n\n- **Model:** pass through normally via `AGENT_MODEL_POLICY.providers.pi.model` / route override `model`.\n  - PR #354 already sends the configured model to `acpx` as `--model` for the actual run: [`acpx-adapter.ts`](https://github.com/self-evolving/repo/blob/d580b974ff3d5507f1fb7bd7956c38e7c211e126/.agent/src/acpx-adapter.ts#L245-L248).\n  - For named sessions, it also sets the session model with `acpx pi set model <model> -s <session>`: [`acpx-adapter.ts`](https://github.com/self-evolving/repo/blob/d580b974ff3d5507f1fb7bd7956c38e7c211e126/.agent/src/acpx-adapter.ts#L299-L304).\n\n- **Reasoning effort:** do **not** map Sepo’s Codex/Claude `reasoning_effort` to Pi yet.\n  - PR #354 intentionally clears reasoning effort for Pi before passing it into runtime/session setup: [`run.ts`](https://github.com/self-evolving/repo/blob/d580b974ff3d5507f1fb7bd7956c38e7c211e126/.agent/src/run.ts#L591-L603).\n  - It also avoids Codex-specific `thought_level` and `full-access` session setup for Pi: [`acpx-adapter.ts`](https://github.com/self-evolving/repo/blob/d580b974ff3d5507f1fb7bd7956c38e7c211e126/.agent/src/acpx-adapter.ts#L317-L318).\n  - There is a direct test for that conservative behavior: [`acpx-adapter.test.ts`](https://github.com/self-evolving/repo/blob/d580b974ff3d5507f1fb7bd7956c38e7c211e126/.agent/src/__tests__/acpx-adapter.test.ts#L495-L510).\n\nOne thing I would tighten: don’t advertise or rely on `providers.pi.reasoning_effort` as meaningful yet. Either ignore/clear it at resolver output for Pi, or document it explicitly as currently ignored. Model is supported; reasoning effort should stay Pi-specific only after we confirm Pi/acpx has a real equivalent setting.",
+      "createdAt": "2026-05-26T22:26:48Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/354#issuecomment-4549549809",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-25T19:39:03Z",
@@ -372,6 +409,6 @@
   "reviews": [],
   "state": "OPEN",
   "title": "Add Pi provider support for agent runs",
-  "updatedAt": "2026-05-26T20:05:36Z",
+  "updatedAt": "2026-05-26T22:26:48Z",
   "url": "https://github.com/self-evolving/repo/pull/354"
 }
