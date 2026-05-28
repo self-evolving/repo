@@ -123,7 +123,7 @@ Remaining runner requirements:
 - `git`, `gh`, `jq`, `curl`, `bash`, and network access
 - one GitHub auth mode
 - `id-token: write` for the official hosted auth path
-- `OPENAI_API_KEY` for Codex-backed workflows
+- `OPENAI_API_KEY` for Codex-backed workflows; Sepo passes it through as `OPENAI_API_KEY` and mirrors it to acpx Codex auth aliases at runtime
 - optional `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` for Claude-backed routes
 
 ## Tests

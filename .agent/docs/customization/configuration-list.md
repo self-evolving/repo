@@ -59,7 +59,7 @@ The bundled workflows still keep native YAML escape hatches: an inline `route_pr
 | Secret | Purpose |
 |---|---|
 | Model provider secrets | |
-| `OPENAI_API_KEY` | Enable Codex-backed runs on runners without local Codex authentication; also lets `AGENT_DEFAULT_PROVIDER=auto` detect Codex |
+| `OPENAI_API_KEY` | Enable Codex-backed runs on runners without local Codex authentication; also lets `AGENT_DEFAULT_PROVIDER=auto` detect Codex. Sepo passes it through as `OPENAI_API_KEY` and mirrors it to acpx Codex auth aliases at runtime. |
 | `CLAUDE_CODE_OAUTH_TOKEN` | Enable Claude-backed runs on runners without local Claude authentication; also lets `AGENT_DEFAULT_PROVIDER=auto` detect Claude |
 | `ANTHROPIC_API_KEY` | Enable Claude-backed runs with a direct Anthropic API key; also lets `AGENT_DEFAULT_PROVIDER=auto` detect Claude |
 | GitHub auth secrets |  |
