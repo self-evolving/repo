@@ -98,3 +98,4 @@
 - AGENT_DEFAULT_PROVIDER is the only global provider knob; AGENT_MODEL_POLICY.default.provider is invalid.
 - Docs should describe setup checks as manual Agent / Onboarding / Check Setup runs, not template auto-run behavior.
 - ACPX model policy: named/transient sessions use set model during setup; only no-session exec uses global --model.
+- Codex runs mirror OPENAI_API_KEY into ACPX_AUTH_OPENAI_API_KEY and ACPX_AUTH_CODEX_API_KEY for acpx auth.
