@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "https://github.com/self-evolving/repo/pull/363#issuecomment-4571286249\n\n@sepo-agent /answer check this and sorta out what will happen there? ",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEHj4oQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I would not do a blind `acpx@latest` bump in PR #363’s thread. PR #363 is merged and correct for auth; the latest `acpx` is now `0.10.0`, and the risky change is the `0.9.0` Codex adapter/model behavior, not the `ACPX_AUTH_*` env vars.\n\nWhat would happen if we update:\n\n- Dependency moves from `acpx ^0.6.1` to latest `0.10.0`: https://github.com/self-evolving/repo/blob/main/.agent/package.json#L11-L13\n- The existing env fix should still be right: Sepo mirrors `OPENAI_API_KEY` into `ACPX_AUTH_OPENAI_API_KEY` and `ACPX_AUTH_CODEX_API_KEY`: https://github.com/self-evolving/repo/blob/main/.agent/src/runtime-env.ts#L1-L42\n- The current Sepo command shape is mostly already aligned with latest ACPX:\n  - no-session exec uses global `--model`: https://github.com/self-evolving/repo/blob/main/.agent/src/acpx-adapter.ts#L241-L245\n  - named sessions use `acpx codex set model <id> -s <session>`: https://github.com/self-evolving/repo/blob/main/.agent/src/acpx-adapter.ts#L296-L300\n  - reasoning stays separate as `thought_level`: https://github.com/self-evolving/repo/blob/main/.agent/src/acpx-adapter.ts#L314-L319\n- Main breakage risk: `acpx` 0.9.0 changed built-in Codex to `@agentclientprotocol/codex-acp` and says Codex model selection is through advertised ACP model IDs: https://github.com/openclaw/acpx/blob/main/CHANGELOG.md#2026522-v090\n- ACPX latest docs say `--model` fails clearly for non-Claude agents unless the adapter advertises models and supports `session/set_model`: https://github.com/openclaw/acpx/blob/main/docs/CLI.md#global-options\n- Existing docs/examples use raw-looking model strings like `gpt-5.4` / `gpt-5.4-mini`: https://github.com/self-evolving/repo/blob/main/.agent/docs/customization/configuration-list.md#L40-L52. Those may need to become whatever the new adapter advertises, rather than guessed OpenAI names.\n- Node floor also rises: npm metadata for `acpx@0.10.0` requires Node `>=22.13.0`; current runtime only asks for Node major `22`: https://github.com/self-evolving/repo/blob/main/.github/actions/setup-agent-runtime/action.yml#L9-L12. GitHub-hosted runners should be fine, but self-hosted runners pinned to old 22.12.x could fail at `npm ci`.\n\nBest practice: make this a separate compatibility PR, not a quick dependency-only update.\n\nPlan I’d use:\n\n1. Bump `.agent/package.json` and `.agent/package-lock.json` to `acpx@0.10.0`.\n2. Update tests to assert the current command contract against latest ACPX behavior: `set model` for named sessions, `--model` for true exec, `thought_level` still separate.\n3. Add/adjust docs saying Codex `AGENT_MODEL_POLICY` model values must be ACP adapter model IDs advertised by the installed Codex adapter.\n4. Check whether setup/runtime docs need a Node `22.13+` note for self-hosted runners.\n5. Run `cd .agent && npm test`.\n6. Do at least one real Codex smoke run with a configured model and one without a configured model, because the model ID validation is the part tests cannot fully prove with mocked `acpx`.\n\nMy recommendation: approve a follow-up implementation PR for the `acpx@0.10.0` upgrade, but keep #363 as-is. The downside is mainly compatibility churn around model IDs and possibly session reuse; the upside is better current ACPX behavior, clearer model failures, newer session import/export support, and the current Codex adapter path.",
+      "createdAt": "2026-05-29T06:07:56Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/364#issuecomment-4571330721",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-29T06:04:39Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 364,
+  "state": "OPEN",
+  "title": "Try to update to acpx latest ?",
+  "updatedAt": "2026-05-29T06:07:57Z",
+  "url": "https://github.com/self-evolving/repo/issues/364"
+}

@@ -96,6 +96,43 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/351#issuecomment-4548548837",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEHawYA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "https://github.com/self-evolving/repo/pull/363#discussion_r3321191195\n\nI mean it seems the inline review can look at the CI messages?  @sepo-agent ",
+      "createdAt": "2026-05-29T05:52:07Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/351#issuecomment-4571181152",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEHcZpA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, I think you’re right. The referenced comment is exactly the better shape: the review pass can read CI output, turn it into a concrete inline finding, and then let the existing review -> fix-pr path handle it.\n\nThat is better than having the orchestrator itself block on failing CI.\n\nCurrent pieces already line up:\n\n- Review synthesis can inspect current PR state and must verify unresolved findings against current artifacts/current PR state: [.github/prompts/review-synthesize.md](https://github.com/self-evolving/repo/blob/main/.github/prompts/review-synthesize.md#L9-L18).\n- It can post inline comments for concrete line-specific issues: [.github/prompts/review-synthesize.md](https://github.com/self-evolving/repo/blob/main/.github/prompts/review-synthesize.md#L28-L41).\n- It emits `Recommended Next Step: FIX_PR` when unresolved findings are safe for automation: [.github/prompts/review-synthesize.md](https://github.com/self-evolving/repo/blob/main/.github/prompts/review-synthesize.md#L110-L117).\n- The review workflow hands that synthesis back to the orchestrator: [.github/workflows/agent-review.yml](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-review.yml#L379-L402).\n- The orchestrator already maps review findings back to `fix-pr`: [.agent/src/handoff.ts](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L503-L511).\n- `fix-pr` already prioritizes latest review synthesis/action items: [.github/prompts/agent-fix-pr.md](https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-fix-pr.md#L22-L30).\n\nSo I’d revise the earlier plan:\n\n1. After successful `fix-pr`, keep handing off to `review`.\n2. Strengthen the review synthesis prompt to explicitly inspect failing CI/check output when available.\n3. Tell review synthesis to convert actionable CI failures into normal findings, including inline comments when tied to a changed line.\n4. Let `Recommended Next Step: FIX_PR` drive the next automated fix pass.\n\nThat preserves the existing safe loop:\n\n`fix-pr -> review -> fix-pr`\n\nand makes CI failures first-class review findings instead of adding a separate CI watcher route.",
+      "createdAt": "2026-05-29T05:54:33Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/351#issuecomment-4571208100",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-25T19:01:50Z",
@@ -110,6 +147,6 @@
   "number": 351,
   "state": "OPEN",
   "title": "Can sepo orchestrator check the ci status after a fix-pr is merged?",
-  "updatedAt": "2026-05-26T20:31:11Z",
+  "updatedAt": "2026-05-29T05:54:33Z",
   "url": "https://github.com/self-evolving/repo/issues/351"
 }

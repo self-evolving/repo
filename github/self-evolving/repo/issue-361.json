@@ -6,7 +6,7 @@
     "name": "Shannon Shen"
   },
   "body": "## Summary\n\nCodex-backed Sepo runs can fail because the runtime passes the OpenAI credential as `OPENAI_API_KEY`, but `acpx` uses a separate ACP auth env convention for authenticate handshakes: `ACPX_AUTH_<METHOD_ID>`.\n\n## Evidence from downstream run\n\nExample failed downstream run/job:\nhttps://github.com/CodeShaping/annotate-edit/actions/runs/26533704395/job/78156826704\n\nRelevant log excerpt:\n\n```text\nResolved agent provider for dispatch: codex (OPENAI_API_KEY is configured).\n...\nacpx run failed\nsession setup failed: Authentication required\nhint: run `acpx config show` to locate the active config, then add the required credential under `auth` and retry.\n```\n\n## acpx documentation\n\nThe `acpx` README says ACP `authenticate` handshakes require either config `auth` entries or `ACPX_AUTH_<METHOD_ID>` environment variables, e.g. `ACPX_AUTH_OPENAI_API_KEY`. It also states ambient provider env vars like `OPENAI_API_KEY` are passed to child agents but **do not trigger ACP auth-method selection on their own**:\n\nhttps://github.com/openclaw/acpx/blob/main/README.md#L291-L294\n\n## Proposed fix\n\nWhen `INPUT_OPENAI_API_KEY` / `secrets.OPENAI_API_KEY` is configured for Codex, also export it for `acpx` auth selection, e.g. in the shared runtime env setup:\n\n```ts\nif (process.env.INPUT_OPENAI_API_KEY) {\n  env.OPENAI_API_KEY = process.env.INPUT_OPENAI_API_KEY;\n  env.ACPX_AUTH_OPENAI_API_KEY = process.env.INPUT_OPENAI_API_KEY;\n}\n```\n\nOptionally also set `ACPX_AUTH_CODEX_API_KEY` if Codex advertises that method in some environments.\n",
-  "closedAt": null,
+  "closedAt": "2026-05-29T06:04:14Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABEFUyNA",
@@ -135,8 +135,8 @@
     }
   ],
   "number": 361,
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Fix acpx Codex auth env var mismatch",
-  "updatedAt": "2026-05-28T23:12:29Z",
+  "updatedAt": "2026-05-29T06:04:14Z",
   "url": "https://github.com/self-evolving/repo/issues/361"
 }

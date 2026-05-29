@@ -5,7 +5,7 @@
   },
   "baseRefName": "main",
   "body": "## Summary\n- Move shared agent runtime env construction into `runtime-env.ts`\n- Mirror Sepo's OpenAI input into Codex acpx auth aliases\n- Document the runtime credential mirroring behavior\n\n## Tests\n- `cd .agent && npm run build && node --test dist/__tests__/runtime-env.test.js dist/__tests__/docs-validation.test.js`\n\nCloses #361\n",
-  "closedAt": null,
+  "closedAt": "2026-05-29T06:04:12Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABEFZulQ",
@@ -126,6 +126,95 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/363#issuecomment-4569182022",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEHbsTw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer one last check -- search the acpx documentation and make sure the way we set the enviable is aligned with their specs (also make sure the version is correct) . please provide reference links ",
+      "createdAt": "2026-05-29T05:53:33Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/363#issuecomment-4571196495",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEHfSrw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Checked. The env var setup in PR #363 is aligned with ACPX’s auth spec.\n\n- ACPX says ACP `authenticate` uses config `auth` entries or `ACPX_AUTH_<METHOD_ID>` env vars; ambient vars like `OPENAI_API_KEY` are passed through but do not select auth by themselves: https://github.com/openclaw/acpx/blob/main/docs/CLI.md#config-command\n- PR #363 keeps `OPENAI_API_KEY` and mirrors it to `ACPX_AUTH_OPENAI_API_KEY` and `ACPX_AUTH_CODEX_API_KEY`, which matches that convention: https://github.com/self-evolving/repo/blob/4d80ce9aea33de93d1bf584087c77c79a45ed929/.agent/src/runtime-env.ts#L1-L40\n- Codex ACP docs list both `CODEX_API_KEY` and `OPENAI_API_KEY` auth methods, so covering both aliases is reasonable: https://github.com/zed-industries/codex-acp#readme\n\nVersion check: the repo currently locks `acpx` to `0.6.1` via `.agent/package-lock.json`, with `^0.6.1` in `.agent/package.json`. That version is compatible with this fix because ACPX v0.6.0 is where explicit `ACPX_AUTH_*` / config auth selection was introduced for this behavior: https://github.com/openclaw/acpx/blob/main/CHANGELOG.md#2026425-v060\n\nOne caveat: npm currently reports `acpx` latest as `0.10.0`, and ACPX’s changelog lists `2026.5.23 (v0.10.0)`: https://github.com/openclaw/acpx/blob/main/CHANGELOG.md#2026523-v0100. So the PR is correct for the installed version, but the dependency is not latest. I would treat an `acpx` bump as a separate follow-up because v0.9.0 changed the default Codex adapter path/model handling.",
+      "createdAt": "2026-05-29T05:58:13Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/363#issuecomment-4571255471",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEHgMpg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \r\n\r\nHmmm ok this is interesting. So what happens for the 0.9.0 acpx models? what's the best practice for fix that then? \r\nAnd if we upgrade to 0.9.0 acpx, what's the downside? ",
+      "createdAt": "2026-05-29T05:59:31Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/363#issuecomment-4571270310",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEHhK6Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "For `acpx` 0.9.0, the important change is model handling: the default Codex adapter switches to `@agentclientprotocol/codex-acp`, and Codex model selection is handled through adapter-advertised ACP model IDs. ACPX’s CLI docs also say `--model <id>` now expects an agent-supported model path: non-Claude agents must advertise ACP models and support model setting, otherwise ACPX fails clearly instead of silently falling back.\n\nBest practice for fixing that is:\n\n1. Keep PR #363’s auth fix as-is for the current `0.6.1` line.\n2. Treat an `acpx` 0.9+ upgrade as a separate compatibility PR.\n3. In that PR, make Sepo’s Codex `model` value an ACP adapter model ID, not a guessed OpenAI API model name.\n4. For persistent sessions, prefer ACPX’s model operation path: `acpx codex set model <id>` / `session/set_model`.\n5. Keep `reasoning_effort` separate unless the new adapter explicitly folds reasoning into the advertised model ID.\n6. Add a smoke test around the exact generated ACPX commands for Codex session setup, model setting, and thought/reasoning setting.\n\nDownsides of upgrading to `acpx` 0.9.0:\n\n- It changes the built-in Codex adapter from the older Zed adapter path to `@agentclientprotocol/codex-acp`: https://github.com/openclaw/acpx/blob/main/CHANGELOG.md#2026522-v090\n- Model IDs may change or become stricter. Existing Sepo `AGENT_MODEL_POLICY` values that worked as raw Codex names could fail if they are not advertised ACP model IDs.\n- Session continuity may reset because ACPX session scoping includes the agent command; changing the built-in adapter command can create a different session scope.\n- Auth method IDs should be revalidated against the new adapter. `ACPX_AUTH_OPENAI_API_KEY` / `ACPX_AUTH_CODEX_API_KEY` are still the right pattern, but the supported method IDs are adapter-owned.\n- It increases blast radius: lockfile, docs, tests, session setup, model policy, and possibly retry/failure handling all need a full pass.\n\nReferences:\n- ACPX 0.9.0 change note: https://github.com/openclaw/acpx/blob/main/CHANGELOG.md#2026522-v090\n- ACPX `--model` behavior: https://github.com/openclaw/acpx/blob/main/docs/CLI.md#global-options\n- ACPX `set model` behavior: https://github.com/openclaw/acpx/blob/main/docs/CLI.md#set-command\n- Current ACPX Codex examples: https://github.com/openclaw/acpx/blob/main/README.md#usage-examples",
+      "createdAt": "2026-05-29T06:01:21Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/363#issuecomment-4571286249",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEHjDaw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nUpdated [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #363.\n\nUpdated one existing rubric, no new rubric file added.\n\nChanged `rubrics/workflow/read-docs-first.yaml` to clarify that version-sensitive external tool behavior should be checked against the installed/locked version and cited with reference links. Added PR #363’s ACPX docs/version check request as provenance.\n\nValidation: parsed the updated YAML successfully.\n",
+      "createdAt": "2026-05-29T06:06:10Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/363#issuecomment-4571317099",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-28T23:08:31Z",
@@ -176,7 +265,7 @@
       "color": "0e8a16"
     }
   ],
-  "mergedAt": null,
+  "mergedAt": "2026-05-29T06:04:12Z",
   "number": 363,
   "reviewDecision": "",
   "reviews": [
@@ -196,8 +285,8 @@
       }
     }
   ],
-  "state": "OPEN",
+  "state": "MERGED",
   "title": "Mirror Codex OpenAI key into ACPX auth env",
-  "updatedAt": "2026-05-28T23:34:22Z",
+  "updatedAt": "2026-05-29T06:06:10Z",
   "url": "https://github.com/self-evolving/repo/pull/363"
 }
