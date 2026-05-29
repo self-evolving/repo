@@ -58,6 +58,7 @@ import {
   parseSessionBundleMode,
   shouldBackupSessionBundles,
 } from "./session-bundle.js";
+import { buildSharedEnv } from "./runtime-env.js";
 
 // --- Logging ---
 
@@ -275,31 +276,6 @@ function persistFailureOutputs(
   }
 
   return { rawStdoutFile, rawStderrFile };
-}
-
-function buildSharedEnv(): Record<string, string> {
-  const env: Record<string, string> = {};
-  if (process.env.INPUT_GITHUB_TOKEN) {
-    env.GH_TOKEN = process.env.INPUT_GITHUB_TOKEN;
-    env.GITHUB_TOKEN = process.env.INPUT_GITHUB_TOKEN;
-  }
-  env.INPUT_SECONDARY_GITHUB_TOKEN = process.env.INPUT_SECONDARY_GITHUB_TOKEN || "";
-  if (process.env.INPUT_OPENAI_API_KEY) {
-    env.OPENAI_API_KEY = process.env.INPUT_OPENAI_API_KEY;
-  }
-  if (process.env.MODEL_REASONING_EFFORT) {
-    env.MODEL_REASONING_EFFORT = process.env.MODEL_REASONING_EFFORT;
-    // Claude Code reads effort from this env var directly, so both the
-    // flow path and the direct path pick it up without session setup.
-    env.CLAUDE_CODE_EFFORT_LEVEL = process.env.MODEL_REASONING_EFFORT;
-  }
-  if (process.env.CLAUDE_CODE_OAUTH_TOKEN) {
-    env.CLAUDE_CODE_OAUTH_TOKEN = process.env.CLAUDE_CODE_OAUTH_TOKEN;
-  }
-  if (process.env.ANTHROPIC_API_KEY) {
-    env.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-  }
-  return env;
 }
 
 function parseBooleanFlag(value: string | undefined): boolean {

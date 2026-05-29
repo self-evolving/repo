@@ -937,7 +937,7 @@ test("shared run-agent-task action exists and requires explicit prompt/skill/lan
 
 test("shared run-agent-task exposes an optional secondary GitHub token", () => {
   const action = readRepoFile(".github/actions/run-agent-task/action.yml");
-  const runSource = readRepoFile(".agent/src/run.ts");
+  const runtimeEnvSource = readRepoFile(".agent/src/runtime-env.ts");
   const basePrompt = readRepoFile(".github/prompts/_base.md");
   const parsedAction = parseYaml(action) as unknown;
 
@@ -961,10 +961,10 @@ test("shared run-agent-task exposes an optional secondary GitHub token", () => {
   );
   assert.equal(runStep.env.INPUT_GITHUB_TOKEN, "${{ inputs.github_token }}");
 
-  assert.match(runSource, /INPUT_SECONDARY_GITHUB_TOKEN/);
+  assert.match(runtimeEnvSource, /INPUT_SECONDARY_GITHUB_TOKEN/);
   assert.doesNotMatch(
-    runSource,
-    /env\.GH_TOKEN\s*=\s*process\.env\.INPUT_SECONDARY_GITHUB_TOKEN/,
+    runtimeEnvSource,
+    /env\.GH_TOKEN\s*=\s*inputEnv\.INPUT_SECONDARY_GITHUB_TOKEN/,
   );
   assert.match(basePrompt, /INPUT_SECONDARY_GITHUB_TOKEN/);
   assert.match(basePrompt, /Do not print token values/);
@@ -975,12 +975,13 @@ test("shared run-agent-task exposes an optional secondary GitHub token", () => {
 test("run-agent-task maps reasoning effort for Claude env and Codex thought level", () => {
   const action = readRepoFile(".github/actions/run-agent-task/action.yml");
   const runSource = readRepoFile(".agent/src/run.ts");
+  const runtimeEnvSource = readRepoFile(".agent/src/runtime-env.ts");
   const acpxSource = readRepoFile(".agent/src/acpx-adapter.ts");
 
   assert.match(action, /reasoning_effort:\n\s+description: "Model reasoning effort level"/);
   assert.match(action, /MODEL_REASONING_EFFORT:\s*\$\{\{\s*inputs\.reasoning_effort\s*\}\}/);
-  assert.match(runSource, /env\.MODEL_REASONING_EFFORT = process\.env\.MODEL_REASONING_EFFORT/);
-  assert.match(runSource, /env\.CLAUDE_CODE_EFFORT_LEVEL = process\.env\.MODEL_REASONING_EFFORT/);
+  assert.match(runtimeEnvSource, /env\.MODEL_REASONING_EFFORT = inputEnv\.MODEL_REASONING_EFFORT/);
+  assert.match(runtimeEnvSource, /env\.CLAUDE_CODE_EFFORT_LEVEL = inputEnv\.MODEL_REASONING_EFFORT/);
   assert.match(runSource, /thoughtLevel:\s*process\.env\.MODEL_REASONING_EFFORT/);
   assert.match(acpxSource, /"thought_level", thoughtLevel/);
 });
