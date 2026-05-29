@@ -16,6 +16,7 @@ Agent actions are route-level behaviors exposed by the `.agent` backend. They ar
 | Create action | `create-action` | `.github/prompts/agent-create-action.md` | implementation PR that adds or updates a standalone scheduled workflow under `.github/workflows/` |
 | Skill | `skill` | `<skill_root>/<name>/SKILL.md` | inline skill route through `agent-router.yml`; optional `<skill_root>/<name>/setup.sh` hook |
 | Install | `install` | `.github/prompts/agent-install.md` | first-class `/install` route or install request issue form for authorization; runs the dedicated install prompt with the install-only token |
+| Update agent | `update-agent` | `.github/prompts/agent-update.md` | internal route used by `agent-update.yml` to update installed Sepo infrastructure without depending on installed skills |
 | Dispatch | `dispatch` | `.github/prompts/agent-dispatch.md` | route triage inside `agent-router.yml` |
 
 The orchestrator is now a top-level route. Users start orchestration explicitly with `/orchestrate` or `agent/orchestrate`; dispatch triage can also select `orchestrate` for issue and pull request requests that ask for orchestration, follow-up automation, or bounded multi-step agent work. `agent-orchestrator.yml` chooses follow-up work from current target state. Workflows launched by the orchestrator carry explicit orchestration context and hand back after post-processing, so the bounded `implement -> review -> fix-pr -> review` loop can continue until a stop condition. Direct `/implement`, `/review`, and `/fix-pr` runs do not carry that context and stay one-shot. In `heuristics` mode, PR orchestrate starts use deterministic status routing. In `agent` mode, issue and PR orchestrate starts invoke the planner. For small self-contained issue work, the planner can hand off directly to `implement` on the current issue. For PR work, the planner can choose `review`, `fix-pr`, `answer`, or stop/block; runtime policy validates that PR starts dispatch only `review` or `fix-pr`. For meta-orchestration, child work uses the internal `delegate_issue` decision to create, reuse, or adopt a child issue that then runs the normal `/orchestrate` flow. `delegate_issue` is not a public route and is not part of `AgentAction`. Planner handoffs can carry `handoff_context`; `fix-pr` receives that context as explicit initial steering for the automated fix pass.
@@ -60,14 +61,14 @@ execution once expired.
 
 The built-in `agent-update.yml` workflow is the default recurring maintenance
 path for Sepo itself. It runs near-biweekly, resolves the update source to the
-latest published stable Sepo release tag, calls the existing `update-agent`
-skill, and opens an update PR only when the target repository differs from that
+latest published stable Sepo release tag, runs the dedicated `update-agent`
+route, and opens an update PR only when the target repository differs from that
 source. Manual dispatch can pass `source_ref` to test `main`, a branch, or a
 specific tag. If no release exists yet, the workflow falls back to `main` and
 records that fallback in the run summary. A pre-runtime pending-PR resolver
 adopts an open same-repository `agent/update-agent-infra-*` PR by preparing its
 branch as the update target while keeping workflow runtime code on the default
-branch, then instructing the update skill to update that PR instead of opening a
+branch, then instructing the update route to update that PR instead of opening a
 duplicate. Set `AGENT_AUTO_UPDATE=false` to disable scheduled update checks
 while keeping manual dispatch available; the canonical `self-evolving/repo`
 source repository should use that setting instead of relying on a workflow-level

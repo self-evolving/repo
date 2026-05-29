@@ -185,14 +185,15 @@ cron with an `AGENT_SCHEDULE_POLICY` workflow override.
 
 `agent-update.yml` runs near-biweekly because GitHub cron does not support a
 native every-14-days cadence. It resolves its source to the latest published
-stable Sepo release tag before invoking the existing `update-agent` skill.
+stable Sepo release tag before invoking the dedicated `update-agent` route and
+`.github/prompts/agent-update.md` prompt.
 Manual dispatch can pass `source_ref` to test `main`, a branch, or a specific
 tag. If no release exists yet, it falls back to `main` and records that fallback
 in the run summary. The workflow skips when `AGENT_AUTO_UPDATE=false` or
 `AGENT_SCHEDULE_POLICY` disables it. When a same-repository
 `agent/update-agent-infra-*` PR is already open, the workflow keeps the runtime
 checkout on the default branch, prepares the existing PR branch as the update
-target, and asks the update skill to update that PR instead of opening a
+target, and asks the update route to update that PR instead of opening a
 duplicate. A manual `force=true` run ignores the existing PR lookup and starts
 from the default branch. The canonical `self-evolving/repo` source repository
 should set `AGENT_AUTO_UPDATE=false` when scheduled self-updates are not wanted;
