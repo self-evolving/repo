@@ -23,7 +23,7 @@ title: "Supported workflows"
 | `agent-daily-summary.yml` | `schedule` (daily, disabled by default), `workflow_dispatch` | Generates a concise repository activity summary and posts it as a Discussion | Auto |
 | `agent-project-manager.yml` | `schedule` (every 6h), `workflow_dispatch` | Opt-in agent-driven triage for open issues and PRs, with dry-run summaries and optional priority/effort label updates | Auto |
 | `agent-update.yml` | `schedule` (1st and 15th), `workflow_dispatch` | Checks for Sepo agent infrastructure updates and opens a PR only when updates are available | Auto |
-| `agent-onboarding.yml` | `workflow_dispatch` | First-run setup check that creates built-in trigger labels and opens or updates a setup issue | None |
+| `agent-onboarding.yml` | `workflow_dispatch` | First-run setup check that creates built-in labels and opens or updates an agent-tracked setup issue | None |
 | `test-scripts.yml` | `pull_request`, `workflow_dispatch` | CI for helper tests, YAML parsing, and shell syntax | None |
 
 All packaged `agent-*.yml` workflow jobs honor `AGENT_ENABLED=false` as a
@@ -279,11 +279,14 @@ Applying one of these labels triggers the same downstream routing stack without 
 - `agent/s/<skill>`
 
 Run `Agent / Onboarding / Check Setup` after installing Sepo to create the
-built-in labels. The workflow also opens or updates a `Sepo setup check` issue
-with auth/provider readiness, memory and rubrics branch status, and copyable
-commands for first test runs. Skill labels still use `agent/s/<skill>` and are
-created per skill as needed. Onboarding also creates the non-trigger
-`agent-goal` label used by the [repository goals](../architecture/goals.md) convention.
+built-in labels. The workflow also ensures the non-trigger `agent` status label
+exists, applies it to the `Sepo setup check` issue, and opens or updates that
+issue with auth/provider readiness, memory and rubrics branch status, and
+copyable commands for first test runs. The status label makes the setup issue
+eligible for `Agent / Close Stale Issues` after the standard inactive window.
+Skill labels still use `agent/s/<skill>` and are created per skill as needed.
+Onboarding also creates the non-trigger `agent-goal` label used by the
+[repository goals](../architecture/goals.md) convention.
 
 After a label-triggered request is accepted by the router, `agent-label.yml` removes the triggering `agent/*` label so label-based runs behave like one-shot queue entries, including policy-denied requests that resolve to `unsupported`.
 

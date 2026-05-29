@@ -162,9 +162,10 @@ After the files and secrets are in place:
 
 The onboarding workflow is safe to rerun. It creates the built-in trigger labels
 (`agent/answer`, `agent/implement`, `agent/create-action`, `agent/review`,
-`agent/fix-pr`, and `agent/orchestrate`) when they are missing, then updates the
-same setup issue comment with GitHub auth, provider credentials, memory, rubrics,
-remaining setup, and test commands.
+`agent/fix-pr`, and `agent/orchestrate`) when they are missing, ensures the
+non-trigger `agent` status label exists, applies that label to the setup issue,
+then updates the same setup issue comment with GitHub auth, provider
+credentials, memory, rubrics, remaining setup, and test commands.
 
 ## Memory Setup
 
