@@ -48,7 +48,7 @@
 - Blocked orchestrator planners surface user_message/clarification_request in stop comments; answer is not a handoff.
 - Failed-agent reports use source tokens only for same-repo intakes; cross-repo intake needs AGENT_FAILURE_REPORT_TOKEN or hosted OIDC.
 - Failure-report intake should default to GitHub Discussions by fingerprint; promote actionable reports to Issues manually.
-- First-run onboarding is idempotent: create agent/* labels and update one open Sepo setup check issue/comment.
+- First-run onboarding creates agent/*, agent, and agent-goal labels; updates one open Sepo setup check issue/comment.
 - Branch cleanup retargets stacked child PRs before deleting merged parent agent branches.
 - Generic orchestrator handoff comments use compact tables and fix-pr task blocks.
 - Sepo releases use .agent/package.json as canonical version; release prepare is a source-repo-gated manual Action, not /release.
