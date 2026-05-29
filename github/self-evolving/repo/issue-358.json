@@ -96,6 +96,43 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/358#issuecomment-4548445773",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEOmh5A",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer Given what we've discussed so far, what's the right next step to fix such issues?",
+      "createdAt": "2026-05-29T18:45:20Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/358#issuecomment-4578714084",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEOnLiw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "The right next step is a small targeted auth-hardening PR, not a broad workflow delay.\n\nI’d fix the weak issue-body path in this order:\n\n1. Add a helper in `extract-context.ts` for weak mention associations:\n   - Only runs when GitHub reports `NONE`, `CONTRIBUTOR`, `FIRST_TIMER`, or `FIRST_TIME_CONTRIBUTOR`.\n   - For `issues` events, retry `GET /repos/{repo}/issues/{number}` a few times with a short backoff.\n   - If it is still weak, check `GET /repos/{repo}/collaborators/{login}/permission`.\n   - Promote to `COLLABORATOR` when permission is non-empty and not `none`.\n\n2. Add diagnostic logging:\n   - raw event association\n   - refreshed issue association\n   - permission fallback result\n   - final normalized association\n\n   This matters because current best-effort GitHub API helpers hide lookup failures, so false denials are hard to distinguish from real denials.\n\n3. Add regression tests:\n   - issue body event starts as `NONE`, first refresh still `NONE`, permission endpoint says `admin/write/read`, final association becomes `COLLABORATOR`.\n   - issue body event remains `NONE`, permission lookup fails, final association stays `NONE`.\n   - normal comment association still passes without delay.\n   - explicit route policy still rejects true unauthorized `NONE`.\n\n4. Keep route authorization unchanged:\n   - `implement` should still require trusted access.\n   - The fix should only improve how Sepo determines the requester’s actual association before policy runs.\n\nSo the concrete next action is: implement bounded retry + repo-permission fallback in `.agent/src/cli/extract-context.ts`, with tests in `.agent/src/__tests__/extract-context-cli.test.ts`.",
+      "createdAt": "2026-05-29T18:46:26Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/358#issuecomment-4578724747",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-26T18:54:10Z",
@@ -110,6 +147,6 @@
   "number": 358,
   "state": "OPEN",
   "title": "Why is user auth still buggy?",
-  "updatedAt": "2026-05-26T20:18:27Z",
+  "updatedAt": "2026-05-29T18:46:26Z",
   "url": "https://github.com/self-evolving/repo/issues/358"
 }

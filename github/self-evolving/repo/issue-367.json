@@ -1,0 +1,93 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "@sepo-agent /answer since we've transitioned to the fully agentic reviewing mode, maybe that is not needed?",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEOP29g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes. I’d remove `heuristics` as a **user-configurable orchestrator mode**, but keep the deterministic transition logic as an internal safety policy.\n\nCurrent state:\n- Packaged entry paths already default `AGENT_AUTOMATION_MODE` to `agent`: [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L63-L67), [`agent-entrypoint.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-entrypoint.yml#L58), [`agent-label.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-label.yml#L37).\n- The orchestrator planner only runs when mode is `agent`: [`orchestrator-preflight.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrator-preflight.ts#L40-L44).\n- `heuristics` is still exposed in docs/config and implemented as a full mode: [`configuration-list.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/customization/configuration-list.md#L16), [`handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L102-L119), [`handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L438-L544).\n- There is one important internal dependency: child issue delegation currently dispatches the child orchestrator with `automation_mode: \"heuristics\"` so the child runs the normal concrete chain instead of asking another planner immediately: [`orchestrate-handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L1581-L1596).\n\nRecommended direction:\n1. Deprecate/remove `AGENT_AUTOMATION_MODE=heuristics` from public docs and workflow input descriptions.\n2. Make orchestrator mode effectively `agent` whenever orchestration is enabled.\n3. Keep the existing deterministic handoff state machine, but rename/reframe it as runtime validation/fallback policy rather than “heuristic mode”. Agent mode already uses it to validate planner-selected follow-ups: [`handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L658-L678).\n4. Replace the child-delegation `automation_mode: \"heuristics\"` special case with either:\n   - `agent` plus stronger child prompt/context telling the child to execute the bounded concrete task, or\n   - an internal-only `worker_chain`/`concrete_chain` concept that is not exposed as user config.\n5. Remove compatibility aliases like `true -> heuristics` only after deciding whether old installed repos need a release-note migration path.\n\nSo: yes, I think the public heuristic orchestrate mode is probably no longer worth carrying. I would not delete the underlying deterministic transition logic; it is still the right guardrail around planner output, review/fix-pr/self-approval transitions, round limits, and duplicate-safe handoffs.",
+      "createdAt": "2026-05-29T18:08:20Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/367#issuecomment-4578342646",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEOTZzA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> keep the deterministic transition logic as an internal safety policy\n\n@sepo-agent /answer is the transition still used or not in the agentic mode? ",
+      "createdAt": "2026-05-29T18:12:35Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/367#issuecomment-4578400716",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEOTlHg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "Also this discussion is related to #351 ",
+      "createdAt": "2026-05-29T18:12:48Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/367#issuecomment-4578403614",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEOUgOw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, it is still used in `agent` mode, but not as the primary decider.\n\nIn `agent` mode, the planner chooses the next action first. Then runtime policy checks whether that planner-selected action is allowed by the existing deterministic transition table:\n\n- `decideHandoff()` routes `automationMode === \"agent\"` into `decideAgentHandoff()`: [`handoff.ts#L681-L693`](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L681-L693)\n- inside `decideAgentHandoff()`, for normal post-action handoffs, it calls `decideHeuristicHandoff(input)` and compares the planner’s requested `nextAction` against the allowed deterministic transition: [`handoff.ts#L658-L678`](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L658-L678)\n\nSo the current behavior is:\n\n- Initial `/orchestrate` in `agent` mode: planner decides directly, with explicit runtime checks for issue/PR starts.\n- Action-originated handoff in `agent` mode, e.g. `implement -> review`, `review -> fix-pr`, `fix-pr -> review`: planner decides, but the old transition table is still used as an allowlist.\n- If planner output is missing/invalid in `agent` mode, it stops; it does **not** silently fall back to heuristic decisioning: [`handoff.ts#L546-L551`](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L546-L551).\n\nThere is also one remaining explicit heuristic-mode use: `delegate_issue` dispatches the child orchestrator with `automation_mode: \"heuristics\"`: [`orchestrate-handoff.ts#L1581-L1596`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L1581-L1596). That is not just validation; it makes child issues run the concrete implementation/review/fix loop without immediately invoking another planner.\n\nSo I’d phrase the cleanup as:\n\n- remove `heuristics` as a public/user-facing mode;\n- keep and rename `decideHeuristicHandoff()` to something like `decideAllowedTransition()` or `validatePlannedTransition()`;\n- decide separately whether delegated child issues should remain deterministic workers or also become planner-backed.",
+      "createdAt": "2026-05-29T18:14:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/367#issuecomment-4578418747",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-29T18:05:42Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 367,
+  "state": "OPEN",
+  "title": "Consider removing heuristic orchestrate mode",
+  "updatedAt": "2026-05-29T18:14:05Z",
+  "url": "https://github.com/self-evolving/repo/issues/367"
+}

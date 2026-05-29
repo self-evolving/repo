@@ -1,0 +1,136 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "@sepo-agent /answer \n\n1. Similar to what we do with the install path (we used to share the skills; but there is a dedicated one)\n2. the issue is that for some installed repos, it might not install with the skills https://github.com/augmented-mind/augmented-mind.github.io",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEOVc-A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, I agree with moving repo update off `.skills/update-agent/SKILL.md`.\n\nWhat I found:\n\n- Source `agent-update.yml` still resolves provider/timeout as `skill` and runs `run-agent-task` with `skill: update-agent`, `route: skill`: [workflow lines](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-update.yml#L180-L243).\n- Runtime prompt resolution treats `SKILL_NAME` as `<skill_root>/<name>/SKILL.md`, so missing `.skills/update-agent/SKILL.md` is fatal before the agent can update anything: [resolver](https://github.com/self-evolving/repo/blob/main/.agent/src/run.ts#L155-L181).\n- `/install` already uses the pattern we want: `prompt: agent-install`, `route: install`: [install workflow](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L712-L727), backed by a dedicated prompt contract: [agent-install prompt](https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-install.md#L6-L17).\n- The referenced repo matches the concern: `augmented-mind/augmented-mind.github.io` has `agent-update.yml`, but its update workflow still calls `skill: update-agent`: [target workflow](https://github.com/augmented-mind/augmented-mind.github.io/blob/main/.github/workflows/agent-update.yml#L179-L235), and `.skills` is absent.\n\nImplementation approach I’d take:\n\n1. Add `.github/prompts/agent-update.md`, adapted from the current update skill prompt at [.skills/update-agent/SKILL.md](https://github.com/self-evolving/repo/blob/main/.skills/update-agent/SKILL.md#L1-L80).\n2. Change `agent-update.yml` to run `prompt: agent-update` instead of `skill: update-agent`.\n3. Make update a dedicated internal route, probably `update-agent`, so provider policy, task timeout policy, rubrics, docs, and session keys no longer overload generic `skill`.\n4. Add `update-agent` to runtime route validation, route/rubric allowlists, action descriptions, docs, and envelope tests.\n5. Leave `.skills/update-agent/SKILL.md` only as a backward-compatible manual `/skill update-agent` shim for now, or remove it in a follow-up after installed repos have migrated.\n6. Document the bootstrap limitation: repos already missing `.skills/update-agent` cannot self-update using their current workflow; they need a one-time refresh PR that adds the new prompt + updated workflow. After that, scheduled/manual update no longer depends on installed skills.\n\nIf this direction is approved, I’d implement the dedicated `agent-update` prompt/route and update the tests/docs in one PR.",
+      "createdAt": "2026-05-29T18:15:30Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/368#issuecomment-4578434296",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEOcuTw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer also check #304 -> we add the dedicated prompt for install .",
+      "createdAt": "2026-05-29T18:26:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/368#issuecomment-4578553423",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEOdcag",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Checked #304. It reinforces the same direction.\n\n#304 was the merged install lifecycle PR: https://github.com/self-evolving/repo/pull/304. It was built on the first-class `/install` path and explicitly moved install behavior toward dedicated prompt/typed helper wiring instead of ad hoc workflow or skill behavior.\n\nThe current install precedent is:\n\n- `agent-router.yml` runs install with `prompt: agent-install` and `route: install`: https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L712-L727\n- runtime maps `install` to `.github/prompts/agent-install.md`: https://github.com/self-evolving/repo/blob/main/.agent/src/run.ts#L124-L133\n- install has a route-specific prompt contract: https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-install.md#L6-L17\n\nSo for repo update, I’d mirror that pattern rather than keep update under the generic `skill` path:\n\n1. Add `.github/prompts/agent-update.md`, adapted from `.skills/update-agent/SKILL.md`.\n2. Change `.github/workflows/agent-update.yml` from `skill: update-agent` / `route: skill` to `prompt: agent-update` / a dedicated internal route, likely `update-agent`.\n3. Add `update-agent` to route validation, provider/timeout routing docs, rubrics route names if needed, and envelope tests.\n4. Update docs that currently say update invokes the `update-agent` skill.\n5. Keep `.skills/update-agent` only as a temporary backward-compatible manual skill, or deprecate it in a follow-up.\n\nOne important bootstrap note: repos that already lack `.skills/update-agent` cannot self-update with their current workflow, because the current workflow fails before it can copy the new prompt. They need one one-time refresh/install PR that adds the new `agent-update` prompt and updated workflow. After that, update no longer depends on installed skills.",
+      "createdAt": "2026-05-29T18:28:21Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/368#issuecomment-4578565226",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEOmLNQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate let's work on it!",
+      "createdAt": "2026-05-29T18:44:41Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/368#issuecomment-4578708277",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEOnNAg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | implement | Issue #368 | 2 / 40 | Dispatched |\n\nReason: agent planner selected implement: Issue #368 is an open issue-level implementation request with maintainer approval to proceed; the work is self-contained in the current issue and does not need child-issue decomposition.\n\n<!-- sepo-agent-handoff state:dispatched created:1780080387823 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY2NTU3MDExNTk6b3JjaGVzdHJhdGU6MzY4OmltcGxlbWVudDozNjg6Mg -->",
+      "createdAt": "2026-05-29T18:46:28Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/368#issuecomment-4578725122",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEOqvZg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-368/codex-26655786689`\n- Pull request: https://github.com/self-evolving/repo/pull/369\n\nAdded a dedicated `.github/prompts/agent-update.md` prompt and `update-agent` runtime route, then switched `agent-update.yml` provider, timeout, and agent invocation wiring away from the `update-agent` skill path. Updated docs and envelope tests for the new route; verified with build, focused envelope tests, and `git diff --check`.",
+      "createdAt": "2026-05-29T18:52:40Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/368#issuecomment-4578783078",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-29T18:11:59Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 368,
+  "state": "OPEN",
+  "title": "For the repo update, we should move it from relying on the prompt in the skills to a dedicated prompt",
+  "updatedAt": "2026-05-29T18:52:41Z",
+  "url": "https://github.com/self-evolving/repo/issues/368"
+}

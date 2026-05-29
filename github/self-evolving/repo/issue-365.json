@@ -1,0 +1,99 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "1. it should be an agent tracked issue \n2. in addition, it can also be closed automatically later ? \n\n@sepo-agent /answer ",
+  "closedAt": "2026-05-29T18:00:37Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABENyMZQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, this is supported as a small onboarding change.\n\nCurrent behavior:\n- `Agent / Onboarding / Check Setup` creates or updates one open `Sepo setup check` issue in [`.agent/src/onboarding.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/onboarding.ts#L100-L129).\n- It already creates Sepo trigger labels and `agent-goal` in [`.agent/src/onboarding.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/onboarding.ts#L306-L322).\n- The plain `agent` label is already the existing non-trigger status label, documented separately from `agent/*` trigger labels in [supported workflows](https://github.com/self-evolving/repo/blob/main/.agent/docs/usage/supported-workflows.md#L281-L294).\n- There is already a scheduled stale closer that closes open issues with the `agent` label after 30 inactive days in [`.github/workflows/agent-close-stale-issues.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-close-stale-issues.yml#L31-L47).\n\nRecommended implementation:\n1. Update onboarding to ensure the fixed `agent` status label exists.\n2. Apply `agent` to the `Sepo setup check` issue after create/update.\n3. Keep using the existing reusable setup-check issue/comment pattern.\n4. Add tests in [`.agent/src/__tests__/onboarding-check-cli.test.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/onboarding-check-cli.test.ts) to assert the label is created/applied.\n5. Update docs to say the setup-check issue is agent-tracked.\n\nFor automatic closing: adding `agent` makes it eligible for the existing stale-close workflow after 30 days of inactivity. If you want a stronger behavior, we can also add explicit “close when setup is complete” logic in onboarding, but I’d treat that as a separate choice because the setup issue is useful as a reusable status surface for reruns.\n\nPlease approve whether to implement just the `agent` label tracking, or also add explicit close-on-complete behavior.",
+      "createdAt": "2026-05-29T17:12:25Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/365#issuecomment-4577856613",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEN8npg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate ",
+      "createdAt": "2026-05-29T17:34:09Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/365#issuecomment-4578027430",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEN9wMw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | implement | Issue #365 | 2 / 40 | Dispatched |\n\nReason: agent planner selected implement: Issue #365 is a small, self-contained onboarding change; no child issue is needed.\n\n<!-- sepo-agent-handoff state:dispatched created:1780076165485 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY2NTIzNTI3NzM6b3JjaGVzdHJhdGU6MzY1OmltcGxlbWVudDozNjU6Mg -->",
+      "createdAt": "2026-05-29T17:36:06Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/365#issuecomment-4578046003",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEOAMCA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-365/codex-26652438340`\n- Pull request: https://github.com/self-evolving/repo/pull/366\n\nUpdated onboarding so the Sepo setup check always ensures the fixed `agent` status label exists and applies it to the setup issue, making it eligible for existing stale issue cleanup. Updated onboarding docs and tests; verified with `npm run build`, targeted onboarding/docs node tests, and `git diff --check`.",
+      "createdAt": "2026-05-29T17:40:33Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/365#issuecomment-4578085896",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-29T17:02:58Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 365,
+  "state": "CLOSED",
+  "title": "Adding `agent` tag to Sepo setup check for onboarding project",
+  "updatedAt": "2026-05-29T18:00:37Z",
+  "url": "https://github.com/self-evolving/repo/issues/365"
+}

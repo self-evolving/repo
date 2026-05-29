@@ -125,6 +125,43 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/354#issuecomment-4549549809",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEOm-Nw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer given what we've discussed, what's the right way to fix this PR? detailed plan ",
+      "createdAt": "2026-05-29T18:45:59Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/354#issuecomment-4578721335",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEOob4g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I’d fix this PR with a tightening pass, not a rewrite. The core direction is still right: Pi should stay an `acpx`-backed provider, with conservative Pi-specific behavior only where Codex/Claude assumptions would leak.\n\nCurrent PR state:\n\n- Provider/model policy now accepts `pi` in [`resolve-provider.js`](https://github.com/self-evolving/repo/blob/d580b974ff3d5507f1fb7bd7956c38e7c211e126/.github/actions/resolve-agent-provider/resolve-provider.js#L5-L8).\n- Pi session setup already skips Codex-specific `thought_level` / `full-access`: [`acpx-adapter.ts`](https://github.com/self-evolving/repo/blob/d580b974ff3d5507f1fb7bd7956c38e7c211e126/.agent/src/acpx-adapter.ts#L317-L318).\n- Runtime already clears reasoning effort for Pi before passing it to `runAcpx`: [`run.ts`](https://github.com/self-evolving/repo/blob/d580b974ff3d5507f1fb7bd7956c38e7c211e126/.agent/src/run.ts#L591-L603).\n- But the resolver/tests/docs still imply `providers.pi.reasoning_effort` is a meaningful supported knob: [`resolve-agent-provider.test.ts`](https://github.com/self-evolving/repo/blob/d580b974ff3d5507f1fb7bd7956c38e7c211e126/.agent/src/__tests__/resolve-agent-provider.test.ts#L216-L229), [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/d580b974ff3d5507f1fb7bd7956c38e7c211e126/.agent/docs/usage/supported-workflows.md#L201-L203).\n\nThe right target behavior should be:\n\n- `pi` supports `model`.\n- `pi` does **not** support Sepo `reasoning_effort` yet.\n- Pi auth restoration remains optional and Secret-only.\n- `PI_AUTH_JSON_B64` can stay, but should be documented as a convenience fallback, not a preferred or safer path.\n\nPlan:\n\n1. **Make model handling explicit and non-duplicative**\n   - For exec/no-session runs, pass Pi model through the existing global `acpx --model <model> pi exec ...` path.\n   - For named sessions, rely on `acpx pi set model <model> -s <session>` before `acpx pi prompt -s <session> ...`.\n   - I would avoid passing both `--model` and `set model` for named sessions unless we have a confirmed reason. The pre-PR pattern already avoided global `--model` for named sessions, and session setup is the clearer place to persist model choice.\n\n2. **Treat Pi reasoning effort as unsupported, not silently configurable**\n   - Update resolver behavior so when the resolved provider is `pi`, `reasoning_effort` output is always empty.\n   - Keep the runtime guard in [`run.ts`](https://github.com/self-evolving/repo/blob/d580b974ff3d5507f1fb7bd7956c38e7c211e126/.agent/src/run.ts#L591-L603) as defense in depth.\n   - Update resolver tests so `providers.pi.reasoning_effort` and route-level `reasoning_effort` with `provider: \"pi\"` do not produce an output reasoning effort.\n   - Optional: emit a warning when Pi has a configured reasoning effort, but I’d probably avoid noisy warnings and document the behavior instead.\n\n3. **Keep Pi session setup conservative**\n   - Preserve the current Pi branch in `buildSessionSetupCommands`: model only, no `thought_level`, no `set-mode full-access`.\n   - Keep or expand the test at [`acpx-adapter.test.ts`](https://github.com/self-evolving/repo/blob/d580b974ff3d5507f1fb7bd7956c38e7c211e126/.agent/src/__tests__/acpx-adapter.test.ts#L495-L510) to assert that Pi ignores `thoughtLevel` even when the workflow fallback passes one.\n\n4. **Clean up docs**\n   - In `AGENT_MODEL_POLICY` examples, keep `providers.pi` as `{ \"model\": \"...\" }` only.\n   - Change wording that says model policy can set provider-specific reasoning effort for Pi. It should say reasoning effort applies to Codex/Claude today; Pi currently supports configured model only.\n   - Keep the auth docs’ hierarchy clear: provider API keys first, persistent self-hosted Pi auth for OAuth/subscription auth, `PI_AUTH_JSON` / `PI_AUTH_JSON_B64` for testing or simple secret restore.\n\n5. **Do not broaden Pi auto-detection beyond actual Pi auth**\n   - `auto` should choose Pi only from Pi auth indicators, not from generic `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`.\n   - Explicit `AGENT_DEFAULT_PROVIDER=pi` can still rely on local Pi auth or provider keys available to Pi; that is the self-hosted/operator-choice path.\n\n6. **Verification**\n   - Add/update focused tests:\n     - resolver accepts `providers.pi.model`;\n     - resolver clears/ignores Pi `reasoning_effort`;\n     - Pi named-session setup only calls `set model`;\n     - Pi exec uses model correctly;\n     - Pi runtime does not expose `MODEL_REASONING_EFFORT` / `CLAUDE_CODE_EFFORT_LEVEL`.\n   - Run `npm test`.\n   - Run `git diff --check`.\n\nI’d ask the implementer to make those changes as a focused follow-up on PR #354, with no new Pi adapter and no extra auth redesign.",
+      "createdAt": "2026-05-29T18:48:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/354#issuecomment-4578745314",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-25T19:39:03Z",
@@ -409,6 +446,6 @@
   "reviews": [],
   "state": "OPEN",
   "title": "Add Pi provider support for agent runs",
-  "updatedAt": "2026-05-26T22:26:48Z",
+  "updatedAt": "2026-05-29T18:48:32Z",
   "url": "https://github.com/self-evolving/repo/pull/354"
 }
