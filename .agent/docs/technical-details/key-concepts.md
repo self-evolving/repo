@@ -35,6 +35,8 @@ A route is the high-level backend behavior being run. Current first-class routes
 - `agent-self-approve`
 - `agent-self-merge`
 - `create-action`
+- `install`
+- `update-agent`
 - `dispatch`
 - `skill`
 - `rubrics-review`
