@@ -1,14 +1,20 @@
 import { randomBytes } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { createIssue, ensureLabel, gh, postIssueComment } from "./github.js";
+import { addIssueLabel, createIssue, ensureLabel, gh, postIssueComment } from "./github.js";
 import { BUILT_IN_TRIGGER_LABELS } from "./trigger-labels.js";
 
 const ONBOARDING_TITLE = "Sepo setup check";
 const COMMENT_MARKER = "<!-- sepo-agent-onboarding-check -->";
 const SEPO_APP_INSTALL_URL = "https://github.com/apps/sepo-agent-app/installations/select_target";
 const SEPO_SETUP_GUIDE_URL = "https://github.com/self-evolving/repo/blob/main/.agent/docs/setup/setup-guide.md";
+const AGENT_STATUS_LABEL = {
+  name: "agent",
+  color: "0e8a16",
+  description: "Handled by the agent",
+};
 const REPOSITORY_MANAGEMENT_LABELS = [
+  AGENT_STATUS_LABEL,
   {
     name: "agent-goal",
     color: "5319e7",
@@ -328,6 +334,7 @@ export function runOnboardingCheck(opts: OnboardingOptions): number {
   if (existingIssue) {
     updateOnboardingIssueBody(opts, issueNumber);
   }
+  addIssueLabel(issueNumber, AGENT_STATUS_LABEL.name, opts.repo);
   const body = checklistBody(opts, memoryReady, rubricsReady);
   const existingComment = findOnboardingComment(opts.repo, issueNumber);
 
