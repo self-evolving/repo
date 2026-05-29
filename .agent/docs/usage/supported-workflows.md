@@ -199,6 +199,15 @@ from the default branch. The canonical `self-evolving/repo` source repository
 should set `AGENT_AUTO_UPDATE=false` when scheduled self-updates are not wanted;
 manual dispatch remains available for explicit source ref testing.
 
+Migration note: installed repositories whose current `agent-update.yml` still
+uses `skill: update-agent` and already lack `.skills/update-agent/SKILL.md`
+cannot bootstrap the dedicated route from that workflow. Send those repositories
+a one-time refresh PR that adds `.github/prompts/agent-update.md` and the
+updated workflow first. Update-specific `AGENT_TASK_TIMEOUT_POLICY` and
+`AGENT_MODEL_POLICY` overrides should move from `route_overrides.skill` to
+`route_overrides.update-agent`; keep `route_overrides.skill` only for explicit
+skill runs.
+
 Single-agent routes, autonomous agent workflows, and the review synthesis step resolve provider/model settings before installing provider CLIs. Explicit provider choices from inline workflow `route_provider`, `AGENT_MODEL_POLICY.route_overrides[route].provider`, or `AGENT_DEFAULT_PROVIDER` are authoritative: the workflows select that provider even when the matching repository secret is absent, so self-hosted runners can rely on local Codex or Claude authentication. When the provider is `auto`, detection uses configured provider secrets and prefers Codex when `OPENAI_API_KEY` is configured; otherwise Claude is selected when either `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` is present. `AGENT_MODEL_POLICY` can also set provider-specific models and route-specific reasoning effort; inline workflow `route_provider` remains the native escape hatch. Portal and skill jobs use non-fatal early resolution before non-agent response paths, then require a provider only immediately before invoking an agent. The review workflow's Claude/Codex reviewer lanes remain static; the policy applies to review synthesis.
 
 ## Trigger details

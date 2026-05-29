@@ -214,6 +214,37 @@ weight: 10
   assert.equal(selected[0]?.rubric.id, "install-guidance");
 });
 
+test("selectRubrics validates and selects update-agent rubrics", () => {
+  const root = tempDir();
+  writeRubric(root, "update-agent.yaml", `
+id: update-agent-guidance
+title: Update agent guidance
+description: Update runs use a dedicated route prompt.
+applies_to: [update-agent]
+severity: should
+`);
+  writeRubric(root, "skill.yaml", `
+id: skill-guidance
+title: Skill guidance
+description: Skill runs execute repository skills.
+applies_to: [skill]
+severity: should
+weight: 10
+`);
+
+  const { rubrics, errors: loadErrors } = loadRubrics(root);
+  assert.deepEqual(loadErrors, []);
+  assert.ok(rubrics.some((rubric) => rubric.applies_to.includes("update-agent")));
+
+  const { selected, errors } = selectRubrics({
+    rootDir: root,
+    route: "update-agent",
+    query: "update Sepo infrastructure",
+  });
+  assert.deepEqual(errors, []);
+  assert.deepEqual(selected.map((entry) => entry.rubric.id), ["update-agent-guidance"]);
+});
+
 test("selectRubrics can include all routes for rubric review", () => {
   const root = tempDir();
   writeRubric(root, "implementation.yaml", `
