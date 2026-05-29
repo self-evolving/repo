@@ -7,7 +7,118 @@
   },
   "body": "## Summary\n\nCodex-backed Sepo runs can fail because the runtime passes the OpenAI credential as `OPENAI_API_KEY`, but `acpx` uses a separate ACP auth env convention for authenticate handshakes: `ACPX_AUTH_<METHOD_ID>`.\n\n## Evidence from downstream run\n\nExample failed downstream run/job:\nhttps://github.com/CodeShaping/annotate-edit/actions/runs/26533704395/job/78156826704\n\nRelevant log excerpt:\n\n```text\nResolved agent provider for dispatch: codex (OPENAI_API_KEY is configured).\n...\nacpx run failed\nsession setup failed: Authentication required\nhint: run `acpx config show` to locate the active config, then add the required credential under `auth` and retry.\n```\n\n## acpx documentation\n\nThe `acpx` README says ACP `authenticate` handshakes require either config `auth` entries or `ACPX_AUTH_<METHOD_ID>` environment variables, e.g. `ACPX_AUTH_OPENAI_API_KEY`. It also states ambient provider env vars like `OPENAI_API_KEY` are passed to child agents but **do not trigger ACP auth-method selection on their own**:\n\nhttps://github.com/openclaw/acpx/blob/main/README.md#L291-L294\n\n## Proposed fix\n\nWhen `INPUT_OPENAI_API_KEY` / `secrets.OPENAI_API_KEY` is configured for Codex, also export it for `acpx` auth selection, e.g. in the shared runtime env setup:\n\n```ts\nif (process.env.INPUT_OPENAI_API_KEY) {\n  env.OPENAI_API_KEY = process.env.INPUT_OPENAI_API_KEY;\n  env.ACPX_AUTH_OPENAI_API_KEY = process.env.INPUT_OPENAI_API_KEY;\n}\n```\n\nOptionally also set `ACPX_AUTH_CODEX_API_KEY` if Codex advertises that method in some environments.\n",
   "closedAt": null,
-  "comments": [],
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEFUyNA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer so does it also impact anthropic key etc? what's the idiomatic solution here?",
+      "createdAt": "2026-05-28T22:52:24Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/361#issuecomment-4568986164",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEFV6nw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, but only for credentials whose ACP adapter advertises an `authenticate` method that `acpx` must select.\n\nCurrent Sepo has two layers:\n\n- Provider selection sees ambient secrets: `OPENAI_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`, `ANTHROPIC_API_KEY` in [`resolve-provider.js`](https://github.com/self-evolving/repo/blob/main/.github/actions/resolve-agent-provider/resolve-provider.js#L193-L200).\n- Runtime passes those to the agent process in [`buildSharedEnv`](https://github.com/self-evolving/repo/blob/main/.agent/src/run.ts#L287-L300), from inputs wired by [`run-agent-task/action.yml`](https://github.com/self-evolving/repo/blob/main/.github/actions/run-agent-task/action.yml#L336-L338).\n\nThe bug is specifically that ACPX auth selection is a third layer. ACPX says auth handshakes use config `auth` or `ACPX_AUTH_<METHOD_ID>` env vars, while ambient provider vars are only passed through to child agents and do not select an ACP auth method: https://github.com/openclaw/acpx/blob/main/README.md#configuration-files\n\nSo the idiomatic fix is **not** “rename all provider secrets.” It is:\n\n1. Keep the existing ambient env vars for provider CLIs/SDKs.\n2. In one shared runtime env builder, mirror Sepo-managed credentials into ACPX auth env vars for the ACP auth method IDs we intentionally support.\n3. Add tests that assert both ambient and ACPX names are emitted.\n4. Avoid passing arbitrary repository secrets through; only map the fixed provider credentials Sepo already accepts.\n\nFor this issue, I would start with Codex:\n\n```ts\nif (process.env.INPUT_OPENAI_API_KEY) {\n  env.OPENAI_API_KEY = process.env.INPUT_OPENAI_API_KEY;\n  env.ACPX_AUTH_OPENAI_API_KEY = process.env.INPUT_OPENAI_API_KEY;\n}\n```\n\nFor Anthropic/Claude, I would not blindly add `ACPX_AUTH_ANTHROPIC_API_KEY` unless the Claude ACP adapter actually advertises that method ID. If it does, then yes, mirror it the same way. If the advertised method is something normalized like `api-key`, the env would be `ACPX_AUTH_API_KEY`, not necessarily `ACPX_AUTH_ANTHROPIC_API_KEY`.\n\nRecommended plan before coding:\n\n1. Confirm advertised auth method IDs for current `codex` and `claude` ACP adapters.\n2. Add a small provider-auth mapping near `buildSharedEnv`, rather than scattering env aliases in workflows.\n3. Mirror only known fixed Sepo inputs:\n   - OpenAI: ambient `OPENAI_API_KEY` plus ACPX auth alias for the Codex method ID.\n   - Claude OAuth/API key: ambient `CLAUDE_CODE_OAUTH_TOKEN` / `ANTHROPIC_API_KEY`, plus ACPX aliases only if the Claude adapter advertises matching non-terminal auth methods.\n4. Add focused tests around `buildSharedEnv` or the run action behavior.\n\nSo: it can impact Anthropic only if Claude’s ACP adapter requires ACPX auth selection for that credential. The idiom is a centralized, explicit credential-to-auth-method map, preserving ambient env vars and adding `ACPX_AUTH_*` aliases only for known ACP method IDs.",
+      "createdAt": "2026-05-28T22:56:11Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/361#issuecomment-4569004703",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEFXGTw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate",
+      "createdAt": "2026-05-28T23:00:17Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/361#issuecomment-4569024079",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEFXnQA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | implement | Issue #361 | 2 / 40 | Dispatched |\n\nReason: agent planner selected implement: Issue #361 is a small, self-contained bug fix on the current issue; no parent plan or existing PR/child work was found.\n\n<!-- sepo-agent-handoff state:dispatched created:1780009328701 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY2MDczMDg1MTM6b3JjaGVzdHJhdGU6MzYxOmltcGxlbWVudDozNjE6Mg -->",
+      "createdAt": "2026-05-28T23:02:09Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/361#issuecomment-4569032512",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEFZdHg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-361/codex-26607380052`\n- Pull request: https://github.com/self-evolving/repo/pull/363\n\nMoved shared runtime environment construction into a typed helper, mirrored `INPUT_OPENAI_API_KEY` to `OPENAI_API_KEY`, `ACPX_AUTH_OPENAI_API_KEY`, and `ACPX_AUTH_CODEX_API_KEY` for Codex acpx auth selection, and updated provider credential docs. Verified with `cd .agent && npm run build && node --test dist/__tests__/runtime-env.test.js dist/__tests__/docs-validation.test.js`.",
+      "createdAt": "2026-05-28T23:08:36Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/361#issuecomment-4569062686",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEFaqHA",
+      "author": {
+        "login": "m13v"
+      },
+      "authorAssociation": "NONE",
+      "body": "the mismatch isn't really about exporting both env vars, it's that ACP's authenticate handshake and the agent's runtime credential are two different abstractions. ACPX_AUTH_<METHOD_ID> is consumed at session setup to pick an auth method, OPENAI_API_KEY is what the spawned codex process reads at request time. mirroring both works for codex today, but the moment a method ID changes (anthropic-oauth vs openai-api-key vs codex-cli-token) the env rewriter has to know the agent's advertised auth methods, not just provider name. that's a registry the runtime doesn't have, and bolting it on after the fact tends to leak back into every new agent the harness adds.",
+      "createdAt": "2026-05-28T23:12:29Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/361#issuecomment-4569082396",
+      "viewerDidAuthor": false
+    }
+  ],
   "createdAt": "2026-05-28T17:56:33Z",
   "labels": [
     {
@@ -15,11 +126,17 @@
       "name": "bug",
       "description": "Something isn't working",
       "color": "d73a4a"
+    },
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
     }
   ],
   "number": 361,
   "state": "OPEN",
   "title": "Fix acpx Codex auth env var mismatch",
-  "updatedAt": "2026-05-28T17:56:33Z",
+  "updatedAt": "2026-05-28T23:12:29Z",
   "url": "https://github.com/self-evolving/repo/issues/361"
 }

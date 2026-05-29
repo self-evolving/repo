@@ -1,0 +1,203 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Move shared agent runtime env construction into `runtime-env.ts`\n- Mirror Sepo's OpenAI input into Codex acpx auth aliases\n- Document the runtime credential mirroring behavior\n\n## Tests\n- `cd .agent && npm run build && node --test dist/__tests__/runtime-env.test.js dist/__tests__/docs-validation.test.js`\n\nCloses #361\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEFZulQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #363 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: Implementation succeeded and produced open PR #363 for issue #361; the next useful automation step is review before any human merge decision.\n\n<!-- sepo-agent-handoff state:dispatched created:1780009766208 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY2MDczODAwNTI6aW1wbGVtZW50OjM2MTpyZXZpZXc6MzYzOjM -->",
+      "createdAt": "2026-05-28T23:09:26Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/363#issuecomment-4569067157",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEFaYNw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 5 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Moves existing shared env logic out of `.agent/src/run.ts` into `.agent/src/runtime-env.ts`, then imports it back instead of adding workflow glue. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates `.agent/docs/customization/configuration-list.md` and `.agent/docs/technical-details/key-concepts.md` to document OpenAI-to-ACPX auth mirroring. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is limited to runtime env extraction, the Codex auth aliases, focused tests, and two one-line docs updates. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Uses a small fixed Codex method-id list plus a shared credential helper; no new settings, route behavior, or broad secret pass-through. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | Mirrors only the Sepo-managed OpenAI input to explicit Codex ACPX aliases and intentionally avoids unsupported Claude/Anthropic ACPX aliases in tests. |\n\n## Notes\n\n- The implementation matches issue #361’s stated idiom: keep ambient provider env vars, add explicit `ACPX_AUTH_*` aliases only for known supported auth methods, and keep the mapping centralized.\n- Route authorization, orchestration, review synthesis, merge strategy, preview-mode, and status-comment rubrics were not scored because this PR does not change those surfaces.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific blockers or warnings found.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-28T23:11:34Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/363#issuecomment-4569077815",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEFdBQA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 063477b521b1e41b943d362572499c535f5e6eff -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #363 fixes #361, where Codex-backed Sepo runs could detect `OPENAI_API_KEY` but still fail ACPX session authentication because ACPX expects `ACPX_AUTH_<METHOD_ID>` variables.\n- The PR extracts shared runtime environment construction into `.agent/src/runtime-env.ts`.\n- It mirrors Sepo’s OpenAI input into `OPENAI_API_KEY`, `ACPX_AUTH_OPENAI_API_KEY`, and `ACPX_AUTH_CODEX_API_KEY`.\n- It also adds focused runtime-env tests and updates the provider credential docs.\n- The implementation direction matches the issue, but the current PR head fails the required `Test Scripts` check.\n\n## Review\nThe core fix is sound, and the docs/rubrics review do not show required rework. However, the current head `063477b5` fails CI because existing contract tests still expect moved env wiring to live directly in `run.ts`. One reviewer treated this as minor coverage drift, but the live failed check confirms it is blocking.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Existing env contract tests still target `run.ts` | BLOCKING | `Test Scripts` fails two `envelope.test.ts` tests because `INPUT_SECONDARY_GITHUB_TOKEN`, `MODEL_REASONING_EFFORT`, and `CLAUDE_CODE_EFFORT_LEVEL` assertions were not updated after moving the shared env builder into `runtime-env.ts`. |\n\n## Progress\n- Confirmed PR #363 closes #361 and no broader parent/tracking issue was referenced beyond the orchestrated issue flow.\n- Rubrics review passed with no rubric-specific blockers.\n- Existing PR discussion and inline review state were checked; there were no prior inline comments or review threads before synthesis.\n- Posted one inline comment on `.agent/src/runtime-env.ts` line 29: https://github.com/self-evolving/repo/pull/363#discussion_r3321191195.\n- No threads were resolved, no comments were minimized, and no replies were added.\n\n## Issue Details\n\n<details>\n<summary>Existing env contract tests still target `run.ts`</summary>\n\n**Cause:** The PR moved `buildSharedEnv()` from `.agent/src/run.ts` into `.agent/src/runtime-env.ts`, but `.agent/src/__tests__/envelope.test.ts` still reads `run.ts` and asserts that secondary-token and reasoning-effort env wiring appears there. The live `Test Scripts` run fails on `shared run-agent-task exposes an optional secondary GitHub token` and `run-agent-task maps reasoning effort for Claude env and Codex thought level`.\n\n**Candidate solutions:** Update the old source-contract assertions to inspect `runtime-env.ts`, or better, add direct `buildSharedEnv()` behavioral coverage in `.agent/src/__tests__/runtime-env.test.ts` for `INPUT_SECONDARY_GITHUB_TOKEN`, `MODEL_REASONING_EFFORT`, and `CLAUDE_CODE_EFFORT_LEVEL`, while preserving the action/workflow wiring checks in `envelope.test.ts`.\n\n**Comments:** This is not a design objection to the extraction. It is a required test update because the current PR head has a failing required check.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: The unresolved issue is a concrete branch change that should update the moved env-contract tests and make the full `npm test` suite green.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Update the env contract tests so secondary-token and reasoning-effort wiring are asserted against `buildSharedEnv()` / `runtime-env.ts`, and ensure the full test suite passes.",
+      "createdAt": "2026-05-28T23:20:20Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/363#issuecomment-4569121088",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEFdOUQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #363 | 4 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review concluded needs_rework and recommended fix_pr; the remaining action item is concrete test coverage wiring work on PR #363.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Update the env contract tests so secondary-token and reasoning-effort wiring are asserted against `buildSharedEnv()` / `runtime-env.ts`, and ensure the full test suite passes.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1780010463982 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY2MDc2NDk4MTU6cmV2aWV3OjM2MzpmaXhfcHI6MzYzOjQ -->",
+      "createdAt": "2026-05-28T23:21:04Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/363#issuecomment-4569124433",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEFd-Gg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-361/codex-26607380052`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Updated env contract tests to inspect `.agent/src/runtime-env.ts` for moved secondary-token and reasoning-effort wiring.\n- Added direct `buildSharedEnv()` coverage for secondary GitHub token preservation and reasoning-effort mapping.\n- Verified with `cd .agent && npm test` (690 tests passed).",
+      "createdAt": "2026-05-28T23:23:58Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/363#issuecomment-4569136666",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEFeN-g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #363 | 5 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on open PR #363 and reported the concrete review action item was addressed with npm test passing; a fresh review is the next useful automation step before any human decision.\n\n<!-- sepo-agent-handoff state:dispatched created:1780010694271 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY2MDgwNzMyNzg6Zml4X3ByOjM2MzpyZXZpZXc6MzYzOjU -->",
+      "createdAt": "2026-05-28T23:24:54Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/363#issuecomment-4569140730",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEFepUA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 5 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Shared env construction is moved from `.agent/src/run.ts` into `.agent/src/runtime-env.ts`, and `run.ts` imports `buildSharedEnv()` instead of duplicating workflow glue. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates `.agent/docs/customization/configuration-list.md` and `.agent/docs/technical-details/key-concepts.md` to document OpenAI key pass-through plus ACPX Codex auth mirroring. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is limited to runtime env extraction, Codex ACPX auth aliases, targeted tests, and narrow documentation updates. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Uses a small fixed Codex auth method list and shared helper; no new settings, broad registry, or unrelated provider behavior. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | Mirrors only Sepo’s fixed OpenAI input into known Codex ACPX aliases and keeps Claude/Anthropic ambient credentials without unsupported ACPX aliases, covered by `runtime-env.test.ts`. |\n\n## Notes\n\n- Current PR head `4d80ce9` includes the follow-up test fix, and the live `Test Scripts / check` run passed.\n- Issue #361’s context supports this scoped fix: preserve ambient provider env vars, add explicit ACPX auth aliases only for known Codex method IDs, and avoid guessing Claude/Anthropic aliases.\n- Route authorization, orchestration, review synthesis, merge strategy, preview-mode, setup guidance, and status-comment rubrics were not scored because this PR does not change those surfaces.\n\n## Findings\n\n- **INFO:** No rubric-specific blockers or warnings found.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-28T23:26:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/363#issuecomment-4569147728",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEFgvRg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 4d80ce9aea33de93d1bf584087c77c79a45ed929 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #363 fixes issue #361 by mirroring Sepo’s configured OpenAI credential into ACPX auth env vars needed for Codex session authentication.\n- It extracts shared runtime env construction into `.agent/src/runtime-env.ts`.\n- It preserves ambient provider env vars while adding `ACPX_AUTH_OPENAI_API_KEY` and `ACPX_AUTH_CODEX_API_KEY` only for known Codex ACPX auth methods.\n- The follow-up commit updated the moved env contract tests and added direct `buildSharedEnv()` coverage.\n\n## Review\nThe current PR head `4d80ce9` looks ready: Claude, Codex, and the rubrics review all found no blocking or warning issues remaining. Claude noted a few advisory design/wording observations, but none require branch changes before merge.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues | INFO | Current review artifacts and PR state do not support any unresolved blocking, warning, or required branch-change findings. |\n\n## Progress\n- The earlier failing env contract tests were fixed by updating `envelope.test.ts` and adding direct `runtime-env.test.ts` coverage.\n- Current PR check is passing: `check` completed successfully on head `4d80ce9`.\n- Rubrics review passed with no rubric-specific follow-up.\n- Resolved the stale same-agent inline review thread on `.agent/src/runtime-env.ts` line 29 because the cited CI/test issue is now addressed.\n- No new inline comments, replies, or minimized comments were added.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: No unresolved actionable branch-change work remains for an automated fix-pr pass.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.",
+      "createdAt": "2026-05-28T23:34:22Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/363#issuecomment-4569182022",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-28T23:08:31Z",
+  "files": [
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/key-concepts.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 7,
+      "deletions": 6,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/runtime-env.test.ts",
+      "additions": 46,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/run.ts",
+      "additions": 1,
+      "deletions": 25,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/runtime-env.ts",
+      "additions": 62,
+      "deletions": 0,
+      "changeType": "ADDED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-361/codex-26607380052",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 363,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABBWR-yg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-28T23:19:15Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "063477b521b1e41b943d362572499c535f5e6eff"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Mirror Codex OpenAI key into ACPX auth env",
+  "updatedAt": "2026-05-28T23:34:22Z",
+  "url": "https://github.com/self-evolving/repo/pull/363"
+}

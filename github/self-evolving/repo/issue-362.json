@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "for example, I think the model has an tendency to over interpret discussion-like threads as the implement one? \ncheck\n\n- https://github.com/augmented-mind/augmented-mind.github.io/issues/48#issue-4543638369\n- https://github.com/CodeShaping/annotate-edit/issues/4#issuecomment-4557959912\n\n\n@sepo-agent shall we figure out why and plans for improvement? ",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEEqKbA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I checked the router/prompt path and the two examples.\n\nMy read: this is mostly a prompt/route-contract problem, not an unchecked execution problem. Free-form mentions go through dispatch triage in [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L239-L270), then [`resolve-dispatch`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/resolve-dispatch.ts#L84-L118) applies policy. Triaged `implement` is already forced through approval in [`applyDispatchPolicy`](https://github.com/self-evolving/repo/blob/main/.agent/src/triage.ts#L408-L414), and the workflow posts an approval request instead of running immediately ([router approval job](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L775-L826)).\n\nWhy it over-selects `implement`:\n\n- The dispatch prompt is thin. It says use `implement` when the user asks for code changes, and `answer` for questions/discussion, but it does not explicitly say that “let’s think”, “best way”, “figure out why”, “plans”, “check”, or “investigate” should default to `answer` unless the user clearly asks to make changes ([`agent-dispatch.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-dispatch.md#L32-L48)).\n- The base prompt encourages reading the target issue context ([`_base.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/_base.md#L14-L22)). That is good generally, but for triage it lets an implementation-shaped issue body overpower a discussion-shaped mention.\n- The model is asked to synthesize `issue_title`/`issue_body` for `implement`, so once it leans that way it can turn a loose discussion into a concrete implementation proposal.\n- Current tests cover parser/policy behavior, not classification quality for ambiguous examples. For example, [`triage.test.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/triage.test.ts#L30-L48) checks route enumeration, and later tests check approval gating, but not “best way”/“shall we figure out” scenarios.\n\nFor the linked cases:\n\n- `augmented-mind.github.io#48`: I would now expect `answer`, because “let’s think about the best way to do it” is plan/discussion intent even though the issue contains a concrete site change.\n- `CodeShaping/annotate-edit#4`: borderline, but still probably `implement` because the issue is already a goal with success criteria and the mention says “check and update the openai API.” If we want “check” to mean inspect first, we need to state that rule explicitly.\n\nPlan I’d propose:\n\n1. Tighten [`agent-dispatch.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-dispatch.md):\n   - Default to `answer` for planning, design discussion, investigation, diagnosis, “best way”, “shall we figure out”, and “check/look into” wording.\n   - Choose `implement` only when the live mention clearly authorizes changes, not merely because the issue body is implementable.\n   - Add “when in doubt, answer with a plan and ask for explicit `/implement` or approval.”\n\n2. Add few-shot routing examples directly in the dispatch prompt:\n   - “`@sepo-agent let's think about the best way to do it`” => `answer`.\n   - “`@sepo-agent shall we figure out why and plans for improvement?`” => `answer`.\n   - “`@sepo-agent check and update the OpenAI API`” on a concrete goal issue => `implement`, unless phrased as “check whether/how”.\n\n3. Add regression tests or fixtures around the prompt contract:\n   - At minimum, assert the prompt includes the conservative discussion-intent rules and the concrete examples.\n   - Better follow-up: add a small offline fixture/eval harness that records expected route decisions for ambiguous mention bodies, even if it does not call a live model in CI.\n\n4. Consider a deterministic conservative guard after model triage:\n   - If route is `implement`, source text contains discussion-intent phrases, and there is no explicit change verb like “implement/add/update/fix/create”, downgrade to `answer`.\n   - I’d start with prompt + fixtures first; deterministic phrase guards can become brittle.\n\n5. Optional model tuning:\n   - Repositories can already route-select a stronger dispatch model through `AGENT_MODEL_POLICY`, but I would not treat model choice as the primary fix. The current ambiguity is in the contract.\n\nIf this direction sounds right, I’d implement the prompt tightening plus regression coverage first, then we can decide whether a deterministic downgrade guard is worth adding.",
+      "createdAt": "2026-05-28T21:08:22Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/362#issuecomment-4568287852",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-28T21:04:44Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 362,
+  "state": "OPEN",
+  "title": "Better triage model / prompts",
+  "updatedAt": "2026-05-28T21:08:22Z",
+  "url": "https://github.com/self-evolving/repo/issues/362"
+}
