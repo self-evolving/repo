@@ -403,6 +403,20 @@ test("applyDispatchPolicy denies explicit implement when access policy restricts
   assert.equal(d.needsApproval, false);
 });
 
+test("applyDispatchPolicy rejects explicit implement for true unauthorized none association", () => {
+  const d = applyDispatchPolicy(
+    buildRequestedRouteDecision("implement", "@sepo-agent /implement add foo"),
+    "issue",
+    "NONE",
+    parseAccessPolicy(""),
+    false,
+    true,
+  );
+  assert.equal(d.route, "unsupported");
+  assert.equal(d.needsApproval, false);
+  assert.match(d.summary, /implement requests currently require OWNER, MEMBER, COLLABORATOR, CONTRIBUTOR/);
+});
+
 test("applyDispatchPolicy dispatches fix-pr on PR without approval", () => {
   const d = applyDispatchPolicy(
     normalizeDispatch('{"route":"fix-pr","needs_approval":true,"summary":"fix"}'),
