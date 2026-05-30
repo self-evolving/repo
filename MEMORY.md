@@ -65,7 +65,7 @@
 - Privileged scheduled workflows should run repo-local actions/scripts from default branch; use adopted PR branches only as target worktrees.
 - Release prepare is the agentic PR step; publishing/tagging stays source-repo gated and should use reviewed changelog notes.
 - Scheduled update checks adopt existing same-repo agent/update-agent-infra-* PRs instead of opening duplicates.
-- Onboarding setup checks reuse one issue/comment; reruns patch the short issue body and focused status without trigger-label inventory.
+- Onboarding setup checks reuse one issue/comment, apply agent label for stale cleanup, and reruns patch short body/status.
 - Self-approval status comments are marker-upserted only on trusted Sepo-authored comments; avoid fallback duplicate posts.
 - Before merging stacked PRs, verify the intended base head is an ancestor of the PR head; close/recreate mis-stacked branches.
 - Self-approval/self-merge requires trusted SHIP reviewed-head provenance matching the current PR head.
