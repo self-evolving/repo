@@ -42,6 +42,12 @@ const WEAK_ASSOCIATIONS_FOR_COLLABORATOR_FALLBACK = new Set([
   "FIRST_TIMER",
   "NONE",
 ]);
+const TRUSTED_REPOSITORY_PERMISSIONS = new Set([
+  "admin",
+  "maintain",
+  "write",
+  "triage",
+]);
 const ISSUE_ASSOCIATION_REFRESH_ATTEMPTS = 3;
 const ISSUE_ASSOCIATION_REFRESH_BACKOFF_MS = 100;
 const SLEEP_BUFFER = new Int32Array(new SharedArrayBuffer(4));
@@ -114,7 +120,7 @@ function getRepositoryPermission(userLogin: string): RepositoryPermissionLookup 
     return {
       login,
       permission,
-      allowed: Boolean(permission) && permission !== "none",
+      allowed: TRUSTED_REPOSITORY_PERMISSIONS.has(permission),
       error: false,
       skippedReason: "",
     };
