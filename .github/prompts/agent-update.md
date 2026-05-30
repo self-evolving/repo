@@ -172,6 +172,12 @@ target root `README.md` unless explicitly requested.
 
 ## Post-Merge Guidance
 
+Temporary migration note: if this is a one-time refresh PR for a repository
+whose current `agent-update.yml` still invokes `.skills/update-agent/SKILL.md`,
+say that the PR bootstraps future dedicated-route updates. Do not add this note
+to durable user docs, and remove this temporary prompt guidance after affected
+installs have refreshed.
+
 After the update PR merges:
 
 - Verify required secrets/auth settings still match the updated workflows.

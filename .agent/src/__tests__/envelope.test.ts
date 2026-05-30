@@ -423,6 +423,7 @@ test("scheduled workflows evaluate skip gates before provider-dependent jobs", (
   );
   assert.match(updateWorkflow, /prompt:\s*agent-update/);
   assert.match(updateWorkflow, /route:\s*update-agent/);
+  assert.match(updateWorkflow, /rubrics_mode_override:\s*disabled/);
   assert.doesNotMatch(updateWorkflow, /skill:\s*update-agent/);
   assert.match(updatePrompt, /first-class internal `update-agent` route/);
   assert.match(updatePrompt, /must not depend on `\.skills\/update-agent\/SKILL\.md`/);

@@ -37,8 +37,6 @@ export const RUBRIC_ROUTE_NAMES = [
   "fix-pr",
   "review",
   "skill",
-  "install",
-  "update-agent",
   "rubrics-review",
   "rubrics-initialization",
   "rubrics-update",
