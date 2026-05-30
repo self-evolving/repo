@@ -272,6 +272,89 @@ test("extract-context refreshes contributor issue author association from the Gi
   }
 });
 
+test("extract-context resolves stale issue body association on a later retry", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-extract-context-"));
+
+  try {
+    const eventPath = join(tempDir, "event.json");
+    const outputPath = join(tempDir, "github-output.txt");
+    const fakeGh = join(tempDir, "gh");
+    const ghCallLog = join(tempDir, "gh-calls.txt");
+    const issueCallCount = join(tempDir, "issue-call-count.txt");
+
+    writeFileSync(
+      eventPath,
+      JSON.stringify({
+        sender: { login: "alice", type: "User" },
+        issue: {
+          number: 6,
+          title: "Investigate auth",
+          body: "@sepo-agent /implement can you fix this?",
+          html_url: "https://github.com/self-evolving/repo/issues/6",
+          node_id: "I_6",
+          author_association: "NONE",
+          user: { login: "alice" },
+        },
+      }),
+      "utf8",
+    );
+    writeFileSync(outputPath, "", "utf8");
+    writeFileSync(ghCallLog, "", "utf8");
+    writeFileSync(issueCallCount, "0", "utf8");
+    writeFileSync(
+      fakeGh,
+      [
+        "#!/usr/bin/env bash",
+        `printf '%s\\n' "$*" >> ${JSON.stringify(ghCallLog)}`,
+        "if [ \"$1\" = \"api\" ] && [ \"$2\" = \"repos/self-evolving/repo/issues/6\" ]; then",
+        `  count=$(cat ${JSON.stringify(issueCallCount)})`,
+        "  count=$((count + 1))",
+        `  printf '%s' "$count" > ${JSON.stringify(issueCallCount)}`,
+        "  if [ \"$count\" = \"1\" ]; then",
+        "    printf 'NONE\\n'",
+        "  else",
+        "    printf 'COLLABORATOR\\n'",
+        "  fi",
+        "  exit 0",
+        "fi",
+        "if [ \"$1\" = \"api\" ] && [ \"$2\" = \"repos/self-evolving/repo/collaborators/alice/permission\" ]; then",
+        "  printf 'permission fallback should not be called\\n' >&2",
+        "  exit 1",
+        "fi",
+        "printf 'unexpected gh args: %s\\n' \"$*\" >&2",
+        "exit 1",
+        "",
+      ].join("\n"),
+      { encoding: "utf8", mode: 0o755 },
+    );
+
+    execFileSync("node", [".agent/dist/cli/extract-context.js"], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        PATH: `${tempDir}:${process.env.PATH || ""}`,
+        GITHUB_EVENT_PATH: eventPath,
+        GITHUB_EVENT_NAME: "issues",
+        GITHUB_OUTPUT: outputPath,
+        GITHUB_REPOSITORY: "self-evolving/repo",
+        INPUT_MENTION: "@sepo-agent",
+        INPUT_TRIGGER_KIND: "mention",
+      },
+      stdio: "pipe",
+    });
+
+    const outputs = parseGithubOutput(outputPath);
+    const ghCalls = readFileSync(ghCallLog, "utf8");
+    assert.equal(outputs.get("should_respond"), "true");
+    assert.equal(outputs.get("association"), "COLLABORATOR");
+    assert.equal(outputs.get("requested_route"), "implement");
+    assert.equal(readFileSync(issueCallCount, "utf8"), "2");
+    assert.doesNotMatch(ghCalls, /collaborators\/alice\/permission/);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("extract-context promotes weak issue author association for repository collaborators", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-extract-context-"));
 
