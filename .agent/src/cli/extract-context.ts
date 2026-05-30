@@ -55,6 +55,7 @@ const SLEEP_BUFFER = new Int32Array(new SharedArrayBuffer(4));
 interface RepositoryPermissionLookup {
   login: string;
   permission: string;
+  roleName: string;
   allowed: boolean;
   error: boolean;
   skippedReason: string;
@@ -83,6 +84,31 @@ function logMentionAssociationDiagnostic(message: string): void {
   console.log(`[extract-context] ${message}`);
 }
 
+function isTrustedRepositoryPermission(permission: string, roleName: string): boolean {
+  return TRUSTED_REPOSITORY_PERMISSIONS.has(permission) ||
+    TRUSTED_REPOSITORY_PERMISSIONS.has(roleName);
+}
+
+function parseRepositoryPermissionResponse(raw: string): { permission: string; roleName: string } {
+  const trimmed = String(raw || "").trim();
+  if (!trimmed) {
+    return { permission: "", roleName: "" };
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed) as { permission?: unknown; role_name?: unknown; roleName?: unknown };
+    return {
+      permission: String(parsed.permission || "").trim().toLowerCase(),
+      roleName: String(parsed.role_name || parsed.roleName || "").trim().toLowerCase(),
+    };
+  } catch {
+    return {
+      permission: trimmed.toLowerCase(),
+      roleName: "",
+    };
+  }
+}
+
 function hasOrgMembership(orgLogin: string, userLogin: string): boolean {
   const membershipState = ghApi([
     `orgs/${orgLogin}/memberships/${userLogin}`,
@@ -104,6 +130,7 @@ function getRepositoryPermission(userLogin: string): RepositoryPermissionLookup 
     return {
       login,
       permission: "",
+      roleName: "",
       allowed: false,
       error: false,
       skippedReason: !repository ? "missing repository" : "missing login",
@@ -111,16 +138,17 @@ function getRepositoryPermission(userLogin: string): RepositoryPermissionLookup 
   }
 
   try {
-    const permission = gh([
+    const parsed = parseRepositoryPermissionResponse(gh([
       "api",
       `repos/${repository}/collaborators/${login}/permission`,
       "--jq",
-      ".permission // .role_name // empty",
-    ]).trim().toLowerCase();
+      '{permission: (.permission // ""), role_name: (.role_name // "")}',
+    ]));
     return {
       login,
-      permission,
-      allowed: TRUSTED_REPOSITORY_PERMISSIONS.has(permission),
+      permission: parsed.permission,
+      roleName: parsed.roleName,
+      allowed: isTrustedRepositoryPermission(parsed.permission, parsed.roleName),
       error: false,
       skippedReason: "",
     };
@@ -128,6 +156,7 @@ function getRepositoryPermission(userLogin: string): RepositoryPermissionLookup 
     return {
       login,
       permission: "",
+      roleName: "",
       allowed: false,
       error: true,
       skippedReason: "",
@@ -223,6 +252,7 @@ function describePermissionLookup(result: RepositoryPermissionLookup): string {
   const parts = [
     `login=${result.login || "empty"}`,
     `permission=${result.permission || "empty"}`,
+    `role_name=${result.roleName || "empty"}`,
     `allowed=${String(result.allowed)}`,
   ];
   if (result.error) {

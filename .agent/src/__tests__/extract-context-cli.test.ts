@@ -506,6 +506,46 @@ test("extract-context preserves weak issue body association for public read perm
   assert.equal(outputs.get("requested_route"), "implement");
 });
 
+test("extract-context promotes weak issue body association for triage role_name", () => {
+  const outputs = runExtractContextCli({
+    eventName: "issues",
+    payload: {
+      sender: { login: "alice", type: "User" },
+      issue: {
+        number: 361,
+        title: "Auth hardening",
+        body: "@sepo-agent /implement harden issue body auth",
+        html_url: "https://github.com/self-evolving/repo/issues/361",
+        node_id: "I_361",
+        author_association: "NONE",
+        user: { login: "alice" },
+      },
+    },
+    ghScript: [
+      "#!/usr/bin/env bash",
+      "if [ \"$1\" = \"api\" ] && [ \"$2\" = \"repos/self-evolving/repo/issues/361\" ]; then",
+      "  printf 'NONE\\n'",
+      "  exit 0",
+      "fi",
+      "if [ \"$1\" = \"api\" ] && [ \"$2\" = \"repos/self-evolving/repo/collaborators/alice/permission\" ]; then",
+      "  printf '{\"permission\":\"read\",\"role_name\":\"triage\"}\\n'",
+      "  exit 0",
+      "fi",
+      "printf 'unexpected gh args: %s\\n' \"$*\" >&2",
+      "exit 1",
+      "",
+    ].join("\n"),
+    env: {
+      GITHUB_REPOSITORY: "self-evolving/repo",
+    },
+  });
+
+  assert.equal(outputs.get("should_respond"), "true");
+  assert.equal(outputs.get("association"), "COLLABORATOR");
+  assert.equal(outputs.get("requested_by"), "alice");
+  assert.equal(outputs.get("requested_route"), "implement");
+});
+
 test("extract-context preserves weak issue body association when permission lookup fails", () => {
   const outputs = runExtractContextCli({
     eventName: "issues",
