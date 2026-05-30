@@ -301,13 +301,15 @@ function buildModelDisplay(options: {
   agent: string;
   model: string;
   reasoningEffort: string;
+  runnerName: string;
 }): string {
   const parts = [
     options.agent.trim(),
     options.model.trim() || "default model",
     options.reasoningEffort.trim(),
+    options.runnerName.trim(),
   ].filter(Boolean);
-  return parts.length > 0 ? `_Run: ${parts.map((part) => `\`${part}\``).join(" / ")}_` : "";
+  return parts.length > 0 ? parts.map((part) => `\`${part}\``).join(" | ") : "";
 }
 
 // --- Main ---
@@ -595,6 +597,7 @@ function runDirectPath(opts: {
       agent,
       model: reportedModel,
       reasoningEffort: process.env.MODEL_REASONING_EFFORT || "",
+      runnerName: process.env.RUNNER_NAME || "",
     }));
   }
 
