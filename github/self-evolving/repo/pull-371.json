@@ -1,0 +1,82 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Make the dispatch prompt prioritize the live mention over target issue/PR context when deciding whether work is authorized.\n- Default planning, diagnosis, investigation, and check/look-into wording to `answer` unless the mention clearly asks for changes.\n- Add few-shot routing examples for `let's think`, `shall we figure out`, and `check and update the OpenAI API`.\n\n## Verification\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/triage.test.js`\n- `git diff --check`\n\nCloses #362\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABERyorg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #371 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: Implementation succeeded and produced open PR #371 for the requested prompt-only changes, so an automated review is the appropriate next step.\n\n<!-- sepo-agent-handoff state:dispatched created:1780125413734 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY2Nzc3NzMyNjA6aW1wbGVtZW50OjM2MjpyZXZpZXc6MzcxOjM -->",
+      "createdAt": "2026-05-30T07:16:54Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/371#issuecomment-4582058158",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABERy7jw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 6 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Read docs and linked context first | pass | 6/6 | PR closes issue #362, whose thread includes the router/prompt investigation and the requester’s narrowed scope to plan items 1 and 2. |\n| coding_workflow/generic | Make surgical changes | pass | 8/8 | The diff changes only `.github/prompts/agent-dispatch.md`, adding 16 prompt lines and no unrelated refactors. |\n| coding_style/generic | Prefer simple implementations | pass | 7/7 | The change stays prompt-only, matching the request and avoiding deterministic guards, model tuning, or new test harness work that was explicitly deferred. |\n| coding_workflow/generic | Prefer agent-derived decisions | pass | 7/7 | The routing policy is encoded in the existing dispatch prompt contract: live mention priority, clear implement verbs, conservative `answer` fallback, and explicit approval wording. |\n| coding_workflow/generic | Keep docs in sync | pass | 7/7 | The relevant dispatch contract itself is updated in `.github/prompts/agent-dispatch.md`; the README’s higher-level free-form/slash-route guidance remains consistent. |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | The PR reuses the existing dispatch prompt path instead of adding route parser logic, workflow glue, new config, or another policy surface. |\n\n## Notes\n\n- The strongest score drivers are scope discipline and contract alignment: the added rules directly cover “live mention over issue body,” discussion/investigation defaults, “when in doubt answer,” and the three requested few-shot examples.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings. The absence of new regression fixtures is acceptable for this review because the requester explicitly said not to implement plan item 3.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-30T07:19:07Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/371#issuecomment-4582062991",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABERzYaw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 70c5d7d675170a7414fc1450f1dccb36deeb98ad -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #371 closes https://github.com/self-evolving/repo/issues/362 by tightening the dispatch triage prompt for discussion-shaped mentions. The change makes the live mention authoritative over an implementable issue body, so planning, diagnosis, “let’s think,” and similar wording default to `answer`. It also adds the requested few-shot examples for discussion intent and the concrete “check and update” case. The requester explicitly narrowed the work to plan items 1 and 2, leaving regression fixtures, deterministic guards, and model tuning out of scope.\n\n## Review\nThe reviewers agree the PR is surgical, correctly scoped, and matches the issue discussion. The only noted gap is missing regression coverage, but that was explicitly deferred by the requester and is not actionable for this PR.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues found | INFO | The current diff updates only `.github/prompts/agent-dispatch.md` and implements the authorized prompt-contract changes without unresolved blocking or warning findings. |\n\n## Progress\n- All review artifacts were considered: Codex review, Claude review, and rubrics review.\n- Rubrics review passed with no required follow-up.\n- Reviewers verified or reported passing checks including `npm --prefix .agent run build`, `node --test .agent/dist/__tests__/triage.test.js`, and `git diff --check`.\n- Existing inline PR comments and review threads were fetched; none required posting, replying, minimizing, or resolving.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved actionable branch changes remain for automation.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch changes.",
+      "createdAt": "2026-05-30T07:22:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/371#issuecomment-4582070379",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-30T07:15:50Z",
+  "files": [
+    {
+      "path": ".github/prompts/agent-dispatch.md",
+      "additions": 16,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-362/codex-26677773260",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 371,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "OPEN",
+  "title": "Tighten dispatch triage prompt for discussion intent",
+  "updatedAt": "2026-05-30T07:22:32Z",
+  "url": "https://github.com/self-evolving/repo/pull/371"
+}

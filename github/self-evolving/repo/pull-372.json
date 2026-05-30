@@ -1,0 +1,371 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Retry weak `issues` event author associations before route policy runs.\n- Fall back to repository permission lookup and promote non-`none` permissions to `COLLABORATOR`.\n- Add diagnostics for raw, refreshed, permission fallback, and final associations.\n- Cover promotion, fallback failure, strong comment behavior, and true unauthorized `NONE` policy rejection.\n\n## Tests\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/extract-context-cli.test.js`\n- `node --test .agent/dist/__tests__/triage.test.js`\n- `node --test .agent/dist/__tests__/docs-validation.test.js`\n\nCloses #358\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABER0ZPQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #372 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: Implementation succeeded and opened PR #372 for issue #358; the next useful automatic step is review before any human decision or merge.\n\n<!-- sepo-agent-handoff state:dispatched created:1780126085605 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY2Nzc3ODg3MjY6aW1wbGVtZW50OjM1ODpyZXZpZXc6MzcyOjM -->",
+      "createdAt": "2026-05-30T07:28:06Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/372#issuecomment-4582086973",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABER04yg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR closes #358 and implements the linked plan: retry weak issue-body association, permission fallback, diagnostics, tests. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Extends `extract-context.ts` and existing `gh` helpers rather than adding workflow glue or a parallel auth path. |\n| coding_workflow / generic | Surgical changes | pass | 8/8 | Diff is limited to auth extraction, focused tests, policy regression coverage, and matching docs. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Uses bounded constants, small helpers, and a direct permission lookup path in [`extract-context.ts`](https://github.com/self-evolving/repo/blob/c3ea2ca854f72869ae64ebd338401ecda5597ec0/.agent/src/cli/extract-context.ts#L45). |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | Association normalization happens before route policy, while route authorization remains in triage; unauthorized `NONE` implement is still rejected in tests. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Permission and issue refresh failures are logged as diagnostics instead of being indistinguishable silent misses. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Access policy docs now describe the permission endpoint and issue-body retry behavior. |\n| coding_workflow / generic | Validate delegated route authorization | not applicable | N/A | This PR does not add route delegation or downstream action dispatch. |\n\n## Notes\n\n- The implementation matches the requested narrow shape: weak mention associations only, issue-event retries, repository permission fallback, and no broad workflow delay.\n- Regression coverage includes permission promotion for `admin`, `write`, and `read`; lookup failure preserving `NONE`; strong issue-comment fast path without `gh`; and triage rejection for true unauthorized `NONE`.\n\n## Findings\n\n- **INFO:** No rubric-specific blocking findings. The selected applicable rubrics are satisfied by the current PR diff.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-30T07:30:14Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/372#issuecomment-4582095050",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABER2rzg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: c3ea2ca854f72869ae64ebd338401ecda5597ec0 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #372 hardens Sepo’s weak issue-body mention authorization path for issue #358.\n- It retries stale `issues` event `author_association` reads, falls back to the repository permission endpoint, and logs the raw, refreshed, permission, and final association decisions.\n- The branch keeps route authorization in triage unchanged, so a true unauthorized `NONE` requester is still denied.\n- The docs and tests are updated for permission fallback, lookup failure, strong comment behavior, and policy preservation.\n\n## Review\nThe implementation is directionally correct and narrowly scoped, but one reviewer identified a test gap that is still supported by the current diff. Codex and rubrics reviewers found no blocking issues; this synthesis keeps the retry-path coverage gap as the only branch-actionable finding.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Missing retry-resolution regression | WARNING | The new tests cover permission fallback after repeated `NONE`, but none prove a later issue API retry can resolve the stale association to a trusted value. This leaves the core retry behavior unguarded even though the implementation appears correct. |\n\n## Progress\n- Existing PR inline comments and review threads were empty before synthesis.\n- Posted one inline comment on `.agent/src/__tests__/extract-context-cli.test.ts` line 361: https://github.com/self-evolving/repo/pull/372#discussion_r3328396726\n- Rubrics review passed, and another reviewer reported PR-head build and focused tests passing.\n- A suggested non-`issues` skip-refresh diagnostic was treated as optional polish, not required branch work.\n\n## Issue Details\n<details>\n<summary>Missing retry-resolution regression</summary>\n\n**Cause:** The added tests make the issue API return `NONE` and then validate the permission fallback, but they do not model GitHub’s stale-then-fresh issue API behavior described in issue #358.\n\n**Candidate solutions:** Add a stateful fake `gh` test where `repos/self-evolving/repo/issues/...` returns `NONE` on the first call and `COLLABORATOR` on a later retry, then assert the final association is `COLLABORATOR` without relying on the permission fallback.\n\n**Comments:** This is a coverage gap, not evidence that the implementation is broken.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: Add the missing retry-resolution regression test; it is concrete, safe for an automated fix-pr pass, and directly covers the intended race-condition fix.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Add a regression test where the issue API retry itself resolves `NONE` to `COLLABORATOR` before permission fallback.",
+      "createdAt": "2026-05-30T07:40:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/372#issuecomment-4582124494",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABER21wg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #372 | 4 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis reported minor issues with a concrete, narrow regression-test gap that requires a PR branch change.\n\nTask for fix-pr:\nAddress only the latest review synthesis action item: add a regression test where the issue API retry itself resolves the requester association from `NONE` to `COLLABORATOR` before the permission fallback is used. Preserve the existing auth policy behavior and avoid optional INFO notes, metadata-only polish, already-fixed findings, and unrelated refactors.\n\n<!-- sepo-agent-handoff state:dispatched created:1780126847721 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY2NzgwNzAzMTU6cmV2aWV3OjM3MjpmaXhfcHI6MzcyOjQ -->",
+      "createdAt": "2026-05-30T07:40:48Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/372#issuecomment-4582127042",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABER3anA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-358/codex-26677788726`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Added the missing regression coverage for stale issue-body auth association retry: the fake issue API now returns `NONE` first, then `COLLABORATOR` on retry.\n- Asserted the repository permission fallback is not called when the retry resolves the association first.\n- Verified with `npm --prefix .agent run build`, `node --test .agent/dist/__tests__/extract-context-cli.test.js`, and `node --test .agent/dist/__tests__/triage.test.js`.",
+      "createdAt": "2026-05-30T07:43:40Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/372#issuecomment-4582136476",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABER3mHw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #372 | 5 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded and pushed the targeted regression-test fix for PR #372; the next useful automatic step is review to validate the updated PR head.\n\n<!-- sepo-agent-handoff state:dispatched created:1780127077537 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY2NzgzMjI1NjU6Zml4X3ByOjM3MjpyZXZpZXc6MzcyOjU -->",
+      "createdAt": "2026-05-30T07:44:37Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/372#issuecomment-4582139423",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABER4CJA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR closes #358 and implements the linked issue plan: weak issue-body retry, permission fallback, diagnostics, and policy-preserving tests. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Keeps the behavior in `.agent/src/cli/extract-context.ts` and reuses the existing `gh` helper where diagnostic failures must be visible. |\n| coding_workflow / generic | Surgical changes | pass | 8/8 | Diff is limited to auth extraction, focused tests, one triage policy regression, and matching access-policy docs. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Uses bounded constants for retry/backoff and small direct helpers for weak association, issue refresh, and permission lookup. |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | Association normalization happens before dispatch policy; route policy remains unchanged and true unauthorized `NONE` implement is still rejected in triage tests. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Logs raw, refreshed, permission fallback, and final association; permission lookup errors are distinguished from real denials. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | `.agent/docs/customization/access-policy.md` now describes the permission endpoint and issue-body retry behavior. |\n\n## Notes\n\n- Current PR head `5d9256cbc4eb25ad53e79fdbced24877f5e9d8e4` includes the follow-up retry-resolution regression test that earlier review synthesis requested.\n- Verified locally: `npm --prefix .agent run build`, `node --test .agent/dist/__tests__/extract-context-cli.test.js`, and `node --test .agent/dist/__tests__/triage.test.js` all passed.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No blocking or warning findings against the applicable selected rubrics.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-30T07:47:05Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/372#issuecomment-4582146596",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABER5iZg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 5d9256cbc4eb25ad53e79fdbced24877f5e9d8e4 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #372 hardens issue-body mention authorization for issue #358.\n- It retries weak `issues` event `author_association` values, falls back to a repository permission lookup, and logs the raw/refreshed/fallback/final association decisions.\n- The intent is to avoid denying real collaborators when GitHub initially reports a stale weak association.\n- The follow-up fix added the missing stale-then-fresh retry regression test.\n\n## Review\nThe retry and diagnostics pieces are narrowly scoped and now covered, but the permission fallback has a confirmed trust-boundary regression. Claude and rubrics reviewers marked the PR shippable, while Codex flagged the `read` permission issue; synthesis independently verified the blocking concern against the current PR head and live GitHub API behavior.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Public read permission over-promotes weak requesters | BLOCKING | `.agent/src/cli/extract-context.ts` treats any non-`none` permission as trusted, but public repos can return `read` for ordinary non-collaborators. That can promote an arbitrary weak `NONE`/`FIRST_TIMER` issue-body requester to `COLLABORATOR` and let `/implement` pass default policy. |\n\n## Progress\n- The earlier retry-resolution coverage gap is fixed by `extract-context resolves stale issue body association on a later retry`.\n- Resolved the older same-agent inline thread for that retry test gap: `PRRT_kwDOSOhEMM6F2rCy`.\n- Posted one new inline comment on `.agent/src/cli/extract-context.ts` line 117: https://github.com/self-evolving/repo/pull/372#discussion_r3328419828\n- No inline replies were added and no comments were minimized.\n- Reviewer artifacts report `npm --prefix .agent run build`, extract-context tests, triage tests, and docs validation passing on the PR head.\n\n## Issue Details\n<details>\n<summary>Public read permission over-promotes weak requesters</summary>\n\n**Cause:** At [`extract-context.ts#L117`](https://github.com/self-evolving/repo/blob/5d9256cbc4eb25ad53e79fdbced24877f5e9d8e4/.agent/src/cli/extract-context.ts#L117), `allowed` is `true` for any permission value except `none`. On this public repo, `GET /repos/self-evolving/repo/collaborators/octocat/permission` returns `read`, while `GET /repos/self-evolving/repo/collaborators/octocat` returns 404, so `read` is not sufficient collaborator evidence.\n\n**Candidate solutions:** Do not treat public `read` as trusted by itself. Require a stronger role such as `triage`/`write`/`maintain`/`admin`, or pair `read` with an independent collaborator/role confirmation before promotion. Add a regression where a weak public issue-body requester with permission `read` but no collaborator signal remains weak.\n\n**Comments:** The linked issue plan mentioned `read`, but the current live API behavior makes that value ambiguous on public repositories. This is a branch-change blocker, not just a documentation concern.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: The unresolved issue is a concrete authorization bug with a focused code/test fix that is safe for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Change the permission fallback so public `read` alone does not promote weak requesters to `COLLABORATOR`.\n- [ ] Add a regression test where a non-collaborator/public `read` permission result preserves the weak association.",
+      "createdAt": "2026-05-30T07:54:52Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/372#issuecomment-4582171238",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABER5s0g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #372 | 6 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review concluded needs_rework with recommended next step fix_pr; the remaining items are concrete branch changes safe for automated repair.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Change the permission fallback so public `read` alone does not promote weak requesters to `COLLABORATOR`.\n- Add a regression test where a non-collaborator/public `read` permission result preserves the weak association.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1780127737864 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY2NzgzOTU2NTU6cmV2aWV3OjM3MjpmaXhfcHI6MzcyOjY -->",
+      "createdAt": "2026-05-30T07:55:38Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/372#issuecomment-4582173906",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABER6WZQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-358/codex-26677788726`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Tightened weak association permission fallback so `read` alone no longer promotes a requester to `COLLABORATOR`; only `triage`, `write`, `maintain`, or `admin` are trusted.\n- Added regression coverage where an issue-body requester remains `NONE` when the permission endpoint returns public `read`.\n- Updated access-policy docs to match the tightened permission contract.\n- Verified with `npm --prefix .agent run build`, `node --test .agent/dist/__tests__/extract-context-cli.test.js`, `node --test .agent/dist/__tests__/triage.test.js`, and `node --test .agent/dist/__tests__/docs-validation.test.js`.",
+      "createdAt": "2026-05-30T07:59:01Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/372#issuecomment-4582184549",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABER6g6Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #372 | 7 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded and pushed the targeted authorization hardening for PR #372; the next useful automatic step is review of the updated PR head.\n\n<!-- sepo-agent-handoff state:dispatched created:1780127996972 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY2Nzg2MDUxNTk6Zml4X3ByOjM3MjpyZXZpZXc6MzcyOjc -->",
+      "createdAt": "2026-05-30T07:59:57Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/372#issuecomment-4582187241",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABER7A1A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR closes #358 and reflects the linked issue discussion: weak issue-body retry, permission fallback, diagnostics, and the later correction that public `read` is not trusted. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The change stays in existing extraction/auth paths, reusing `gh`, `ghApi`, `ghApiOk`, and route policy machinery rather than adding a parallel workflow authorization path. |\n| coding_workflow / generic | Surgical changes | pass | 8/8 | Diff is limited to `.agent/src/cli/extract-context.ts`, focused extract/triage tests, and the matching access-policy doc. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Uses small helpers and bounded constants for weak association checks, issue refresh retry, permission lookup, and diagnostics. |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | Association normalization occurs before policy, while triage policy remains unchanged; the new triage test still rejects true unauthorized `NONE` for explicit `implement`. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Permission and issue-refresh lookup failures are logged with raw, refreshed, fallback, and final association diagnostics instead of being indistinguishable silent misses. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | `access-policy.md` documents the permission endpoint, trusted permission levels, public `read` exclusion, and issue-body retry behavior. |\n\n## Notes\n\n- The current head includes the prior follow-up fixes: stale-then-fresh retry coverage and the public `read` authorization hardening.\n- Focused regression coverage now includes retry resolution, trusted permission promotion, public `read` preservation, lookup failure preservation, strong comment fast path, and true unauthorized route rejection.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No blocking or warning findings against the applicable selected rubrics.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-30T08:02:22Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/372#issuecomment-4582195412",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABER8piA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: aeab498b15335719c518777d2d27e48464ea8974 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #372 hardens Sepo’s issue-body mention authorization path for issue #358.\n- It retries weak `issues` event `author_association` values, falls back to the repository permission endpoint, and logs the raw, refreshed, fallback, and final association decisions.\n- Follow-up fixes already added stale-then-fresh retry coverage and stopped public `read` permission from promoting arbitrary weak requesters.\n- The remaining concern is that the current parser does not model GitHub’s real `permission`/`role_name` response shape for triage collaborators.\n\n## Review\nThe current PR is narrowly scoped and the earlier public-`read` authorization regression is fixed. Claude and rubrics reviewers found the head shippable, while Codex identified a current, line-specific triage-role parser bug that synthesis verified against the current diff and GitHub’s REST docs.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Triage role is masked by legacy permission parsing | WARNING | `.permission // .role_name // empty` selects `permission=read` before `role_name=triage`, so real triage collaborators remain weak even though the PR docs/tests say triage should promote. |\n\n## Progress\n- The earlier missing retry-resolution regression is fixed.\n- The earlier public-`read` over-promotion issue is fixed by trusting only `triage`, `write`, `maintain`, or `admin`.\n- Resolved the older same-agent public-`read` inline thread `PRRT_kwDOSOhEMM6F2vHf`.\n- Posted one new inline comment on `.agent/src/cli/extract-context.ts` line 118: https://github.com/self-evolving/repo/pull/372#discussion_r3328442020\n- Reviewer artifacts report build, extract-context tests, triage tests, and docs validation passing on PR head `aeab498b15335719c518777d2d27e48464ea8974`.\n\n## Issue Details\n<details>\n<summary>Triage role is masked by legacy permission parsing</summary>\n\n**Cause:** At [`extract-context.ts#L118`](https://github.com/self-evolving/repo/blob/aeab498b15335719c518777d2d27e48464ea8974/.agent/src/cli/extract-context.ts#L118), the jq expression selects `.permission` before `.role_name`. GitHub documents that the legacy `permission` field maps triage to `read`, while `role_name` carries the assigned role: https://docs.github.com/en/rest/collaborators/collaborators#get-repository-permissions-for-a-user\n\n**Candidate solutions:** Parse both fields instead of collapsing them into one string. Treat `role_name=triage` as trusted while still preventing bare public `permission=read` from promoting weak requesters, then add a regression using `permission=read` plus `role_name=triage`.\n\n**Comments:** This is not the earlier public-`read` security bug; that is fixed. This is an under## Summary of PR/Issue\n- PR #372 hardens issue-body mention authorization for issue #358.\n- It retries weak `issues` event `author_association` values before falling back to repository permission lookup.\n- It also tightens the permission fallback so public `read` alone no longer promotes a weak requester to `COLLABORATOR`.\n- The follow-up fixes added retry-resolution coverage, public-`read` preservation coverage, diagnostics, and docs updates.\n\n## Review\nThe PR is close, but one current-head parser issue remains. Claude and rubrics reviewers considered the PR shippable; Codex flagged the triage-role case, and synthesis verified it against the current diff and the GitHub permission response contract.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Triage role is masked as read | WARNING | The permission lookup selects `.permission` before `.role_name`, but GitHub exposes triage as legacy `permission=read` with `role_name=triage`. Real triage collaborators can therefore remain weak even though the docs/tests say triage should promote. |\n\n## Progress\n- The earlier retry-resolution regression gap is fixed.\n- The earlier public-`read` over-promotion issue is fixed, and its same-agent inline thread `PRRT_kwDOSOhEMM6F2vHf` was resolved.\n- Posted one new inline comment on `.agent/src/cli/extract-context.ts` line 118: https://github.com/self-evolving/repo/pull/372#discussion_r3328442020\n- No inline replies were added and no comments were minimized.\n- Reviewer artifacts report build, extract-context tests, triage tests, and docs validation passing on PR head `aeab498b15335719c518777d2d27e48464ea8974`.\n\n## Issue Details\n<details>\n<summary>Triage role is masked as read</summary>\n\n**Cause:** [`extract-context.ts#L118`](https://github.com/self-evolving/repo/blob/aeab498b15335719c518777d2d27e48464ea8974/.agent/src/cli/extract-context.ts#L118) uses `.permission // .role_name // empty`, so a response with `permission: \"read\"` and `role_name: \"triage\"` is parsed as `read`. Since `read` is intentionally not trusted, triage users are not promoted.\n\n**Candidate solutions:** Parse both fields and treat `role_name=triage` as trusted while continuing to reject public `permission=read` without a trusted role. Add a regression using `permission=read` plus `role_name=triage`.\n\n**Comments:** GitHub’s REST docs for repository permissions describe `role_name` as the source for roles such as `triage`, while legacy `permission` maps triage to `read`.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: The remaining issue is a concrete parser/test gap with a narrow automated branch fix.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Parse repository permission responses so `role_name=triage` promotes weak requesters without trusting public `permission=read` alone.\n- [ ] Add a regression for a permission response with `permission=read` and `role_name=triage`.",
+      "createdAt": "2026-05-30T08:10:55Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/372#issuecomment-4582222216",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABER8z9w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #372 | 8 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis reported MINOR_ISSUES with recommended next step FIX_PR; the remaining item is a concrete parser/test fix on the PR branch.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Parse repository permission responses so `role_name=triage` promotes weak requesters without trusting public `permission=read` alone.\n- Add a regression for a permission response with `permission=read` and `role_name=triage`.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1780128712680 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY2Nzg2ODc4NjI6cmV2aWV3OjM3MjpmaXhfcHI6MzcyOjg -->",
+      "createdAt": "2026-05-30T08:11:53Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/372#issuecomment-4582224887",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABER9VtA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-358/codex-26677788726`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Parsed repository permission responses with both `permission` and `role_name`, so `role_name=triage` now promotes weak requesters even when legacy `permission=read`.\n- Kept bare public `permission=read` untrusted.\n- Added regression coverage for `permission=read` plus `role_name=triage` and updated access-policy docs to match.\n- Verified with `npm --prefix .agent run build`, `node --test .agent/dist/__tests__/extract-context-cli.test.js`, `node --test .agent/dist/__tests__/triage.test.js`, and `node --test .agent/dist/__tests__/docs-validation.test.js`.",
+      "createdAt": "2026-05-30T08:14:59Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/372#issuecomment-4582233524",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABER9hRg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #372 | 9 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded and pushed the targeted triage role permission parser fix for open PR #372; the next useful automatic step is review of the updated PR head.\n\n<!-- sepo-agent-handoff state:dispatched created:1780128952895 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY2Nzg5MjQ0NzI6Zml4X3ByOjM3MjpyZXZpZXc6MzcyOjk -->",
+      "createdAt": "2026-05-30T08:15:53Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/372#issuecomment-4582236486",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABER97wg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #372 closes #358 and follows the linked issue plan: retry weak issue-body association, fall back to repo permission, add diagnostics, and preserve route policy. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The change stays in `.agent/src/cli/extract-context.ts`, reusing existing event context, dispatch policy, and GitHub helper patterns instead of adding workflow-level auth logic. |\n| coding_workflow / generic | Surgical changes | pass | 8/8 | The diff is limited to auth extraction, focused extract-context/triage regressions, and the matching access-policy documentation. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation uses small helpers, bounded retry constants, and direct permission parsing for `permission`/`role_name` without adding a broader auth subsystem. |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | Association normalization happens before dispatch policy, while `applyDispatchPolicy` still rejects true unauthorized `NONE` for explicit `/implement`. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | The PR logs raw event association, issue refresh attempts/errors, permission fallback results, and final normalized association. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | `.agent/docs/customization/access-policy.md` now documents the permission endpoint, trusted permission levels, public `read` exclusion, and issue-body retry behavior. |\n\n## Notes\n\n- The current PR head includes the follow-up fixes from prior review rounds: stale-then-fresh retry coverage, public `read` preservation, and `role_name=triage` promotion.\n- Regression coverage now matches the requested narrow auth-hardening path, including retry resolution, permission fallback success/failure, strong comment fast path, and route-policy rejection for real unauthorized `NONE`.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No blocking or warning findings against the applicable selected rubrics.\n\n## Final Rubric Verdict\n\nPASS",
+      "createdAt": "2026-05-30T08:18:03Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/372#issuecomment-4582243266",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABER_4Fw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 66b199bb7e7e0db7cbb0d0b230245c3c99dd6634 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #372 addresses issue #358 by hardening Sepo’s weak issue-body mention authorization path.\n- GitHub can initially report stale weak `author_association` values on `issues` events, so the PR adds bounded live issue retries before route policy runs.\n- It also falls back to the repository permission endpoint, trusts `triage`, `write`, `maintain`, and `admin`, and continues rejecting public `read` alone.\n- The branch keeps route authorization unchanged, adds diagnostics, and updates tests/docs for the retry and permission fallback behavior.\n\n## Review\nThe current review artifacts support shipping the PR with no required branch changes. Claude noted one optional test-shape cleanup, while Codex and the rubrics review found no blocking or warning issues; synthesis treats that note as non-required because the dedicated `role_name=triage` regression covers the production path.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues | INFO | Current reviewers agree the earlier retry, public-read, and triage-role findings are fixed on PR head `66b199bb7e7e0db7cbb0d0b230245c3c99dd6634`. No required branch-change work remains. |\n\n## Progress\n- Earlier retry-resolution coverage is present.\n- Earlier public `read` over-promotion is fixed and covered.\n- Earlier `role_name=triage` masking is fixed and covered.\n- Resolved the old same-agent inline review thread `PRRT_kwDOSOhEMM6F2zFE`.\n- No new inline comments, replies, or minimizations were added.\n- Reviewer artifacts report build, extract-context tests, triage tests, and docs validation passing on the current PR head.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: No unresolved actionable branch changes remain; any remaining PR state decisions are maintainer/workflow metadata choices.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work.",
+      "createdAt": "2026-05-30T08:29:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/372#issuecomment-4582275095",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-30T07:27:04Z",
+  "files": [
+    {
+      "path": ".agent/docs/customization/access-policy.md",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/extract-context-cli.test.ts",
+      "additions": 337,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/triage.test.ts",
+      "additions": 14,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/extract-context.ts",
+      "additions": 174,
+      "deletions": 34,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-358/codex-26677788726",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 372,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABBfVmtw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-30T07:39:29Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "c3ea2ca854f72869ae64ebd338401ecda5597ec0"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABBfXqKw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-30T07:54:03Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "5d9256cbc4eb25ad53e79fdbced24877f5e9d8e4"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABBfacdw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-30T08:09:49Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "aeab498b15335719c518777d2d27e48464ea8974"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Harden issue-body auth association fallback",
+  "updatedAt": "2026-05-30T08:29:38Z",
+  "url": "https://github.com/self-evolving/repo/pull/372"
+}

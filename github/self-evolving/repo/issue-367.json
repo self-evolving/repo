@@ -74,6 +74,80 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/367#issuecomment-4578418747",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABERxilw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer what's the point of using heuristic then.... I'd thought we can give agent heuristic route as the \"suggestion\" and then it can choose to stick or confirm with it?",
+      "createdAt": "2026-05-30T07:08:35Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/367#issuecomment-4582040215",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABERxtnQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "You’re basically right. The current split is awkward.\n\nToday `heuristics` has three different roles mixed together:\n\n1. **Standalone low-cost mode**: skip the planner and just run the fixed state machine. That is what public `AGENT_AUTOMATION_MODE=heuristics` means.\n2. **Runtime safety policy in `agent` mode**: after the planner chooses a handoff, runtime calls `decideHeuristicHandoff()` to check whether that next action is allowed: [`handoff.ts#L658-L678`](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L658-L678).\n3. **Child issue worker shortcut**: `delegate_issue` currently starts the child orchestrator in `heuristics` mode so the child runs the normal implement/review/fix loop instead of invoking another planner: [`orchestrate-handoff.ts#L1581-L1596`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L1581-L1596).\n\nThe agent already gets the **rules** in the prompt under “Runtime Policy”: [`agent-orchestrator.md#L20-L63`](https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-orchestrator.md#L20-L63). But it does **not** currently get a computed suggestion like:\n\n```json\n{\n  \"suggested_next_action\": \"fix-pr\",\n  \"suggested_reason\": \"review verdict is MINOR_ISSUES and recommended next step is FIX_PR\"\n}\n```\n\nSo your model is probably better:\n\n- compute the deterministic transition as a **suggested/default transition**;\n- pass it into the planner prompt;\n- let the planner confirm it, stop, block, answer, or provide better `handoff_context`;\n- still validate the final planner decision with deterministic policy before dispatch.\n\nThat would make the heuristic useful without treating it as a separate product mode. The public mode can probably go away, while the internal function becomes something like `computeSuggestedTransition()` plus `validatePlannerTransition()`.\n\nThe only design decision left is child orchestration. If children should also be fully agentic, switch the `delegate_issue` child dispatch from `automation_mode: \"heuristics\"` to `agent` and give the child planner the computed suggestion/context. If children are meant to be concrete worker chains, keep that behavior but make it internal and name it explicitly rather than exposing it as “heuristics mode.”",
+      "createdAt": "2026-05-30T07:09:53Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/367#issuecomment-4582043037",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABERzKMw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> If children are meant to be concrete worker chains, keep that behavior but make it internal and name it explicitly rather than exposing it as “heuristics mode\n\n@sepo-agent /answer \n\nOk good point. I think we should do one thing at a time but let's discuss the overall structure first.\n\nSo when we are in the meta orchestrator mode, we use the agent to create a next task right? \n\nI thought the meta orchestrator always need that step to proceed with the plan? ",
+      "createdAt": "2026-05-30T07:20:57Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/367#issuecomment-4582066739",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABERzU0A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, for **meta orchestration**, the agent planner is the thing that decides the next unit of work.\n\nThe current intended structure is roughly:\n\n```text\nparent/meta issue\n  -> agent planner decides next bounded step\n  -> optionally creates/reuses/adopts one child issue\n  -> child issue executes that concrete task\n  -> when child reaches terminal state, parent planner resumes\n  -> parent decides the next bounded step\n```\n\nSo the meta orchestrator does need an agent step whenever the **parent plan** needs to advance. That is the point of `delegate_issue`: the parent planner chooses the next task, writes concrete child instructions, and dispatches the child. The prompt describes this as choosing one bounded next step and preferring `delegate_issue` for distinct subgoals/workstreams: [`agent-orchestrator.md#L47-L54`](https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-orchestrator.md#L47-L54), [`agent-orchestrator.md#L93-L101`](https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-orchestrator.md#L93-L101).\n\nThe subtle part is what happens **inside the child**.\n\nToday, when the parent planner chooses `delegate_issue`, the dispatcher starts the child orchestrator with `automation_mode: \"heuristics\"`: [`orchestrate-handoff.ts#L1581-L1596`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L1581-L1596). That means the child is treated as a concrete worker chain:\n\n```text\nchild issue\n  -> implement\n  -> review\n  -> fix-pr if needed\n  -> review\n  -> terminal result\n```\n\nThe child does not need to re-plan the parent objective every round; it just executes the task the parent assigned. When the child finishes, terminal reporting resumes the parent planner in `agent` mode so the parent can decide the next task.\n\nSo I’d frame the overall structure as two layers:\n\n- **Meta planner layer**: agentic. Owns decomposition, child selection, sequencing, stacking decisions, and stopping/blocking.\n- **Concrete worker layer**: deterministic chain. Owns implementing and stabilizing one already-scoped task.\n\nYour intuition is right for the meta layer: it should always use the agent to proceed with the plan. The current heuristic child mode is not meant to replace the meta planner; it is acting as the execution lane for a task the meta planner already chose.",
+      "createdAt": "2026-05-30T07:22:13Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/367#issuecomment-4582069456",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-29T18:05:42Z",
@@ -88,6 +162,6 @@
   "number": 367,
   "state": "OPEN",
   "title": "Consider removing heuristic orchestrate mode",
-  "updatedAt": "2026-05-29T18:14:05Z",
+  "updatedAt": "2026-05-30T07:22:14Z",
   "url": "https://github.com/self-evolving/repo/issues/367"
 }

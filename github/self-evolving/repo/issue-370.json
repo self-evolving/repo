@@ -1,0 +1,136 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "We just added support for displaying model names and add a flag for it. \n\nWhat it looks like now? Can we further improve it for example\n\n\n---\nProvider / Model name / reasoning effort / runner name \n\n\n@sepo-agent /answer",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABERxhOg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Current behavior, when `AGENT_DISPLAY_MODEL=true`, appends a footer like:\n\n```md\n---\n_Run: `codex` / `gpt-5.4` / `high`_\n```\n\nThat comes from `.agent/src/run.ts`: it builds `agent / model / reasoningEffort`, then `.agent/src/cli/post-response.ts` appends it below a horizontal rule. For `/answer`, the flag is wired through `vars.AGENT_DISPLAY_MODEL` in `.github/workflows/agent-router.yml`.\n\nYes, I’d improve it. The current footer is compact but ambiguous: `codex` is really the provider/agent, the model is unlabeled, and runner identity is not included.\n\nSuggested target format:\n\n```md\n---\n_Run: Provider `codex` / Model `gpt-5.4` / Reasoning `high` / Runner `runner-1`_\n```\n\nImplementation plan:\n\n1. Update `.agent/src/run.ts` `buildModelDisplay()` to render labeled fields instead of positional fields.\n2. Add an optional `runnerName` field sourced from `RUNNER_NAME`.\n3. Pass `RUNNER_NAME` into the display builder only when `DISPLAY_MODEL` is enabled.\n4. Keep missing values graceful, e.g. omit empty runner or show `default model` only for model.\n5. Update tests in `.agent/src/__tests__/response.test.ts` and add/adjust runtime coverage for the new footer string.\n6. Update docs for `AGENT_DISPLAY_MODEL` to mention provider, model, reasoning effort, and runner name.\n\nI’d keep it as a single italic line rather than a markdown table. It is less noisy on every agent comment while still making the fields clear.",
+      "createdAt": "2026-05-30T07:08:25Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/370#issuecomment-4582039866",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABERyk3A",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> _Run: Provider `codex` / Model `gpt-5.4` / Reasoning `high` / Runner `runner-1`_\n\nSimplify:\n\n`codex` | `gpt-5.4` | `high` | `runner-1` \n\n@sepo-agent /answer",
+      "createdAt": "2026-05-30T07:16:27Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/370#issuecomment-4582057180",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABERywJA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Agreed. The cleaner footer should be:\n\n```md\n---\n`codex` | `gpt-5.4` | `high` | `runner-1`\n```\n\nThat is better than both the current unlabeled slash format and the more verbose labeled format. The implied order is enough as long as docs say it is:\n\n`provider | model | reasoning effort | runner`\n\nImplementation should be small:\n\n1. Change `.agent/src/run.ts` `buildModelDisplay()` to join values with ` | ` and remove `_Run:`.\n2. Add `runnerName`, sourced from `RUNNER_NAME`.\n3. Keep fallback behavior for model as `default model`.\n4. Omit empty optional values rather than leaving dangling separators.\n5. Update tests expecting the old `_Run: \\`codex\\` / ..._` format.\n6. Update `AGENT_DISPLAY_MODEL` docs to describe the compact order.",
+      "createdAt": "2026-05-30T07:17:44Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/370#issuecomment-4582060068",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABERzQPw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Agreed. The cleaner footer should be:\n> \n> ```md\n> ---\n> `codex` | `gpt-5.4` | `high` | `runner-1`\n> ```\n> \n> That is better than both the current unlabeled slash format and the more verbose labeled format. The implied order is enough as long as docs say it is:\n> \n> `provider | model | reasoning effort | runner`\n> \n> Implementation should be small:\n> \n> 1. Change `.agent/src/run.ts` `buildModelDisplay()` to join values with ` | ` and remove `_Run:`.\n> 2. Add `runnerName`, sourced from `RUNNER_NAME`.\n> 3. Keep fallback behavior for model as `default model`.\n> 4. Omit empty optional values rather than leaving dangling separators.\n> 5. Update tests expecting the old `_Run: \\`codex\\` / ..._` format.\n> 6. Update `AGENT_DISPLAY_MODEL` docs to describe the compact order.\n\n@sepo-agent /orchestrate let's work on it with a minimum pr.  ",
+      "createdAt": "2026-05-30T07:21:44Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/370#issuecomment-4582068287",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABERzecw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | implement | Issue #370 | 2 / 40 | Dispatched |\n\nReason: agent planner selected implement: Issue #370 requests a small, self-contained change to the current issue: update the model-display footer format, add runner name support, adjust tests, and update AGENT_DISPLAY_MODEL docs. No child issue is needed.\n\n<!-- sepo-agent-handoff state:dispatched created:1780125793003 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY2Nzc5NDUyMDc6b3JjaGVzdHJhdGU6MzcwOmltcGxlbWVudDozNzA6Mg -->",
+      "createdAt": "2026-05-30T07:23:13Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/370#issuecomment-4582071923",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABER0m9Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-370/codex-26677974121`\n- Pull request: https://github.com/self-evolving/repo/pull/373\n\nUpdated the agent model-display footer to render compact pipe-separated metadata with RUNNER_NAME included when available, refreshed the footer test and display-model docs/action metadata, and verified with build plus targeted response and workflow/action tests.",
+      "createdAt": "2026-05-30T07:28:49Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/370#issuecomment-4582090485",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-30T07:06:12Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 370,
+  "state": "OPEN",
+  "title": "Improve show model names",
+  "updatedAt": "2026-05-30T07:28:50Z",
+  "url": "https://github.com/self-evolving/repo/issues/370"
+}
