@@ -359,7 +359,7 @@ test("agent orchestrate rejects effective implement base input conflicts", () =>
   assert.equal(run.dispatchPayload, null);
 });
 
-test("agent orchestrate delegates to a child issue without extending AgentAction", () => {
+test("agent orchestrate delegates child issues as deterministic worker chains", () => {
   const run = runOrchestrateHandoff({
     AUTOMATION_MODE: "agent",
     TARGET_KIND: "issue",
@@ -1480,7 +1480,7 @@ test("agent parent orchestrate stop skips matching trusted final comment", () =>
   assert.equal(run.dispatchPayload, null);
 });
 
-test("heuristics parent orchestrate stops do not post final comments", () => {
+test("deterministic worker-chain parent orchestrate stops do not post final comments", () => {
   const run = runOrchestrateHandoff({
     SOURCE_ACTION: "orchestrate",
     SOURCE_CONCLUSION: "done",

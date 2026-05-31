@@ -3,6 +3,8 @@ import { strict as assert } from "node:assert";
 
 import {
   buildReviewFixPrHandoffContext,
+  computeDeterministicSuggestion,
+  computeDeterministicTransition,
   buildHandoffDedupeKey,
   buildHandoffMarker,
   decideHandoff,
@@ -60,6 +62,113 @@ test("agent mode validates planner handoff against policy", () => {
     decision.handoffContext,
     "Review the new PR with special attention to generated workflow permissions.",
   );
+});
+
+test("deterministic transition helper exposes the policy table without automation mode semantics", () => {
+  const transition = computeDeterministicTransition({
+    automationMode: "agent",
+    sourceAction: "implement",
+    sourceConclusion: "success",
+    targetNumber: "42",
+    nextTargetNumber: "99",
+    currentRound: 1,
+    maxRounds: 5,
+  });
+
+  assert.equal(transition.decision, "dispatch");
+  assert.equal(transition.nextAction, "review");
+  assert.equal(transition.targetNumber, "99");
+  assert.equal(transition.reason, "implementation succeeded; dispatching review");
+});
+
+test("deterministic suggestions describe planner defaults for handoff and stop cases", () => {
+  const implementReview = computeDeterministicSuggestion({
+    automationMode: "agent",
+    sourceAction: "implement",
+    sourceConclusion: "success",
+    targetNumber: "42",
+    nextTargetNumber: "99",
+    currentRound: 1,
+    maxRounds: 5,
+  });
+  assert.deepEqual(implementReview, {
+    suggestedDecision: "handoff",
+    suggestedNextAction: "review",
+    suggestedReason: "implementation succeeded; dispatching review",
+  });
+
+  const reviewFix = computeDeterministicSuggestion({
+    automationMode: "agent",
+    sourceAction: "review",
+    sourceConclusion: "minor_issues",
+    sourceHandoffContext: "Fix the failing assertion only.",
+    targetNumber: "99",
+    currentRound: 2,
+    maxRounds: 5,
+  });
+  assert.equal(reviewFix.suggestedDecision, "handoff");
+  assert.equal(reviewFix.suggestedNextAction, "fix-pr");
+  assert.equal(reviewFix.suggestedHandoffContext, "Fix the failing assertion only.");
+
+  const fixReview = computeDeterministicSuggestion({
+    automationMode: "agent",
+    sourceAction: "fix-pr",
+    sourceConclusion: "success",
+    targetNumber: "99",
+    currentRound: 3,
+    maxRounds: 5,
+  });
+  assert.equal(fixReview.suggestedDecision, "handoff");
+  assert.equal(fixReview.suggestedNextAction, "review");
+
+  const selfApproval = computeDeterministicSuggestion({
+    automationMode: "agent",
+    sourceAction: "review",
+    sourceConclusion: "SHIP",
+    targetNumber: "99",
+    currentRound: 3,
+    maxRounds: 5,
+    allowSelfApprove: true,
+  });
+  assert.equal(selfApproval.suggestedDecision, "handoff");
+  assert.equal(selfApproval.suggestedNextAction, "agent-self-approve");
+
+  const selfApprovalFix = computeDeterministicSuggestion({
+    automationMode: "agent",
+    sourceAction: "agent-self-approve",
+    sourceConclusion: "REQUEST_CHANGES",
+    sourceHandoffContext: "Apply the self-approval requested changes.",
+    targetNumber: "99",
+    currentRound: 4,
+    maxRounds: 6,
+  });
+  assert.equal(selfApprovalFix.suggestedDecision, "handoff");
+  assert.equal(selfApprovalFix.suggestedNextAction, "fix-pr");
+  assert.equal(selfApprovalFix.suggestedHandoffContext, "Apply the self-approval requested changes.");
+
+  const stop = computeDeterministicSuggestion({
+    automationMode: "agent",
+    sourceAction: "fix-pr",
+    sourceConclusion: "verify_failed",
+    targetNumber: "99",
+    currentRound: 4,
+    maxRounds: 5,
+  });
+  assert.equal(stop.suggestedDecision, "stop");
+  assert.match(stop.suggestedReason, /fix-pr concluded verify_failed/);
+
+  const exhausted = computeDeterministicSuggestion({
+    automationMode: "agent",
+    sourceAction: "fix-pr",
+    sourceConclusion: "success",
+    targetNumber: "99",
+    currentRound: 5,
+    maxRounds: 5,
+  });
+  assert.deepEqual(exhausted, {
+    suggestedDecision: "stop",
+    suggestedReason: "automation round budget exhausted",
+  });
 });
 
 test("agent mode allows planner-selected self-approval for SHIP reviews when enabled", () => {

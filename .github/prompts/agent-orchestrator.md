@@ -17,6 +17,23 @@ chain should stop or hand off to exactly one allowed next action.
 - Self-approval enabled: `${ORCHESTRATOR_SELF_APPROVE_ENABLED}`
 - Self-merge enabled: `${ORCHESTRATOR_SELF_MERGE_ENABLED}`
 
+## Deterministic Suggestion
+
+The runtime computed the deterministic transition policy before this planner
+step:
+
+- Suggested decision: `${ORCHESTRATOR_SUGGESTED_DECISION}`
+- Suggested next action: `${ORCHESTRATOR_SUGGESTED_NEXT_ACTION}`
+- Suggested reason: `${ORCHESTRATOR_SUGGESTED_REASON}`
+- Suggested handoff context: `${ORCHESTRATOR_SUGGESTED_HANDOFF_CONTEXT}`
+
+Use this suggestion as the default path when it fits the current repository and
+user context. You may still choose `stop`, `blocked`, `answer`, or a more
+specific `handoff_context` when the target state warrants it. If the suggestion
+is `none`, this is an initial or meta-orchestration decision that needs planner
+judgment rather than a fixed transition. Runtime validation still runs after
+your response and remains mandatory.
+
 ## Runtime Policy
 
 The runtime validates your decision after you return it. You cannot override
@@ -42,8 +59,8 @@ these policy rules:
   `next_action: "implement"` to implement the current issue directly when the
   requested work is small and self-contained within that issue.
 - Issue-level `orchestrate` in agent mode may return `delegate_issue` to
-  create, reuse, or adopt one child issue and start the child issue's normal
-  orchestrator flow.
+  create, reuse, or adopt one child issue and start that child as a concrete
+  deterministic worker chain.
 - Issue-level `orchestrate` on an `agent-goal` issue should treat the issue as a
   parent objective. Use the goal body, success criteria, subgoals, linked work,
   and existing sub-issues to choose one bounded next step. Prefer

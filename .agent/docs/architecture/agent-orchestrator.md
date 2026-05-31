@@ -2,20 +2,29 @@
 title: "Agent orchestrator"
 ---
 
-The orchestrator is an explicit high-level route (`/orchestrate` or `agent/orchestrate`) that evaluates current target state and dispatches the most appropriate built-in next action.
+The orchestrator is an explicit high-level route (`/orchestrate` or
+`agent/orchestrate`) that evaluates current target state and dispatches the most
+appropriate built-in next action.
 
-Configure `AGENT_AUTOMATION_MODE` to choose how orchestrator handoffs are decided. The packaged entry workflows default to `agent`; set `heuristics` for deterministic routing with lower model cost:
+`AGENT_AUTOMATION_MODE` defaults to `agent` in the packaged entry workflows.
+Planner-backed orchestration is the recommended public mode. The deterministic
+transition table remains internal runtime policy: it is used as a planner
+suggestion and as validation after the planner responds. The legacy
+`heuristics` value is still accepted as a compatibility alias for deterministic
+worker-chain runs, including delegated child issue execution.
 
-| Mode | Meaning |
+| Mode or value | Meaning |
 |---|---|
-| `heuristics` | Deterministic built-in state machine. |
 | `agent` | Planner-assisted orchestration, validated by runtime policy. |
+| `heuristics` | Compatibility value for the deterministic worker chain that skips the planner. |
+| `disabled` | No post-action handoff unless an explicit orchestrator chain supplies compatibility context. |
 
 Set `AGENT_AUTOMATION_MAX_ROUNDS` to cap the chain length. The default cap is 12 rounds.
 
-## Current heuristics state machine
+## Deterministic transition policy
 
-The orchestrator supports an explicit manual start plus the existing bounded handoff policy:
+The orchestrator supports an explicit manual start plus the existing bounded
+transition policy:
 
 ```mermaid
 stateDiagram-v2
@@ -76,7 +85,8 @@ When an action-originated handoff is used, the orchestrator also accepts:
 - current round and max rounds
 - requester and request text to carry forward
 
-In `heuristics` mode, manual starts use deterministic status checks:
+When a compatibility deterministic worker-chain run handles a manual start, it
+uses deterministic status checks:
 
 - issue target: dispatch `implement`
 - pull request target with `CHANGES_REQUESTED`: dispatch `fix-pr`
@@ -105,8 +115,10 @@ success criteria or next subgoal require human direction.
 
 For child work, the planner may return `delegate_issue`, which is an internal
 command rather than a public route. The dispatcher creates or reuses one child
-issue for the requested stage and dispatches `agent-orchestrator.yml` for the
-child issue in heuristic mode. New agent-created child issues store a hidden
+issue for the requested stage and starts the child as a concrete deterministic
+worker chain. This currently uses the compatibility `heuristics` workflow input
+internally so the child executes the scoped task without invoking a second
+planner. New agent-created child issues store a hidden
 `sepo-sub-orchestrator` marker in the issue body. Existing user-authored issues
 can also be adopted when the planner provides `child_issue_number`; adoption
 stores the marker in an agent-authored child issue comment instead of editing or
@@ -171,16 +183,53 @@ resolves to the open same-repository PR head branch, and the repository default
 branch is used when neither input is present. Setting both base inputs is
 rejected.
 
-Manual pull request starts are deterministic only in `heuristics` mode. In
-`agent` mode, issue-level and pull-request-level manual starts may invoke the
-planner for the first orchestration step, and action-originated handoff
-envelopes use the planner path when enabled.
+Manual pull request starts are deterministic only for compatibility
+worker-chain runs. In `agent` mode, issue-level and pull-request-level manual
+starts may invoke the planner for the first orchestration step, and
+action-originated handoff envelopes use the planner path when enabled.
 
-In `heuristics` mode, action-originated handoff decisions still use the fixed transition policy and round budget checks.
+For compatibility deterministic worker-chain runs, action-originated handoff
+decisions still use the fixed transition policy and round budget checks.
 
-Review-originated `fix-pr` handoffs carry explicit task context when available. The review dispatcher derives it from the latest review synthesis action items, and heuristic mode falls back to a conservative instruction to address only unresolved review synthesis action items while ignoring optional INFO notes and metadata-only polish. When a review synthesis recommends `HUMAN_DECISION`, self-approval-enabled orchestration routes to `agent-self-approve` instead of `fix-pr` or a human stop; self-approval then decides whether to approve, request changes, or block. Manual PR `/orchestrate` starts with a `CHANGES_REQUESTED` review decision use separate context that tells `fix-pr` to address the latest unresolved requested-change review comments instead of the review-synthesis fallback. Self-approval `REQUEST_CHANGES` handoffs preserve the approval agent's handoff context as the `fix-pr` task. Self-approval `APPROVED` handoffs dispatch `agent-self-merge` only when `AGENT_ALLOW_SELF_MERGE=true`.
+Review-originated `fix-pr` handoffs carry explicit task context when
+available. The review dispatcher derives it from the latest review synthesis
+action items, and the deterministic worker-chain path falls back to a
+conservative instruction to address only unresolved review synthesis action
+items while ignoring optional INFO notes and metadata-only polish. When a
+review synthesis recommends `HUMAN_DECISION`, self-approval-enabled
+orchestration routes to `agent-self-approve` instead of `fix-pr` or a human
+stop; self-approval then decides whether to approve, request changes, or block.
+Manual PR `/orchestrate` starts with a `CHANGES_REQUESTED` review decision use
+separate context that tells `fix-pr` to address the latest unresolved
+requested-change review comments instead of the review-synthesis fallback.
+Self-approval `REQUEST_CHANGES` handoffs preserve the approval agent's handoff
+context as the `fix-pr` task. Self-approval `APPROVED` handoffs dispatch
+`agent-self-merge` only when `AGENT_ALLOW_SELF_MERGE=true`.
 
-In `agent` mode, the orchestrator first runs a scoped planner prompt through the same resolved-provider runtime used by other agent actions. The planner has its own `orchestrator` route and `planner` lane, so session continuation is separate from implement, review, and fix-pr sessions. The planner runs with `approve-all` tool permission so it can gather current GitHub and repository context in non-interactive workflows. It still receives read-only repository memory, selected read-only rubrics, the handoff envelope, any source handoff context, and original request, and returns JSON describing whether to stop, block, delegate a child issue, or hand off. For blocked decisions, the planner may return `user_message` or `clarification_request` to ask for missing context in the visible stop comment. For handoffs, the planner may also return `handoff_context`: explicit, action-oriented instructions for the next workflow. When the next action is `fix-pr`, the dispatcher passes that context into `agent-fix-pr.yml`, and the fix-pr prompt treats it as the selected task and constraints for the automated fix pass. The workflow uses the runtime preflight CLI to skip this planner when the max-round budget is already exhausted or the initial requester lacks delegated-route capability, and the runtime still validates planner JSON against the fixed transition policy, the issue-only direct-implement rule, and max-round budget before dispatching anything.
+In `agent` mode, the orchestrator first runs a scoped planner prompt through the
+same resolved-provider runtime used by other agent actions. The planner has its
+own `orchestrator` route and `planner` lane, so session continuation is separate
+from implement, review, and fix-pr sessions. Before the planner runs, preflight
+computes a deterministic transition suggestion with `suggested_decision`,
+`suggested_next_action`, `suggested_reason`, and
+`suggested_handoff_context`. The planner should treat that as the default path
+when it fits the current repository and user context, but it may still stop,
+block, answer, or provide more specific handoff context. The planner runs with
+`approve-all` tool permission so it can gather current GitHub and repository
+context in non-interactive workflows. It still receives read-only repository
+memory, selected read-only rubrics, the handoff envelope, any source handoff
+context, and original request, and returns JSON describing whether to stop,
+block, delegate a child issue, or hand off. For blocked decisions, the planner
+may return `user_message` or `clarification_request` to ask for missing context
+in the visible stop comment. For handoffs, the planner may also return
+`handoff_context`: explicit, action-oriented instructions for the next workflow.
+When the next action is `fix-pr`, the dispatcher passes that context into
+`agent-fix-pr.yml`, and the fix-pr prompt treats it as the selected task and
+constraints for the automated fix pass. The workflow uses the runtime preflight
+CLI to skip this planner when the max-round budget is already exhausted or the
+initial requester lacks delegated-route capability, and the runtime still
+validates planner JSON against the fixed transition policy, the issue-only
+direct-implement rule, and max-round budget before dispatching anything.
 
 When an orchestrator-launched `implement` or `fix-pr` run reports
 `no_changes`, `failed`, `verify_failed`, or `unsupported`, the dispatcher stops

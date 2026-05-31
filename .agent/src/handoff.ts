@@ -5,6 +5,7 @@ export type HandoffDecisionKind = "dispatch" | "delegate_issue" | "stop" | "skip
 export type AutomationMode = "disabled" | "heuristics" | "agent";
 export type HandoffMarkerState = "pending" | "dispatched" | "failed";
 export type PlannerDecisionKind = "handoff" | "delegate_issue" | "answer" | "stop" | "blocked";
+export type DeterministicSuggestionDecision = "handoff" | "stop" | "none";
 
 export interface HandoffInput {
   automationMode: string;
@@ -68,6 +69,13 @@ export interface PlannerDecision {
   basePr?: string;
 }
 
+export interface DeterministicTransitionSuggestion {
+  suggestedDecision: DeterministicSuggestionDecision;
+  suggestedNextAction?: AgentAction;
+  suggestedReason: string;
+  suggestedHandoffContext?: string;
+}
+
 const REVIEW_TO_FIX_PR = new Set(["minor_issues", "needs_rework", "changes_requested"]);
 const SELF_APPROVAL_TO_FIX_PR = new Set(["request_changes", "changes_requested"]);
 const PLANNER_DECISION_KINDS: Partial<Record<string, PlannerDecisionKind>> = {
@@ -108,7 +116,7 @@ export function normalizeAutomationMode(value: string): AutomationMode {
   if (normalized === "true") {
     return "heuristics";
   }
-  // The built-in heuristic state machine. Use the canonical plural spelling only.
+  // Compatibility value for the built-in deterministic worker chain.
   if (normalized === "heuristics") {
     return "heuristics";
   }
@@ -435,7 +443,7 @@ export function formatHandoffMarkerComment(args: {
   return lines.join("\n");
 }
 
-function decideHeuristicHandoff(input: HandoffInput): HandoffDecision {
+export function computeDeterministicTransition(input: HandoffInput): HandoffDecision {
   const nextRound = input.currentRound + 1;
   const sourceAction = normalizeToken(input.sourceAction);
   const conclusion = normalizeConclusion(input.sourceConclusion);
@@ -541,6 +549,48 @@ function decideHeuristicHandoff(input: HandoffInput): HandoffDecision {
   }
 
   return { decision: "stop", reason: `unsupported source action ${input.sourceAction}`, nextRound };
+}
+
+function transitionToSuggestion(transition: HandoffDecision): DeterministicTransitionSuggestion {
+  if (transition.decision === "dispatch" && transition.nextAction) {
+    const suggestion: DeterministicTransitionSuggestion = {
+      suggestedDecision: "handoff",
+      suggestedNextAction: transition.nextAction,
+      suggestedReason: transition.reason,
+    };
+    if (transition.handoffContext) suggestion.suggestedHandoffContext = transition.handoffContext;
+    return suggestion;
+  }
+  if (transition.decision === "skip") {
+    const suggestion: DeterministicTransitionSuggestion = {
+      suggestedDecision: "none",
+      suggestedReason: transition.reason,
+    };
+    if (transition.handoffContext) suggestion.suggestedHandoffContext = transition.handoffContext;
+    return suggestion;
+  }
+  const suggestion: DeterministicTransitionSuggestion = {
+    suggestedDecision: "stop",
+    suggestedReason: transition.reason,
+  };
+  if (transition.handoffContext) suggestion.suggestedHandoffContext = transition.handoffContext;
+  return suggestion;
+}
+
+export function computeDeterministicSuggestion(input: HandoffInput): DeterministicTransitionSuggestion {
+  if (input.currentRound >= input.maxRounds) {
+    return {
+      suggestedDecision: "stop",
+      suggestedReason: "automation round budget exhausted",
+    };
+  }
+  if (normalizeToken(input.sourceAction) === "orchestrate") {
+    return {
+      suggestedDecision: "none",
+      suggestedReason: "initial and meta orchestrate starts require planner context instead of a fixed deterministic transition",
+    };
+  }
+  return transitionToSuggestion(computeDeterministicTransition(input));
 }
 
 function decideAgentHandoff(input: HandoffInput): HandoffDecision {
@@ -655,7 +705,7 @@ function decideAgentHandoff(input: HandoffInput): HandoffDecision {
     };
   }
 
-  const allowed = decideHeuristicHandoff(input);
+  const allowed = computeDeterministicTransition(input);
   if (allowed.decision !== "dispatch" || !allowed.nextAction) {
     return {
       decision: "stop",
@@ -690,5 +740,5 @@ export function decideHandoff(input: HandoffInput): HandoffDecision {
   if (automationMode === "agent") {
     return decideAgentHandoff(input);
   }
-  return decideHeuristicHandoff(input);
+  return computeDeterministicTransition(input);
 }

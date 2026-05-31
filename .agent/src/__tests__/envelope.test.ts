@@ -1447,6 +1447,7 @@ test("execution workflows expose automation handoff inputs", () => {
   const fixPrPrompt = readRepoFile(".github/prompts/agent-fix-pr.md");
   const orchestratorPrompt = readRepoFile(".github/prompts/agent-orchestrator.md");
   const orchestratorDoc = readRepoFile(".agent/docs/architecture/agent-orchestrator.md");
+  const configurationList = readRepoFile(".agent/docs/customization/configuration-list.md");
 
   assert.match(entrypointWorkflow, /automation_mode:\s*\$\{\{ vars\.AGENT_AUTOMATION_MODE \|\| 'agent' \}\}/);
   assert.match(labelWorkflow, /automation_mode:\s*\$\{\{ vars\.AGENT_AUTOMATION_MODE \|\| 'agent' \}\}/);
@@ -1460,6 +1461,9 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestratorWorkflow, /node \.agent\/dist\/cli\/orchestrator-preflight\.js/);
   assert.match(orchestratorWorkflow, /Check handoff preflight[\s\S]*AUTHOR_ASSOCIATION:/);
   assert.match(orchestratorWorkflow, /Check handoff preflight[\s\S]*ACCESS_POLICY:/);
+  assert.match(orchestratorWorkflow, /Check handoff preflight[\s\S]*SOURCE_RECOMMENDED_NEXT_STEP:/);
+  assert.match(orchestratorWorkflow, /Check handoff preflight[\s\S]*SOURCE_HANDOFF_CONTEXT:/);
+  assert.match(orchestratorWorkflow, /Check handoff preflight[\s\S]*NEXT_TARGET_NUMBER:/);
   assert.match(
     orchestratorWorkflow,
     /Plan next action with agent[\s\S]*if:\s*\$\{\{\s*steps\.preflight\.outputs\.planner_enabled == 'true'\s*\}\}/,
@@ -1497,6 +1501,10 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestratorWorkflow, /BASE_BRANCH:\s*\$\{\{ inputs\.base_branch \}\}/);
   assert.match(orchestratorWorkflow, /SOURCE_HANDOFF_CONTEXT:\s*\$\{\{ inputs\.source_handoff_context \}\}/);
   assert.match(orchestratorWorkflow, /ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT:\s*\$\{\{ inputs\.source_handoff_context \}\}/);
+  assert.match(orchestratorWorkflow, /ORCHESTRATOR_SUGGESTED_DECISION:\s*\$\{\{ steps\.preflight\.outputs\.suggested_decision \}\}/);
+  assert.match(orchestratorWorkflow, /ORCHESTRATOR_SUGGESTED_NEXT_ACTION:\s*\$\{\{ steps\.preflight\.outputs\.suggested_next_action \}\}/);
+  assert.match(orchestratorWorkflow, /ORCHESTRATOR_SUGGESTED_REASON:\s*\$\{\{ steps\.preflight\.outputs\.suggested_reason \}\}/);
+  assert.match(orchestratorWorkflow, /ORCHESTRATOR_SUGGESTED_HANDOFF_CONTEXT:\s*\$\{\{ steps\.preflight\.outputs\.suggested_handoff_context \}\}/);
   assert.match(orchestrateHandoffCli, /resolveEffectiveBaseInputs/);
   assert.match(orchestrateHandoffCli, /baseBranch:\s*decision\.baseBranch \|\| baseBranch/);
   assert.match(orchestrateHandoffCli, /basePr:\s*decision\.basePr \|\| basePr/);
@@ -1521,13 +1529,23 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestratorPrompt, /ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT/);
   assert.match(orchestratorPrompt, /ORCHESTRATOR_SELF_APPROVE_ENABLED/);
   assert.match(orchestratorPrompt, /ORCHESTRATOR_SELF_MERGE_ENABLED/);
+  assert.match(orchestratorPrompt, /Deterministic Suggestion/);
+  assert.match(orchestratorPrompt, /ORCHESTRATOR_SUGGESTED_DECISION/);
   assert.match(orchestratorPrompt, /"user_message"/);
   assert.match(orchestratorPrompt, /"clarification_request"/);
   assert.match(orchestratorPrompt, /prior child finished with an open, unmerged PR/);
   assert.match(runSource, /"ORCHESTRATOR_CONTEXT"/);
   assert.match(runSource, /"ORCHESTRATOR_SELF_APPROVE_ENABLED"/);
   assert.match(runSource, /"ORCHESTRATOR_SELF_MERGE_ENABLED"/);
+  assert.match(runSource, /"ORCHESTRATOR_SUGGESTED_DECISION"/);
+  assert.match(runSource, /"ORCHESTRATOR_SUGGESTED_HANDOFF_CONTEXT"/);
   assert.match(orchestratorDoc, /Implement --> Review: success \+ PR created/);
+  assert.match(orchestratorDoc, /Deterministic transition policy/);
+  assert.match(orchestratorDoc, /suggested_decision/);
+  assert.match(orchestratorDoc, /deterministic worker chain/);
+  assert.doesNotMatch(orchestratorDoc, /set `heuristics` for deterministic routing with lower model cost/);
+  assert.match(configurationList, /Defaults to `agent`/);
+  assert.doesNotMatch(configurationList, /Set to `heuristics` for deterministic status-based routing/);
   assert.match(orchestratorDoc, /continues sequential child implementation work/);
   assert.match(orchestratorDoc, /workflow_dispatch/);
   assert.match(orchestratorDoc, /handoff_context/);
@@ -1547,6 +1565,25 @@ test("orchestrator source handoff context is renderable in planner prompts", () 
     readSupplementalPromptVarNames(runSource).has(sourceContextName),
     `${sourceContextName} must be allowlisted for runtime prompt rendering`,
   );
+});
+
+test("orchestrator deterministic suggestion vars are renderable in planner prompts", () => {
+  const runSource = readRepoFile(".agent/src/run.ts");
+  const orchestratorPrompt = readRepoFile(".github/prompts/agent-orchestrator.md");
+  const supplementalVars = readSupplementalPromptVarNames(runSource);
+
+  for (const name of [
+    "ORCHESTRATOR_SUGGESTED_DECISION",
+    "ORCHESTRATOR_SUGGESTED_NEXT_ACTION",
+    "ORCHESTRATOR_SUGGESTED_REASON",
+    "ORCHESTRATOR_SUGGESTED_HANDOFF_CONTEXT",
+  ]) {
+    assert.match(orchestratorPrompt, new RegExp(`\\$\\{${name}\\}`));
+    assert.ok(
+      supplementalVars.has(name),
+      `${name} must be allowlisted for runtime prompt rendering`,
+    );
+  }
 });
 
 test("workflow docs cover hosted auth and self-hosting paths", () => {
