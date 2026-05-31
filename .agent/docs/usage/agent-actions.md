@@ -43,7 +43,9 @@ the default branch; the tracking issue still links the closed PR as context.
 The `add-rubrics` route intentionally does not base the main workflow worktree
 on `agent/rubrics`. The route keeps Sepo runtime files from the default branch,
 mounts `agent/rubrics` as a separate rubric checkout, validates proposed YAML
-edits, and opens a draft pull request targeting the rubric branch.
+edits, and opens or reuses a draft pull request targeting the rubric branch.
+The model process does not receive the write token in proposal mode; the
+deterministic workflow steps push the stable proposal branch after validation.
 
 ## Consumption model
 

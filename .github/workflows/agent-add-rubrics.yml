@@ -152,8 +152,13 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           model_policy: ${{ vars.AGENT_MODEL_POLICY || '' }}
 
-      - name: Setup proposal branch name
-        run: echo "BRANCH=agent/add-rubrics-${TARGET_KIND}-${TARGET_NUMBER}/${{ steps.provider.outputs.provider }}-${{ github.run_id }}" >> "$GITHUB_ENV"
+      - name: Setup proposal branch
+        id: proposal
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          REQUESTED_BY: ${{ env.REQUESTED_BY || github.actor }}
+        run: node .agent/dist/cli/prepare-add-rubrics-proposal.js
 
       - name: Setup agent runtime
         uses: ./.github/actions/setup-agent-runtime
@@ -175,6 +180,8 @@ jobs:
         with:
           agent: ${{ steps.provider.outputs.provider }}
           github_token: ${{ steps.auth.outputs.token }}
+          agent_github_token: ${{ secrets.AGENT_SECONDARY_GITHUB_TOKEN }}
+          expose_github_token_to_agent: "false"
           secondary_github_token: ${{ secrets.AGENT_SECONDARY_GITHUB_TOKEN }}
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -188,9 +195,11 @@ jobs:
           lane: add-rubrics
           memory_mode_override: read-only
           memory_ref: ${{ vars.AGENT_MEMORY_REF || 'agent/memory' }}
+          memory_persist_credentials: "false"
           memory_policy: ${{ vars.AGENT_MEMORY_POLICY || '' }}
           rubrics_mode_override: read-only
           rubrics_ref: ${{ env.RUBRICS_REF }}
+          rubrics_persist_credentials: "false"
           rubrics_policy: ${{ vars.AGENT_RUBRICS_POLICY || '' }}
           rubrics_limit: ${{ vars.AGENT_RUBRICS_LIMIT || '10' }}
           session_policy: none
@@ -228,12 +237,13 @@ jobs:
           steps.validate_rubrics.outcome == 'success'
         id: commit_rubrics
         env:
-          BRANCH: ${{ env.BRANCH }}
+          BRANCH: ${{ steps.proposal.outputs.branch }}
           COMMIT_CWD: ${{ steps.add_rubrics.outputs.rubrics_dir }}
           COMMIT_MESSAGE: "${{ steps.response.outputs.commit_message || 'chore(rubrics): propose updates' }}"
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-          PUSH_REF: ${{ env.BRANCH }}
+          PUSH_LEASE_OID: ${{ steps.proposal.outputs.branch_lease_oid }}
+          PUSH_REF: ${{ steps.proposal.outputs.branch }}
         run: node .agent/dist/cli/commit.js
 
       - name: Create rubric proposal PR
@@ -241,7 +251,7 @@ jobs:
         id: pr
         env:
           BASE_BRANCH: ${{ env.RUBRICS_REF }}
-          BRANCH: ${{ env.BRANCH }}
+          BRANCH: ${{ steps.proposal.outputs.branch }}
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           ISSUE_NUMBER: ${{ env.TARGET_NUMBER }}
           PR_BODY: ${{ steps.response.outputs.pr_body }}
@@ -253,11 +263,15 @@ jobs:
         if: always()
         id: add_rubrics_summary
         env:
-          BRANCH: ${{ env.BRANCH }}
+          BRANCH: ${{ steps.proposal.outputs.branch }}
           BODY_FILE: ${{ runner.temp }}/add-rubrics-summary.md
+          PR_OUTCOME: ${{ steps.pr.outcome }}
           PR_URL: ${{ steps.pr.outputs.pr_url }}
           RESPONSE_FILE: ${{ steps.add_rubrics.outputs.response_file }}
+          RUBRICS_AVAILABLE: ${{ steps.add_rubrics.outputs.rubrics_available }}
+          RUBRICS_COMMIT_OUTCOME: ${{ steps.commit_rubrics.outcome }}
           RUBRICS_COMMITTED: ${{ steps.commit_rubrics.outputs.committed }}
+          RUBRICS_DIR: ${{ steps.add_rubrics.outputs.rubrics_dir }}
           RUBRICS_REF: ${{ env.RUBRICS_REF }}
           RUBRICS_STEP_OUTCOME: ${{ steps.add_rubrics.outcome }}
           RUBRICS_VALIDATION_OUTCOME: ${{ steps.validate_rubrics.outcome }}

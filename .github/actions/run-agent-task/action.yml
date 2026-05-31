@@ -83,6 +83,14 @@ inputs:
   github_token:
     description: "GitHub token for API access"
     required: true
+  agent_github_token:
+    description: "Optional GitHub token exposed to the model process; defaults to github_token unless exposure is disabled"
+    required: false
+    default: ""
+  expose_github_token_to_agent:
+    description: "Whether to expose github_token to the model process when agent_github_token is empty"
+    required: false
+    default: "true"
   secondary_github_token:
     description: "Optional read-only secondary GitHub token for external repo context"
     required: false
@@ -127,6 +135,10 @@ inputs:
     description: "Memory branch to clone when memory is enabled"
     required: false
     default: agent/memory
+  memory_persist_credentials:
+    description: "Whether cloned memory checkouts should keep authenticated remotes"
+    required: false
+    default: "true"
   rubrics_policy:
     description: "Rubrics access policy JSON. Empty defaults to read-only rubric steering."
     required: false
@@ -141,6 +153,10 @@ inputs:
     description: "Rubrics branch to clone when rubrics are enabled"
     required: false
     default: agent/rubrics
+  rubrics_persist_credentials:
+    description: "Whether cloned rubric checkouts should keep authenticated remotes"
+    required: false
+    default: "true"
   rubrics_limit:
     description: "Maximum selected rubrics to inject into the prompt"
     required: false
@@ -287,6 +303,7 @@ runs:
         github_token: ${{ inputs.github_token }}
         ref: ${{ inputs.memory_ref }}
         bootstrap_if_missing: ${{ inputs.memory_mode_override == 'enabled' && 'true' || 'false' }}
+        persist_credentials: ${{ inputs.memory_persist_credentials }}
 
     - name: Resolve rubrics mode
       id: rubrics_mode
@@ -305,6 +322,7 @@ runs:
         github_token: ${{ inputs.github_token }}
         ref: ${{ inputs.rubrics_ref }}
         bootstrap_if_missing: ${{ inputs.route == 'rubrics-initialization' && inputs.rubrics_mode_override == 'enabled' && 'true' || 'false' }}
+        persist_credentials: ${{ inputs.rubrics_persist_credentials }}
 
     - name: Select applicable rubrics
       if: ${{ steps.rubrics.outputs.rubrics_available == 'true' && steps.rubrics.outputs.rubrics_dir != '' }}
@@ -343,7 +361,7 @@ runs:
         MODEL_ID: ${{ inputs.model }}
         DISPLAY_MODEL: ${{ inputs.display_model }}
         ACPX_PERMISSION_MODE: ${{ inputs.permission_mode }}
-        INPUT_GITHUB_TOKEN: ${{ inputs.github_token }}
+        INPUT_GITHUB_TOKEN: ${{ inputs.agent_github_token != '' && inputs.agent_github_token || (inputs.expose_github_token_to_agent != 'false' && inputs.github_token || '') }}
         INPUT_SECONDARY_GITHUB_TOKEN: ${{ inputs.secondary_github_token }}
         INPUT_OPENAI_API_KEY: ${{ inputs.openai_api_key }}
         CLAUDE_CODE_OAUTH_TOKEN: ${{ inputs.claude_oauth_token }}

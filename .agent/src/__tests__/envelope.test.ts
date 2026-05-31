@@ -1065,6 +1065,13 @@ test("shared run-agent-task exposes an optional secondary GitHub token", () => {
   assert.ok(isRecord(secondaryInput), "run-agent-task should define secondary_github_token");
   assert.equal(secondaryInput.required, false);
   assert.equal(secondaryInput.default, "");
+  const agentTokenInput = parsedAction.inputs.agent_github_token;
+  assert.ok(isRecord(agentTokenInput), "run-agent-task should define agent_github_token");
+  assert.equal(agentTokenInput.required, false);
+  assert.equal(agentTokenInput.default, "");
+  const exposeTokenInput = parsedAction.inputs.expose_github_token_to_agent;
+  assert.ok(isRecord(exposeTokenInput), "run-agent-task should define expose_github_token_to_agent");
+  assert.equal(exposeTokenInput.default, "true");
 
   assert.ok(isRecord(parsedAction.runs), "run-agent-task should define runs");
   assert.ok(Array.isArray(parsedAction.runs.steps), "run-agent-task should define steps");
@@ -1077,7 +1084,9 @@ test("shared run-agent-task exposes an optional secondary GitHub token", () => {
     runStep.env.INPUT_SECONDARY_GITHUB_TOKEN,
     "${{ inputs.secondary_github_token }}",
   );
-  assert.equal(runStep.env.INPUT_GITHUB_TOKEN, "${{ inputs.github_token }}");
+  assert.match(String(runStep.env.INPUT_GITHUB_TOKEN), /inputs\.agent_github_token/);
+  assert.match(String(runStep.env.INPUT_GITHUB_TOKEN), /inputs\.expose_github_token_to_agent/);
+  assert.match(String(runStep.env.INPUT_GITHUB_TOKEN), /inputs\.github_token/);
 
   assert.match(runtimeEnvSource, /INPUT_SECONDARY_GITHUB_TOKEN/);
   assert.doesNotMatch(
@@ -1942,7 +1951,14 @@ test("normal workflows honor rubrics policy instead of forcing read-only", () =>
     assert.match(workflow, /rubrics_policy:\s*\$\{\{\s*vars\.AGENT_RUBRICS_POLICY \|\| ''\s*\}\}/);
   }
   assert.match(addRubricsWorkflow, /rubrics_mode_override:\s*read-only/);
-  assert.match(addRubricsWorkflow, /PUSH_REF:\s*\$\{\{\s*env\.BRANCH\s*\}\}/);
+  assert.match(addRubricsWorkflow, /prepare-add-rubrics-proposal\.js/);
+  assert.doesNotMatch(addRubricsWorkflow, /github\.run_id/);
+  assert.match(addRubricsWorkflow, /agent_github_token:\s*\$\{\{\s*secrets\.AGENT_SECONDARY_GITHUB_TOKEN\s*\}\}/);
+  assert.match(addRubricsWorkflow, /expose_github_token_to_agent:\s*"false"/);
+  assert.match(addRubricsWorkflow, /memory_persist_credentials:\s*"false"/);
+  assert.match(addRubricsWorkflow, /rubrics_persist_credentials:\s*"false"/);
+  assert.match(addRubricsWorkflow, /PUSH_LEASE_OID:\s*\$\{\{\s*steps\.proposal\.outputs\.branch_lease_oid\s*\}\}/);
+  assert.match(addRubricsWorkflow, /PUSH_REF:\s*\$\{\{\s*steps\.proposal\.outputs\.branch\s*\}\}/);
   assert.match(addRubricsWorkflow, /BASE_BRANCH:\s*\$\{\{\s*env\.RUBRICS_REF\s*\}\}/);
   assert.match(addRubricsWorkflow, /prepare-add-rubrics-proposal-summary\.js/);
   assert.match(addRubricsPrompt, /Read existing rubrics/);
@@ -1979,7 +1995,9 @@ test("add-rubrics route uses separate rubrics checkout for proposal PRs", () => 
   assert.match(addRubricsWorkflow, /route:\s*add-rubrics/);
   assert.match(addRubricsWorkflow, /rubrics_mode_override:\s*read-only/);
   assert.match(addRubricsWorkflow, /rubrics\/validate\.js --dir "\$\{\{ steps\.add_rubrics\.outputs\.rubrics_dir \}\}"/);
-  assert.match(addRubricsWorkflow, /PUSH_REF:\s*\$\{\{\s*env\.BRANCH\s*\}\}/);
+  assert.match(addRubricsWorkflow, /agent_github_token:\s*\$\{\{\s*secrets\.AGENT_SECONDARY_GITHUB_TOKEN\s*\}\}/);
+  assert.match(addRubricsWorkflow, /expose_github_token_to_agent:\s*"false"/);
+  assert.match(addRubricsWorkflow, /PUSH_REF:\s*\$\{\{\s*steps\.proposal\.outputs\.branch\s*\}\}/);
   assert.match(addRubricsWorkflow, /BASE_BRANCH:\s*\$\{\{\s*env\.RUBRICS_REF\s*\}\}/);
   assert.doesNotMatch(addRubricsWorkflow, /fetch origin "refs\/heads\/\$\{BASE_BRANCH\}"/);
   assert.match(runSource, /"add-rubrics": ".github\/prompts\/agent-add-rubrics\.md"/);
@@ -2074,8 +2092,11 @@ test("memory workflows exist and point at the right CLIs / prompts", () => {
 
 test("download-agent-memory only suppresses missing-branch failures", () => {
   const action = readRepoFile(".github/actions/download-agent-memory/action.yml");
+  const rubricsAction = readRepoFile(".github/actions/download-agent-rubrics/action.yml");
 
   assert.match(action, /bootstrap_if_missing:/);
+  assert.match(action, /persist_credentials:/);
+  assert.match(action, /remote set-url origin "https:\/\/github\.com\/\$\{repo\}\.git"/);
   assert.match(action, /git clone --depth=1 --branch "\$ref" --single-branch "\$auth_url" "\$dest"/);
   assert.match(
     action,
@@ -2085,6 +2106,8 @@ test("download-agent-memory only suppresses missing-branch failures", () => {
   assert.match(action, /if \[ "\$INPUT_BOOTSTRAP_IF_MISSING" = "true" \]/);
   assert.match(action, /memory\/init\.js/);
   assert.match(action, /Failed to clone memory branch/);
+  assert.match(rubricsAction, /persist_credentials:/);
+  assert.match(rubricsAction, /remote set-url origin "https:\/\/github\.com\/\$\{repo\}\.git"/);
 });
 
 test("main execution workflows rely on the default memory policy (no explicit override)", () => {
