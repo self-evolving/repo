@@ -137,6 +137,7 @@ test("answer prompt returns content for workflow posting instead of commenting d
   assert.doesNotMatch(answerPrompt, /\$\{REQUEST_COMMENT_ID\}/);
   assert.doesNotMatch(answerPrompt, /\$\{REQUEST_COMMENT_URL\}/);
   assert.doesNotMatch(answerPrompt, /Trigger metadata:/);
+  assert.match(answerPrompt, /Except for targeted inline replies allowed by a review-triggered exception above/);
   assert.match(answerPrompt, /do not post comments directly via `gh`/i);
   assert.match(answerPrompt, /workflow will post it on the original surface/i);
 });
