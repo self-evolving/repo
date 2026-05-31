@@ -64,6 +64,7 @@ export const VALID_ROUTES = new Set([
   "agent-self-merge",
   "skill",
   "install",
+  "update-agent",
   "rubrics-review",
   "rubrics-initialization",
   "rubrics-update",

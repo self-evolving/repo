@@ -372,6 +372,7 @@ test("scheduled workflows evaluate skip gates before provider-dependent jobs", (
   const memoryScanWorkflow = readRepoFile(".github/workflows/agent-memory-scan.yml");
   const memorySyncWorkflow = readRepoFile(".github/workflows/agent-memory-sync.yml");
   const updateWorkflow = readRepoFile(".github/workflows/agent-update.yml");
+  const updatePrompt = readRepoFile(".github/prompts/agent-update.md");
   const gateAction = readRepoFile(".github/actions/scheduled-activity-gate/action.yml");
 
   assert.match(gateAction, /\.agent\/scripts\/resolve-scheduled-activity-gate\.sh/);
@@ -415,11 +416,17 @@ test("scheduled workflows evaluate skip gates before provider-dependent jobs", (
   assert.match(updateWorkflow, /update that branch and PR in the update target path/);
   assert.match(updateWorkflow, /do not check out the existing PR branch in[\s\S]*the runtime checkout path/);
   assert.match(updateWorkflow, /Update Sepo from <installed version\/ref> to \$\{\{ steps\.update_source\.outputs\.source_ref \}\}\/\$\{\{ steps\.update_source\.outputs\.source_sha \}\}/);
-  assert.match(updateWorkflow, /Resolve task timeout[\s\S]*ROUTE: skill[\s\S]*resolve-task-timeout\.js/);
+  assert.match(updateWorkflow, /Resolve task timeout[\s\S]*ROUTE: update-agent[\s\S]*resolve-task-timeout\.js/);
   assert.match(
     updateWorkflow,
     /Run update agent\n\s+id: agent\n\s+timeout-minutes: \$\{\{ fromJson\(steps\.task_timeout\.outputs\.minutes \|\| '30'\) \}\}/,
   );
+  assert.match(updateWorkflow, /prompt:\s*agent-update/);
+  assert.match(updateWorkflow, /route:\s*update-agent/);
+  assert.match(updateWorkflow, /rubrics_mode_override:\s*disabled/);
+  assert.doesNotMatch(updateWorkflow, /skill:\s*update-agent/);
+  assert.match(updatePrompt, /first-class internal `update-agent` route/);
+  assert.match(updatePrompt, /must not depend on `\.skills\/update-agent\/SKILL\.md`/);
   assert.doesNotMatch(updateWorkflow, /if: steps\.gate\.outputs\.skip != 'true'/);
 
   assert.match(dailySummaryWorkflow, /pre_gate:\n[\s\S]*Resolve scheduled disabled gate/);
@@ -1641,12 +1648,13 @@ test("validateEnvelope catches invalid route", () => {
   assert.ok(errors.some((error) => error.includes("Invalid route")));
 });
 
-test("validateEnvelope accepts dispatch, action, self-approval, and rubrics routes", () => {
+test("validateEnvelope accepts dispatch, action, self-approval, update, and rubrics routes", () => {
   for (const route of [
     "dispatch",
     "create-action",
     "agent-self-approve",
     "agent-self-merge",
+    "update-agent",
     "rubrics-review",
     "rubrics-initialization",
     "rubrics-update",
