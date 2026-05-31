@@ -114,6 +114,26 @@ test("provider resolver auto-detects configured providers deterministically", ()
   assert.equal(bothClaudeCredentials.outputs.install_claude, "true");
 });
 
+test("provider resolver pins minimal built-in provider model defaults", () => {
+  const codex = runResolver({
+    DEFAULT_PROVIDER: "codex",
+  });
+
+  assert.equal(codex.status, 0, codex.stderr);
+  assert.equal(codex.outputs.provider, "codex");
+  assert.equal(codex.outputs.model, "gpt-5.5");
+  assert.equal(codex.outputs.reasoning_effort, "");
+
+  const claude = runResolver({
+    DEFAULT_PROVIDER: "claude",
+  });
+
+  assert.equal(claude.status, 0, claude.stderr);
+  assert.equal(claude.outputs.provider, "claude");
+  assert.equal(claude.outputs.model, "claude-sonnet-4-6");
+  assert.equal(claude.outputs.reasoning_effort, "");
+});
+
 test("provider resolver honors default and inline route overrides", () => {
   const defaultOverride = runResolver({
     DEFAULT_PROVIDER: " Claude ",
@@ -186,7 +206,7 @@ test("provider resolver ignores display policy because display is handled by run
 
   assert.equal(policyDisplay.status, 0, policyDisplay.stderr);
   assert.equal(policyDisplay.outputs.provider, "codex");
-  assert.equal(policyDisplay.outputs.model, "");
+  assert.equal(policyDisplay.outputs.model, "gpt-5.5");
   assert.equal(policyDisplay.outputs.reasoning_effort, "");
 });
 
