@@ -27,7 +27,6 @@ type ResolverEnv = Partial<Record<
   | "ANTHROPIC_API_KEY"
   | "REQUIRED"
   | "AGENT_MODEL_POLICY"
-  | "MODEL_REGISTRY"
   | "MODEL_REGISTRY_URL"
   | "MODEL_REGISTRY_TIMEOUT_MS",
   string
@@ -86,9 +85,8 @@ function runResolver(env: ResolverEnv = {}) {
         ANTHROPIC_API_KEY: "",
         REQUIRED: "true",
         AGENT_MODEL_POLICY: "",
-        MODEL_REGISTRY: "bundled",
-        MODEL_REGISTRY_URL: "",
-        MODEL_REGISTRY_TIMEOUT_MS: "",
+        MODEL_REGISTRY_URL: "http://127.0.0.1:1/model-defaults.json",
+        MODEL_REGISTRY_TIMEOUT_MS: "25",
         ...env,
       },
     });
@@ -124,9 +122,8 @@ async function runResolverAsync(env: ResolverEnv = {}) {
           ANTHROPIC_API_KEY: "",
           REQUIRED: "true",
           AGENT_MODEL_POLICY: "",
-          MODEL_REGISTRY: "bundled",
-          MODEL_REGISTRY_URL: "",
-          MODEL_REGISTRY_TIMEOUT_MS: "",
+          MODEL_REGISTRY_URL: "http://127.0.0.1:1/model-defaults.json",
+          MODEL_REGISTRY_TIMEOUT_MS: "25",
           ...env,
         },
       });
@@ -233,7 +230,6 @@ test("provider resolver applies a valid remote model registry above bundled defa
   }, async (url) => {
     const resolved = await runResolverAsync({
       DEFAULT_PROVIDER: "codex",
-      MODEL_REGISTRY: "auto",
       MODEL_REGISTRY_URL: url,
     });
 
@@ -256,7 +252,6 @@ test("provider resolver reports bundled source for providers missing from remote
   }, async (url) => {
     const resolved = await runResolverAsync({
       DEFAULT_PROVIDER: "claude",
-      MODEL_REGISTRY: "auto",
       MODEL_REGISTRY_URL: url,
     });
 
@@ -273,7 +268,6 @@ test("provider resolver falls back to bundled defaults after remote timeout", as
   }, async (url) => {
     const resolved = await runResolverAsync({
       DEFAULT_PROVIDER: "claude",
-      MODEL_REGISTRY: "auto",
       MODEL_REGISTRY_URL: url,
       MODEL_REGISTRY_TIMEOUT_MS: "25",
     });
@@ -286,7 +280,7 @@ test("provider resolver falls back to bundled defaults after remote timeout", as
   });
 });
 
-test("provider resolver falls back or rejects invalid remote registries by mode", async () => {
+test("provider resolver falls back to bundled defaults for invalid remote registries", async () => {
   await withRegistryServer((_, response) => {
     response.setHeader("content-type", "application/json");
     response.end(JSON.stringify({
@@ -298,7 +292,6 @@ test("provider resolver falls back or rejects invalid remote registries by mode"
   }, async (url) => {
     const fallback = await runResolverAsync({
       DEFAULT_PROVIDER: "codex",
-      MODEL_REGISTRY: "auto",
       MODEL_REGISTRY_URL: url,
     });
 
@@ -306,15 +299,6 @@ test("provider resolver falls back or rejects invalid remote registries by mode"
     assert.equal(fallback.outputs.model, "gpt-5.5");
     assert.equal(fallback.outputs.model_source, "bundled");
     assert.match(fallback.stderr, /falling back to bundled defaults/);
-
-    const strict = await runResolverAsync({
-      DEFAULT_PROVIDER: "codex",
-      MODEL_REGISTRY: "remote",
-      MODEL_REGISTRY_URL: url,
-    });
-
-    assert.notEqual(strict.status, 0);
-    assert.match(strict.stderr, /Could not load remote model registry/);
   });
 });
 
@@ -393,7 +377,6 @@ test("provider resolver keeps AGENT_MODEL_POLICY above remote registry defaults"
   }, async (url) => {
     const resolved = await runResolverAsync({
       DEFAULT_PROVIDER: "codex",
-      MODEL_REGISTRY: "auto",
       MODEL_REGISTRY_URL: url,
       AGENT_MODEL_POLICY: JSON.stringify({
         providers: {

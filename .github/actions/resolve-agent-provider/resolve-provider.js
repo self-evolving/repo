@@ -8,7 +8,6 @@ const path = require("node:path");
 const VALID_PROVIDERS = new Set(["auto", "codex", "claude"]);
 const VALID_ROUTE_KEY = /^[a-z0-9][a-z0-9._-]*$/;
 const SAFE_TOKEN = /^[A-Za-z0-9][A-Za-z0-9._:/+-]*$/;
-const VALID_REGISTRY_MODES = new Set(["auto", "bundled", "remote"]);
 const BUNDLED_MODEL_DEFAULTS_PATH = path.resolve(__dirname, "../../../.agent/model-defaults.json");
 const DEFAULT_MODEL_REGISTRY_URL =
   "https://raw.githubusercontent.com/self-evolving/repo/main/.agent/model-defaults.json";
@@ -47,14 +46,6 @@ function normalizeOptionalProvider(value, label) {
   return normalized;
 }
 
-function normalizeRegistryMode(value) {
-  const normalized = String(value || "auto").trim().toLowerCase() || "auto";
-  if (!VALID_REGISTRY_MODES.has(normalized)) {
-    throw new Error("AGENT_MODEL_REGISTRY must be auto, bundled, or remote");
-  }
-  return normalized;
-}
-
 function normalizeRegistryUrl(value) {
   const normalized = String(value || "").trim();
   if (!normalized) return DEFAULT_MODEL_REGISTRY_URL;
@@ -62,10 +53,10 @@ function normalizeRegistryUrl(value) {
   try {
     parsed = new URL(normalized);
   } catch {
-    throw new Error("AGENT_MODEL_REGISTRY_URL must be a valid http(s) URL");
+    throw new Error("model registry URL must be a valid http(s) URL");
   }
   if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
-    throw new Error("AGENT_MODEL_REGISTRY_URL must use http or https");
+    throw new Error("model registry URL must use http or https");
   }
   return parsed.toString();
 }
@@ -75,7 +66,7 @@ function normalizeRegistryTimeout(value) {
   if (!raw) return DEFAULT_REGISTRY_TIMEOUT_MS;
   const parsed = Number.parseInt(raw, 10);
   if (!Number.isFinite(parsed) || parsed < 1 || parsed > 30000) {
-    throw new Error("AGENT_MODEL_REGISTRY_TIMEOUT_MS must be 1-30000");
+    throw new Error("model registry timeout must be 1-30000ms");
   }
   return parsed;
 }
@@ -221,14 +212,11 @@ function fetchJson(url, timeoutMs) {
 async function resolveModelDefaults(env) {
   const bundledDefaults = loadBundledModelDefaults();
   const bundledSources = sourceMapFor(bundledDefaults, "bundled");
-  const mode = normalizeRegistryMode(env.MODEL_REGISTRY || "auto");
-  if (mode === "bundled") {
-    return { defaults: bundledDefaults, sources: bundledSources };
-  }
 
-  const registryUrl = normalizeRegistryUrl(env.MODEL_REGISTRY_URL || "");
-  const timeoutMs = normalizeRegistryTimeout(env.MODEL_REGISTRY_TIMEOUT_MS || "");
+  let registryUrl = DEFAULT_MODEL_REGISTRY_URL;
   try {
+    registryUrl = normalizeRegistryUrl(env.MODEL_REGISTRY_URL || "");
+    const timeoutMs = normalizeRegistryTimeout(env.MODEL_REGISTRY_TIMEOUT_MS || "");
     const payload = await fetchJson(registryUrl, timeoutMs);
     const remoteDefaults = parseModelDefaultsRegistry(payload, "remote model registry");
     return {
@@ -237,9 +225,6 @@ async function resolveModelDefaults(env) {
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    if (mode === "remote") {
-      throw new Error(`Could not load remote model registry from ${registryUrl}: ${message}`);
-    }
     console.error(
       `Could not load remote model registry from ${registryUrl}; falling back to bundled defaults: ${message}`,
     );
@@ -376,7 +361,6 @@ async function main(env) {
   }
 
   const policy = parsePolicy(env.AGENT_MODEL_POLICY || "");
-  const modelDefaults = await resolveModelDefaults(env);
   const { requestedProvider, requestedReason, hasRouteProviderOverride } = resolveProviderRequest(env, policy, route);
 
   const hasCodex = Boolean(env.OPENAI_API_KEY);
@@ -424,6 +408,7 @@ async function main(env) {
     );
   }
 
+  const modelDefaults = await resolveModelDefaults(env);
   const runConfig = resolveRunConfig(policy, modelDefaults.defaults, modelDefaults.sources[provider] || "", provider, route, {
     hasRouteProviderOverride,
   });
