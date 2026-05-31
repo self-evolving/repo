@@ -205,7 +205,9 @@ Single-agent routes, autonomous agent workflows, and the review synthesis step r
 
 ### `agent-entrypoint.yml`
 
-The broad pre-filter is `contains(toJSON(github.event), '@sepo-agent')`. Real mention validation happens in `agent-router.yml` through `extract-context.js`. That validation is boundary-aware and strips code blocks and quoted text before deciding whether a mention is live.
+The broad pre-filter starts the router when the event contains `@sepo-agent`. Real mention validation happens in `agent-router.yml` through `extract-context.js`. That validation is boundary-aware and strips code blocks and quoted text before deciding whether a mention is live.
+
+When `AGENT_FOLLOWUP_INTENT_MODE` is unset or `agent-label`, new unmentioned issue/PR comments, new PR review comments, and submitted PR reviews can also wake the router if the target already has the fixed `agent` label. The router marks these as `implicit_followup=true`, checks `answer` route authorization before the intent gate, and only continues to the inline `answer` route when the communication-rubric-aware gate returns `respond`. `ignore` posts nothing. Set `AGENT_FOLLOWUP_INTENT_MODE=disabled` or `false` to require explicit mentions only.
 
 Supported surfaces:
 
@@ -219,7 +221,7 @@ Supported surfaces:
 | `discussion` | discussion title, discussion body |
 | `discussion_comment` | comment body |
 
-By default, the portal responds to `OWNER`, `MEMBER`, `COLLABORATOR`, and `CONTRIBUTOR` associations. `AGENT_ACCESS_POLICY` can tighten or widen access globally or for specific routes; public repositories that do not want prior contributors to trigger Sepo should remove `CONTRIBUTOR` from the allowlist. Bot authors are always skipped. Implicit mentions are triaged first and then checked against the resolved route, so denied requests get a visible unsupported reply instead of being dropped silently. See [Trigger access policy](../customization/access-policy.md).
+By default, the portal responds to `OWNER`, `MEMBER`, `COLLABORATOR`, and `CONTRIBUTOR` associations. `AGENT_ACCESS_POLICY` can tighten or widen access globally or for specific routes; public repositories that do not want prior contributors to trigger Sepo should remove `CONTRIBUTOR` from the allowlist. Bot authors are always skipped. Mention-based implicit route requests are triaged first and then checked against the resolved route, so denied requests get a visible unsupported reply instead of being dropped silently. Unmentioned implicit follow-ups are answer-only and are dropped silently when the answer route is not authorized. See [Trigger access policy](../customization/access-policy.md).
 
 Explicit routes are:
 

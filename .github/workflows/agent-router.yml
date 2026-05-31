@@ -68,6 +68,10 @@ on:
         description: "Maximum automation handoff rounds"
         type: string
         default: "12"
+      followup_intent_mode:
+        description: "Implicit follow-up mode (agent-label, disabled, or false)"
+        type: string
+        default: ""
     secrets:
       AGENT_APP_ID:
         description: "GitHub App ID for elevated token"
@@ -129,6 +133,7 @@ jobs:
       requested_by: ${{ steps.context.outputs.requested_by }}
       requested_route: ${{ steps.context.outputs.requested_route }}
       requested_skill: ${{ steps.context.outputs.requested_skill }}
+      implicit_followup: ${{ steps.context.outputs.implicit_followup }}
       route: ${{ steps.dispatch.outputs.route }}
       needs_approval: ${{ steps.dispatch.outputs.needs_approval }}
       confidence: ${{ steps.dispatch.outputs.confidence }}
@@ -164,12 +169,45 @@ jobs:
           model_policy: ${{ vars.AGENT_MODEL_POLICY || '' }}
           required: "false"
 
+      - name: Resolve answer provider
+        id: answer_provider
+        if: >-
+          (inputs.followup_intent_mode || vars.AGENT_FOLLOWUP_INTENT_MODE || 'agent-label') != 'disabled' &&
+          (inputs.followup_intent_mode || vars.AGENT_FOLLOWUP_INTENT_MODE || 'agent-label') != 'false' &&
+          github.event.sender.type != 'Bot' &&
+          (
+            (
+              github.event_name == 'issue_comment' &&
+              github.event.action == 'created' &&
+              contains(github.event.issue.labels.*.name, 'agent')
+            ) ||
+            (
+              github.event_name == 'pull_request_review_comment' &&
+              github.event.action == 'created' &&
+              contains(github.event.pull_request.labels.*.name, 'agent')
+            ) ||
+            (
+              github.event_name == 'pull_request_review' &&
+              github.event.action == 'submitted' &&
+              contains(github.event.pull_request.labels.*.name, 'agent')
+            )
+          )
+        uses: ./.github/actions/resolve-agent-provider
+        with:
+          route: answer
+          default_provider: ${{ vars.AGENT_DEFAULT_PROVIDER || inputs.default_agent || 'auto' }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model_policy: ${{ vars.AGENT_MODEL_POLICY || '' }}
+          required: "false"
+
       - name: Setup agent runtime
         id: runtime
         uses: ./.github/actions/setup-agent-runtime
         with:
-          install_codex: ${{ steps.provider.outputs.install_codex }}
-          install_claude: ${{ steps.provider.outputs.install_claude }}
+          install_codex: ${{ (steps.provider.outputs.install_codex == 'true' || steps.answer_provider.outputs.install_codex == 'true') && 'true' || 'false' }}
+          install_claude: ${{ (steps.provider.outputs.install_claude == 'true' || steps.answer_provider.outputs.install_claude == 'true') && 'true' || 'false' }}
 
       - name: Extract context
         id: context
@@ -179,10 +217,13 @@ jobs:
           INPUT_TRIGGER_KIND: ${{ inputs.trigger_kind }}
           INPUT_LABEL_NAME: ${{ inputs.label_name }}
           INPUT_AUTHOR_ASSOCIATION: ${{ inputs.author_association }}
+          INPUT_FOLLOWUP_INTENT_MODE: ${{ inputs.followup_intent_mode || vars.AGENT_FOLLOWUP_INTENT_MODE || 'agent-label' }}
         run: node .agent/dist/cli/extract-context.js
 
       - name: React with eyes
-        if: steps.context.outputs.should_respond == 'true'
+        if: >-
+          steps.context.outputs.should_respond == 'true' &&
+          steps.context.outputs.implicit_followup != 'true'
         env:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           REACTION_SUBJECT_ID: ${{ steps.context.outputs.reaction_subject_id }}
@@ -205,14 +246,45 @@ jobs:
           REPOSITORY_PRIVATE: ${{ github.event.repository.private && 'true' || 'false' }}
         run: node .agent/dist/cli/resolve-dispatch.js
 
+      - name: Authorize implicit follow-up answer
+        if: >-
+          steps.context.outputs.should_respond == 'true' &&
+          steps.context.outputs.implicit_followup == 'true'
+        id: followup_authorization
+        env:
+          REQUESTED_ROUTE: answer
+          REQUEST_TEXT: ${{ steps.context.outputs.body }}
+          TARGET_KIND: ${{ steps.context.outputs.target_kind }}
+          TARGET_NUMBER: ${{ steps.context.outputs.target_number }}
+          AUTHOR_ASSOCIATION: ${{ steps.context.outputs.association }}
+          ACCESS_POLICY: ${{ inputs.access_policy }}
+          REPOSITORY_PRIVATE: ${{ github.event.repository.private && 'true' || 'false' }}
+        run: node .agent/dist/cli/resolve-dispatch.js
+
       - name: Require dispatch provider
         id: dispatch_provider
         if: >-
           steps.context.outputs.should_respond == 'true' &&
-          steps.context.outputs.requested_route == ''
+          steps.context.outputs.requested_route == '' &&
+          steps.context.outputs.implicit_followup != 'true'
         uses: ./.github/actions/resolve-agent-provider
         with:
           route: dispatch
+          default_provider: ${{ vars.AGENT_DEFAULT_PROVIDER || inputs.default_agent || 'auto' }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model_policy: ${{ vars.AGENT_MODEL_POLICY || '' }}
+
+      - name: Require follow-up intent provider
+        id: followup_provider
+        if: >-
+          steps.context.outputs.should_respond == 'true' &&
+          steps.context.outputs.implicit_followup == 'true' &&
+          steps.followup_authorization.outputs.route == 'answer'
+        uses: ./.github/actions/resolve-agent-provider
+        with:
+          route: answer
           default_provider: ${{ vars.AGENT_DEFAULT_PROVIDER || inputs.default_agent || 'auto' }}
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -223,7 +295,13 @@ jobs:
         if: >-
           steps.context.outputs.should_respond == 'true' &&
           (
-            steps.context.outputs.requested_route == '' ||
+            (
+              steps.context.outputs.requested_route == '' &&
+              (
+                steps.context.outputs.implicit_followup != 'true' ||
+                steps.followup_authorization.outputs.route == 'answer'
+              )
+            ) ||
             (
               steps.explicit_dispatch.outputs.route == 'implement' &&
               steps.context.outputs.target_kind != 'issue' &&
@@ -233,13 +311,14 @@ jobs:
         id: task_timeout
         env:
           AGENT_TASK_TIMEOUT_POLICY: ${{ vars.AGENT_TASK_TIMEOUT_POLICY || '' }}
-          ROUTE: dispatch
+          ROUTE: ${{ steps.context.outputs.implicit_followup == 'true' && 'answer' || 'dispatch' }}
         run: node .agent/dist/cli/resolve-task-timeout.js
 
       - name: Run dispatch triage
         if: >-
           steps.context.outputs.should_respond == 'true' &&
-          steps.context.outputs.requested_route == ''
+          steps.context.outputs.requested_route == '' &&
+          steps.context.outputs.implicit_followup != 'true'
         id: triage
         timeout-minutes: ${{ fromJson(steps.task_timeout.outputs.minutes || '30') }}
         uses: ./.github/actions/run-agent-task
@@ -266,6 +345,44 @@ jobs:
           target_number: ${{ steps.context.outputs.target_number }}
           target_url: ${{ steps.context.outputs.target_url }}
           reasoning_effort: ${{ steps.dispatch_provider.outputs.reasoning_effort || 'medium' }}
+          workflow: agent-router.yml
+
+      - name: Run follow-up intent gate
+        if: >-
+          steps.context.outputs.should_respond == 'true' &&
+          steps.context.outputs.implicit_followup == 'true' &&
+          steps.followup_authorization.outputs.route == 'answer'
+        id: followup_intent
+        timeout-minutes: ${{ fromJson(steps.task_timeout.outputs.minutes || '30') }}
+        uses: ./.github/actions/run-agent-task
+        with:
+          agent: ${{ steps.followup_provider.outputs.provider }}
+          github_token: ${{ steps.auth.outputs.token }}
+          secondary_github_token: ${{ secrets.AGENT_SECONDARY_GITHUB_TOKEN }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: ${{ steps.followup_provider.outputs.model }}
+          display_model: ${{ vars.AGENT_DISPLAY_MODEL || '' }}
+          permission_mode: approve-all
+          prompt: followup-intent
+          route: answer
+          memory_ref: ${{ vars.AGENT_MEMORY_REF || 'agent/memory' }}
+          memory_policy: ${{ vars.AGENT_MEMORY_POLICY || '' }}
+          rubrics_ref: ${{ vars.AGENT_RUBRICS_REF || 'agent/rubrics' }}
+          rubrics_policy: ${{ vars.AGENT_RUBRICS_POLICY || '' }}
+          rubrics_limit: ${{ vars.AGENT_RUBRICS_LIMIT || '10' }}
+          session_bundle_mode: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
+          session_policy: none
+          request_text: ${{ steps.context.outputs.body }}
+          requested_by: ${{ steps.context.outputs.requested_by }}
+          request_comment_id: ${{ steps.context.outputs.source_comment_id }}
+          request_comment_url: ${{ steps.context.outputs.source_comment_url }}
+          source_kind: ${{ steps.context.outputs.source_kind }}
+          target_kind: ${{ steps.context.outputs.target_kind }}
+          target_number: ${{ steps.context.outputs.target_number }}
+          target_url: ${{ steps.context.outputs.target_url }}
+          reasoning_effort: ${{ steps.followup_provider.outputs.reasoning_effort || 'medium' }}
           workflow: agent-router.yml
 
       - name: Generate implement issue metadata
@@ -304,13 +421,19 @@ jobs:
           workflow: agent-router.yml
 
       - name: Resolve route
-        if: steps.context.outputs.should_respond == 'true'
+        if: >-
+          steps.context.outputs.should_respond == 'true' &&
+          (
+            steps.context.outputs.implicit_followup != 'true' ||
+            steps.followup_authorization.outputs.route == 'answer'
+          )
         id: dispatch
         env:
-          RESPONSE_FILE: ${{ steps.triage.outputs.response_file || steps.implement_metadata.outputs.response_file }}
+          RESPONSE_FILE: ${{ steps.followup_intent.outputs.response_file || steps.triage.outputs.response_file || steps.implement_metadata.outputs.response_file }}
           REQUESTED_ROUTE: ${{ steps.context.outputs.requested_route }}
           REQUESTED_SKILL: ${{ steps.context.outputs.requested_skill }}
           REQUEST_TEXT: ${{ steps.context.outputs.body }}
+          IMPLICIT_FOLLOWUP: ${{ steps.context.outputs.implicit_followup }}
           TARGET_KIND: ${{ steps.context.outputs.target_kind }}
           TARGET_NUMBER: ${{ steps.context.outputs.target_number }}
           AUTHOR_ASSOCIATION: ${{ steps.context.outputs.association }}
@@ -319,6 +442,17 @@ jobs:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: node .agent/dist/cli/resolve-dispatch.js
+
+      - name: React with eyes (implicit answer)
+        if: >-
+          steps.context.outputs.should_respond == 'true' &&
+          steps.context.outputs.implicit_followup == 'true' &&
+          steps.dispatch.outputs.route == 'answer'
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          REACTION_SUBJECT_ID: ${{ steps.context.outputs.reaction_subject_id }}
+          REACTION_CONTENT: EYES
+        run: node .agent/dist/cli/add-reaction.js
 
       - name: Label handled issue or PR
         if: >-
@@ -419,6 +553,9 @@ jobs:
           route: answer
           memory_ref: ${{ vars.AGENT_MEMORY_REF || 'agent/memory' }}
           memory_policy: ${{ vars.AGENT_MEMORY_POLICY || '' }}
+          rubrics_ref: ${{ vars.AGENT_RUBRICS_REF || 'agent/rubrics' }}
+          rubrics_policy: ${{ vars.AGENT_RUBRICS_POLICY || '' }}
+          rubrics_limit: ${{ vars.AGENT_RUBRICS_LIMIT || '10' }}
           session_bundle_mode: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
           session_policy: resume-best-effort
           request_text: ${{ needs.portal.outputs.body }}

@@ -1187,3 +1187,140 @@ test("extract-context keeps known associations available for later policy checks
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
+
+test("extract-context leaves explicit mentions unchanged without an agent label", () => {
+  const outputs = runExtractContextCli({
+    eventName: "issue_comment",
+    payload: {
+      action: "created",
+      sender: { login: "alice", type: "User" },
+      comment: {
+        id: 301,
+        node_id: "IC_301",
+        html_url: "https://github.com/self-evolving/repo/issues/301#issuecomment-301",
+        body: "@sepo-agent /answer can you explain the plan?",
+        author_association: "CONTRIBUTOR",
+        user: { login: "alice" },
+      },
+      issue: {
+        number: 301,
+        labels: [{ name: "bug" }],
+        html_url: "https://github.com/self-evolving/repo/issues/301",
+      },
+    },
+  });
+
+  assert.equal(outputs.get("should_respond"), "true");
+  assert.equal(outputs.get("requested_route"), "answer");
+  assert.equal(outputs.get("implicit_followup"), "false");
+});
+
+test("extract-context marks unmentioned questions on agent-labeled issues as implicit follow-ups", () => {
+  const outputs = runExtractContextCli({
+    eventName: "issue_comment",
+    payload: {
+      action: "created",
+      sender: { login: "alice", type: "User" },
+      comment: {
+        id: 302,
+        node_id: "IC_302",
+        html_url: "https://github.com/self-evolving/repo/issues/302#issuecomment-302",
+        body: "Can you explain the tradeoff in your plan?",
+        author_association: "CONTRIBUTOR",
+        user: { login: "alice" },
+      },
+      issue: {
+        number: 302,
+        labels: [{ name: "agent" }],
+        html_url: "https://github.com/self-evolving/repo/issues/302",
+      },
+    },
+  });
+
+  assert.equal(outputs.get("should_respond"), "true");
+  assert.equal(outputs.get("implicit_followup"), "true");
+  assert.equal(outputs.get("requested_route"), "");
+  assert.equal(outputs.get("source_comment_id"), "302");
+  assert.equal(
+    outputs.get("source_comment_url"),
+    "https://github.com/self-evolving/repo/issues/302#issuecomment-302",
+  );
+});
+
+test("extract-context skips unmentioned comments without the agent label", () => {
+  const outputs = runExtractContextCli({
+    eventName: "issue_comment",
+    payload: {
+      action: "created",
+      sender: { login: "alice", type: "User" },
+      comment: {
+        id: 303,
+        node_id: "IC_303",
+        html_url: "https://github.com/self-evolving/repo/issues/303#issuecomment-303",
+        body: "Can you explain the tradeoff?",
+        author_association: "CONTRIBUTOR",
+        user: { login: "alice" },
+      },
+      issue: {
+        number: 303,
+        labels: [{ name: "question" }],
+        html_url: "https://github.com/self-evolving/repo/issues/303",
+      },
+    },
+  });
+
+  assert.equal(outputs.get("should_respond"), "false");
+});
+
+test("extract-context skips unmentioned agent-labeled comments when follow-up intent is disabled", () => {
+  const outputs = runExtractContextCli({
+    eventName: "issue_comment",
+    payload: {
+      action: "created",
+      sender: { login: "alice", type: "User" },
+      comment: {
+        id: 304,
+        node_id: "IC_304",
+        html_url: "https://github.com/self-evolving/repo/issues/304#issuecomment-304",
+        body: "Can you explain the tradeoff?",
+        author_association: "CONTRIBUTOR",
+        user: { login: "alice" },
+      },
+      issue: {
+        number: 304,
+        labels: [{ name: "agent" }],
+        html_url: "https://github.com/self-evolving/repo/issues/304",
+      },
+    },
+    env: {
+      INPUT_FOLLOWUP_INTENT_MODE: "false",
+    },
+  });
+
+  assert.equal(outputs.get("should_respond"), "false");
+});
+
+test("extract-context skips edited unmentioned agent-labeled comments", () => {
+  const outputs = runExtractContextCli({
+    eventName: "issue_comment",
+    payload: {
+      action: "edited",
+      sender: { login: "alice", type: "User" },
+      comment: {
+        id: 305,
+        node_id: "IC_305",
+        html_url: "https://github.com/self-evolving/repo/issues/305#issuecomment-305",
+        body: "Can you explain the tradeoff?",
+        author_association: "CONTRIBUTOR",
+        user: { login: "alice" },
+      },
+      issue: {
+        number: 305,
+        labels: [{ name: "agent" }],
+        html_url: "https://github.com/self-evolving/repo/issues/305",
+      },
+    },
+  });
+
+  assert.equal(outputs.get("should_respond"), "false");
+});

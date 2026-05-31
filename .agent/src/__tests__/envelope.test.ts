@@ -769,7 +769,7 @@ test("agent router bypasses dispatch triage for explicit mention slash routes", 
   );
   assert.match(
     runnerWorkflow,
-    /RESPONSE_FILE:\s*\$\{\{\s*steps\.triage\.outputs\.response_file \|\| steps\.implement_metadata\.outputs\.response_file\s*\}\}/,
+    /RESPONSE_FILE:\s*\$\{\{\s*steps\.followup_intent\.outputs\.response_file \|\| steps\.triage\.outputs\.response_file \|\| steps\.implement_metadata\.outputs\.response_file\s*\}\}/,
   );
   assert.match(runnerWorkflow, /REQUESTED_ROUTE:\s*\$\{\{\s*steps\.context\.outputs\.requested_route\s*\}\}/);
   assert.match(runnerWorkflow, /base_pr:\s*\$\{\{\s*steps\.dispatch\.outputs\.base_pr\s*\}\}/);
@@ -782,6 +782,61 @@ test("agent router bypasses dispatch triage for explicit mention slash routes", 
   assert.match(implementMetadataPrompt, /digits only, with no `#` prefix/);
   assert.doesNotMatch(extractContext, /requested_install_target_repo/);
   assert.doesNotMatch(runnerWorkflow, /requested_install_target_repo:/);
+});
+
+test("agent router preauthorizes implicit follow-up answer gates", () => {
+  const entrypointWorkflow = readRepoFile(".github/workflows/agent-entrypoint.yml");
+  const runnerWorkflow = readRepoFile(".github/workflows/agent-router.yml");
+
+  assert.match(
+    entrypointWorkflow,
+    /github\.event_name == 'issue_comment' &&[\s\S]*github\.event\.action == 'created' &&[\s\S]*contains\(github\.event\.issue\.labels\.\*\.name, 'agent'\)/,
+  );
+  assert.match(
+    entrypointWorkflow,
+    /github\.event_name == 'pull_request_review_comment' &&[\s\S]*github\.event\.action == 'created' &&[\s\S]*contains\(github\.event\.pull_request\.labels\.\*\.name, 'agent'\)/,
+  );
+  assert.match(
+    entrypointWorkflow,
+    /github\.event_name == 'pull_request_review' &&[\s\S]*github\.event\.action == 'submitted' &&[\s\S]*contains\(github\.event\.pull_request\.labels\.\*\.name, 'agent'\)/,
+  );
+
+  const answerProviderIndex = runnerWorkflow.indexOf("- name: Resolve answer provider");
+  const setupIndex = runnerWorkflow.indexOf("- name: Setup agent runtime");
+  assert.ok(answerProviderIndex > 0, "portal should resolve the answer provider before setup");
+  assert.ok(setupIndex > answerProviderIndex, "runtime setup should see answer provider install flags");
+  assert.match(
+    runnerWorkflow,
+    /install_codex:\s*\$\{\{\s*\(steps\.provider\.outputs\.install_codex == 'true' \|\| steps\.answer_provider\.outputs\.install_codex == 'true'\) && 'true' \|\| 'false'\s*\}\}/,
+  );
+  assert.match(
+    runnerWorkflow,
+    /install_claude:\s*\$\{\{\s*\(steps\.provider\.outputs\.install_claude == 'true' \|\| steps\.answer_provider\.outputs\.install_claude == 'true'\) && 'true' \|\| 'false'\s*\}\}/,
+  );
+
+  const authIndex = runnerWorkflow.indexOf("- name: Authorize implicit follow-up answer");
+  const followupProviderIndex = runnerWorkflow.indexOf("- name: Require follow-up intent provider");
+  const intentIndex = runnerWorkflow.indexOf("- name: Run follow-up intent gate");
+  const resolveRouteIndex = runnerWorkflow.indexOf("- name: Resolve route");
+  assert.ok(authIndex > setupIndex, "authorization should run after context extraction is available");
+  assert.ok(authIndex < followupProviderIndex, "authorization must happen before follow-up provider resolution");
+  assert.ok(followupProviderIndex < intentIndex, "provider must resolve before the intent gate");
+
+  const authBlock = runnerWorkflow.slice(authIndex, followupProviderIndex);
+  assert.match(authBlock, /REQUESTED_ROUTE:\s*answer/);
+  assert.match(authBlock, /node \.agent\/dist\/cli\/resolve-dispatch\.js/);
+  assert.match(
+    runnerWorkflow.slice(followupProviderIndex, intentIndex),
+    /steps\.followup_authorization\.outputs\.route == 'answer'/,
+  );
+  assert.match(
+    runnerWorkflow.slice(intentIndex, resolveRouteIndex),
+    /steps\.followup_authorization\.outputs\.route == 'answer'/,
+  );
+  assert.match(
+    runnerWorkflow.slice(resolveRouteIndex, runnerWorkflow.indexOf("- name: React with eyes", resolveRouteIndex)),
+    /steps\.context\.outputs\.implicit_followup != 'true'[\s\S]*steps\.followup_authorization\.outputs\.route == 'answer'/,
+  );
 });
 
 test("agent router supports label-triggered route and skill overrides", () => {

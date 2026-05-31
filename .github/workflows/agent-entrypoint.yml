@@ -47,9 +47,36 @@ jobs:
   agent:
     # Broad pre-filter: the real mention validation happens in extract-context.js
     # inside agent-router.yml (boundary-aware, strips code blocks and quotes).
+    # Unmentioned follow-ups may also wake the router when the target issue/PR
+    # already has the fixed `agent` label; the router then runs an answer-only
+    # intent gate before posting anything.
     if: >-
       vars.AGENT_ENABLED != 'false' &&
-      contains(toJSON(github.event), vars.AGENT_HANDLE || '@sepo-agent')
+      (
+        contains(toJSON(github.event), vars.AGENT_HANDLE || '@sepo-agent') ||
+        (
+          vars.AGENT_FOLLOWUP_INTENT_MODE != 'disabled' &&
+          vars.AGENT_FOLLOWUP_INTENT_MODE != 'false' &&
+          github.event.sender.type != 'Bot' &&
+          (
+            (
+              github.event_name == 'issue_comment' &&
+              github.event.action == 'created' &&
+              contains(github.event.issue.labels.*.name, 'agent')
+            ) ||
+            (
+              github.event_name == 'pull_request_review_comment' &&
+              github.event.action == 'created' &&
+              contains(github.event.pull_request.labels.*.name, 'agent')
+            ) ||
+            (
+              github.event_name == 'pull_request_review' &&
+              github.event.action == 'submitted' &&
+              contains(github.event.pull_request.labels.*.name, 'agent')
+            )
+          )
+        )
+      )
     uses: ./.github/workflows/agent-router.yml
     with:
       agent_handle: ${{ vars.AGENT_HANDLE || '@sepo-agent' }}
@@ -57,6 +84,7 @@ jobs:
       access_policy: ${{ vars.AGENT_ACCESS_POLICY || '' }}
       automation_mode: ${{ vars.AGENT_AUTOMATION_MODE || 'agent' }}
       automation_max_rounds: ${{ vars.AGENT_AUTOMATION_MAX_ROUNDS || '12' }}
+      followup_intent_mode: ${{ vars.AGENT_FOLLOWUP_INTENT_MODE || 'agent-label' }}
     secrets:
       AGENT_APP_ID: ${{ secrets.AGENT_APP_ID }}
       AGENT_APP_PRIVATE_KEY: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
