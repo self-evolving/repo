@@ -683,6 +683,10 @@ export function runAcpx(options: AcpxRunOptions): AcpxRunResult {
   const permissionMode = options.permissionMode ?? DEFAULT_PERMISSION_MODE;
   const isExecRoute = sessionMode === "exec";
   const env = { ...process.env, ...extraEnv };
+  if (isPiAgent(agent)) {
+    delete env.MODEL_REASONING_EFFORT;
+    delete env.CLAUDE_CODE_EFFORT_LEVEL;
+  }
   const normalizedThoughtLevel = thoughtLevel?.trim();
   const needsTransientExecSession =
     preserveExecSession === true ||
