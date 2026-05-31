@@ -103,3 +103,4 @@
 - Built-in repo updates use .github/prompts/agent-update.md with route update-agent, not .skills/update-agent.
 - Privileged install/update-agent routes stay outside rubric applicability; update-agent disables rubric steering.
 - Retry only likely transient gh/git/curl/network failures with bounded backoff; keep auth/ref/validation/lease errors terminal.
+- Review-triggered /answer uses computed ANSWER_REVIEW_CONTEXT in both fresh and resumed prompts; normal answers stay clean.
