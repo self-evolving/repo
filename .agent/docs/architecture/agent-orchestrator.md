@@ -143,8 +143,8 @@ from agent-authored child issue comments, or through a closing issue reference i
 the terminal PR body. These trust checks normalize GitHub App actor variants such
 as `app/sepo-agent-app`, `sepo-agent-app[bot]`, and `sepo-agent-app` to the same
 actor. It then writes a parent progress comment, dispatches the parent issue
-orchestrator in agent mode with the child result, and marks the same trusted
-child marker as `done`, `blocked`, or `failed`. The progress
+orchestrator with planner-backed orchestration and the child result, and marks
+the same trusted child marker as `done`, `blocked`, or `failed`. The progress
 comment includes a compact transposed Markdown table for the visible status and
 a hidden resume marker so reruns can recover a pending report or skip an
 already-dispatched terminal report. Child selection and adoption comments use

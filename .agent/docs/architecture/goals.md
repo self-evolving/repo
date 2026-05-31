@@ -32,11 +32,11 @@ implementation, review, and fix-pr loops.
 ## Orchestration
 
 Run `@sepo-agent /orchestrate` on an `agent-goal` issue when Sepo should plan
-the next bounded step. In agent automation mode, the orchestrator may treat the
-issue as a parent objective and use the internal `delegate_issue` decision to
-create, reuse, or adopt one child issue. The child issue then runs the normal
-orchestrator flow, and the parent goal receives visible progress comments when
-the child reaches a terminal state.
+the next bounded step. The orchestrator may treat the issue as a parent
+objective and use the internal `delegate_issue` decision to create, reuse, or
+adopt one child issue. The child issue then runs the normal orchestrator flow,
+and the parent goal receives visible progress comments when the child reaches a
+terminal state.
 
 The orchestrator should stop for human direction when success criteria are
 unclear, the next child issue would require a product or research judgment that

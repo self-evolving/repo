@@ -1351,7 +1351,7 @@ test("workflow docs record the minimal metadata contract and developer notes", (
   assert.match(configurationList, /AGENT_RUBRICS_REF/);
   assert.match(configurationList, /AGENT_RUBRICS_LIMIT/);
   assert.match(configurationList, /AGENT_SESSION_BUNDLE_MODE/);
-  assert.match(configurationList, /AGENT_AUTOMATION_MODE/);
+  assert.doesNotMatch(configurationList, /AGENT_AUTOMATION_MODE/);
   assert.match(configurationList, /AGENT_AUTOMATION_MAX_ROUNDS/);
   assert.match(configurationList, /AGENT_AUTO_UPDATE/);
   assert.match(configurationList, /AGENT_STATUS_LABEL_ENABLED/);
@@ -1449,10 +1449,15 @@ test("execution workflows expose automation handoff inputs", () => {
   const orchestratorDoc = readRepoFile(".agent/docs/architecture/agent-orchestrator.md");
   const configurationList = readRepoFile(".agent/docs/customization/configuration-list.md");
 
-  assert.match(entrypointWorkflow, /automation_mode:\s*\$\{\{ vars\.AGENT_AUTOMATION_MODE \|\| 'agent' \}\}/);
-  assert.match(labelWorkflow, /automation_mode:\s*\$\{\{ vars\.AGENT_AUTOMATION_MODE \|\| 'agent' \}\}/);
+  assert.match(entrypointWorkflow, /automation_mode:\s*agent/);
+  assert.match(labelWorkflow, /automation_mode:\s*agent/);
   assert.match(runnerWorkflow, /automation_mode:[\s\S]*default:\s*"agent"/);
-  assert.match(approveWorkflow, /AUTOMATION_MODE:\s*\$\{\{ vars\.AGENT_AUTOMATION_MODE \|\| 'agent' \}\}/);
+  assert.match(runnerWorkflow, /automation_mode:[\s\S]*Internal orchestration state/);
+  assert.match(approveWorkflow, /AUTOMATION_MODE:\s*agent/);
+  assert.doesNotMatch(entrypointWorkflow, /AGENT_AUTOMATION_MODE/);
+  assert.doesNotMatch(labelWorkflow, /AGENT_AUTOMATION_MODE/);
+  assert.doesNotMatch(approveWorkflow, /AGENT_AUTOMATION_MODE/);
+  assert.doesNotMatch(runnerWorkflow, /agent public default; heuristics is a compatibility alias/);
   assert.match(orchestratorWorkflow, /name: Agent \/ Orchestrator/);
   assert.match(orchestratorWorkflow, /source_run_id:/);
   assert.match(orchestratorWorkflow, /issues: write/);
@@ -1476,15 +1481,27 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestratorWorkflow, /rubrics_mode_override:\s*read-only/);
   assert.match(orchestratorWorkflow, /agent:\s*\$\{\{\s*steps\.provider\.outputs\.provider\s*\}\}/);
   assert.match(orchestratorWorkflow, /node \.agent\/dist\/cli\/orchestrate-handoff\.js/);
+  assert.match(orchestratorWorkflow, /automation_mode:[\s\S]*default:\s*"agent"/);
 
   for (const workflow of [implementWorkflow, fixPrWorkflow, reviewWorkflow, selfApprovalWorkflow]) {
     assert.match(workflow, /automation_mode:/);
+    assert.match(workflow, /automation_mode:[\s\S]*Internal orchestration state/);
     assert.match(workflow, /automation_current_round:/);
     assert.match(workflow, /automation_max_rounds:/);
     assert.match(workflow, /orchestration_enabled:/);
     assert.match(workflow, /inputs\.orchestration_enabled == 'true'/);
     assert.match(workflow, /node \.agent\/dist\/cli\/dispatch-agent-orchestrator\.js/);
   }
+  assert.doesNotMatch(
+    [
+      orchestratorWorkflow,
+      implementWorkflow,
+      fixPrWorkflow,
+      reviewWorkflow,
+      selfApprovalWorkflow,
+    ].join("\n"),
+    /Post-action orchestration mode|agent public default; heuristics is a compatibility alias/,
+  );
 
   assert.match(runnerWorkflow, /needs\.portal\.outputs\.route == 'orchestrate'/);
   assert.match(runnerWorkflow, /SOURCE_ACTION:\s*orchestrate/);
@@ -1549,7 +1566,7 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.doesNotMatch(orchestratorDoc, /AGENT_AUTOMATION_MODE/);
   assert.doesNotMatch(orchestratorDoc, /heuristics/);
   assert.doesNotMatch(orchestratorDoc, /set `heuristics` for deterministic routing with lower model cost/);
-  assert.match(configurationList, /Defaults to `agent`/);
+  assert.doesNotMatch(configurationList, /orchestrator decision mode/i);
   assert.doesNotMatch(configurationList, /Set to `heuristics` for deterministic status-based routing/);
   assert.match(orchestratorDoc, /continues sequential child implementation work/);
   assert.match(orchestratorDoc, /workflow_dispatch/);
