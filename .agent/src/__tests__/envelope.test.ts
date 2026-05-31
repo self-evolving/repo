@@ -1541,10 +1541,13 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(runSource, /"ORCHESTRATOR_SELF_MERGE_ENABLED"/);
   assert.match(runSource, /"ORCHESTRATOR_SUGGESTED_DECISION"/);
   assert.match(runSource, /"ORCHESTRATOR_SUGGESTED_HANDOFF_CONTEXT"/);
+  assert.match(orchestratorDoc, /explicit route for bounded follow-up automation/);
   assert.match(orchestratorDoc, /Implement --> Review: success \+ PR created/);
-  assert.match(orchestratorDoc, /Deterministic transition policy/);
+  assert.match(orchestratorDoc, /Orchestration flow/);
   assert.match(orchestratorDoc, /suggested_decision/);
-  assert.match(orchestratorDoc, /deterministic worker chain/);
+  assert.match(orchestratorDoc, /deterministic\s+worker chain/);
+  assert.doesNotMatch(orchestratorDoc, /AGENT_AUTOMATION_MODE/);
+  assert.doesNotMatch(orchestratorDoc, /heuristics/);
   assert.doesNotMatch(orchestratorDoc, /set `heuristics` for deterministic routing with lower model cost/);
   assert.match(configurationList, /Defaults to `agent`/);
   assert.doesNotMatch(configurationList, /Set to `heuristics` for deterministic status-based routing/);

@@ -2,29 +2,25 @@
 title: "Agent orchestrator"
 ---
 
-The orchestrator is an explicit high-level route (`/orchestrate` or
-`agent/orchestrate`) that evaluates current target state and dispatches the most
-appropriate built-in next action.
+The orchestrator is the explicit route for bounded follow-up automation. Start
+it with `/orchestrate` or `agent/orchestrate` when you want Sepo to inspect the
+current issue or pull request, choose one next built-in action, and keep the
+chain moving until the work is complete, blocked, or ready for human judgment.
 
-`AGENT_AUTOMATION_MODE` defaults to `agent` in the packaged entry workflows.
-Planner-backed orchestration is the recommended public mode. The deterministic
-transition table remains internal runtime policy: it is used as a planner
-suggestion and as validation after the planner responds. The legacy
-`heuristics` value is still accepted as a compatibility alias for deterministic
-worker-chain runs, including delegated child issue execution.
+Typical uses include implementing an issue and reviewing the resulting pull
+request, reviewing or fixing an existing pull request from its current state,
+and splitting a larger goal issue into child issues with visible parent
+progress. Direct `/implement`, `/review`, and `/fix-pr` requests stay one-shot;
+only workflows launched by the orchestrator hand back for the next step.
 
-| Mode or value | Meaning |
-|---|---|
-| `agent` | Planner-assisted orchestration, validated by runtime policy. |
-| `heuristics` | Compatibility value for the deterministic worker chain that skips the planner. |
-| `disabled` | No post-action handoff unless an explicit orchestrator chain supplies compatibility context. |
+The packaged workflows use planner-backed orchestration by default and keep
+runtime checks around allowed handoffs, round limits, authorization, and
+duplicate dispatches. Set `AGENT_AUTOMATION_MAX_ROUNDS` to cap the chain length.
+The default cap is 12 rounds.
 
-Set `AGENT_AUTOMATION_MAX_ROUNDS` to cap the chain length. The default cap is 12 rounds.
+## Orchestration flow
 
-## Deterministic transition policy
-
-The orchestrator supports an explicit manual start plus the existing bounded
-transition policy:
+The orchestrator supports an explicit manual start plus bounded handoffs:
 
 ```mermaid
 stateDiagram-v2
@@ -85,15 +81,15 @@ When an action-originated handoff is used, the orchestrator also accepts:
 - current round and max rounds
 - requester and request text to carry forward
 
-When a compatibility deterministic worker-chain run handles a manual start, it
-uses deterministic status checks:
+For concrete worker-chain starts that skip planner judgment, manual routing is
+based on target state:
 
 - issue target: dispatch `implement`
 - pull request target with `CHANGES_REQUESTED`: dispatch `fix-pr`
 - other open pull request targets: dispatch `review`
 
-In `agent` mode, a manual start can ask the planner to choose the first
-orchestration step. For issue targets, the planner can dispatch `implement`
+Planner-backed starts can choose the first orchestration step from repository
+and request context. For issue targets, the planner can dispatch `implement`
 directly for a small, self-contained change on the current issue, or act as a
 meta-orchestrator when a separate child issue materially helps. For direct
 implementation, the planner returns `handoff` with `next_action: "implement"`,
@@ -116,8 +112,7 @@ success criteria or next subgoal require human direction.
 For child work, the planner may return `delegate_issue`, which is an internal
 command rather than a public route. The dispatcher creates or reuses one child
 issue for the requested stage and starts the child as a concrete deterministic
-worker chain. This currently uses the compatibility `heuristics` workflow input
-internally so the child executes the scoped task without invoking a second
+worker chain so the child executes the scoped task without invoking a second
 planner. New agent-created child issues store a hidden
 `sepo-sub-orchestrator` marker in the issue body. Existing user-authored issues
 can also be adopted when the planner provides `child_issue_number`; adoption
@@ -183,13 +178,13 @@ resolves to the open same-repository PR head branch, and the repository default
 branch is used when neither input is present. Setting both base inputs is
 rejected.
 
-Manual pull request starts are deterministic only for compatibility
-worker-chain runs. In `agent` mode, issue-level and pull-request-level manual
+Manual pull request starts that use concrete worker-chain execution are routed
+based on pull request status. Planner-backed issue-level and pull-request-level
 starts may invoke the planner for the first orchestration step, and
 action-originated handoff envelopes use the planner path when enabled.
 
-For compatibility deterministic worker-chain runs, action-originated handoff
-decisions still use the fixed transition policy and round budget checks.
+For concrete worker-chain runs, action-originated handoff decisions still use
+the allowed transition and round budget checks.
 
 Review-originated `fix-pr` handoffs carry explicit task context when
 available. The review dispatcher derives it from the latest review synthesis
@@ -206,12 +201,12 @@ Self-approval `REQUEST_CHANGES` handoffs preserve the approval agent's handoff
 context as the `fix-pr` task. Self-approval `APPROVED` handoffs dispatch
 `agent-self-merge` only when `AGENT_ALLOW_SELF_MERGE=true`.
 
-In `agent` mode, the orchestrator first runs a scoped planner prompt through the
-same resolved-provider runtime used by other agent actions. The planner has its
-own `orchestrator` route and `planner` lane, so session continuation is separate
-from implement, review, and fix-pr sessions. Before the planner runs, preflight
-computes a deterministic transition suggestion with `suggested_decision`,
-`suggested_next_action`, `suggested_reason`, and
+In the default planner-backed path, the orchestrator first runs a scoped planner
+prompt through the same resolved-provider runtime used by other agent actions.
+The planner has its own `orchestrator` route and `planner` lane, so session
+continuation is separate from implement, review, and fix-pr sessions. Before the
+planner runs, preflight computes a suggested transition with
+`suggested_decision`, `suggested_next_action`, `suggested_reason`, and
 `suggested_handoff_context`. The planner should treat that as the default path
 when it fits the current repository and user context, but it may still stop,
 block, answer, or provide more specific handoff context. The planner runs with
@@ -228,8 +223,8 @@ When the next action is `fix-pr`, the dispatcher passes that context into
 constraints for the automated fix pass. The workflow uses the runtime preflight
 CLI to skip this planner when the max-round budget is already exhausted or the
 initial requester lacks delegated-route capability, and the runtime still
-validates planner JSON against the fixed transition policy, the issue-only
-direct-implement rule, and max-round budget before dispatching anything.
+validates planner JSON against allowed transitions, the issue-only direct
+implement rule, and max-round budget before dispatching anything.
 
 When an orchestrator-launched `implement` or `fix-pr` run reports
 `no_changes`, `failed`, `verify_failed`, or `unsupported`, the dispatcher stops
