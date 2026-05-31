@@ -174,6 +174,7 @@ test("answer review context renders only for pull request review triggers", () =
 
 test("answer route passes trigger metadata into prompt variables", () => {
   const routerWorkflow = parseYaml(readRepoFile(".github/workflows/agent-router.yml")) as unknown;
+  const runAgentTaskAction = parseYaml(readRepoFile(".github/actions/run-agent-task/action.yml")) as unknown;
   const runSource = readRepoFile(".agent/src/run.ts");
   const supplementalPromptVarNames = readSupplementalPromptVarNames(runSource);
 
@@ -187,15 +188,32 @@ test("answer route passes trigger metadata into prompt variables", () => {
       isRecord(step) && step.name === "Run answer agent",
   );
   assert.ok(runAnswerStep, "answer job should run the answer agent");
-  assert.ok(isRecord(runAnswerStep.env), "answer agent step should define env");
-  assert.equal(runAnswerStep.env.REQUEST_SOURCE_KIND, "${{ needs.portal.outputs.source_kind }}");
-  assert.equal(runAnswerStep.env.REQUEST_COMMENT_ID, "${{ needs.portal.outputs.source_comment_id }}");
-  assert.equal(runAnswerStep.env.REQUEST_COMMENT_URL, "${{ needs.portal.outputs.source_comment_url }}");
+  assert.ok(isRecord(runAnswerStep.with), "answer agent step should define inputs");
+  assert.equal(runAnswerStep.with.request_source_kind, "${{ needs.portal.outputs.source_kind }}");
+  assert.equal(runAnswerStep.with.request_comment_id, "${{ needs.portal.outputs.source_comment_id }}");
+  assert.equal(runAnswerStep.with.request_comment_url, "${{ needs.portal.outputs.source_comment_url }}");
+
+  assert.ok(isRecord(runAgentTaskAction), "run-agent-task action should parse");
+  assert.ok(isRecord(runAgentTaskAction.inputs), "run-agent-task action should define inputs");
+  assert.ok(isRecord(runAgentTaskAction.inputs.request_source_kind));
+  assert.ok(isRecord(runAgentTaskAction.inputs.request_comment_id));
+  assert.ok(isRecord(runAgentTaskAction.inputs.request_comment_url));
+  assert.ok(isRecord(runAgentTaskAction.runs), "run-agent-task action should define runs");
+  assert.ok(Array.isArray(runAgentTaskAction.runs.steps), "run-agent-task action should define steps");
+  const runStep = runAgentTaskAction.runs.steps.find(
+    (step): step is Record<string, unknown> => isRecord(step) && step.id === "run",
+  );
+  assert.ok(runStep, "run-agent-task action should include the Run agent task step");
+  assert.ok(isRecord(runStep.env), "run-agent-task run step should define env");
+  assert.equal(runStep.env.REQUEST_SOURCE_KIND, "${{ inputs.request_source_kind || inputs.source_kind }}");
+  assert.equal(runStep.env.REQUEST_COMMENT_ID, "${{ inputs.request_comment_id }}");
+  assert.equal(runStep.env.REQUEST_COMMENT_URL, "${{ inputs.request_comment_url }}");
 
   assert.ok(supplementalPromptVarNames.has("REQUEST_SOURCE_KIND"));
   assert.ok(supplementalPromptVarNames.has("REQUEST_COMMENT_ID"));
   assert.ok(supplementalPromptVarNames.has("REQUEST_COMMENT_URL"));
   assert.match(runSource, /buildAnswerReviewContext/);
+  assert.match(runSource, /envelope\.route === "answer"/);
   assert.match(runSource, /ANSWER_REVIEW_CONTEXT/);
 });
 
@@ -205,6 +223,24 @@ test("answer action docs mention review-triggered inline replies", () => {
   assert.match(docs, /pull_request_review/);
   assert.match(docs, /targeted inline replies/);
   assert.match(docs, /non-empty answer body/);
+});
+
+test("fix-pr route passes trigger metadata through run-agent-task inputs", () => {
+  const fixPrWorkflow = parseYaml(readRepoFile(".github/workflows/agent-fix-pr.yml")) as unknown;
+
+  assert.ok(isRecord(fixPrWorkflow), "agent-fix-pr workflow should parse");
+  assert.ok(isRecord(fixPrWorkflow.jobs), "agent-fix-pr workflow should define jobs");
+  const fixPrJob = fixPrWorkflow.jobs["fix-pr"];
+  assert.ok(isRecord(fixPrJob), "agent-fix-pr workflow should define fix_pr job");
+  assert.ok(Array.isArray(fixPrJob.steps), "fix_pr job should define steps");
+  const runAgentStep = fixPrJob.steps.find(
+    (step): step is Record<string, unknown> => isRecord(step) && step.name === "Run agent",
+  );
+  assert.ok(runAgentStep, "fix-pr job should run the agent");
+  assert.ok(isRecord(runAgentStep.with), "fix-pr run-agent-task step should define inputs");
+  assert.equal(runAgentStep.with.request_comment_id, "${{ inputs.request_comment_id }}");
+  assert.equal(runAgentStep.with.request_comment_url, "${{ inputs.request_comment_url }}");
+  assert.equal(runAgentStep.with.request_source_kind, "${{ inputs.request_source_kind || 'workflow_dispatch' }}");
 });
 
 test("fix-pr prompt uses self-serve context, not local snapshots", () => {
