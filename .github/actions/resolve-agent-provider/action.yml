@@ -33,6 +33,14 @@ inputs:
     description: "Optional AGENT_MODEL_POLICY JSON for provider, model, and reasoning effort settings"
     required: false
     default: ""
+  model_registry:
+    description: "Model defaults registry mode: auto, bundled, or remote"
+    required: false
+    default: auto
+  model_registry_url:
+    description: "Optional custom http(s) URL for the model defaults registry"
+    required: false
+    default: ""
 
 outputs:
   provider:
@@ -50,6 +58,9 @@ outputs:
   model:
     description: "Resolved model id to pass to acpx"
     value: ${{ steps.resolve.outputs.model }}
+  model_source:
+    description: "Source of the resolved model: bundled, remote, policy, or empty"
+    value: ${{ steps.resolve.outputs.model_source }}
   reasoning_effort:
     description: "Resolved reasoning effort override, if configured"
     value: ${{ steps.resolve.outputs.reasoning_effort }}
@@ -69,6 +80,8 @@ runs:
         ANTHROPIC_API_KEY: ${{ inputs.anthropic_api_key }}
         REQUIRED: ${{ inputs.required }}
         AGENT_MODEL_POLICY: ${{ inputs.model_policy }}
+        MODEL_REGISTRY: ${{ inputs.model_registry }}
+        MODEL_REGISTRY_URL: ${{ inputs.model_registry_url }}
       run: |
         # Keep this on plain Node/CommonJS because provider resolution runs
         # before setup-agent-runtime builds .agent/dist or installs packages.

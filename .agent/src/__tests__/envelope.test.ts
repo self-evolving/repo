@@ -358,6 +358,9 @@ test("single-agent workflows resolve provider before runtime setup", () => {
   assert.match(resolverAction, /node "\$\{GITHUB_ACTION_PATH\}\/resolve-provider\.js"/);
   assert.doesNotMatch(resolverAction, /resolve-provider\.sh/);
   assert.match(resolverAction, /model_policy:/);
+  assert.match(resolverAction, /model_registry:/);
+  assert.match(resolverAction, /model_registry_url:/);
+  assert.match(resolverAction, /model_source:/);
   assert.doesNotMatch(resolverAction, /display_model:/);
   assert.match(resolverImplementation, /DEFAULT_PROVIDER/);
   assert.match(resolverImplementation, /AGENT_MODEL_POLICY/);
@@ -382,6 +385,8 @@ test("single-agent workflows resolve provider before runtime setup", () => {
     assert.match(workflow, /uses: \.\/\.github\/actions\/resolve-agent-provider/);
     assert.match(workflow, /default_provider:\s*\$\{\{\s*vars\.AGENT_DEFAULT_PROVIDER \|\|/);
     assert.match(workflow, /model_policy:\s*\$\{\{\s*vars\.AGENT_MODEL_POLICY \|\| ''\s*\}\}/);
+    assert.match(workflow, /model_registry:\s*\$\{\{\s*vars\.AGENT_MODEL_REGISTRY \|\| 'auto'\s*\}\}/);
+    assert.match(workflow, /model_registry_url:\s*\$\{\{\s*vars\.AGENT_MODEL_REGISTRY_URL \|\| ''\s*\}\}/);
     assert.match(workflow, /install_codex:\s*\$\{\{\s*steps\.provider\.outputs\.install_codex\s*\}\}/);
     assert.match(workflow, /install_claude:\s*\$\{\{\s*steps\.provider\.outputs\.install_claude\s*\}\}/);
     assert.match(workflow, /agent:\s*\$\{\{\s*steps\.provider\.outputs\.provider\s*\}\}/);
@@ -398,6 +403,8 @@ test("single-agent workflows resolve provider before runtime setup", () => {
   assert.match(reviewWorkflow, /route:\s*review-synthesize/);
   assert.match(reviewWorkflow, /default_provider:\s*\$\{\{\s*vars\.AGENT_DEFAULT_PROVIDER \|\| 'auto'\s*\}\}/);
   assert.match(reviewWorkflow, /model_policy:\s*\$\{\{\s*vars\.AGENT_MODEL_POLICY \|\| ''\s*\}\}/);
+  assert.match(reviewWorkflow, /model_registry:\s*\$\{\{\s*vars\.AGENT_MODEL_REGISTRY \|\| 'auto'\s*\}\}/);
+  assert.match(reviewWorkflow, /model_registry_url:\s*\$\{\{\s*vars\.AGENT_MODEL_REGISTRY_URL \|\| ''\s*\}\}/);
   assert.match(reviewWorkflow, /install_codex:\s*\$\{\{\s*steps\.synthesis_provider\.outputs\.install_codex\s*\}\}/);
   assert.match(reviewWorkflow, /install_claude:\s*\$\{\{\s*steps\.synthesis_provider\.outputs\.install_claude\s*\}\}/);
   assert.match(reviewWorkflow, /agent:\s*\$\{\{\s*steps\.synthesis_provider\.outputs\.provider\s*\}\}/);
@@ -425,6 +432,7 @@ test("single-agent workflows resolve provider before runtime setup", () => {
 
   assert.match(configurationList, /AGENT_DEFAULT_PROVIDER/);
   assert.match(configurationList, /AGENT_MODEL_POLICY/);
+  assert.match(configurationList, /AGENT_MODEL_REGISTRY/);
   assert.doesNotMatch(configurationList, /AGENT_PROVIDER_IMPLEMENT/);
 });
 
