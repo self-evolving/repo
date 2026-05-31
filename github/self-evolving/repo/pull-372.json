@@ -276,6 +276,43 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/372#issuecomment-4582275095",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVUfMw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer can you summarize what does this PR do? and actually test if this makes sense? ",
+      "createdAt": "2026-05-31T05:03:15Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/372#issuecomment-4585758515",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVU66w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "This PR addresses #358: an issue-body `@sepo-agent /implement` could be denied because GitHub initially reported the issue author as `author_association: NONE`, even when the same user later showed up correctly as `COLLABORATOR` on an issue comment.\n\nWhat it changes:\n- Adds bounded retry for weak issue-body associations before route policy runs.\n- Falls back to `GET /repos/{owner}/{repo}/collaborators/{username}/permission`.\n- Promotes only trusted repo roles: `triage`, `write`, `maintain`, `admin`.\n- Explicitly does **not** trust public `read` alone, which is important for public repos.\n- Adds diagnostics for raw/refreshed/fallback/final association decisions.\n- Keeps route policy intact: a real unauthorized `NONE` `/implement` is still rejected.\n- Updates docs to match the new behavior.\n\nKey code/docs:\n- Auth normalization: https://github.com/self-evolving/repo/blob/66b199bb7e7e0db7cbb0d0b230245c3c99dd6634/.agent/src/cli/extract-context.ts#L45-L52\n- Permission parsing/fallback: https://github.com/self-evolving/repo/blob/66b199bb7e7e0db7cbb0d0b230245c3c99dd6634/.agent/src/cli/extract-context.ts#L127-L165\n- Issue retry path: https://github.com/self-evolving/repo/blob/66b199bb7e7e0db7cbb0d0b230245c3c99dd6634/.agent/src/cli/extract-context.ts#L200-L229\n- Docs: https://github.com/self-evolving/repo/blob/66b199bb7e7e0db7cbb0d0b230245c3c99dd6634/.agent/docs/customization/access-policy.md#L94-L98\n\nI tested PR head `66b199bb7e7e0db7cbb0d0b230245c3c99dd6634`:\n\n- `npm --prefix .agent run build` passed\n- `node --test .agent/dist/__tests__/extract-context-cli.test.js` passed, 32/32\n- `node --test .agent/dist/__tests__/triage.test.js` passed, 45/45\n- `node --test .agent/dist/__tests__/docs-validation.test.js` passed, 4/4\n\nI also ran the full `.agent` suite. It got 701/702 passing, with one deterministic failure in an unrelated hosted OIDC test:\n\n- `hosted OIDC exchange retries transient broker HTTP responses`\n- expected retry calls: `3`\n- actual: `1`\n- file: `.agent/dist/__tests__/resolve-github-auth-oidc-shell.test.js`\n\nThat failure is outside this PR’s touched auth-association files, so I would not treat it as evidence that this PR’s change is wrong. Based on the diff and focused regressions, the PR makes sense and covers the important edge cases, including stale retry resolution, public `read` not being over-trusted, `role_name=triage`, permission lookup failure, and true unauthorized `NONE` rejection.\n\n---\n`codex` | `gpt-5.5/medium` | `high` | `Macmini-runner-5`",
+      "createdAt": "2026-05-31T05:07:10Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/372#issuecomment-4585765611",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-30T07:27:04Z",
@@ -366,6 +403,6 @@
   ],
   "state": "OPEN",
   "title": "Harden issue-body auth association fallback",
-  "updatedAt": "2026-05-30T08:29:38Z",
+  "updatedAt": "2026-05-31T05:07:10Z",
   "url": "https://github.com/self-evolving/repo/pull/372"
 }

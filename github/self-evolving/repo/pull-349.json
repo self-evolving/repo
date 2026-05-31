@@ -76,8 +76,8 @@
       "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-348/codex-26410911658`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Added deterministic `answer` route authorization before implicit follow-up provider resolution or intent classification can run.\n- Resolved the candidate answer provider before portal runtime setup and install the dispatch/answer provider union for implicit follow-up candidates.\n- Restricted implicit follow-ups to created comments and submitted reviews, with docs and focused regression tests updated.\n\n<details><summary>Verification</summary>\n\n- `npm run build`\n- `node --test dist/__tests__/followup-intent.test.js dist/__tests__/extract-context-cli.test.js dist/__tests__/resolve-dispatch-cli.test.js dist/__tests__/envelope.test.js dist/__tests__/docs-validation.test.js`\n- `git diff --check`\n\n</details>",
       "createdAt": "2026-05-25T17:19:59Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/349#issuecomment-4535984676",
       "viewerDidAuthor": true
@@ -91,8 +91,8 @@
       "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #349 | 5 / 40 | Dispatched |\n\nReason: PR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1779729611043 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY0MTE3ODc1Nzk6Zml4X3ByOjM0OTpyZXZpZXc6MzQ5OjU -->",
       "createdAt": "2026-05-25T17:20:11Z",
       "includesCreatedEdit": true,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/349#issuecomment-4535986025",
       "viewerDidAuthor": true
@@ -106,8 +106,8 @@
       "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 12 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Validate delegated route authorization | pass | 8/8 | Implicit follow-ups preflight the `answer` route before provider resolution or intent execution, and denied answer routes do not continue. Evidence: [`agent-router.yml`](https://github.com/self-evolving/repo/blob/bad7e61f045518a03886c0558cd13b218950cf67/.github/workflows/agent-router.yml#L249-L285), [`resolve-dispatch.ts`](https://github.com/self-evolving/repo/blob/bad7e61f045518a03886c0558cd13b218950cf67/.agent/src/cli/resolve-dispatch.ts#L151-L190). |\n| coding_workflow/generic | Separate decision gates from action authorization | pass | 8/8 | The intent gate only returns `respond` or `ignore`; routing and access policy remain deterministic in `resolve-dispatch`. Evidence: [`followup-intent.md`](https://github.com/self-evolving/repo/blob/bad7e61f045518a03886c0558cd13b218950cf67/.github/prompts/followup-intent.md#L17-L37), [`resolve-dispatch-cli.test.ts`](https://github.com/self-evolving/repo/blob/bad7e61f045518a03886c0558cd13b218950cf67/.agent/src/__tests__/resolve-dispatch-cli.test.ts#L323-L438). |\n| coding_workflow/generic | Minimal defaults, native escape hatches | pass | 8/8 | Adds one default mode, `agent-label`, plus `disabled`/`false` opt-out. Evidence: [`followup-intent.ts`](https://github.com/self-evolving/repo/blob/bad7e61f045518a03886c0558cd13b218950cf67/.agent/src/followup-intent.ts#L17-L27). |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | Reuses existing router, provider resolver, `run-agent-task`, dispatch policy, access policy, and rubric selection instead of a parallel routing stack. Evidence: [`agent-router.yml`](https://github.com/self-evolving/repo/blob/bad7e61f045518a03886c0558cd13b218950cf67/.github/workflows/agent-router.yml#L172-L203), [`agent-router.yml`](https://github.com/self-evolving/repo/blob/bad7e61f045518a03886c0558cd13b218950cf67/.github/workflows/agent-router.yml#L350-L386). |\n| coding_workflow/generic | Prefer agent-derived decisions | pass | 7/7 | Uses a contextual intent gate for `respond`/`ignore` rather than adding broad static routing knobs. Evidence: [`followup-intent.md`](https://github.com/self-evolving/repo/blob/bad7e61f045518a03886c0558cd13b218950cf67/.github/prompts/followup-intent.md#L31-L37). |\n| coding_workflow/generic | Prefer explicit structured inputs | pass | 7/7 | Adds typed workflow/action inputs and explicit metadata fields for follow-up mode and triggering comment context. Evidence: [`agent-router.yml`](https://github.com/self-evolving/repo/blob/bad7e61f045518a03886c0558cd13b218950cf67/.github/workflows/agent-router.yml#L68-L75), [`run-agent-task/action.yml`](https://github.com/self-evolving/repo/blob/bad7e61f045518a03886c0558cd13b218950cf67/.github/actions/run-agent-task/action.yml#L67-L74). |\n| coding_workflow/generic | Keep docs in sync | pass | 7/7 | Docs cover the config, label activation, authorization, answer-only behavior, and ignored outcomes. Evidence: [`configuration-list.md`](https://github.com/self-evolving/repo/blob/bad7e61f045518a03886c0558cd13b218950cf67/.agent/docs/customization/configuration-list.md#L9-L12), [`request-lifecycle.md`](https://github.com/self-evolving/repo/blob/bad7e61f045518a03886c0558cd13b218950cf67/.agent/docs/architecture/request-lifecycle.md#L7-L14). |\n| communication/generic | Audience-first documentation | pass | 7/7 | The user-facing docs lead with observable behavior and the opt-out, not internal implementation details. Evidence: [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/bad7e61f045518a03886c0558cd13b218950cf67/.agent/docs/usage/supported-workflows.md#L205-L223). |\n| coding_workflow/generic | Read docs and linked context first | pass | 6/6 | PR #349 closes #348, which is a scoped child of #124; the implementation matches the parent plan: agent label activation, opt-out mode, answer-only classifier, communication rubrics, tests, and docs. |\n| coding_workflow/generic | Make surgical changes | pass | 8/8 | The diff is confined to router/context helpers, prompts, focused tests, and matching docs for implicit follow-up routing. |\n| coding_style/generic | Prefer simple implementations | pass | 7/7 | Core behavior is a small helper plus a dedicated router branch and policy reuse, without introducing a larger framework. Evidence: [`followup-intent.ts`](https://github.com/self-evolving/repo/blob/bad7e61f045518a03886c0558cd13b218950cf67/.agent/src/followup-intent.ts#L1-L104). |\n| coding_workflow/generic | Name config by capability | pass | 6/6 | `AGENT_FOLLOWUP_INTENT_MODE` describes the capability and leaves room for future modes. Evidence: [`configuration-list.md`](https://github.com/self-evolving/repo/blob/bad7e61f045518a03886c0558cd13b218950cf67/.agent/docs/customization/configuration-list.md#L11). |\n\n## Notes\n\n- The latest head addresses the earlier rubric gap: answer authorization now happens before the follow-up intent provider and model gate.\n- The provider setup ordering concern is also covered by resolving the answer provider before runtime setup and installing the dispatch/answer provider union.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific blocking or warning findings on current head `bad7e61`.\n\n## Final Rubric Verdict\n\nPASS",
       "createdAt": "2026-05-25T17:23:15Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/349#issuecomment-4536000793",
       "viewerDidAuthor": true
@@ -121,10 +121,299 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: bad7e61f045518a03886c0558cd13b218950cf67 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #349 adds `AGENT_FOLLOWUP_INTENT_MODE` with an `agent-label` default and `disabled` / `false` opt-out.\n- It closes #348, a scoped child of #124, by allowing unmentioned comments or reviews on fixed `agent`-labeled issues/PRs to wake Sepo.\n- The implicit path is answer-only: a follow-up intent gate can return `respond` or `ignore`, with `respond` forced to inline `answer` and `ignore` posting nothing.\n- The PR also forwards triggering comment metadata, enables communication rubrics for the intent/answer path, and updates docs/tests.\n\n## Review\nAll current reviewer artifacts agree that the latest head `bad7e61` resolves the prior blocking and warning findings. I found no remaining actionable branch-change issue in the current PR state.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues | INFO | Current head `bad7e61` preauthorizes implicit answers before the intent gate, installs the needed provider runtime, and excludes edited unmentioned comments. |\n\n## Progress\n- Prior blocking issue is fixed: `.github/workflows/agent-router.yml` now authorizes the `answer` route before follow-up provider resolution or intent execution.\n- Prior provider setup warning is fixed: runtime setup now installs the dispatch/answer provider union for eligible implicit follow-up events.\n- Prior duplicate-answer warning is fixed: implicit follow-ups are limited to created comments and submitted reviews.\n- `gh pr checks 349 --repo self-evolving/repo` reports passing, and `git diff --check origin/main...FETCH_HEAD` passed locally.\n- Resolved two older same-agent inline review threads that were superseded by the current head; no new inline comments were posted.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: No unresolved actionable branch-change work remains.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch changes.",
       "createdAt": "2026-05-25T17:30:44Z",
       "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/349#issuecomment-4536040805",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVT0Vw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \r\n\r\nfrankly the logic here is a bit fussy. can you walk me through what's going on inside the agent-router? ",
+      "createdAt": "2026-05-31T04:56:58Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/349#issuecomment-4585747543",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVUD4g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yep. The key idea is: **the router now separates “may this event wake Sepo?” from “should Sepo actually answer?”**\n\nFor PR #349’s implicit follow-up path, the flow is:\n\n1. **`agent-entrypoint.yml` is the broad wake-up filter.**  \n   It still wakes on `@sepo-agent`, but now also wakes for unmentioned comments/reviews when:\n   - `AGENT_FOLLOWUP_INTENT_MODE` is not `disabled` / `false`\n   - sender is not a bot\n   - event is a new issue comment, new PR review comment, or submitted PR review\n   - target already has the fixed `agent` label  \n   See [`agent-entrypoint.yml`](https://github.com/self-evolving/repo/blob/bad7e61f045518a03886c0558cd13b218950cf67/.github/workflows/agent-entrypoint.yml#L48-L87).\n\n2. **`agent-router.yml` prepares both possible runtimes up front.**  \n   It resolves the normal `dispatch` provider, and conditionally resolves the `answer` provider for possible implicit follow-ups. Runtime setup installs the union of needed CLIs so an answer-route provider override does not fail later.  \n   See [`agent-router.yml`](https://github.com/self-evolving/repo/blob/bad7e61f045518a03886c0558cd13b218950cf67/.github/workflows/agent-router.yml#L160-L210).\n\n3. **`extract-context` decides whether this is a real request candidate.**  \n   Explicit mentions stay unchanged. If there is no live mention, it calls the follow-up helper and only sets `implicit_followup=true` for supported labeled events. It also intentionally leaves `requested_route` empty, so an unmentioned comment cannot smuggle in `/implement` or `/review`.  \n   See [`extract-context.ts`](https://github.com/self-evolving/repo/blob/bad7e61f045518a03886c0558cd13b218950cf67/.agent/src/cli/extract-context.ts#L191-L267) and [`followup-intent.ts`](https://github.com/self-evolving/repo/blob/bad7e61f045518a03886c0558cd13b218950cf67/.agent/src/followup-intent.ts#L17-L80).\n\n4. **Before any implicit intent model runs, the router preauthorizes `answer`.**  \n   This is the safety gate added after review: if the commenter is not allowed to use the `answer` route under `AGENT_ACCESS_POLICY`, the router stops silently before running the follow-up classifier.  \n   See [`agent-router.yml`](https://github.com/self-evolving/repo/blob/bad7e61f045518a03886c0558cd13b218950cf67/.github/workflows/agent-router.yml#L249-L262).\n\n5. **Normal dispatch triage is skipped for implicit follow-ups.**  \n   Explicit/free-form mentioned requests still go through dispatch triage. Implicit follow-ups instead go through a dedicated `followup-intent` prompt that can only return `respond` or `ignore`, with communication rubrics enabled.  \n   See [`agent-router.yml`](https://github.com/self-evolving/repo/blob/bad7e61f045518a03886c0558cd13b218950cf67/.github/workflows/agent-router.yml#L264-L386) and [`followup-intent.md`](https://github.com/self-evolving/repo/blob/bad7e61f045518a03886c0558cd13b218950cf67/.github/prompts/followup-intent.md#L17-L37).\n\n6. **`resolve-dispatch` enforces the answer-only contract.**  \n   If intent says `ignore`, it emits no route. If intent says `respond`, it forces `route=answer` and re-applies dispatch policy. Any malformed intent output also becomes no route, not a fallback answer.  \n   See [`resolve-dispatch.ts`](https://github.com/self-evolving/repo/blob/bad7e61f045518a03886c0558cd13b218950cf67/.agent/src/cli/resolve-dispatch.ts#L86-L201).\n\n7. **Only after that does the normal `answer` job run and post.**  \n   The answer route receives the original comment ID/URL plus rubrics, then posts through the existing response path.  \n   See [`agent-router.yml`](https://github.com/self-evolving/repo/blob/bad7e61f045518a03886c0558cd13b218950cf67/.github/workflows/agent-router.yml#L537-L592).\n\nSo the fussy part is mostly defensive layering:\n\n```text\nentrypoint wake-up\n-> context says explicit mention OR eligible implicit follow-up\n-> implicit path preauthorizes answer\n-> intent model says respond/ignore only\n-> resolver forces respond to answer only\n-> answer job posts\n```\n\nThat avoids the dangerous version of this feature, where an unmentioned comment on an `agent`-labeled thread could accidentally trigger implementation/review/orchestration or run a privileged classifier before route authorization.\n\n---\n`codex` | `gpt-5.5/medium` | `high` | `Macmini-runner-6`",
+      "createdAt": "2026-05-31T04:59:24Z",
+      "includesCreatedEdit": false,
       "isMinimized": false,
       "minimizedReason": "",
       "reactionGroups": [],
-      "url": "https://github.com/self-evolving/repo/pull/349#issuecomment-4536040805",
+      "url": "https://github.com/self-evolving/repo/pull/349#issuecomment-4585751522",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVau-w",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer check my comment ",
+      "createdAt": "2026-05-31T05:53:13Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/349#issuecomment-4585860859",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVbASA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Checked. The linked comment `4585860859` only contains:\n\n```text\n@sepo-agent /answer check my comment\n```\n\nSo there isn’t a separate substantive comment body for me to analyze there. Because it includes `@sepo-agent /answer`, this ran through the normal explicit mention path, not the new unmentioned implicit follow-up path.\n\nIf you meant the prior comment asking about `agent-router`, the previous reply covered that. If you meant to test PR #349’s implicit follow-up behavior, the test comment should omit the mention, for example:\n\n```text\ncan you walk me through what's going on inside the agent-router?\n```\n\non an issue/PR that already has the fixed `agent` label.\n\n---\n`codex` | `default model` | `high` | `Macmini-runner-5`",
+      "createdAt": "2026-05-31T05:54:44Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/349#issuecomment-4585865288",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVbOOg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent i meant https://github.com/self-evolving/repo/pull/349#pullrequestreview-4396397490\r\n",
+      "createdAt": "2026-05-31T05:56:48Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/349#issuecomment-4585868858",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVbfVg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "That review comment is on the new answer-route inputs:\n\n```yaml\nrequest_comment_id: ${{ needs.portal.outputs.source_comment_id }}\nrequest_comment_url: ${{ needs.portal.outputs.source_comment_url }}\nsource_kind: ${{ needs.portal.outputs.source_kind }}\n```\n\nShort answer: **these are new plumbing for the implicit follow-up feature, not really a fix for an old explicit-answer bug.**\n\nWhy they were added:\n\n- `extract-context` already knows the exact comment/review that triggered the run and exposes it as portal outputs.\n- `agent-router.yml` now passes that metadata into `run-agent-task` for the `answer` route.\n- `run-agent-task` exports them as `REQUEST_COMMENT_ID`, `REQUEST_COMMENT_URL`, and `REQUEST_SOURCE_KIND`.\n- `agent-answer.md` includes those values in the prompt so the answer agent can tell which comment/review it is responding to.\n\nRelevant links:\n- [`agent-router.yml`](https://github.com/self-evolving/repo/blob/bad7e61f045518a03886c0558cd13b218950cf67/.github/workflows/agent-router.yml#L561-L565)\n- [`run-agent-task/action.yml`](https://github.com/self-evolving/repo/blob/bad7e61f045518a03886c0558cd13b218950cf67/.github/actions/run-agent-task/action.yml#L67-L74)\n- [`run-agent-task/action.yml`](https://github.com/self-evolving/repo/blob/bad7e61f045518a03886c0558cd13b218950cf67/.github/actions/run-agent-task/action.yml#L357-L361)\n- [`agent-answer.md`](https://github.com/self-evolving/repo/blob/bad7e61f045518a03886c0558cd13b218950cf67/.github/prompts/agent-answer.md#L7-L10)\n\nSo I’d answer the inline comment as: they are newly added metadata fields for comment/review-triggered answers, mainly to make implicit follow-up answers less ambiguous. They also help explicit `/answer` runs, but the PR needs them because unmentioned follow-ups rely on knowing the exact triggering comment.\n\n---\n`codex` | `default model` | `high` | `Macmini-runner-5`",
+      "createdAt": "2026-05-31T05:59:30Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/349#issuecomment-4585873238",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVc2XA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate fix merge conflicts; then review ",
+      "createdAt": "2026-05-31T06:11:57Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/349#issuecomment-4585895516",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVdBdw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | fix-pr | PR #349 | 2 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: PR #349 is open and currently merge-conflicted; requester explicitly asked to fix merge conflicts before review.\n\nTask for fix-pr:\nResolve the merge conflicts on PR #349 (`agent/implement-issue-348/codex-26410911658` into `main`). Preserve the existing implicit follow-up intent routing behavior and the prior review fixes: answer-route preauthorization before implicit intent, dispatch/answer provider runtime setup, and implicit follow-ups limited to created comments/submitted reviews. Avoid unrelated refactors or metadata-only changes. After resolving conflicts, run appropriate verification such as `npm run build`, focused tests for follow-up intent/extract-context/resolve-dispatch/envelope/docs validation, and `git diff --check`. If fixes succeed, the next orchestration step should review the updated PR.\n\n<!-- sepo-agent-handoff state:dispatched created:1780208018568 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY3MDUwNzQxMTk6b3JjaGVzdHJhdGU6MzQ5OmZpeF9wcjozNDk6Mg -->",
+      "createdAt": "2026-05-31T06:13:38Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/349#issuecomment-4585898359",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVdq-Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-348/codex-26410911658`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Resolved the PR #349 merge conflict by moving the answer-route triggering comment metadata out of the prompt hunk that now conflicts with `main`’s review-answer context changes.\n- Preserved the implicit follow-up behavior and prior review fixes; no unrelated files were changed.\n- Verified the adjusted branch tree merges cleanly with current `main` using `git merge-tree`.\n\n<details><summary>Verification</summary>\n\n- `npm run build`\n- `node --test dist/__tests__/followup-intent.test.js dist/__tests__/extract-context-cli.test.js dist/__tests__/resolve-dispatch-cli.test.js dist/__tests__/envelope.test.js dist/__tests__/docs-validation.test.js`\n- `git diff --check`\n\n</details>\n\n---\n`codex` | `default model` | `xhigh` | `Macmini-runner-5`",
+      "createdAt": "2026-05-31T06:19:48Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/349#issuecomment-4585908985",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVdxmg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #349 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded after the requested merge-conflict resolution, and the requester explicitly asked to review afterward.\n\n<!-- sepo-agent-handoff state:dispatched created:1780208444417 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY3MDUxMDQzODg6Zml4X3ByOjM0OTpyZXZpZXc6MzQ5OjM -->",
+      "createdAt": "2026-05-31T06:20:44Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/349#issuecomment-4585910682",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVeYgg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 84 | PARTIAL | 12 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Validate delegated route authorization | pass | 8/8 | The implicit path preauthorizes `answer` before follow-up provider/intent execution, then re-applies dispatch policy for `respond`. Evidence: [`agent-router.yml`](https://github.com/self-evolving/repo/blob/900bcebf9ba4a91923db90724bdc6888b41b5b65/.github/workflows/agent-router.yml#L249-L285), [`resolve-dispatch.ts`](https://github.com/self-evolving/repo/blob/900bcebf9ba4a91923db90724bdc6888b41b5b65/.agent/src/cli/resolve-dispatch.ts#L151-L201). |\n| coding_workflow/generic | Separate decision gates from action authorization | pass | 8/8 | The classifier only returns `respond`/`ignore`; route authorization remains deterministic in `resolve-dispatch`. Evidence: [`followup-intent.md`](https://github.com/self-evolving/repo/blob/900bcebf9ba4a91923db90724bdc6888b41b5b65/.github/prompts/followup-intent.md#L17-L37). |\n| coding_workflow/generic | Minimal defaults, native escape hatches | pass | 8/8 | Adds `AGENT_FOLLOWUP_INTENT_MODE` with default `agent-label` and `disabled`/`false` opt-out. Evidence: [`followup-intent.ts`](https://github.com/self-evolving/repo/blob/900bcebf9ba4a91923db90724bdc6888b41b5b65/.agent/src/followup-intent.ts#L17-L27). |\n| coding_workflow/generic | Reuse existing code | fail | 2/8 | The merge result does not reuse current `main`’s existing answer metadata plumbing cleanly; it duplicates `request_comment_id`/`request_comment_url` keys and fails YAML parsing/tests. Current `main` already has these answer inputs. Evidence: [`main` router](https://github.com/self-evolving/repo/blob/3c78df0c0387504010b91446f9fa6330542c7127/.github/workflows/agent-router.yml#L424-L429), [failed check](https://github.com/self-evolving/repo/actions/runs/26705217467/job/78705072160). |\n| coding_workflow/generic | Prefer agent-derived decisions | pass | 7/7 | Uses a contextual follow-up intent gate rather than broad static route settings. Evidence: [`agent-router.yml`](https://github.com/self-evolving/repo/blob/900bcebf9ba4a91923db90724bdc6888b41b5b65/.github/workflows/agent-router.yml#L350-L386). |\n| coding_workflow/generic | Prefer explicit structured inputs | partial | 3/7 | The PR uses structured fields, but after merge they collide with already-existing structured fields on `main`, producing duplicate YAML keys. Evidence: [`run-agent-task` on main](https://github.com/self-evolving/repo/blob/3c78df0c0387504010b91446f9fa6330542c7127/.github/actions/run-agent-task/action.yml#L60-L70), [`run-agent-task` in PR](https://github.com/self-evolving/repo/blob/900bcebf9ba4a91923db90724bdc6888b41b5b65/.github/actions/run-agent-task/action.yml#L67-L74). |\n| coding_workflow/generic | Keep docs in sync | pass | 7/7 | Docs describe the variable, agent-label activation, authorization, and answer-only behavior. Evidence: [`configuration-list.md`](https://github.com/self-evolving/repo/blob/900bcebf9ba4a91923db90724bdc6888b41b5b65/.agent/docs/customization/configuration-list.md#L9-L12), [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/900bcebf9ba4a91923db90724bdc6888b41b5b65/.agent/docs/usage/supported-workflows.md#L207-L223). |\n| communication/generic | Audience-first documentation | pass | 7/7 | User-facing docs lead with observable behavior and opt-out guidance. Evidence: [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/900bcebf9ba4a91923db90724bdc6888b41b5b65/.agent/docs/usage/supported-workflows.md#L207-L223). |\n| coding_workflow/generic | Read docs and linked context first | pass | 6/6 | PR #349 closes #348, which is a scoped child of #124; the implementation matches the planned first slice. |\n| coding_workflow/generic | Make surgical changes | partial | 4/8 | The conflict-resolution state still leaves merged workflow/action YAML invalid and adds raw request metadata to `agent-answer.md` against the current prompt contract. Evidence: [`agent-answer.md`](https://github.com/self-evolving/repo/blob/900bcebf9ba4a91923db90724bdc6888b41b5b65/.github/prompts/agent-answer.md#L22-L25), [`main` test contract](https://github.com/self-evolving/repo/blob/3c78df0c0387504010b91446f9fa6330542c7127/.agent/src/__tests__/envelope.test.ts#L134-L144). |\n| coding_style/generic | Prefer simple implementations | pass | 7/7 | Core logic is a small helper plus router branches and existing policy reuse. Evidence: [`followup-intent.ts`](https://github.com/self-evolving/repo/blob/900bcebf9ba4a91923db90724bdc6888b41b5b65/.agent/src/followup-intent.ts#L1-L104). |\n| coding_workflow/generic | Name config by capability | pass | 6/6 | `AGENT_FOLLOWUP_INTENT_MODE` names the broader capability and leaves room for modes. Evidence: [`configuration-list.md`](https://github.com/self-evolving/repo/blob/900bcebf9ba4a91923db90724bdc6888b41b5b65/.agent/docs/customization/configuration-list.md#L11). |\n\n## Notes\n\n- The feature shape still aligns with #348/#124: agent-labeled implicit follow-ups, opt-out mode, answer-only intent, authorization before the model gate, docs, and focused tests.\n- The latest PR head does not cleanly satisfy the rubrics after merging with current `main`: the `Test Scripts` check fails 7 tests, including duplicate YAML key failures in the merged workflow/action.\n- Smallest useful follow-up: de-duplicate the answer metadata plumbing against current `main` and adapt the answer prompt/context contract instead of layering raw metadata placeholders into `agent-answer.md`.\n\n## Findings\n\n- **BLOCKING:** The merge-conflict fix is incomplete against current `main`. The merge result duplicates `request_comment_id` and `request_comment_url` in `agent-router.yml`, and duplicates request metadata inputs/env in `run-agent-task/action.yml`, causing YAML parse failures and a failing PR check. This violates the reuse, explicit structured inputs, and surgical-change rubrics.\n- **WARNING:** `agent-answer.md` directly adds raw request metadata placeholders, while current `main` routes answer-specific metadata through `REQUEST_*` supplemental vars and `ANSWER_REVIEW_CONTEXT`. This should be reconciled with the existing prompt/context contract.\n\n## Final Rubric Verdict\n\nPARTIAL\n\n---\n`codex` | `gpt-5.5/medium` | `high` | `Macmini-runner-6`",
+      "createdAt": "2026-05-31T06:26:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/349#issuecomment-4585920642",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVgEbw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 900bcebf9ba4a91923db90724bdc6888b41b5b65 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #349 implements the first `implicit-followup-core` slice from #348, scoped under parent issue #124.\n- It adds `AGENT_FOLLOWUP_INTENT_MODE`, lets unmentioned comments or reviews on `agent`-labeled targets wake Sepo, and routes implicit `respond` decisions only to `answer`.\n- The prior authorization, provider setup, and edited-comment duplicate-answer findings were fixed on the earlier head.\n- The latest conflict-resolution head `900bcebf` reintroduced stale answer metadata plumbing against current `main`, and the PR check is failing.\n\n## Review\nThe core feature design still matches #124/#348, but the current merge state is not shippable. The blocking findings below are supported by all current reviewer artifacts and by the live failing `Test Scripts / check` run.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Duplicate answer metadata YAML after merge | BLOCKING | Current `main` already defines and passes answer trigger metadata, while this PR re-adds overlapping keys in `run-agent-task/action.yml` and `agent-router.yml`. The synthetic PR merge ref fails YAML parsing with duplicate keys. |\n| Direct metadata block regresses answer prompt contract | BLOCKING | `agent-answer.md` adds raw `REQUEST_COMMENT_*` placeholders even though current `main` injects this through `ANSWER_REVIEW_CONTEXT` and continuation prompt plumbing. The envelope test explicitly rejects those placeholders and is failing. |\n\n## Progress\n- The implicit follow-up safety fixes are still present: answer preauthorization runs before the intent model, provider setup installs the dispatch/answer provider union, and edited unmentioned comments are excluded.\n- `gh pr checks 349 --repo self-evolving/repo` currently reports `Test Scripts / check` failing.\n- Posted inline comments on `run-agent-task/action.yml:67`, `agent-router.yml:563`, and `agent-answer.md:22`.\n- Did not reply to or resolve the open human-authored inline thread.\n\n## Issue Details\n\n<details>\n<summary>Duplicate answer metadata YAML after merge</summary>\n\n**Cause:** Current `main` already has `request_source_kind`, `request_comment_id`, and `request_comment_url` in the shared action and answer route. The PR head re-adds `request_comment_id` / `request_comment_url`, producing duplicate keys in the merge ref: see PR head [`run-agent-task/action.yml`](https://github.com/self-evolving/repo/blob/900bcebf9ba4a91923db90724bdc6888b41b5b65/.github/actions/run-agent-task/action.yml#L67-L74) and [`agent-router.yml`](https://github.com/self-evolving/repo/blob/900bcebf9ba4a91923db90724bdc6888b41b5b65/.github/workflows/agent-router.yml#L563-L565).\n\n**Candidate solutions:** Rebase or merge current `main`, keep the base trigger-metadata inputs/env wiring, and add only the PR-specific rubrics/follow-up inputs that are still missing.\n\n**Comments:** Reviewers agree this is blocking; the failed check shows multiple `YAMLParseError: Map keys must be unique` failures.\n\n</details>\n\n<details>\n<summary>Direct metadata block regresses answer prompt contract</summary>\n\n**Cause:** [`agent-answer.md`](https://github.com/self-evolving/repo/blob/900bcebf9ba4a91923db90724bdc6888b41b5b65/.github/prompts/agent-answer.md#L22-L25) directly embeds request metadata placeholders. Current `main` expects the prompt to use `${ANSWER_REVIEW_CONTEXT}` and keeps raw request metadata out of the template, as asserted in [`envelope.test.ts`](https://github.com/self-evolving/repo/blob/3c78df0c0387504010b91446f9fa6330542c7127/.agent/src/__tests__/envelope.test.ts#L134-L144).\n\n**Candidate solutions:** Remove the direct `Request metadata` block from `agent-answer.md` and rely on the generated answer context / continuation prompt path.\n\n**Comments:** The rubric lane marked this as a warning, but the current CI failure makes it blocking for merge.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: The remaining issues are concrete branch changes that are safe for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Remove duplicate trigger metadata inputs/env from `.github/actions/run-agent-task/action.yml`, preserving current `main`’s `request_source_kind`, `request_comment_id`, and `request_comment_url` contract.\n- [ ] Remove duplicate answer-route metadata keys from `.github/workflows/agent-router.yml`, keeping the base metadata plumbing and the PR’s rubric/follow-up additions exactly once.\n- [ ] Remove the raw `Request metadata` block from `.github/prompts/agent-answer.md` and rely on `${ANSWER_REVIEW_CONTEXT}` / continuation prompt plumbing.\n\n---\n`codex` | `gpt-5.5/medium` | `xhigh` | `Macmini-runner-3`",
+      "createdAt": "2026-05-31T06:36:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/349#issuecomment-4585948271",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVgLgQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #349 | 4 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review concluded needs_rework with concrete unresolved code changes and recommended FIX_PR; round budget remains available.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Remove duplicate trigger metadata inputs/env from `.github/actions/run-agent-task/action.yml`, preserving current `main`’s `request_source_kind`, `request_comment_id`, and `request_comment_url` contract.\n- Remove duplicate answer-route metadata keys from `.github/workflows/agent-router.yml`, keeping the base metadata plumbing and the PR’s rubric/follow-up additions exactly once.\n- Remove the raw `Request metadata` block from `.github/prompts/agent-answer.md` and rely on `${ANSWER_REVIEW_CONTEXT}` / continuation prompt plumbing.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1780209447896 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY3MDUyMzU2MjM6cmV2aWV3OjM0OTpmaXhfcHI6MzQ5OjQ -->",
+      "createdAt": "2026-05-31T06:37:28Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/349#issuecomment-4585950081",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVgs-Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-348/codex-26410911658`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Removed PR-added duplicate trigger metadata inputs/env from `.github/actions/run-agent-task/action.yml`, leaving `main`’s `request_source_kind` / comment metadata contract to own the merge result.\n- Removed duplicate answer-route `request_comment_id` / `request_comment_url` wiring from `.github/workflows/agent-router.yml` while keeping follow-up intent and rubric additions intact.\n- Removed the raw `Request metadata` block from `.github/prompts/agent-answer.md` so answer context relies on the base `${ANSWER_REVIEW_CONTEXT}` plumbing after merge.\n- Verified with `npm run build`, focused `node --test` coverage for follow-up intent/extract-context/resolve-dispatch/envelope/docs validation, `git diff --check`, and a clean `git merge-tree` against current `main`.\n\n---\n`codex` | `default model` | `xhigh` | `Macmini-runner-6`",
+      "createdAt": "2026-05-31T06:41:55Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/349#issuecomment-4585958649",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVg1XA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #349 | 5 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded after addressing the concrete merge-conflict review action items, and the original PR-level /orchestrate request asked to fix conflicts then review; PR #349 remains open.\n\n<!-- sepo-agent-handoff state:dispatched created:1780209778125 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY3MDU1NDQ0OTA6Zml4X3ByOjM0OTpyZXZpZXc6MzQ5OjU -->",
+      "createdAt": "2026-05-31T06:42:58Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/349#issuecomment-4585960796",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVhlEg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 12 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Validate delegated route authorization | pass | 8/8 | Implicit follow-ups preauthorize `answer` before the follow-up provider/model gate, and final route resolution re-applies dispatch policy. Evidence: [`agent-router.yml`](https://github.com/self-evolving/repo/blob/c012afa5c7c37a295b0f537b98440df0da97f7e5/.github/workflows/agent-router.yml#L249-L262), [`resolve-dispatch.ts`](https://github.com/self-evolving/repo/blob/c012afa5c7c37a295b0f537b98440df0da97f7e5/.agent/src/cli/resolve-dispatch.ts#L151-L200). |\n| coding_workflow/generic | Separate decision gates from action authorization | pass | 8/8 | The intent gate can only emit `respond` or `ignore`; route authorization remains deterministic in `resolve-dispatch`. Evidence: [`followup-intent.md`](https://github.com/self-evolving/repo/blob/c012afa5c7c37a295b0f537b98440df0da97f7e5/.github/prompts/followup-intent.md#L17-L37). |\n| coding_workflow/generic | Minimal defaults, native escape hatches | pass | 8/8 | Adds one minimal mode, default `agent-label`, with `disabled`/`false` opt-out. Evidence: [`followup-intent.ts`](https://github.com/self-evolving/repo/blob/c012afa5c7c37a295b0f537b98440df0da97f7e5/.agent/src/followup-intent.ts#L17-L27). |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | Reuses existing provider resolution, runtime setup, `run-agent-task`, access policy, dispatch policy, and answer route rather than adding a parallel router. Evidence: [`agent-router.yml`](https://github.com/self-evolving/repo/blob/c012afa5c7c37a295b0f537b98440df0da97f7e5/.github/workflows/agent-router.yml#L172-L210), [`agent-router.yml`](https://github.com/self-evolving/repo/blob/c012afa5c7c37a295b0f537b98440df0da97f7e5/.github/workflows/agent-router.yml#L350-L386). |\n| coding_workflow/generic | Prefer agent-derived decisions | pass | 7/7 | Uses a contextual follow-up intent gate for `respond`/`ignore` rather than adding broad static route settings. Evidence: [`followup-intent.md`](https://github.com/self-evolving/repo/blob/c012afa5c7c37a295b0f537b98440df0da97f7e5/.github/prompts/followup-intent.md#L31-L37). |\n| coding_workflow/generic | Prefer explicit structured inputs | pass | 7/7 | Adds typed inputs/outputs for follow-up mode and implicit follow-up metadata instead of overloading request text. Evidence: [`agent-router.yml`](https://github.com/self-evolving/repo/blob/c012afa5c7c37a295b0f537b98440df0da97f7e5/.github/workflows/agent-router.yml#L68-L75), [`extract-context.ts`](https://github.com/self-evolving/repo/blob/c012afa5c7c37a295b0f537b98440df0da97f7e5/.agent/src/cli/extract-context.ts#L250-L267). |\n| coding_workflow/generic | Keep docs in sync | pass | 7/7 | Docs cover the config, label activation, answer-only behavior, authorization, and ignored outcomes. Evidence: [`configuration-list.md`](https://github.com/self-evolving/repo/blob/c012afa5c7c37a295b0f537b98440df0da97f7e5/.agent/docs/customization/configuration-list.md#L11), [`request-lifecycle.md`](https://github.com/self-evolving/repo/blob/c012afa5c7c37a295b0f537b98440df0da97f7e5/.agent/docs/architecture/request-lifecycle.md#L9-L14). |\n| communication/generic | Audience-first documentation | pass | 7/7 | User-facing workflow docs lead with observable behavior and the opt-out, not internal mechanics. Evidence: [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/c012afa5c7c37a295b0f537b98440df0da97f7e5/.agent/docs/usage/supported-workflows.md#L207-L223). |\n| coding_workflow/generic | Read docs and linked context first | pass | 6/6 | PR #349 closes #348, a scoped child of #124; the implementation matches the parent plan for labeled implicit follow-ups, opt-out config, answer-only routing, rubrics, tests, and docs. |\n| coding_workflow/generic | Make surgical changes | pass | 8/8 | The diff is confined to the router, context/dispatch helpers, prompt, focused tests, and matching docs for this feature. |\n| coding_style/generic | Prefer simple implementations | pass | 7/7 | Core behavior is a small helper plus targeted router branches and existing policy reuse. Evidence: [`followup-intent.ts`](https://github.com/self-evolving/repo/blob/c012afa5c7c37a295b0f537b98440df0da97f7e5/.agent/src/followup-intent.ts#L1-L104). |\n| coding_workflow/generic | Name config by capability | pass | 6/6 | `AGENT_FOLLOWUP_INTENT_MODE` names the capability/mode and leaves room for future modes. Evidence: [`configuration-list.md`](https://github.com/self-evolving/repo/blob/c012afa5c7c37a295b0f537b98440df0da97f7e5/.agent/docs/customization/configuration-list.md#L11). |\n\n## Notes\n\n- The latest head `c012afa` addresses the prior merge-resolution rubric failures: `gh pr checks` reports `Test Scripts / check` passing, and a local `git merge-tree --write-tree origin/main origin/pr-349` completed cleanly.\n- The implementation matches #348/#124’s intended first slice: explicit mentions remain unchanged, unmentioned follow-ups require the fixed `agent` label, denied implicit answers do not run the intent gate, `respond` maps only to `answer`, and `ignore` posts nothing.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific blocking or warning findings on current head `c012afa`.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/medium` | `high` | `Macmini-runner-1`",
+      "createdAt": "2026-05-31T06:45:58Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/349#issuecomment-4585973010",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVipGQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: c012afa5c7c37a295b0f537b98440df0da97f7e5 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #349 implements the first `implicit-followup-core` slice from #348, under parent issue #124.\n- It adds `AGENT_FOLLOWUP_INTENT_MODE` so unmentioned comments/reviews on fixed `agent`-labeled issues or PRs can wake Sepo.\n- The implicit path is answer-only: it preauthorizes the `answer` route, runs a narrow `respond`/`ignore` intent gate, and never dispatches implement/review/fix-pr/orchestrate from an unmentioned follow-up.\n- The PR also updates docs, prompt wiring, router workflow behavior, and focused tests for labeled/unlabeled, disabled, authorization, ignore, and answer-only cases.\n\n## Review\nThe current head `c012afa5c7c37a295b0f537b98440df0da97f7e5` is shippable from the code review perspective. Claude noted a branch-only warning about comment metadata inputs, but the synthetic merge ref includes the base action inputs, Codex and rubrics both report no blocking/warning findings, and the current PR check is passing.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable findings | INFO | The prior authorization, provider setup, edited-comment, duplicate YAML, and answer-prompt regressions are fixed on current head / merge ref. Remaining draft status and the human-authored inline question do not require automated branch changes. |\n\n## Progress\n- `Test Scripts / check` is passing for PR #349.\n- GitHub reports the PR merge state as `CLEAN`.\n- Resolved same-agent outdated threads for duplicate router metadata, duplicate `run-agent-task` inputs/env, and raw answer-prompt metadata.\n- Left the human-authored inline thread unresolved; no new inline comments, replies, or minimizations were posted.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved required branch-change work remains for an automated follow-up pass.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change action items.\n\n---\n`codex` | `gpt-5.5/medium` | `xhigh` | `Macmini-runner-6`",
+      "createdAt": "2026-05-31T06:54:57Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/349#issuecomment-4585990425",
       "viewerDidAuthor": true
     }
   ],
@@ -191,18 +480,6 @@
       "changeType": "ADDED"
     },
     {
-      "path": ".github/actions/run-agent-task/action.yml",
-      "additions": 11,
-      "deletions": 0,
-      "changeType": "MODIFIED"
-    },
-    {
-      "path": ".github/prompts/agent-answer.md",
-      "additions": 6,
-      "deletions": 1,
-      "changeType": "MODIFIED"
-    },
-    {
       "path": ".github/prompts/followup-intent.md",
       "additions": 37,
       "deletions": 0,
@@ -216,7 +493,7 @@
     },
     {
       "path": ".github/workflows/agent-router.yml",
-      "additions": 148,
+      "additions": 146,
       "deletions": 9,
       "changeType": "MODIFIED"
     }
@@ -263,10 +540,70 @@
       "commit": {
         "oid": "ca9215877db83dd8ba142e56f9eed9d80d74d1c0"
       }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABBguzsg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer check my comment there",
+      "submittedAt": "2026-05-31T05:34:44Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "bad7e61f045518a03886c0558cd13b218950cf67"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABBgzywQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-31T06:35:36Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "900bcebf9ba4a91923db90724bdc6888b41b5b65"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABBgzywg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-31T06:35:36Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "900bcebf9ba4a91923db90724bdc6888b41b5b65"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABBgzyww",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-31T06:35:36Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "900bcebf9ba4a91923db90724bdc6888b41b5b65"
+      }
     }
   ],
   "state": "OPEN",
   "title": "Add implicit follow-up intent routing",
-  "updatedAt": "2026-05-25T17:30:44Z",
+  "updatedAt": "2026-05-31T06:54:57Z",
   "url": "https://github.com/self-evolving/repo/pull/349"
 }

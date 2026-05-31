@@ -59,6 +59,101 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/375#issuecomment-4585009928",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVU7Rw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\n1. headache; I think we should avoid using bad models as the default ones \n2. but in that case, it means we should keep track of the model names in our repo? \n3. can you actually check how does pi-mono handles names? do they set it themselves in the repo? and do they do regular updates?",
+      "createdAt": "2026-05-31T05:07:13Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/375#issuecomment-4585765703",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVVPJQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Agreed. We should not let “whatever ACPX/Claude currently defaults to” decide Sepo’s quality floor.\n\nWhat I found from Pi:\n\n- Pi does keep a model catalog/registry. Its docs describe built-in providers/models, plus user overrides via `~/.pi/agent/models.json`; custom models are merged with built-ins, and matching/listing is done by model `id` plus optional display `name`. See Pi’s custom model docs: https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/models.md\n- Pi exposes model discovery through `ModelRegistry` / `discoverModels`, combining built-ins with `models.json`. Their release notes for v0.31.0 explicitly call that out: https://newreleases.io/project/github/earendil-works/pi/release/v0.31.0\n- They do update model metadata regularly. Recent releases include model-specific updates: v0.77.0 added Claude Opus 4.8 metadata, fixed GPT-5.5 Pro thinking metadata, and fixed `openai-codex/gpt-5.3-codex-spark` metadata; v0.75.0 fixed OpenAI Codex generated model metadata to use the current upstream list. See the releases page: https://github.com/earendil-works/pi/releases\n- Pi also publishes a public model catalog at `pi.dev/models`, including provider-specific IDs and costs: https://pi.dev/models\n\nSo yes, Pi handles this by maintaining model metadata themselves, not purely delegating to provider defaults.\n\nFor Sepo, I would not copy Pi’s full catalog. That is too much surface area for us. I’d do a smaller version:\n\n1. Keep a tiny curated “known-good defaults” table in the repo, maybe just:\n   - default Codex model\n   - cheaper Codex model\n   - default Claude model\n   - stronger Claude model\n2. Use those to generate/validate the packaged `AGENT_MODEL_POLICY` recommendation.\n3. Keep `AGENT_MODEL_POLICY` as the escape hatch for repos that want different models.\n4. Add a lightweight scheduled/manual check that verifies our curated model IDs still work, or at least flags stale defaults.\n5. Update the curated defaults intentionally in release PRs, not silently at runtime.\n\nThe main policy I’d suggest: Sepo should pin good defaults, but should not become a general model marketplace/catalog. Pi’s approach is appropriate for an interactive coding agent; Sepo probably needs a small, opinionated default set plus clear overrides.\n\n---\n`codex` | `default model` | `high` | `Macmini-runner-6`",
+      "createdAt": "2026-05-31T05:09:39Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/375#issuecomment-4585770789",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVVfMQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> The main policy I’d suggest: Sepo should pin good defaults, but should not become a general model marketplace/catalog. Pi’s approach is appropriate for an interactive coding agent; Sepo probably needs a small, opinionated default set plus clear overrides.\n\nsounds good.\n@sepo-agent /orchestrate can you create a minimal implementation for this? ",
+      "createdAt": "2026-05-31T05:11:43Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/375#issuecomment-4585774897",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVVqng",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | implement | Issue #375 | 2 / 40 | Dispatched |\n\nReason: agent planner selected implement: Issue #375 asks for a small, self-contained implementation: pin a minimal curated model default set while preserving AGENT_MODEL_POLICY overrides, without creating a general model catalog.\n\n<!-- sepo-agent-handoff state:dispatched created:1780204404542 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY3MDM5ODAyMTY6b3JjaGVzdHJhdGU6Mzc1OmltcGxlbWVudDozNzU6Mg -->",
+      "createdAt": "2026-05-31T05:13:24Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/375#issuecomment-4585777822",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVWVJw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-375/codex-26704010172`\n- Pull request: https://github.com/self-evolving/repo/pull/380\n\nPinned Sepo's resolver to a tiny built-in provider default set (`gpt-5.5` for Codex and `claude-sonnet-4-6` for Claude), while preserving `AGENT_MODEL_POLICY` and inline workflow overrides. Updated docs and resolver tests; verified with the targeted `.agent` build plus resolver, envelope, and docs tests.\n\n---\n`codex` | `gpt-5.5/medium` | `xhigh` | `Macmini-runner-5`",
+      "createdAt": "2026-05-31T05:18:01Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/375#issuecomment-4585788711",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-30T21:20:00Z",
@@ -73,6 +168,6 @@
   "number": 375,
   "state": "OPEN",
   "title": "Better configuring default models?",
-  "updatedAt": "2026-05-30T22:17:25Z",
+  "updatedAt": "2026-05-31T05:18:01Z",
   "url": "https://github.com/self-evolving/repo/issues/375"
 }

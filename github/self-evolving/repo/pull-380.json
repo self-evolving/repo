@@ -1,0 +1,279 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n\n- Add small built-in provider model defaults for Codex and Claude in provider resolution.\n- Preserve existing `AGENT_MODEL_POLICY` and inline route override behavior.\n- Document that Sepo pins only provider defaults and is not a model catalog.\n\n## Verification\n\n- `cd .agent && npm run build && node --test dist/__tests__/resolve-agent-provider.test.js dist/__tests__/envelope.test.js dist/__tests__/docs-validation.test.js`\n\nCloses #375\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVWcRQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #380 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: Implementation succeeded and opened PR #380 for issue #375, so an automated review is the next useful step before human merge decisions.\n\n<!-- sepo-agent-handoff state:dispatched created:1780204745472 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY3MDQwMTAxNzI6aW1wbGVtZW50OjM3NTpyZXZpZXc6MzgwOjM -->",
+      "createdAt": "2026-05-31T05:19:05Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/380#issuecomment-4585790533",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVW7eg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | Adds only two pinned provider defaults, not a catalog, in [`resolve-provider.js`](https://github.com/self-evolving/repo/blob/dc984bc86ca4f42eba79f08863e8842b6d0f20db/.github/actions/resolve-agent-provider/resolve-provider.js#L8-L12); docs explicitly say Sepo does not maintain a general catalog and points users to `AGENT_MODEL_POLICY` overrides. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Extends the existing provider resolver and `applyRunConfig` precedence path instead of adding a new resolver/parser surface: [`resolve-provider.js`](https://github.com/self-evolving/repo/blob/dc984bc86ca4f42eba79f08863e8842b6d0f20db/.github/actions/resolve-agent-provider/resolve-provider.js#L169-L177). |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The behavior is implemented as a small frozen default map plus one extra precedence application; no new workflow, registry, scheduled job, or model metadata layer. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is limited to resolver behavior, its action output description, targeted tests, and related docs. No unrelated workflow or runtime refactor is included. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates configuration docs, self-hosted runner docs, internal action docs, and supported workflow docs to describe the new default model behavior and override precedence. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Keeps the existing structured `AGENT_MODEL_POLICY` contract with `default`, `providers`, and `route_overrides`; no overloaded string syntax or duplicate knob was introduced. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR closes issue #375, whose discussion established the policy boundary: pin good defaults, avoid a marketplace/catalog, and preserve clear overrides. The implementation matches that linked context. |\n| communication / generic | Write audience-first documentation | pass | 7/7 | Configuration docs lead with the actionable default table and override path, then give precedence details afterward: [`configuration-list.md`](https://github.com/self-evolving/repo/blob/dc984bc86ca4f42eba79f08863e8842b6d0f20db/.agent/docs/customization/configuration-list.md#L40-L64). |\n\n## Notes\n\n- The strongest rubric fit is the minimal-defaults boundary: this pins one default per supported provider while leaving advanced model choices to repository-owned `AGENT_MODEL_POLICY`.\n- Regression coverage was added for the new built-in defaults and existing override behavior remains covered in the same resolver test file.\n- Current PR checks show the main `check` job passing.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific blocking or warning findings.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/medium` | `high` | `Macmini-runner-5`",
+      "createdAt": "2026-05-31T05:21:27Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/380#issuecomment-4585798522",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVXs2A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: dc984bc86ca4f42eba79f08863e8842b6d0f20db -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #380 implements issue #375’s request to stop leaving Sepo’s model quality floor to ACPX/provider defaults. It adds small built-in provider defaults for Codex and Claude in `resolve-agent-provider`, preserves `AGENT_MODEL_POLICY` and inline route override precedence, and updates operator-facing docs. The linked issue asked for a minimal implementation: pin good defaults without turning Sepo into a full model catalog. The current implementation covers single-agent provider resolution and review synthesis, but not the direct Claude/Codex reviewer lanes.\n\n## Review\nThe core resolver change is small and aligned with the requested minimal-defaults boundary. One unresolved gap remains: review lanes are still Sepo-owned default model runs, but they bypass the new pinned default path.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Reviewer lanes remain on provider defaults | BLOCKING | `.github/workflows/agent-review.yml` still calls `run-agent-task` for Claude/Codex reviewer lanes without a `model`, while the new defaults only flow through `resolve-agent-provider`. This leaves a major Sepo-owned model path unpinned despite the PR’s goal. |\n\n## Progress\n- Resolver defaults now pin `codex` to `gpt-5.5` and `claude` to `claude-sonnet-4-6`.\n- Existing policy and inline override precedence is preserved, and targeted resolver/docs coverage was added.\n- Rubrics review passed and the alternate Claude review considered the remaining coverage/doc notes non-blocking.\n- Posted one inline comment on `.agent/docs/customization/configuration-list.md` line 64 for the reviewer-lane gap.\n\n## Issue Details\n\n<details>\n<summary>Reviewer lanes remain on provider defaults</summary>\n\n**Cause:** The PR adds built-in defaults inside `resolve-agent-provider`, but the review matrix directly invokes `run-agent-task` with `agent: ${{ matrix.agent }}` and `reasoning_effort` only. The synthesis job uses the resolver, but the Claude/Codex reviewer jobs still rely on ACPX/provider defaults.\n\n**Candidate solutions:** Add explicit model entries to the reviewer matrix and pass `model: ${{ matrix.model }}`, or run each reviewer lane through `resolve-agent-provider` with the provider fixed by the matrix lane so the same built-in defaults are applied.\n\n**Comments:** Reviewers disagreed on severity: one review marked this blocking, while the Claude and rubrics reviews treated the PR as shippable. I’m treating it as blocking because issue #375 asked to pin good Sepo defaults, and these reviewer lanes are still default Sepo agent runs.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: The remaining issue is a concrete branch change suitable for automation: pin or resolver-derive models for the review lane matrix before the PR claims Sepo defaults are pinned.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Ensure the Claude and Codex reviewer lanes pass pinned model IDs, either via explicit matrix `model` values or by resolving each lane through `resolve-agent-provider` with the lane provider fixed.\n\n---\n`codex` | `gpt-5.5/medium` | `xhigh` | `Macmini-runner-4`",
+      "createdAt": "2026-05-31T05:28:58Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/380#issuecomment-4585811160",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVYHtg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #380 | 4 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis verdict is NEEDS_REWORK with Recommended Next Step FIX_PR for one concrete unresolved branch change on open PR #380.\n\nTask for fix-pr:\nAddress only the latest review synthesis action item: ensure the Claude and Codex reviewer lanes pass pinned model IDs, either via explicit matrix `model` values or by resolving each lane through `resolve-agent-provider` with the lane provider fixed. Preserve existing provider/model override precedence and avoid optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by this action item.\n\n<!-- sepo-agent-handoff state:dispatched created:1780205402765 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY3MDQxMTMzOTM6cmV2aWV3OjM4MDpmaXhfcHI6MzgwOjQ -->",
+      "createdAt": "2026-05-31T05:30:03Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/380#issuecomment-4585818038",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVYuUA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-375/codex-26704010172`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Wired the Claude/Codex review matrix through `resolve-agent-provider` with `route_provider: matrix.agent`, then pass the resolved provider/model into `run-agent-task`.\n- Preserved reviewer lane reasoning defaults with a resolver-output override fallback and updated docs/tests for fixed providers with pinned/provider-specific models.\n- Verification: `npm run build`; `node --test dist/__tests__/envelope.test.js dist/__tests__/resolve-agent-provider.test.js dist/__tests__/docs-validation.test.js`.\n\n---\n`codex` | `gpt-5.5/medium` | `xhigh` | `Macmini-runner-4`",
+      "createdAt": "2026-05-31T05:34:48Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/380#issuecomment-4585827920",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVY2TQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #380 | 5 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on open PR #380 after addressing the prior NEEDS_REWORK action item, so one automated re-review of the updated head is warranted.\n\n<!-- sepo-agent-handoff state:dispatched created:1780205751450 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY3MDQzMDg4NTY6Zml4X3ByOjM4MDpyZXZpZXc6MzgwOjU -->",
+      "createdAt": "2026-05-31T05:35:51Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/380#issuecomment-4585829965",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVZFHQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | Adds exactly one pinned default per supported provider in [`resolve-provider.js`](https://github.com/self-evolving/repo/blob/fe55695c0d410c95db26e39973eabfe8259e2fbc/.github/actions/resolve-agent-provider/resolve-provider.js#L8-L12), and docs explicitly say Sepo is not a general model catalog while pointing to `AGENT_MODEL_POLICY` overrides. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Extends the existing provider resolver and `resolveRunConfig` precedence path instead of introducing a new model registry or parser: [`resolve-provider.js`](https://github.com/self-evolving/repo/blob/fe55695c0d410c95db26e39973eabfe8259e2fbc/.github/actions/resolve-agent-provider/resolve-provider.js#L169-L177). |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Implementation is a small built-in defaults map plus resolver reuse; the reviewer workflow now calls the same resolver instead of adding a separate model-selection mechanism. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is limited to provider resolution, reviewer workflow wiring, focused tests, and matching docs. No broad refactor or unrelated cleanup is included. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates configuration docs with pinned defaults and precedence, plus setup/internal-action/supported-workflow docs for the changed resolver behavior: [`configuration-list.md`](https://github.com/self-evolving/repo/blob/fe55695c0d410c95db26e39973eabfe8259e2fbc/.agent/docs/customization/configuration-list.md#L40-L64). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Keeps the existing typed `AGENT_MODEL_POLICY` shape (`default`, `providers`, `route_overrides`) and validation path rather than adding an overloaded model string or duplicate knob. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR closes issue #375, whose request was to pin good defaults without becoming a model marketplace/catalog; the implementation matches that stated scope. |\n| communication / generic | Write audience-first documentation | pass | 7/7 | Docs lead with the actionable default table and override guidance before deeper precedence details: [`configuration-list.md`](https://github.com/self-evolving/repo/blob/fe55695c0d410c95db26e39973eabfe8259e2fbc/.agent/docs/customization/configuration-list.md#L40-L64). |\n\n## Notes\n\n- The current head addresses the earlier reviewer-lane gap: `agent-review.yml` now resolves each fixed Claude/Codex lane through `resolve-agent-provider` and passes the resolved `model` into `run-agent-task`.\n- Tests cover both built-in provider defaults and reviewer-lane resolver wiring in `resolve-agent-provider.test.ts` and `envelope.test.ts`.\n- Current PR check status is passing.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific blocking or warning findings.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/medium` | `high` | `Macmini-runner-4`",
+      "createdAt": "2026-05-31T05:38:05Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/380#issuecomment-4585833757",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVZs3g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: fe55695c0d410c95db26e39973eabfe8259e2fbc -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #380 addresses issue #375 by pinning Sepo’s built-in model defaults instead of relying on ACPX/provider defaults.\n- The intended scope is intentionally small: one curated default for Codex and one for Claude, while keeping `AGENT_MODEL_POLICY` and workflow-native overrides as escape hatches.\n- The initial reviewer-lane gap from the prior synthesis was fixed in the latest head by routing fixed Claude/Codex review lanes through `resolve-agent-provider`.\n- Current head is `fe55695c0d410c95db26e39973eabfe8259e2fbc`.\n\n## Review\nAll current review artifacts converge on a shippable result. Claude noted a few optional INFO-level observations, but none require branch changes; Codex and rubrics review found no unresolved findings.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues | INFO | The current PR head resolves the prior reviewer-lane blocker, preserves the intended override precedence, and has passing targeted validation. |\n\n## Progress\n- Used the current Claude, Codex, and rubrics review artifacts from `/reviews`.\n- Verified the prior reviewer-lane issue is fixed in the current PR diff: reviewer lanes now resolve fixed providers and pass resolved models into `run-agent-task`.\n- Current PR check is passing.\n- Resolved the older same-agent inline review thread `PRRT_kwDOSOhEMM6F6vRW` because its issue has been addressed.\n- Posted no new inline comments.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: No unresolved actionable branch-change work remains.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch changes.\n\n---\n`codex` | `gpt-5.5/medium` | `xhigh` | `Macmini-runner-6`",
+      "createdAt": "2026-05-31T05:44:03Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/380#issuecomment-4585843934",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVeXsA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate  use opus 5.8 please ",
+      "createdAt": "2026-05-31T06:25:55Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/380#issuecomment-4585920432",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVeYlw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "I mean 4.8",
+      "createdAt": "2026-05-31T06:26:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/380#issuecomment-4585920663",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVer1g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo orchestration stopped after `orchestrate` concluded `requested`.\n\n- Source action: `orchestrate`\n- Source conclusion: `requested`\n- Target: `pull_request #380`\n- Round: `1/40`\n- Reason: agent planner stop: Latest review synthesis on PR #380 is SHIP with Recommended Next Step NO_AUTOMATED_ACTION, and self-approval is disabled. The later model-preference comment does not create a concrete review or fix-pr follow-up.\n- Source run ID: `26705331781`\n\nNo follow-up workflow was dispatched. Inspect the source action status comment and workflow logs before retrying or continuing manually.\n\n<!-- sepo-agent-orchestrate-stop -->",
+      "createdAt": "2026-05-31T06:28:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/380#issuecomment-4585925590",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-31T05:17:58Z",
+  "files": [
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 13,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/setup/self-hosted-github-action-runner.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/internal-actions.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/supported-workflows.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 9,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/resolve-agent-provider.test.ts",
+      "additions": 21,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/resolve-agent-provider/action.yml",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/resolve-agent-provider/resolve-provider.js",
+      "additions": 6,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-review.yml",
+      "additions": 17,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-375/codex-26704010172",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 380,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABBgwZ9A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-31T05:28:27Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "dc984bc86ca4f42eba79f08863e8842b6d0f20db"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Pin built-in Sepo model defaults",
+  "updatedAt": "2026-05-31T06:28:50Z",
+  "url": "https://github.com/self-evolving/repo/pull/380"
+}

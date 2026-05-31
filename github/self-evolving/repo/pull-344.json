@@ -401,6 +401,86 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/344#issuecomment-4527207259",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVXeYg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer I think we've over complicated this.... basically we just need to \r\n\r\n1. add a proper prompt? \r\n2. then we can reuse the implement route with the base branch to be agent/rubrics? ",
+      "createdAt": "2026-05-31T05:26:31Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/344#issuecomment-4585807458",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVXtOQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I agree with the simplification goal, but not literally as `base_branch: agent/rubrics` on the current `agent-implement.yml`.\n\nThe reason: `agent-implement.yml` already supports `base_branch` and `implementation_prompt` ([workflow inputs](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-implement.yml#L26-L40)), and it creates PRs against `BASE_BRANCH` ([create-pr usage](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-implement.yml#L270-L281), [create-pr base](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/create-pr.ts#L44-L49)). So conceptually, yes.\n\nBut mechanically it checks out the implementation branch from `BASE_BRANCH` before running the local agent action ([checkout step](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-implement.yml#L195-L202), then [uses `./.github/actions/run-agent-task`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-implement.yml#L211-L226)). If `BASE_BRANCH=agent/rubrics`, the worktree likely no longer contains `.github/actions/run-agent-task` or `.agent/dist`, because `agent/rubrics` is a dedicated data branch. That would make the workflow fail or require putting runtime files on the rubrics branch, which I would avoid.\n\nSo I’d frame it this way:\n\n1. Yes, reduce this to “rubric proposal PR by default” plus a proper prompt.\n2. Do not add a big new “agent action workflow” if we can avoid it.\n3. Reuse the implementation route’s **metadata model**: `implementation_prompt`, `implementation_route`, draft PR creation, issue tracking.\n4. But keep the Sepo runtime checked out from the default branch, and operate on `agent/rubrics` in a separate checkout/worktree or temp dir.\n5. Only add direct commit later if users explicitly need “just add”; default PR mode is enough for now.\n\nConcrete plan I’d suggest before coding:\n\n1. Add `.github/prompts/agent-add-rubrics.md`.\n2. Add dispatch wording so rubric requests become an implementation-like request with prompt `agent-add-rubrics`.\n3. Add a small rubric proposal path that checks out `agent/rubrics` separately, lets the agent edit that checkout, validates rubric YAML, pushes `agent/add-rubrics-*`, and opens a draft PR into `agent/rubrics`.\n4. Remove the larger direct-write workflow unless we still want “just add” in this PR.\n5. Keep direct commit as a follow-up mode, not the first implementation.\n\nSo: your instinct is right that this got too heavy. I’d simplify to “prompt + PR proposal flow,” but I would not wire current `agent-implement.yml` directly to `base_branch=agent/rubrics` without first fixing the runtime-checkout problem.\n\n---\n`codex` | `default model` | `high` | `Macmini-runner-6`",
+      "createdAt": "2026-05-31T05:29:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/344#issuecomment-4585811257",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVc6GQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> But mechanically it checks out the implementation branch from `BASE_BRANCH` before running the local agent action ([checkout step](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-implement.yml#L195-L202), then [uses `./.github/actions/run-agent-task`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-implement.yml#L211-L226)). If `BASE_BRANCH=agent/rubrics`, the worktree likely no longer contains `.github/actions/run-agent-task` or `.agent/dist`, because `agent/rubrics` is a dedicated data branch. That would make the workflow fail or require putting runtime files on the rubrics branch, which I would avoid.\r\n> \r\n> So I’d frame it this way:\r\n> \r\n> 1. Yes, reduce this to “rubric proposal PR by default” plus a proper prompt.\r\n> 2. Do not add a big new “agent action workflow” if we can avoid it.\r\n\r\n@sepo-agent /implement create a new simplified version. ",
+      "createdAt": "2026-05-31T06:12:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/344#issuecomment-4585896473",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVdCVg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Implementing this request — tracking in https://github.com/self-evolving/repo/issues/381.\n",
+      "createdAt": "2026-05-31T06:13:48Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/344#issuecomment-4585898582",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-23T23:56:29Z",
@@ -719,6 +799,6 @@
   ],
   "state": "OPEN",
   "title": "Add explicit add-rubrics route",
-  "updatedAt": "2026-05-24T02:50:45Z",
+  "updatedAt": "2026-05-31T06:13:48Z",
   "url": "https://github.com/self-evolving/repo/pull/344"
 }
