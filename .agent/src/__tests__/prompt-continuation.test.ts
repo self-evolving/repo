@@ -7,6 +7,7 @@ import {
   selectContinuationPromptForResume,
   shouldReplayFullPromptOnResume,
 } from "../prompt-continuation.js";
+import { buildAnswerReviewContext } from "../answer-review-context.js";
 
 test("continuation prompt preserves latest trigger metadata and request text", () => {
   const prompt = buildContinuationPrompt({
@@ -19,6 +20,30 @@ test("continuation prompt preserves latest trigger metadata and request text", (
   assert.match(prompt, /Triggering source kind: `pull_request_review`/);
   assert.match(prompt, /Triggering comment\/review ID: `12345`/);
   assert.match(prompt, /@sepo-agent \/fix-pr/);
+});
+
+test("continuation prompt preserves review-triggered answer context", () => {
+  const reviewContext = buildAnswerReviewContext({
+    repoSlug: "self-evolving/repo",
+    targetNumber: "77",
+    sourceKind: "pull_request_review",
+    commentId: "12345",
+    commentUrl: "https://github.com/self-evolving/repo/pull/77#pullrequestreview-12345",
+  });
+  const prompt = buildContinuationPrompt({
+    ANSWER_REVIEW_CONTEXT: reviewContext,
+    REQUEST_SOURCE_KIND: "pull_request_review",
+    REQUEST_COMMENT_ID: "12345",
+    REQUEST_COMMENT_URL: "https://github.com/self-evolving/repo/pull/77#pullrequestreview-12345",
+    REQUEST_TEXT: "@sepo-agent /answer please respond inline",
+  });
+
+  assert.match(prompt, /Triggering source kind: `pull_request_review`/);
+  assert.match(prompt, /Review-triggered answer context/);
+  assert.match(prompt, /Request review ID: `12345`/);
+  assert.match(prompt, /gh api repos\/self-evolving\/repo\/pulls\/77\/reviews\/12345\/comments/);
+  assert.match(prompt, /targeted inline replies/);
+  assert.match(prompt, /@sepo-agent \/answer please respond inline/);
 });
 
 test("resumed orchestrated fix-pr replays the full route prompt", () => {

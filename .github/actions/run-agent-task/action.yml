@@ -57,6 +57,18 @@ inputs:
     description: "Source kind"
     required: false
     default: workflow_dispatch
+  request_source_kind:
+    description: "Trigger source kind for route-specific prompt context"
+    required: false
+    default: ""
+  request_comment_id:
+    description: "Triggering comment or review id for route-specific prompt context"
+    required: false
+    default: ""
+  request_comment_url:
+    description: "Triggering comment or review URL for route-specific prompt context"
+    required: false
+    default: ""
   request_text:
     description: "User request text"
     required: false
@@ -347,6 +359,9 @@ runs:
         PROMPT_NAME: ${{ inputs.prompt }}
         REPO_SLUG: ${{ github.repository }}
         REQUEST_TEXT: ${{ inputs.request_text }}
+        REQUEST_COMMENT_ID: ${{ inputs.request_comment_id }}
+        REQUEST_COMMENT_URL: ${{ inputs.request_comment_url }}
+        REQUEST_SOURCE_KIND: ${{ inputs.request_source_kind || inputs.source_kind }}
         REQUESTED_BY: ${{ inputs.requested_by }}
         ROUTE: ${{ inputs.route }}
         LANE: ${{ inputs.lane }}
