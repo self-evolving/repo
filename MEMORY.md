@@ -100,3 +100,5 @@
 - ACPX model policy: named/transient sessions use set model during setup; only no-session exec uses global --model.
 - Codex runs mirror OPENAI_API_KEY into ACPX_AUTH_OPENAI_API_KEY and ACPX_AUTH_CODEX_API_KEY for acpx auth.
 - AGENT_DISPLAY_MODEL footer order is provider | model | reasoning effort | runner; use RUNNER_NAME, omit empties, keep default model fallback.
+- Built-in repo updates use .github/prompts/agent-update.md with route update-agent, not .skills/update-agent.
+- Privileged install/update-agent routes stay outside rubric applicability; update-agent disables rubric steering.
