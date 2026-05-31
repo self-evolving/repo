@@ -1,0 +1,158 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Add shared prompt guidance for bounded retries on likely transient `gh`, `git`, `curl`, and network-backed failures.\n- Retry hosted OIDC broker exchange responses for HTTP `429`, `500`, `502`, `503`, and `504` while keeping generic `400` responses terminal.\n- Document the auth resolver retry contract and add focused shell coverage for transient vs deterministic broker responses.\n\n## Tests\n- `npm run build && node --test dist/__tests__/resolve-github-auth-oidc-shell.test.js dist/__tests__/envelope.test.js && bash -n ../.github/actions/resolve-github-auth/exchange-oidc.sh`\n\nCloses #353\n",
+  "closedAt": "2026-05-31T02:58:05Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEUeB0A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #374 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: Implementation succeeded and opened PR #374 for issue #353; an automated review is the warranted next step before any human decision or merge.\n\n<!-- sepo-agent-handoff state:dispatched created:1780175712186 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY2OTQ5ODQzOTY6aW1wbGVtZW50OjM1MzpyZXZpZXc6Mzc0OjM -->",
+      "createdAt": "2026-05-30T21:15:12Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/374#issuecomment-4584866256",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEUeUdw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 6 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #374 closes #353 and matches the narrowed issue plan: prompt-level bounded retry guidance plus targeted hosted OIDC exchange retry hardening. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is limited to 5 directly relevant files: shared prompt, hosted auth exchange script, focused tests, and a small docs note. It does not broaden into git push or workflow dispatch retries. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The implementation extends the existing `.github/actions/resolve-github-auth/exchange-oidc.sh` flow and existing envelope/doc tests instead of adding a new auth subsystem. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Retry behavior is a small shell predicate plus bounded retry loop for `429`, `500`, `502`, `503`, and `504`, with generic `400` left terminal. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | The change uses a fixed minimal retry policy and prompt guidance, with no new repository-level setting or broad customization surface. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | `.agent/docs/usage/internal-actions.md` documents the hosted OIDC retry contract, and `envelope.test.ts` adds assertions that the docs mention retryable and terminal statuses. |\n\n## Notes\n\n- The strongest rubric fit is scope control: the issue discussion explicitly asked for a minimum fix, and the PR avoids expanding into broader workflow dispatch or git push retry behavior.\n- The test coverage is focused on the contract that matters for this PR: transient broker `500`/`429` responses retry, while deterministic `400` responses do not.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No selected-rubric violations found. The implementation is narrow, documented, and covered for the changed retry contract.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/medium` | `high` | `Macmini-runner-2`",
+      "createdAt": "2026-05-30T21:17:18Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/374#issuecomment-4584871031",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEUfRuw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 57d2c7e6523d37941412a293ee863bb27ac28f07 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #374 addresses #353 with the narrowed “minimum fix” requested in the issue discussion. It adds shared agent prompt guidance allowing bounded retries for likely transient `gh`, `git`, `curl`, and network-backed failures while warning against retrying deterministic failures. It also hardens the hosted OIDC broker exchange so HTTP `429`, `500`, `502`, `503`, and `504` are retried with bounded backoff, while generic `400` responses remain terminal. Focused shell and docs tests cover the new retry contract.\n\n## Review\nThe independent reviewers agree this PR is narrow, correct, documented, and covered for the agreed scope. I found no unresolved actionable issues in the current diff, review artifacts, PR discussion, inline comments, or review threads.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues found | INFO | Reviewers only raised optional follow-up notes, such as broader git push/workflow dispatch retries, extra edge-case tests, and minor docs placement polish. None are required for this minimum fix. |\n\n## Progress\n- PR scope matches the latest #353 direction: prompt-level retry guidance plus hosted auth exchange hardening first.\n- Existing PR discussion has no unresolved inline comments or review threads.\n- Verified locally: `npm run build`, `node --test dist/__tests__/resolve-github-auth-oidc-shell.test.js dist/__tests__/envelope.test.js`, and `bash -n .github/actions/resolve-github-auth/exchange-oidc.sh` passed.\n- No new inline comments were posted.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: no unresolved actionable branch changes remain for an automated fix-pr pass.\n\n## Final Verdict\n`SHIP`\n\n## Action Items\n- [ ] No required branch changes.\n\n---\n`codex` | `gpt-5.5/medium` | `xhigh` | `Macmini-runner-3`",
+      "createdAt": "2026-05-30T21:22:35Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/374#issuecomment-4584886715",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEU87BQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "run_exhange_with_retries \n\nThis is implemented with exponential back off right  \n\n@sepo-agent ",
+      "createdAt": "2026-05-31T01:28:46Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/374#issuecomment-4585372421",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEU9NWQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes. The function is `run_exchange_with_retries` and it uses bounded exponential backoff: delay starts at `1`, sleeps, then doubles with `__delay=$((__delay * 2))`, capped by `3` attempts.\n\nCode: https://github.com/self-evolving/repo/blob/57d2c7e6523d37941412a293ee863bb27ac28f07/.github/actions/resolve-github-auth/exchange-oidc.sh#L53-L79\n\nIt retries:\n- curl/transport failures\n- broker HTTP `429`, `500`, `502`, `503`, `504`\n\nIt does **not** retry deterministic statuses like generic `400`.\n\nTest coverage confirms `500 -> 429 -> 200` takes 3 attempts, while `400 -> 200` stops after 1 attempt: https://github.com/self-evolving/repo/blob/57d2c7e6523d37941412a293ee863bb27ac28f07/.agent/src/__tests__/resolve-github-auth-oidc-shell.test.ts#L146-L165\n\n---\n`codex` | `gpt-5.5/medium` | `high` | `Macmini-runner-6`",
+      "createdAt": "2026-05-31T01:31:26Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/374#issuecomment-4585377113",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVGubg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nUpdated [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #374.\n\nAdded one active rubric:\n\n- `rubrics/workflow/bounded-transient-retries.yaml`\n- Captures the durable preference to retry only likely transient external/service failures with bounded backoff, while keeping deterministic failures terminal.\n- Provenance: `lolipopshock`’s linked issue comment on targeted retry behavior.\n\nValidated with:\n\n`node .agent/dist/cli/rubrics/validate.js --dir .../agent-rubrics`\n\nResult: `validated 32 rubrics`.\n\n---\n`codex` | `gpt-5.5/medium` | `medium` | `Macmini-runner-3`",
+      "createdAt": "2026-05-31T03:00:22Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/374#issuecomment-4585533038",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-30T21:14:09Z",
+  "files": [
+    {
+      "path": ".agent/docs/usage/internal-actions.md",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 8,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/resolve-github-auth-oidc-shell.test.ts",
+      "additions": 165,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/actions/resolve-github-auth/exchange-oidc.sh",
+      "additions": 41,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/_base.md",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-353/codex-26694984396",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": "2026-05-31T02:58:05Z",
+  "number": 374,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "MERGED",
+  "title": "Harden hosted OIDC auth retries",
+  "updatedAt": "2026-05-31T03:00:22Z",
+  "url": "https://github.com/self-evolving/repo/pull/374"
+}

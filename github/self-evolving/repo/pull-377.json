@@ -1,0 +1,406 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Rename the internal handoff policy helper to `computeDeterministicTransition` and add planner-facing deterministic suggestion generation.\n- Emit `ORCHESTRATOR_SUGGESTED_*` fields from orchestrator preflight into the planner prompt while keeping runtime validation mandatory.\n- Preserve delegated child issue execution as the deterministic worker chain and update docs/workflow descriptions to treat `heuristics` as a compatibility alias.\n\n## Tests\n- `npm run build`\n- `node --test dist/__tests__/handoff.test.js`\n- `node --test dist/__tests__/orchestrator-preflight-cli.test.js`\n- `node --test dist/__tests__/envelope.test.js`\n- `node --test dist/__tests__/orchestrate-handoff-cli.test.js`\n- `git diff --check`\n\nCloses #367\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEU-FYQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #377 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: Implementation succeeded and produced PR #377, so the deterministic post-implement path is an automated review.\n\n<!-- sepo-agent-handoff state:dispatched created:1780191549085 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY2OTk5NzY4MzI6aW1wbGVtZW50OjM2NzpyZXZpZXc6Mzc3OjM -->",
+      "createdAt": "2026-05-31T01:39:09Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/377#issuecomment-4585391457",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEU-dKA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 96 | PARTIAL | 11 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow | Make surgical changes | pass | 8/8 | Scope is limited to orchestrator policy naming, preflight/prompt wiring, docs, and focused tests. |\n| coding_workflow | Reuse existing code | pass | 8/8 | `computeDeterministicSuggestion()` wraps the renamed transition table instead of duplicating policy logic: [handoff.ts](https://github.com/self-evolving/repo/blob/90a0fb400fcb861da029a4b8e8ef3fad78be0e59/.agent/src/handoff.ts#L446-L590). |\n| coding_workflow | Prefer explicit structured inputs | pass | 7/7 | Suggestion data is split into explicit `suggested_decision`, `suggested_next_action`, `suggested_reason`, and `suggested_handoff_context` outputs/env vars: [orchestrator-preflight.ts](https://github.com/self-evolving/repo/blob/90a0fb400fcb861da029a4b8e8ef3fad78be0e59/.agent/src/cli/orchestrator-preflight.ts#L51-L75). |\n| coding_workflow | Prefer agent-derived decisions | pass | 7/7 | The deterministic policy is advisory to the planner, while runtime still validates the final choice: [agent-orchestrator.md](https://github.com/self-evolving/repo/blob/90a0fb400fcb861da029a4b8e8ef3fad78be0e59/.github/prompts/agent-orchestrator.md#L20-L35). |\n| coding_workflow | Separate decision gates from action authorization | pass | 8/8 | Self-approval/self-merge remain explicit gates in policy and validation, not silently folded into ordinary review/fix routing: [handoff.ts](https://github.com/self-evolving/repo/blob/90a0fb400fcb861da029a4b8e8ef3fad78be0e59/.agent/src/handoff.ts#L485-L544). |\n| coding_workflow | Validate delegated route authorization | pass | 8/8 | Preflight still gates initial orchestrate delegation on requester capability and tests the denied path: [orchestrator-preflight-cli.test.ts](https://github.com/self-evolving/repo/blob/90a0fb400fcb861da029a4b8e8ef3fad78be0e59/.agent/src/__tests__/orchestrator-preflight-cli.test.ts#L70-L76). |\n| coding_workflow | Keep docs in sync | pass | 7/7 | Architecture/config/usage docs now describe `agent` as default, deterministic routing as internal policy, and child runs as deterministic worker chains. |\n| communication | Write audience-first documentation | pass | 7/7 | Public config text leads with the user-facing default and compatibility behavior without front-loading implementation internals: [configuration-list.md](https://github.com/self-evolving/repo/blob/90a0fb400fcb861da029a4b8e8ef3fad78be0e59/.agent/docs/customization/configuration-list.md#L16). |\n| coding_workflow | Default follow-up orchestration to one-shot | partial | 5/8 | The prompt says to use the suggestion as a default and allows stop/block/answer, but it does not explicitly remind the planner to stop on second-or-later user-launched follow-up rounds unless continued automation was requested: [agent-orchestrator.md](https://github.com/self-evolving/repo/blob/90a0fb400fcb861da029a4b8e8ef3fad78be0e59/.github/prompts/agent-orchestrator.md#L30-L35). |\n| coding_style | Prefer simple implementations | pass | 7/7 | The implementation adds a small converter and preflight wiring, avoiding a new CLI or separate policy engine. |\n| coding_workflow | Name config by capability | pass | 6/6 | New planner-facing variables use general `ORCHESTRATOR_SUGGESTED_*` capability names, not a narrow heuristic-mode name: [agent-orchestrator.yml](https://github.com/self-evolving/repo/blob/90a0fb400fcb861da029a4b8e8ef3fad78be0e59/.github/workflows/agent-orchestrator.yml#L175-L178). |\n\n## Notes\n\n- The PR matches the phase-1 plan from #367: it renames the policy concept, computes structured suggestions, passes them into the planner, keeps runtime validation, preserves child deterministic worker-chain execution, and de-emphasizes public `heuristics` docs.\n- Test coverage is strong for the requested surface: deterministic suggestions, preflight outputs, prompt env rendering, validation behavior, and child worker-chain dispatch.\n\n## Findings\n\n- **WARNING:** The one-shot follow-up rubric is only partially reflected. The updated prompt gives the deterministic suggestion default weight, but does not explicitly steer second-or-later user-launched follow-up orchestrations to stop unless the user asked to continue automation.\n\n## Final Rubric Verdict\n\nPARTIAL\n\n---\n`codex` | `gpt-5.5/medium` | `high` | `Macmini-runner-5`",
+      "createdAt": "2026-05-31T01:42:29Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/377#issuecomment-4585397544",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEU_A_Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 90a0fb400fcb861da029a4b8e8ef3fad78be0e59 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #377 implements phase 1 of #367: it reframes the old `heuristics` concept as deterministic transition policy rather than a primary public orchestrator mode. It renames the transition helper, adds planner-facing deterministic suggestion outputs, threads those outputs through orchestrator preflight into the planner prompt, and keeps runtime validation mandatory. It also preserves delegated child issues as deterministic worker chains and updates docs/workflow descriptions so `heuristics` is treated as compatibility behavior. The broader goal is to make agent-mode orchestration the public default while retaining deterministic policy as a safety and execution guardrail.\n\n## Review\nThe implementation matches the approved phase-1 plan and the core wiring looks sound. The only unresolved actionable concern is prompt-level: the new deterministic suggestion wording gives the planner a default path, but it still does not encode the selected one-shot follow-up guardrail for later user-launched follow-up rounds.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| One-shot follow-up guardrail missing from planner prompt | WARNING | The prompt tells the planner to use the deterministic suggestion as the default, but it does not remind agent-mode planning to stop on second-or-later user-launched follow-up rounds unless the user explicitly requested continued automation. |\n\n## Progress\n- No existing inline review comments or review threads were present, and no new inline comment was posted because the rubrics review already covers this same prompt concern in the PR discussion.\n- Reviewer disagreement: Codex found no blocking or warning issues; Claude raised low-risk hardening notes; the rubrics reviewer flagged the one-shot prompt gap as a warning.\n- Claude’s type-hardening notes around `transitionToSuggestion()` are optional: the current deterministic transition table always sets `nextAction` for dispatch decisions, so they are not treated as required branch changes.\n\n## Issue Details\n<details>\n<summary>One-shot follow-up guardrail missing from planner prompt</summary>\n\n**Cause:** The new deterministic suggestion section in [`agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/90a0fb400fcb861da029a4b8e8ef3fad78be0e59/.github/prompts/agent-orchestrator.md#L30-L35) says to use the suggestion as the default path, but it does not include the selected rubric’s constraint that second-or-later user-launched follow-up rounds should default to stopping unless continued automation was requested.\n\n**Candidate solutions:** Add a concise prompt rule, likely under Runtime Policy or Instructions, telling the planner to default to `stop` for later user-launched follow-up runs unless the request asks for automation, full pipeline, auto-fix, or continued handoff. Keep normal orchestrator-launched chains and deterministic worker-chain behavior unchanged.\n\n**Comments:** This is a prompt-policy gap rather than a runtime validation bug. It is concrete and safe for an automated fix-pr pass.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: the unresolved warning is a concrete prompt change and is safe for automated branch repair.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Add one-shot follow-up guidance to the orchestrator planner prompt so second-or-later user-launched follow-up rounds default to stopping unless continued automation is explicitly requested.\n\n---\n`codex` | `gpt-5.5/medium` | `xhigh` | `Macmini-runner-5`",
+      "createdAt": "2026-05-31T01:47:37Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/377#issuecomment-4585406717",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEU_H3g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #377 | 4 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis reported minor issues and recommended FIX_PR with one concrete prompt-guidance change to apply.\n\nTask for fix-pr:\nAddress only the latest review synthesis action item: add one-shot follow-up guidance to the orchestrator planner prompt so second-or-later user-launched follow-up rounds default to stopping unless continued automation is explicitly requested. Preserve existing runtime validation and child execution semantics. Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by this action item.\n\n<!-- sepo-agent-handoff state:dispatched created:1780192114925 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY3MDAxNzk5MzA6cmV2aWV3OjM3NzpmaXhfcHI6Mzc3OjQ -->",
+      "createdAt": "2026-05-31T01:48:35Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/377#issuecomment-4585408478",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEU_YjQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-367/codex-26699976832`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Added one-shot follow-up guidance to `.github/prompts/agent-orchestrator.md` so second-or-later user-launched follow-up rounds default to `stop` unless continued automation is explicit.\n- Added a prompt contract assertion in `.agent/src/__tests__/envelope.test.ts`.\n- Checks: `npm run build`; `node --test dist/__tests__/envelope.test.js`; `git diff --check`.\n\n---\n`codex` | `gpt-5.5/medium` | `xhigh` | `Macmini-runner-4`",
+      "createdAt": "2026-05-31T01:51:01Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/377#issuecomment-4585412749",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEU_c2A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #377 | 5 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr completed successfully, so one follow-up review is warranted to verify the latest prompt-guidance fix on PR #377.\n\n<!-- sepo-agent-handoff state:dispatched created:1780192300778 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY3MDAzNDc4OTc6Zml4X3ByOjM3NzpyZXZpZXc6Mzc3OjU -->",
+      "createdAt": "2026-05-31T01:51:41Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/377#issuecomment-4585413848",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEU_sSA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 11 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow | Make surgical changes | pass | 8/8 | Scope stays on orchestrator naming, preflight/prompt wiring, child-chain preservation, docs, and focused tests. |\n| coding_workflow | Reuse existing code | pass | 8/8 | `computeDeterministicSuggestion()` wraps the renamed transition table instead of duplicating policy logic: https://github.com/self-evolving/repo/blob/d152a78f2333715ccc87bcb61b809111a4e1a628/.agent/src/handoff.ts#L446-L593 |\n| coding_style | Prefer simple implementations | pass | 7/7 | The implementation adds a small suggestion converter plus preflight outputs, without adding a separate CLI or policy engine: https://github.com/self-evolving/repo/blob/d152a78f2333715ccc87bcb61b809111a4e1a628/.agent/src/cli/orchestrator-preflight.ts#L51-L75 |\n| coding_workflow | Prefer explicit structured inputs | pass | 7/7 | Suggestion data is separate and typed as `suggested_decision`, `suggested_next_action`, `suggested_reason`, and `suggested_handoff_context`: https://github.com/self-evolving/repo/blob/d152a78f2333715ccc87bcb61b809111a4e1a628/.agent/src/handoff.ts#L72-L77 |\n| coding_workflow | Prefer agent-derived decisions | pass | 7/7 | The prompt treats deterministic policy as an advisory default while allowing planner judgment and preserving runtime validation: https://github.com/self-evolving/repo/blob/d152a78f2333715ccc87bcb61b809111a4e1a628/.github/prompts/agent-orchestrator.md#L20-L35 |\n| coding_workflow | Separate decision gates from action authorization | pass | 8/8 | Self-approval and self-merge remain explicit gated routes in deterministic policy and validation: https://github.com/self-evolving/repo/blob/d152a78f2333715ccc87bcb61b809111a4e1a628/.agent/src/handoff.ts#L485-L544 |\n| coding_workflow | Validate delegated route authorization | pass | 8/8 | Preflight still disables planning when the requester lacks downstream route capability, with regression coverage: https://github.com/self-evolving/repo/blob/d152a78f2333715ccc87bcb61b809111a4e1a628/.agent/src/__tests__/orchestrator-preflight-cli.test.ts#L60-L77 |\n| coding_workflow | Default follow-up orchestration to one-shot | pass | 8/8 | The latest head now tells the planner to stop second-or-later user-launched follow-up rounds unless continued automation is explicit, with prompt-contract coverage: https://github.com/self-evolving/repo/blob/d152a78f2333715ccc87bcb61b809111a4e1a628/.github/prompts/agent-orchestrator.md#L109-L115 |\n| coding_workflow | Keep docs in sync | pass | 7/7 | Architecture and config docs now present `agent` as the public default, deterministic policy as internal, and `heuristics` as compatibility behavior: https://github.com/self-evolving/repo/blob/d152a78f2333715ccc87bcb61b809111a4e1a628/.agent/docs/architecture/agent-orchestrator.md#L9-L20 |\n| communication | Write audience-first documentation | pass | 7/7 | Config docs lead with the user-facing default and compatibility contract, not internal mechanics: https://github.com/self-evolving/repo/blob/d152a78f2333715ccc87bcb61b809111a4e1a628/.agent/docs/customization/configuration-list.md#L16 |\n| coding_workflow | Name config by capability | pass | 6/6 | Planner-facing variables use general `ORCHESTRATOR_SUGGESTED_*` names rather than heuristic-specific names: https://github.com/self-evolving/repo/blob/d152a78f2333715ccc87bcb61b809111a4e1a628/.github/workflows/agent-orchestrator.yml#L175-L178 |\n\n## Notes\n\n- The current PR head satisfies the phase-1 plan from #367: it renames the policy helper, computes structured deterministic suggestions, passes them into the planner prompt, keeps runtime validation mandatory, and preserves delegated children as deterministic worker chains.\n- The earlier one-shot follow-up warning has been addressed in the prompt and covered by `envelope.test.ts`.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/medium` | `high` | `Macmini-runner-2`",
+      "createdAt": "2026-05-31T01:54:07Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/377#issuecomment-4585417800",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVAWHw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: d152a78f2333715ccc87bcb61b809111a4e1a628 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #377 implements phase 1 of #367 by reframing `heuristics` as internal deterministic transition policy rather than the main public orchestrator mode. It renames and exposes the deterministic transition helper, computes planner-facing `ORCHESTRATOR_SUGGESTED_*` fields in preflight, and keeps runtime validation mandatory after the planner responds. It also preserves delegated child issues as deterministic worker chains and updates docs/workflow descriptions so `heuristics` is compatibility behavior. A prior review warning about the one-shot follow-up prompt guardrail was addressed in the latest head.\n\n## Review\nThe current reviewer artifacts converge on ship-ready status. Claude left only optional INFO cleanup notes, while Codex and the rubrics review found no unresolved actionable issues.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues | INFO | No BLOCKING or WARNING findings remain. Claude’s INFO notes are optional cleanup/future-hardening observations and do not require branch changes. |\n\n## Progress\n- The earlier one-shot follow-up warning was fixed in [`agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/d152a78f2333715ccc87bcb61b809111a4e1a628/.github/prompts/agent-orchestrator.md#L106-L115) and covered by prompt-contract assertions.\n- Latest rubrics review is PASS and confirms the phase-1 plan from #367 is satisfied.\n- Existing inline review comments and review threads were empty; no new inline comments were posted, minimized, replied to, or resolved.\n- Reviewer disagreement is limited to optional INFO notes from Claude versus no findings from Codex.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: no unresolved required branch-change work remains.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work.\n\n---\n`codex` | `gpt-5.5/medium` | `xhigh` | `Macmini-runner-5`",
+      "createdAt": "2026-05-31T02:00:52Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/377#issuecomment-4585428511",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVJHPA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Checked. There are two unresolved, non-outdated threads, and both are valid.\n\n- Docs tone: agree. The architecture doc currently surfaces internal implementation language (`AGENT_AUTOMATION_MODE`, deterministic transition policy, `heuristics` compatibility) too prominently. I’d rewrite that section reader-first and move/remove compatibility details from the public narrative. Keep only a terse config/reference note if the workflow still accepts the value internally.\n- Workflow env vars: the current `env` mapping works and matches how `run-agent-task` interpolates prompt variables, but it is clunky. A cleaner fix is to have preflight emit one structured suggestion output, e.g. `suggested_transition_json`, then pass one env var like `ORCHESTRATOR_SUGGESTED_TRANSITION`. The prompt can render that JSON, while runtime validation remains unchanged.\n\nRecommended next step: run a focused `fix-pr` pass for those two comments before merge.\n\n---\n`codex` | `gpt-5.5/medium` | `high` | `Macmini-runner-3`",
+      "createdAt": "2026-05-31T03:20:34Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/377#issuecomment-4585572156",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVMfQQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Checked. There are two unresolved, non-outdated threads, and both are valid.\r\n> \r\n> * Docs tone: agree. The architecture doc currently surfaces internal implementation language (`AGENT_AUTOMATION_MODE`, deterministic transition policy, `heuristics` compatibility) too prominently. I’d rewrite that section reader-first and move/remove compatibility details from the public narrative. Keep only a terse config/reference note if the workflow still accepts the value internally.\r\n> * Workflow env vars: the current `env` mapping works and matches how `run-agent-task` interpolates prompt variables, but it is clunky. A cleaner fix is to have preflight emit one structured suggestion output, e.g. `suggested_transition_json`, then pass one env var like `ORCHESTRATOR_SUGGESTED_TRANSITION`. The prompt can render that JSON, while runtime validation remains unchanged.\r\n> \r\n> Recommended next step: run a focused `fix-pr` pass for those two comments before merge.\r\n> \r\n> `codex` | `gpt-5.5/medium` | `high` | `Macmini-runner-3`\r\n\r\n@sepo-agent /orchestrate can you fix the first documentation issue? And the second point is about a more general issue? ",
+      "createdAt": "2026-05-31T03:48:40Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/377#issuecomment-4585627457",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVMr3g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | fix-pr | PR #377 | 2 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: User explicitly requested a branch fix for only the first unresolved PR thread. Treat the second workflow env-var concern as a broader cleanup/refactor outside this focused documentation pass.\n\nTask for fix-pr:\nAddress only the unresolved docs-tone thread on PR #377: rewrite the opening/high-level section of `.agent/docs/architecture/agent-orchestrator.md` reader-first so it does not prominently surface internal implementation language such as `AGENT_AUTOMATION_MODE`, deterministic transition policy, or `heuristics` compatibility. Move/remove compatibility details from the public narrative; keep at most a terse config/reference note if the workflow still accepts the value internally. Preserve the intended phase-1 behavior and runtime validation semantics, but do not change workflow env-var plumbing in this pass. Leave the second unresolved `.github/workflows/agent-orchestrator.yml` env-var thread for a separate, more general structured-output refactor unless the user asks for it explicitly.\n\n<!-- sepo-agent-handoff state:dispatched created:1780199438814 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY3MDI1MDcyODY6b3JjaGVzdHJhdGU6Mzc3OmZpeF9wcjozNzc6Mg -->",
+      "createdAt": "2026-05-31T03:50:39Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/377#issuecomment-4585630686",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVNLig",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-367/codex-26699976832`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Rewrote the opening/high-level architecture doc section reader-first and removed prominent `AGENT_AUTOMATION_MODE`, `heuristics`, and deterministic-policy framing from that public narrative.\n- Updated the docs contract test to cover the reader-first wording and guard against reintroducing those terms in the architecture doc.\n- Left `.github/workflows/agent-orchestrator.yml` unchanged; the env-var concern is a broader structured-output refactor, not part of this focused docs pass.\n- Checks: `npm run build`; `node --test dist/__tests__/envelope.test.js`; `git diff --check`.\n\n---\n`codex` | `default model` | `xhigh` | `Macmini-runner-6`",
+      "createdAt": "2026-05-31T03:54:30Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/377#issuecomment-4585638794",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVNi3w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #377 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded and pushed the focused docs-tone change the user requested; one verification review is warranted before stopping the PR chain.\n\n<!-- sepo-agent-handoff state:dispatched created:1780199808292 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY3MDI1NDA3NjQ6Zml4X3ByOjM3NzpyZXZpZXc6Mzc3OjM -->",
+      "createdAt": "2026-05-31T03:56:48Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/377#issuecomment-4585644767",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVN16Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 99 | PARTIAL | 12 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow | Make surgical changes | pass | 8/8 | Latest focused pass only rewrote the architecture doc opening/high-level framing and added guard test coverage; workflow env plumbing was left unchanged as requested. |\n| coding_workflow | Reuse existing code | pass | 8/8 | `computeDeterministicSuggestion()` wraps the renamed deterministic transition table rather than duplicating policy logic: https://github.com/self-evolving/repo/blob/6c26d1569a31bac5d01f14052b480b6c3ae664ae/.agent/src/handoff.ts#L580 |\n| coding_style | Prefer simple implementations | partial | 6/7 | The implementation is mostly small, but the remaining unresolved workflow thread points to clunky fan-out of one suggested transition across four prompt env vars: https://github.com/self-evolving/repo/blob/6c26d1569a31bac5d01f14052b480b6c3ae664ae/.github/workflows/agent-orchestrator.yml#L175 |\n| coding_workflow | Prefer explicit structured inputs | pass | 7/7 | Suggestion fields are explicit and named (`suggestedDecision`, `suggestedNextAction`, `suggestedReason`, `suggestedHandoffContext`) with typed interfaces: https://github.com/self-evolving/repo/blob/6c26d1569a31bac5d01f14052b480b6c3ae664ae/.agent/src/handoff.ts#L72 |\n| coding_workflow | Prefer agent-derived decisions | pass | 7/7 | The planner receives a deterministic suggestion as a default, but may stop/block/answer or refine context, with runtime validation still mandatory: https://github.com/self-evolving/repo/blob/6c26d1569a31bac5d01f14052b480b6c3ae664ae/.github/prompts/agent-orchestrator.md#L20 |\n| coding_workflow | Separate decision gates from action authorization | pass | 8/8 | Self-approval and self-merge remain explicit gated transitions in policy and validation: https://github.com/self-evolving/repo/blob/6c26d1569a31bac5d01f14052b480b6c3ae664ae/.agent/src/handoff.ts#L485 |\n| coding_workflow | Validate delegated route authorization | pass | 8/8 | Preflight still blocks planner dispatch when initial `/orchestrate` lacks delegated route capability, with regression coverage: https://github.com/self-evolving/repo/blob/6c26d1569a31bac5d01f14052b480b6c3ae664ae/.agent/src/__tests__/orchestrator-preflight-cli.test.ts#L70 |\n| coding_workflow | Default follow-up orchestration to one-shot | pass | 8/8 | Prompt now tells later user-launched follow-up rounds to default to `stop` unless continued automation is explicit: https://github.com/self-evolving/repo/blob/6c26d1569a31bac5d01f14052b480b6c3ae664ae/.github/prompts/agent-orchestrator.md#L109 |\n| coding_workflow | Keep docs in sync | pass | 7/7 | Architecture/config/usage docs now describe planner-backed orchestration, internal deterministic worker chains, and compatibility behavior consistently. |\n| communication | Write audience-first documentation | pass | 7/7 | The architecture doc now opens with reader task/use-case framing and no longer front-loads `AGENT_AUTOMATION_MODE` or `heuristics`: https://github.com/self-evolving/repo/blob/6c26d1569a31bac5d01f14052b480b6c3ae664ae/.agent/docs/architecture/agent-orchestrator.md#L5 |\n| communication | Keep temporary migration notes out of durable docs | pass | 6/6 | Compatibility details are kept to the config reference row, not the architecture doc’s public narrative: https://github.com/self-evolving/repo/blob/6c26d1569a31bac5d01f14052b480b6c3ae664ae/.agent/docs/customization/configuration-list.md#L16 |\n| coding_workflow | Name config by capability | pass | 6/6 | New planner-facing env names use general `ORCHESTRATOR_SUGGESTED_*` capability naming rather than heuristic-specific names: https://github.com/self-evolving/repo/blob/6c26d1569a31bac5d01f14052b480b6c3ae664ae/.github/workflows/agent-orchestrator.yml#L175 |\n\n## Notes\n\n- The docs-tone issue appears addressed in the current head: the opening section is reader-first, and the docs contract test now guards against reintroducing `AGENT_AUTOMATION_MODE`/`heuristics` into the architecture doc.\n- The remaining workflow env-var thread is real but broader: it is a cleanup/refactor around how `run-agent-task` receives prompt variables, not a runtime validation or phase-1 behavior gap.\n- Issue #367’s phase-1 goal is otherwise satisfied: deterministic transition logic is now suggestion/validation policy, planner judgment remains active, and child work stays a concrete deterministic worker chain.\n\n## Findings\n\n- **WARNING:** The suggested-transition data is still passed as four separate workflow env vars, which keeps the workflow glue noisy. A follow-up could emit one structured `suggested_transition_json` output from preflight and pass one `ORCHESTRATOR_SUGGESTED_TRANSITION` env var while preserving the same runtime validation contract.\n\n## Final Rubric Verdict\n\nPARTIAL\n\n---\n`codex` | `gpt-5.5/medium` | `high` | `Macmini-runner-4`",
+      "createdAt": "2026-05-31T03:59:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/377#issuecomment-4585649641",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVOp8A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 6c26d1569a31bac5d01f14052b480b6c3ae664ae -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #377 implements phase 1 of #367 by reframing the old `heuristics` concept as internal deterministic transition policy rather than a primary public orchestrator mode. It renames the policy helper, computes planner-facing deterministic suggestions in preflight, passes those suggestions into the orchestrator planner prompt, and keeps runtime validation mandatory. It also preserves delegated child issues as deterministic worker chains and updates docs/workflow wording around the compatibility path. A follow-up fix already rewrote the high-level architecture doc section in response to the human docs-tone thread.\n\n## Review\nThe current head is technically sound and the docs-tone fix appears to address the concrete complaint. The remaining concern is the human-authored workflow env-var thread: it is a valid cleanup/design preference, but reviewers agree it is broader than the focused phase-1/docs fix and does not require an automated branch change now.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Suggested-transition env-var fan-out is broader cleanup | WARNING | The planner suggestion is still passed as four `ORCHESTRATOR_SUGGESTED_*` env vars. This works and is tested, but a future structured `suggested_transition_json` output would be cleaner. |\n\n## Progress\n- The docs-tone thread on `.agent/docs/architecture/agent-orchestrator.md` appears addressed: the opening is reader-first and no longer front-loads `AGENT_AUTOMATION_MODE`, `heuristics`, or deterministic-policy framing.\n- The one-shot follow-up guardrail is now present in the planner prompt and covered by prompt contract assertions.\n- Existing inline threads are human-authored, so I did not reply to, resolve, or minimize them.\n- No new inline comments were posted; the remaining file/line concern is already covered by the existing human inline thread.\n- Reviewer synthesis: Codex says SHIP, Claude says MINOR_ISSUES due unresolved human threads, and the rubrics review flags the env-var fan-out as a non-blocking warning.\n\n## Issue Details\n<details>\n<summary>Suggested-transition env-var fan-out is broader cleanup</summary>\n\n**Cause:** The current workflow maps one logical suggestion object into four prompt env vars at `.github/workflows/agent-orchestrator.yml` lines 175-178.\n\n**Candidate solutions:** Leave this PR as-is and track a follow-up to emit one structured suggestion output, such as `suggested_transition_json`, then pass a single `ORCHESTRATOR_SUGGESTED_TRANSITION` env var into the planner prompt.\n\n**Comments:** This is not a runtime validation bug and not required for phase 1. The user already characterized this as a more general issue, so it should be a maintainer/follow-up decision rather than an automated fix-pr pass.\n\n</details>\n\n## Recommended Next Step\n`HUMAN_DECISION`: the remaining concern is optional/general workflow cleanup plus human disposition of existing review threads, not required automated branch work.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] No required branch-change work.\n\n---\n`codex` | `gpt-5.5/medium` | `xhigh` | `Macmini-runner-4`",
+      "createdAt": "2026-05-31T04:05:41Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/377#issuecomment-4585662960",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-31T01:38:09Z",
+  "files": [
+    {
+      "path": ".agent/docs/architecture/agent-orchestrator.md",
+      "additions": 69,
+      "deletions": 25,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/agent-actions.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/supported-workflows.md",
+      "additions": 6,
+      "deletions": 6,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 42,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/handoff.test.ts",
+      "additions": 109,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrate-handoff-cli.test.ts",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrator-preflight-cli.test.ts",
+      "additions": 47,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrator-preflight.ts",
+      "additions": 30,
+      "deletions": 6,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/handoff.ts",
+      "additions": 54,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/run.ts",
+      "additions": 4,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-orchestrator.md",
+      "additions": 26,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-fix-pr.yml",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-implement.yml",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-orchestrator.yml",
+      "additions": 9,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-review.yml",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-router.yml",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-self-approve.yml",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-self-merge.yml",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-367/codex-26699976832",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 377,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABBgpUWA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent check comments",
+      "submittedAt": "2026-05-31T03:17:19Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "d152a78f2333715ccc87bcb61b809111a4e1a628"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Feed deterministic suggestions to orchestrator planner",
+  "updatedAt": "2026-05-31T04:05:41Z",
+  "url": "https://github.com/self-evolving/repo/pull/377"
+}

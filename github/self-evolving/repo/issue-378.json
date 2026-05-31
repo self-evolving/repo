@@ -1,0 +1,78 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "https://github.com/self-evolving/repo/actions/runs/26700756599/job/78693107792 \n\ncan we detect it; and how do we fix it automatically ? @sepo-agent /answer ",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVKcvg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes. The linked job is a clean example: `Run agent` started at `02:11:09` and was killed at `02:41:22`, matching the default 30 minute task timeout. GitHub emitted `The action has timed out.`\n\nWhat exists today:\n\n- Sepo already has an outer per-route GitHub Actions timeout via `AGENT_TASK_TIMEOUT_POLICY`.\n  - Resolver: https://github.com/self-evolving/repo/blob/main/.agent/src/task-timeout-policy.ts#L1\n  - Docs: https://github.com/self-evolving/repo/blob/main/.agent/docs/customization/configuration-list.md#L30\n  - `fix-pr` wiring: https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-fix-pr.yml#L172-L184\n- The current failure classification is generic. `fix-pr` maps any failed agent step to `AGENT_EXIT_CODE=1`, then `determineRunStatus()` returns only `failed`, not `timed_out`.\n  - https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-fix-pr.yml#L233-L242\n  - https://github.com/self-evolving/repo/blob/main/.agent/src/response.ts#L13-L30\n- The inner acpx adapter already has timeout plumbing, but `run.ts` does not pass a timeout into `runAcpx()`.\n  - Existing adapter support: https://github.com/self-evolving/repo/blob/main/.agent/src/acpx-adapter.ts#L21-L40\n  - Passed to acpx/spawn when set: https://github.com/self-evolving/repo/blob/main/.agent/src/acpx-adapter.ts#L756-L776\n  - Current caller omits it: https://github.com/self-evolving/repo/blob/main/.agent/src/run.ts#L560-L578\n\nSo: **we can detect it today in logs/API, but Sepo does not yet classify it as a first-class timeout outcome inside the agent status model.**\n\nImmediate mitigation: set a larger repo variable, for example:\n\n```json\n{\"default_minutes\":30,\"route_overrides\":{\"fix-pr\":60,\"implement\":60,\"orchestrate\":45}}\n```\n\nThat is useful, but not a real automatic fix.\n\nRecommended implementation plan:\n\n1. Add an inner agent timeout that is slightly below the GitHub step timeout, e.g. `resolved_minutes * 60 - 60`.\n2. Pass that value into `run-agent-task` and then into `.agent/src/run.ts`.\n3. Have `runAcpx()` return a typed timeout result when `spawnSync` times out or when acpx exits due to `--timeout`.\n4. Add a new run status, likely `timed_out`, alongside `failed`.\n5. Update `parse-response`, `post-comment`, `implement`, `fix-pr`, `answer`, and orchestrator handoff wiring so timeouts are visible as timeouts, not generic failures.\n6. For automatic recovery:\n   - If session identity is available, back up/register it and resume the same route.\n   - If identity is unavailable, redispatch the same route once with a longer timeout or reduced reasoning effort/model policy.\n   - Cap retries with the existing automation round controls so this cannot loop forever.\n7. Add regression tests around `acpx-adapter`, `parse-response`, and workflow rendering.\n\nI’d implement the inner timeout/classification first, then add retry policy as a second pass. That keeps the first change small and makes future automation deterministic instead of log-scraping GitHub’s timeout message.\n\n---\n`codex` | `gpt-5.5/medium` | `high` | `Macmini-runner-2`",
+      "createdAt": "2026-05-31T03:31:59Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/378#issuecomment-4585594046",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVMvPg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer I do wonder if people complain about this issue inside acpx repo -- can you search ",
+      "createdAt": "2026-05-31T03:51:05Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/378#issuecomment-4585631550",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVM6bw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I searched. I don’t see strong evidence that this exact Sepo/GitHub Actions failure is a widely reported `openclaw/acpx` repo issue, but there are several adjacent reports around **Codex + ACP/acpx wrappers + timeouts/stalls**.\n\nRelevant findings:\n\n- `openclaw/acpx` itself is explicitly alpha, and it already exposes timeout controls: `--timeout 1800`, `--timeout 90`, plus config `\"timeout\": null` by default. So acpx has a timeout surface we can use from Sepo. Source: https://github.com/openclaw/acpx\n- OpenAI Codex has open timeout complaints around shell/tool commands, sandboxing, and commands returning timeout/exit 124. Example: openai/codex#7353, “Codex commands timeout issue,” including reports that every command times out under some shell/sandbox setups. Source: https://github.com/openai/codex/issues/7353\n- OpenClaw has a very close architectural issue: Codex app-server turns timing out after 60s despite meaningful progress. The proposed fix there is exactly the shape I’d use here: separate request timeout from turn hard cap, make progress refresh the idle window, and keep a terminal hard cap. Source: https://github.com/openclaw/openclaw/issues/78756\n- OpenClaw also has an ACP/Codex long-running-session issue where `sessions_send` returns `timeout` after 30s even though the target ACP/Codex session is actively working, because the caller lacks progress visibility. Source: https://github.com/openclaw/openclaw/issues/54895\n- There are reports of ACP + Codex sessions silently stalling or failing to report completion/timeout/cleanup. Source: https://github.com/openclaw/openclaw/issues/29195\n- There are also ACP spawn-path hangs where direct acpx works, but the higher-level OpenClaw spawn path hangs. That suggests some timeout/stall cases are wrapper/orchestration bugs, not acpx itself. Source: https://github.com/openclaw/openclaw/issues/51345\n\nMy read: this supports fixing Sepo locally rather than waiting upstream. The linked Sepo failure was the GitHub Actions outer 30m timeout killing `Run agent`; that is not enough evidence of an acpx bug. But upstream reports do validate the design concern: wrappers need typed timeout detection, progress-aware waiting, and bounded retry/resume.\n\nConcrete next step for Sepo: pass an inner timeout to `acpx --timeout` slightly below the Actions `timeout-minutes`, classify timeout separately from generic failure, then retry/resume once with a larger budget or lower reasoning setting.\n\n---\n`codex` | `default model` | `high` | `Macmini-runner-5`",
+      "createdAt": "2026-05-31T03:52:41Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/378#issuecomment-4585634415",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-31T03:29:04Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 378,
+  "state": "OPEN",
+  "title": "Codex can sometimes time out",
+  "updatedAt": "2026-05-31T03:52:41Z",
+  "url": "https://github.com/self-evolving/repo/issues/378"
+}

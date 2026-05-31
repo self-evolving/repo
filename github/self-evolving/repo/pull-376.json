@@ -1,0 +1,642 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Pass answer trigger metadata into the prompt via `REQUEST_SOURCE_KIND`, `REQUEST_COMMENT_ID`, and `REQUEST_COMMENT_URL`.\n- Update `agent-answer.md` with a narrow `pull_request_review` exception for targeted inline replies and the requested `gh api` patterns.\n- Add focused coverage for the answer prompt and workflow env wiring.\n\n## Verification\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nCloses #29\n",
+  "closedAt": "2026-05-31T04:27:29Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEU8_Aw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #376 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: Implementation succeeded and produced PR #376; one automated review is warranted before leaving the issue to human approval/merge.\n\n<!-- sepo-agent-handoff state:dispatched created:1780190960821 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY2OTk5MTAxNDA6aW1wbGVtZW50OjI5OnJldmlldzozNzY6Mw -->",
+      "createdAt": "2026-05-31T01:29:21Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/376#issuecomment-4585373443",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEU9XKg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 91 | PARTIAL | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR closes issue #29 and implements the final issue-thread direction; the `in_reply_to` POST pattern also matches GitHub REST docs for PR review comments. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is limited to the answer prompt, answer workflow env wiring, and focused prompt/workflow tests. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | No new hardcoded response mode or parser was added; the behavior is prompt/context driven as requested. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The workflow passes env into the existing `run-agent-task` path, and the runtime already has an explicit supplemental prompt-variable allowlist in `run.ts`. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The workflow passes separate `REQUEST_SOURCE_KIND`, `REQUEST_COMMENT_ID`, and `REQUEST_COMMENT_URL` values rather than encoding trigger metadata into request text. |\n| coding_workflow / generic | Generate context-derived artifact metadata | pass | 7/7 | Metadata is sourced from existing portal outputs: `source_kind`, `source_comment_id`, and `source_comment_url`. |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | The prompt lets the agent choose inline replies, a normal summary, or both for `pull_request_review`, matching the requested flexible route. |\n| coding_workflow / generic | Keep docs in sync | partial | 4/7 | Prompt behavior changes, but durable docs such as `.agent/docs/usage/agent-actions.md` still describe `answer` only as an inline workflow response. |\n| coding_workflow / generic | Make user-facing automation idempotent | partial | 4/7 | The prompt authorizes direct inline `POST` replies, but does not tell the agent to check for existing Sepo-authored replies before posting. |\n\n## Notes\n\n- The implementation strongly matches the requested direction: prompt/context driven, explicit trigger metadata, and no new hardcoded response mode.\n- The main rubric gaps are follow-up polish rather than blockers: add a small docs note for review-triggered `/answer`, and add prompt guidance to avoid duplicate inline replies on reruns.\n\n## Findings\n\n- **WARNING:** The new `pull_request_review` exception permits targeted inline `gh api --method POST` replies without idempotency guidance. Under `idempotent-user-facing-automation`, the prompt should ideally tell the agent to inspect existing thread replies and avoid posting duplicate Sepo-authored responses.\n- **WARNING:** The durable usage docs were not updated for the new review-specific `/answer` behavior, so `keep-docs-in-sync` is only partially satisfied.\n\n## Final Rubric Verdict\n\nPARTIAL\n\n---\n`codex` | `gpt-5.5/medium` | `high` | `Macmini-runner-1`",
+      "createdAt": "2026-05-31T01:32:49Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/376#issuecomment-4585379626",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEU-BLQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: c8eb149bea9cecc7491fdc89cfcbba332de6970b -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #376 implements issue #29 by letting the `/answer` route handle mentions from PR review bodies more usefully.\n- It passes `REQUEST_SOURCE_KIND`, `REQUEST_COMMENT_ID`, and `REQUEST_COMMENT_URL` into the answer prompt.\n- It updates the answer prompt with a narrow `pull_request_review` exception so the agent can inspect review comments and post targeted inline replies when requested.\n- It adds focused tests for the prompt content, workflow env wiring, and supplemental prompt variable allowlist.\n\n## Review\nThe implementation matches the requested prompt-driven direction, and the PR check is passing. However, the current prompt change has a few minor unresolved risks around normal `/answer` prompt noise, inline-reply reruns, and the workflow’s always-posted final body. Reviewer outputs disagreed on severity: one review said SHIP, while the Claude and rubrics reviews flagged minor prompt/docs follow-up.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Review-specific prompt context is not conditional | WARNING | The prompt now shows review trigger metadata for every `/answer` route, and a current human inline comment asks to keep that conditional. |\n| Inline reply path needs final-body and rerun guards | WARNING | The prompt permits inline replies but does not require a non-empty final answer body or tell the agent to avoid duplicate same-agent inline replies on reruns. |\n| Usage docs are not updated | WARNING | The answer route docs still describe only a normal inline workflow response and do not mention the new review-triggered inline reply behavior. |\n\n## Progress\n- The PR already wires the needed trigger metadata into `agent-router.yml` and covers that wiring in tests.\n- The existing `run.ts` supplemental prompt allowlist already includes the three `REQUEST_*` vars, so no `run.ts` change is required for the current design.\n- The human conditionality concern is already present in an inline thread on `agent-answer.md:7`; I did not duplicate it.\n- Posted one new inline comment on `agent-answer.md:15` for the non-empty final body issue.\n- No review threads were resolved or minimized.\n\n## Issue Details\n<details>\n<summary>Review-specific prompt context is not conditional</summary>\n\n**Cause:** [`agent-answer.md` lines 7-10](https://github.com/self-evolving/repo/blob/c8eb149bea9cecc7491fdc89cfcbba332de6970b/.github/prompts/agent-answer.md#L7-L10) render review metadata unconditionally, even for normal `/answer` runs.\n\n**Candidate solutions:** Add a computed supplemental prompt variable such as `ANSWER_REVIEW_CONTEXT`, populate it only when `source_kind == pull_request_review`, allowlist it in `run.ts`, and render that block instead of always rendering the metadata.\n\n**Comments:** This is grounded in the current human inline review thread, which says normal answer routes do not need this block.\n\n</details>\n\n<details>\n<summary>Inline reply path needs final-body and rerun guards</summary>\n\n**Cause:** [`agent-answer.md` line 15](https://github.com/self-evolving/repo/blob/c8eb149bea9cecc7491fdc89cfcbba332de6970b/.github/prompts/agent-answer.md#L15) allows targeted inline replies, but [`post-response.ts` lines 42-43](https://github.com/self-evolving/repo/blob/c8eb149bea9cecc7491fdc89cfcbba332de6970b/.agent/src/cli/post-response.ts#L42-L43) still posts a fallback error if the final answer body is empty.\n\n**Candidate solutions:** Tell the agent to always return a non-empty final response when it posts inline, even if only a short summary. Also add prompt guidance to inspect existing thread replies and skip duplicate Sepo-authored inline replies on reruns.\n\n**Comments:** Claude flagged the empty-body path; the rubrics review flagged idempotency. These are overlapping prompt-safety concerns.\n\n</details>\n\n<details>\n<summary>Usage docs are not updated</summary>\n\n**Cause:** [`agent-actions.md` line 9](https://github.com/self-evolving/repo/blob/c8eb149bea9cecc7491fdc89cfcbba332de6970b/.agent/docs/usage/agent-actions.md#L9) still describes `answer` only as an inline response through `agent-router.yml`.\n\n**Candidate solutions:** Add a short note that `pull_request_review`-triggered `/answer` runs receive review metadata and may inspect related inline comments for targeted replies.\n\n**Comments:** This is not a runtime blocker, but it is a docs-sync gap for a behavior change.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the remaining issues are concrete prompt/docs edits and are safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Make review-specific `/answer` metadata and instructions conditional so normal answer prompts do not show review-only context.\n- [ ] Add prompt guidance requiring a non-empty final body when posting inline and avoiding duplicate Sepo-authored inline replies on reruns.\n- [ ] Update the answer route usage docs for the new `pull_request_review` inline-reply behavior.\n\n---\n`codex` | `gpt-5.5/medium` | `xhigh` | `Macmini-runner-4`",
+      "createdAt": "2026-05-31T01:38:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/376#issuecomment-4585390381",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEU-Glg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #376 | 4 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review concluded MINOR_ISSUES with recommended next step FIX_PR, and the remaining items are concrete prompt/docs changes suitable for automated fixes.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Make review-specific `/answer` metadata and instructions conditional so normal answer prompts do not show review-only context.\n- Add prompt guidance requiring a non-empty final body when posting inline and avoiding duplicate Sepo-authored inline replies on reruns.\n- Update the answer route usage docs for the new `pull_request_review` inline-reply behavior.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1780191560408 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY3MDAwMDQxMTQ6cmV2aWV3OjM3NjpmaXhfcHI6Mzc2OjQ -->",
+      "createdAt": "2026-05-31T01:39:20Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/376#issuecomment-4585391766",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEU-6lA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-29/codex-26699910140`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Added conditional `ANSWER_REVIEW_CONTEXT` generation for `pull_request_review` answer runs so normal `/answer` prompts omit review-only metadata and instructions.\n- Added review-specific prompt guardrails for non-empty final bodies and duplicate Sepo-authored inline replies on reruns.\n- Updated answer route usage docs and focused regression coverage.\n\n<details><summary>Verification</summary>\n\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/envelope.test.js`\n- `git diff --check`\n\n</details>\n\n---\n`codex` | `gpt-5.5/medium` | `xhigh` | `Macmini-runner-1`",
+      "createdAt": "2026-05-31T01:46:43Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/376#issuecomment-4585405076",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEU_BXA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #376 | 5 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on open PR #376 after addressing the prior review synthesis action items; one follow-up review is warranted on the updated head.\n\n<!-- sepo-agent-handoff state:dispatched created:1780192059929 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY3MDAxODI1MDA6Zml4X3ByOjM3NjpyZXZpZXc6Mzc2OjU -->",
+      "createdAt": "2026-05-31T01:47:40Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/376#issuecomment-4585406812",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEU_ZiA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR closes issue #29 and implements the final issue-thread direction: prompt/context driven metadata plus review-specific inline reply permission. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is scoped to the answer prompt, answer-route env wiring, one small helper, docs, and focused tests. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | No new response mode or parser was added; `.github/prompts/agent-answer.md` receives conditional context through `${ANSWER_REVIEW_CONTEXT}`. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The workflow reuses `run-agent-task`; `.agent/src/run.ts` extends the existing supplemental prompt-variable path instead of adding workflow-side logic. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | `.github/workflows/agent-router.yml` passes separate `REQUEST_SOURCE_KIND`, `REQUEST_COMMENT_ID`, and `REQUEST_COMMENT_URL` env values. |\n| coding_workflow / generic | Generate context-derived artifact metadata | pass | 7/7 | Metadata comes from existing portal outputs: `source_kind`, `source_comment_id`, and `source_comment_url`, not request-text parsing. |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | `.agent/src/answer-review-context.ts` tells the agent it may reply inline, return a normal answer, or do both depending on the request. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | The review-specific prompt context tells the agent to inspect the target thread and skip duplicate Sepo-authored inline replies on reruns. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | `.agent/docs/usage/agent-actions.md` now documents review-triggered `/answer` inline replies, non-empty final bodies, and duplicate-skip guidance. |\n\n## Notes\n\n- The latest head fixes the earlier rubric gaps: review metadata is conditional, docs are updated, and rerun duplicate guidance is present.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- None.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/medium` | `high` | `Macmini-runner-2`",
+      "createdAt": "2026-05-31T01:51:10Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/376#issuecomment-4585413000",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEU_4kA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 7b0ef38d229636d5a8ca0f149f6e2704974207bf -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #376 implements issue #29 by allowing `/answer` runs triggered from `pull_request_review` mentions to inspect review context and optionally post targeted inline replies.\n- The current head adds a conditional `ANSWER_REVIEW_CONTEXT`, wires trigger metadata through the answer route, updates docs, and adds focused regression coverage.\n- The follow-up fix addressed the earlier unconditional metadata, docs-sync, non-empty final-body, and duplicate-reply guardrails.\n- One prompt-contract issue remains: the rendered review prompt grants an inline-reply exception, then the base instructions still state an unconditional no-GitHub-write rule.\n\n## Review\nThe implementation is close and the overall design matches the requested prompt/context-driven approach. Reviewers mostly agree the prior fix-pr pass resolved the earlier gaps, but the current Codex review correctly flags one remaining prompt contradiction that can weaken the PR’s core behavior.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Base answer prompt contradicts review inline-reply exception | WARNING | `.github/prompts/agent-answer.md` still says not to post comments directly via `gh` after the conditional review context says targeted inline replies are allowed. |\n| Optional empty review id guard is missing | INFO | `buildAnswerReviewContext` assumes `pull_request_review` always has a review id; malformed trigger metadata could render incomplete `gh api .../reviews/` examples. |\n\n## Progress\n- Current head `7b0ef38d229636d5a8ca0f149f6e2704974207bf` makes review context conditional through `ANSWER_REVIEW_CONTEXT`.\n- Current docs now describe review-triggered `/answer` inline replies, non-empty final bodies, and duplicate-skip behavior.\n- Current tests cover prompt rendering, workflow metadata, context generation, and docs.\n- Posted one new inline comment on `.github/prompts/agent-answer.md:11` for the unresolved prompt contradiction.\n- Resolved same-agent thread `PRRT_kwDOSOhEMM6F6KYe` because the non-empty final-body concern is fixed.\n- Left the older human-authored conditionality thread unresolved per the same-agent thread cleanup guard.\n\n## Issue Details\n<details>\n<summary>Base answer prompt contradicts review inline-reply exception</summary>\n\n**Cause:** The rendered review prompt includes `ANSWER_REVIEW_CONTEXT`, which says `pull_request_review` answers may post targeted inline replies, but the later base instruction at [`agent-answer.md#L11`](https://github.com/self-evolving/repo/blob/7b0ef38d229636d5a8ca0f149f6e2704974207bf/.github/prompts/agent-answer.md#L11) still bans direct `gh` comments unconditionally.\n\n**Candidate solutions:** Scope line 11 to normal `/answer` runs, or phrase it as `Except for the review-triggered exception above, ...`.\n\n**Comments:** Codex flagged this as the remaining issue; Claude and rubrics otherwise considered the latest head acceptable.\n\n</details>\n\n<details>\n<summary>Optional empty review id guard is missing</summary>\n\n**Cause:** [`buildAnswerReviewContext`](https://github.com/self-evolving/repo/blob/7b0ef38d229636d5a8ca0f149f6e2704974207bf/.agent/src/answer-review-context.ts#L11) returns review context whenever `sourceKind` is `pull_request_review`, even if `commentId` trims to an empty string.\n\n**Candidate solutions:** Add an early `if (!commentId) return \"\";` after trimming the review id.\n\n**Comments:** This is defensive only; current portal metadata should provide a review id for real `pull_request_review` triggers, so it should not drive automation by itself.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: one concrete prompt wording change is needed so the review-triggered inline-reply exception is not contradicted by the base answer instructions.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Update the base `/answer` no-GitHub-write instruction so it explicitly excludes the review-triggered inline-reply exception.\n\n---\n`codex` | `gpt-5.5/medium` | `xhigh` | `Macmini-runner-6`",
+      "createdAt": "2026-05-31T01:56:05Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/376#issuecomment-4585420944",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEU_9EQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #376 | 6 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review reported MINOR_ISSUES with recommended next step FIX_PR, and the remaining item is a concrete prompt change safe for automation.\n\nTask for fix-pr:\nAddress only the latest review synthesis action item:\n- Update the base `/answer` no-GitHub-write instruction so it explicitly excludes the review-triggered inline-reply exception.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by this action item.\n\n<!-- sepo-agent-handoff state:dispatched created:1780192605295 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY3MDAzMzE4NzY6cmV2aWV3OjM3NjpmaXhfcHI6Mzc2OjY -->",
+      "createdAt": "2026-05-31T01:56:45Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/376#issuecomment-4585422097",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVAKJA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-29/codex-26699910140`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Updated the base `/answer` no-GitHub-write instruction to explicitly exempt targeted inline replies allowed by the review-triggered exception.\n- Added focused prompt coverage for the exception wording.\n\n<details><summary>Verification</summary>\n\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/envelope.test.js`\n- `git diff --check`\n\n</details>\n\n---\n`codex` | `default model` | `xhigh` | `Macmini-runner-2`",
+      "createdAt": "2026-05-31T01:58:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/376#issuecomment-4585425444",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVAPSg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #376 | 7 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on open PR #376 after addressing the prior review synthesis action item; a follow-up review is warranted on the updated head before stopping.\n\n<!-- sepo-agent-handoff state:dispatched created:1780192788363 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY3MDA0OTE0Njk6Zml4X3ByOjM3NjpyZXZpZXc6Mzc2Ojc -->",
+      "createdAt": "2026-05-31T01:59:48Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/376#issuecomment-4585426762",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVAg6g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The PR follows the final issue #29 direction to keep `/answer` prompt/context driven, with no new hardcoded response mode. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is limited to the answer prompt, answer-route workflow env, a small context helper, docs, and focused tests. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation adds conditional prompt context via [`ANSWER_REVIEW_CONTEXT`](https://github.com/self-evolving/repo/blob/f9743fb9d1c5044c381a4a259634e9d3b37bc060/.github/prompts/agent-answer.md#L7) instead of a new response mode. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | [`run.ts`](https://github.com/self-evolving/repo/blob/f9743fb9d1c5044c381a4a259634e9d3b37bc060/.agent/src/run.ts#L356-L370) extends the existing supplemental prompt variable path rather than adding workflow-side prompt rendering logic. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | [`agent-router.yml`](https://github.com/self-evolving/repo/blob/f9743fb9d1c5044c381a4a259634e9d3b37bc060/.github/workflows/agent-router.yml#L432-L435) passes `REQUEST_COMMENT_ID`, `REQUEST_COMMENT_URL`, and `REQUEST_SOURCE_KIND` as separate fields. |\n| coding_workflow / generic | Name config by capability | pass | 6/6 | The new env names describe general request trigger metadata, not a narrower one-off review-only path. |\n| coding_workflow / generic | Generate context-derived artifact metadata | pass | 7/7 | The prompt metadata is derived from existing portal outputs: `source_kind`, `source_comment_id`, and `source_comment_url`. |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | [`answer-review-context.ts`](https://github.com/self-evolving/repo/blob/f9743fb9d1c5044c381a4a259634e9d3b37bc060/.agent/src/answer-review-context.ts#L24-L33) gives lookup/post patterns while letting the agent choose inline replies, a normal answer, or both. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | The review-specific prompt tells the agent to inspect the target thread and skip duplicate Sepo-authored inline replies on reruns. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | [`agent-actions.md`](https://github.com/self-evolving/repo/blob/f9743fb9d1c5044c381a4a259634e9d3b37bc060/.agent/docs/usage/agent-actions.md#L24-L31) now documents review-triggered `/answer` inline replies, non-empty final bodies, and duplicate-skip guidance. |\n\n## Notes\n\n- The latest head addresses the earlier rubric gaps: review metadata is conditional, the no-`gh` rule explicitly exempts review-triggered targeted inline replies, docs are updated, and rerun duplicate guidance is present.\n- Focused coverage was added for prompt rendering, metadata wiring, review context generation, and docs. The current `Test Scripts / check` status is passing on head `f9743fb9d1c5044c381a4a259634e9d3b37bc060`.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- None.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/medium` | `high` | `Macmini-runner-3`",
+      "createdAt": "2026-05-31T02:02:23Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/376#issuecomment-4585431274",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVBXfw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: f9743fb9d1c5044c381a4a259634e9d3b37bc060 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #376 implements issue #29, allowing `/answer` runs triggered from PR review bodies to inspect the triggering review and related inline comments.\n- The requested direction was prompt/context driven, not a new hardcoded response mode.\n- The current head wires review trigger metadata into the answer route, adds conditional `ANSWER_REVIEW_CONTEXT`, updates docs, and adds focused tests.\n- Prior review concerns around unconditional review context, docs, duplicate inline replies, non-empty final bodies, and the no-`gh` prompt contradiction are addressed.\n\n## Review\nThe implementation is mostly sound, and two reviewer lanes now say it is shippable. One current reviewer found a narrow but real resumed-session gap: review-triggered `/answer` context can be dropped when an existing answer session resumes.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Review context is lost on resumed `/answer` sessions | WARNING | `/answer` uses `resume-best-effort`, and resumed sessions receive the continuation prompt, which omits `ANSWER_REVIEW_CONTEXT`, the inline-reply exception, and the `gh api` patterns. |\n| Optional empty review ID guard is missing | INFO | `buildAnswerReviewContext` renders review lookup commands even when the review ID is empty; real GitHub `pull_request_review` events should provide this ID, so this is defensive only. |\n\n## Progress\n- Current head: `f9743fb9d1c5044c381a4a259634e9d3b37bc060`.\n- `check` is passing on the current PR head.\n- Posted one inline comment on `.agent/src/run.ts:362` for the resumed-session context loss: https://github.com/self-evolving/repo/pull/376#discussion_r3329592387\n- Resolved same-agent thread `PRRT_kwDOSOhEMM6F6M7L` because the no-`gh` prompt contradiction is fixed.\n- No inline replies were added and no comments were minimized.\n- Left the human-authored conditionality thread unresolved per the cleanup guard.\n\n## Issue Details\n<details>\n<summary>Review context is lost on resumed `/answer` sessions</summary>\n\n**Cause:** [`agent-router.yml`](https://github.com/self-evolving/repo/blob/f9743fb9d1c5044c381a4a259634e9d3b37bc060/.github/workflows/agent-router.yml#L423) sets `/answer` to `resume-best-effort`. [`run.ts`](https://github.com/self-evolving/repo/blob/f9743fb9d1c5044c381a4a259634e9d3b37bc060/.agent/src/run.ts#L362) builds `ANSWER_REVIEW_CONTEXT`, but [`prompt-continuation.ts`](https://github.com/self-evolving/repo/blob/f9743fb9d1c5044c381a4a259634e9d3b37bc060/.agent/src/prompt-continuation.ts#L1) only includes raw `REQUEST_*` metadata and request text.\n\n**Candidate solutions:** Include `ANSWER_REVIEW_CONTEXT` in the continuation prompt when present, or force full prompt replay for review-triggered `/answer` resumes. Add a regression test for a resumed `pull_request_review` answer run.\n\n**Comments:** Codex flagged this; Claude and rubrics otherwise considered the current design acceptable.\n\n</details>\n\n<details>\n<summary>Optional empty review ID guard is missing</summary>\n\n**Cause:** [`buildAnswerReviewContext`](https://github.com/self-evolving/repo/blob/f9743fb9d1c5044c381a4a259634e9d3b37bc060/.agent/src/answer-review-context.ts#L15) trims `commentId` but does not return early when it is empty.\n\n**Candidate solutions:** Add `if (!commentId) return \"\";` after trimming the review ID.\n\n**Comments:** This is not required for automation because normal GitHub review events should provide a non-empty review ID.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the remaining WARNING is a concrete branch change that is safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Preserve `ANSWER_REVIEW_CONTEXT` for resumed review-triggered `/answer` sessions, either by adding it to the continuation prompt or replaying the full prompt for that case, and add a regression test.\n\n---\n`codex` | `gpt-5.5/medium` | `xhigh` | `Macmini-runner-2`",
+      "createdAt": "2026-05-31T02:10:11Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/376#issuecomment-4585445247",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVBcRQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #376 | 8 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review reported MINOR_ISSUES with recommended next step FIX_PR, and the remaining item is a concrete regression fix safe for automation.\n\nTask for fix-pr:\nAddress only the latest review synthesis action item:\n- Preserve `ANSWER_REVIEW_CONTEXT` for resumed review-triggered `/answer` sessions, either by adding it to the continuation prompt or replaying the full prompt for that case, and add a regression test.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by this action item.\n\n<!-- sepo-agent-handoff state:dispatched created:1780193450484 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY3MDA1NDM1MDE6cmV2aWV3OjM3NjpmaXhfcHI6Mzc2Ojg -->",
+      "createdAt": "2026-05-31T02:10:50Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/376#issuecomment-4585446469",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVE5sw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo could not complete the PR fix run.**\n\n<!-- sepo-agent-fix-pr-status -->\n\nInspect the workflow logs and retry if appropriate.\n\n",
+      "createdAt": "2026-05-31T02:41:24Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/376#issuecomment-4585503155",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVE-6w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo orchestration needs clarification before it can continue.\n\nSepo cannot safely continue the automated chain because the latest fix-pr run failed. No further automatic review was dispatched; please inspect run 26700756599 or rerun/fix manually once the failure cause is clear.\n\n- Source action: `fix-pr`\n- Source conclusion: `failed`\n- Target: `pull_request #376`\n- Round: `8/40`\n- Reason: agent planner blocked: The latest fix-pr action failed, and policy requires stopping visibly instead of dispatching another automatic review after a failed fix-pr result.\n- Source run ID: `26700756599`\n\nNo follow-up workflow was dispatched. Reply with the requested context, then continue with `/orchestrate`, `/implement`, or `/answer` when ready.\n\n<!-- sepo-agent-orchestrate-stop -->",
+      "createdAt": "2026-05-31T02:42:10Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/376#issuecomment-4585504491",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVH8nQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \r\n\r\nI think there might be a deeper problem regarding session continuation here: \r\n\r\nWe know the /answer route is by default continued ; then if we already have some answer steps in an existing PR, and later the user posts a review comment. I don't think the review specific comment will be added? In that regard, we should append the review comment to inline context rather than adding it at the beginning? ",
+      "createdAt": "2026-05-31T03:10:52Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/376#issuecomment-4585553053",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVILTA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, that is a real issue.\n\nFor resumed `/answer`, the agent may not receive the full `agent-answer.md` route prompt again. It can receive the lightweight continuation prompt from `buildContinuationPrompt()` instead. So if the review-specific behavior only lives near the top of `.github/prompts/agent-answer.md`, an existing PR answer session can miss it.\n\nI’d handle it in two layers:\n\n1. Keep the route prompt clean and conditional for fresh sessions.\n2. Put the review-triggered context into the continuation prompt too, because that is the prompt actually sent on resumed sessions.\n\nSo the durable fix should be in `.agent/src/prompt-continuation.ts`, not only `.github/prompts/agent-answer.md`.\n\nSomething like:\n\n- Always include the latest request text in the continuation prompt.\n- Include trigger metadata only when present.\n- If `REQUEST_SOURCE_KIND=pull_request_review`, append a small review-specific block telling the resumed agent to fetch the review and related inline comments before answering/posting.\n- If we later build a computed `ANSWER_REVIEW_CONTEXT`, use the same computed text in both the full answer prompt and the continuation prompt so the two paths cannot drift.\n\nOne more point: the empty fields in this run are also a signal that the metadata still has to be wired through correctly for `/answer`. But even after that wiring exists, your session-continuation concern still stands. The conditional review context needs to be part of the resumed-session inline context, not just the initial route prompt.\n\n---\n`codex` | `default model` | `high` | `Macmini-runner-1`",
+      "createdAt": "2026-05-31T03:12:25Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/376#issuecomment-4585556812",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVI9UQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> One more point: the empty fields in this run are also a signal that the metadata still has to be wired through correctly for `/answer`. But even after that wiring exists, your session-continuation concern still stands. The conditional review context needs to be part of the resumed-session inline context, not just the initial route prompt.\r\n\r\n@sepo-agent /orchestrate fix this issue ",
+      "createdAt": "2026-05-31T03:19:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/376#issuecomment-4585569617",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVJFew",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | fix-pr | PR #376 | 2 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: The PR-level /orchestrate request explicitly asks to fix an implementation issue on open PR #376, and the requested work is a concrete branch change suitable for fix-pr.\n\nTask for fix-pr:\nFix PR #376 for the latest user request: ensure `/answer` trigger metadata is wired through correctly so `REQUEST_SOURCE_KIND`, `REQUEST_COMMENT_ID`, and `REQUEST_COMMENT_URL` are populated for answer runs, and ensure the conditional pull_request_review answer context is included in resumed-session inline context, not only in the initial route prompt. Preserve the prompt/context-driven design; do not add a hardcoded response mode. Add or update focused tests covering both normal initial `/answer` prompt construction and resumed-session inline context behavior, including the pull_request_review case. Avoid unrelated prompt, workflow, or docs churn unless required by this fix.\n\n<!-- sepo-agent-handoff state:dispatched created:1780197617104 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY3MDE5ODE1NzA6b3JjaGVzdHJhdGU6Mzc2OmZpeF9wcjozNzY6Mg -->",
+      "createdAt": "2026-05-31T03:20:17Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/376#issuecomment-4585571707",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVJt6Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-29/codex-26699910140`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Wired `/answer` trigger metadata through explicit `run-agent-task` inputs so `REQUEST_SOURCE_KIND`, `REQUEST_COMMENT_ID`, and `REQUEST_COMMENT_URL` are populated inside the runtime.\n- Preserved `ANSWER_REVIEW_CONTEXT` in resumed-session continuation prompts for review-triggered `/answer` runs while keeping the review context scoped to the answer route.\n- Added focused coverage for answer metadata wiring, fix-pr metadata forwarding after the action-input change, and resumed review context.\n\n<details><summary>Verification</summary>\n\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/prompt-continuation.test.js`\n- `node --test .agent/dist/__tests__/envelope.test.js`\n- `git diff --check`\n\n</details>\n\n---\n`codex` | `default model` | `xhigh` | `Macmini-runner-5`",
+      "createdAt": "2026-05-31T03:25:46Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/376#issuecomment-4585582057",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVJyfA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #376 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on open PR #376 after addressing the requested `/answer` metadata and resumed-session context fix; one follow-up review is warranted on the updated head.\n\n<!-- sepo-agent-handoff state:dispatched created:1780197986806 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY3MDIwMDI1NDc6Zml4X3ByOjM3NjpyZXZpZXc6Mzc2OjM -->",
+      "createdAt": "2026-05-31T03:26:27Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/376#issuecomment-4585583228",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVKH4w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR follows issue #29’s final direction: prompt/context-driven `/answer` behavior, no new hardcoded response mode. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is limited to answer prompt/context plumbing, `run-agent-task` inputs, focused docs, and tests. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Review context is built by a small helper and injected as `${ANSWER_REVIEW_CONTEXT}` instead of adding a new response parser or route mode. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Extends existing `run-agent-task` inputs and `run.ts` supplemental prompt variable path rather than duplicating workflow rendering logic. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | `.github/actions/run-agent-task/action.yml` adds separate `request_source_kind`, `request_comment_id`, and `request_comment_url` inputs. |\n| coding_workflow / generic | Name config by capability | pass | 6/6 | New input/env names describe general request trigger metadata, not a narrow one-off review-only knob. |\n| coding_workflow / generic | Generate context-derived artifact metadata | pass | 7/7 | `.github/workflows/agent-router.yml` forwards portal-derived `source_kind`, `source_comment_id`, and `source_comment_url` into `/answer`. |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | `.agent/src/answer-review-context.ts` gives lookup/post patterns while letting the agent choose inline replies, a normal answer, or both. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Review context tells the agent to inspect the target thread and skip duplicate Sepo-authored inline replies on reruns. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | `.agent/docs/usage/agent-actions.md` and `.agent/docs/usage/internal-actions.md` document the new answer behavior and action inputs. |\n\n## Notes\n\n- The latest head addresses the specific follow-up: `/answer` metadata is now passed through explicit action inputs, and `ANSWER_REVIEW_CONTEXT` is appended to resumed-session continuation prompts.\n- Regression coverage was added for initial `/answer` metadata wiring and resumed review-triggered continuation context. Current PR check status is passing.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- None.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/medium` | `high` | `Macmini-runner-6`",
+      "createdAt": "2026-05-31T03:29:15Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/376#issuecomment-4585588707",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVK3gA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: f03f94518ca3efe086c12658bb8ce84c9c358631 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #376 implements issue #29 by making `/answer` handle PR review-body mentions with enough trigger context to inspect related inline comments. The agreed direction is prompt/context driven, with no new hardcoded response mode. The current head `f03f94518ca3efe086c12658bb8ce84c9c358631` wires request metadata through `run-agent-task`, builds conditional `ANSWER_REVIEW_CONTEXT`, preserves it in resumed-session continuation prompts, updates docs, and adds focused tests.\n\n## Review\nThe current reviewer artifacts agree there are no blocking or warning findings on the latest head. Claude noted only defensive INFO-level hardening; Codex and rubrics both concluded the PR is shippable.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | Current review artifacts report no unresolved blocking or warning findings. The remaining notes are defensive or optional and do not require branch changes. |\n\n## Progress\n- Issue #29 and the later PR-level `/orchestrate fix this issue` request were both checked against the current PR state.\n- The latest `check` status is passing on head `f03f94518ca3efe086c12658bb8ce84c9c358631`.\n- Resolved same-agent thread `PRRT_kwDOSOhEMM6F6PFO` because the resumed-session review-context issue is fixed.\n- Left the human-started conditionality thread unresolved per the same-agent cleanup guard.\n- No new inline comments were posted, no replies were added, and no comments were minimized.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved actionable branch-change work remains.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.\n\n---\n`codex` | `gpt-5.5/medium` | `xhigh` | `Macmini-runner-5`",
+      "createdAt": "2026-05-31T03:35:33Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/376#issuecomment-4585600896",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVNKPg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \r\n\r\nOK In the latest code version -- why `${ANSWER_REVIEW_CONTEXT}` is still in the initial prompt? would that be duplicated since both continuation prompt and the initial context will include this? ",
+      "createdAt": "2026-05-31T03:54:19Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/376#issuecomment-4585638462",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVNcVA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "`${ANSWER_REVIEW_CONTEXT}` should still be in the initial prompt because it covers the **cold-start** case.\n\nThere are two different delivery paths:\n\n- **New/non-resumed `/answer` session:** ACPX receives the full rendered `agent-answer.md`, so the review context must be present there.\n- **Resumed `/answer` session:** ACPX should receive the lightweight continuation prompt instead. In the current runtime shape, `selectPromptForSessionOutcome()` chooses `continuationPrompt` when the session is resumed, otherwise `fullPrompt`.\n\nSo it is not duplicated in one agent turn as long as we keep that mutually exclusive behavior:\n\n```ts\nif (outcome.kind === \"resumed\" && continuationPrompt) {\n  return continuationPrompt;\n}\nreturn fullPrompt;\n```\n\nThe right design is to put the same computed review block in both places because they are alternative paths, not cumulative context.\n\nThe thing to avoid is hand-writing the review instructions separately in both files. Better is:\n\n- compute one `ANSWER_REVIEW_CONTEXT` value from the latest trigger metadata;\n- render it in `agent-answer.md` for fresh sessions;\n- include the same value in `buildContinuationPrompt()` for resumed sessions.\n\nThat keeps cold starts and resumed sessions behaviorally aligned without duplicate prompt content in a single run.\n\n---\n`codex` | `default model` | `high` | `Macmini-runner-4`",
+      "createdAt": "2026-05-31T03:55:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/376#issuecomment-4585643092",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVQJYQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent I see. so if the first answer message is the pr review, then there is no continuation message and thus we need to add it there at the beginning of the prompt? ",
+      "createdAt": "2026-05-31T04:19:58Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/376#issuecomment-4585687393",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVQRtA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, exactly.\n\nIf the first `/answer` run for that PR is triggered from a PR review, there is no resumed session yet, so ACPX receives the full initial `agent-answer.md` prompt. In that cold-start path, the review-specific context has to be present in the initial prompt.\n\nThe nuance is: it should be **conditional initial context**, not unconditional metadata for every answer route.\n\nSo the shape should be:\n\n- Fresh session: full `agent-answer.md` includes `${ANSWER_REVIEW_CONTEXT}` near the task setup, and that variable is non-empty only for `pull_request_review`.\n- Resumed session: full prompt is skipped, so `buildContinuationPrompt()` also includes the same `${ANSWER_REVIEW_CONTEXT}` when the latest trigger is `pull_request_review`.\n- Normal `/answer`: `${ANSWER_REVIEW_CONTEXT}` is empty, so no extra review guidance appears.\n\nThat gives the review-triggered cold-start run the needed instructions without duplicating them in resumed runs.\n\n---\n`codex` | `default model` | `high` | `Macmini-runner-5`",
+      "createdAt": "2026-05-31T04:21:23Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/376#issuecomment-4585689524",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEVRAdA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #376.\n\nno rubric changes\n\nI reviewed PR #376, linked issue #29, maintainer/collaborator signals, and the existing rubric set. The durable candidate lesson, “provide structured context and let the agent decide rather than hardcoding a new route mode,” is already covered by active rubrics such as `prefer-agent-derived-decisions` and `prefer-explicit-structured-inputs`.\n\nAlso, the human PR comments were from `lolipopshock` with `CONTRIBUTOR` association, while the admin/maintain lookup returned `tongshuangwu`; bot comments were advisory only. No trusted, non-duplicate rubric update was warranted.\n\n---\n`codex` | `gpt-5.5/medium` | `medium` | `Macmini-runner-6`",
+      "createdAt": "2026-05-31T04:29:08Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/376#issuecomment-4585701492",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-31T01:28:29Z",
+  "files": [
+    {
+      "path": ".agent/docs/usage/agent-actions.md",
+      "additions": 10,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/internal-actions.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 108,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/prompt-continuation.test.ts",
+      "additions": 25,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/answer-review-context.ts",
+      "additions": 37,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/prompt-continuation.ts",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/run.ts",
+      "additions": 13,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/run-agent-task/action.yml",
+      "additions": 15,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-answer.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-fix-pr.yml",
+      "additions": 3,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-router.yml",
+      "additions": 3,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-29/codex-26699910140",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": "2026-05-31T04:27:29Z",
+  "number": 376,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABBglDaQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "",
+      "submittedAt": "2026-05-31T01:33:15Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "c8eb149bea9cecc7491fdc89cfcbba332de6970b"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABBglKEg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-31T01:35:31Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "c8eb149bea9cecc7491fdc89cfcbba332de6970b"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABBglPIw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-31T01:37:37Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "c8eb149bea9cecc7491fdc89cfcbba332de6970b"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABBgl_Ww",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-31T01:55:05Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "7b0ef38d229636d5a8ca0f149f6e2704974207bf"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABBgmoRQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-31T02:08:58Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "f9743fb9d1c5044c381a4a259634e9d3b37bc060"
+      }
+    }
+  ],
+  "state": "MERGED",
+  "title": "Allow answer route inline review replies",
+  "updatedAt": "2026-05-31T04:29:08Z",
+  "url": "https://github.com/self-evolving/repo/pull/376"
+}

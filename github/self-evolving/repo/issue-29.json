@@ -6,10 +6,186 @@
     "name": "Shannon Shen"
   },
   "body": "Right now the answer route is a bit limited - they cannot comments to user inline code review messages",
-  "closedAt": null,
-  "comments": [],
+  "closedAt": "2026-05-31T04:27:30Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEUeWog",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "See example here: \n\n1. https://github.com/self-evolving/repo/pull/369#pullrequestreview-4395996147\n2. https://github.com/self-evolving/repo/pull/369#issuecomment-4584847301\n\n@sepo-agent /answer what's a simple fix for that? ",
+      "createdAt": "2026-05-30T21:17:35Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/29#issuecomment-4584871586",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEUe93w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "A simple fix: keep `/answer` as one final workflow-posted response, but add a special path for `pull_request_review` mentions that fetches the review’s inline comments and lets the workflow post replies to those comment threads.\n\nCurrent pieces already exist:\n\n- [`context.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/context.ts) maps direct `pull_request_review_comment` mentions to `review_comment_reply`.\n- [`respond.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/respond.ts) can already call `POST /pulls/{pull}/comments/{comment_id}/replies`.\n- [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml) already passes `RESPONSE_KIND` and `REVIEW_COMMENT_ID` into `post-response.js`.\n\nThe missing case is the example you linked: the user mentions Sepo in the **review body**, not in each inline comment. That event is `pull_request_review`, so Sepo only has the review id and currently posts a normal PR comment.\n\nI’d implement the minimal version like this:\n\n1. For `source_kind == pull_request_review`, use `source_comment_id` as the review id.\n2. Before running `/answer`, fetch the review’s inline comments:\n\n   ```bash\n   gh api --paginate repos/$REPO/pulls/$PR/reviews/$REVIEW_ID/comments\n   ```\n\n3. Include those comments in the answer prompt context.\n4. Add an opt-in structured answer format for this case, for example:\n\n   ```json\n   {\n     \"summary\": \"Top-level fallback summary\",\n     \"review_comment_replies\": [\n       { \"comment_id\": 3329320441, \"body\": \"Agreed. The simple fix is ...\" }\n     ]\n   }\n   ```\n\n5. Extend `post-response.js` with a narrow parser for that shape and post each reply using the existing review-comment reply API. If parsing fails, fall back to the existing top-level PR comment.\n\nThat keeps GitHub writes in workflow code, not in the agent prompt, and reuses the existing `review_comment_reply` primitive instead of adding a second posting model.\n\n---\n`codex` | `gpt-5.5/medium` | `high` | `Macmini-runner-1`",
+      "createdAt": "2026-05-30T21:20:20Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/29#issuecomment-4584881631",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEU0lLQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer maybe even the simplest way is to add in the prompt that when it's a review route the agent can provide point by point feedback ",
+      "createdAt": "2026-05-31T00:15:39Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/29#issuecomment-4585235757",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEU0t_g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, that’s probably the simplest useful fix.\n\nI’d avoid multi-inline posting for now and just update the `/answer` prompt to say:\n\n- if `REQUEST_SOURCE_KIND` is `pull_request_review`, fetch the triggering review and its inline comments;\n- answer the review comments point by point in the single normal `/answer` response;\n- include file/path or comment links so the response maps clearly back to each inline thread.\n\nThe small code-side improvement would be to make sure the prompt gets enough metadata. `agent-fix-pr.md` already has the right pattern:\n\n```md\nFor pull_request_review:\ngh api repos/${REPO_SLUG}/pulls/${TARGET_NUMBER}/reviews/${REQUEST_COMMENT_ID}\n```\n\nSo the minimal patch is:\n\n1. Update `.github/prompts/agent-answer.md` with review-specific instructions.\n2. Ensure `run-agent-task` exposes `REQUEST_SOURCE_KIND`, `REQUEST_COMMENT_ID`, and `REQUEST_COMMENT_URL` to the answer prompt if it does not already.\n3. Add a focused test that the answer prompt mentions `pull_request_review` and point-by-point feedback.\n\nThat gives us the behavior from the example without designing multi-comment posting yet. Inline replies can come later if we decide `/answer` should actually respond inside each review thread.\n\n---\n`codex` | `default model` | `high` | `Macmini-runner-1`",
+      "createdAt": "2026-05-31T00:16:49Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/29#issuecomment-4585238014",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEU1IOA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Ensure run-agent-task exposes REQUEST_SOURCE_KIND, REQUEST_COMMENT_ID, and REQUEST_COMMENT_URL to the answer prompt if it does not already.\n\n@sepo-agent /answer in my mind I think we just need to provide the agent with the needed information -- this is a pull review and then you can search for the related comments and then use gh to comment there. We do not need to hard code anything. ",
+      "createdAt": "2026-05-31T00:20:09Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/29#issuecomment-4585244728",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEU1RIw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I agree with that direction. The simplest version is prompt/context driven, not a new hardcoded response mode.\n\nWhat I’d change:\n\n1. Pass the trigger metadata into the answer prompt:\n   - `REQUEST_SOURCE_KIND`\n   - `REQUEST_COMMENT_ID`\n   - `REQUEST_COMMENT_URL`\n\n2. Update `.github/prompts/agent-answer.md` so the current “do not post comments directly via `gh`” rule has a narrow exception:\n\n   - For normal `/answer`, return the reply body and let the workflow post it.\n   - For `REQUEST_SOURCE_KIND=pull_request_review`, the agent may use `gh` to inspect the triggering review and related inline comments, then post targeted inline replies when that is what the user asked for.\n\n3. Tell the agent the lookup pattern, not the exact behavior:\n\n   ```bash\n   gh api repos/${REPO_SLUG}/pulls/${TARGET_NUMBER}/reviews/${REQUEST_COMMENT_ID}\n   gh api repos/${REPO_SLUG}/pulls/${TARGET_NUMBER}/reviews/${REQUEST_COMMENT_ID}/comments\n   gh api --method POST repos/${REPO_SLUG}/pulls/${TARGET_NUMBER}/comments -f body='<reply>' -F in_reply_to=<comment_id>\n   ```\n\nThat keeps the route flexible: the agent can decide whether to reply inline, summarize in the normal answer, or do both. The only real implementation requirement is making sure the prompt has enough trigger context and that the answer prompt explicitly permits this review-specific `gh` posting path.\n\n---\n`codex` | `default model` | `high` | `Macmini-runner-4`",
+      "createdAt": "2026-05-31T00:21:17Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/29#issuecomment-4585247011",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEU8U1g",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> I agree with that direction. The simplest version is prompt/context driven, not a new hardcoded response mode.\n> \n> What I’d change:\n> \n> 1. Pass the trigger metadata into the answer prompt:\n>    - `REQUEST_SOURCE_KIND`\n>    - `REQUEST_COMMENT_ID`\n>    - `REQUEST_COMMENT_URL`\n> \n> 2. Update `.github/prompts/agent-answer.md` so the current “do not post comments directly via `gh`” rule has a narrow exception:\n> \n>    - For normal `/answer`, return the reply body and let the workflow post it.\n>    - For `REQUEST_SOURCE_KIND=pull_request_review`, the agent may use `gh` to inspect the triggering review and related inline comments, then post targeted inline replies when that is what the user asked for.\n> \n> 3. Tell the agent the lookup pattern, not the exact behavior:\n> \n>    ```bash\n>    gh api repos/${REPO_SLUG}/pulls/${TARGET_NUMBER}/reviews/${REQUEST_COMMENT_ID}\n>    gh api repos/${REPO_SLUG}/pulls/${TARGET_NUMBER}/reviews/${REQUEST_COMMENT_ID}/comments\n>    gh api --method POST repos/${REPO_SLUG}/pulls/${TARGET_NUMBER}/comments -f body='<reply>' -F in_reply_to=<comment_id>\n>    ```\n> \n> That keeps the route flexible: the agent can decide whether to reply inline, summarize in the normal answer, or do both. The only real implementation requirement is making sure the prompt has enough trigger context and that the answer prompt explicitly permits this review-specific `gh` posting path.\n> \n> ---\n> `codex` | `default model` | `high` | `Macmini-runner-4`\n\n@sepo-agent /orchestrate implement this ",
+      "createdAt": "2026-05-31T01:22:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/29#issuecomment-4585362646",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEU8d7g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | implement | Issue #29 | 2 / 40 | Dispatched |\n\nReason: agent planner selected implement: Issue #29 is a bounded, current-issue implementation request: pass answer trigger metadata into the prompt and update the answer prompt with a narrow pull_request_review gh exception. No child issue is needed.\n\n<!-- sepo-agent-handoff state:dispatched created:1780190654173 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY2OTk4ODQ5NzU6b3JjaGVzdHJhdGU6Mjk6aW1wbGVtZW50OjI5OjI -->",
+      "createdAt": "2026-05-31T01:24:14Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/29#issuecomment-4585364974",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEU85jg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-29/codex-26699910140`\n- Pull request: https://github.com/self-evolving/repo/pull/376\n\nUpdated the `/answer` route so the prompt receives trigger metadata, documents the narrow `pull_request_review` inline-reply exception with the requested `gh api` lookup/post pattern, and added focused regression coverage. Verification: `npm --prefix .agent run build`, `node --test .agent/dist/__tests__/envelope.test.js`, and `git diff --check`.\n\n---\n`codex` | `gpt-5.5/medium` | `xhigh` | `Macmini-runner-2`",
+      "createdAt": "2026-05-31T01:28:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/29#issuecomment-4585372046",
+      "viewerDidAuthor": true
+    }
+  ],
   "createdAt": "2026-04-29T11:50:37Z",
   "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    },
     {
       "id": "LA_kwDOSOhEMM8AAAAChVB4ig",
       "name": "priority/p2",
@@ -24,8 +200,8 @@
     }
   ],
   "number": 29,
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Allow point by by feedback",
-  "updatedAt": "2026-04-30T04:06:21Z",
+  "updatedAt": "2026-05-31T04:27:30Z",
   "url": "https://github.com/self-evolving/repo/issues/29"
 }

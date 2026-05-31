@@ -148,6 +148,101 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/367#issuecomment-4582069456",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEUcmAA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer alright; then, what's the concrete plan for the fix then? ",
+      "createdAt": "2026-05-30T21:06:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/367#issuecomment-4584842752",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEUc1LA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Concrete plan: do this in two phases, with phase 1 solving the naming/structure problem without changing child execution semantics.\n\n**Current Architecture**\n- Public docs currently expose two orchestrator modes: `heuristics` and `agent`: [`agent-orchestrator.md#L7-L13`](https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/agent-orchestrator.md#L7-L13).\n- The deterministic transition table lives in `decideHeuristicHandoff()`: [`handoff.ts#L438-L544`](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L438-L544).\n- In `agent` mode, that same table is already used as validation after the planner responds: [`handoff.ts#L658-L678`](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L658-L678).\n- The planner prompt lists policy rules, but does not receive a computed “suggested next transition”: [`agent-orchestrator.md#L20-L64`](https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-orchestrator.md#L20-L64).\n- Delegated child issues are currently launched in heuristic mode as concrete worker chains: [`orchestrate-handoff.ts#L1581-L1596`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L1581-L1596).\n\n**Proposed Fix**\nPhase 1 should make the structure explicit:\n\n1. Rename the concept internally:\n   - `decideHeuristicHandoff()` → something like `computeDeterministicTransition()` or `computeAllowedTransition()`.\n   - Keep behavior the same initially.\n   - This makes clear it is policy/suggestion, not a separate product mode.\n\n2. Add a computed transition suggestion before the planner runs:\n   - Extend `orchestrator-preflight.ts` or add a small pre-planner CLI.\n   - Output fields like:\n     - `suggested_decision`\n     - `suggested_next_action`\n     - `suggested_reason`\n     - `suggested_handoff_context`\n   - Pass those into `agent-orchestrator.yml` as `ORCHESTRATOR_SUGGESTED_*` env vars.\n\n3. Update the orchestrator prompt:\n   - Add a “Deterministic Suggestion” section.\n   - Tell the planner: use this as the default path, but it may choose `stop`, `blocked`, `answer`, or better `handoff_context` when repo/user context warrants it.\n   - Keep runtime validation mandatory.\n\n4. Keep delegated children as concrete worker chains for now:\n   - Do not change the `delegate_issue` child dispatch behavior in phase 1.\n   - Rename docs around this from “heuristic mode” to “concrete worker chain” or “deterministic worker chain”.\n   - This preserves the meta-orchestrator model: parent plans, child executes.\n\n5. Deprecate public heuristic mode in docs:\n   - Say `AGENT_AUTOMATION_MODE` defaults to `agent`.\n   - Treat deterministic routing as internal policy/worker-chain behavior.\n   - Keep accepting `heuristics` as a compatibility alias for now, but stop presenting it as a recommended public mode.\n\n**Tests**\nAdd/update coverage for:\n\n- deterministic suggestion generation for `implement -> review`, `review -> fix-pr`, `fix-pr -> review`, self-approval, and stop cases;\n- planner prompt receives the suggestion env vars;\n- `agent` mode still rejects planner choices that conflict with deterministic policy;\n- delegated child issue still starts the concrete worker chain;\n- docs/tests no longer describe `heuristics` as the primary user-facing alternative.\n\n**Follow-Up Phase**\nAfter phase 1 lands and behaves well, phase 2 can decide whether to fully remove public `heuristics` input support or leave it as a hidden compatibility alias. I would not combine that with phase 1, because phase 1 is a structural cleanup and prompt improvement, while phase 2 is a compatibility/breaking-change decision.\n\nApproval request: proceed with phase 1 as above?\n\n---\n`codex` | `default model` | `high` | `Macmini-runner-1`",
+      "createdAt": "2026-05-30T21:08:26Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/367#issuecomment-4584846636",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEU8qng",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Concrete plan: do this in two phases, with phase 1 solving the naming/structure problem without changing child execution semantics.\n> \n> **Current Architecture**\n> - Public docs currently expose two orchestrator modes: `heuristics` and `agent`: [`agent-orchestrator.md#L7-L13`](https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/agent-orchestrator.md#L7-L13).\n> - The deterministic transition table lives in `decideHeuristicHandoff()`: [`handoff.ts#L438-L544`](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L438-L544).\n> - In `agent` mode, that same table is already used as validation after the planner responds: [`handoff.ts#L658-L678`](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L658-L678).\n> - The planner prompt lists policy rules, but does not receive a computed “suggested next transition”: [`agent-orchestrator.md#L20-L64`](https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-orchestrator.md#L20-L64).\n> - Delegated child issues are currently launched in heuristic mode as concrete worker chains: [`orchestrate-handoff.ts#L1581-L1596`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L1581-L1596).\n> \n> **Proposed Fix**\n> Phase 1 should make the structure explicit:\n> \n> 1. Rename the concept internally:\n>    - `decideHeuristicHandoff()` → something like `computeDeterministicTransition()` or `computeAllowedTransition()`.\n>    - Keep behavior the same initially.\n>    - This makes clear it is policy/suggestion, not a separate product mode.\n> \n> 2. Add a computed transition suggestion before the planner runs:\n>    - Extend `orchestrator-preflight.ts` or add a small pre-planner CLI.\n>    - Output fields like:\n>      - `suggested_decision`\n>      - `suggested_next_action`\n>      - `suggested_reason`\n>      - `suggested_handoff_context`\n>    - Pass those into `agent-orchestrator.yml` as `ORCHESTRATOR_SUGGESTED_*` env vars.\n> \n> 3. Update the orchestrator prompt:\n>    - Add a “Deterministic Suggestion” section.\n>    - Tell the planner: use this as the default path, but it may choose `stop`, `blocked`, `answer`, or better `handoff_context` when repo/user context warrants it.\n>    - Keep runtime validation mandatory.\n> \n> 4. Keep delegated children as concrete worker chains for now:\n>    - Do not change the `delegate_issue` child dispatch behavior in phase 1.\n>    - Rename docs around this from “heuristic mode” to “concrete worker chain” or “deterministic worker chain”.\n>    - This preserves the meta-orchestrator model: parent plans, child executes.\n> \n> 5. Deprecate public heuristic mode in docs:\n>    - Say `AGENT_AUTOMATION_MODE` defaults to `agent`.\n>    - Treat deterministic routing as internal policy/worker-chain behavior.\n>    - Keep accepting `heuristics` as a compatibility alias for now, but stop presenting it as a recommended public mode.\n> \n> **Tests**\n> Add/update coverage for:\n> \n> - deterministic suggestion generation for `implement -> review`, `review -> fix-pr`, `fix-pr -> review`, self-approval, and stop cases;\n> - planner prompt receives the suggestion env vars;\n> - `agent` mode still rejects planner choices that conflict with deterministic policy;\n> - delegated child issue still starts the concrete worker chain;\n> - docs/tests no longer describe `heuristics` as the primary user-facing alternative.\n> \n> **Follow-Up Phase**\n> After phase 1 lands and behaves well, phase 2 can decide whether to fully remove public `heuristics` input support or leave it as a hidden compatibility alias. I would not combine that with phase 1, because phase 1 is a structural cleanup and prompt improvement, while phase 2 is a compatibility/breaking-change decision.\n> \n> Approval request: proceed with phase 1 as above?\n> \n> ---\n> `codex` | `default model` | `high` | `Macmini-runner-1`\n\n@sepo-agent /orchestrate ",
+      "createdAt": "2026-05-31T01:26:11Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/367#issuecomment-4585368222",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEU807g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | implement | Issue #367 | 2 / 40 | Dispatched |\n\nReason: agent planner selected implement: The requester approved the phase 1 plan for issue #367, and the work is a bounded code/docs/test change on the current issue rather than a meta-planning subgoal that needs a child issue.\n\n<!-- sepo-agent-handoff state:dispatched created:1780190871756 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY2OTk5NDYwNTg6b3JjaGVzdHJhdGU6MzY3OmltcGxlbWVudDozNjc6Mg -->",
+      "createdAt": "2026-05-31T01:27:52Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/367#issuecomment-4585370862",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEU9-9A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-367/codex-26699976832`\n- Pull request: https://github.com/self-evolving/repo/pull/377\n\nImplemented phase 1 for #367: the deterministic handoff table is now exposed as transition/suggestion policy, preflight emits suggested transition fields into the planner prompt, runtime validation remains unchanged, child delegation still launches the deterministic worker chain, and docs/tests now frame `heuristics` as compatibility behavior rather than the primary public alternative. Verified with TypeScript build, focused node tests, and diff whitespace checks.\n\n---\n`codex` | `gpt-5.5/medium` | `xhigh` | `Macmini-runner-3`",
+      "createdAt": "2026-05-31T01:38:12Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/367#issuecomment-4585389812",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-29T18:05:42Z",
@@ -162,6 +257,6 @@
   "number": 367,
   "state": "OPEN",
   "title": "Consider removing heuristic orchestrate mode",
-  "updatedAt": "2026-05-30T07:22:14Z",
+  "updatedAt": "2026-05-31T01:38:12Z",
   "url": "https://github.com/self-evolving/repo/issues/367"
 }

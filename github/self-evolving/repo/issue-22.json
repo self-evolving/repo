@@ -59,6 +59,43 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/22#issuecomment-4364922361",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEUcyFQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer does this related to latest discussion in #367 ?",
+      "createdAt": "2026-05-30T21:08:06Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/22#issuecomment-4584845845",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEUdApA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, it is related to the latest #367 discussion, but it is one layer earlier.\n\n#367 is about the **orchestrator layer**: replace public `heuristics` mode with an internal deterministic suggestion/policy, then let the agentic orchestrator planner confirm, stop, block, or improve the handoff context. Latest plan there: https://github.com/self-evolving/repo/issues/367#issuecomment-4584846636\n\nThis thread is about the **router/dispatcher layer**: when a user gives mixed intent, e.g. “answer this question and also debug/fix it,” should dispatch choose only one route or preserve both intents?\n\nI’d connect them like this:\n\n- `dispatch` should not become another planner/orchestrator.\n- `dispatch` should classify mixed intent into the right route, probably `orchestrate` when execution may follow.\n- `/answer` should remain strict: answer only, no execution.\n- The user-facing analysis plus execution planning should live in the orchestrator path, using the #367 idea of computed suggestions + planner confirmation.\n- If the orchestrator dispatches work, it should pass the user’s question/analysis into `handoff_context` or a visible planner/status comment, not bury it in the initial router.\n\nSo yes: the #367 fix gives us the better architecture for this. The concrete change here would be to make dispatch recognize dual intent and route it into orchestrator, while #367 makes orchestrator better at explaining and steering the next action.\n\n---\n`codex` | `default model` | `high` | `Macmini-runner-6`",
+      "createdAt": "2026-05-30T21:09:44Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/22#issuecomment-4584849572",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-04-28T23:51:54Z",
@@ -85,6 +122,6 @@
   "number": 22,
   "state": "OPEN",
   "title": "Dealing with complex intent",
-  "updatedAt": "2026-05-02T23:13:25Z",
+  "updatedAt": "2026-05-30T21:09:44Z",
   "url": "https://github.com/self-evolving/repo/issues/22"
 }

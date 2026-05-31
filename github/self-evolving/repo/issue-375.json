@@ -1,0 +1,78 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "@sepo-agent /answer \n\n1. it's shocking that by default the claude uses sonnet-4.6 ?? https://github.com/augmented-mind/augmented-mind.github.io/pull/56#issuecomment-4581857835\n2. also how does acpx reconcile reasoning efforts? for example, in https://github.com/self-evolving/repo/pull/374#issuecomment-4584871031, the\n    ```\n    `codex` | `gpt-5.5/medium` | `high` | `Macmini-runner-2`\n    ```\n    gpt-5.5/medium is the name used for acpx? but high is the reasoning effort? ",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEUfSxg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo itself is not hard-coding Claude Sonnet 4.6. If no `AGENT_MODEL_POLICY` model is set, Sepo passes an empty model to ACPX/Claude, so the provider’s current default wins. The linked comment reported ACPX/Claude’s current model as `claude-sonnet-4-6`.\n\nThe confusing footer is real:\n\n```md\n`codex` | `gpt-5.5/medium` | `high` | `Macmini-runner-2`\n```\n\nThat means:\n\n- `codex`: resolved provider.\n- `gpt-5.5/medium`: raw model ID reported back by ACPX from `models.currentModelId`.\n- `high`: Sepo’s separate `reasoning_effort` input for that workflow.\n- `Macmini-runner-2`: GitHub runner name.\n\nSepo currently does **not** reconcile a reasoning suffix embedded in ACPX’s model ID with Sepo’s separate `reasoning_effort`. It displays both. For Codex, Sepo passes model and reasoning through separate paths: model via `--model` or `acpx codex set model ...`, and reasoning via session `thought_level`. For Claude, Sepo maps reasoning to `CLAUDE_CODE_EFFORT_LEVEL`.\n\nRelevant code:\n- Provider/model policy resolution: https://github.com/self-evolving/repo/blob/main/.github/actions/resolve-agent-provider/resolve-provider.js#L164-L180\n- Display footer construction: https://github.com/self-evolving/repo/blob/main/.agent/src/run.ts#L300-L312\n- Reported ACPX model extraction: https://github.com/self-evolving/repo/blob/main/.agent/src/run.ts#L593-L601\n- Codex model/thought setup: https://github.com/self-evolving/repo/blob/main/.agent/src/acpx-adapter.ts#L283-L327\n- Claude effort env mapping: https://github.com/self-evolving/repo/blob/main/.agent/src/runtime-env.ts#L43-L48\n\nTo pin defaults today, set `AGENT_MODEL_POLICY`, for example:\n\n```json\n{\n  \"providers\": {\n    \"codex\": { \"model\": \"gpt-5.5\", \"reasoning_effort\": \"high\" },\n    \"claude\": { \"model\": \"claude-sonnet-4-5\", \"reasoning_effort\": \"max\" }\n  },\n  \"route_overrides\": {\n    \"answer\": { \"provider\": \"codex\", \"reasoning_effort\": \"high\" }\n  }\n}\n```\n\nI’d treat the footer mismatch as a Sepo UX/config bug: either normalize `gpt-5.5/medium` into model + effort, or display a warning when ACPX’s reported model suffix conflicts with Sepo’s requested `reasoning_effort`.\n\n---\n`codex` | `gpt-5.5/medium` | `high` | `Macmini-runner-5`",
+      "createdAt": "2026-05-30T21:22:43Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/375#issuecomment-4584886982",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEUmU8w",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\ncan you find on acpx and list the proper model name configurations ",
+      "createdAt": "2026-05-30T22:13:29Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/375#issuecomment-4585002227",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEUmzCA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes. For Sepo + ACPX, configure **bare model IDs** in `model`, and configure reasoning separately in `reasoning_effort`.\n\nDo **not** use `gpt-5.5/medium` as the Sepo model config unless you are intentionally relying on a Codex/ACPX shorthand. Sepo’s cleaner config should be:\n\n```json\n{ \"model\": \"gpt-5.5\", \"reasoning_effort\": \"medium\" }\n```\n\nACPX supports `--model <id>` and notes that model support depends on the underlying agent/adapter: https://github.com/openclaw/acpx/blob/main/docs/CLI.md#global-options\n\nRecommended `AGENT_MODEL_POLICY` shape:\n\n```json\n{\n  \"providers\": {\n    \"codex\": {\n      \"model\": \"gpt-5.5\",\n      \"reasoning_effort\": \"high\"\n    },\n    \"claude\": {\n      \"model\": \"claude-sonnet-4-6\",\n      \"reasoning_effort\": \"high\"\n    }\n  },\n  \"route_overrides\": {\n    \"answer\": {\n      \"provider\": \"codex\",\n      \"model\": \"gpt-5.4-mini\",\n      \"reasoning_effort\": \"medium\"\n    },\n    \"implement\": {\n      \"provider\": \"codex\",\n      \"model\": \"gpt-5.5\",\n      \"reasoning_effort\": \"high\"\n    },\n    \"fix-pr\": {\n      \"provider\": \"codex\",\n      \"model\": \"gpt-5.5\",\n      \"reasoning_effort\": \"high\"\n    },\n    \"review-synthesize\": {\n      \"provider\": \"codex\",\n      \"model\": \"gpt-5.5\",\n      \"reasoning_effort\": \"high\"\n    }\n  }\n}\n```\n\nCurrent useful model IDs:\n\n| Provider | Good default | Stronger / coding-heavy | Cheaper |\n|---|---|---|---|\n| Codex/OpenAI | `gpt-5.5` | `gpt-5.3-codex` or `gpt-5.5` | `gpt-5.4-mini` |\n| Claude Code | `claude-sonnet-4-6` | `claude-opus-4-8` | `claude-haiku-4-5` |\n\nOpenAI docs list `gpt-5.5` as the current frontier model and show reasoning efforts `none`, `low`, `medium`, `high`, `xhigh`: https://developers.openai.com/api/docs/models/gpt-5.5/\n\nOpenAI also lists `gpt-5.3-codex` as the current agentic coding model with `low`, `medium`, `high`, `xhigh`: https://developers.openai.com/api/docs/models/gpt-5.3-codex/\n\nClaude docs list Claude Code aliases and current resolutions: `sonnet` -> Sonnet 4.6, `opus` -> Opus 4.8 on Anthropic API, and `haiku` -> Haiku 4.5: https://code.claude.com/docs/en/model-config\n\nImportant caveat: Claude Code aliases like `sonnet`, `opus`, and `haiku` are convenient but move over time. If we want stable Sepo behavior, use full/pinned IDs like `claude-sonnet-4-6` or `claude-opus-4-8`.\n\n---\n`codex` | `default model` | `high` | `Macmini-runner-2`",
+      "createdAt": "2026-05-30T22:17:25Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/375#issuecomment-4585009928",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-30T21:20:00Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 375,
+  "state": "OPEN",
+  "title": "Better configuring default models?",
+  "updatedAt": "2026-05-30T22:17:25Z",
+  "url": "https://github.com/self-evolving/repo/issues/375"
+}

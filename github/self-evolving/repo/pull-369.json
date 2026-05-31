@@ -5,7 +5,7 @@
   },
   "baseRefName": "main",
   "body": "## Summary\n- Add a first-class `update-agent` route and `.github/prompts/agent-update.md` prompt.\n- Switch `agent-update.yml` from `skill: update-agent` / `route: skill` to `prompt: agent-update` / `route: update-agent`.\n- Update runtime route validation, prompt mapping, docs, and focused workflow tests.\n\n## Verification\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nCloses #368\n",
-  "closedAt": null,
+  "closedAt": "2026-05-31T00:18:08Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABEOretQ",
@@ -151,8 +151,8 @@
       "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-368/codex-26655786689`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Added `install` and `update-agent` to the “Current first-class routes” list in `.agent/docs/technical-details/key-concepts.md`.\n- Kept the change scoped to the latest docs-only review action item.\n- Verification: `git diff --check`.",
       "createdAt": "2026-05-29T19:20:03Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/369#issuecomment-4579024548",
       "viewerDidAuthor": true
@@ -166,8 +166,8 @@
       "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #369 | 7 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr completed successfully, so one follow-up review is warranted to verify the PR after the applied fixes.\n\n<!-- sepo-agent-handoff state:dispatched created:1780082441497 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY2NTcyOTc3Nzg6Zml4X3ByOjM2OTpyZXZpZXc6MzY5Ojc -->",
       "createdAt": "2026-05-29T19:20:41Z",
       "includesCreatedEdit": true,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/369#issuecomment-4579030535",
       "viewerDidAuthor": true
@@ -181,8 +181,8 @@
       "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 98 | PARTIAL | 12 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Make surgical changes | pass | 8/8 | Diff is focused on the `update-agent` route/prompt wiring, docs, and targeted tests for issue #368. |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | Reuses existing prompt mapping, envelope validation, route provider, timeout, and rubrics machinery instead of adding a separate runtime path: [`run.ts`](https://github.com/self-evolving/repo/blob/8bcb52c6c95f4560f5cd4c62feb3dbe7e9c855da/.agent/src/run.ts#L124-L136), [`agent-update.yml`](https://github.com/self-evolving/repo/blob/8bcb52c6c95f4560f5cd4c62feb3dbe7e9c855da/.github/workflows/agent-update.yml#L180-L243). |\n| coding_workflow/generic | Keep docs in sync | partial | 5/7 | Main docs now describe the dedicated route and migration caveat, but the legacy update skill still says the built-in workflow invokes the skill: [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/8bcb52c6c95f4560f5cd4c62feb3dbe7e9c855da/.agent/docs/usage/supported-workflows.md#L186-L209), [`.skills/update-agent/SKILL.md`](https://github.com/self-evolving/repo/blob/8bcb52c6c95f4560f5cd4c62feb3dbe7e9c855da/.skills/update-agent/SKILL.md#L26-L35). |\n| coding_workflow/generic | Prefer explicit structured inputs | pass | 7/7 | Workflow passes separate `prompt: agent-update` and `route: update-agent`; route validation and rubric route validation also include `update-agent`: [`agent-update.yml`](https://github.com/self-evolving/repo/blob/8bcb52c6c95f4560f5cd4c62feb3dbe7e9c855da/.github/workflows/agent-update.yml#L220-L243), [`envelope.ts`](https://github.com/self-evolving/repo/blob/8bcb52c6c95f4560f5cd4c62feb3dbe7e9c855da/.agent/src/envelope.ts#L55-L71), [`rubrics.ts`](https://github.com/self-evolving/repo/blob/8bcb52c6c95f4560f5cd4c62feb3dbe7e9c855da/.agent/src/rubrics.ts#L33-L45). |\n| coding_workflow/generic | Keep privileged workflows on trusted runtime code | pass | 8/8 | Prompt preserves default-branch runtime code and edits existing update PR branches only through the update target path: [`agent-update.md`](https://github.com/self-evolving/repo/blob/8bcb52c6c95f4560f5cd4c62feb3dbe7e9c855da/.github/prompts/agent-update.md#L43-L52), [`agent-update.md`](https://github.com/self-evolving/repo/blob/8bcb52c6c95f4560f5cd4c62feb3dbe7e9c855da/.github/prompts/agent-update.md#L93-L95). |\n| coding_workflow/generic | Make user-facing automation idempotent | pass | 7/7 | Existing `agent/update-agent-infra-*` PRs are updated rather than duplicated, and no-change runs avoid creating a PR: [`agent-update.md`](https://github.com/self-evolving/repo/blob/8bcb52c6c95f4560f5cd4c62feb3dbe7e9c855da/.github/prompts/agent-update.md#L43-L52), [`agent-update.md`](https://github.com/self-evolving/repo/blob/8bcb52c6c95f4560f5cd4c62feb3dbe7e9c855da/.github/prompts/agent-update.md#L161-L164). |\n| coding_workflow/generic | Separate context from execution dependencies | pass | 7/7 | Prompt requires workflow-resolved source ref/SHA and pending PR details, and stops on ambiguous target/source state: [`agent-update.md`](https://github.com/self-evolving/repo/blob/8bcb52c6c95f4560f5cd4c62feb3dbe7e9c855da/.github/prompts/agent-update.md#L9-L18), [`agent-update.md`](https://github.com/self-evolving/repo/blob/8bcb52c6c95f4560f5cd4c62feb3dbe7e9c855da/.github/prompts/agent-update.md#L54-L55). |\n| coding_workflow/generic | Generate context-derived artifact metadata | pass | 7/7 | Update PR title/body must derive source repo/ref, changed path groups, audit summary, preserved customizations, validation, and post-merge notes from resolved context: [`agent-update.md`](https://github.com/self-evolving/repo/blob/8bcb52c6c95f4560f5cd4c62feb3dbe7e9c855da/.github/prompts/agent-update.md#L165-L170). |\n| communication/generic | Make setup guidance actionable | pass | 7/7 | Migration note covers the one-time refresh PR and `route_overrides.skill` to `route_overrides.update-agent` policy-key move: [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/8bcb52c6c95f4560f5cd4c62feb3dbe7e9c855da/.agent/docs/usage/supported-workflows.md#L202-L209). |\n| coding_workflow/generic | Read docs and linked context first | pass | 6/6 | Issue #368 explicitly asked to mirror #304’s dedicated install prompt precedent and document the bootstrap limitation; the implementation follows both. |\n| coding_workflow/generic | Minimal defaults, native escape hatches | pass | 8/8 | Keeps update as one internal route with existing `source_ref`, `force`, schedule policy, provider policy, and task-timeout policy surfaces rather than adding broad new knobs. |\n| coding_style/generic | Prefer simple implementations | pass | 7/7 | Implements the change with one dedicated prompt, one route mapping, one workflow route switch, and focused envelope/rubrics tests: [`envelope.test.ts`](https://github.com/self-evolving/repo/blob/8bcb52c6c95f4560f5cd4c62feb3dbe7e9c855da/.agent/src/__tests__/envelope.test.ts#L419-L428), [`rubrics.test.ts`](https://github.com/self-evolving/repo/blob/8bcb52c6c95f4560f5cd4c62feb3dbe7e9c855da/.agent/src/__tests__/rubrics.test.ts#L217-L246). |\n\n## Notes\n\n- The core route/prompt move satisfies the selected rubrics: update no longer depends on `.skills/update-agent/SKILL.md`, the route is validated consistently, docs cover the migration caveat, and the current PR check is passing.\n- Smallest useful follow-up: update the legacy `.skills/update-agent/SKILL.md` text so it no longer claims the built-in `agent-update.yml` workflow invokes the skill.\n\n## Findings\n\n- **WARNING:** Keep docs in sync is not fully satisfied because `.skills/update-agent/SKILL.md` still says “When invoked by Sepo's built-in `agent-update.yml` workflow” and “invoking this skill,” while the PR changes the built-in workflow to `prompt: agent-update` / `route: update-agent`.\n\n## Final Rubric Verdict\n\nPARTIAL",
       "createdAt": "2026-05-29T19:23:48Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/369#issuecomment-4579059032",
       "viewerDidAuthor": true
@@ -196,10 +196,143 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 8bcb52c6c95f4560f5cd4c62feb3dbe7e9c855da -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #369 addresses [#368](https://github.com/self-evolving/repo/issues/368) by moving repo update off the installed `.skills/update-agent/SKILL.md` dependency.\n- It adds a dedicated [`agent-update`](https://github.com/self-evolving/repo/blob/8bcb52c6c95f4560f5cd4c62feb3dbe7e9c855da/.github/prompts/agent-update.md) prompt and first-class `update-agent` route, mirroring the install route precedent from [#304](https://github.com/self-evolving/repo/pull/304).\n- The workflow now runs `prompt: agent-update` / `route: update-agent`, with runtime route validation, prompt mapping, rubric route support, docs, and focused tests updated.\n- Current PR head is `8bcb52c6c95f4560f5cd4c62feb3dbe7e9c855da`.\n\n## Review\nNo unresolved required branch-change issue is supported by the current review artifacts or PR state. Claude and Codex both conclude `SHIP`; the rubrics review still flags stale legacy skill wording, but that same item is classified as non-blocking INFO by both code reviewers and is outside the dedicated route runtime path.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No required branch-change issues found | INFO | Prior route inventory, rubric allowlist, and migration-doc warnings have been fixed. The remaining stale wording in the legacy update skill is optional cleanup, not a merge blocker. |\n\n## Progress\n- Read all current review outputs: Claude, Codex, and rubrics review.\n- Checked PR #369 conversation, linked issue #368, install precedent PR #304, current PR diff, inline comments, and review threads.\n- Verified the current `check` job is passing on head `8bcb52c6c95f4560f5cd4c62feb3dbe7e9c855da`.\n- Resolved the older same-agent inline thread on [`key-concepts.md`](https://github.com/self-evolving/repo/blob/8bcb52c6c95f4560f5cd4c62feb3dbe7e9c855da/.agent/docs/technical-details/key-concepts.md) because the current diff adds both `install` and `update-agent` to the route inventory.\n- No new inline comments were posted, no replies were added, and no comments were minimized.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: no unresolved required branch-change work remains; the legacy skill wording can be handled later if maintainers want that polish.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work from this synthesis.",
       "createdAt": "2026-05-29T19:29:08Z",
       "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/369#issuecomment-4579104591",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEUc3xQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I checked them. I agree with your comments, and I would treat them as actionable before merge.\n\n- Remove the migration note from durable user docs: the note at [`supported-workflows.md#L202-L209`](https://github.com/self-evolving/repo/blob/8bcb52c6c95f4560f5cd4c62feb3dbe7e9c855da/.agent/docs/usage/supported-workflows.md#L202-L209) is operational/bootstrap guidance, not something we should carry forever in the supported workflows page. If we keep it, the better place is the new update prompt or release/update handoff text, with wording that it is temporary and removable later.\n\n- I agree `update-agent` should not use rubrics by default. Right now [`agent-update.yml`](https://github.com/self-evolving/repo/blob/8bcb52c6c95f4560f5cd4c62feb3dbe7e9c855da/.github/workflows/agent-update.yml#L239-L250) passes `rubrics_policy` without `rubrics_mode_override: disabled`, so the shared action can inject route-selected rubrics into an infrastructure update run. That does not match the install precedent, where `/install` explicitly disables memory/rubrics for the privileged install path.\n\n- I’d keep `update-agent` as a first-class runtime route for provider policy, timeout policy, envelope validation, and prompt mapping. But I would remove it from rubric route schema/docs/tests unless we explicitly want user/team rubrics to steer update runs. Same concern applies to the rubric docs adding both `install` and `update-agent` as `applies_to` examples.\n\nSuggested fix-pr scope:\n\n1. Remove the migration block from `supported-workflows.md`.\n2. Add `rubrics_mode_override: disabled` to `agent-update.yml`.\n3. Remove `update-agent` from `RUBRIC_ROUTE_NAMES`, rubric schema examples, and the new “selects update-agent rubrics” test.\n4. Consider also removing `install` from rubric `applies_to` examples/list if the intended model is “privileged infra routes are not rubric-steered.”\n5. Keep `update-agent` in `VALID_ROUTES`, `PROMPT_TEMPLATES`, route docs, provider policy, and timeout policy.\n\n---\n`codex` | `gpt-5.5/medium` | `high` | `Macmini-runner-4`",
+      "createdAt": "2026-05-30T21:08:41Z",
+      "includesCreatedEdit": false,
       "isMinimized": false,
       "minimizedReason": "",
       "reactionGroups": [],
-      "url": "https://github.com/self-evolving/repo/pull/369#issuecomment-4579104591",
+      "url": "https://github.com/self-evolving/repo/pull/369#issuecomment-4584847301",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEUeaEg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate fix the pr according to the suggestion above. ",
+      "createdAt": "2026-05-30T21:18:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/369#issuecomment-4584872466",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEUeu4A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | fix-pr | PR #369 | 2 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: The latest user request explicitly asks to fix PR #369 according to the immediately preceding actionable suggestion, and the PR is open with concrete branch changes requested.\n\nTask for fix-pr:\nAddress the latest suggestion above the user request, scoped to PR #369. Apply these fixes only: 1. Remove the durable migration block from `.agent/docs/usage/supported-workflows.md`; if migration/bootstrap guidance is still needed, keep it out of long-lived supported-workflows docs and place only temporary/update-run guidance where appropriate. 2. Add `rubrics_mode_override: disabled` to `.github/workflows/agent-update.yml` for the `run-agent-task` update route invocation, matching the privileged install precedent. 3. Keep `update-agent` as a first-class runtime route in `VALID_ROUTES`, `PROMPT_TEMPLATES`, route docs, provider policy, and timeout policy. 4. Remove `update-agent` from rubric route support: `RUBRIC_ROUTE_NAMES`, rubric schema/docs/examples/prompts, and the focused rubrics test that validates/selects update-agent rubrics. 5. Review the rubric examples/list for `install`; if privileged infrastructure routes are not intended to be rubric-steered, remove `install` from rubric `applies_to` examples/lists as well while preserving runtime install route support. Avoid optional legacy skill wording cleanup unless directly required by these items. Verify with focused tests for touched rubric/workflow behavior plus `git diff --check`.\n\n<!-- sepo-agent-handoff state:dispatched created:1780175980635 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY2OTUxNjY5NDM6b3JjaGVzdHJhdGU6MzY5OmZpeF9wcjozNjk6Mg -->",
+      "createdAt": "2026-05-30T21:19:41Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/369#issuecomment-4584877792",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEUfa1g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-368/codex-26655786689`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Removed the durable migration block from `supported-workflows.md` and moved the one-time bootstrap note into temporary update-run prompt guidance.\n- Added `rubrics_mode_override: disabled` to the `agent-update.yml` run-agent-task invocation while keeping `update-agent` as a first-class runtime route.\n- Removed `install` and `update-agent` from rubric route support, schema examples, and positive selection tests; added focused rejection coverage for those privileged routes.\n- Verification: `npm --prefix .agent run build`; `node --test .agent/dist/__tests__/rubrics.test.js`; `node --test .agent/dist/__tests__/envelope.test.js`; `git diff --check`.\n\n---\n`codex` | `default model` | `xhigh` | `Macmini-runner-2`",
+      "createdAt": "2026-05-30T21:23:46Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/369#issuecomment-4584889046",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEUffyw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #369 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr reported success on open PR #369; the next useful automated step is a fresh review of the updated branch before human merge decisions.\n\n<!-- sepo-agent-handoff state:dispatched created:1780176267994 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY2OTUxOTkyMTY6Zml4X3ByOjM2OTpyZXZpZXc6MzY5OjM -->",
+      "createdAt": "2026-05-30T21:24:28Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/369#issuecomment-4584890315",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEUgHLQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 98 | PARTIAL | 12 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Make surgical changes | pass | 8/8 | Diff is scoped to the `update-agent` route/prompt, workflow wiring, docs, and focused tests for #368. |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | Reuses existing prompt mapping and route validation instead of new runtime machinery: [`run.ts`](https://github.com/self-evolving/repo/blob/a5bf3c0f66291735b3b0b7d8ad2a03e6eaf16606/.agent/src/run.ts#L124-L140), [`envelope.ts`](https://github.com/self-evolving/repo/blob/a5bf3c0f66291735b3b0b7d8ad2a03e6eaf16606/.agent/src/envelope.ts#L55-L71). |\n| coding_workflow/generic | Keep docs in sync | partial | 5/7 | Main docs now describe the dedicated route, but the legacy skill still says built-in `agent-update.yml` invokes the skill: [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/a5bf3c0f66291735b3b0b7d8ad2a03e6eaf16606/.agent/docs/usage/supported-workflows.md#L186-L200), [`.skills/update-agent/SKILL.md`](https://github.com/self-evolving/repo/blob/a5bf3c0f66291735b3b0b7d8ad2a03e6eaf16606/.skills/update-agent/SKILL.md#L26-L44). |\n| coding_workflow/generic | Prefer explicit structured inputs | pass | 7/7 | Workflow passes separate `prompt: agent-update`, `route: update-agent`, and disables rubric steering explicitly: [`agent-update.yml`](https://github.com/self-evolving/repo/blob/a5bf3c0f66291735b3b0b7d8ad2a03e6eaf16606/.github/workflows/agent-update.yml#L241-L250). |\n| coding_workflow/generic | Keep privileged workflows on trusted runtime code | pass | 8/8 | Prompt keeps runtime code on the runtime checkout and edits existing update PR branches only through the update target path: [`agent-update.md`](https://github.com/self-evolving/repo/blob/a5bf3c0f66291735b3b0b7d8ad2a03e6eaf16606/.github/prompts/agent-update.md#L43-L55), [`agent-update.md`](https://github.com/self-evolving/repo/blob/a5bf3c0f66291735b3b0b7d8ad2a03e6eaf16606/.github/prompts/agent-update.md#L93-L95). |\n| coding_workflow/generic | Make user-facing automation idempotent | pass | 7/7 | Existing update PRs are updated instead of duplicated, and no-change updates avoid opening PRs: [`agent-update.md`](https://github.com/self-evolving/repo/blob/a5bf3c0f66291735b3b0b7d8ad2a03e6eaf16606/.github/prompts/agent-update.md#L44-L52), [`agent-update.md`](https://github.com/self-evolving/repo/blob/a5bf3c0f66291735b3b0b7d8ad2a03e6eaf16606/.github/prompts/agent-update.md#L161-L164). |\n| coding_workflow/generic | Separate context from execution dependencies | pass | 7/7 | Prompt requires workflow-resolved source/ref/PR details and stops when target or source state is ambiguous: [`agent-update.md`](https://github.com/self-evolving/repo/blob/a5bf3c0f66291735b3b0b7d8ad2a03e6eaf16606/.github/prompts/agent-update.md#L9-L18), [`agent-update.md`](https://github.com/self-evolving/repo/blob/a5bf3c0f66291735b3b0b7d8ad2a03e6eaf16606/.github/prompts/agent-update.md#L54-L55). |\n| coding_workflow/generic | Generate context-derived artifact metadata | pass | 7/7 | Update PR title/body must derive source repo/ref, changed path groups, audit, preserved customizations, validation, and post-merge notes: [`agent-update.md`](https://github.com/self-evolving/repo/blob/a5bf3c0f66291735b3b0b7d8ad2a03e6eaf16606/.github/prompts/agent-update.md#L165-L170). |\n| communication/generic | Make setup guidance actionable | pass | 7/7 | Temporary bootstrap note moved out of durable docs and post-merge guidance names concrete branch checks/workflows: [`agent-update.md`](https://github.com/self-evolving/repo/blob/a5bf3c0f66291735b3b0b7d8ad2a03e6eaf16606/.github/prompts/agent-update.md#L173-L194). |\n| coding_workflow/generic | Read docs and linked context first | pass | 6/6 | PR follows issue #368’s request to mirror #304’s dedicated install prompt precedent and remove the installed skill dependency. |\n| coding_workflow/generic | Minimal defaults, native escape hatches | pass | 8/8 | Keeps `update-agent` as one internal route, preserves existing `source_ref`/`force` behavior, and avoids rubric steering for privileged infra routes. |\n| coding_style/generic | Prefer simple implementations | pass | 7/7 | Implements one prompt, one route mapping, one workflow route switch, and focused regression tests: [`envelope.test.ts`](https://github.com/self-evolving/repo/blob/a5bf3c0f66291735b3b0b7d8ad2a03e6eaf16606/.agent/src/__tests__/envelope.test.ts#L419-L429), [`rubrics.test.ts`](https://github.com/self-evolving/repo/blob/a5bf3c0f66291735b3b0b7d8ad2a03e6eaf16606/.agent/src/__tests__/rubrics.test.ts#L140-L160). |\n\n## Notes\n\n- The latest requested fix is satisfied: `agent-update.yml` disables rubrics, `install`/`update-agent` are rejected as rubric `applies_to` routes, and durable migration guidance was removed from `supported-workflows.md`.\n- Orchestrator, merge, preview, review-synthesis, and command parsing rubrics were not scored because this PR does not change those paths.\n- Smallest useful follow-up: clarify the legacy `.skills/update-agent/SKILL.md` wording so it no longer says the built-in workflow invokes the skill.\n\n## Findings\n\n- **WARNING:** `Keep docs in sync` is still slightly short because `.skills/update-agent/SKILL.md` describes built-in `agent-update.yml` as invoking the skill, while the PR now routes built-in updates through `prompt: agent-update` / `route: update-agent`.\n\n## Final Rubric Verdict\n\nPARTIAL\n\n---\n`codex` | `gpt-5.5/medium` | `high` | `Macmini-runner-5`",
+      "createdAt": "2026-05-30T21:27:20Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/369#issuecomment-4584900397",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEUhL1g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: a5bf3c0f66291735b3b0b7d8ad2a03e6eaf16606 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #369 addresses #368 by moving repo updates off the installed `.skills/update-agent/SKILL.md` dependency.\n- It adds a dedicated `.github/prompts/agent-update.md` prompt and first-class `update-agent` runtime route, following the install prompt precedent from #304.\n- The workflow now uses `prompt: agent-update` / `route: update-agent`, keeps provider and timeout routing on `update-agent`, and explicitly disables rubric steering for the privileged update path.\n- The latest fix also removes durable migration guidance from supported workflow docs and keeps the temporary bootstrap note in the update prompt.\n\n## Review\nThe current head has no unresolved required branch-change findings. Codex and Claude both conclude `SHIP`; the rubrics review flags stale legacy skill wording as a docs-sync warning, but both code reviewers classify that as optional INFO outside the dedicated update route path.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No required branch-change issues found | INFO | The maintainer’s latest requested changes are addressed on head `a5bf3c0f66291735b3b0b7d8ad2a03e6eaf16606`; the remaining legacy skill wording is optional cleanup, not required PR work. |\n\n## Progress\n- Read all current review outputs: Codex, Claude, and rubrics review.\n- Checked PR #369 conversation, linked issue #368, install precedent PR #304, current inline comments, and review threads.\n- Verified the current `check` job is passing on head `a5bf3c0f66291735b3b0b7d8ad2a03e6eaf16606`.\n- The latest fix removes `install` / `update-agent` from rubric applicability, adds rejection coverage, disables rubrics in `agent-update.yml`, and moves the bootstrap note out of durable docs.\n- Existing maintainer-authored review threads appear addressed, but I did not resolve them because they are not same-agent threads.\n- No new inline comments were posted, no replies were added, no comments were minimized, and no threads were resolved.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: no unresolved required branch-change work remains; merge readiness is now a maintainer decision, especially because the PR is still draft.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work from this synthesis.\n\n---\n`codex` | `gpt-5.5/medium` | `xhigh` | `Macmini-runner-2`",
+      "createdAt": "2026-05-30T21:34:23Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/369#issuecomment-4584917974",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEU1Kjw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nUpdated [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #369.\n\nAdded two active rubrics:\n\n- `communication/keep-temporary-migration-notes-out-of-durable-docs.yaml`\n- `workflow/keep-privileged-lifecycle-routes-out-of-rubric-steering.yaml`\n\nThey abstract the durable preferences from PR #369: keep one-time migration caveats out of stable docs, and keep privileged install/update lifecycle routes out of normal rubric steering unless explicitly requested.\n\nValidation passed: `node .agent/dist/cli/rubrics/validate.js --dir .../agent-rubrics` validated 31 rubrics. No git commit was made.\n\n---\n`codex` | `gpt-5.5/medium` | `medium` | `Macmini-runner-6`",
+      "createdAt": "2026-05-31T00:20:27Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/369#issuecomment-4585245327",
       "viewerDidAuthor": true
     }
   ],
@@ -225,20 +358,20 @@
     },
     {
       "path": ".agent/docs/usage/supported-workflows.md",
-      "additions": 12,
+      "additions": 3,
       "deletions": 2,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/__tests__/envelope.test.ts",
-      "additions": 9,
+      "additions": 10,
       "deletions": 2,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/__tests__/rubrics.test.ts",
-      "additions": 31,
-      "deletions": 0,
+      "additions": 22,
+      "deletions": 27,
       "changeType": "MODIFIED"
     },
     {
@@ -249,8 +382,8 @@
     },
     {
       "path": ".agent/src/rubrics.ts",
-      "additions": 1,
-      "deletions": 0,
+      "additions": 0,
+      "deletions": 1,
       "changeType": "MODIFIED"
     },
     {
@@ -267,25 +400,13 @@
     },
     {
       "path": ".github/prompts/agent-update.md",
-      "additions": 195,
+      "additions": 201,
       "deletions": 0,
       "changeType": "ADDED"
     },
     {
-      "path": ".github/prompts/rubrics-initialization.md",
-      "additions": 1,
-      "deletions": 1,
-      "changeType": "MODIFIED"
-    },
-    {
-      "path": ".github/prompts/rubrics-update.md",
-      "additions": 1,
-      "deletions": 1,
-      "changeType": "MODIFIED"
-    },
-    {
       "path": ".github/workflows/agent-update.yml",
-      "additions": 4,
+      "additions": 5,
       "deletions": 4,
       "changeType": "MODIFIED"
     }
@@ -299,7 +420,7 @@
       "color": "0e8a16"
     }
   ],
-  "mergedAt": null,
+  "mergedAt": "2026-05-31T00:18:08Z",
   "number": 369,
   "reviewDecision": "",
   "reviews": [
@@ -332,10 +453,32 @@
       "commit": {
         "oid": "a1268063f46faf39ce2045b73137e8a7799b600a"
       }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABBgWT8w",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer can you check my review comments",
+      "submittedAt": "2026-05-30T21:06:03Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "8bcb52c6c95f4560f5cd4c62feb3dbe7e9c855da"
+      }
     }
   ],
-  "state": "OPEN",
+  "state": "MERGED",
   "title": "Use a dedicated prompt for repo updates",
-  "updatedAt": "2026-05-29T19:29:09Z",
+  "updatedAt": "2026-05-31T00:20:27Z",
   "url": "https://github.com/self-evolving/repo/pull/369"
 }
