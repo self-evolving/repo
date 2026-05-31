@@ -106,6 +106,13 @@ Rules:
   as the primary automation signal: hand off on `FIX_PR`, hand off to
   `agent-self-approve` on `HUMAN_DECISION` when self-approval is enabled, and
   stop on `HUMAN_DECISION` or `NO_AUTOMATED_ACTION` otherwise.
+- For second-or-later user-launched follow-up rounds, default to `stop`: if the
+  latest user request launched another `/review`, `/fix-pr`, `/implement`, or
+  `/orchestrate` after a prior automated round on the same target, do not
+  continue the chain unless the request asks for continued automation, a full
+  pipeline, auto-fix, or another handoff. This one-shot default does not change
+  normal orchestrator-launched chains or delegated child deterministic worker
+  chains.
 - Use `handoff` only when one more automatic action is clearly warranted.
 - For issue-level `orchestrate`, prefer `handoff` with `next_action:
   "implement"` when the requested work fits in the current issue. Use

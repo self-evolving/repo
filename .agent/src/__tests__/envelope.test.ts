@@ -1531,6 +1531,8 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestratorPrompt, /ORCHESTRATOR_SELF_MERGE_ENABLED/);
   assert.match(orchestratorPrompt, /Deterministic Suggestion/);
   assert.match(orchestratorPrompt, /ORCHESTRATOR_SUGGESTED_DECISION/);
+  assert.match(orchestratorPrompt, /second-or-later user-launched follow-up rounds/);
+  assert.match(orchestratorPrompt, /continued automation, a full\s+pipeline, auto-fix, or another handoff/);
   assert.match(orchestratorPrompt, /"user_message"/);
   assert.match(orchestratorPrompt, /"clarification_request"/);
   assert.match(orchestratorPrompt, /prior child finished with an open, unmerged PR/);
