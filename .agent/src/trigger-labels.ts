@@ -19,6 +19,12 @@ export const BUILT_IN_TRIGGER_LABELS: TriggerLabel[] = [
     color: "0969da",
   },
   {
+    name: "agent/add-rubrics",
+    route: "add-rubrics",
+    description: "Ask Sepo to propose user/team rubric updates",
+    color: "6f42c1",
+  },
+  {
     name: "agent/create-action",
     route: "create-action",
     description: "Ask Sepo to propose a scheduled agent workflow",

@@ -10,6 +10,7 @@ ${MENTION_BODY}
 Choose exactly one route:
 - `answer`: answer inline now
 - `implement`: request approval to run the implementation workflow
+- `add-rubrics`: propose rubric changes in a pull request targeting `agent/rubrics`
 - `fix-pr`: start the PR-fix workflow immediately; only valid for `pull_request`
 - `review`: start the review workflow immediately; only valid for `pull_request`
 - `orchestrate`: start the orchestrator workflow immediately; only valid for `issue` or `pull_request`
@@ -20,7 +21,7 @@ Return exactly one JSON object and nothing else:
 
 ```json
 {
-  "route": "answer | implement | fix-pr | review | orchestrate | create-action | unsupported",
+  "route": "answer | implement | add-rubrics | fix-pr | review | orchestrate | create-action | unsupported",
   "needs_approval": true,
   "summary": "One short sentence for the user describing what the agent will do next.",
   "confidence": "low | medium | high",
@@ -33,6 +34,7 @@ Rules:
 - Use `implement` when the user is explicitly asking the agent to make code changes.
   - Prioritize the live mention over the target issue or pull request body. Existing context can explain what the work is, but it must not by itself turn a discussion-shaped mention into `implement`.
   - Choose `implement` only when the live mention clearly authorizes changes, such as "implement", "add", "update", "fix", "create", "change", or an explicit `/implement` command.
+- Use `add-rubrics` when the user asks to add, update, or refine durable user/team rubric preferences.
 - Use `fix-pr` when the user is explicitly asking the agent to update an existing PR to address review feedback or requested changes.
 - Use `review` only when the user is explicitly asking for a PR review or another review pass.
 - Use `orchestrate` when the user explicitly asks for orchestration, follow-up automation, or a bounded multi-step agent workflow on an issue or pull request.

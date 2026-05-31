@@ -30,6 +30,7 @@ A route is the high-level backend behavior being run. Current first-class routes
 
 - `answer`
 - `implement`
+- `add-rubrics`
 - `fix-pr`
 - `review`
 - `agent-self-approve`
@@ -114,7 +115,7 @@ The agent composes long-lived memory across runs on a dedicated `agent/memory` b
 
 ## User/team rubrics
 
-Rubrics live on a separate `agent/rubrics` branch, governed by `AGENT_RUBRICS_POLICY`. Rubrics are normative user/team preferences: what users want the agent to optimize for during implementation and what review should score against. Normal implementation and review runs read rubrics; `Agent / Rubrics / Update` is the dedicated write path. See [User/team rubrics](../architecture/rubrics.md).
+Rubrics live on a separate `agent/rubrics` branch, governed by `AGENT_RUBRICS_POLICY`. Rubrics are normative user/team preferences: what users want the agent to optimize for during implementation and what review should score against. Normal implementation and review runs read rubrics; `Agent / Rubrics / Add` proposes explicit user-requested changes through PRs, and `Agent / Rubrics / Update` is the dedicated direct write path for learning from merged PRs. See [User/team rubrics](../architecture/rubrics.md).
 
 ## Runtime dependencies
 

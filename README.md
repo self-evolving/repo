@@ -38,6 +38,9 @@ Check [Install into an existing repository](.agent/docs/setup/install-existing-r
 # Use an explicit slash route when you already know the action
 @sepo-agent /implement implement issue #2
 
+# Propose user/team rubric updates
+@sepo-agent /add-rubrics prefer concise PR summaries
+
 # Invoke arbitrary skills
 @sepo-agent /skill <skill-name>
 

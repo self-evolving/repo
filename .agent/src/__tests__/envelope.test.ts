@@ -347,6 +347,7 @@ test("single-agent workflows resolve provider before runtime setup", () => {
     readRepoFile(".github/workflows/agent-memory-bootstrap.yml"),
     readRepoFile(".github/workflows/agent-memory-pr-closed.yml"),
     readRepoFile(".github/workflows/agent-memory-scan.yml"),
+    readRepoFile(".github/workflows/agent-add-rubrics.yml"),
     readRepoFile(".github/workflows/agent-rubrics-initialization.yml"),
     readRepoFile(".github/workflows/agent-rubrics-review.yml"),
     readRepoFile(".github/workflows/agent-rubrics-update.yml"),
@@ -1767,6 +1768,7 @@ test("validateEnvelope catches invalid route", () => {
 test("validateEnvelope accepts dispatch, action, self-approval, update, and rubrics routes", () => {
   for (const route of [
     "dispatch",
+    "add-rubrics",
     "create-action",
     "agent-self-approve",
     "agent-self-merge",
@@ -1920,7 +1922,7 @@ test("run-agent-task only bootstraps missing rubrics for first-run initializatio
   assert.match(action, /RUBRICS_LIMIT:\s*\$\{\{\s*inputs\.route == 'rubrics-review' && 'all' \|\| inputs\.rubrics_limit\s*\}\}/);
   assert.match(action, /all_route_args\+=\(--all-routes\)/);
   assert.match(action, /"\$\{all_route_args\[@\]\}"/);
-  assert.match(rubricsPrompt, /Agent \/ Rubrics \/ Initialization and Agent \/ Rubrics \/ Update/);
+  assert.match(rubricsPrompt, /Agent \/ Rubrics \/ Initialization, Agent \/ Rubrics \/ Add, and Agent \/ Rubrics \/ Update/);
 });
 
 test("normal workflows honor rubrics policy instead of forcing read-only", () => {
@@ -1928,6 +1930,8 @@ test("normal workflows honor rubrics policy instead of forcing read-only", () =>
   const fixPrWorkflow = readRepoFile(".github/workflows/agent-fix-pr.yml");
   const reviewWorkflow = readRepoFile(".github/workflows/agent-review.yml");
   const rubricsReviewWorkflow = readRepoFile(".github/workflows/agent-rubrics-review.yml");
+  const addRubricsWorkflow = readRepoFile(".github/workflows/agent-add-rubrics.yml");
+  const addRubricsPrompt = readRepoFile(".github/prompts/agent-add-rubrics.md");
   const rubricsInitializationWorkflow = readRepoFile(".github/workflows/agent-rubrics-initialization.yml");
   const rubricsInitializationPrompt = readRepoFile(".github/prompts/rubrics-initialization.md");
   const rubricsUpdateWorkflow = readRepoFile(".github/workflows/agent-rubrics-update.yml");
@@ -1937,6 +1941,12 @@ test("normal workflows honor rubrics policy instead of forcing read-only", () =>
     assert.doesNotMatch(workflow, /rubrics_mode_override:\s*'read-only'/);
     assert.match(workflow, /rubrics_policy:\s*\$\{\{\s*vars\.AGENT_RUBRICS_POLICY \|\| ''\s*\}\}/);
   }
+  assert.match(addRubricsWorkflow, /rubrics_mode_override:\s*read-only/);
+  assert.match(addRubricsWorkflow, /PUSH_REF:\s*\$\{\{\s*env\.BRANCH\s*\}\}/);
+  assert.match(addRubricsWorkflow, /BASE_BRANCH:\s*\$\{\{\s*env\.RUBRICS_REF\s*\}\}/);
+  assert.match(addRubricsWorkflow, /prepare-add-rubrics-proposal-summary\.js/);
+  assert.match(addRubricsPrompt, /Read existing rubrics/);
+  assert.match(addRubricsPrompt, /proposal PR targeting/);
   assert.match(rubricsInitializationWorkflow, /rubrics_mode_override:\s*'enabled'/);
   assert.match(rubricsUpdateWorkflow, /rubrics_mode_override:\s*'enabled'/);
   assert.match(rubricsInitializationPrompt, /gh repo view \$\{REPO_SLUG\} --json owner,nameWithOwner/);
@@ -1953,6 +1963,27 @@ test("normal workflows honor rubrics policy instead of forcing read-only", () =>
   assert.match(rubricsUpdateWorkflow, /Prepare rubrics update summary/);
   assert.match(rubricsUpdateWorkflow, /prepare-rubrics-update-summary\.js/);
   assert.match(rubricsUpdateWorkflow, /Post rubrics update summary/);
+});
+
+test("add-rubrics route uses separate rubrics checkout for proposal PRs", () => {
+  const routerWorkflow = readRepoFile(".github/workflows/agent-router.yml");
+  const addRubricsWorkflow = readRepoFile(".github/workflows/agent-add-rubrics.yml");
+  const runSource = readRepoFile(".agent/src/run.ts");
+  const action = readRepoFile(".github/actions/run-agent-task/action.yml");
+
+  assert.match(routerWorkflow, /needs\.portal\.outputs\.route == 'add-rubrics'/);
+  assert.match(routerWorkflow, /uses:\s*\.\/\.github\/workflows\/agent-add-rubrics\.yml/);
+  assert.match(addRubricsWorkflow, /^name: Agent \/ Rubrics \/ Add$/m);
+  assert.match(addRubricsWorkflow, /ref:\s*\$\{\{\s*github\.event\.repository\.default_branch\s*\}\}/);
+  assert.match(addRubricsWorkflow, /prompt:\s*add-rubrics/);
+  assert.match(addRubricsWorkflow, /route:\s*add-rubrics/);
+  assert.match(addRubricsWorkflow, /rubrics_mode_override:\s*read-only/);
+  assert.match(addRubricsWorkflow, /rubrics\/validate\.js --dir "\$\{\{ steps\.add_rubrics\.outputs\.rubrics_dir \}\}"/);
+  assert.match(addRubricsWorkflow, /PUSH_REF:\s*\$\{\{\s*env\.BRANCH\s*\}\}/);
+  assert.match(addRubricsWorkflow, /BASE_BRANCH:\s*\$\{\{\s*env\.RUBRICS_REF\s*\}\}/);
+  assert.doesNotMatch(addRubricsWorkflow, /fetch origin "refs\/heads\/\$\{BASE_BRANCH\}"/);
+  assert.match(runSource, /"add-rubrics": ".github\/prompts\/agent-add-rubrics\.md"/);
+  assert.match(action, /implement, add-rubrics, review/);
 });
 
 test("rubrics-review prompt chooses from full active rubric context", () => {

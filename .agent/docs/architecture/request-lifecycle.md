@@ -10,6 +10,7 @@ Every trigger converges on the portal workflow `agent-router.yml`. It extracts c
 
 - Inline answers are posted immediately.
 - Review and `fix-pr` requests on pull requests are dispatched immediately.
+- `/add-rubrics` and `agent/add-rubrics` requests dispatch the rubrics add workflow, which keeps runtime code on the default branch and opens a proposal PR targeting `agent/rubrics`.
 - Explicit `/orchestrate` (or `agent/orchestrate`) requests dispatch the orchestrator workflow, which chooses one follow-up action from current target state.
 - Edited PR events are blocked from re-triggering review and `fix-pr` routes.
 - Mention and label requests that fail route authorization are posted back as inline `unsupported` replies instead of being dropped silently; that path still runs `Setup agent runtime` before `post-response.js` so posting dependencies are available.

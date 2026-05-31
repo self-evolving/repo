@@ -161,8 +161,9 @@ After the files and secrets are in place:
 4. wait for the `👀` reaction and the follow-up workflow run
 
 The onboarding workflow is safe to rerun. It creates the built-in trigger labels
-(`agent/answer`, `agent/implement`, `agent/create-action`, `agent/review`,
-`agent/fix-pr`, and `agent/orchestrate`) when they are missing, ensures the
+(`agent/answer`, `agent/implement`, `agent/add-rubrics`,
+`agent/create-action`, `agent/review`, `agent/fix-pr`, and `agent/orchestrate`)
+when they are missing, ensures the
 non-trigger `agent` status label exists, applies that label to the setup issue,
 then updates the same setup issue comment with GitHub auth, provider
 credentials, memory, rubrics, remaining setup, and test commands.
@@ -229,4 +230,4 @@ That workflow:
 - validates rubric YAML before committing and pushing the branch
 - fails if the branch cannot be committed and pushed, so first-run setup cannot silently skip persistence
 
-The initialization workflow accepts free-form context. Use it to point the agent at important PRs, issues, review comments, or team preferences that should shape the first rubric set. After the branch exists, use `Agent / Rubrics / Update` for ongoing rubric learning.
+The initialization workflow accepts free-form context. Use it to point the agent at important PRs, issues, review comments, or team preferences that should shape the first rubric set. After the branch exists, use `/add-rubrics` for explicit proposal PRs and `Agent / Rubrics / Update` for ongoing rubric learning.

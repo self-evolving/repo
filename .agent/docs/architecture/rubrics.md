@@ -36,7 +36,7 @@ description: >-
 type: generic # generic | specific
 domain: coding_workflow # coding_style | coding_workflow | communication | review_quality
 applies_to:
-  - implement # implement | fix-pr | review | agent-self-approve | agent-self-merge | answer | skill | rubrics-review | rubrics-initialization | rubrics-update
+  - implement # answer | implement | add-rubrics | create-action | fix-pr | review | skill | rubrics-review | rubrics-initialization | rubrics-update
 severity: should # must | should | consider
 weight: 3 # 1-10
 status: active # active | draft | retired
@@ -83,12 +83,15 @@ Read-only selection is best-effort: invalid rubric files are emitted as workflow
 | Workflow | Trigger | Purpose | Writes `agent/rubrics`? |
 |---|---|---|---|
 | `agent-rubrics-initialization.yml` (`Agent / Rubrics / Initialization`) | `workflow_dispatch` | Creates `agent/rubrics`, seeds the branch layout, and asks an agent to populate initial rubrics from supplied context or repository history | Yes |
+| `agent-add-rubrics.yml` (`Agent / Rubrics / Add`) | explicit `/add-rubrics`, triaged rubric requests, `agent/add-rubrics`, `workflow_dispatch` | Proposes add-or-update rubric YAML edits in a draft PR targeting `agent/rubrics` | No, opens PR |
 | `agent-rubrics-review.yml` (`Agent / Rubrics / Review`) | `workflow_dispatch`, `workflow_call` | Scores a PR against selected active rubrics and uploads or posts a review artifact | No |
 | `agent-rubrics-update.yml` (`Agent / Rubrics / Update`) | merged `pull_request_target.closed` with review interaction, `workflow_dispatch` | Distills durable user/team preferences from merged PR conversations | Yes |
 
 `agent-review.yml` calls `Agent / Rubrics / Review` as an independent review lane that posts its own PR comment. Core review synthesis does not depend on rubrics review, so rubric scoring failures do not block the normal review comment.
 
 `Agent / Rubrics / Initialization` is the recommended first-run setup path. It rejects existing rubrics branches, bootstraps the branch skeleton, then runs an initialization prompt. Operators can provide arbitrary context, such as desired team preferences or links to important PRs/issues. When context is omitted, the agent inspects recent merged PRs and trusted contributor feedback to seed only durable rubrics. Initialization fails if the workflow cannot commit and push the new rubrics branch.
+
+`Agent / Rubrics / Add` is the user-facing proposal path for conversation requests. It reads existing rubrics from a separate `agent/rubrics` checkout, prefers updating active rubrics over creating near-duplicates, validates the full rubric checkout, pushes a proposal branch, and opens a draft PR targeting `agent/rubrics`. The main workflow checkout remains on trusted default-branch runtime code; `agent/rubrics` is only the edited target checkout.
 
 `Agent / Rubrics / Update` posts a short PR summary after each completed learning run. The summary says whether `agent/rubrics` was committed and includes the agent's explanation, including `no rubric changes` decisions, so skipped learning is visible without opening Actions logs.
 
@@ -102,6 +105,7 @@ Rubrics policy mirrors memory policy but defaults to `read-only`, because rubric
 {
   "default_mode": "read-only",
   "route_overrides": {
+    "add-rubrics": "read-only",
     "rubrics-update": "enabled",
     "answer": "disabled"
   }
@@ -114,7 +118,7 @@ Modes:
 - `read-only` — mount rubrics and inject selected rubrics, but skip commits
 - `disabled` — skip rubrics entirely
 
-Dedicated rubric-initialization and rubric-update runs pass `rubrics_mode_override: enabled`, so they can write the branch even when the repository default is read-only. Only rubric initialization bootstraps a missing branch; rubric update expects `agent/rubrics` to already exist.
+Dedicated rubric-initialization and rubric-update runs pass `rubrics_mode_override: enabled`, so they can write the branch even when the repository default is read-only. Add-rubrics uses `rubrics_mode_override: read-only` and opens a PR from a proposal branch instead of committing directly. Only rubric initialization bootstraps a missing branch; add-rubrics and rubric update expect `agent/rubrics` to already exist.
 
 Normal implementation, fix, review, and rubric-review callers do not pass a rubric mode override; they honor `AGENT_RUBRICS_POLICY` and default to read-only when no policy is configured.
 
