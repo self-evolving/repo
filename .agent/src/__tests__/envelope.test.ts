@@ -12,6 +12,7 @@ import {
   SCHEMA_VERSION,
   validateEnvelope,
 } from "../envelope.js";
+import { buildAnswerReviewContext } from "../answer-review-context.js";
 
 const repoRoot = path.resolve(__dirname, "../../..");
 
@@ -131,15 +132,43 @@ test("issue enhancement prompt uses self-serve context gathering", () => {
 test("answer prompt returns content for workflow posting instead of commenting directly", () => {
   const answerPrompt = readRepoFile(".github/prompts/agent-answer.md");
 
-  assert.match(answerPrompt, /\$\{REQUEST_SOURCE_KIND\}/);
-  assert.match(answerPrompt, /\$\{REQUEST_COMMENT_ID\}/);
-  assert.match(answerPrompt, /\$\{REQUEST_COMMENT_URL\}/);
+  assert.match(answerPrompt, /\$\{ANSWER_REVIEW_CONTEXT\}/);
+  assert.doesNotMatch(answerPrompt, /\$\{REQUEST_SOURCE_KIND\}/);
+  assert.doesNotMatch(answerPrompt, /\$\{REQUEST_COMMENT_ID\}/);
+  assert.doesNotMatch(answerPrompt, /\$\{REQUEST_COMMENT_URL\}/);
+  assert.doesNotMatch(answerPrompt, /Trigger metadata:/);
   assert.match(answerPrompt, /do not post comments directly via `gh`/i);
-  assert.match(answerPrompt, /REQUEST_SOURCE_KIND=pull_request_review/);
-  assert.match(answerPrompt, /related inline comments/);
-  assert.match(answerPrompt, /gh api repos\/\$\{REPO_SLUG\}\/pulls\/\$\{TARGET_NUMBER\}\/reviews\/\$\{REQUEST_COMMENT_ID\}/);
-  assert.match(answerPrompt, /gh api --method POST repos\/\$\{REPO_SLUG\}\/pulls\/\$\{TARGET_NUMBER\}\/comments -f body='<reply>' -F in_reply_to=<comment_id>/);
   assert.match(answerPrompt, /workflow will post it on the original surface/i);
+});
+
+test("answer review context renders only for pull request review triggers", () => {
+  assert.equal(
+    buildAnswerReviewContext({
+      repoSlug: "self-evolving/repo",
+      targetNumber: "1",
+      sourceKind: "issue_comment",
+      commentId: "123",
+      commentUrl: "https://github.com/self-evolving/repo/issues/1#issuecomment-123",
+    }),
+    "",
+  );
+
+  const reviewContext = buildAnswerReviewContext({
+    repoSlug: "self-evolving/repo",
+    targetNumber: "1",
+    sourceKind: "pull_request_review",
+    commentId: "456",
+    commentUrl: "https://github.com/self-evolving/repo/pull/1#pullrequestreview-456",
+  });
+
+  assert.match(reviewContext, /Review-triggered answer context/);
+  assert.match(reviewContext, /Request source kind: `pull_request_review`/);
+  assert.match(reviewContext, /Request review ID: `456`/);
+  assert.match(reviewContext, /related inline comments/);
+  assert.match(reviewContext, /non-empty final answer body/);
+  assert.match(reviewContext, /duplicate an existing Sepo-authored inline reply/);
+  assert.match(reviewContext, /gh api repos\/self-evolving\/repo\/pulls\/1\/reviews\/456/);
+  assert.match(reviewContext, /gh api --method POST repos\/self-evolving\/repo\/pulls\/1\/comments -f body='<reply>' -F in_reply_to=<comment_id>/);
 });
 
 test("answer route passes trigger metadata into prompt variables", () => {
@@ -165,6 +194,16 @@ test("answer route passes trigger metadata into prompt variables", () => {
   assert.ok(supplementalPromptVarNames.has("REQUEST_SOURCE_KIND"));
   assert.ok(supplementalPromptVarNames.has("REQUEST_COMMENT_ID"));
   assert.ok(supplementalPromptVarNames.has("REQUEST_COMMENT_URL"));
+  assert.match(runSource, /buildAnswerReviewContext/);
+  assert.match(runSource, /ANSWER_REVIEW_CONTEXT/);
+});
+
+test("answer action docs mention review-triggered inline replies", () => {
+  const docs = readRepoFile(".agent/docs/usage/agent-actions.md");
+
+  assert.match(docs, /pull_request_review/);
+  assert.match(docs, /targeted inline replies/);
+  assert.match(docs, /non-empty answer body/);
 });
 
 test("fix-pr prompt uses self-serve context, not local snapshots", () => {

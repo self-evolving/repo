@@ -6,7 +6,7 @@ Agent actions are route-level behaviors exposed by the `.agent` backend. They ar
 
 | Agent action | Route | Typical prompt or skill source | Execution path |
 |---|---|---|---|
-| Answer | `answer` | `.github/prompts/agent-answer.md` | inline response through `agent-router.yml` |
+| Answer | `answer` | `.github/prompts/agent-answer.md` | inline response through `agent-router.yml`; review-triggered answers may post targeted inline replies |
 | Implement | `implement` | `.github/prompts/agent-implement.md` | explicit `/implement` or `agent/implement` label dispatches `agent-implement.yml` directly; triaged implement goes through approval first |
 | Fix PR | `fix-pr` | `.github/prompts/agent-fix-pr.md` | PR-only dispatch to `agent-fix-pr.yml` |
 | Review | `review` | `.github/prompts/review.md` and `.github/prompts/review-synthesize.md` | parallel review jobs plus synthesis in `agent-review.yml` |
@@ -20,6 +20,15 @@ Agent actions are route-level behaviors exposed by the `.agent` backend. They ar
 | Dispatch | `dispatch` | `.github/prompts/agent-dispatch.md` | route triage inside `agent-router.yml` |
 
 The orchestrator is now a top-level route. Users start orchestration explicitly with `/orchestrate` or `agent/orchestrate`; dispatch triage can also select `orchestrate` for issue and pull request requests that ask for orchestration, follow-up automation, or bounded multi-step agent work. `agent-orchestrator.yml` chooses follow-up work from current target state. Workflows launched by the orchestrator carry explicit orchestration context and hand back after post-processing, so the bounded `implement -> review -> fix-pr -> review` loop can continue until a stop condition. Direct `/implement`, `/review`, and `/fix-pr` runs do not carry that context and stay one-shot. In `heuristics` mode, PR orchestrate starts use deterministic status routing. In `agent` mode, issue and PR orchestrate starts invoke the planner. For small self-contained issue work, the planner can hand off directly to `implement` on the current issue. For PR work, the planner can choose `review`, `fix-pr`, `answer`, or stop/block; runtime policy validates that PR starts dispatch only `review` or `fix-pr`. For meta-orchestration, child work uses the internal `delegate_issue` decision to create, reuse, or adopt a child issue that then runs the normal `/orchestrate` flow. `delegate_issue` is not a public route and is not part of `AgentAction`. Planner handoffs can carry `handoff_context`; `fix-pr` receives that context as explicit initial steering for the automated fix pass.
+
+For normal `/answer` runs, the agent returns a reply body and `agent-router.yml`
+posts it on the triggering surface. When the trigger source is
+`pull_request_review`, the answer prompt receives the review id and URL as
+conditional context. In that case, the agent may inspect the triggering review
+and related inline comments with `gh`, then post targeted inline replies when
+the user asked for that shape. It still returns a non-empty answer body for the
+normal post step and should skip duplicate Sepo-authored inline replies on
+reruns.
 
 Implementation runs can create stacked PRs by receiving either `base_branch` or
 `base_pr`. `base_pr` resolves to the open same-repository PR head branch; when

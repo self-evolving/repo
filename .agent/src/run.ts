@@ -59,6 +59,7 @@ import {
   shouldBackupSessionBundles,
 } from "./session-bundle.js";
 import { buildSharedEnv } from "./runtime-env.js";
+import { buildAnswerReviewContext } from "./answer-review-context.js";
 
 // --- Logging ---
 
@@ -357,6 +358,16 @@ function main(): void {
   // variables without updating the runtime allowlist here.
   for (const name of SUPPLEMENTAL_PROMPT_VAR_NAMES) {
     if (process.env[name]) promptVars[name] = process.env[name]!;
+  }
+  const answerReviewContext = buildAnswerReviewContext({
+    repoSlug: promptVars.REPO_SLUG,
+    targetNumber: promptVars.TARGET_NUMBER,
+    sourceKind: process.env.REQUEST_SOURCE_KIND || "",
+    commentId: process.env.REQUEST_COMMENT_ID || "",
+    commentUrl: process.env.REQUEST_COMMENT_URL || "",
+  });
+  if (answerReviewContext) {
+    promptVars.ANSWER_REVIEW_CONTEXT = answerReviewContext;
   }
   if (promptVars.RUBRICS_CONTEXT_FILE && existsSync(promptVars.RUBRICS_CONTEXT_FILE)) {
     promptVars.RUBRICS_CONTEXT = readFileSync(promptVars.RUBRICS_CONTEXT_FILE, "utf8");
