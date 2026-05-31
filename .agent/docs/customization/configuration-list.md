@@ -42,7 +42,7 @@ Built-in model defaults are intentionally small and pinned:
 | Provider | Default model |
 |---|---|
 | `codex` | `gpt-5.5` |
-| `claude` | `claude-sonnet-4-6` |
+| `claude` | `claude-opus-4-8` |
 
 Sepo does not maintain a general model catalog. Use `AGENT_MODEL_POLICY` when a repository needs different models, route-specific choices, or reasoning effort overrides.
 
@@ -52,7 +52,7 @@ Sepo does not maintain a general model catalog. Use `AGENT_MODEL_POLICY` when a 
 {
   "providers": {
     "codex": { "model": "gpt-5.5", "reasoning_effort": "xhigh" },
-    "claude": { "model": "claude-sonnet-4-6", "reasoning_effort": "max" }
+    "claude": { "model": "claude-opus-4-8", "reasoning_effort": "max" }
   },
   "route_overrides": {
     "answer": { "provider": "codex", "model": "gpt-5.4-mini", "reasoning_effort": "high" },

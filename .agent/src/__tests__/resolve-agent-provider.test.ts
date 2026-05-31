@@ -130,7 +130,7 @@ test("provider resolver pins minimal built-in provider model defaults", () => {
 
   assert.equal(claude.status, 0, claude.stderr);
   assert.equal(claude.outputs.provider, "claude");
-  assert.equal(claude.outputs.model, "claude-sonnet-4-6");
+  assert.equal(claude.outputs.model, "claude-opus-4-8");
   assert.equal(claude.outputs.reasoning_effort, "");
 });
 

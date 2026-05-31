@@ -8,7 +8,7 @@ const SAFE_TOKEN = /^[A-Za-z0-9][A-Za-z0-9._:/+-]*$/;
 // Keep this small: Sepo pins a default per supported provider, not a model catalog.
 const BUILTIN_PROVIDER_DEFAULTS = Object.freeze({
   codex: Object.freeze({ model: "gpt-5.5" }),
-  claude: Object.freeze({ model: "claude-sonnet-4-6" }),
+  claude: Object.freeze({ model: "claude-opus-4-8" }),
 });
 
 function normalizeProvider(value) {
