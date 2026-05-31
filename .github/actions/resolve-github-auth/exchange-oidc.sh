@@ -39,6 +39,46 @@ run_with_retries() {
   done
 }
 
+is_transient_exchange_status() {
+  case "$1" in
+    429|500|502|503|504)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+run_exchange_with_retries() {
+  local __result_var="$1"
+  shift
+  local __attempt=1
+  local __delay=1
+  local __status=""
+
+  while true; do
+    if __status="$("$@")"; then
+      printf -v "${__result_var}" '%s' "${__status}"
+      if ! is_transient_exchange_status "${__status}" || [ "${__attempt}" -ge 3 ]; then
+        return 0
+      fi
+
+      echo "Hosted broker exchange returned HTTP ${__status}; retrying." >&2
+    else
+      if [ "${__attempt}" -ge 3 ]; then
+        return 1
+      fi
+
+      echo "Hosted broker exchange request failed; retrying." >&2
+    fi
+
+    sleep "${__delay}"
+    __delay=$((__delay * 2))
+    __attempt=$((__attempt + 1))
+  done
+}
+
 oidc_request_url="${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${OIDC_AUDIENCE}"
 
 if ! run_with_retries oidc_response \
@@ -75,7 +115,7 @@ if ! jq -n \
   exit 0
 fi
 
-if ! run_with_retries exchange_status \
+if ! run_exchange_with_retries exchange_status \
   curl --silent --show-error --max-time 30 \
     -o "${exchange_response_file}" \
     -w '%{http_code}' \

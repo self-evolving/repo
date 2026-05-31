@@ -89,6 +89,8 @@ test("shared base prompt exists and contains the metadata contract", () => {
   assert.match(base, /\$\{REQUEST_TEXT\}/);
   assert.match(base, /gh issue view/);
   assert.match(base, /gh pr view/);
+  assert.match(base, /likely transient server, rate-limit, timeout, or connection error/);
+  assert.match(base, /Do not repeatedly retry deterministic failures/);
 });
 
 test("route prompts do not duplicate the base metadata header", () => {
@@ -1151,6 +1153,8 @@ test("shared auth action supports the built-in hosted OIDC broker mode", () => {
   assert.match(oidcScript, /oidc_request_url=\"\$\{ACTIONS_ID_TOKEN_REQUEST_URL\}&audience=\$\{OIDC_AUDIENCE\}\"/);
   assert.match(oidcScript, /for cmd in curl jq/);
   assert.match(oidcScript, /run_with_retries\(\)/);
+  assert.match(oidcScript, /run_exchange_with_retries\(\)/);
+  assert.match(oidcScript, /429\|500\|502\|503\|504/);
   assert.match(oidcScript, /jq -r '\.value \/\/ empty' 2>\/dev\/null \|\| true/);
   assert.match(oidcScript, /jq -r '\.token \/\/ \.app_token \/\/ empty' .*2>\/dev\/null \|\| true/);
   assert.match(oidcScript, /--max-time 30/);
@@ -1551,6 +1555,7 @@ test("orchestrator source handoff context is renderable in planner prompts", () 
 
 test("workflow docs cover hosted auth and self-hosting paths", () => {
   const setupGuide = readRepoFile(".agent/docs/setup/setup-guide.md");
+  const internalActions = readRepoFile(".agent/docs/usage/internal-actions.md");
   const selfHostedRunner = readRepoFile(
     ".agent/docs/setup/self-hosted-github-action-runner.md",
   );
@@ -1586,6 +1591,9 @@ test("workflow docs cover hosted auth and self-hosting paths", () => {
   );
   assert.match(setupGuide, /fallback workflow token `github\.token`/i);
   assert.doesNotMatch(setupGuide, /"oidc_token"/);
+  assert.match(internalActions, /hosted OIDC broker path retries/);
+  assert.match(internalActions, /`429`, `500`, `502`, `503`, or `504`/);
+  assert.match(internalActions, /generic broker `400` responses remain terminal/);
   assert.match(selfHostedRunner, /infrastructure you operate/);
   assert.match(selfHostedRunner, /`git`, `gh`, `jq`, `curl`, `bash`, and network/);
 });
