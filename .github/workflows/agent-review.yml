@@ -170,6 +170,7 @@ jobs:
         with:
           install_codex: ${{ matrix.agent == 'codex' && 'true' || 'false' }}
           install_claude: ${{ matrix.agent == 'claude' && 'true' || 'false' }}
+          install_pi: "false"
 
       - name: Resolve task timeout
         id: task_timeout
@@ -190,6 +191,8 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          pi_auth_json_b64: ${{ secrets.PI_AUTH_JSON_B64 }}
+          pi_auth_json: ${{ secrets.PI_AUTH_JSON }}
           permission_mode: ${{ matrix.permission_mode }}
           prompt: review
           reasoning_effort: ${{ matrix.reasoning_effort }}
@@ -302,6 +305,8 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          pi_auth_json_b64_configured: ${{ secrets.PI_AUTH_JSON_B64 != '' && 'true' || 'false' }}
+          pi_auth_json_configured: ${{ secrets.PI_AUTH_JSON != '' && 'true' || 'false' }}
           model_policy: ${{ vars.AGENT_MODEL_POLICY || '' }}
 
       - name: Setup agent runtime
@@ -310,6 +315,7 @@ jobs:
         with:
           install_codex: ${{ steps.synthesis_provider.outputs.install_codex }}
           install_claude: ${{ steps.synthesis_provider.outputs.install_claude }}
+          install_pi: ${{ steps.synthesis_provider.outputs.install_pi }}
 
       - name: Resolve task timeout
         id: task_timeout
@@ -329,6 +335,8 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          pi_auth_json_b64: ${{ secrets.PI_AUTH_JSON_B64 }}
+          pi_auth_json: ${{ secrets.PI_AUTH_JSON }}
           model: ${{ steps.synthesis_provider.outputs.model }}
           display_model: ${{ vars.AGENT_DISPLAY_MODEL || '' }}
           permission_mode: approve-all

@@ -30,6 +30,8 @@ export interface OnboardingOptions {
   openaiConfigured: boolean;
   claudeConfigured: boolean;
   anthropicConfigured: boolean;
+  piAuthJsonB64Configured: boolean;
+  piAuthJsonConfigured: boolean;
   memoryRef: string;
   rubricsRef: string;
   runUrl: string;
@@ -186,6 +188,8 @@ function credentialNames(opts: OnboardingOptions): string[] {
   if (opts.openaiConfigured) names.push("`OPENAI_API_KEY`");
   if (opts.claudeConfigured) names.push("`CLAUDE_CODE_OAUTH_TOKEN`");
   if (opts.anthropicConfigured) names.push("`ANTHROPIC_API_KEY`");
+  if (opts.piAuthJsonB64Configured) names.push("`PI_AUTH_JSON_B64`");
+  if (opts.piAuthJsonConfigured) names.push("`PI_AUTH_JSON`");
   return names;
 }
 
@@ -207,7 +211,7 @@ function modelStatusBody(opts: OnboardingOptions, links: OnboardingLinks): strin
   if (names.length === 0) {
     return [
       "- [ ] Model credentials: not configured",
-      `  - Add \`OPENAI_API_KEY\`, \`CLAUDE_CODE_OAUTH_TOKEN\`, or \`ANTHROPIC_API_KEY\` in ${link("repository Actions secrets", links.actionsSecretsUrl)}.`,
+      `  - Add \`OPENAI_API_KEY\`, \`CLAUDE_CODE_OAUTH_TOKEN\`, \`ANTHROPIC_API_KEY\`, \`PI_AUTH_JSON_B64\`, or \`PI_AUTH_JSON\` in ${link("repository Actions secrets", links.actionsSecretsUrl)}.`,
       "  - Optional: configure `AGENT_DEFAULT_PROVIDER`.",
       ...providerDetailBody(opts),
     ].join("\n");

@@ -33,6 +33,19 @@ test("buildSharedEnv maps reasoning effort for shared runtime consumers", () => 
   assert.equal(env.CLAUDE_CODE_EFFORT_LEVEL, "high");
 });
 
+test("buildSharedEnv does not expose reasoning effort to Pi", () => {
+  const env = buildSharedEnv({
+    MODEL_REASONING_EFFORT: "high",
+    PI_CODING_AGENT_DIR: "/tmp/pi-agent",
+    PI_CODING_AGENT_SESSION_DIR: "/tmp/pi-agent/sessions",
+  }, "pi");
+
+  assert.equal("MODEL_REASONING_EFFORT" in env, false);
+  assert.equal("CLAUDE_CODE_EFFORT_LEVEL" in env, false);
+  assert.equal(env.PI_CODING_AGENT_DIR, "/tmp/pi-agent");
+  assert.equal(env.PI_CODING_AGENT_SESSION_DIR, "/tmp/pi-agent/sessions");
+});
+
 test("buildSharedEnv preserves Claude credentials without unsupported ACPX aliases", () => {
   const env = buildSharedEnv({
     CLAUDE_CODE_OAUTH_TOKEN: "claude-token",

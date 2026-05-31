@@ -89,6 +89,150 @@ test("buildAcpxArgs passes model as a global acpx flag before the agent", () => 
   ]);
 });
 
+test("buildAcpxArgs leaves named-session model setup to acpx set model", () => {
+  const args = buildAcpxArgs({
+    agent: "pi",
+    model: "gpt-5.4-mini",
+    prompt: "apply the requested fix",
+    permissionMode: "approve-all",
+    sessionName: "pull_request-354-fix-pr-default",
+    isExecRoute: false,
+  });
+
+  assert.deepEqual(args, [
+    "--approve-all",
+    "--format",
+    "json",
+    "--json-strict",
+    "--suppress-reads",
+    "pi",
+    "prompt",
+    "-s",
+    "pull_request-354-fix-pr-default",
+    "apply the requested fix",
+  ]);
+});
+
+test("buildAcpxArgs passes Pi exec model through the global acpx flag", () => {
+  const args = buildAcpxArgs({
+    agent: "pi",
+    model: "gpt-5.4-mini",
+    prompt: "answer this",
+    permissionMode: "approve-all",
+    isExecRoute: true,
+  });
+
+  assert.deepEqual(args, [
+    "--approve-all",
+    "--format",
+    "json",
+    "--json-strict",
+    "--suppress-reads",
+    "--model",
+    "gpt-5.4-mini",
+    "pi",
+    "exec",
+    "answer this",
+  ]);
+});
+
+test("runAcpx scrubs reasoning effort env from Pi child processes", () => {
+  const dir = mkdtempSync(join(tmpdir(), "acpx-pi-env-test-"));
+  const oldPath = process.env.PATH;
+  const oldModelReasoningEffort = process.env.MODEL_REASONING_EFFORT;
+  const oldClaudeCodeEffortLevel = process.env.CLAUDE_CODE_EFFORT_LEVEL;
+
+  try {
+    const acpxPath = join(dir, "acpx");
+    const callsPath = join(dir, "calls.jsonl");
+    writeFileSync(
+      acpxPath,
+      `#!/usr/bin/env node
+const fs = require("node:fs");
+const args = process.argv.slice(2);
+fs.appendFileSync(process.env.ACPX_TEST_CALLS, JSON.stringify({
+  args,
+  hasModelReasoningEffort: Object.prototype.hasOwnProperty.call(process.env, "MODEL_REASONING_EFFORT"),
+  hasClaudeCodeEffortLevel: Object.prototype.hasOwnProperty.call(process.env, "CLAUDE_CODE_EFFORT_LEVEL")
+}) + "\\n");
+if (args.includes("exec")) {
+  process.stdout.write([
+    '{"jsonrpc":"2.0","method":"session/update","params":{"update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"Done."}}}}',
+    '{"jsonrpc":"2.0","id":1,"result":{"stopReason":"end_turn"}}'
+  ].join("\\n") + "\\n");
+}
+`,
+      "utf8",
+    );
+    chmodSync(acpxPath, 0o755);
+    process.env.PATH = `${dir}${delimiter}${oldPath || ""}`;
+    process.env.MODEL_REASONING_EFFORT = "xhigh";
+    process.env.CLAUDE_CODE_EFFORT_LEVEL = "xhigh";
+
+    const result = runAcpx({
+      agent: "pi",
+      model: "gpt-5.4-mini",
+      prompt: "answer this",
+      cwd: process.cwd(),
+      sessionMode: sessionModeForPolicy("none"),
+      threadKey: "self-evolving/repo:issue:350:answer:default",
+      permissionMode: "approve-all",
+      thoughtLevel: "xhigh",
+      env: { ACPX_TEST_CALLS: callsPath },
+    });
+
+    assert.equal(result.exitCode, 0);
+    assert.equal(result.stdout, "Done.");
+    assert.equal(result.sessionEnsureOutcome.kind, "not_applicable");
+
+    const calls = readFileSync(callsPath, "utf8")
+      .trim()
+      .split("\n")
+      .map(
+        (line) =>
+          JSON.parse(line) as {
+            args: string[];
+            hasModelReasoningEffort: boolean;
+            hasClaudeCodeEffortLevel: boolean;
+          },
+      );
+
+    assert.deepEqual(calls.map((call) => call.args), [
+      [
+        "--approve-all",
+        "--format",
+        "json",
+        "--json-strict",
+        "--suppress-reads",
+        "--model",
+        "gpt-5.4-mini",
+        "pi",
+        "exec",
+        "answer this",
+      ],
+    ]);
+    assert.equal(calls.every((call) => !call.hasModelReasoningEffort), true);
+    assert.equal(calls.every((call) => !call.hasClaudeCodeEffortLevel), true);
+  } finally {
+    if (oldPath === undefined) {
+      delete process.env.PATH;
+    } else {
+      process.env.PATH = oldPath;
+    }
+    if (oldModelReasoningEffort === undefined) {
+      delete process.env.MODEL_REASONING_EFFORT;
+    } else {
+      process.env.MODEL_REASONING_EFFORT = oldModelReasoningEffort;
+    }
+    if (oldClaudeCodeEffortLevel === undefined) {
+      delete process.env.CLAUDE_CODE_EFFORT_LEVEL;
+    } else {
+      process.env.CLAUDE_CODE_EFFORT_LEVEL = oldClaudeCodeEffortLevel;
+    }
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("buildSessionSetupCommands uses acpx set model for named sessions", () => {
   const commands = buildSessionSetupCommands({
     agent: "codex",
@@ -493,6 +637,23 @@ test("buildSessionSetupCommands skips claude setup when not approve-all", () => 
   });
 
   assert.deepEqual(commands, []);
+});
+
+test("buildSessionSetupCommands keeps Pi setup conservative", () => {
+  const commands = buildSessionSetupCommands({
+    agent: "pi",
+    sessionName: "issue-350-implement-default",
+    model: "gpt-5.4-mini",
+    thoughtLevel: "xhigh",
+    permissionMode: "approve-all",
+  });
+
+  assert.deepEqual(commands, [
+    {
+      label: "set model",
+      args: ["pi", "set", "model", "gpt-5.4-mini", "-s", "issue-350-implement-default"],
+    },
+  ]);
 });
 
 test("extractAssistantText returns the last message from a compacted log", () => {

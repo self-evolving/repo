@@ -26,8 +26,12 @@ function setCredentialEnv(options: {
   }
 }
 
-export function buildSharedEnv(inputEnv: NodeJS.ProcessEnv = process.env): Record<string, string> {
+export function buildSharedEnv(
+  inputEnv: NodeJS.ProcessEnv = process.env,
+  agent = inputEnv.ACPX_AGENT || "",
+): Record<string, string> {
   const env: Record<string, string> = {};
+  const isPiAgent = agent.trim().toLowerCase() === "pi";
   if (inputEnv.INPUT_GITHUB_TOKEN) {
     env.GH_TOKEN = inputEnv.INPUT_GITHUB_TOKEN;
     env.GITHUB_TOKEN = inputEnv.INPUT_GITHUB_TOKEN;
@@ -40,7 +44,7 @@ export function buildSharedEnv(inputEnv: NodeJS.ProcessEnv = process.env): Recor
     ambientName: "OPENAI_API_KEY",
     acpxAuthMethodIds: CODEX_ACPX_AUTH_METHOD_IDS,
   });
-  if (inputEnv.MODEL_REASONING_EFFORT) {
+  if (inputEnv.MODEL_REASONING_EFFORT && !isPiAgent) {
     env.MODEL_REASONING_EFFORT = inputEnv.MODEL_REASONING_EFFORT;
     // Claude Code reads effort from this env var directly, so both the
     // flow path and the direct path pick it up without session setup.
@@ -58,5 +62,11 @@ export function buildSharedEnv(inputEnv: NodeJS.ProcessEnv = process.env): Recor
     sourceName: "ANTHROPIC_API_KEY",
     ambientName: "ANTHROPIC_API_KEY",
   });
+  if (inputEnv.PI_CODING_AGENT_DIR) {
+    env.PI_CODING_AGENT_DIR = inputEnv.PI_CODING_AGENT_DIR;
+  }
+  if (inputEnv.PI_CODING_AGENT_SESSION_DIR) {
+    env.PI_CODING_AGENT_SESSION_DIR = inputEnv.PI_CODING_AGENT_SESSION_DIR;
+  }
   return env;
 }

@@ -425,7 +425,7 @@ function main(): void {
 
   const runnerTemp = process.env.RUNNER_TEMP || "/tmp";
   const fileId = randomBytes(8).toString("hex");
-  const sharedEnv = buildSharedEnv();
+  const sharedEnv = buildSharedEnv(process.env, agent);
   const permissionMode = parsePermissionModeOrSetDefault(process.env.ACPX_PERMISSION_MODE);
   runDirectPath({
     agent,
@@ -573,6 +573,9 @@ function runDirectPath(opts: {
   log("info", "Running acpx", { agent, route: envelope.route, permission_mode: permissionMode });
   const sessionBundleMode = parseSessionBundleMode(process.env.SESSION_BUNDLE_MODE);
   const requestedModel = process.env.MODEL_ID?.trim() || "";
+  const reasoningEffort = agent.trim().toLowerCase() === "pi"
+    ? ""
+    : process.env.MODEL_REASONING_EFFORT || "";
 
   const result = runAcpx({
     agent,
@@ -582,7 +585,7 @@ function runDirectPath(opts: {
     sessionMode: sessionModeForPolicy(sessionPolicy),
     threadKey: envelope.thread_key,
     permissionMode,
-    thoughtLevel: process.env.MODEL_REASONING_EFFORT,
+    thoughtLevel: reasoningEffort,
     preserveExecSession:
       sessionPolicy === "track-only" && shouldBackupSessionBundles(sessionBundleMode, sessionPolicy),
     resumeSessionId,
@@ -610,7 +613,7 @@ function runDirectPath(opts: {
     setOutput("model_display", buildModelDisplay({
       agent,
       model: reportedModel,
-      reasoningEffort: process.env.MODEL_REASONING_EFFORT || "",
+      reasoningEffort,
       runnerName: process.env.RUNNER_NAME || "",
     }));
   }

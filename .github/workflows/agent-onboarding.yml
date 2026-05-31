@@ -47,6 +47,8 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          pi_auth_json_b64_configured: ${{ secrets.PI_AUTH_JSON_B64 != '' && 'true' || 'false' }}
+          pi_auth_json_configured: ${{ secrets.PI_AUTH_JSON != '' && 'true' || 'false' }}
           model_policy: ${{ vars.AGENT_MODEL_POLICY || '' }}
           required: "false"
 
@@ -55,6 +57,7 @@ jobs:
         with:
           install_codex: "false"
           install_claude: "false"
+          install_pi: "false"
 
       - name: Create or update onboarding issue
         id: onboarding
@@ -68,6 +71,8 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           MEMORY_REF: ${{ env.MEMORY_REF }}
           OPENAI_API_KEY_CONFIGURED: ${{ secrets.OPENAI_API_KEY != '' }}
+          PI_AUTH_JSON_B64_CONFIGURED: ${{ secrets.PI_AUTH_JSON_B64 != '' }}
+          PI_AUTH_JSON_CONFIGURED: ${{ secrets.PI_AUTH_JSON != '' }}
           RUBRICS_REF: ${{ env.RUBRICS_REF }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: node .agent/dist/cli/onboarding-check.js

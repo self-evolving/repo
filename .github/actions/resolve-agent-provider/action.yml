@@ -10,7 +10,7 @@ inputs:
     required: false
     default: ""
   default_provider:
-    description: "Default provider: auto, codex, or claude"
+    description: "Default provider: auto, codex, claude, or pi"
     required: false
     default: auto
   openai_api_key:
@@ -25,6 +25,14 @@ inputs:
     description: "Anthropic API key for Claude readiness detection"
     required: false
     default: ""
+  pi_auth_json_b64_configured:
+    description: "Whether PI_AUTH_JSON_B64 is configured for Pi readiness detection"
+    required: false
+    default: "false"
+  pi_auth_json_configured:
+    description: "Whether PI_AUTH_JSON is configured for Pi readiness detection"
+    required: false
+    default: "false"
   required:
     description: "Whether unresolved auto provider detection should fail the step"
     required: false
@@ -47,6 +55,9 @@ outputs:
   install_claude:
     description: "Whether setup-agent-runtime should install Claude"
     value: ${{ steps.resolve.outputs.install_claude }}
+  install_pi:
+    description: "Whether setup-agent-runtime should install Pi"
+    value: ${{ steps.resolve.outputs.install_pi }}
   model:
     description: "Resolved model id to pass to acpx, if configured"
     value: ${{ steps.resolve.outputs.model }}
@@ -67,6 +78,8 @@ runs:
         OPENAI_API_KEY: ${{ inputs.openai_api_key }}
         CLAUDE_CODE_OAUTH_TOKEN: ${{ inputs.claude_oauth_token }}
         ANTHROPIC_API_KEY: ${{ inputs.anthropic_api_key }}
+        PI_AUTH_JSON_B64_CONFIGURED: ${{ inputs.pi_auth_json_b64_configured }}
+        PI_AUTH_JSON_CONFIGURED: ${{ inputs.pi_auth_json_configured }}
         REQUIRED: ${{ inputs.required }}
         AGENT_MODEL_POLICY: ${{ inputs.model_policy }}
       run: |
