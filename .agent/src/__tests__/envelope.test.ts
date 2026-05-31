@@ -131,8 +131,40 @@ test("issue enhancement prompt uses self-serve context gathering", () => {
 test("answer prompt returns content for workflow posting instead of commenting directly", () => {
   const answerPrompt = readRepoFile(".github/prompts/agent-answer.md");
 
+  assert.match(answerPrompt, /\$\{REQUEST_SOURCE_KIND\}/);
+  assert.match(answerPrompt, /\$\{REQUEST_COMMENT_ID\}/);
+  assert.match(answerPrompt, /\$\{REQUEST_COMMENT_URL\}/);
   assert.match(answerPrompt, /do not post comments directly via `gh`/i);
+  assert.match(answerPrompt, /REQUEST_SOURCE_KIND=pull_request_review/);
+  assert.match(answerPrompt, /related inline comments/);
+  assert.match(answerPrompt, /gh api repos\/\$\{REPO_SLUG\}\/pulls\/\$\{TARGET_NUMBER\}\/reviews\/\$\{REQUEST_COMMENT_ID\}/);
+  assert.match(answerPrompt, /gh api --method POST repos\/\$\{REPO_SLUG\}\/pulls\/\$\{TARGET_NUMBER\}\/comments -f body='<reply>' -F in_reply_to=<comment_id>/);
   assert.match(answerPrompt, /workflow will post it on the original surface/i);
+});
+
+test("answer route passes trigger metadata into prompt variables", () => {
+  const routerWorkflow = parseYaml(readRepoFile(".github/workflows/agent-router.yml")) as unknown;
+  const runSource = readRepoFile(".agent/src/run.ts");
+  const supplementalPromptVarNames = readSupplementalPromptVarNames(runSource);
+
+  assert.ok(isRecord(routerWorkflow), "agent-router workflow should parse");
+  assert.ok(isRecord(routerWorkflow.jobs), "agent-router workflow should define jobs");
+  const answerJob = routerWorkflow.jobs.answer;
+  assert.ok(isRecord(answerJob), "agent-router workflow should define answer job");
+  assert.ok(Array.isArray(answerJob.steps), "answer job should define steps");
+  const runAnswerStep = answerJob.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Run answer agent",
+  );
+  assert.ok(runAnswerStep, "answer job should run the answer agent");
+  assert.ok(isRecord(runAnswerStep.env), "answer agent step should define env");
+  assert.equal(runAnswerStep.env.REQUEST_SOURCE_KIND, "${{ needs.portal.outputs.source_kind }}");
+  assert.equal(runAnswerStep.env.REQUEST_COMMENT_ID, "${{ needs.portal.outputs.source_comment_id }}");
+  assert.equal(runAnswerStep.env.REQUEST_COMMENT_URL, "${{ needs.portal.outputs.source_comment_url }}");
+
+  assert.ok(supplementalPromptVarNames.has("REQUEST_SOURCE_KIND"));
+  assert.ok(supplementalPromptVarNames.has("REQUEST_COMMENT_ID"));
+  assert.ok(supplementalPromptVarNames.has("REQUEST_COMMENT_URL"));
 });
 
 test("fix-pr prompt uses self-serve context, not local snapshots", () => {
