@@ -12,7 +12,7 @@ title: "Supported workflows"
 | `agent-entrypoint.yml` | `@sepo-agent` in issues, PRs, discussions, comments, reviews | Thin entry point that wires triggers, runner labels, and secrets into `agent-router.yml` | None |
 | `agent-router.yml` | `workflow_call` | Full portal for context extraction, auth gating, mention detection, dispatch triage, routing, approval requests, and response posting | Configurable |
 | `agent-approve.yml` | approval comments | Resolves pending approvals, creates issues when needed, dispatches implementation | None |
-| `agent-orchestrator.yml` | `workflow_dispatch` | Explicit orchestration route that decides whether to dispatch the next action | None in `heuristics` mode; resolved-provider planner in `agent` mode |
+| `agent-orchestrator.yml` | `workflow_dispatch` | Explicit orchestration route that decides whether to dispatch the next action | Resolved-provider planner; deterministic worker chain for internal child runs |
 | `agent-self-approve.yml` | `workflow_dispatch` | Opt-in pull request self-approval gate after trusted current-head review synthesis | Auto |
 | `agent-self-merge.yml` | `workflow_dispatch` | Opt-in deterministic merge gate after current-head Sepo self-approval | None |
 | `agent-implement.yml` | `workflow_dispatch` | Implementation flow: branch, commit, draft PR; supports `base_branch` or `base_pr` for stacked PRs | Auto |
@@ -39,18 +39,18 @@ dispatches one built-in action (`implement`, `review`, `fix-pr`,
 `agent-self-approve`, or `agent-self-merge`) when useful.
 That dispatch includes explicit orchestration context; only those orchestrator
 launched action runs hand back to `agent-orchestrator.yml` after post-processing.
-Direct `/implement`, `/review`, and `/fix-pr` runs remain one-shot. Pull request
-orchestrate starts remain deterministic in `heuristics` mode. In `agent` mode,
-issue-level and pull-request-level orchestrate starts may use the planner. For
+Direct `/implement`, `/review`, and `/fix-pr` runs remain one-shot. Concrete
+worker-chain runs keep deterministic pull request start routing. Issue-level and
+pull-request-level orchestrate starts may use the planner. For
 small self-contained issue work, the planner can return a normal handoff to
 `implement` on the current issue. For PR work, the planner can choose
 review-first, fix-the-PR, answer-only, or stop behavior; runtime policy validates
 that PR starts dispatch only `review` or `fix-pr` workflows. For
 meta-orchestration, the planner can return an internal `delegate_issue` command
 instead of adding a new public route. That command creates or reuses a child
-issue with parent/stage metadata, dispatches the child issue through the normal
-`/orchestrate` flow in heuristic mode, and keeps the parent/child relationship
-in GitHub issue state rather than session identity.
+issue with parent/stage metadata, dispatches the child issue as a concrete
+deterministic worker chain, and keeps the parent/child relationship in GitHub
+issue state rather than session identity.
 When `delegate_issue` names an existing user-authored issue, the orchestrator
 adopts it by writing the trusted child marker in an agent-authored issue comment
 and recording the parent/child link on the parent issue. The dispatcher also
@@ -70,7 +70,8 @@ When a child issue reaches a terminal stop, the handoff dispatcher resolves the
 trusted child metadata from the issue body or an agent-authored child issue
 comment, or from the pull request body's closing issue reference when the
 terminal target is a PR. It then posts or updates a visible progress comment on
-the parent issue, dispatches the parent issue orchestrator again in agent mode,
+the parent issue, dispatches the parent issue orchestrator again with
+planner-backed orchestration,
 and only then marks the trusted child marker as `done`, `blocked`, or `failed`.
 Already-dispatched terminal reports are idempotent so reruns do not overwrite
 completed child state.

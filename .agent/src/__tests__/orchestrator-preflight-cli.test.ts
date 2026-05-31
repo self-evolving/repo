@@ -38,6 +38,7 @@ function runPreflight(env: Record<string, string>): {
         SOURCE_ACTION: "orchestrate",
         SOURCE_CONCLUSION: "requested",
         TARGET_KIND: "issue",
+        TARGET_NUMBER: "30",
         AUTHOR_ASSOCIATION: "MEMBER",
         REPOSITORY_PRIVATE: "true",
         ...env,
@@ -73,6 +74,52 @@ test("preflight disables planner when initial orchestrate lacks delegated route 
     run.outputs.get("authorization_stop_reason"),
     "orchestrate requests require implement access; implement currently requires MEMBER access.",
   );
+});
+
+test("preflight emits deterministic suggestion outputs for planner prompts", () => {
+  const run = runPreflight({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "MINOR_ISSUES",
+    SOURCE_HANDOFF_CONTEXT: "Fix only the failing route-policy test.",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "99",
+    NEXT_TARGET_NUMBER: "",
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("planner_enabled"), "true");
+  assert.equal(run.outputs.get("suggested_decision"), "handoff");
+  assert.equal(run.outputs.get("suggested_next_action"), "fix-pr");
+  assert.match(run.outputs.get("suggested_reason") || "", /review verdict is minor_issues/);
+  assert.equal(
+    run.outputs.get("suggested_handoff_context"),
+    "Fix only the failing route-policy test.",
+  );
+});
+
+test("preflight emits a stop suggestion when the round budget is exhausted", () => {
+  const run = runPreflight({
+    SOURCE_ACTION: "fix-pr",
+    SOURCE_CONCLUSION: "success",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "99",
+    AUTOMATION_CURRENT_ROUND: "5",
+    AUTOMATION_MAX_ROUNDS: "5",
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("planner_enabled"), "false");
+  assert.equal(run.outputs.get("suggested_decision"), "stop");
+  assert.equal(run.outputs.get("suggested_reason"), "automation round budget exhausted");
+});
+
+test("preflight leaves initial orchestrate starts for planner judgment", () => {
+  const run = runPreflight({});
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("planner_enabled"), "true");
+  assert.equal(run.outputs.get("suggested_decision"), "none");
+  assert.match(run.outputs.get("suggested_reason") || "", /planner context/);
 });
 
 test("preflight keeps planner enabled for authorized issue meta-orchestration", () => {
