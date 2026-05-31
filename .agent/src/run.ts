@@ -280,8 +280,10 @@ function persistFailureOutputs(
   return { rawStdoutFile, rawStderrFile };
 }
 
-function parseBooleanFlag(value: string | undefined): boolean {
-  return ["true", "1", "yes", "on"].includes(String(value || "").trim().toLowerCase());
+function parseBooleanFlag(value: string | undefined, defaultValue = false): boolean {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (!normalized) return defaultValue;
+  return ["true", "1", "yes", "on"].includes(normalized);
 }
 
 function extractSessionModel(sessionLog: string): string {
@@ -606,7 +608,7 @@ function runDirectPath(opts: {
 
   const reportedModel = extractSessionModel(result.sessionLog) || requestedModel;
   setOutput("model", reportedModel);
-  if (parseBooleanFlag(process.env.DISPLAY_MODEL)) {
+  if (parseBooleanFlag(process.env.DISPLAY_MODEL, true)) {
     setOutput("model_display", buildModelDisplay({
       agent,
       model: reportedModel,
