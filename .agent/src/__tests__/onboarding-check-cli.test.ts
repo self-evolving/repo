@@ -66,6 +66,9 @@ if [ "$1" = "issue" ] && [ "$2" = "create" ]; then
   printf 'https://github.com/self-evolving/repo/issues/77\\n'
   exit 0
 fi
+if [ "$1" = "issue" ] && [ "$2" = "edit" ]; then
+  exit 0
+fi
 if [ "$1" = "api" ] && [[ "$2" == repos/*/issues/77/comments ]]; then
   printf '[]'
   exit 0
@@ -94,11 +97,13 @@ exit 1
     const log = readFileSync(logPath, "utf8");
     assert.match(log, /^label create agent\/answer --color 1f883d --description Ask Sepo to answer/m);
     assert.match(log, /^label create agent\/orchestrate --color fb8c00 --description Ask Sepo to run/m);
+    assert.match(log, /^label create agent --color 0e8a16 --description Handled by the agent --repo self-evolving\/repo$/m);
     assert.match(
       log,
       /^label create agent-goal --color 5319e7 --description Marks an issue as a repository-level goal for Sepo planning/m,
     );
     assert.match(log, /^issue create --title Sepo setup check --body-file .+ --repo self-evolving\/repo$/m);
+    assert.match(log, /^issue edit 77 --add-label agent --repo self-evolving\/repo$/m);
     assert.match(log, /^issue comment 77 --body <!-- sepo-agent-onboarding-check -->/m);
     const issueBody = readOnboardingIssueBody(
       log,
@@ -181,6 +186,7 @@ exit 1
     assert.doesNotMatch(log, /^issue create /m);
     assert.doesNotMatch(log, /^label create /m);
     assert.match(log, /^issue edit 5 --repo self-evolving\/repo --body-file .+$/m);
+    assert.match(log, /^issue edit 5 --add-label agent --repo self-evolving\/repo$/m);
     const updatedIssueBody = readOnboardingIssueBody(
       log,
       /^issue edit 5 --repo self-evolving\/repo --body-file ([^ ]*sepo-onboarding-[a-f0-9]+\.md)$/m,

@@ -4,9 +4,11 @@ Your task is to directly respond to the following user's mention:
 
 ${MENTION_BODY}
 
+${ANSWER_REVIEW_CONTEXT}
+
 Instructions:
 - Answer the user's question directly, or explain the limitation if the routed request is unsupported.
-- You may use `gh` and repository files to gather context, but do not post comments directly via `gh` or any other GitHub write API.
+- You may use `gh` and repository files to gather context. Except for targeted inline replies allowed by a review-triggered exception above, do not post comments directly via `gh` or any other GitHub write API. Return the reply body and let the workflow post it.
 - When the user asks for planning/procedure guidance, remain in answer-only mode and return a plan-only response (do not start implementation):
   1. Explore the relevant codebase with repository inspection tools and cite concrete files.
   2. Summarize the existing architecture and patterns tied to the request.

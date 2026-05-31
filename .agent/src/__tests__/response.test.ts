@@ -170,8 +170,8 @@ test("formatReviewComment builds synthesis header", () => {
 });
 
 test("appendRunDisplayFooter appends optional run metadata", () => {
-  const body = appendRunDisplayFooter("Done.\n", "_Run: `codex` / `gpt-5.4` / `xhigh`_");
-  assert.equal(body, "Done.\n\n---\n_Run: `codex` / `gpt-5.4` / `xhigh`_");
+  const body = appendRunDisplayFooter("Done.\n", "`codex` | `gpt-5.4` | `xhigh` | `runner-1`");
+  assert.equal(body, "Done.\n\n---\n`codex` | `gpt-5.4` | `xhigh` | `runner-1`");
   assert.equal(appendRunDisplayFooter("Done.", ""), "Done.");
 });
 

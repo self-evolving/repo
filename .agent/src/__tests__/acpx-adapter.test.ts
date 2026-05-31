@@ -42,9 +42,10 @@ test("buildAcpxArgs puts global flags before the agent token for exec routes", (
   ]);
 });
 
-test("buildAcpxArgs uses prompt mode with a named session for persistent routes", () => {
+test("buildAcpxArgs omits the global model flag for named sessions", () => {
   const args = buildAcpxArgs({
     agent: "claude",
+    model: "claude-opus-4-7",
     prompt: "apply the requested fix",
     permissionMode: "approve-all",
     sessionName: "pull_request-38-fix-pr-default",
@@ -83,6 +84,53 @@ test("buildAcpxArgs passes model as a global acpx flag before the agent", () => 
     "--model",
     "gpt-5.4",
     "codex",
+    "exec",
+    "answer this",
+  ]);
+});
+
+test("buildAcpxArgs leaves named-session model setup to acpx set model", () => {
+  const args = buildAcpxArgs({
+    agent: "pi",
+    model: "gpt-5.4-mini",
+    prompt: "apply the requested fix",
+    permissionMode: "approve-all",
+    sessionName: "pull_request-354-fix-pr-default",
+    isExecRoute: false,
+  });
+
+  assert.deepEqual(args, [
+    "--approve-all",
+    "--format",
+    "json",
+    "--json-strict",
+    "--suppress-reads",
+    "pi",
+    "prompt",
+    "-s",
+    "pull_request-354-fix-pr-default",
+    "apply the requested fix",
+  ]);
+});
+
+test("buildAcpxArgs passes Pi exec model through the global acpx flag", () => {
+  const args = buildAcpxArgs({
+    agent: "pi",
+    model: "gpt-5.4-mini",
+    prompt: "answer this",
+    permissionMode: "approve-all",
+    isExecRoute: true,
+  });
+
+  assert.deepEqual(args, [
+    "--approve-all",
+    "--format",
+    "json",
+    "--json-strict",
+    "--suppress-reads",
+    "--model",
+    "gpt-5.4-mini",
+    "pi",
     "exec",
     "answer this",
   ]);
@@ -156,6 +204,7 @@ if (args.includes("prompt")) {
 
     const result = runAcpx({
       agent: "codex",
+      model: "gpt-5.5",
       prompt: "synthesize current artifacts",
       cwd: process.cwd(),
       sessionMode: sessionModeForPolicy("track-only"),
@@ -179,6 +228,7 @@ if (args.includes("prompt")) {
 
     assert.deepEqual(calls.map((call) => call.args), [
       ["codex", "sessions", "new", "--name", sessionName],
+      ["codex", "set", "model", "gpt-5.5", "-s", sessionName],
       ["codex", "set", "-s", sessionName, "thought_level", "xhigh"],
       ["codex", "set-mode", "-s", sessionName, "full-access"],
       [

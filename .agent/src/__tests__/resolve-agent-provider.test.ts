@@ -201,7 +201,7 @@ test("provider resolver applies model policy defaults and provider settings", ()
       default: { model: "claude-default", reasoning_effort: "high" },
       providers: {
         claude: { reasoning_effort: "max" },
-        pi: { model: "gpt-5.4-mini", reasoning_effort: "high" },
+        pi: { model: "gpt-5.4-mini" },
       },
     }),
   });
@@ -226,7 +226,7 @@ test("provider resolver applies model policy defaults and provider settings", ()
   assert.equal(pi.status, 0, pi.stderr);
   assert.equal(pi.outputs.provider, "pi");
   assert.equal(pi.outputs.model, "pi-model");
-  assert.equal(pi.outputs.reasoning_effort, "high");
+  assert.equal(pi.outputs.reasoning_effort, "");
 });
 
 test("provider resolver ignores display policy because display is handled by run-agent-task", () => {
@@ -252,7 +252,7 @@ test("provider resolver lets route model policy override provider defaults", () 
       providers: {
         codex: { model: "gpt-5.4", reasoning_effort: "xhigh" },
         claude: { model: "claude-sonnet-4-5", reasoning_effort: "max" },
-        pi: { model: "gpt-5.4-mini", reasoning_effort: "high" },
+        pi: { model: "gpt-5.4-mini" },
       },
       route_overrides: {
         "test-route": { provider: "claude", model: "claude-haiku-4-5", reasoning_effort: "medium" },
@@ -284,7 +284,42 @@ test("provider resolver lets route model policy override provider defaults", () 
   assert.equal(pi.outputs.provider, "pi");
   assert.equal(pi.outputs.reason, "AGENT_MODEL_POLICY route override for test-route");
   assert.equal(pi.outputs.model, "pi-route");
-  assert.equal(pi.outputs.reasoning_effort, "medium");
+  assert.equal(pi.outputs.reasoning_effort, "");
+});
+
+test("provider resolver clears reasoning effort for Pi", () => {
+  const providerReasoning = runResolver({
+    DEFAULT_PROVIDER: "pi",
+    AGENT_MODEL_POLICY: JSON.stringify({
+      default: { reasoning_effort: "medium" },
+      providers: {
+        pi: { model: "pi-model", reasoning_effort: "high" },
+      },
+    }),
+  });
+
+  assert.equal(providerReasoning.status, 0, providerReasoning.stderr);
+  assert.equal(providerReasoning.outputs.provider, "pi");
+  assert.equal(providerReasoning.outputs.model, "pi-model");
+  assert.equal(providerReasoning.outputs.reasoning_effort, "");
+
+  const routeReasoning = runResolver({
+    DEFAULT_PROVIDER: "codex",
+    OPENAI_API_KEY: "openai-token",
+    AGENT_MODEL_POLICY: JSON.stringify({
+      providers: {
+        codex: { reasoning_effort: "xhigh" },
+      },
+      route_overrides: {
+        "test-route": { provider: "pi", model: "pi-route", reasoning_effort: "medium" },
+      },
+    }),
+  });
+
+  assert.equal(routeReasoning.status, 0, routeReasoning.stderr);
+  assert.equal(routeReasoning.outputs.provider, "pi");
+  assert.equal(routeReasoning.outputs.model, "pi-route");
+  assert.equal(routeReasoning.outputs.reasoning_effort, "");
 });
 
 test("provider resolver keeps inline route provider from inheriting route policy settings", () => {

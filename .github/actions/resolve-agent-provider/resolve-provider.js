@@ -267,7 +267,7 @@ function main(env) {
     provider,
     reason,
     model: runConfig.model,
-    reasoningEffort: runConfig.reasoningEffort,
+    reasoningEffort: provider === "pi" ? "" : runConfig.reasoningEffort,
   });
   console.log(`Resolved agent provider for ${route}: ${provider} (${reason}).`);
   if (runConfig.model) {

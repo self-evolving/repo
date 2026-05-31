@@ -58,6 +58,8 @@ import {
   parseSessionBundleMode,
   shouldBackupSessionBundles,
 } from "./session-bundle.js";
+import { buildSharedEnv } from "./runtime-env.js";
+import { buildAnswerReviewContext } from "./answer-review-context.js";
 
 // --- Logging ---
 
@@ -129,6 +131,7 @@ const PROMPT_TEMPLATES: Record<string, string> = {
   answer: ".github/prompts/agent-answer.md",
   "create-action": ".github/prompts/agent-create-action.md",
   install: ".github/prompts/agent-install.md",
+  "update-agent": ".github/prompts/agent-update.md",
   dispatch: ".github/prompts/agent-dispatch.md",
   "rubrics-review": ".github/prompts/rubrics-review.md",
   "rubrics-initialization": ".github/prompts/rubrics-initialization.md",
@@ -277,38 +280,6 @@ function persistFailureOutputs(
   return { rawStdoutFile, rawStderrFile };
 }
 
-function buildSharedEnv(agent: string): Record<string, string> {
-  const env: Record<string, string> = {};
-  const isPiAgent = agent.trim().toLowerCase() === "pi";
-  if (process.env.INPUT_GITHUB_TOKEN) {
-    env.GH_TOKEN = process.env.INPUT_GITHUB_TOKEN;
-    env.GITHUB_TOKEN = process.env.INPUT_GITHUB_TOKEN;
-  }
-  env.INPUT_SECONDARY_GITHUB_TOKEN = process.env.INPUT_SECONDARY_GITHUB_TOKEN || "";
-  if (process.env.INPUT_OPENAI_API_KEY) {
-    env.OPENAI_API_KEY = process.env.INPUT_OPENAI_API_KEY;
-  }
-  if (process.env.MODEL_REASONING_EFFORT && !isPiAgent) {
-    env.MODEL_REASONING_EFFORT = process.env.MODEL_REASONING_EFFORT;
-    // Claude Code reads effort from this env var directly, so both the
-    // flow path and the direct path pick it up without session setup.
-    env.CLAUDE_CODE_EFFORT_LEVEL = process.env.MODEL_REASONING_EFFORT;
-  }
-  if (process.env.CLAUDE_CODE_OAUTH_TOKEN) {
-    env.CLAUDE_CODE_OAUTH_TOKEN = process.env.CLAUDE_CODE_OAUTH_TOKEN;
-  }
-  if (process.env.ANTHROPIC_API_KEY) {
-    env.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-  }
-  if (process.env.PI_CODING_AGENT_DIR) {
-    env.PI_CODING_AGENT_DIR = process.env.PI_CODING_AGENT_DIR;
-  }
-  if (process.env.PI_CODING_AGENT_SESSION_DIR) {
-    env.PI_CODING_AGENT_SESSION_DIR = process.env.PI_CODING_AGENT_SESSION_DIR;
-  }
-  return env;
-}
-
 function parseBooleanFlag(value: string | undefined): boolean {
   return ["true", "1", "yes", "on"].includes(String(value || "").trim().toLowerCase());
 }
@@ -332,13 +303,15 @@ function buildModelDisplay(options: {
   agent: string;
   model: string;
   reasoningEffort: string;
+  runnerName: string;
 }): string {
   const parts = [
     options.agent.trim(),
     options.model.trim() || "default model",
     options.reasoningEffort.trim(),
+    options.runnerName.trim(),
   ].filter(Boolean);
-  return parts.length > 0 ? `_Run: ${parts.map((part) => `\`${part}\``).join(" / ")}_` : "";
+  return parts.length > 0 ? parts.map((part) => `\`${part}\``).join(" | ") : "";
 }
 
 // --- Main ---
@@ -385,6 +358,18 @@ function main(): void {
   // variables without updating the runtime allowlist here.
   for (const name of SUPPLEMENTAL_PROMPT_VAR_NAMES) {
     if (process.env[name]) promptVars[name] = process.env[name]!;
+  }
+  if (envelope.route === "answer") {
+    const answerReviewContext = buildAnswerReviewContext({
+      repoSlug: promptVars.REPO_SLUG,
+      targetNumber: promptVars.TARGET_NUMBER,
+      sourceKind: promptVars.REQUEST_SOURCE_KIND || promptVars.SOURCE_KIND,
+      commentId: promptVars.REQUEST_COMMENT_ID || "",
+      commentUrl: promptVars.REQUEST_COMMENT_URL || "",
+    });
+    if (answerReviewContext) {
+      promptVars.ANSWER_REVIEW_CONTEXT = answerReviewContext;
+    }
   }
   if (promptVars.RUBRICS_CONTEXT_FILE && existsSync(promptVars.RUBRICS_CONTEXT_FILE)) {
     promptVars.RUBRICS_CONTEXT = readFileSync(promptVars.RUBRICS_CONTEXT_FILE, "utf8");
@@ -440,7 +425,7 @@ function main(): void {
 
   const runnerTemp = process.env.RUNNER_TEMP || "/tmp";
   const fileId = randomBytes(8).toString("hex");
-  const sharedEnv = buildSharedEnv(agent);
+  const sharedEnv = buildSharedEnv(process.env, agent);
   const permissionMode = parsePermissionModeOrSetDefault(process.env.ACPX_PERMISSION_MODE);
   runDirectPath({
     agent,
@@ -629,6 +614,7 @@ function runDirectPath(opts: {
       agent,
       model: reportedModel,
       reasoningEffort,
+      runnerName: process.env.RUNNER_NAME || "",
     }));
   }
 

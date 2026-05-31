@@ -137,6 +137,28 @@ weight: 12
   assert.ok(errors.some((error) => /weight must be an integer from 1 to 10/.test(error.message)));
 });
 
+test("loadRubrics rejects privileged infrastructure routes", () => {
+  const root = tempDir();
+  writeRubric(root, "install.yaml", `
+id: install-rubric
+title: Install rubric
+description: Install runs should not be rubric steered.
+applies_to: [install]
+`);
+  writeRubric(root, "update.yaml", `
+id: update-rubric
+title: Update rubric
+description: Update runs should not be rubric steered.
+applies_to: [update-agent]
+`);
+
+  const { rubrics, errors } = loadRubrics(root);
+  assert.equal(rubrics.length, 0);
+  assert.equal(errors.length, 2);
+  assert.ok(errors.some((error) => /unsupported applies_to route: install/.test(error.message)));
+  assert.ok(errors.some((error) => /unsupported applies_to route: update-agent/.test(error.message)));
+});
+
 test("selectRubrics filters by route and ranks by query matches", () => {
   const root = tempDir();
   writeRubric(root, "regression.yaml", `
@@ -185,33 +207,6 @@ severity: should
   });
   assert.deepEqual(errors, []);
   assert.equal(selected[0]?.rubric.id, "implementation-guidance");
-});
-
-test("selectRubrics uses install-specific rubrics for install", () => {
-  const root = tempDir();
-  writeRubric(root, "install.yaml", `
-id: install-guidance
-title: Install guidance
-description: Install runs use a dedicated route prompt.
-applies_to: [install]
-severity: should
-`);
-  writeRubric(root, "skill.yaml", `
-id: skill-guidance
-title: Skill guidance
-description: Skill runs execute repository skills.
-applies_to: [skill]
-severity: should
-weight: 10
-`);
-
-  const { selected, errors } = selectRubrics({
-    rootDir: root,
-    route: "install",
-    query: "install Sepo into a target repo",
-  });
-  assert.deepEqual(errors, []);
-  assert.equal(selected[0]?.rubric.id, "install-guidance");
 });
 
 test("selectRubrics can include all routes for rubric review", () => {

@@ -243,7 +243,8 @@ export function buildAcpxArgs(options: {
     args.push("--timeout", String(options.timeout));
   }
   const model = options.model?.trim();
-  if (model) {
+  const usesNamedSession = !options.isExecRoute && Boolean(options.sessionName);
+  if (model && !usesNamedSession) {
     args.push("--model", model);
   }
 
