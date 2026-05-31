@@ -104,3 +104,4 @@
 - Privileged install/update-agent routes stay outside rubric applicability; update-agent disables rubric steering.
 - Retry only likely transient gh/git/curl/network failures with bounded backoff; keep auth/ref/validation/lease errors terminal.
 - Review-triggered /answer uses computed ANSWER_REVIEW_CONTEXT in both fresh and resumed prompts; normal answers stay clean.
+- Implicit follow-ups are agent-label gated, answer-only, preauthorized before intent, and prefer ignore when uncertain.
