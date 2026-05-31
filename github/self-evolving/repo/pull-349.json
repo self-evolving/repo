@@ -5,7 +5,7 @@
   },
   "baseRefName": "main",
   "body": "## Summary\n- Add `AGENT_FOLLOWUP_INTENT_MODE` with `agent-label` default and `disabled`/`false` opt-out.\n- Detect unmentioned follow-ups on fixed `agent`-labeled issues/PRs and run an answer-only respond/ignore intent gate.\n- Forward triggering comment metadata, enable communication rubrics for the intent/answer path, and update docs/tests.\n\n## Verification\n- `npm run build`\n- `node --test dist/__tests__/followup-intent.test.js dist/__tests__/extract-context-cli.test.js dist/__tests__/resolve-dispatch-cli.test.js dist/__tests__/context.test.js dist/__tests__/envelope.test.js dist/__tests__/docs-validation.test.js dist/__tests__/verify.test.js`\n- `git diff --check`\n\nCloses #348\n",
-  "closedAt": null,
+  "closedAt": "2026-05-31T16:43:27Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABDlvNeg",
@@ -415,6 +415,95 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/349#issuecomment-4585990425",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEWsQQQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent why removing the comment ids? ",
+      "createdAt": "2026-05-31T15:45:33Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/349#issuecomment-4587196481",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEWsnXA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "They were removed from the PR branch because they had become **duplicate plumbing**, not because we no longer want comment IDs.\n\nWhat happened:\n\n- This PR originally added `request_comment_id` / `request_comment_url` so the answer agent could know the exact triggering comment/review.\n- While the PR was open, `main` gained the same trigger-metadata contract already:\n  - [`request_comment_id`](https://github.com/self-evolving/repo/blob/3c78df0c0387504010b91446f9fa6330542c7127/.github/actions/run-agent-task/action.yml#L64-L70)\n  - env export to `REQUEST_COMMENT_ID` / `REQUEST_COMMENT_URL` / `REQUEST_SOURCE_KIND` ([action.yml](https://github.com/self-evolving/repo/blob/3c78df0c0387504010b91446f9fa6330542c7127/.github/actions/run-agent-task/action.yml#L362-L364))\n  - answer-route wiring in `agent-router.yml` ([router](https://github.com/self-evolving/repo/blob/3c78df0c0387504010b91446f9fa6330542c7127/.github/workflows/agent-router.yml#L424-L427))\n- Keeping the PR’s copy on top of `main` produced duplicate YAML keys in the merge result, which broke CI.\n\nSo the fix removed the **PR-added duplicate copies**. The current PR head keeps the new follow-up/rubric-specific additions, but no longer redefines comment IDs in the answer route block ([current PR head](https://github.com/self-evolving/repo/blob/c012afa5c7c37a295b0f537b98440df0da97f7e5/.github/workflows/agent-router.yml#L561-L566)).\n\nNet effect: comment IDs are **not removed from the final merged behavior**. They come from `main`’s existing request metadata contract instead of being added a second time by this PR.\n\n---\n`codex` | `default model` | `high` | `Macmini-runner-6`",
+      "createdAt": "2026-05-31T15:48:07Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/349#issuecomment-4587202396",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEWwlQA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> They were removed from the PR branch because they had become **duplicate plumbing**, not because we no longer want comment IDs.\r\n> \r\n> What happened:\r\n> \r\n> * This PR originally added `request_comment_id` / `request_comment_url` so the answer agent could know the exact triggering comment/review.\r\n> * While the PR was open, `main` gained the same trigger-metadata contract already:\r\n>   \r\n>   * [`request_comment_id`](https://github.com/self-evolving/repo/blob/3c78df0c0387504010b91446f9fa6330542c7127/.github/actions/run-agent-task/action.yml#L64-L70)\r\n>   * env export to `REQUEST_COMMENT_ID` / `REQUEST_COMMENT_URL` / `REQUEST_SOURCE_KIND` ([action.yml](https://github.com/self-evolving/repo/blob/3c78df0c0387504010b91446f9fa6330542c7127/.github/actions/run-agent-task/action.yml#L362-L364))\r\n>   * answer-route wiring in `agent-router.yml` ([router](https://github.com/self-evolving/repo/blob/3c78df0c0387504010b91446f9fa6330542c7127/.github/workflows/agent-router.yml#L424-L427))\r\n> * Keeping the PR’s copy on top of `main` produced duplicate YAML keys in the merge result, which broke CI.\r\n> \r\n> So the fix removed the **PR-added duplicate copies**. The current PR head keeps the new follow-up/rubric-specific additions, but no longer redefines comment IDs in the answer route block ([current PR head](https://github.com/self-evolving/repo/blob/c012afa5c7c37a295b0f537b98440df0da97f7e5/.github/workflows/agent-router.yml#L561-L566)).\r\n> \r\n> Net effect: comment IDs are **not removed from the final merged behavior**. They come from `main`’s existing request metadata contract instead of being added a second time by this PR.\r\n> \r\n> `codex` | `default model` | `high` | `Macmini-runner-6`\r\n\r\n@sepo-agent  This is a wrong claim. I just checked and found that the added comment id / information from main is totally removed. can you double check and make sure we have the main information? ",
+      "createdAt": "2026-05-31T16:14:18Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/349#issuecomment-4587267392",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEWxAAw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "You’re right to challenge that. I double-checked the actual refs, and the precise answer is:\n\n- **PR head alone (`c012afa`) does not contain the comment-id inputs in `run-agent-task/action.yml`.** They were removed from the branch head.\n- **Current `main` does contain them**:\n  - [`request_source_kind`, `request_comment_id`, `request_comment_url`](https://github.com/self-evolving/repo/blob/3c78df0c0387504010b91446f9fa6330542c7127/.github/actions/run-agent-task/action.yml#L60-L70)\n  - env export to `REQUEST_COMMENT_ID`, `REQUEST_COMMENT_URL`, `REQUEST_SOURCE_KIND` ([action.yml](https://github.com/self-evolving/repo/blob/3c78df0c0387504010b91446f9fa6330542c7127/.github/actions/run-agent-task/action.yml#L362-L364))\n  - answer-route wiring in `agent-router.yml` ([router](https://github.com/self-evolving/repo/blob/3c78df0c0387504010b91446f9fa6330542c7127/.github/workflows/agent-router.yml#L425-L427))\n- **GitHub’s synthetic PR merge ref does contain the fields**, including:\n  - action inputs/env\n  - answer-route `request_comment_id`, `request_comment_url`, `request_source_kind`\n  - follow-up intent gate comment metadata\n\nSo my previous answer was incomplete: if you inspect only the PR branch, it looks like the comment-id information is gone. In the **merge result**, it is present because it comes from `main`.\n\nIf we want the PR branch itself to visibly include the main metadata contract, the cleanest fix is to rebase/merge current `main` into the PR branch, not re-add those fields manually again. Re-adding them manually was what produced the duplicate YAML key failure earlier.\n\n---\n`codex` | `default model` | `high` | `Macmini-runner-2`",
+      "createdAt": "2026-05-31T16:16:49Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/349#issuecomment-4587274243",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEW3_AA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nUpdated [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #349.\n\nAdded one rubric:\n\n`rubrics/communication/implicit-followups-prefer-silence.yaml`\n\nIt captures the durable preference from the linked parent discussion: implicit unmentioned follow-ups on agent-labeled threads should use communication rubrics, answer only clear follow-up/clarification requests, and prefer no reply when ambiguous.\n\nValidated the YAML parses successfully. No git commit was made.\n\n---\n`codex` | `gpt-5.5/medium` | `medium` | `Macmini-runner-4`",
+      "createdAt": "2026-05-31T16:45:27Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/349#issuecomment-4587388672",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-05-25T16:58:19Z",
@@ -507,7 +596,7 @@
       "color": "0e8a16"
     }
   ],
-  "mergedAt": null,
+  "mergedAt": "2026-05-31T16:43:27Z",
   "number": 349,
   "reviewDecision": "",
   "reviews": [
@@ -602,8 +691,8 @@
       }
     }
   ],
-  "state": "OPEN",
+  "state": "MERGED",
   "title": "Add implicit follow-up intent routing",
-  "updatedAt": "2026-05-31T06:54:57Z",
+  "updatedAt": "2026-05-31T16:45:27Z",
   "url": "https://github.com/self-evolving/repo/pull/349"
 }
