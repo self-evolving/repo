@@ -152,6 +152,12 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           model_policy: ${{ vars.AGENT_MODEL_POLICY || '' }}
 
+      - name: Setup agent runtime
+        uses: ./.github/actions/setup-agent-runtime
+        with:
+          install_codex: ${{ steps.provider.outputs.install_codex }}
+          install_claude: ${{ steps.provider.outputs.install_claude }}
+
       - name: Setup proposal branch
         id: proposal
         env:
@@ -159,12 +165,6 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           REQUESTED_BY: ${{ env.REQUESTED_BY || github.actor }}
         run: node .agent/dist/cli/prepare-add-rubrics-proposal.js
-
-      - name: Setup agent runtime
-        uses: ./.github/actions/setup-agent-runtime
-        with:
-          install_codex: ${{ steps.provider.outputs.install_codex }}
-          install_claude: ${{ steps.provider.outputs.install_claude }}
 
       - name: Resolve task timeout
         id: task_timeout
@@ -255,8 +255,10 @@ jobs:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           ISSUE_NUMBER: ${{ env.TARGET_NUMBER }}
           PR_BODY: ${{ steps.response.outputs.pr_body }}
+          PR_KIND: add-rubrics
           PR_TITLE: "${{ steps.response.outputs.pr_title || 'Propose rubric updates' }}"
           REQUESTED_BY: ${{ env.REQUESTED_BY || github.actor }}
+          RUBRICS_REF: ${{ env.RUBRICS_REF }}
         run: node .agent/dist/cli/create-pr.js
 
       - name: Prepare add-rubrics summary

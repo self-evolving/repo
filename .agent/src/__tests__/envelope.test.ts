@@ -1951,6 +1951,7 @@ test("normal workflows honor rubrics policy instead of forcing read-only", () =>
     assert.match(workflow, /rubrics_policy:\s*\$\{\{\s*vars\.AGENT_RUBRICS_POLICY \|\| ''\s*\}\}/);
   }
   assert.match(addRubricsWorkflow, /rubrics_mode_override:\s*read-only/);
+  assert.match(addRubricsWorkflow, /Setup agent runtime[\s\S]*Setup proposal branch[\s\S]*prepare-add-rubrics-proposal\.js/);
   assert.match(addRubricsWorkflow, /prepare-add-rubrics-proposal\.js/);
   assert.doesNotMatch(addRubricsWorkflow, /github\.run_id/);
   assert.match(addRubricsWorkflow, /agent_github_token:\s*\$\{\{\s*secrets\.AGENT_SECONDARY_GITHUB_TOKEN\s*\}\}/);
@@ -1960,6 +1961,8 @@ test("normal workflows honor rubrics policy instead of forcing read-only", () =>
   assert.match(addRubricsWorkflow, /PUSH_LEASE_OID:\s*\$\{\{\s*steps\.proposal\.outputs\.branch_lease_oid\s*\}\}/);
   assert.match(addRubricsWorkflow, /PUSH_REF:\s*\$\{\{\s*steps\.proposal\.outputs\.branch\s*\}\}/);
   assert.match(addRubricsWorkflow, /BASE_BRANCH:\s*\$\{\{\s*env\.RUBRICS_REF\s*\}\}/);
+  assert.match(addRubricsWorkflow, /PR_KIND:\s*add-rubrics/);
+  assert.match(addRubricsWorkflow, /RUBRICS_REF:\s*\$\{\{\s*env\.RUBRICS_REF\s*\}\}/);
   assert.match(addRubricsWorkflow, /prepare-add-rubrics-proposal-summary\.js/);
   assert.match(addRubricsPrompt, /Read existing rubrics/);
   assert.match(addRubricsPrompt, /proposal PR targeting/);
@@ -1994,11 +1997,13 @@ test("add-rubrics route uses separate rubrics checkout for proposal PRs", () => 
   assert.match(addRubricsWorkflow, /prompt:\s*add-rubrics/);
   assert.match(addRubricsWorkflow, /route:\s*add-rubrics/);
   assert.match(addRubricsWorkflow, /rubrics_mode_override:\s*read-only/);
+  assert.match(addRubricsWorkflow, /Setup agent runtime[\s\S]*Setup proposal branch[\s\S]*prepare-add-rubrics-proposal\.js/);
   assert.match(addRubricsWorkflow, /rubrics\/validate\.js --dir "\$\{\{ steps\.add_rubrics\.outputs\.rubrics_dir \}\}"/);
   assert.match(addRubricsWorkflow, /agent_github_token:\s*\$\{\{\s*secrets\.AGENT_SECONDARY_GITHUB_TOKEN\s*\}\}/);
   assert.match(addRubricsWorkflow, /expose_github_token_to_agent:\s*"false"/);
   assert.match(addRubricsWorkflow, /PUSH_REF:\s*\$\{\{\s*steps\.proposal\.outputs\.branch\s*\}\}/);
   assert.match(addRubricsWorkflow, /BASE_BRANCH:\s*\$\{\{\s*env\.RUBRICS_REF\s*\}\}/);
+  assert.match(addRubricsWorkflow, /PR_KIND:\s*add-rubrics/);
   assert.doesNotMatch(addRubricsWorkflow, /fetch origin "refs\/heads\/\$\{BASE_BRANCH\}"/);
   assert.match(runSource, /"add-rubrics": ".github\/prompts\/agent-add-rubrics\.md"/);
   assert.match(action, /implement, add-rubrics, review/);
