@@ -53,6 +53,8 @@ title: "Configurations list"
 }
 ```
 
+For Codex GPT-5 models, Sepo accepts provider-neutral `model` plus `reasoning_effort` policy entries and passes the effective ACP model id to acpx. For example, `{ "model": "gpt-5.5", "reasoning_effort": "xhigh" }` is sent to Codex ACP as `gpt-5.5/xhigh`, matching the model ids advertised by the bundled `@zed-industries/codex-acp` adapter. If a Codex model already includes an effort suffix such as `gpt-5.5/xhigh`, Sepo treats that model id as authoritative and does not send a separate `thought_level` setting. Claude and unknown/custom Codex model ids keep using the separate reasoning-effort path.
+
 The bundled workflows still keep native YAML escape hatches: an inline `route_provider` in a workflow's `resolve-agent-provider` step overrides `AGENT_MODEL_POLICY` for that route. Provider selection precedence is inline `route_provider`, then `AGENT_MODEL_POLICY.route_overrides[route].provider`, then `AGENT_DEFAULT_PROVIDER`, then `auto` detection from configured provider secrets. The review workflow still launches explicit Claude and Codex reviewer lanes; model policy applies to the single synthesis step that combines produced review artifacts, not to the reviewer lane matrix.
 
 ## Repository secrets
