@@ -5,6 +5,11 @@ const fs = require("node:fs");
 const VALID_PROVIDERS = new Set(["auto", "codex", "claude"]);
 const VALID_ROUTE_KEY = /^[a-z0-9][a-z0-9._-]*$/;
 const SAFE_TOKEN = /^[A-Za-z0-9][A-Za-z0-9._:/+-]*$/;
+// Keep this small: Sepo pins one default model per supported provider, not a model catalog.
+const BUILTIN_PROVIDER_DEFAULTS = Object.freeze({
+  codex: Object.freeze({ model: "gpt-5.5" }),
+  claude: Object.freeze({ model: "claude-opus-4-8" }),
+});
 
 function normalizeProvider(value) {
   return String(value || "").trim().toLowerCase();
@@ -163,6 +168,7 @@ function resolveProviderRequest(env, policy, route) {
 
 function resolveRunConfig(policy, provider, route, options = {}) {
   const config = { model: "", reasoningEffort: "" };
+  applyRunConfig(config, BUILTIN_PROVIDER_DEFAULTS[provider] || {});
   applyRunConfig(config, policy.defaultConfig);
   applyRunConfig(config, policy.providers[provider] || {});
   if (!options.hasRouteProviderOverride) {

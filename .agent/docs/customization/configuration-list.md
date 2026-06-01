@@ -38,13 +38,22 @@ title: "Configurations list"
 | `AGENT_COMMITTER_NAME` | Custom commit author name for implementation and PR-fix runs |
 | `AGENT_COMMITTER_EMAIL` | Custom commit author email for implementation and PR-fix runs |
 
+Built-in model defaults are intentionally small and pinned:
+
+| Provider | Default model |
+|---|---|
+| `codex` | `gpt-5.5` |
+| `claude` | `claude-opus-4-8` |
+
+Sepo does not maintain a general model catalog. Use `AGENT_MODEL_POLICY` when a repository needs different models, route-specific choices, or reasoning effort overrides.
+
 `AGENT_MODEL_POLICY` example:
 
 ```json
 {
   "providers": {
-    "codex": { "model": "gpt-5.4", "reasoning_effort": "xhigh" },
-    "claude": { "model": "claude-sonnet-4-5", "reasoning_effort": "max" }
+    "codex": { "model": "gpt-5.5", "reasoning_effort": "xhigh" },
+    "claude": { "model": "claude-opus-4-8", "reasoning_effort": "max" }
   },
   "route_overrides": {
     "answer": { "provider": "codex", "model": "gpt-5.4-mini", "reasoning_effort": "high" },
@@ -55,7 +64,7 @@ title: "Configurations list"
 
 For Codex GPT-5 models, Sepo accepts provider-neutral `model` plus `reasoning_effort` policy entries and passes the effective ACP model id to acpx. For example, `{ "model": "gpt-5.5", "reasoning_effort": "xhigh" }` is sent to Codex ACP as `gpt-5.5/xhigh`, matching the model ids advertised by the bundled `@zed-industries/codex-acp` adapter. If a Codex model already includes an effort suffix such as `gpt-5.5/xhigh`, Sepo treats that model id as authoritative and does not send a separate `thought_level` setting. Claude and unknown/custom Codex model ids keep using the separate reasoning-effort path.
 
-The bundled workflows still keep native YAML escape hatches: an inline `route_provider` in a workflow's `resolve-agent-provider` step overrides `AGENT_MODEL_POLICY` for that route. Provider selection precedence is inline `route_provider`, then `AGENT_MODEL_POLICY.route_overrides[route].provider`, then `AGENT_DEFAULT_PROVIDER`, then `auto` detection from configured provider secrets. The review workflow still launches explicit Claude and Codex reviewer lanes; model policy applies to the single synthesis step that combines produced review artifacts, not to the reviewer lane matrix.
+The bundled workflows still keep native YAML escape hatches: an inline `route_provider` in a workflow's `resolve-agent-provider` step overrides `AGENT_MODEL_POLICY` for that route. Provider selection precedence is inline `route_provider`, then `AGENT_MODEL_POLICY.route_overrides[route].provider`, then `AGENT_DEFAULT_PROVIDER`, then `auto` detection from configured provider secrets. Model selection starts from Sepo's built-in provider default, then applies `AGENT_MODEL_POLICY.default.model`, `AGENT_MODEL_POLICY.providers[provider].model`, and `AGENT_MODEL_POLICY.route_overrides[route].model`; inline `route_provider` skips that route's policy override. The review workflow still launches explicit Claude and Codex reviewer lanes; those lane providers are fixed with inline `route_provider`, so built-in/default/provider-specific model settings apply while route-specific review overrides do not. The synthesis step is resolved separately as `review-synthesize`.
 
 ## Repository secrets
 
