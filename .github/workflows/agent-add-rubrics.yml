@@ -237,13 +237,27 @@ jobs:
           steps.validate_rubrics.outcome == 'success'
         id: checkout_trusted_rubrics
         continue-on-error: true
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          path: .agent-tmp/trusted-rubrics
-          persist-credentials: false
-          ref: ${{ env.RUBRICS_REF }}
-          token: ${{ steps.auth.outputs.token }}
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          RUBRICS_REF: ${{ env.RUBRICS_REF }}
+          TRUSTED_RUBRICS_PARENT: ${{ runner.temp }}
+        run: |
+          set -euo pipefail
+
+          trusted_dir="$(mktemp -d "${TRUSTED_RUBRICS_PARENT}/trusted-rubrics.XXXXXX")"
+          empty_hooks_dir="${trusted_dir}/.git/sepo-empty-hooks"
+
+          git -C "${trusted_dir}" init
+          git -C "${trusted_dir}" config advice.detachedHead false
+          git -C "${trusted_dir}" remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git -C "${trusted_dir}" fetch --depth=1 origin "refs/heads/${RUBRICS_REF}:refs/remotes/origin/${RUBRICS_REF}"
+          git -C "${trusted_dir}" checkout -B "${RUBRICS_REF}" "refs/remotes/origin/${RUBRICS_REF}"
+          git -C "${trusted_dir}" remote set-url origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          mkdir -p "${empty_hooks_dir}"
+          git -C "${trusted_dir}" config core.hooksPath "${empty_hooks_dir}"
+
+          printf 'rubrics_dir=%s\n' "${trusted_dir}" >> "${GITHUB_OUTPUT}"
 
       - name: Prepare trusted rubric commit checkout
         if: >-
@@ -253,7 +267,7 @@ jobs:
         id: trusted_rubrics
         env:
           RUBRICS_SOURCE_DIR: ${{ steps.add_rubrics.outputs.rubrics_dir }}
-          TRUSTED_RUBRICS_DIR: ${{ github.workspace }}/.agent-tmp/trusted-rubrics
+          TRUSTED_RUBRICS_DIR: ${{ steps.checkout_trusted_rubrics.outputs.rubrics_dir }}
         run: |
           set -euo pipefail
 
@@ -278,7 +292,7 @@ jobs:
           steps.trusted_rubrics.outcome == 'success'
         id: validate_trusted_rubrics
         continue-on-error: true
-        run: node .agent/dist/cli/rubrics/validate.js --dir "${{ github.workspace }}/.agent-tmp/trusted-rubrics"
+        run: node .agent/dist/cli/rubrics/validate.js --dir "${{ steps.checkout_trusted_rubrics.outputs.rubrics_dir }}"
 
       - name: Commit proposal branch
         if: >-
@@ -288,7 +302,7 @@ jobs:
         id: commit_rubrics
         env:
           BRANCH: ${{ steps.proposal.outputs.branch }}
-          COMMIT_CWD: ${{ github.workspace }}/.agent-tmp/trusted-rubrics
+          COMMIT_CWD: ${{ steps.checkout_trusted_rubrics.outputs.rubrics_dir }}
           COMMIT_MESSAGE: "${{ steps.response.outputs.commit_message || 'chore(rubrics): propose updates' }}"
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
