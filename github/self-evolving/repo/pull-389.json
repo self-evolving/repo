@@ -113,6 +113,80 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/389#issuecomment-4589475646",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEft2yQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \r\n\r\nwhy .github/workflows/agent-review.yml is modified? ",
+      "createdAt": "2026-06-01T21:28:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/389#issuecomment-4596659913",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEfuhDQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "`.github/workflows/agent-review.yml` is modified because this PR adds pinned provider model defaults, and the review workflow has explicit Claude/Codex reviewer lanes that previously bypassed provider/model resolution.\n\nThe change adds `Resolve reviewer provider` with `route_provider: ${{ matrix.agent }}` so each reviewer lane is still fixed to its matrix provider, but now receives the resolver’s built-in/provider-specific model settings: Codex `gpt-5.5`, Claude `claude-opus-4-8`, or an `AGENT_MODEL_POLICY` override. See [`agent-review.yml` lines 167-208](https://github.com/self-evolving/repo/blob/bd216e200df226a32b7d4c0838a5eb775ae707b7/.github/workflows/agent-review.yml#L167-L208).\n\nWithout this workflow change, the new defaults added in [`resolve-provider.js`](https://github.com/self-evolving/repo/blob/bd216e200df226a32b7d4c0838a5eb775ae707b7/.github/actions/resolve-agent-provider/resolve-provider.js#L8-L12) would apply to single-agent routes and synthesis, but not to the actual Claude/Codex review lanes. The workflow now passes the resolved `model` and `reasoning_effort` into `run-agent-task`.\n\n---\n`codex` | `gpt-5.5/xhigh` | `high` | `Macmini-runner-1`",
+      "createdAt": "2026-06-01T21:30:08Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/389#issuecomment-4596670733",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEfvp-Q",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> `.github/workflows/agent-review.yml` is modified because this PR adds pinned provider model defaults, and the review workflow has explicit Claude/Codex reviewer lanes that previously bypassed provider/model resolution.\r\n> \r\n> The change adds `Resolve reviewer provider` with `route_provider: ${{ matrix.agent }}` so each reviewer lane is still fixed to its matrix provider, but now receives the resolver’s built-in/provider-specific model settings: Codex `gpt-5.5`, Claude `claude-opus-4-8`, or an `AGENT_MODEL_POLICY` override. See [`agent-review.yml` lines 167-208](https://github.com/self-evolving/repo/blob/bd216e200df226a32b7d4c0838a5eb775ae707b7/.github/workflows/agent-review.yml#L167-L208).\r\n> \r\n> Without this workflow change, the new defaults added in [`resolve-provider.js`](https://github.com/self-evolving/repo/blob/bd216e200df226a32b7d4c0838a5eb775ae707b7/.github/actions/resolve-agent-provider/resolve-provider.js#L8-L12) would apply to single-agent routes and synthesis, but not to the actual Claude/Codex review lanes. The workflow now passes the resolved `model` and `reasoning_effort` into `run-agent-task`.\r\n> \r\n> `codex` | `gpt-5.5/xhigh` | `high` | `Macmini-runner-1`\r\n\r\nok but the question is that, we already want to have two separate models (codex and claude when available) as for a matrix to run it; i am not sure if this change meaningfully fix this issue?",
+      "createdAt": "2026-06-01T21:33:03Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/389#issuecomment-4596689401",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEfwPGw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "You’re right to separate those concerns.\n\nThis change does **not** meaningfully fix “run two separate reviewer lanes, Codex and Claude when available.” That behavior already existed in the matrix: one `codex` lane and one `claude` lane.\n\nWhat this change fixes is narrower: the reviewer lanes now use the same provider resolver path so they receive the pinned/provider-specific model config. Without this, the matrix still runs two lanes, but the lanes do not get the new built-in defaults from this PR (`gpt-5.5` / `claude-opus-4-8`) or provider-level `AGENT_MODEL_POLICY` model overrides.\n\nSo the honest framing is:\n\n- If the issue is **“review should run both Codex and Claude lanes”**, this workflow change is not the fix.\n- If the issue is **“review lanes should use Sepo’s pinned model defaults / provider-specific model policy instead of whatever the provider runtime defaults to”**, then this change is needed.\n- It also does **not** add “when available” gating; the workflow still attempts both lanes and relies on `continue-on-error` if one provider is unavailable.\n\nIf we want the PR to stay focused only on provider default pinning, I’d describe this as “applying pinned model defaults to the existing review matrix lanes,” not as fixing the existence of the two-lane review matrix.\n\n---\n`codex` | `default model` | `high` | `zucchini-m4-1`",
+      "createdAt": "2026-06-01T21:34:40Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/389#issuecomment-4596698907",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-06-01T00:33:26Z",
@@ -187,6 +261,6 @@
   "reviews": [],
   "state": "OPEN",
   "title": "Pin provider model defaults",
-  "updatedAt": "2026-06-01T04:12:04Z",
+  "updatedAt": "2026-06-01T21:34:40Z",
   "url": "https://github.com/self-evolving/repo/pull/389"
 }
