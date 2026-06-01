@@ -1,6 +1,7 @@
 // CLI: prepare the user-facing summary for add-rubrics proposal runs.
 // Env: BODY_FILE, RESPONSE_FILE, RUBRICS_REF, RUBRICS_AVAILABLE, RUBRICS_DIR,
 //      RUBRICS_COMMIT_OUTCOME, RUBRICS_COMMITTED, RUBRICS_VALIDATION_OUTCOME,
+//      RUBRICS_TRUSTED_SETUP_OUTCOME, RUBRICS_TRUSTED_VALIDATION_OUTCOME,
 //      RUBRICS_STEP_OUTCOME, PR_OUTCOME, PR_URL, BRANCH
 // Outputs: body_file
 
@@ -27,6 +28,8 @@ const rubricsDir = process.env.RUBRICS_DIR || "";
 const rubricsCommitted = process.env.RUBRICS_COMMITTED === "true";
 const commitOutcome = process.env.RUBRICS_COMMIT_OUTCOME || "";
 const validationOutcome = process.env.RUBRICS_VALIDATION_OUTCOME || "";
+const trustedSetupOutcome = process.env.RUBRICS_TRUSTED_SETUP_OUTCOME || "";
+const trustedValidationOutcome = process.env.RUBRICS_TRUSTED_VALIDATION_OUTCOME || "";
 const stepOutcome = process.env.RUBRICS_STEP_OUTCOME || "";
 const prOutcome = process.env.PR_OUTCOME || "";
 const prUrl = process.env.PR_URL || "";
@@ -41,8 +44,11 @@ if (rubricsAvailable && rubricsAvailable !== "true") {
   lines.push("Rubric proposal generation did not complete successfully; inspect the workflow logs.");
 } else if (!rubricsAvailable || !rubricsDir) {
   lines.push(`Rubrics setup for \`${rubricsRef}\` did not complete; no proposal pull request was opened.`);
-} else if (validationOutcome === "failure") {
+} else if (validationOutcome === "failure" || trustedValidationOutcome === "failure") {
   lines.push(`Rubric proposal edits failed validation for \`${rubricsRef}\`; no pull request was opened.`);
+} else if (trustedSetupOutcome && !["success", "skipped"].includes(trustedSetupOutcome)) {
+  lines.push(`Rubric proposal edits passed validation, but preparing the trusted commit checkout failed.`);
+  if (branch) lines.push(`- Branch: \`${branch}\``);
 } else if (commitOutcome && !["success", "skipped"].includes(commitOutcome)) {
   lines.push(`Rubric proposal edits passed validation, but committing or pushing the proposal branch failed.`);
   if (branch) lines.push(`- Branch: \`${branch}\``);

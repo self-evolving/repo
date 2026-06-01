@@ -1958,6 +1958,15 @@ test("normal workflows honor rubrics policy instead of forcing read-only", () =>
   assert.match(addRubricsWorkflow, /expose_github_token_to_agent:\s*"false"/);
   assert.match(addRubricsWorkflow, /memory_persist_credentials:\s*"false"/);
   assert.match(addRubricsWorkflow, /rubrics_persist_credentials:\s*"false"/);
+  assert.match(addRubricsWorkflow, /Checkout trusted rubric proposal base/);
+  assert.match(addRubricsWorkflow, /id:\s*checkout_trusted_rubrics/);
+  assert.match(addRubricsWorkflow, /continue-on-error:\s*true[\s\S]*uses:\s*actions\/checkout@v4/);
+  assert.match(addRubricsWorkflow, /Prepare trusted rubric commit checkout/);
+  assert.match(addRubricsWorkflow, /steps\.checkout_trusted_rubrics\.outcome == 'success'/);
+  assert.match(addRubricsWorkflow, /RUBRICS_SOURCE_DIR:\s*\$\{\{\s*steps\.add_rubrics\.outputs\.rubrics_dir\s*\}\}/);
+  assert.match(addRubricsWorkflow, /COMMIT_CWD:\s*\$\{\{\s*github\.workspace\s*\}\}\/\.agent-tmp\/trusted-rubrics/);
+  assert.doesNotMatch(addRubricsWorkflow, /COMMIT_CWD:\s*\$\{\{\s*steps\.add_rubrics\.outputs\.rubrics_dir\s*\}\}/);
+  assert.match(addRubricsWorkflow, /steps\.validate_trusted_rubrics\.outcome == 'success'/);
   assert.match(addRubricsWorkflow, /PUSH_LEASE_OID:\s*\$\{\{\s*steps\.proposal\.outputs\.branch_lease_oid\s*\}\}/);
   assert.match(addRubricsWorkflow, /PUSH_REF:\s*\$\{\{\s*steps\.proposal\.outputs\.branch\s*\}\}/);
   assert.match(addRubricsWorkflow, /BASE_BRANCH:\s*\$\{\{\s*env\.RUBRICS_REF\s*\}\}/);
@@ -1999,8 +2008,11 @@ test("add-rubrics route uses separate rubrics checkout for proposal PRs", () => 
   assert.match(addRubricsWorkflow, /rubrics_mode_override:\s*read-only/);
   assert.match(addRubricsWorkflow, /Setup agent runtime[\s\S]*Setup proposal branch[\s\S]*prepare-add-rubrics-proposal\.js/);
   assert.match(addRubricsWorkflow, /rubrics\/validate\.js --dir "\$\{\{ steps\.add_rubrics\.outputs\.rubrics_dir \}\}"/);
+  assert.match(addRubricsWorkflow, /rubrics\/validate\.js --dir "\$\{\{ github\.workspace \}\}\/\.agent-tmp\/trusted-rubrics"/);
   assert.match(addRubricsWorkflow, /agent_github_token:\s*\$\{\{\s*secrets\.AGENT_SECONDARY_GITHUB_TOKEN\s*\}\}/);
   assert.match(addRubricsWorkflow, /expose_github_token_to_agent:\s*"false"/);
+  assert.match(addRubricsWorkflow, /COMMIT_CWD:\s*\$\{\{\s*github\.workspace\s*\}\}\/\.agent-tmp\/trusted-rubrics/);
+  assert.doesNotMatch(addRubricsWorkflow, /COMMIT_CWD:\s*\$\{\{\s*steps\.add_rubrics\.outputs\.rubrics_dir\s*\}\}/);
   assert.match(addRubricsWorkflow, /PUSH_REF:\s*\$\{\{\s*steps\.proposal\.outputs\.branch\s*\}\}/);
   assert.match(addRubricsWorkflow, /BASE_BRANCH:\s*\$\{\{\s*env\.RUBRICS_REF\s*\}\}/);
   assert.match(addRubricsWorkflow, /PR_KIND:\s*add-rubrics/);

@@ -231,14 +231,64 @@ jobs:
         continue-on-error: true
         run: node .agent/dist/cli/rubrics/validate.js --dir "${{ steps.add_rubrics.outputs.rubrics_dir }}"
 
-      - name: Commit proposal branch
+      - name: Checkout trusted rubric proposal base
         if: >-
           steps.add_rubrics.outcome == 'success' &&
           steps.validate_rubrics.outcome == 'success'
+        id: checkout_trusted_rubrics
+        continue-on-error: true
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          path: .agent-tmp/trusted-rubrics
+          persist-credentials: false
+          ref: ${{ env.RUBRICS_REF }}
+          token: ${{ steps.auth.outputs.token }}
+
+      - name: Prepare trusted rubric commit checkout
+        if: >-
+          steps.add_rubrics.outcome == 'success' &&
+          steps.validate_rubrics.outcome == 'success' &&
+          steps.checkout_trusted_rubrics.outcome == 'success'
+        id: trusted_rubrics
+        env:
+          RUBRICS_SOURCE_DIR: ${{ steps.add_rubrics.outputs.rubrics_dir }}
+          TRUSTED_RUBRICS_DIR: ${{ github.workspace }}/.agent-tmp/trusted-rubrics
+        run: |
+          set -euo pipefail
+
+          rm -rf "${TRUSTED_RUBRICS_DIR}/rubrics"
+          rm -f "${TRUSTED_RUBRICS_DIR}/README.md"
+
+          if [ -d "${RUBRICS_SOURCE_DIR}/rubrics" ]; then
+            mkdir -p "${TRUSTED_RUBRICS_DIR}"
+            cp -R "${RUBRICS_SOURCE_DIR}/rubrics" "${TRUSTED_RUBRICS_DIR}/rubrics"
+            find "${TRUSTED_RUBRICS_DIR}/rubrics" -name .git -prune -exec rm -rf {} +
+          fi
+
+          if [ -f "${RUBRICS_SOURCE_DIR}/README.md" ]; then
+            cp "${RUBRICS_SOURCE_DIR}/README.md" "${TRUSTED_RUBRICS_DIR}/README.md"
+          fi
+
+      - name: Validate trusted rubric proposal
+        if: >-
+          steps.add_rubrics.outcome == 'success' &&
+          steps.validate_rubrics.outcome == 'success' &&
+          steps.checkout_trusted_rubrics.outcome == 'success' &&
+          steps.trusted_rubrics.outcome == 'success'
+        id: validate_trusted_rubrics
+        continue-on-error: true
+        run: node .agent/dist/cli/rubrics/validate.js --dir "${{ github.workspace }}/.agent-tmp/trusted-rubrics"
+
+      - name: Commit proposal branch
+        if: >-
+          steps.add_rubrics.outcome == 'success' &&
+          steps.validate_rubrics.outcome == 'success' &&
+          steps.validate_trusted_rubrics.outcome == 'success'
         id: commit_rubrics
         env:
           BRANCH: ${{ steps.proposal.outputs.branch }}
-          COMMIT_CWD: ${{ steps.add_rubrics.outputs.rubrics_dir }}
+          COMMIT_CWD: ${{ github.workspace }}/.agent-tmp/trusted-rubrics
           COMMIT_MESSAGE: "${{ steps.response.outputs.commit_message || 'chore(rubrics): propose updates' }}"
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -276,6 +326,8 @@ jobs:
           RUBRICS_DIR: ${{ steps.add_rubrics.outputs.rubrics_dir }}
           RUBRICS_REF: ${{ env.RUBRICS_REF }}
           RUBRICS_STEP_OUTCOME: ${{ steps.add_rubrics.outcome }}
+          RUBRICS_TRUSTED_SETUP_OUTCOME: ${{ steps.checkout_trusted_rubrics.outcome != 'success' && steps.checkout_trusted_rubrics.outcome || steps.trusted_rubrics.outcome }}
+          RUBRICS_TRUSTED_VALIDATION_OUTCOME: ${{ steps.validate_trusted_rubrics.outcome }}
           RUBRICS_VALIDATION_OUTCOME: ${{ steps.validate_rubrics.outcome }}
         run: node .agent/dist/cli/prepare-add-rubrics-proposal-summary.js
 
