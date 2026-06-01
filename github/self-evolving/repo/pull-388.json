@@ -1,0 +1,153 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Pin `@zed-industries/codex-acp@0.15.0` as a project-local runtime dependency so `acpx@0.6.1` launches an adapter that advertises GPT-5.5 reasoning variants.\n- Normalize Codex GPT-5 `model + reasoning_effort` inputs into ACP model ids like `gpt-5.5/xhigh` before calling acpx.\n- Avoid the broken GPT-5.5 flow of `set model gpt-5.5` followed by `set thought_level xhigh`; preserve the legacy separate thought-level path for Claude and unknown/custom Codex models.\n- Document the Codex model naming behavior.\n\n## Tests\n- `cd .agent && npm test`\n- Local smoke: `.agent/node_modules/.bin/acpx --model gpt-5.5/xhigh codex exec ...` selected `codex-acp 0.15.0` and `currentModelId=gpt-5.5/xhigh` before timing out/auth failing.\n\nStack foundation for superseding #380 and #387.\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYMCDQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | review | PR #388 | 2 / 40 | Dispatched |\n\nReason: agent planner selected review: PR #388 is open with implementation changes and no existing review or concrete fix-pr findings; the next useful automated step is review.\n\n<!-- sepo-agent-handoff state:dispatched created:1780274757575 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY3MjkzMjg3NDg6b3JjaGVzdHJhdGU6Mzg4OnJldmlldzozODg6Mg -->",
+      "createdAt": "2026-06-01T00:45:57Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/388#issuecomment-4588765709",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYMq9w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | Linked #380 context says #388 is the focused foundation for Codex ACP reasoning IDs; PR pins `@zed-industries/codex-acp@0.15.0` beside `acpx@0.6.1`, verified by `npm ls`. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Extends the existing `.agent/src/acpx-adapter.ts` model/session path with `resolveAcpxModelSelection` instead of adding a separate runtime launcher or policy parser. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Implementation is a small normalization helper plus reuse at session setup and run argument construction: [`acpx-adapter.ts`](https://github.com/self-evolving/repo/blob/165eeaeceb15033ff0304bb9fc095ff051d45c3a/.agent/src/acpx-adapter.ts#L226-L284). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is limited to `.agent` package dependency/lockfile, `acpx-adapter`, focused tests, and one config-doc paragraph. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Documents Codex GPT-5 `model` + `reasoning_effort` composition and the preserved Claude/custom-model path: [`configuration-list.md`](https://github.com/self-evolving/repo/blob/165eeaeceb15033ff0304bb9fc095ff051d45c3a/.agent/docs/customization/configuration-list.md#L56). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Keeps provider-neutral structured `model` and `reasoning_effort` policy entries; normalization happens internally before acpx invocation, with no new overloaded user input. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | Pins only the needed Codex ACP adapter dependency and preserves custom/unknown Codex models on the separate `thought_level` path: [`acpx-adapter.test.ts`](https://github.com/self-evolving/repo/blob/165eeaeceb15033ff0304bb9fc095ff051d45c3a/.agent/src/__tests__/acpx-adapter.test.ts#L110-L119). |\n| coding_workflow / generic | Separate diagnostics from continuity | pass | 7/7 | GPT-5 encoded exec runs no longer create transient sessions just to set reasoning, while explicit debug session capture remains covered by `preserveExecSession`: [`acpx-adapter.ts`](https://github.com/self-evolving/repo/blob/165eeaeceb15033ff0304bb9fc095ff051d45c3a/.agent/src/acpx-adapter.ts#L745-L750). |\n| communication / generic | Write audience-first documentation | pass | 7/7 | The added docs state the practical policy example first, then explain authoritative suffixed IDs and legacy paths without a file inventory or migration caveat. |\n\n## Notes\n\n- The strongest score drivers are the scoped adapter pin and the shared normalization helper: GPT-5 Codex requests become `gpt-5.5/xhigh` before acpx, while Claude and unknown/custom Codex behavior stays separate.\n- Regression coverage directly exercises normalization, named-session setup, no-session exec `--model gpt-5.5/xhigh`, and legacy separate `thought_level` behavior.\n- Verification run from a detached PR worktree: `npm ci` then `npm test` passed, `712` tests passing. `npm ci` emitted the existing `acpx@0.6.1` Node engine warning under Node `v20.3.1`, but the suite completed successfully.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific blocking or warning findings.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/medium` | `high` | `Macmini-runner-6`",
+      "createdAt": "2026-06-01T00:49:21Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/388#issuecomment-4588776183",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYkfnw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Falling back from WebSockets to HTTPS transport. unexpected status 401 Unauthorized: Unknown error, url: wss://api.openai.com/v1/responses, cf-ray: a04ae43e9b4eae27-BOS\n\n---\n`codex` | `gpt-5.4/medium` | `high` | `Macmini-runner-5`",
+      "createdAt": "2026-06-01T02:47:13Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/388#issuecomment-4589166495",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYnPPQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 165eeaeceb15033ff0304bb9fc095ff051d45c3a -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\nI have everything I need. No existing inline review threads to manage. Let me write the synthesis.\n\n---\n\n## Summary of PR/Issue\n\nPR #388 pins `@zed-industries/codex-acp@0.15.0` as a project-local runtime dependency alongside `acpx@0.6.1`, and adds a `resolveAcpxModelSelection` helper that normalizes Codex GPT-5 `model + reasoning_effort` pairs into composed ACP model IDs like `gpt-5.5/xhigh` before invoking acpx. The old two-command sequence (`set model gpt-5.5` → `set thought_level xhigh`) no longer works reliably with the newer adapter; the composed ID form matches what the adapter now advertises. Claude and unknown/custom Codex models keep the legacy separate `thought_level` path. The PR is explicitly scoped as a foundation layer for superseding #380 and #387 — the production `run.ts` wiring that would pass `model` through to `runAcpx` is not included.\n\n## Review\n\nThe normalization helper is well-factored, correctly typed, and tested across all three decision branches. The adapter pin is the right strategy. The main concrete concern is that the added documentation paragraph claims present-tense behavior that `run.ts` does not yet support, which could mislead users who configure an `AGENT_MODEL_POLICY` `model` entry and expect composed ACP IDs today.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Docs describe behavior `run.ts` doesn't yet wire | WARNING | The added paragraph states Sepo \"accepts…and passes the effective ACP model id to acpx\" in present tense, but `run.ts` only passes `thoughtLevel`; the composition is inert in production until `model` is forwarded. |\n| `[suffix]` bracket form in `CODEX_REASONING_SUFFIX` undocumented | INFO | The regex accepts `gpt-5.5[xhigh]` and the tests cover it, but neither docs nor a comment explains this encoding, making it look like a dead branch to a future reader. |\n| `--model` global flag redundant on named-session prompt calls | INFO | After this PR, `buildAcpxArgs` will emit `--model gpt-5.5/xhigh` on every `codex prompt -s <session>` call for GPT-5 models, in addition to the `set model gpt-5.5/xhigh` command already issued during session setup; worth verifying acpx silently ignores the redundant flag. |\n\n## Progress\n\n- Rubrics review ran and scored PASS (100/100, 9 rubrics), with all surgical-changes, reuse-existing-code, minimal-defaults, and documentation rubrics satisfied.\n- The broken transient-session path for GPT-5 exec is fully eliminated: the old `sessions new` → `set model` → `set thought_level` → `set-mode` → `prompt -s <session>` sequence is replaced by a direct `exec --model gpt-5.5/xhigh` with no session.\n- Legacy `set thought_level` path for `o3`, Claude, and unknown Codex models is explicitly preserved and covered by retained tests.\n- Dependency lockfile includes all six platform optional deps for `@zed-industries/codex-acp@0.15.0`.\n- No existing inline review threads to resolve.\n\n## Issue Details\n\n<details>\n<summary>Docs describe behavior `run.ts` doesn't yet wire</summary>\n\n**Cause:** The documentation paragraph says \"Sepo accepts provider-neutral `model` plus `reasoning_effort` policy entries and passes the effective ACP model id to acpx.\" In the current codebase, `run.ts` line 514 only passes `thoughtLevel: process.env.MODEL_REASONING_EFFORT` to `runAcpx`; there is no `model:` argument and no `MODEL_ID` env var forwarded through the action. `resolveAcpxModelSelection` short-circuits to the legacy path when `model` is empty, so the composition is never triggered by the production workflow.\n\n**Candidate solutions:**\n1. Add a caveat clause to the docs paragraph: \"once the `model` action input is wired through, Sepo will…\" — keeps the docs honest for the foundation-PR state.\n2. Hold the documentation addition for the follow-up PR that also adds `run.ts`/action wiring.\n3. Accept the forward-looking present tense as intentional for a foundation PR (author choice).\n\n**Comments:** The PR description explicitly calls this \"a stack foundation for superseding #380 and #387\", so the gap is intentional. Whether to add a caveat is a product/style call for the author. The rubrics review scored \"Write audience-first documentation\" as passing without flagging this, which reflects a legitimate authorial choice about tense framing.\n</details>\n\n<details>\n<summary>`[suffix]` bracket form in `CODEX_REASONING_SUFFIX` undocumented</summary>\n\n**Cause:** `CODEX_REASONING_SUFFIX = /(?:\\/(?:low|medium|high|xhigh)|\\[(?:low|medium|high|xhigh)\\])$/u` accepts both `/`-delimited and `[…]`-delimited effort suffixes. The `[…]` variant is exercised in one test case (`gpt-5.5[xhigh]`) but appears in neither the docs paragraph nor an inline comment.\n\n**Candidate solutions:** Add a one-line comment alongside the constant explaining that `[…]` is a known alternate encoding form (e.g., from an earlier adapter revision), or remove the branch if it is no longer emitted by any real source.\n</details>\n\n<details>\n<summary>`--model` global flag redundant on named-session prompt calls</summary>\n\n**Cause:** `buildAcpxArgs` already passed `model` as a global flag before this PR. After normalization, GPT-5 Codex named sessions that provide a model will receive both a `set model gpt-5.5/xhigh` setup command and a `--model gpt-5.5/xhigh` global flag on every `prompt -s` call. This pattern was pre-existing for non-composed IDs; the concern is whether the composed form causes any different acpx behavior. The PR smoke test confirmed `currentModelId=gpt-5.5/xhigh` on the exec path, but the named-session path is not tested end-to-end with the new composed ID.\n\n**Candidate solutions:** Verify against acpx docs or source that a redundant global `--model` flag is ignored when a session is active. No code change needed if confirmed harmless.\n</details>\n\n## Recommended Next Step\n\n**HUMAN_DECISION** — The one WARNING (docs present-tense framing) is a product/style judgment call for the author in the context of an intentional foundation PR, and both candidate fixes (add caveat vs. defer docs) are equally valid; automated fix-pr should not choose between them without author direction.\n\n## Final Verdict\n\n**MINOR_ISSUES**\n\n## Action Items\n\n- [ ] Decide whether to add a caveat clause to the `configuration-list.md` paragraph (\"once `model` is wired through the action input…\") or defer the documentation addition to the follow-up PR that completes the `run.ts`/action wiring.\n- [ ] Optionally add a brief inline comment to `CODEX_REASONING_SUFFIX` explaining the `[…]` bracket variant, or confirm and remove it if no real adapter emits that form.\n\n---\n`claude` | `default` | `max` | `Macmini-runner-4`",
+      "createdAt": "2026-06-01T03:01:18Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/388#issuecomment-4589211453",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEY1Q7A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is limited to the ACP adapter, focused tests, `.agent` dependency/lockfile, and one config-doc paragraph. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Reuses the existing `runAcpx`, session setup, and `buildAcpxArgs` path with a shared `resolveAcpxModelSelection` helper rather than adding a second launcher: https://github.com/self-evolving/repo/blob/165eeaeceb15033ff0304bb9fc095ff051d45c3a/.agent/src/acpx-adapter.ts#L226 |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Implementation is a small normalization helper plus call-site reuse in session setup and run argument construction: https://github.com/self-evolving/repo/blob/165eeaeceb15033ff0304bb9fc095ff051d45c3a/.agent/src/acpx-adapter.ts#L243 |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Config docs now explain Codex GPT-5 `model` + `reasoning_effort` composition and the legacy Claude/custom-model path: https://github.com/self-evolving/repo/blob/165eeaeceb15033ff0304bb9fc095ff051d45c3a/.agent/docs/customization/configuration-list.md#L56 |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Keeps the existing structured `model` and `reasoning_effort` fields; the adapter composes the effective ACP ID internally without adding overloaded command text. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | Pins only `@zed-industries/codex-acp@0.15.0` alongside existing `acpx`, while unknown/custom Codex models keep separate `thought_level`: https://github.com/self-evolving/repo/blob/165eeaeceb15033ff0304bb9fc095ff051d45c3a/.agent/package.json#L11 |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | Linked #380 discussion identified the focused fix: newer Codex ACP adapter plus composed IDs like `gpt-5.5/xhigh`; #388 implements that foundation. |\n| coding_workflow / generic | Separate diagnostics from continuity | pass | 7/7 | Encoded GPT-5 exec runs avoid creating transient sessions just to apply reasoning, while explicit `preserveExecSession` still controls debug session capture: https://github.com/self-evolving/repo/blob/165eeaeceb15033ff0304bb9fc095ff051d45c3a/.agent/src/acpx-adapter.ts#L745 |\n| communication / generic | Write audience-first documentation | pass | 7/7 | The docs describe the user-facing policy example first, then clarify authoritative suffixed model IDs and fallback behavior. |\n\n## Notes\n\n- The main score driver is that the PR directly matches the linked stack-foundation goal: pin the newer Codex ACP adapter and normalize GPT-5 reasoning into ACP model IDs before invoking acpx.\n- Tests cover composition, pre-suffixed IDs, non-Codex/custom fallback behavior, named-session setup, and no-session exec arguments including `--model gpt-5.5/xhigh`: https://github.com/self-evolving/repo/blob/165eeaeceb15033ff0304bb9fc095ff051d45c3a/.agent/src/__tests__/acpx-adapter.test.ts#L93\n- Live PR checks show `check` passing. No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific blocking or warning findings.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/xhigh` | `high` | `Macmini-runner-5`",
+      "createdAt": "2026-06-01T04:02:56Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/388#issuecomment-4589441260",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEY77tg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 165eeaeceb15033ff0304bb9fc095ff051d45c3a -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #388 pins `@zed-industries/codex-acp@0.15.0` so `acpx@0.6.1` uses the newer Codex ACP adapter that advertises GPT-5 reasoning variants as composed model ids. It adds `resolveAcpxModelSelection` to normalize Codex GPT-5 `model + reasoning_effort` into ids like `gpt-5.5/xhigh` before invoking acpx. This avoids the broken `set model gpt-5.5` plus `set thought_level xhigh` flow while preserving the separate reasoning path for Claude and unknown/custom Codex models. The PR is the foundation layer for the focused replacement stack that supersedes #380 and #387.\n\n## Review\nThe current review artifacts support a shippable result. Claude raised optional INFO-level hardening notes, while Codex and rubrics review found no actionable issues; the earlier docs-wiring warning is not supported by the current PR state.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No required branch changes | INFO | The adapter pin, normalization helper, production `MODEL_ID` wiring, docs, and focused tests all align with the PR goal. Remaining notes are optional hardening only. |\n\n## Progress\n- Used all current reviewer outputs: Claude, Codex, and rubrics review.\n- Verified current head `165eeaeceb15033ff0304bb9fc095ff051d45c3a`; `check` is passing.\n- Verified `run.ts` reads `MODEL_ID` and passes `model` into `runAcpx`, so the prior docs-wiring concern is stale.\n- Verified `buildAcpxArgs` suppresses the global `--model` flag for named-session prompts, so the redundant named-session flag concern is unsupported.\n- Existing inline review comments and review threads are empty; no inline comments, replies, minimizations, or thread resolutions were made.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: No unresolved required branch-change work remains; optional hardening can be handled by the author outside automation.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch changes.\n\n---\n`codex` | `gpt-5.5/xhigh` | `xhigh` | `Macmini-runner-4`",
+      "createdAt": "2026-06-01T04:24:56Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/388#issuecomment-4589550518",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-06-01T00:30:23Z",
+  "files": [
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/package-lock.json",
+      "additions": 114,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/package.json",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/acpx-adapter.test.ts",
+      "additions": 49,
+      "deletions": 30,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/acpx-adapter.ts",
+      "additions": 80,
+      "deletions": 11,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/codex-acp-model-normalization",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 388,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "OPEN",
+  "title": "Normalize Codex ACP model reasoning",
+  "updatedAt": "2026-06-01T04:24:56Z",
+  "url": "https://github.com/self-evolving/repo/pull/388"
+}

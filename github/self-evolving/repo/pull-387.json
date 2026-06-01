@@ -1,0 +1,143 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Default agent run metadata footers to visible when `AGENT_DISPLAY_MODEL` is unset.\n- Preserve `AGENT_DISPLAY_MODEL=false` as the hide/opt-out path.\n- Update action metadata, docs, and envelope assertions for the new default.\n\n## Tests\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nCloses #385\n",
+  "closedAt": "2026-06-01T00:36:22Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYIo3w",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate ",
+      "createdAt": "2026-06-01T00:30:40Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/387#issuecomment-4588710111",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYJCng",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | review | PR #387 | 2 / 40 | Dispatched |\n\nReason: agent planner selected review: PR #387 is open and /orchestrate was requested without a concrete branch-change request, so the next useful automated action is review.\n\n<!-- sepo-agent-handoff state:dispatched created:1780273947005 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY3Mjg5ODEzNDk6b3JjaGVzdHJhdGU6Mzg3OnJldmlldzozODc6Mg -->",
+      "createdAt": "2026-06-01T00:32:27Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/387#issuecomment-4588716702",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYJZxw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Surgical changes | pass | 8/8 | Diff touches only the display-model default path: `.agent/src/run.ts`, shared action metadata/env wiring, one config doc row, and focused assertions. |\n| coding_style/generic | Prefer simple implementations | pass | 7/7 | Uses a small `parseBooleanFlag(value, defaultValue)` extension and existing action input/env flow instead of adding new config plumbing. |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | Reuses the existing `display_model` input, `DISPLAY_MODEL` env var, `model_display` output, and `buildModelDisplay` helper. |\n| coding_workflow/generic | Keep docs in sync | pass | 7/7 | `.agent/docs/customization/configuration-list.md` now documents that `AGENT_DISPLAY_MODEL` defaults to `true` and `false` hides the footer. |\n| coding_workflow/generic | Minimal defaults, native escape hatches | pass | 8/8 | The common case becomes visible metadata by default, while `AGENT_DISPLAY_MODEL=false` remains the documented opt-out. |\n| coding_workflow/generic | Prefer explicit structured inputs | pass | 7/7 | Keeps behavior behind the existing explicit boolean-like `display_model`/`AGENT_DISPLAY_MODEL` field; no command text or overloaded parsing added. |\n| communication/generic | Keep status comments compact | pass | 6/6 | The default-visible footer remains the existing compact `provider | model | reasoning effort | runner` format, documented in the config list. |\n\n## Notes\n\n- The main score driver is that the PR implements the requested default flip without expanding the configuration surface or changing unrelated automation behavior.\n- Tests were updated around the shared action default, env fallback, and documentation assertion in `.agent/src/__tests__/envelope.test.ts`.\n- I did not score orchestrator, delegated authorization, privileged lifecycle, retry, or review-synthesis rubrics because this diff does not alter those routes or policies.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** The implementation satisfies the applicable rubrics. A future hardening improvement could add a direct regression assertion for the explicit `false` opt-out path, but the current diff preserves that path in code and docs.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/medium` | `high` | `Macmini-runner-3`",
+      "createdAt": "2026-06-01T00:34:14Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/387#issuecomment-4588722631",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYJ5Ug",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "Closing this as superseded by #390 in the new focused stack.\n\n#390 keeps the intent of this PR (model metadata visible by default) and adds the Codex display cleanup so effective model ids like `gpt-5.5/xhigh` do not also show a duplicate separate `xhigh` reasoning field.\n",
+      "createdAt": "2026-06-01T00:36:22Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/387#issuecomment-4588730706",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYKe1w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 9d86d105acfc6d5a25fb4fee5b91eca0679f3744 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #387 changes model metadata footers to be visible by default when `AGENT_DISPLAY_MODEL` is unset. It preserves `AGENT_DISPLAY_MODEL=false` as the opt-out path. The PR updates the shared action, runtime boolean parsing, envelope assertions, and configuration docs. The linked issue #385 asked for used model details and related metadata to display by default.\n\n## Review\nThe independent reviews agree that the implementation is correct, scoped, and consistent with the requested behavior. The only notes were optional INFO-level test-hardening observations, not required branch changes.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable issues | INFO | Current reviewer artifacts report no blocking or warning findings, and the live PR has no inline review comments or unresolved review threads. |\n\n## Progress\n- Reviewed all available review outputs: Codex review, rubrics review, and Claude review.\n- Verified the live PR state: #387 is closed by maintainer comment as superseded by #390.\n- Checked existing inline review comments and review threads; none exist, so no inline comments were posted, replied to, minimized, or resolved.\n- Reviewers confirmed the explicit `false` opt-out path remains preserved.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: there is no unresolved actionable branch-change work on PR #387, and the PR has already been closed as superseded by #390.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains on PR #387.\n\n---\n`codex` | `gpt-5.5/medium` | `xhigh` | `Macmini-runner-1`",
+      "createdAt": "2026-06-01T00:39:06Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/387#issuecomment-4588740311",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-31T23:22:40Z",
+  "files": [
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 4,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/run.ts",
+      "additions": 5,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/run-agent-task/action.yml",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-385/codex-26727378177",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 387,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "CLOSED",
+  "title": "Default model display metadata to visible",
+  "updatedAt": "2026-06-01T00:39:06Z",
+  "url": "https://github.com/self-evolving/repo/pull/387"
+}

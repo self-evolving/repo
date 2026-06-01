@@ -6,7 +6,366 @@
   "baseRefName": "main",
   "body": "## Summary\n- Add `/add-rubrics` and `agent/add-rubrics` routing for rubric proposal requests.\n- Add a focused rubric-editing prompt and a small workflow that keeps runtime code on the default branch, edits a separate `agent/rubrics` checkout, validates YAML, and opens a draft PR targeting `agent/rubrics`.\n- Update docs and tests for the simplified proposal-only behavior.\n\n## Verification\n- `npm --prefix .agent run build`\n- `GITHUB_OUTPUT=/tmp/sepo-test-output node --test .agent/dist/__tests__/triage.test.js .agent/dist/__tests__/envelope.test.js .agent/dist/__tests__/response.test.js .agent/dist/__tests__/rubrics.test.js .agent/dist/__tests__/onboarding-check-cli.test.js`\n- `node --test .agent/dist/__tests__/docs-validation.test.js`\n- `GITHUB_OUTPUT=/tmp/sepo-test-output node --test .agent/dist/__tests__/envelope.test.js .agent/dist/__tests__/triage.test.js`\n- `git diff --check`\n\nCloses #381\n",
   "closedAt": null,
-  "comments": [],
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEX_Epg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate review and fix any potential bugs ",
+      "createdAt": "2026-05-31T23:27:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/382#issuecomment-4588553382",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEX_RNg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | review | PR #382 | 2 / 40 | Dispatched |\n\nReason: agent planner selected review: PR #382 is open and the requester asked to review and fix potential bugs; start with review so any concrete findings can drive a focused fix-pr handoff.\n\n<!-- sepo-agent-handoff state:dispatched created:1780270149127 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY3Mjc1Njk3MjA6b3JjaGVzdHJhdGU6MzgyOnJldmlldzozODI6Mg -->",
+      "createdAt": "2026-05-31T23:29:09Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/382#issuecomment-4588556598",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEX_7bg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 86 | PARTIAL | 13 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Router resolves route through `resolve-dispatch` with `AUTHOR_ASSOCIATION` and `ACCESS_POLICY`, then delegates `requested_by` and target context to the workflow. [router](https://github.com/self-evolving/repo/blob/1a097637bb5b78f11da7e4d92e4fa00778da5ebb/.github/workflows/agent-router.yml#L306-L321), [handoff](https://github.com/self-evolving/repo/blob/1a097637bb5b78f11da7e4d92e4fa00778da5ebb/.github/workflows/agent-router.yml#L929-L951) |\n| coding_workflow / generic | Generate context-derived artifact metadata | partial | 3/7 | Prompt asks for generated `pr_title`/`pr_body`, but missing/malformed JSON can still fall through to generic `create-pr` implement metadata. [prompt](https://github.com/self-evolving/repo/blob/1a097637bb5b78f11da7e4d92e4fa00778da5ebb/.github/prompts/agent-add-rubrics.md#L35-L49), [fallback](https://github.com/self-evolving/repo/blob/1a097637bb5b78f11da7e4d92e4fa00778da5ebb/.agent/src/cli/create-pr.ts#L31-L38) |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | Routing is encoded in dispatch policy and prompt rules rather than a new repo setting. [triage](https://github.com/self-evolving/repo/blob/1a097637bb5b78f11da7e4d92e4fa00778da5ebb/.agent/src/triage.ts#L454-L459), [dispatch prompt](https://github.com/self-evolving/repo/blob/1a097637bb5b78f11da7e4d92e4fa00778da5ebb/.github/prompts/agent-dispatch.md#L10-L37) |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | Default behavior is proposal-only: read-only rubrics mode, validate, push proposal branch, open draft PR. [workflow](https://github.com/self-evolving/repo/blob/1a097637bb5b78f11da7e4d92e4fa00778da5ebb/.github/workflows/agent-add-rubrics.yml#L171-L245) |\n| coding_workflow / generic | Reuse existing code | pass | 7/8 | Reuses `run-agent-task`, `parse-response`, rubric validation, `commit.js`, and `create-pr.js`; only a small summary CLI is new. [workflow](https://github.com/self-evolving/repo/blob/1a097637bb5b78f11da7e4d92e4fa00778da5ebb/.github/workflows/agent-add-rubrics.yml#L171-L245) |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | Access policy is checked before dispatch; the downstream route only creates a proposal PR after validated edits. [triage](https://github.com/self-evolving/repo/blob/1a097637bb5b78f11da7e4d92e4fa00778da5ebb/.agent/src/triage.ts#L411-L433), [workflow](https://github.com/self-evolving/repo/blob/1a097637bb5b78f11da7e4d92e4fa00778da5ebb/.github/workflows/agent-add-rubrics.yml#L216-L245) |\n| coding_workflow / generic | Prefer explicit structured inputs | partial | 5/7 | Workflow inputs are typed and separate, and prompt requires JSON, but parsed PR metadata is not required before PR creation. [inputs](https://github.com/self-evolving/repo/blob/1a097637bb5b78f11da7e4d92e4fa00778da5ebb/.github/workflows/agent-add-rubrics.yml#L4-L99), [parse/use](https://github.com/self-evolving/repo/blob/1a097637bb5b78f11da7e4d92e4fa00778da5ebb/.github/workflows/agent-add-rubrics.yml#L206-L245) |\n| communication / generic | Keep status comments compact | pass | 6/6 | Summary output is short and scannable, with only branch/PR fields when relevant. [summary CLI](https://github.com/self-evolving/repo/blob/1a097637bb5b78f11da7e4d92e4fa00778da5ebb/.agent/src/cli/prepare-add-rubrics-proposal-summary.ts#L31-L47) |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are scoped to the new route, prompt, workflow, docs, labels, and targeted tests. PR file list shows no broad refactor. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Route behavior is documented in architecture and usage docs. [rubrics docs](https://github.com/self-evolving/repo/blob/1a097637bb5b78f11da7e4d92e4fa00778da5ebb/.agent/docs/architecture/rubrics.md#L83-L121), [agent actions](https://github.com/self-evolving/repo/blob/1a097637bb5b78f11da7e4d92e4fa00778da5ebb/.agent/docs/usage/agent-actions.md#L7-L46) |\n| coding_workflow / generic | Keep privileged workflows on trusted runtime code | pass | 8/8 | Workflow checks out the repository default branch for runtime and edits the separate rubrics checkout. [checkout](https://github.com/self-evolving/repo/blob/1a097637bb5b78f11da7e4d92e4fa00778da5ebb/.github/workflows/agent-add-rubrics.yml#L128-L133), [docs](https://github.com/self-evolving/repo/blob/1a097637bb5b78f11da7e4d92e4fa00778da5ebb/.agent/docs/architecture/rubrics.md#L94-L95) |\n| coding_workflow / generic | Make user-facing automation idempotent | fail | 2/7 | Proposal branches include `github.run_id`, while PR dedupe only checks the exact branch, so reruns of the same request can create duplicate draft PRs. [branch](https://github.com/self-evolving/repo/blob/1a097637bb5b78f11da7e4d92e4fa00778da5ebb/.github/workflows/agent-add-rubrics.yml#L155-L156), [lookup](https://github.com/self-evolving/repo/blob/1a097637bb5b78f11da7e4d92e4fa00778da5eebb/.agent/src/cli/create-pr.ts#L22-L29) |\n| coding_style / generic | Prefer simple implementations | partial | 6/7 | The route is simpler than direct rubric writes, but it still adds a dedicated 277-line workflow plus route-specific summary handling. [workflow](https://github.com/self-evolving/repo/blob/1a097637bb5b78f11da7e4d92e4fa00778da5ebb/.github/workflows/agent-add-rubrics.yml#L1-L277) |\n\n## Notes\n\n- The main rubric strengths are the trusted-runtime checkout, proposal-only behavior, validation before commit, and docs/tests coverage.\n- The main gaps are around user-facing artifact robustness: route-specific PR metadata is requested but not enforced, and reruns are not idempotent.\n\n## Findings\n\n- **WARNING:** Add-rubrics PR metadata can fall back to generic implementation text. If the agent edits rubric YAML but returns malformed or non-JSON output, `parse-response` leaves `pr_title`/`pr_body` empty and `create-pr.js` uses `feat: implement #...` plus `Implements #...`. That violates the context-derived artifact metadata rubric for proposal PRs. Smallest fix: require valid `pr_title` and `pr_body` for `add-rubrics`, or add a route-specific fallback that never uses implement wording or closing text.\n\n- **WARNING:** Add-rubrics proposal PR creation is not idempotent across reruns. The branch name includes `github.run_id`, and existing PR lookup only dedupes by branch, so the same request can open another draft PR on every run. Smallest fix: use a stable branch key per target/request, or search open PRs for a stable marker before creating a new proposal PR.\n\n## Final Rubric Verdict\n\nPARTIAL\n\n---\n`codex` | `gpt-5.5/medium` | `high` | `Macmini-runner-5`",
+      "createdAt": "2026-05-31T23:33:55Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/382#issuecomment-4588567406",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYA9tg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 1a097637bb5b78f11da7e4d92e4fa00778da5ebb -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #382 implements #381 by adding `/add-rubrics` and `agent/add-rubrics` routing for rubric proposal requests.\n- The intended flow is proposal-only: keep Sepo runtime code on the default branch, edit a separate `agent/rubrics` checkout, validate rubric YAML, and open a draft PR targeting `agent/rubrics`.\n- That matches the simplification requested from the PR #344 discussion, where direct commits were intentionally left out of scope for this version.\n- The current implementation wires most of that flow, but one trust-boundary issue leaves proposal mode enforceable only by prompt compliance.\n\n## Review\nThe PR needs rework before merge. Codex’s blocking credential-boundary concern is supported by the current diff; the other reviewers’ lower-severity notes are mostly hardening and user-visible failure-reporting issues.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Proposal Mode Exposes Write Credentials | BLOCKING | The workflow passes the resolved write token into `run-agent-task`, and the ACPX process receives it as `GH_TOKEN`/`GITHUB_TOKEN`, so an approve-all agent can push directly to `agent/rubrics` before deterministic validation and PR creation. |\n| Failure States Collapse To No Changes | WARNING | The add-rubrics summary treats skipped setup, failed commit, or failed PR creation as “No rubric proposal changes were committed,” which can hide failed proposal flows from the user-facing summary. |\n| Proposal PRs Are Not Idempotent Across Reruns | WARNING | Proposal branch names include `github.run_id`, while PR dedupe checks only the exact branch, so rerunning the same request can create duplicate draft PRs. |\n\n## Progress\n- #381 confirms the target behavior: proposal PRs targeting `agent/rubrics`, runtime code from the default branch, and no direct commits in this simplified version.\n- Existing PR discussion already includes the rubrics review warning about generic PR metadata fallback; that is metadata-only and not included as required automation work here.\n- Posted 2 new inline comments: `.github/workflows/agent-add-rubrics.yml` line 177 and `.agent/src/cli/prepare-add-rubrics-proposal-summary.ts` line 41.\n- No inline replies, thread resolutions, or comment minimizations were performed.\n\n## Issue Details\n\n<details><summary>Proposal Mode Exposes Write Credentials</summary>\n\n**Cause:** `.github/workflows/agent-add-rubrics.yml` passes `steps.auth.outputs.token` into `run-agent-task`; `runtime-env.ts` maps that token into `GH_TOKEN`/`GITHUB_TOKEN` for ACPX, and `download-agent-rubrics` clones with an authenticated remote.\n\n**Candidate solutions:** Split agent runtime credentials from deterministic post-processing write credentials. Withhold the primary write token from the model process in proposal mode, and sanitize or remove the authenticated rubrics checkout remote before the agent sees it.\n\n**Comments:** Claude considered the architecture sound, but Codex flagged this as blocking. Current code supports Codex’s finding because proposal mode still gives the model a direct write path.\n\n</details>\n\n<details><summary>Failure States Collapse To No Changes</summary>\n\n**Cause:** `prepare-add-rubrics-proposal-summary.ts` only distinguishes agent failure, validation failure, and committed-plus-PR. Commit failure, PR creation failure after a commit, skipped/missing rubrics checkout, and other setup failures fall into the no-changes fallback.\n\n**Candidate solutions:** Pass rubrics availability, commit outcome, PR outcome, and PR URL into the summary CLI, then report setup, persistence, and PR creation failures explicitly.\n\n**Comments:** Codex reported this directly; Claude’s missing-rubrics summary note is the same user-facing failure-reporting class.\n\n</details>\n\n<details><summary>Proposal PRs Are Not Idempotent Across Reruns</summary>\n\n**Cause:** The proposal branch is `agent/add-rubrics-${target}-${number}/${provider}-${github.run_id}`, and `create-pr.ts` only reuses an existing PR for the exact branch.\n\n**Candidate solutions:** Use a stable branch key per target/request, or search open proposal PRs for a stable marker before creating a new draft PR.\n\n**Comments:** This was already covered in the posted rubrics review, so no duplicate inline comment was added.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: unresolved findings require concrete branch changes and are safe for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Enforce proposal mode so the model process cannot push directly to `agent/rubrics`.\n- [ ] Report setup, commit, and PR creation failures explicitly instead of collapsing them to no changes.\n- [ ] Make add-rubrics proposal PR creation idempotent across reruns.\n\n---\n`codex` | `gpt-5.5/medium` | `xhigh` | `Macmini-runner-3`",
+      "createdAt": "2026-05-31T23:41:42Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/382#issuecomment-4588584374",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYBEuA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #382 | 3 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review concluded needs_rework and recommended FIX_PR; round budget remains and the requested fixes are concrete branch changes for PR #382.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Enforce proposal mode so the model process cannot push directly to `agent/rubrics`.\n- Report setup, commit, and PR creation failures explicitly instead of collapsing them to no changes.\n- Make add-rubrics proposal PR creation idempotent across reruns.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1780270952891 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY3Mjc2MDA5NTI6cmV2aWV3OjM4MjpmaXhfcHI6MzgyOjM -->",
+      "createdAt": "2026-05-31T23:42:33Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/382#issuecomment-4588586168",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYCbMw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-381/codex-26705106631`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Enforced add-rubrics proposal mode by withholding the write token from the model process and stripping authenticated remotes from mounted memory/rubrics checkouts.\n- Made proposal branch creation stable per target/request and lease-aware so reruns update/reuse the same proposal PR path.\n- Reported setup, commit/push, and PR creation failures explicitly in the add-rubrics summary.\n- Added focused docs and tests for the hardened proposal flow.\n\nVerification:\n- `npm --prefix .agent run build`\n- `GITHUB_OUTPUT=/tmp/sepo-test-output node --test .agent/dist/__tests__/envelope.test.js .agent/dist/__tests__/prepare-add-rubrics-proposal-cli.test.js .agent/dist/__tests__/prepare-add-rubrics-proposal-summary-cli.test.js .agent/dist/__tests__/runtime-env.test.js`\n- `node --test .agent/dist/__tests__/docs-validation.test.js`\n- `git diff --check`\n\n---\n`codex` | `gpt-5.5/medium` | `xhigh` | `Macmini-runner-5`",
+      "createdAt": "2026-05-31T23:52:44Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/382#issuecomment-4588608307",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYCibw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #382 | 4 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded after addressing the concrete NEEDS_REWORK findings, so a follow-up review is warranted to verify the new head before stopping.\n\n<!-- sepo-agent-handoff state:dispatched created:1780271618363 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY3Mjc4ODYzNDU6Zml4X3ByOjM4MjpyZXZpZXc6MzgyOjQ -->",
+      "createdAt": "2026-05-31T23:53:38Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/382#issuecomment-4588610159",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYDGjw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 92 | PARTIAL | 16 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Router resolves dispatch with `AUTHOR_ASSOCIATION` and `ACCESS_POLICY`, then only calls `agent-add-rubrics.yml` after the validated portal route is `add-rubrics`. [router](https://github.com/self-evolving/repo/blob/4852f87c67b73cc9e23a49708b1d515386c77204/.github/workflows/agent-router.yml#L306-L321), [handoff](https://github.com/self-evolving/repo/blob/4852f87c67b73cc9e23a49708b1d515386c77204/.github/workflows/agent-router.yml#L929-L951) |\n| coding_workflow / generic | Generate context-derived artifact metadata | partial | 4/7 | Prompt requests `pr_title` and `pr_body`, but malformed/missing JSON still falls through to shared `create-pr` implement-flavored body defaults. [prompt](https://github.com/self-evolving/repo/blob/4852f87c67b73cc9e23a49708b1d515386c77204/.github/prompts/agent-add-rubrics.md#L35-L49), [workflow](https://github.com/self-evolving/repo/blob/4852f87c67b73cc9e23a49708b1d515386c77204/.github/workflows/agent-add-rubrics.yml#L249-L260), [fallback](https://github.com/self-evolving/repo/blob/4852f87c67b73cc9e23a49708b1d515386c77204/.agent/src/cli/create-pr.ts#L31-L38) |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | Add-rubrics routing is encoded in route policy/prompt rules, not a new repo setting. [triage](https://github.com/self-evolving/repo/blob/4852f87c67b73cc9e23a49708b1d515386c77204/.agent/src/triage.ts#L222-L235), [policy](https://github.com/self-evolving/repo/blob/4852f87c67b73cc9e23a49708b1d515386c77204/.agent/src/triage.ts#L454-L459) |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 7/8 | Default is proposal-only: read-only rubrics mode, validation, stable proposal branch, draft PR to `agent/rubrics`. [workflow](https://github.com/self-evolving/repo/blob/4852f87c67b73cc9e23a49708b1d515386c77204/.github/workflows/agent-add-rubrics.yml#L176-L260) |\n| coding_workflow / generic | Reuse existing code | pass | 7/8 | Reuses shared `run-agent-task`, download actions, `parse-response`, validation, `commit`, and `create-pr`; new code is limited to proposal metadata and summary CLIs. [workflow](https://github.com/self-evolving/repo/blob/4852f87c67b73cc9e23a49708b1d515386c77204/.github/workflows/agent-add-rubrics.yml#L176-L278) |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | Access policy is evaluated before route dispatch, while write actions happen in deterministic post-processing after model output and validation. [policy](https://github.com/self-evolving/repo/blob/4852f87c67b73cc9e23a49708b1d515386c77204/.agent/src/triage.ts#L411-L433), [post-processing](https://github.com/self-evolving/repo/blob/4852f87c67b73cc9e23a49708b1d515386c77204/.github/workflows/agent-add-rubrics.yml#L225-L260) |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 6/7 | Workflow inputs are typed and separate; agent output uses structured JSON. Metadata fallback remains the only weakness. [inputs](https://github.com/self-evolving/repo/blob/4852f87c67b73cc9e23a49708b1d515386c77204/.github/workflows/agent-add-rubrics.yml#L4-L99), [prompt](https://github.com/self-evolving/repo/blob/4852f87c67b73cc9e23a49708b1d515386c77204/.github/prompts/agent-add-rubrics.md#L35-L43) |\n| communication / generic | Keep status comments compact | pass | 6/6 | Summary CLI emits short status text plus branch/PR fields and explicit failure reasons. [summary](https://github.com/self-evolving/repo/blob/4852f87c67b73cc9e23a49708b1d515386c77204/.agent/src/cli/prepare-add-rubrics-proposal-summary.ts#L36-L65) |\n| coding_workflow / generic | Make surgical changes | pass | 7/8 | Changes are scoped to the new route, prompt, workflow, docs, labels, helper CLIs, and focused tests; no broad unrelated refactor in the PR file list. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Architecture and usage docs describe add-rubrics behavior, trusted runtime checkout, validation, token exposure, and proposal PR flow. [rubrics docs](https://github.com/self-evolving/repo/blob/4852f87c67b73cc9e23a49708b1d515386c77204/.agent/docs/architecture/rubrics.md#L83-L121), [actions docs](https://github.com/self-evolving/repo/blob/4852f87c67b73cc9e23a49708b1d515386c77204/.agent/docs/usage/agent-actions.md#L43-L48) |\n| coding_workflow / generic | Keep privileged workflows on trusted runtime code | pass | 8/8 | Main checkout uses the repository default branch; `agent/rubrics` is mounted separately and unauthenticated for the model path. [checkout](https://github.com/self-evolving/repo/blob/4852f87c67b73cc9e23a49708b1d515386c77204/.github/workflows/agent-add-rubrics.yml#L128-L133), [token controls](https://github.com/self-evolving/repo/blob/4852f87c67b73cc9e23a49708b1d515386c77204/.github/workflows/agent-add-rubrics.yml#L181-L203) |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Proposal branch is stable per target/request hash, and PR creation reuses an existing PR for that branch. [branch](https://github.com/self-evolving/repo/blob/4852f87c67b73cc9e23a49708b1d515386c77204/.agent/src/cli/prepare-add-rubrics-proposal.ts#L52-L68), [PR lookup](https://github.com/self-evolving/repo/blob/4852f87c67b73cc9e23a49708b1d515386c77204/.agent/src/cli/create-pr.ts#L22-L29) |\n| coding_workflow / generic | Permissive command route parsing | pass | 7/7 | Explicit `/add-rubrics`, `agent/add-rubrics`, and dispatch-triaged rubric requests are supported instead of only a rigid label path. [triage](https://github.com/self-evolving/repo/blob/4852f87c67b73cc9e23a49708b1d515386c77204/.agent/src/triage.ts#L33-L42), [dispatch prompt](https://github.com/self-evolving/repo/blob/4852f87c67b73cc9e23a49708b1d515386c77204/.github/prompts/agent-dispatch.md#L10-L37) |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Summary now distinguishes missing rubrics, agent failure, validation failure, commit/push failure, and PR creation failure; focused tests cover these states. [summary](https://github.com/self-evolving/repo/blob/4852f87c67b73cc9e23a49708b1d515386c77204/.agent/src/cli/prepare-add-rubrics-proposal-summary.ts#L38-L61), [tests](https://github.com/self-evolving/repo/blob/4852f87c67b73cc9e23a49708b1d515386c77204/.agent/src/__tests__/prepare-add-rubrics-proposal-summary-cli.test.ts#L21-L99) |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Workflow always prepares and posts a concise add-rubrics summary when a run completes or stops. [summary post](https://github.com/self-evolving/repo/blob/4852f87c67b73cc9e23a49708b1d515386c77204/.github/workflows/agent-add-rubrics.yml#L262-L291) |\n| coding_style / generic | Prefer simple implementations | partial | 5/7 | The behavior is simpler than direct rubric writes, but still adds a dedicated 291-line workflow, which is heavier than the parent issue’s preferred “smaller implementation-style proposal path” if feasible. [workflow](https://github.com/self-evolving/repo/blob/4852f87c67b73cc9e23a49708b1d515386c77204/.github/workflows/agent-add-rubrics.yml#L1-L291) |\n\n## Notes\n\n- Current fixes resolved the earlier high-risk rubric gaps around proposal-mode credentials, idempotent proposal branches, and explicit failure summaries.\n- Verification run during this review passed: `npm --prefix .agent run build`, focused `node --test` suite for envelope/triage/add-rubrics/response tests, and docs validation.\n- Smallest useful follow-up: make add-rubrics PR metadata route-specific when model JSON is missing or malformed.\n\n## Findings\n\n- **WARNING:** The add-rubrics proposal PR can still fall back to generic implementation PR body text if the model edits rubrics but returns malformed JSON or omits `pr_body`. That conflicts with the context-derived artifact metadata rubric. Require `pr_title`/`pr_body` for committed add-rubrics proposals, or add an add-rubrics-specific fallback in `create-pr`/workflow inputs.\n\n- **INFO:** The dedicated workflow is acceptable for the trust-boundary work, but it is still a relatively large route-specific workflow. Future cleanup could extract more post-processing into typed helpers if this grows further.\n\n## Final Rubric Verdict\n\nPARTIAL\n\n---\n`codex` | `gpt-5.5/medium` | `high` | `Macmini-runner-4`",
+      "createdAt": "2026-05-31T23:58:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/382#issuecomment-4588619407",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYEBJw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 4852f87c67b73cc9e23a49708b1d515386c77204 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #382 implements #381 by adding `/add-rubrics` and `agent/add-rubrics` routing for user/team rubric proposal requests.\n- The intended flow is proposal-only: keep Sepo runtime code on the repository default branch, edit a separate `agent/rubrics` checkout, validate rubric YAML, and open or reuse a draft PR targeting `agent/rubrics`.\n- A previous review found token-boundary, idempotency, and summary-state issues; the latest head fixes those.\n- The current diff still has one workflow startup blocker and one user-facing PR metadata fallback issue.\n\n## Review\nThe PR still needs rework before merge. Claude found no blockers, but Codex identified a current-head workflow failure, and the current diff supports Codex’s blocking finding.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Add-Rubrics Calls Generated CLI Before Runtime Build | BLOCKING | `.github/workflows/agent-add-rubrics.yml` runs `node .agent/dist/cli/prepare-add-rubrics-proposal.js` before `setup-agent-runtime` builds `.agent/dist`, while `.agent/dist/` is ignored and absent from a clean checkout. |\n| Add-Rubrics PR Metadata Can Fall Back To Implement Wording | WARNING | If the model returns malformed JSON or omits `pr_body`, the workflow passes an empty `PR_BODY` to `create-pr.js`, which falls back to generic `agent-implement` wording and issue-closing text. |\n\n## Progress\n- Prior credential-boundary, idempotent branch, and explicit failure-summary findings are fixed in current head `4852f87c67b73cc9e23a49708b1d515386c77204`.\n- Resolved 2 same-agent inline review threads for the now-fixed token exposure and summary failure-state issues.\n- Posted 1 new inline comment on `.github/workflows/agent-add-rubrics.yml` line 161 for the runtime-order blocker.\n- Did not post a duplicate inline comment for the PR metadata fallback because the current rubrics review already covers that issue in the PR discussion.\n\n## Issue Details\n\n<details><summary>Add-Rubrics Calls Generated CLI Before Runtime Build</summary>\n\n**Cause:** The `Setup proposal branch` step runs at [`agent-add-rubrics.yml#L155-L161`](https://github.com/self-evolving/repo/blob/4852f87c67b73cc9e23a49708b1d515386c77204/.github/workflows/agent-add-rubrics.yml#L155-L161), before `Setup agent runtime` at line 163. `.agent/dist/` is ignored, so a clean runner will not have `prepare-add-rubrics-proposal.js` yet.\n\n**Candidate solutions:** Move `setup-agent-runtime` before this CLI invocation, or keep the pre-runtime proposal branch setup in shell/source code that does not depend on generated `.agent/dist`.\n\n**Comments:** Claude did not flag this, but Codex did. Current source and `.gitignore` support Codex’s blocker.\n\n</details>\n\n<details><summary>Add-Rubrics PR Metadata Can Fall Back To Implement Wording</summary>\n\n**Cause:** [`agent-add-rubrics.yml#L257`](https://github.com/self-evolving/repo/blob/4852f87c67b73cc9e23a49708b1d515386c77204/.github/workflows/agent-add-rubrics.yml#L257) passes `steps.response.outputs.pr_body` through directly. When parsing fails or `pr_body` is absent, [`create-pr.ts`](https://github.com/self-evolving/repo/blob/4852f87c67b73cc9e23a49708b1d515386c77204/.agent/src/cli/create-pr.ts#L31-L38) uses the generic implement fallback.\n\n**Candidate solutions:** Require valid add-rubrics `pr_title` and `pr_body` before PR creation, add an add-rubrics-specific fallback body, or teach `create-pr.js` a route-specific metadata mode.\n\n**Comments:** Rubrics Review also flagged this as a warning. It is not the merge blocker, but it is concrete branch-change work.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the unresolved findings require concrete branch changes and are safe for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Move add-rubrics proposal branch setup after runtime build, or make it independent of generated `.agent/dist`.\n- [ ] Ensure add-rubrics proposal PRs cannot fall back to generic implement title/body text.\n\n---\n`codex` | `gpt-5.5/medium` | `xhigh` | `Macmini-runner-1`",
+      "createdAt": "2026-06-01T00:04:15Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/382#issuecomment-4588634407",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYELSg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #382 | 5 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis for open PR #382 concluded NEEDS_REWORK and recommended FIX_PR; round budget remains and the remaining items are concrete branch changes.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Move add-rubrics proposal branch setup after runtime build, or make it independent of generated `.agent/dist`.\n- Ensure add-rubrics proposal PRs cannot fall back to generic implement title/body text.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1780272316517 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY3MjgxMTg0NTI6cmV2aWV3OjM4MjpmaXhfcHI6MzgyOjU -->",
+      "createdAt": "2026-06-01T00:05:16Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/382#issuecomment-4588637002",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYEsMQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-381/codex-26705106631`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Moved add-rubrics proposal branch setup after `setup-agent-runtime`, so `prepare-add-rubrics-proposal.js` exists before the workflow calls it.\n- Added add-rubrics-specific PR fallback metadata via `PR_KIND=add-rubrics`, avoiding generic implement title/body text when model JSON metadata is missing or malformed.\n- Added focused coverage for workflow ordering and add-rubrics PR fallback body generation.\n\nVerification:\n- `npm --prefix .agent run build`\n- `GITHUB_OUTPUT=/tmp/sepo-test-output node --test .agent/dist/__tests__/envelope.test.js .agent/dist/__tests__/create-pr-cli.test.js .agent/dist/__tests__/prepare-add-rubrics-proposal-cli.test.js .agent/dist/__tests__/prepare-add-rubrics-proposal-summary-cli.test.js`\n- `git diff --check`\n\n---\n`codex` | `default model` | `xhigh` | `Macmini-runner-5`",
+      "createdAt": "2026-06-01T00:08:31Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/382#issuecomment-4588645425",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYE0RA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #382 | 6 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded after the latest NEEDS_REWORK findings, so one follow-up review is warranted to verify the new PR head before stopping.\n\n<!-- sepo-agent-handoff state:dispatched created:1780272560623 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY3MjgzNzY4MTU6Zml4X3ByOjM4MjpyZXZpZXc6MzgyOjY -->",
+      "createdAt": "2026-06-01T00:09:21Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/382#issuecomment-4588647492",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYFqBw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 94 | PARTIAL | 17 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Router resolves route with author/access policy before dispatch, then passes requester context into add-rubrics. [router](https://github.com/self-evolving/repo/blob/883eb6904a6ba2dee02dc270e6bfa80eaa0dcd0e/.github/workflows/agent-router.yml#L306-L321), [handoff](https://github.com/self-evolving/repo/blob/883eb6904a6ba2dee02dc270e6bfa80eaa0dcd0e/.github/workflows/agent-router.yml#L929-L951) |\n| coding_workflow / generic | Generate context-derived artifact metadata | partial | 5/7 | Prompt requests structured `pr_title`/`pr_body`, and fallback is now add-rubrics-specific, but fallback metadata is still generic rather than preference-derived. [prompt](https://github.com/self-evolving/repo/blob/883eb6904a6ba2dee02dc270e6bfa80eaa0dcd0e/.github/prompts/agent-add-rubrics.md#L35-L49), [fallback](https://github.com/self-evolving/repo/blob/883eb6904a6ba2dee02dc270e6bfa80eaa0dcd0e/.agent/src/cli/create-pr.ts#L25-L38) |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | Route selection is encoded in dispatch/route policy and prompt rules, not a new repository knob. [triage](https://github.com/self-evolving/repo/blob/883eb6904a6ba2dee02dc270e6bfa80eaa0dcd0e/.agent/src/triage.ts#L222-L242), [dispatch prompt](https://github.com/self-evolving/repo/blob/883eb6904a6ba2dee02dc270e6bfa80eaa0dcd0e/.github/prompts/agent-dispatch.md#L10-L37) |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 7/8 | Default behavior is proposal-only: read-only rubrics mode, validation, stable branch, draft PR to `agent/rubrics`. [workflow](https://github.com/self-evolving/repo/blob/883eb6904a6ba2dee02dc270e6bfa80eaa0dcd0e/.github/workflows/agent-add-rubrics.yml#L176-L262) |\n| coding_workflow / generic | Reuse existing code | pass | 7/8 | Reuses shared runtime, response parsing, validation, commit, and PR helpers; new code is focused on proposal metadata/summary. [workflow](https://github.com/self-evolving/repo/blob/883eb6904a6ba2dee02dc270e6bfa80eaa0dcd0e/.github/workflows/agent-add-rubrics.yml#L215-L262) |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | Policy gate runs before dispatch; write actions happen later in deterministic validated post-processing. [policy](https://github.com/self-evolving/repo/blob/883eb6904a6ba2dee02dc270e6bfa80eaa0dcd0e/.agent/src/triage.ts#L401-L459), [post-processing](https://github.com/self-evolving/repo/blob/883eb6904a6ba2dee02dc270e6bfa80eaa0dcd0e/.github/workflows/agent-add-rubrics.yml#L225-L262) |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Workflow inputs are separated and typed; model output has a structured JSON contract. [inputs](https://github.com/self-evolving/repo/blob/883eb6904a6ba2dee02dc270e6bfa80eaa0dcd0e/.github/workflows/agent-add-rubrics.yml#L4-L99), [JSON contract](https://github.com/self-evolving/repo/blob/883eb6904a6ba2dee02dc270e6bfa80eaa0dcd0e/.github/prompts/agent-add-rubrics.md#L35-L43) |\n| communication / generic | Keep status comments compact | pass | 6/6 | Summary output is short and state-specific, with branch/PR fields only when useful. [summary CLI](https://github.com/self-evolving/repo/blob/883eb6904a6ba2dee02dc270e6bfa80eaa0dcd0e/.agent/src/cli/prepare-add-rubrics-proposal-summary.ts#L36-L65) |\n| coding_workflow / generic | Make surgical changes | pass | 7/8 | Scope stays on add-rubrics route wiring, prompt, workflow, docs, helpers, and focused tests; no broad unrelated refactor in the PR file list. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Architecture and usage docs describe the add-rubrics proposal flow, trusted runtime checkout, token behavior, and validation. [rubrics docs](https://github.com/self-evolving/repo/blob/883eb6904a6ba2dee02dc270e6bfa80eaa0dcd0e/.agent/docs/architecture/rubrics.md#L83-L121), [actions docs](https://github.com/self-evolving/repo/blob/883eb6904a6ba2dee02dc270e6bfa80eaa0dcd0e/.agent/docs/usage/agent-actions.md#L43-L48) |\n| coding_workflow / generic | Keep privileged workflows on trusted runtime code | pass | 8/8 | Main checkout uses default branch runtime; model path gets read-only rubrics/memory checkouts without persisted auth remotes. [checkout](https://github.com/self-evolving/repo/blob/883eb6904a6ba2dee02dc270e6bfa80eaa0dcd0e/.github/workflows/agent-add-rubrics.yml#L128-L167), [token controls](https://github.com/self-evolving/repo/blob/883eb6904a6ba2dee02dc270e6bfa80eaa0dcd0e/.github/workflows/agent-add-rubrics.yml#L176-L203) |\n| coding_workflow / generic | Make user-facing automation idempotent | partial | 6/7 | Stable request-derived branches and PR lookup prevent duplicate PRs, but reruns push a fresh `HEAD` to the same branch and can replace prior proposal branch content. [branch](https://github.com/self-evolving/repo/blob/883eb6904a6ba2dee02dc270e6bfa80eaa0dcd0e/.agent/src/cli/prepare-add-rubrics-proposal.ts#L52-L63), [PR reuse](https://github.com/self-evolving/repo/blob/883eb6904a6ba2dee02dc270e6bfa80eaa0dcd0e/.agent/src/github.ts#L413-L417), [push](https://github.com/self-evolving/repo/blob/883eb6904a6ba2dee02dc270e6bfa80eaa0dcd0e/.agent/src/git.ts#L170-L173) |\n| coding_workflow / generic | Permissive command route parsing | pass | 7/7 | Supports explicit slash route, label route, and dispatch-triaged rubric requests. [slash route](https://github.com/self-evolving/repo/blob/883eb6904a6ba2dee02dc270e6bfa80eaa0dcd0e/.agent/src/triage.ts#L33-L34), [label route](https://github.com/self-evolving/repo/blob/883eb6904a6ba2dee02dc270e6bfa80eaa0dcd0e/.agent/src/triage.ts#L341-L343), [dispatch prompt](https://github.com/self-evolving/repo/blob/883eb6904a6ba2dee02dc270e6bfa80eaa0dcd0e/.github/prompts/agent-dispatch.md#L10-L37) |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Summary distinguishes unavailable rubrics, generation failure, setup failure, validation failure, commit/push failure, and PR failure; tests cover key failure states. [summary](https://github.com/self-evolving/repo/blob/883eb6904a6ba2dee02dc270e6bfa80eaa0dcd0e/.agent/src/cli/prepare-add-rubrics-proposal-summary.ts#L38-L61), [tests](https://github.com/self-evolving/repo/blob/883eb6904a6ba2dee02dc270e6bfa80eaa0dcd0e/.agent/src/__tests__/prepare-add-rubrics-proposal-summary-cli.test.ts#L21-L99) |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Workflow always prepares and posts a concise summary on completion/stop paths. [summary post](https://github.com/self-evolving/repo/blob/883eb6904a6ba2dee02dc270e6bfa80eaa0dcd0e/.github/workflows/agent-add-rubrics.yml#L264-L293) |\n| coding_workflow / generic | Name config by capability | pass | 6/6 | New token and persisted-credential inputs are named by capability rather than a single route-specific use. [run-agent-task inputs](https://github.com/self-evolving/repo/blob/883eb6904a6ba2dee02dc270e6bfa80eaa0dcd0e/.github/actions/run-agent-task/action.yml#L83-L93), [checkout credential inputs](https://github.com/self-evolving/repo/blob/883eb6904a6ba2dee02dc270e6bfa80eaa0dcd0e/.github/actions/run-agent-task/action.yml#L138-L159) |\n| coding_style / generic | Prefer simple implementations | partial | 5/7 | Behavior is simpler than direct rubric writes, but still adds a dedicated 293-line workflow despite issue #381 preferring a smaller implementation-style path if feasible. [workflow](https://github.com/self-evolving/repo/blob/883eb6904a6ba2dee02dc270e6bfa80eaa0dcd0e/.github/workflows/agent-add-rubrics.yml#L1-L293), [issue](https://github.com/self-evolving/repo/issues/381) |\n\n## Notes\n\n- Current head fixes the earlier blocker: runtime setup now happens before generated CLIs are called, and add-rubrics PR fallback text no longer uses implement wording.\n- Verification passed on a temporary PR worktree: `npm --prefix .agent run build`, focused add-rubrics/router tests, docs validation, and `git diff --check`.\n- Smallest useful follow-up: make fallback proposal PR metadata derive from the request, or require valid model-provided `pr_title`/`pr_body` before creating the PR.\n\n## Findings\n\n- **INFO:** The route-specific PR fallback is safe from implement wording, but it is still generic metadata. For stricter compliance with the context-derived artifact metadata rubric, committed add-rubrics proposals should either require valid generated PR metadata or derive a concise fallback from the request/target context.\n\n- **INFO:** Stable proposal branches avoid duplicate PRs, but reruns push a fresh commit to the same branch. If humans may edit proposal branches directly, document that reruns can replace branch content or preserve existing proposal commits before applying new edits.\n\n## Final Rubric Verdict\n\nPARTIAL\n\n---\n`codex` | `gpt-5.5/medium` | `high` | `Macmini-runner-5`",
+      "createdAt": "2026-06-01T00:14:06Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/382#issuecomment-4588661255",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYHXJQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 883eb6904a6ba2dee02dc270e6bfa80eaa0dcd0e -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #382 implements #381 by adding `/add-rubrics` and `agent/add-rubrics` as a proposal-only path for user/team rubric changes.\n- The intended flow keeps Sepo runtime code on the default branch, mounts `agent/rubrics` separately, validates rubric YAML, then opens or reuses a draft PR targeting `agent/rubrics`.\n- Earlier review rounds found token exposure, idempotency, summary-state, runtime-order, and fallback-metadata issues; the latest head fixes those classes.\n- One current-head trust-boundary issue remains in the privileged post-processing path.\n\n## Review\nThe PR still needs rework before merge. Claude and the rubrics review judged the revised architecture mostly sound, but Codex identified a concrete blocker that is supported by the current workflow and helper code.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Model-Touched Git Metadata Reused For Privileged Push | BLOCKING | The workflow validates rubric YAML, then runs privileged `commit.js` from the same `${RUBRICS_DIR}` checkout the approve-all agent can mutate, including its `.git` hooks/config. Those hooks can run during `git commit` or `git push` with `GH_TOKEN` present. |\n\n## Progress\n- Prior token exposure, stable branch, summary outcome, runtime-order, and implement-wording fallback findings are fixed in current head `883eb6904a6ba2dee02dc270e6bfa80eaa0dcd0e`.\n- The missing-rubrics UX concern from one reviewer is not carried forward as live: the current download action defaults `continue_on_missing` to true and the prompt/summary handle unavailable rubrics.\n- Posted 1 new inline comment on `.github/workflows/agent-add-rubrics.yml` line 247 for the remaining `.git` metadata trust-boundary issue.\n- Resolved 1 stale same-agent inline review thread on `.github/workflows/agent-add-rubrics.yml` line 167 for the now-fixed runtime setup ordering.\n- No inline replies or comment minimizations were performed.\n\n## Issue Details\n\n<details><summary>Model-Touched Git Metadata Reused For Privileged Push</summary>\n\n**Cause:** [`agent-add-rubrics.yml#L234-L247`](https://github.com/self-evolving/repo/blob/883eb6904a6ba2dee02dc270e6bfa80eaa0dcd0e/.github/workflows/agent-add-rubrics.yml#L234-L247) sets `COMMIT_CWD` to the agent-edited rubrics checkout and runs `commit.js` with `GH_TOKEN`. [`commit.ts`](https://github.com/self-evolving/repo/blob/883eb6904a6ba2dee02dc270e6bfa80eaa0dcd0e/.agent/src/cli/commit.ts#L21-L32) delegates to Git helpers that run normal `git commit` and `git push`, so model-written hooks or local config in that checkout can execute after validation with privileged environment available.\n\n**Candidate solutions:** Commit from a fresh trusted checkout/copy of whitelisted rubric files, or otherwise discard model-controlled `.git` metadata and disable hooks/config before any privileged Git command runs.\n\n**Comments:** Claude considered the trust boundary sound, but Codex flagged this narrower post-processing gap. The current code supports Codex’s blocker, and the new inline comment covers it without duplicating the older resolved token-exposure thread.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the remaining blocker is a concrete branch change and is safe for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Isolate the privileged add-rubrics commit/push path from model-controlled `.git` metadata before running it with `GH_TOKEN`.\n\n---\n`codex` | `gpt-5.5/medium` | `xhigh` | `Macmini-runner-3`",
+      "createdAt": "2026-06-01T00:23:21Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/382#issuecomment-4588689189",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYHgxw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #382 | 7 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis for open PR #382 returned NEEDS_REWORK with Recommended Next Step FIX_PR; the remaining blocker is a concrete branch change within the round budget.\n\nTask for fix-pr:\nAddress only the latest review synthesis action item: isolate the privileged add-rubrics commit/push path from model-controlled `.git` metadata before running it with `GH_TOKEN`. Preserve existing behavior and ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by this blocker.\n\n<!-- sepo-agent-handoff state:dispatched created:1780273452788 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY3Mjg0NzExMjU6cmV2aWV3OjM4MjpmaXhfcHI6MzgyOjc -->",
+      "createdAt": "2026-06-01T00:24:13Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/382#issuecomment-4588691655",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYId7Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-381/codex-26705106631`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Isolated the privileged add-rubrics commit/push path from model-touched `.git` metadata by copying allowed proposal files into a fresh trusted checkout before running `commit.js` with `GH_TOKEN`.\n- Added trusted-checkout validation and explicit summary reporting for trusted setup/validation failures.\n- Added focused workflow and summary CLI coverage.\n\nVerification:\n- `npm --prefix .agent run build`\n- `GITHUB_OUTPUT=/tmp/sepo-add-rubrics-test-output node --test .agent/dist/__tests__/envelope.test.js .agent/dist/__tests__/prepare-add-rubrics-proposal-summary-cli.test.js`\n- `git diff --check`\n\n---\n`codex` | `default model` | `xhigh` | `Macmini-runner-4`",
+      "createdAt": "2026-06-01T00:29:46Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/382#issuecomment-4588707309",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYIoFw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #382 | 8 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded after the latest blocker, so one follow-up review is warranted to verify the new PR head before stopping.\n\n<!-- sepo-agent-handoff state:dispatched created:1780273836251 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY3Mjg4MjI2NDc6Zml4X3ByOjM4MjpyZXZpZXc6MzgyOjg -->",
+      "createdAt": "2026-06-01T00:30:36Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/382#issuecomment-4588709911",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYJqNQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 95 | PARTIAL | 18 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Router resolves route with author/access policy before dispatch, then forwards requester context to add-rubrics. [router](https://github.com/self-evolving/repo/blob/d66c3a7f7f4cee01689c5c1c011e2694175f851b/.github/workflows/agent-router.yml#L306-L321), [handoff](https://github.com/self-evolving/repo/blob/d66c3a7f7f4cee01689c5c1c011e2694175f851b/.github/workflows/agent-router.yml#L929-L951) |\n| coding_workflow / generic | Generate context-derived artifact metadata | partial | 6/7 | The prompt requests structured `pr_title`/`pr_body`, and fallback is add-rubrics-specific, but the fallback title/body remains generic when model metadata is missing. [prompt](https://github.com/self-evolving/repo/blob/d66c3a7f7f4cee01689c5c1c011e2694175f851b/.github/prompts/agent-add-rubrics.md#L35-L49), [fallback](https://github.com/self-evolving/repo/blob/d66c3a7f7f4cee01689c5c1c011e2694175f851b/.agent/src/cli/create-pr.ts#L25-L60) |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | Add-rubrics routing is encoded in route policy/prompt rules, not a new repository knob. [triage](https://github.com/self-evolving/repo/blob/d66c3a7f7f4cee01689c5c1c011e2694175f851b/.agent/src/triage.ts#L222-L240), [dispatch policy](https://github.com/self-evolving/repo/blob/d66c3a7f7f4cee01689c5c1c011e2694175f851b/.agent/src/triage.ts#L454-L458) |\n| coding_workflow / generic | Keep privileged lifecycle routes out of rubric steering | pass | 8/8 | The changed rubric schema focuses rubric-management on `add-rubrics`, `rubrics-review`, initialization, and update routes, while excluding self-approval/self-merge from rubric route names. [schema](https://github.com/self-evolving/repo/blob/d66c3a7f7f4cee01689c5c1c011e2694175f851b/.agent/src/rubrics.ts#L34-L45) |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 7/8 | Default behavior is proposal-only: read-only rubrics, validation, stable branch, and draft PR to `agent/rubrics`. [workflow](https://github.com/self-evolving/repo/blob/d66c3a7f7f4cee01689c5c1c011e2694175f851b/.github/workflows/agent-add-rubrics.yml#L176-L312) |\n| coding_workflow / generic | Reuse existing code | pass | 7/8 | Reuses shared runtime, response parsing, validation, commit, and PR helpers; new CLIs are focused on branch metadata and summaries. [workflow](https://github.com/self-evolving/repo/blob/d66c3a7f7f4cee01689c5c1c011e2694175f851b/.github/workflows/agent-add-rubrics.yml#L215-L332) |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | Access policy is checked before dispatch; write actions happen later through deterministic validated post-processing. [policy](https://github.com/self-evolving/repo/blob/d66c3a7f7f4cee01689c5c1c011e2694175f851b/.agent/src/triage.ts#L411-L458), [post-processing](https://github.com/self-evolving/repo/blob/d66c3a7f7f4cee01689c5c1c011e2694175f851b/.github/workflows/agent-add-rubrics.yml#L225-L312) |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Workflow inputs are separated and typed, and model output uses a structured JSON contract. [inputs](https://github.com/self-evolving/repo/blob/d66c3a7f7f4cee01689c5c1c011e2694175f851b/.github/workflows/agent-add-rubrics.yml#L4-L99), [contract](https://github.com/self-evolving/repo/blob/d66c3a7f7f4cee01689c5c1c011e2694175f851b/.github/prompts/agent-add-rubrics.md#L35-L43) |\n| communication / generic | Keep status comments compact | pass | 6/6 | Summary output is concise and state-specific, with branch/PR fields only when useful. [summary CLI](https://github.com/self-evolving/repo/blob/d66c3a7f7f4cee01689c5c1c011e2694175f851b/.agent/src/cli/prepare-add-rubrics-proposal-summary.ts#L41-L70) |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Scope stays on add-rubrics routing, prompt, workflow, docs, helpers, and focused tests; no unrelated refactor is apparent in the PR file list. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Architecture and usage docs describe the add-rubrics proposal flow, trusted runtime checkout, token behavior, validation, and PR target. [rubrics docs](https://github.com/self-evolving/repo/blob/d66c3a7f7f4cee01689c5c1c011e2694175f851b/.agent/docs/architecture/rubrics.md#L83-L123), [actions docs](https://github.com/self-evolving/repo/blob/d66c3a7f7f4cee01689c5c1c011e2694175f851b/.agent/docs/usage/agent-actions.md#L43-L49) |\n| coding_workflow / generic | Keep privileged workflows on trusted runtime code | pass | 8/8 | Main checkout uses the default branch, the model does not receive the write token, credentials are stripped from mounted checkouts, and privileged commit uses a fresh trusted rubrics checkout. [checkout/token controls](https://github.com/self-evolving/repo/blob/d66c3a7f7f4cee01689c5c1c011e2694175f851b/.github/workflows/agent-add-rubrics.yml#L128-L203), [trusted commit path](https://github.com/self-evolving/repo/blob/d66c3a7f7f4cee01689c5c1c011e2694175f851b/.github/workflows/agent-add-rubrics.yml#L234-L297) |\n| coding_workflow / generic | Make user-facing automation idempotent | partial | 6/7 | Stable request-derived branches and existing-PR lookup prevent duplicate PRs, but reruns can still replace prior generated branch content via the same proposal branch. [branch](https://github.com/self-evolving/repo/blob/d66c3a7f7f4cee01689c5c1c011e2694175f851b/.agent/src/cli/prepare-add-rubrics-proposal.ts#L52-L68), [PR reuse](https://github.com/self-evolving/repo/blob/d66c3a7f7f4cee01689c5c1c011e2694175f851b/.agent/src/cli/create-pr.ts#L49-L55) |\n| coding_workflow / generic | Permissive command route parsing | pass | 7/7 | Supports explicit slash route, label route, and dispatch-triaged rubric requests. [slash](https://github.com/self-evolving/repo/blob/d66c3a7f7f4cee01689c5c1c011e2694175f851b/.agent/src/triage.ts#L33-L33), [label](https://github.com/self-evolving/repo/blob/d66c3a7f7f4cee01689c5c1c011e2694175f851b/.agent/src/triage.ts#L341-L343), [dispatch prompt](https://github.com/self-evolving/repo/blob/d66c3a7f7f4cee01689c5c1c011e2694175f851b/.github/prompts/agent-dispatch.md#L10-L37) |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Summary distinguishes unavailable rubrics, generation failure, setup failure, validation failure, commit/push failure, and PR failure. [summary](https://github.com/self-evolving/repo/blob/d66c3a7f7f4cee01689c5c1c011e2694175f851b/.agent/src/cli/prepare-add-rubrics-proposal-summary.ts#L41-L66), [tests](https://github.com/self-evolving/repo/blob/d66c3a7f7f4cee01689c5c1c011e2694175f851b/.agent/src/__tests__/prepare-add-rubrics-proposal-summary-cli.test.ts#L21-L149) |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Workflow prepares and posts a concise summary on completion and stop paths. [summary post](https://github.com/self-evolving/repo/blob/d66c3a7f7f4cee01689c5c1c011e2694175f851b/.github/workflows/agent-add-rubrics.yml#L314-L345) |\n| coding_workflow / generic | Name config by capability | pass | 6/6 | New token and credential-persistence inputs are capability-named rather than add-rubrics-only knobs. [run-agent-task inputs](https://github.com/self-evolving/repo/blob/d66c3a7f7f4cee01689c5c1c011e2694175f851b/.github/actions/run-agent-task/action.yml#L83-L97), [checkout credential input](https://github.com/self-evolving/repo/blob/d66c3a7f7f4cee01689c5c1c011e2694175f851b/.github/actions/download-agent-rubrics/action.yml#L27-L30) |\n| coding_style / generic | Prefer simple implementations | partial | 5/7 | The behavior is simpler than direct rubric writes, but still adds a dedicated 345-line workflow despite issue #381 asking to avoid a large dedicated workflow if feasible. [workflow](https://github.com/self-evolving/repo/blob/d66c3a7f7f4cee01689c5c1c011e2694175f851b/.github/workflows/agent-add-rubrics.yml#L1-L345), [issue](https://github.com/self-evolving/repo/issues/381) |\n\n## Notes\n\n- Current head fixes the earlier rubric-specific blockers: the model path no longer receives the write token, authenticated remotes are stripped from mounted rubrics/memory checkouts, and privileged commit/push runs from a fresh trusted checkout after validation.\n- Verification run passed: `npm --prefix .agent run build`, focused add-rubrics/router/runtime tests, docs validation, and `git diff --check`.\n- Smallest useful follow-up: derive add-rubrics fallback PR title/body from request context, or require valid model-provided PR metadata before creating the proposal PR.\n\n## Findings\n\n- **INFO:** Add-rubrics fallback PR metadata is route-specific and safe from implement wording, but still generic. For stricter compliance with the context-derived metadata rubric, fallback metadata should be generated from the request/target context.\n- **INFO:** Stable branches and PR reuse avoid duplicate proposal PRs, but reruns can replace the generated proposal branch. If human edits to proposal branches are expected, document that behavior or preserve existing proposal commits.\n\n## Final Rubric Verdict\n\nPARTIAL\n\n---\n`codex` | `gpt-5.5/medium` | `high` | `Macmini-runner-1`",
+      "createdAt": "2026-06-01T00:35:17Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/382#issuecomment-4588726837",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYLMuA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: d66c3a7f7f4cee01689c5c1c011e2694175f851b -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #382 implements #381 by adding `/add-rubrics` and `agent/add-rubrics` as a proposal-only path for user/team rubric changes.\n- The intended flow keeps Sepo runtime code on the default branch, mounts `agent/rubrics` separately, validates rubric YAML, and opens or reuses a draft PR targeting `agent/rubrics`.\n- Prior review rounds fixed the primary token-exposure, runtime-order, summary-state, idempotency, and direct model-controlled checkout issues.\n- Current review artifacts still identify one trust-boundary gap in the privileged post-processing path.\n\n## Review\nThe PR still needs rework before merge. Claude and Codex agree the previous blocker is mostly addressed, but Codex marks the remaining deterministic trusted-checkout path as blocking; the current diff supports that concern.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Trusted Checkout Path Can Be Pre-Seeded | BLOCKING | The workflow checks out trusted rubrics into fixed path `.agent-tmp/trusted-rubrics` after the approve-all model step, then runs `commit.js` there with `GH_TOKEN`. A model-prepared `.git` directory, hooks, or config at that path can survive into the privileged commit/push path. |\n| Generic Fallback PR Metadata | INFO | Add-rubrics fallback PR metadata is route-specific and avoids implement wording, but it remains generic when model-provided metadata is missing. |\n| Reruns Can Replace Proposal Branch Content | INFO | Stable request-derived branches avoid duplicate PRs, but reruns can overwrite generated proposal branch content if humans have edited that branch directly. |\n\n## Progress\n- Earlier findings around primary token exposure, authenticated mounted remotes, runtime setup ordering, summary failure reporting, duplicate proposal PRs, and direct `COMMIT_CWD` use of the model-edited rubrics checkout are fixed in current head `d66c3a7f7f4cee01689c5c1c011e2694175f851b`.\n- Rubrics review scored the current route highly overall, with remaining rubric gaps limited to INFO-level metadata and rerun behavior.\n- Added 1 inline reply to the existing same-agent unresolved thread on `.github/workflows/agent-add-rubrics.yml` line 297.\n- No new inline threads, thread resolutions, or comment minimizations were performed.\n\n## Issue Details\n\n<details><summary>Trusted Checkout Path Can Be Pre-Seeded</summary>\n\n**Cause:** [`agent-add-rubrics.yml#L234-L297`](https://github.com/self-evolving/repo/blob/d66c3a7f7f4cee01689c5c1c011e2694175f851b/.github/workflows/agent-add-rubrics.yml#L234-L297) uses the fixed path `.agent-tmp/trusted-rubrics` for the trusted checkout after the model has already run in `approve-all` mode. `commit.js` then runs `git commit` and `git push` from that path with `GH_TOKEN`, so pre-planted Git metadata can affect the privileged step.\n\n**Candidate solutions:** Delete and recreate the entire trusted checkout path immediately before `actions/checkout`, or use a fresh unpredictable path outside anything the model could have prepared. Keep the privileged commit checkout isolated from all model-controlled `.git` metadata.\n\n**Comments:** Claude treats this as a warning due to practical exploit difficulty; Codex treats it as blocking. Because this is a privileged workflow and the path is currently deterministic and model-writable, the synthesis carries it forward as blocking.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the remaining issue is a concrete branch change in the workflow trust boundary and is safe for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Ensure the trusted add-rubrics checkout cannot reuse any model-controlled path or `.git` metadata before privileged `commit.js` runs with `GH_TOKEN`.\n\n---\n`codex` | `gpt-5.5/medium` | `xhigh` | `Macmini-runner-4`",
+      "createdAt": "2026-06-01T00:42:12Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/382#issuecomment-4588752056",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYLZBQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #382 | 9 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review concluded NEEDS_REWORK with recommended next step fix_pr, and the remaining item is a concrete branch change suitable for automation.\n\nTask for fix-pr:\nAddress only the latest review synthesis action item: ensure the trusted add-rubrics checkout cannot reuse any model-controlled path or `.git` metadata before privileged `commit.js` runs with `GH_TOKEN`. Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by this action item.\n\n<!-- sepo-agent-handoff state:dispatched created:1780274582663 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY3Mjg5Nzg4MTM6cmV2aWV3OjM4MjpmaXhfcHI6MzgyOjk -->",
+      "createdAt": "2026-06-01T00:43:03Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/382#issuecomment-4588755205",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYMFPQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-381/codex-26705106631`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Moved the trusted add-rubrics commit checkout out of the model-writable workspace and into a fresh `runner.temp` directory created with `mktemp` after the model step.\n- Replaced the fixed `actions/checkout` path with a newly initialized trusted git worktree, stripped the authenticated remote after fetch, and configured an empty hooks path before privileged `commit.js` runs with `GH_TOKEN`.\n- Updated focused workflow assertions to prevent regression to `.agent-tmp/trusted-rubrics` or the model-edited checkout.\n\nVerification:\n- `npm --prefix .agent run build`\n- `GITHUB_OUTPUT=/tmp/sepo-add-rubrics-test-output node --test .agent/dist/__tests__/envelope.test.js .agent/dist/__tests__/prepare-add-rubrics-proposal-summary-cli.test.js`\n- `git diff --check`\n\n---\n`codex` | `default model` | `xhigh` | `Macmini-runner-4`",
+      "createdAt": "2026-06-01T00:46:09Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/382#issuecomment-4588766525",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYMRCg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #382 | 10 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr completed successfully on open PR #382; one follow-up review is warranted to verify the blocker was resolved and no regressions were introduced.\n\n<!-- sepo-agent-handoff state:dispatched created:1780274824850 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY3MjkzMDA0MTI6Zml4X3ByOjM4MjpyZXZpZXc6MzgyOjEw -->",
+      "createdAt": "2026-06-01T00:47:05Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/382#issuecomment-4588769546",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYNjSg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 95 | PARTIAL | 19 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Router resolves dispatch with author/access policy before handoff, then forwards requester/target context to `agent-add-rubrics.yml`. [resolve](https://github.com/self-evolving/repo/blob/380f2e64677b0673e38798b0c63c7997fd6dec5d/.github/workflows/agent-router.yml#L306-L321), [handoff](https://github.com/self-evolving/repo/blob/380f2e64677b0673e38798b0c63c7997fd6dec5d/.github/workflows/agent-router.yml#L929-L951) |\n| coding_workflow / generic | Generate context-derived artifact metadata | partial | 6/7 | Prompt requests `pr_title`/`pr_body`, and fallback avoids implement wording, but fallback remains generic rather than synthesized from request content. [prompt](https://github.com/self-evolving/repo/blob/380f2e64677b0673e38798b0c63c7997fd6dec5d/.github/prompts/agent-add-rubrics.md#L35-L49), [fallback](https://github.com/self-evolving/repo/blob/380f2e64677b0673e38798b0c63c7997fd6dec5d/.agent/src/cli/create-pr.ts#L25-L46) |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | Route selection is encoded in dispatch policy/prompt rules, not a new repository setting. [triage](https://github.com/self-evolving/repo/blob/380f2e64677b0673e38798b0c63c7997fd6dec5d/.agent/src/triage.ts#L222-L240), [policy](https://github.com/self-evolving/repo/blob/380f2e64677b0673e38798b0c63c7997fd6dec5d/.agent/src/triage.ts#L454-L459) |\n| coding_workflow / generic | Keep privileged lifecycle routes out of rubric steering | pass | 8/8 | Rubric applicability now includes rubric-management routes but still excludes privileged self-approve/self-merge routes. [schema](https://github.com/self-evolving/repo/blob/380f2e64677b0673e38798b0c63c7997fd6dec5d/.agent/src/rubrics.ts#L33-L44) |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | The route implements the common-case primitive: validated proposal PRs targeting `agent/rubrics`, no direct rubric writes by default. [workflow](https://github.com/self-evolving/repo/blob/380f2e64677b0673e38798b0c63c7997fd6dec5d/.github/workflows/agent-add-rubrics.yml#L176-L326) |\n| coding_workflow / generic | Reuse existing code | pass | 7/8 | Reuses shared runtime, response parsing, rubric validation, commit, and PR helpers; new CLIs are scoped to proposal metadata/summary. [workflow](https://github.com/self-evolving/repo/blob/380f2e64677b0673e38798b0c63c7997fd6dec5d/.github/workflows/agent-add-rubrics.yml#L215-L346) |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | Access policy is checked before dispatch; privileged write actions run later through deterministic validated post-processing. [policy](https://github.com/self-evolving/repo/blob/380f2e64677b0673e38798b0c63c7997fd6dec5d/.agent/src/triage.ts#L411-L459), [commit path](https://github.com/self-evolving/repo/blob/380f2e64677b0673e38798b0c63c7997fd6dec5d/.github/workflows/agent-add-rubrics.yml#L287-L326) |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Workflow inputs are separated and typed; prompt requires a structured JSON response contract. [inputs](https://github.com/self-evolving/repo/blob/380f2e64677b0673e38798b0c63c7997fd6dec5d/.github/workflows/agent-add-rubrics.yml#L4-L99), [contract](https://github.com/self-evolving/repo/blob/380f2e64677b0673e38798b0c63c7997fd6dec5d/.github/prompts/agent-add-rubrics.md#L35-L43) |\n| coding_workflow / generic | Validate preview contracts | partial | 6/7 | YAML is validated before and after trusted-copy preparation, but the trusted copy can still include non-YAML files under `rubrics/` because validation only collects YAML files. [workflow](https://github.com/self-evolving/repo/blob/380f2e64677b0673e38798b0c63c7997fd6dec5d/.github/workflows/agent-add-rubrics.yml#L225-L295), [collector](https://github.com/self-evolving/repo/blob/380f2e64677b0673e38798b0c63c7997fd6dec5d/.agent/src/rubrics.ts#L149-L179) |\n| communication / generic | Keep status comments compact | pass | 6/6 | Summary output is short and state-specific, with branch/PR fields only when useful. [summary](https://github.com/self-evolving/repo/blob/380f2e64677b0673e38798b0c63c7997fd6dec5d/.agent/src/cli/prepare-add-rubrics-proposal-summary.ts#L41-L70) |\n| coding_workflow / generic | Make surgical changes | pass | 7/8 | Scope is centered on the new route, workflow, prompt, docs, helpers, and focused tests; no unrelated broad refactor is apparent in the PR file list. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Architecture and usage docs document the new route, trusted runtime checkout, token behavior, validation, and PR target. [rubrics docs](https://github.com/self-evolving/repo/blob/380f2e64677b0673e38798b0c63c7997fd6dec5d/.agent/docs/architecture/rubrics.md#L83-L121), [actions docs](https://github.com/self-evolving/repo/blob/380f2e64677b0673e38798b0c63c7997fd6dec5d/.agent/docs/usage/agent-actions.md#L43-L48) |\n| coding_workflow / generic | Keep privileged workflows on trusted runtime code | pass | 8/8 | Main checkout stays on default-branch runtime, the model does not get the write token, mounted checkouts strip credentials, and privileged commit uses a fresh temp checkout. [workflow](https://github.com/self-evolving/repo/blob/380f2e64677b0673e38798b0c63c7997fd6dec5d/.github/workflows/agent-add-rubrics.yml#L128-L258) |\n| coding_workflow / generic | Make user-facing automation idempotent | partial | 6/7 | Stable request-derived branches and PR lookup avoid duplicate PRs, but reruns can still replace proposal branch contents. [branch](https://github.com/self-evolving/repo/blob/380f2e64677b0673e38798b0c63c7997fd6dec5d/.agent/src/cli/prepare-add-rubrics-proposal.ts#L52-L67), [PR reuse](https://github.com/self-evolving/repo/blob/380f2e64677b0673e38798b0c63c7997fd6dec5d/.agent/src/cli/create-pr.ts#L49-L55) |\n| coding_workflow / generic | Permissive command route parsing | pass | 7/7 | Supports explicit slash route, label route, and dispatch-triaged rubric requests. [slash/label](https://github.com/self-evolving/repo/blob/380f2e64677b0673e38798b0c63c7997fd6dec5d/.agent/src/triage.ts#L33-L43), [label](https://github.com/self-evolving/repo/blob/380f2e64677b0673e38798b0c63c7997fd6dec5d/.agent/src/triage.ts#L335-L343) |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Summary distinguishes missing rubrics, generation failure, setup failure, validation failure, commit/push failure, and PR creation failure. [summary](https://github.com/self-evolving/repo/blob/380f2e64677b0673e38798b0c63c7997fd6dec5d/.agent/src/cli/prepare-add-rubrics-proposal-summary.ts#L41-L66), [tests](https://github.com/self-evolving/repo/blob/380f2e64677b0673e38798b0c63c7997fd6dec5d/.agent/src/__tests__/prepare-add-rubrics-proposal-summary-cli.test.ts#L21-L148) |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Workflow posts a concise summary on success and stop/failure paths. [post summary](https://github.com/self-evolving/repo/blob/380f2e64677b0673e38798b0c63c7997fd6dec5d/.github/workflows/agent-add-rubrics.yml#L328-L359) |\n| coding_workflow / generic | Name config by capability | pass | 6/6 | New token and credential-persistence inputs are named by capability, not only by add-rubrics. [run-agent-task inputs](https://github.com/self-evolving/repo/blob/380f2e64677b0673e38798b0c63c7997fd6dec5d/.github/actions/run-agent-task/action.yml#L83-L97), [rubrics checkout input](https://github.com/self-evolving/repo/blob/380f2e64677b0673e38798b0c63c7997fd6dec5d/.github/actions/download-agent-rubrics/action.yml#L27-L30) |\n| coding_style / generic | Prefer simple implementations | partial | 5/7 | Behavior is simpler than direct-write rubric mutation, but the PR still adds a dedicated 359-line workflow despite #381 asking to avoid a large dedicated workflow if feasible. [workflow](https://github.com/self-evolving/repo/blob/380f2e64677b0673e38798b0c63c7997fd6dec5d/.github/workflows/agent-add-rubrics.yml#L1-L359), [issue](https://github.com/self-evolving/repo/issues/381) |\n\n## Notes\n\n- Current head addresses the earlier security-oriented rubric concerns: no primary write token in the model process, no authenticated mounted remotes, fresh temp trusted checkout, double validation, and explicit failure summaries.\n- Remaining rubric gaps are non-blocking: fallback PR metadata is still generic, proposal branch reruns can replace branch content, and validation does not enforce that proposal contents are limited to rubric YAML/README.\n- Smallest useful follow-up: add an allowed-file/path check before the trusted commit so add-rubrics proposal PRs cannot include arbitrary non-rubric files.\n\n## Findings\n\n- **WARNING:** The add-rubrics proposal contract says edits should stay limited to rubric YAML files unless a README update is required, but the workflow copies the whole model-edited `rubrics/` tree into the trusted checkout and the validator only parses `.yaml`/`.yml` files. That means extra non-YAML files under `rubrics/` can be committed to the proposal branch without validation. This is a partial miss for **Validate preview contracts**. Evidence: [prompt rule](https://github.com/self-evolving/repo/blob/380f2e64677b0673e38798b0c63c7997fd6dec5d/.github/prompts/agent-add-rubrics.md#L13-L16), [copy step](https://github.com/self-evolving/repo/blob/380f2e64677b0673e38798b0c63c7997fd6dec5d/.github/workflows/agent-add-rubrics.yml#L274-L284), [YAML-only collection](https://github.com/self-evolving/repo/blob/380f2e64677b0673e38798b0c63c7997fd6dec5d/.agent/src/rubrics.ts#L149-L179).\n- **INFO:** Add-rubrics fallback PR metadata is route-specific and avoids implement wording, but it does not synthesize a request-derived title/body when model metadata is missing.\n- **INFO:** Stable proposal branches prevent duplicate PR spam, but reruns can overwrite generated proposal branch contents; document or preserve human edits if direct edits to proposal branches are expected.\n\n## Final Rubric Verdict\n\nPARTIAL\n\n---\n`codex` | `gpt-5.5/medium` | `high` | `Macmini-runner-6`",
+      "createdAt": "2026-06-01T00:53:42Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/382#issuecomment-4588790602",
+      "viewerDidAuthor": true
+    }
+  ],
   "createdAt": "2026-05-31T06:25:16Z",
   "files": [
     {
@@ -47,7 +406,7 @@
     },
     {
       "path": ".agent/docs/usage/agent-actions.md",
-      "additions": 6,
+      "additions": 8,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
@@ -58,10 +417,28 @@
       "changeType": "MODIFIED"
     },
     {
+      "path": ".agent/src/__tests__/create-pr-cli.test.ts",
+      "additions": 85,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
       "path": ".agent/src/__tests__/envelope.test.ts",
-      "additions": 32,
-      "deletions": 1,
+      "additions": 79,
+      "deletions": 2,
       "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/prepare-add-rubrics-proposal-cli.test.ts",
+      "additions": 58,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/prepare-add-rubrics-proposal-summary-cli.test.ts",
+      "additions": 148,
+      "deletions": 0,
+      "changeType": "ADDED"
     },
     {
       "path": ".agent/src/__tests__/triage.test.ts",
@@ -70,8 +447,20 @@
       "changeType": "MODIFIED"
     },
     {
+      "path": ".agent/src/cli/create-pr.ts",
+      "additions": 30,
+      "deletions": 8,
+      "changeType": "MODIFIED"
+    },
+    {
       "path": ".agent/src/cli/prepare-add-rubrics-proposal-summary.ts",
-      "additions": 52,
+      "additions": 76,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/prepare-add-rubrics-proposal.ts",
+      "additions": 68,
       "deletions": 0,
       "changeType": "ADDED"
     },
@@ -112,9 +501,21 @@
       "changeType": "MODIFIED"
     },
     {
+      "path": ".github/actions/download-agent-memory/action.yml",
+      "additions": 13,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/download-agent-rubrics/action.yml",
+      "additions": 13,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
       "path": ".github/actions/run-agent-task/action.yml",
-      "additions": 1,
-      "deletions": 1,
+      "additions": 20,
+      "deletions": 2,
       "changeType": "MODIFIED"
     },
     {
@@ -149,7 +550,7 @@
     },
     {
       "path": ".github/workflows/agent-add-rubrics.yml",
-      "additions": 277,
+      "additions": 359,
       "deletions": 0,
       "changeType": "ADDED"
     },
@@ -184,9 +585,85 @@
   "mergedAt": null,
   "number": 382,
   "reviewDecision": "",
-  "reviews": [],
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABBiDreg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-31T23:40:26Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "1a097637bb5b78f11da7e4d92e4fa00778da5ebb"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABBiDsCw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-05-31T23:40:36Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "1a097637bb5b78f11da7e4d92e4fa00778da5ebb"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABBiFTFw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-06-01T00:03:25Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "4852f87c67b73cc9e23a49708b1d515386c77204"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABBiGxOw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-06-01T00:21:51Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "883eb6904a6ba2dee02dc270e6bfa80eaa0dcd0e"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABBiIang",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-06-01T00:41:40Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "d66c3a7f7f4cee01689c5c1c011e2694175f851b"
+      }
+    }
+  ],
   "state": "OPEN",
   "title": "Simplify add-rubrics to proposal PR flow",
-  "updatedAt": "2026-05-31T06:25:18Z",
+  "updatedAt": "2026-06-01T00:53:42Z",
   "url": "https://github.com/self-evolving/repo/pull/382"
 }

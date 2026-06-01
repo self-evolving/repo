@@ -7,12 +7,57 @@
   },
   "body": "for example, https://github.com/self-evolving/repo/pull/372\n\nit's very unclear what happens / what's implemented at the end of a long orchestrated execution. in that case, we should just add another answer step and summarize what's implemented ? and the progres?",
   "closedAt": null,
-  "comments": [],
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEXp7OQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer ",
+      "createdAt": "2026-05-31T21:52:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/379#issuecomment-4588206905",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEXqPYw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, the product need is real. I would **not** implement it as “dispatch another `/answer` action” though. I’d add a first-class **orchestration closeout comment** at the terminal point of the orchestrator.\n\nRight now, orchestrated runs hand back after post-processing, then either dispatch another workflow or stop. The relevant surfaces are:\n\n- Orchestrated workflows hand back only when `orchestration_enabled: true`: https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/agent-orchestrator.md#L57-L65\n- Review dispatches back into the orchestrator after posting synthesis: https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-review.yml#L379-L402\n- Terminal stop comments already exist, but are mostly structural: https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L1148-L1178\n- Ordinary terminal PR stops are explicitly silent today, which explains the PR #372 confusion: https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/agent-orchestrator.md#L145-L152\n\nRecommended approach:\n\nAdd an orchestrator-owned final summary comment when a chain reaches a terminal state, especially after review returns `SHIP` / `NO_AUTOMATED_ACTION`, self-approval stops, self-merge stops, or the round budget is exhausted. The comment should summarize:\n\n- What was implemented or changed\n- PR(s) created/updated\n- Review/fix/review progress across rounds\n- Latest verification/test status when available\n- Final state, for example `SHIP`, `NEEDS HUMAN DECISION`, `STOPPED`, or `BLOCKED`\n- Recommended next human action\n\nThis should be generated from existing artifacts: implementation PR body, fix-pr status comments, latest review synthesis, handoff markers, and source conclusion. That keeps it deterministic and avoids spawning a loose `/answer` run that has to rediscover state.\n\nExecution plan:\n\n1. Add a closeout formatter in `orchestrate-handoff.ts` next to `formatOrchestrateStopComment`.\n2. Trigger it for terminal orchestrated PR stops, not just parent issue/meta stops.\n3. Reuse existing dedupe marker behavior with a new hidden marker, e.g. `sepo-agent-orchestrate-closeout`.\n4. Gather latest relevant status from PR comments/review synthesis using existing GitHub helper patterns.\n5. Keep the summary compact: final state first, then progress bullets, then next action.\n6. Update orchestrator docs to say terminal orchestration posts a final closeout summary.\n7. Add tests in `orchestrate-handoff-cli.test.ts` covering a PR chain like #372 ending in `SHIP` / `NO_AUTOMATED_ACTION`.\n\nSo: yes, add the end summary, but make it an orchestrator closeout/reporting step rather than a new `/answer` dispatch.\n\n---\n`codex` | `gpt-5.5/medium` | `high` | `Macmini-runner-3`",
+      "createdAt": "2026-05-31T21:54:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/379#issuecomment-4588212067",
+      "viewerDidAuthor": true
+    }
+  ],
   "createdAt": "2026-05-31T05:05:07Z",
-  "labels": [],
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
   "number": 379,
   "state": "OPEN",
   "title": "Add an additional answer step at the end of orchestration finish",
-  "updatedAt": "2026-05-31T05:05:07Z",
+  "updatedAt": "2026-05-31T21:54:50Z",
   "url": "https://github.com/self-evolving/repo/issues/379"
 }

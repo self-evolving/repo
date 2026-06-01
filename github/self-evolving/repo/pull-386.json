@@ -1,0 +1,158 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "agent/implement-issue-375/codex-26704010172",
+  "body": "## Summary\n\n- Move Sepo's provider model defaults into `.agent/model-defaults.json`.\n- Teach `resolve-agent-provider` to layer bundled defaults, optional remote registry defaults, and repo-local `AGENT_MODEL_POLICY` overrides.\n- Add `AGENT_MODEL_REGISTRY` / `AGENT_MODEL_REGISTRY_URL` wiring, strict registry validation, timeout fallback behavior, and `model_source` output.\n- Update workflows, action templates, docs, and focused resolver/envelope coverage.\n\n## Verification\n\n- `cd .agent && npm run build && node --test dist/__tests__/resolve-agent-provider.test.js dist/__tests__/envelope.test.js dist/__tests__/docs-validation.test.js`\n- `git diff --check`\n\nCloses #384\n",
+  "closedAt": "2026-06-01T00:42:54Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEX-G7g",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent \r\n\r\nThis PR overly complicates the implementation. \r\n\r\nNo need to have this two variables. \r\n```\r\nmodel_registry: ${{ vars.AGENT_MODEL_REGISTRY || 'auto' }}\r\nmodel_registry_url: ${{ vars.AGENT_MODEL_REGISTRY_URL || '' }}\r\n```\r\n\r\n1. We should check the github url by default; if not working then fall back? ",
+      "createdAt": "2026-05-31T23:20:29Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/386#issuecomment-4588537582",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEX_Lrw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-384/codex-26727051417`. Requested by @lolipopshock.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Removed the public `model_registry` / `model_registry_url` workflow wiring and action inputs.\n- Simplified provider resolution so it checks the Sepo-owned GitHub registry by default and falls back to bundled defaults on fetch/validation failures.\n- Updated docs and tests to remove `AGENT_MODEL_REGISTRY*` configuration.\n- Verification passed: `cd .agent && npm run build`; `cd .agent && node --test dist/__tests__/resolve-agent-provider.test.js dist/__tests__/envelope.test.js dist/__tests__/docs-validation.test.js`; `git diff --check`.\n\n---\n`codex` | `gpt-5.5/medium` | `xhigh` | `Macmini-runner-5`",
+      "createdAt": "2026-05-31T23:28:30Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/386#issuecomment-4588555183",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYKEJQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "Leaving this draft/paused for now. The model registry work should be rebased after the focused stack lands (#388 -> #389 -> #390), because #388/#389 change the local Codex adapter/model-id semantics that the registry should distribute.",
+      "createdAt": "2026-06-01T00:37:09Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/386#issuecomment-4588733477",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYLWng",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "Closing this draft as superseded by the new focused model stack and because it is based on the now-closed #380 branch.\n\nThe registry idea is still valid, but it should be reimplemented/rebased after the corrected foundation lands:\n\n1. #388 fixes Codex ACP adapter/model-id semantics.\n2. #389 pins effective provider defaults on top of that.\n3. #390 updates model metadata display behavior.\n\nKeeping #384 open as the tracking issue for a fresh layered-registry implementation after this stack lands.",
+      "createdAt": "2026-06-01T00:42:53Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/386#issuecomment-4588754590",
+      "viewerDidAuthor": false
+    }
+  ],
+  "createdAt": "2026-05-31T23:12:26Z",
+  "files": [
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 3,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/setup/self-hosted-github-action-runner.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/internal-actions.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/supported-workflows.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/model-defaults.json",
+      "additions": 18,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 8,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/resolve-agent-provider.test.ts",
+      "additions": 202,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/resolve-agent-provider/action.yml",
+      "additions": 3,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/resolve-agent-provider/resolve-provider.js",
+      "additions": 197,
+      "deletions": 18,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-384/codex-26727051417",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 386,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "CLOSED",
+  "title": "Add layered model defaults registry",
+  "updatedAt": "2026-06-01T00:42:54Z",
+  "url": "https://github.com/self-evolving/repo/pull/386"
+}

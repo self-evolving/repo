@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "What's the norm for checking updates? is it daily? every two days? And how to make it less annoying?\n\n@sepo-agent /answer",
+  "closedAt": "2026-05-31T22:19:31Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEXqIWA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "“Bi-monthly” is ambiguous, but Sepo’s current update check is **twice monthly / near-biweekly**, not every two months: [`agent-update.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-update.yml#L3-L7) runs on the 1st and 15th because GitHub cron cannot express exactly every 14 days.\n\nFor this kind of agent-infra update, I’d say **near-biweekly is a reasonable default**. Daily is usually too noisy unless the check is security-critical or guaranteed silent when there is nothing actionable. Weekly is also defensible, but twice monthly is fine if releases are not expected to require immediate adoption.\n\nThe current design already has the main anti-annoyance pieces:\n\n- It resolves to the latest stable release, not arbitrary `main`: [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/usage/supported-workflows.md#L186-L189)\n- It opens an update PR only when updates are available: [`agent-actions.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/usage/agent-actions.md#L71-L75)\n- It reuses an existing `agent/update-agent-infra-*` PR instead of opening duplicates: [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/usage/supported-workflows.md#L193-L197)\n- Repos can disable scheduled checks with `AGENT_AUTO_UPDATE=false` while keeping manual dispatch: [`configuration-list.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/customization/configuration-list.md#L29)\n\nMy recommendation: keep the default at **twice monthly**, make sure no-op runs only write the Actions summary, and reserve user-visible PRs/comments for “there is an actual update” or “an existing update PR was refreshed.” If we want to make it less annoying beyond that, the next clean change would be an `AGENT_AUTO_UPDATE_FREQUENCY` or schedule-policy preset, with options like `weekly`, `twice_monthly`, and `manual_only`, defaulting to the current twice-monthly behavior.\n\n---\n`codex` | `gpt-5.5/medium` | `high` | `Macmini-runner-6`",
+      "createdAt": "2026-05-31T21:53:57Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/383#issuecomment-4588210264",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-05-31T21:52:10Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 383,
+  "state": "CLOSED",
+  "title": "Is bi-monthly update check too less frequent?",
+  "updatedAt": "2026-05-31T22:19:31Z",
+  "url": "https://github.com/self-evolving/repo/issues/383"
+}

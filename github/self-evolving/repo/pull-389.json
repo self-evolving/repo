@@ -1,0 +1,192 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "baseRefName": "agent/codex-acp-model-normalization",
+  "body": "## Summary\n- Add a small built-in provider default set: Codex `gpt-5.5` and Claude `claude-opus-4-8`.\n- Preserve route/workflow reasoning defaults on top of the Codex model default; #388 composes these into effective ACP ids such as `gpt-5.5/medium`, `gpt-5.5/high`, or `gpt-5.5/xhigh` before acpx sees them.\n- Preserve `AGENT_MODEL_POLICY` override precedence on top of built-in defaults.\n- Route fixed Claude/Codex review lanes through `resolve-agent-provider` so they receive pinned/provider-specific model settings.\n- Update docs for built-in defaults, reviewer lane behavior, and Claude Code minimum guidance for Opus 4.8.\n\n## Tests\n- `cd .agent && npm run build && node --test dist/__tests__/resolve-agent-provider.test.js dist/__tests__/envelope.test.js dist/__tests__/docs-validation.test.js dist/__tests__/acpx-adapter.test.js`\n\nStacked on #388. Supersedes the default-pinning portions of #380 with Codex model naming fixed first.\n\nCloses #375.\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYMFng",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | review | PR #389 | 2 / 40 | Dispatched |\n\nReason: agent planner selected review: PR #389 is open, non-draft, and contains the requested implementation with no prior review; source orchestrate provided no conflicting recommended next step, so the next useful automated action is review.\n\n<!-- sepo-agent-handoff state:dispatched created:1780274771343 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY3MjkzMzI4OTc6b3JjaGVzdHJhdGU6Mzg5OnJldmlldzozODk6Mg -->",
+      "createdAt": "2026-06-01T00:46:11Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/389#issuecomment-4588766622",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYMsaw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | Adds one pinned default per supported provider, explicitly “not a model catalog,” in [`resolve-provider.js`](https://github.com/self-evolving/repo/blob/3e48bc67d5c8ff46b3ad603758bd1a5349216d7c/.github/actions/resolve-agent-provider/resolve-provider.js#L8-L12); docs point customization to `AGENT_MODEL_POLICY` in [`configuration-list.md`](https://github.com/self-evolving/repo/blob/3e48bc67d5c8ff46b3ad603758bd1a5349216d7c/.agent/docs/customization/configuration-list.md#L41-L48). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Extends the existing `resolve-agent-provider` resolver and `applyRunConfig` precedence chain instead of adding a separate registry/parser path: [`resolve-provider.js`](https://github.com/self-evolving/repo/blob/3e48bc67d5c8ff46b3ad603758bd1a5349216d7c/.github/actions/resolve-agent-provider/resolve-provider.js#L169-L177). |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Implementation is a small frozen defaults object plus existing resolver reuse; review lanes now call the same resolver before runtime setup in [`agent-review.yml`](https://github.com/self-evolving/repo/blob/3e48bc67d5c8ff46b3ad603758bd1a5349216d7c/.github/workflows/agent-review.yml#L167-L208). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is limited to provider resolution, reviewer workflow wiring, targeted tests, and matching docs. No broad runtime refactor or unrelated cleanup is included. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates configuration, self-hosted runner, internal action, and supported workflow docs for pinned defaults and reviewer-lane behavior, e.g. [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/3e48bc67d5c8ff46b3ad603758bd1a5349216d7c/.agent/docs/usage/supported-workflows.md#L202). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Preserves the existing structured `AGENT_MODEL_POLICY` shape and validation; built-ins apply before `default`, `providers`, and `route_overrides` rather than adding another knob: [`resolve-provider.js`](https://github.com/self-evolving/repo/blob/3e48bc67d5c8ff46b3ad603758bd1a5349216d7c/.github/actions/resolve-agent-provider/resolve-provider.js#L70-L130). |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #389 follows #375/#380/#388 context: minimal pinned defaults, Opus 4.8, and Codex effective ACP model ids. The PR summary and diff reflect that scoped stack. |\n| communication / generic | Write audience-first documentation | pass | 7/7 | Configuration docs lead with the default table and override guidance before deeper precedence details: [`configuration-list.md`](https://github.com/self-evolving/repo/blob/3e48bc67d5c8ff46b3ad603758bd1a5349216d7c/.agent/docs/customization/configuration-list.md#L41-L67). |\n| communication / generic | Make setup guidance actionable | pass | 7/7 | Self-hosted runner docs name the Opus requirement and command: Claude Code `v2.1.154` or later and `claude update`: [`self-hosted-github-action-runner.md`](https://github.com/self-evolving/repo/blob/3e48bc67d5c8ff46b3ad603758bd1a5349216d7c/.agent/docs/setup/self-hosted-github-action-runner.md#L26). |\n\n## Notes\n\n- The strongest score drivers are the narrow default set, the reuse of `resolve-agent-provider`, and explicit preservation of `AGENT_MODEL_POLICY` precedence.\n- Reviewer lanes now resolve fixed Claude/Codex providers through the same resolver and pass the resolved `model` into `run-agent-task`, with test coverage in [`envelope.test.ts`](https://github.com/self-evolving/repo/blob/3e48bc67d5c8ff46b3ad603758bd1a5349216d7c/.agent/src/__tests__/envelope.test.ts#L410-L422).\n- Built-in default behavior is covered directly in [`resolve-agent-provider.test.ts`](https://github.com/self-evolving/repo/blob/3e48bc67d5c8ff46b3ad603758bd1a5349216d7c/.agent/src/__tests__/resolve-agent-provider.test.ts#L117-L134).\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific blocking or warning findings.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/medium` | `high` | `Macmini-runner-2`",
+      "createdAt": "2026-06-01T00:49:29Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/389#issuecomment-4588776555",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYekLA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Falling back from WebSockets to HTTPS transport. unexpected status 401 Unauthorized: Incorrect API key provided: fake. You can find your API key at https://platform.openai.com/account/api-keys., url: wss://api.openai.com/v1/responses, cf-ray: a04aba6d0c604ce6-BOS\n\n---\n`codex` | `gpt-5.4/medium` | `high` | `Macmini-runner-5`",
+      "createdAt": "2026-06-01T02:18:41Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/389#issuecomment-4589069356",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYishQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Falling back from WebSockets to HTTPS transport. unexpected status 401 Unauthorized: Incorrect API key provided: fake. You can find your API key at https://platform.openai.com/account/api-keys., url: wss://api.openai.com/v1/responses, cf-ray: a04ad6f55f4a3459-BOS\n\n---\n`codex` | `gpt-5.4/medium` | `high` | `Macmini-runner-2`",
+      "createdAt": "2026-06-01T02:38:09Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/389#issuecomment-4589137029",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYkIgQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: bd216e200df226a32b7d4c0838a5eb775ae707b7 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\nNo existing inline threads. No inline comments to post — the findings are operational/INFO level, not file/line-specific code defects. Here is the synthesis:\n\n---\n\n## Summary of PR/Issue\n\nPR #389 adds a frozen `BUILTIN_PROVIDER_DEFAULTS` map (`codex → gpt-5.5`, `claude → claude-opus-4-8`) as the lowest-precedence layer in `resolveRunConfig`, so reviewer lanes now have a sensible model without requiring an explicit `AGENT_MODEL_POLICY`. Each reviewer lane in `agent-review.yml` is routed through `resolve-agent-provider` before runtime setup, pinning the provider via `route_provider: ${{ matrix.agent }}` while still allowing policy overrides to take effect. The PR is stacked on #388 (Codex ACP normalization), which is required for the `gpt-5.5` built-in to be composed correctly into ACP model ids. Documentation is updated across four files.\n\n## Review\n\nThe implementation is correct, minimal, and the existing resolver is reused without adding a separate registry. Both warnings are known operational conditions — not code defects — that are already documented in the PR.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Merge dependency on #388 | WARNING | #389 must not merge before #388; without acpx normalization, `gpt-5.5` is passed to acpx un-composed and the Codex reviewer lane will fail. |\n| `claude-opus-4-8` requires Claude Code ≥ v2.1.154 on self-hosted runners | WARNING | Older self-hosted runner installs will fail on the Claude reviewer lane; if both lanes fail, synthesis fails hard. `claude update` is the mitigation and is documented. |\n| Imprecise regex in `envelope.test.ts` | INFO | `assert.match(reviewWorkflow, /route:\\s*review/)` also matches `route: review-synthesize`; passes now but could mask a future step id swap. The `id: reviewer_provider` assertion provides sufficient protection. |\n| Empty-string route override now has new semantics | INFO | The unchanged `null/empty` test in `resolve-agent-provider.test.ts` passes, but `model: \"\"` now acts as an explicit escape hatch that clears the built-in default rather than being a no-op. |\n| `required:` input omitted from reviewer lane resolver step | INFO | Since `route_provider` is always `codex` or `claude` from the matrix, the required-check path never triggers; behavior is correct but the omission is worth noting. |\n| No actionable code defects | INFO | All five findings above are INFO/WARNING-level operational or minor test clarity items. No BLOCKING issues found. |\n\n## Progress\n\n- Rubrics review posted to PR as comment `IC_kwDOSOhEMM8AAAABEYMsaw`: **100/100 PASS** across 9 rubrics (surgical changes, reuse, minimal defaults, docs sync, structured inputs, documentation quality).\n- `AGENT_MODEL_POLICY` precedence is preserved: built-in is explicitly the lowest layer, policy default → provider overrides → route overrides all win.\n- `action.yml` `model` output description corrected (\"if configured\" removed) — accurate since model is now always emitted.\n- `doesNotMatch` removal in `envelope.test.ts` is intentional: the reviewer step now always emits a model, so the old assertion that no model appeared was stale.\n- Rubrics reviewer (Codex lane) failed with 401 (fake API key in test environment); rubrics review was completed separately and already posted to the PR.\n- No existing inline review threads or inline comments on this PR; no inline comment actions taken.\n\n## Issue Details\n\n<details>\n<summary>Merge dependency on #388</summary>\n\n**Cause:** `gpt-5.5` is the built-in Codex default and is passed as `model` to `run-agent-task` → acpx. PR #388 adds the normalization that converts `{ model: \"gpt-5.5\", reasoning_effort: \"xhigh\" }` into the ACP model id `gpt-5.5/xhigh`. Without #388, acpx receives a bare model name where it expects a composed ACP id.\n\n**Candidate solutions:** Merge #388 first (the PR is already open and stacked). No code change in #389 is needed; this is a sequencing constraint.\n\n**Comments:** The PR body already states \"Stacked on #388.\" This is the primary merge-readiness gate.\n\n</details>\n\n<details>\n<summary>`claude-opus-4-8` requires Claude Code ≥ v2.1.154 on self-hosted runners</summary>\n\n**Cause:** Older CLI builds do not know the `claude-opus-4-8` model id. GitHub-hosted runners are unaffected (fresh install each run). Self-hosted runners with a cached CLI older than v2.1.154 will fail at agent startup for the Claude reviewer lane.\n\n**Candidate solutions:** Run `claude update` on all self-hosted runner hosts (documented in `self-hosted-github-action-runner.md`). No code change needed. A pre-flight version check in `setup-agent-runtime` would be a hardening option but is out of scope for this PR.\n\n**Comments:** The Claude reviewer job is `continue-on-error: true`, so a single-lane failure degrades gracefully if the Codex lane succeeds. Dual-lane failure would cause synthesis to fail; that scenario requires both the Claude CLI version gap and a Codex credential issue simultaneously.\n\n</details>\n\n## Recommended Next Step\n\n**HUMAN_DECISION** — both warnings are documented operational sequencing constraints (merge ordering and runner version), not code defects; no automated fix-pr pass can resolve them. A maintainer should confirm #388 is merged before landing this PR.\n\n## Final Verdict\n\n**MINOR_ISSUES**\n\n## Action Items\n\n- [ ] Merge PR #388 before merging PR #389 to ensure `gpt-5.5` is correctly composed into ACP model ids by acpx normalization.\n- [ ] Verify self-hosted runner hosts have Claude Code ≥ v2.1.154 installed (run `claude update` if needed) before the Claude reviewer lane goes live.\n\n---\n`claude` | `default` | `max` | `Macmini-runner-5`",
+      "createdAt": "2026-06-01T02:45:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/389#issuecomment-4589160577",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEY1LDQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | Adds one pinned default per provider, explicitly not a catalog, in [`resolve-provider.js`](https://github.com/self-evolving/repo/blob/bd216e200df226a32b7d4c0838a5eb775ae707b7/.github/actions/resolve-agent-provider/resolve-provider.js#L8-L12); docs point advanced choices to `AGENT_MODEL_POLICY` in [`configuration-list.md`](https://github.com/self-evolving/repo/blob/bd216e200df226a32b7d4c0838a5eb775ae707b7/.agent/docs/customization/configuration-list.md#L41-L48). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Reuses `resolve-agent-provider` and the existing `applyRunConfig` precedence path instead of adding a new model registry/parser: [`resolve-provider.js`](https://github.com/self-evolving/repo/blob/bd216e200df226a32b7d4c0838a5eb775ae707b7/.github/actions/resolve-agent-provider/resolve-provider.js#L169-L177). |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Implementation is a small frozen defaults map plus existing resolver reuse; fixed review lanes now call that resolver before `run-agent-task`: [`agent-review.yml`](https://github.com/self-evolving/repo/blob/bd216e200df226a32b7d4c0838a5eb775ae707b7/.github/workflows/agent-review.yml#L167-L208). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is limited to provider resolution, reviewer workflow wiring, focused tests, and matching docs. No broad refactor or unrelated cleanup is included. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates configuration, self-hosted runner, internal action, and supported workflow docs for pinned defaults and reviewer-lane behavior, including the workflow summary in [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/bd216e200df226a32b7d4c0838a5eb775ae707b7/.agent/docs/usage/supported-workflows.md#L202). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Preserves the typed `AGENT_MODEL_POLICY` contract and validation; built-ins apply before `default`, `providers`, and route overrides without adding another knob: [`resolve-provider.js`](https://github.com/self-evolving/repo/blob/bd216e200df226a32b7d4c0838a5eb775ae707b7/.github/actions/resolve-agent-provider/resolve-provider.js#L70-L130). |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #389 matches #375/#380/#388 context: pin a minimal quality-floor default set, use Opus 4.8, and rely on #388 for Codex effective ACP model ids. |\n| communication / generic | Write audience-first documentation | pass | 7/7 | Configuration docs lead with the default table and override path before deeper precedence details: [`configuration-list.md`](https://github.com/self-evolving/repo/blob/bd216e200df226a32b7d4c0838a5eb775ae707b7/.agent/docs/customization/configuration-list.md#L41-L67). |\n| communication / generic | Make setup guidance actionable | pass | 7/7 | Self-hosted runner docs name the exact Opus requirement and update command: Claude Code `v2.1.154` or later and `claude update`: [`self-hosted-github-action-runner.md`](https://github.com/self-evolving/repo/blob/bd216e200df226a32b7d4c0838a5eb775ae707b7/.agent/docs/setup/self-hosted-github-action-runner.md#L26). |\n\n## Notes\n\n- The strongest score drivers are the minimal default set, reuse of the existing provider resolver, and explicit preservation of `AGENT_MODEL_POLICY` precedence above built-ins.\n- Reviewer lanes now resolve fixed Claude/Codex providers through the same resolver and pass the resolved `model` into `run-agent-task`; coverage was added in [`envelope.test.ts`](https://github.com/self-evolving/repo/blob/bd216e200df226a32b7d4c0838a5eb775ae707b7/.agent/src/__tests__/envelope.test.ts#L410-L422).\n- Built-in defaults and override behavior are covered in [`resolve-agent-provider.test.ts`](https://github.com/self-evolving/repo/blob/bd216e200df226a32b7d4c0838a5eb775ae707b7/.agent/src/__tests__/resolve-agent-provider.test.ts#L117-L210).\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific blocking or warning findings.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/xhigh` | `high` | `Macmini-runner-4`",
+      "createdAt": "2026-06-01T04:02:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/389#issuecomment-4589439757",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEY3XPg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: bd216e200df226a32b7d4c0838a5eb775ae707b7 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #389 pins a small built-in provider default set: Codex uses `gpt-5.5` and Claude uses `claude-opus-4-8`.\n- It keeps those defaults at the lowest model-precedence layer, so `AGENT_MODEL_POLICY.default`, provider settings, and eligible route overrides still win.\n- It also routes fixed Claude/Codex review lanes through `resolve-agent-provider`, so reviewer lanes receive the same pinned/provider-specific model handling instead of falling back to provider defaults.\n- The PR is stacked on #388, which provides the Codex ACP model/reasoning normalization needed for `gpt-5.5` to work correctly with reasoning variants.\n\n## Review\nThe implementation is narrow, uses the existing resolver path, and is covered by focused tests and docs. The remaining concerns are operational sequencing and rollout notes, not code defects requiring a branch change.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Stack dependency on #388 | WARNING | PR #389 targets `agent/codex-acp-model-normalization`, and #388 is still open; #388 should land before this stack is merged to main so `gpt-5.5` is composed into ACP model ids correctly. |\n| Self-hosted Claude Code version prerequisite | WARNING | `claude-opus-4-8` requires Claude Code v2.1.154 or later on self-hosted runners; the PR documents the minimum and `claude update`, so this is an operator rollout requirement rather than a code defect. |\n| No unresolved branch-change defects | INFO | Current review artifacts and PR diff support that resolver precedence, reviewer-lane wiring, docs, and tests are aligned with the requested minimal default-pinning scope. |\n\n## Progress\n- Used all current review artifacts: Claude, Codex, and rubrics review.\n- Rubrics review passed 100/100 across 9 rubrics.\n- Verified current PR head `bd216e200df226a32b7d4c0838a5eb775ae707b7` and current check status `check: SUCCESS`.\n- Verified existing inline review comments and review threads are empty; no inline comments, replies, minimizations, or thread resolutions were made.\n- Optional INFO nits from Claude, such as the broad `/route:\\s*review/` test regex and empty-string model escape hatch, do not require automation.\n\n## Issue Details\n\n<details>\n<summary>Stack dependency on #388</summary>\n\n**Cause:** PR #389 introduces `gpt-5.5` as the built-in Codex default, while #388 supplies the ACP normalization that composes Codex GPT-5 model plus reasoning effort into ids such as `gpt-5.5/xhigh`.\n\n**Candidate solutions:** Merge #388 first, then land #389 on top of that normalized Codex ACP foundation.\n\n**Comments:** Codex treated this as an INFO sequencing note; Claude treated it as a WARNING. The current PR state supports keeping it as a merge-readiness warning, not a branch-change request.\n\n</details>\n\n<details>\n<summary>Self-hosted Claude Code version prerequisite</summary>\n\n**Cause:** The new Claude default is `claude-opus-4-8`, which requires Claude Code v2.1.154 or later. Self-hosted runners with an older preinstalled Claude CLI can fail unless updated.\n\n**Candidate solutions:** Ensure self-hosted runner hosts run Claude Code v2.1.154+; use `claude update` where Claude Code is already installed.\n\n**Comments:** The PR already documents this in the self-hosted runner guide, so no additional PR fix is required.\n\n</details>\n\n## Recommended Next Step\n`HUMAN_DECISION`: No automated fix-pr work remains, but a maintainer should enforce stack merge order and confirm self-hosted runner readiness before landing.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] No required branch changes.\n\n---\n`codex` | `gpt-5.5/xhigh` | `xhigh` | `Macmini-runner-1`",
+      "createdAt": "2026-06-01T04:12:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/389#issuecomment-4589475646",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-06-01T00:33:26Z",
+  "files": [
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 12,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/setup/self-hosted-github-action-runner.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/internal-actions.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/supported-workflows.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 9,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/resolve-agent-provider.test.ts",
+      "additions": 21,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/resolve-agent-provider/action.yml",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/resolve-agent-provider/resolve-provider.js",
+      "additions": 6,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-review.yml",
+      "additions": 17,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/pin-effective-model-defaults",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 389,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "OPEN",
+  "title": "Pin provider model defaults",
+  "updatedAt": "2026-06-01T04:12:04Z",
+  "url": "https://github.com/self-evolving/repo/pull/389"
+}

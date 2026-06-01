@@ -1,0 +1,147 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "baseRefName": "agent/pin-effective-model-defaults",
+  "body": "## Summary\n- Default direct agent response model metadata footers to visible when `AGENT_DISPLAY_MODEL` / `display_model` is unset.\n- Preserve `false` as the explicit opt-out.\n- Suppress duplicate Codex reasoning text when the effective model id already encodes it, e.g. show `gpt-5.5/xhigh` without an additional `xhigh` footer field.\n- Update action metadata, docs, and envelope coverage.\n\n## Tests\n- `cd .agent && npm test`\n\nStacked on #389. Supersedes #387 with the Codex model-id display cleanup included.\n\nCloses #385.\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYMMYg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | review | PR #390 | 2 / 40 | Dispatched |\n\nReason: agent planner selected review: PR #390 is open, not draft, and has no reviews yet; the requested implementation appears present, so the next useful automatic step is review rather than branch changes.\n\n<!-- sepo-agent-handoff state:dispatched created:1780274802137 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY3MjkzNDQ1MzI6b3JjaGVzdHJhdGU6MzkwOnJldmlldzozOTA6Mg -->",
+      "createdAt": "2026-06-01T00:46:42Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/390#issuecomment-4588768354",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYNE8Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is limited to `.agent/src/run.ts`, shared action metadata/env wiring, one configuration doc row, and focused envelope assertions. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Uses a small `parseBooleanFlag(value, defaultValue)` extension and a narrow `displayReasoningEffort` helper instead of adding new config plumbing or display infrastructure. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Reuses the existing `display_model` input, `DISPLAY_MODEL` env var, `model_display` output, and `buildModelDisplay` path: [`run.ts`](https://github.com/self-evolving/repo/blob/1c318a2dd3d34fea2f7cb4f7260ec2917ea23c16/.agent/src/run.ts#L632-L640). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates `AGENT_DISPLAY_MODEL` docs to say it defaults to visible and `false` hides the footer: [`configuration-list.md`](https://github.com/self-evolving/repo/blob/1c318a2dd3d34fea2f7cb4f7260ec2917ea23c16/.agent/docs/customization/configuration-list.md#L15). |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | Defaults the action input to `\"true\"` while preserving the existing native opt-out through `display_model` / `AGENT_DISPLAY_MODEL=false`: [`action.yml`](https://github.com/self-evolving/repo/blob/1c318a2dd3d34fea2f7cb4f7260ec2917ea23c16/.github/actions/run-agent-task/action.yml#L32-L35). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Keeps the behavior on the existing explicit boolean-like action input/env field and does not add another knob or parse command text: [`action.yml`](https://github.com/self-evolving/repo/blob/1c318a2dd3d34fea2f7cb4f7260ec2917ea23c16/.github/actions/run-agent-task/action.yml#L342-L344). |\n| communication / generic | Keep status comments compact | pass | 6/6 | The footer remains the compact `provider | model | reasoning effort | runner` format, and Codex model IDs with reasoning suffixes suppress duplicate reasoning text: [`run.ts`](https://github.com/self-evolving/repo/blob/1c318a2dd3d34fea2f7cb4f7260ec2917ea23c16/.agent/src/run.ts#L304-L339). |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #390 matches issue #385 and supersedes #387 by keeping the default-visible behavior while adding the #389 Codex effective-model display cleanup. |\n\n## Notes\n\n- The strongest score drivers are the narrow scope, reuse of existing response metadata wiring, and preservation of `false` as the explicit opt-out.\n- Envelope coverage checks the docs default, action default/env fallback, and Codex reasoning-display helper presence: [`envelope.test.ts`](https://github.com/self-evolving/repo/blob/1c318a2dd3d34fea2f7cb4f7260ec2917ea23c16/.agent/src/__tests__/envelope.test.ts#L1101-L1114).\n- Verified locally with `cd .agent && npm test`: 375 tests passed.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific blocking or warning findings.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/medium` | `high` | `Macmini-runner-2`",
+      "createdAt": "2026-06-01T00:51:46Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/390#issuecomment-4588782833",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYkfaw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Falling back from WebSockets to HTTPS transport. unexpected status 401 Unauthorized: Incorrect API key provided: fake. You can find your API key at https://platform.openai.com/account/api-keys., url: wss://api.openai.com/v1/responses, cf-ray: a04ae4395be9cc9b-BOS\n\n---\n`codex` | `gpt-5.4/medium` | `high` | `Macmini-runner-1`",
+      "createdAt": "2026-06-01T02:47:12Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/390#issuecomment-4589166443",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEYlVrg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 02c87cc9cf850a8786c1866fb78cf0ed90f9f24e -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\nI now have everything I need. The rubrics-review file has an API auth failure, but that review already ran and was posted to the PR as a comment (scored PASS 100/100). No existing inline review threads. Let me write the synthesis.\n\n## Summary of PR/Issue\n\nPR #390 flips the `AGENT_DISPLAY_MODEL` / `display_model` action input default from opt-in (hidden) to opt-out (visible), so model/provider metadata footers appear on direct agent response comments by default without any per-repo configuration. It also adds a `displayReasoningEffort` helper that suppresses a duplicate reasoning-effort field when the Codex model ID already encodes it (e.g., `gpt-5.5/xhigh`). The change is stacked on #389 (\"Pin provider model defaults\"), which is still open. Documentation, action metadata, and envelope coverage assertions are updated to match.\n\n## Review\n\nOne concrete code review ran successfully (claude-review-390). The rubrics-review run encountered an API authentication error; however, an earlier rubrics review run already posted a PASS (100/100, 8 rubrics) directly to the PR. The implementation is correct, well-scoped, and has no blocking issues.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Double-default is intentional | INFO | `action.yml` has both `default: \"true\"` on the input and `\\|\\| 'true'` in the env step; both are necessary to handle the empty-string passthrough case from the 20 callers using `${{ vars.AGENT_DISPLAY_MODEL \\|\\| '' }}`. |\n| Hardcoded reasoning-level enumeration | INFO | `CODEX_REASONING_MODEL_SUFFIX` hardcodes `low\\|medium\\|high\\|xhigh`; a new Codex reasoning level would require a matching regex update to suppress the duplicate footer field. |\n| Tests are structural, not behavioral | INFO | `envelope.test.ts` additions verify call-site patterns and symbol names, not behavioral edge cases; `displayReasoningEffort` branching is not unit-tested, consistent with the existing test style. |\n| Stack dependency on #389 | INFO | PR is explicitly stacked on #389 (still open); merge order must be respected. |\n\n## Progress\n\n- Rubrics review already posted to PR as a top-level comment (PASS, 100/100 across 8 rubrics).\n- All 20 calling workflows already use `${{ vars.AGENT_DISPLAY_MODEL || '' }}`, so the rollout to default-visible is uniform upon merge.\n- Doc update in `configuration-list.md` accurately reflects the new default.\n- `parseBooleanFlag(value, defaultValue)` extension and `displayReasoningEffort` helper are correctly scoped — no over-suppression for Claude models.\n\n## Issue Details\n\n<details>\n<summary>Double-default is intentional</summary>\n\n**Cause:** GitHub Actions composite actions do not apply the declared `default:` when a caller passes an explicit empty string. The 20 calling workflows use `${{ vars.AGENT_DISPLAY_MODEL || '' }}` which resolves to `\"\"` when the variable is unset, bypassing the input-level default. The `|| 'true'` env expression is the actual handler for that case.\n\n**Candidate solutions:** The current approach is the correct one. An optional inline comment could clarify the two-layer intent for future maintainers.\n\n</details>\n\n<details>\n<summary>Hardcoded reasoning-level enumeration</summary>\n\n**Cause:** `CODEX_REASONING_MODEL_SUFFIX = /(?:\\/(?:low|medium|high|xhigh)|\\[(?:low|medium|high|xhigh)\\])$/u` enumerates every Codex reasoning level. A new level (e.g., `ultra`) would not be suppressed, resulting in a footer showing the level twice.\n\n**Candidate solutions:** Acceptable maintenance exposure; no action required now. If Codex adds new levels, update the regex. A comment noting that the list must stay in sync with Codex API reasoning levels would reduce future confusion.\n\n</details>\n\n<details>\n<summary>Tests are structural, not behavioral</summary>\n\n**Cause:** The repo's existing `run.ts`-related test style uses string-match assertions on source text rather than unit tests of exported functions. The new assertions follow this pattern.\n\n**Candidate solutions:** No action required to ship. If coverage is expanded later, `displayReasoningEffort` has enough branching (agent check, model suffix check, empty-string guard) to benefit from a small unit test.\n\n</details>\n\n<details>\n<summary>Stack dependency on #389</summary>\n\n**Cause:** PR #390 is explicitly scoped as stacking on #389; it supersedes #387. No code correction needed — merge order is the only gate.\n\n**Candidate solutions:** Merge #389 first, then merge #390.\n\n</details>\n\n## Recommended Next Step\n\n`NO_AUTOMATED_ACTION` — No unresolved code issues remain; merge is gated on #389 landing first, which is a human sequencing decision, not a branch change needed in this PR.\n\n## Final Verdict\n\n**SHIP**\n\n## Action Items\n\n- [ ] Merge #389 (\"Pin provider model defaults\") before merging #390 to respect the stated stack order.\n\n---\n`claude` | `default` | `max` | `Macmini-runner-2`",
+      "createdAt": "2026-06-01T02:51:20Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/390#issuecomment-4589180334",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEY1LFA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is limited to four focused files: runtime display logic, shared action metadata/env wiring, one docs row, and envelope assertions. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Uses a small `parseBooleanFlag(value, defaultValue)` extension and `displayReasoningEffort` helper rather than new config plumbing: [run.ts](https://github.com/self-evolving/repo/blob/02c87cc9cf850a8786c1866fb78cf0ed90f9f24e/.agent/src/run.ts#L283). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Reuses existing `display_model`, `DISPLAY_MODEL`, `model_display`, and `buildModelDisplay` path: [run.ts](https://github.com/self-evolving/repo/blob/02c87cc9cf850a8786c1866fb78cf0ed90f9f24e/.agent/src/run.ts#L322). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Updates `AGENT_DISPLAY_MODEL` docs to default visible and preserve `false` opt-out: [configuration-list.md](https://github.com/self-evolving/repo/blob/02c87cc9cf850a8786c1866fb78cf0ed90f9f24e/.agent/docs/customization/configuration-list.md#L15). |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | Defaults the action input/env fallback to visible while keeping explicit opt-out: [action.yml](https://github.com/self-evolving/repo/blob/02c87cc9cf850a8786c1866fb78cf0ed90f9f24e/.github/actions/run-agent-task/action.yml#L32), [run.ts](https://github.com/self-evolving/repo/blob/02c87cc9cf850a8786c1866fb78cf0ed90f9f24e/.agent/src/run.ts#L634). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Keeps behavior on the existing boolean-like `display_model` action input and `AGENT_DISPLAY_MODEL` docs, with no new overloaded command parsing or duplicate knob. |\n| communication / generic | Keep status comments compact | pass | 6/6 | Footer remains the compact `provider | model | reasoning effort | runner` format, and Codex model IDs with reasoning suffixes suppress duplicate reasoning text: [run.ts](https://github.com/self-evolving/repo/blob/02c87cc9cf850a8786c1866fb78cf0ed90f9f24e/.agent/src/run.ts#L304). |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR body links the relevant stack and supersession context: closes #385, stacked on #389, supersedes #387; the diff matches #385 acceptance criteria. |\n\n## Notes\n\n- Main score drivers: narrow scope, existing configuration reuse, preserved `false` opt-out, and docs/test coverage for the default flip.\n- Envelope assertions cover the docs default, action default, env fallback, and Codex reasoning-display symbols: [envelope.test.ts](https://github.com/self-evolving/repo/blob/02c87cc9cf850a8786c1866fb78cf0ed90f9f24e/.agent/src/__tests__/envelope.test.ts#L410).\n- I did not score unrelated privileged lifecycle, retry, install/update, review-synthesis, setup guidance, or orchestration rubrics because this PR does not alter those surfaces.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific blocking or warning findings. The stated stack dependency on #389 is merge sequencing, not a rubric defect in this PR.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/xhigh` | `high` | `Macmini-runner-6`",
+      "createdAt": "2026-06-01T04:02:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/390#issuecomment-4589439764",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEY3Xuw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 02c87cc9cf850a8786c1866fb78cf0ed90f9f24e -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\nPR #390 makes agent response model metadata visible by default when `AGENT_DISPLAY_MODEL` / `display_model` is unset. It preserves `false` as the explicit opt-out and keeps using the existing `display_model`, `DISPLAY_MODEL`, `model_display`, and footer-building path. It also suppresses duplicate Codex reasoning text when the effective model id already includes the reasoning suffix, such as `gpt-5.5/xhigh`. The PR closes #385, supersedes #387, and is stacked on #389.\n\n## Review\n\nAll current reviewer artifacts converge on no blocking or warning-level code defects. The only minor reviewer divergence is that Claude suggested an optional explanatory inline comment for the intentional double default, while Codex found no line-specific defect worth posting; synthesis treats that as non-actionable INFO-level documentation hardening.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable issues | INFO | Current review artifacts report no blocking or warning findings. Remaining notes are stack sequencing, structural-test style, and future maintenance observations, not required branch changes. |\n\n## Progress\n\n- Reviewed all available review outputs: Claude review, Codex review, and rubrics review.\n- Rubrics review passed 100/100 across 8 scored rubrics.\n- Verified current PR state: head `02c87cc9cf850a8786c1866fb78cf0ed90f9f24e`, 4 changed files, clean mergeable state, and current PR check passing.\n- Existing inline review comments and GraphQL review threads are empty.\n- No inline comments were posted, replied to, minimized, or resolved because there is no concrete file/line defect that warrants direct inline feedback.\n- Stack sequencing remains: #388 -> #389 -> #390, with #390 directly based on #389.\n\n## Recommended Next Step\n\n`NO_AUTOMATED_ACTION` — no unresolved actionable branch-change work remains; stack merge order is a maintainer sequencing concern, not a fix-pr target.\n\n## Final Verdict\n\nSHIP\n\n## Action Items\n\n- [ ] No required branch-change work remains.\n\n---\n`codex` | `gpt-5.5/xhigh` | `xhigh` | `Macmini-runner-5`",
+      "createdAt": "2026-06-01T04:12:06Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/390#issuecomment-4589475771",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-06-01T00:36:09Z",
+  "files": [
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 7,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/run.ts",
+      "additions": 30,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/run-agent-task/action.yml",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/default-visible-model-display",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 390,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "OPEN",
+  "title": "Default model display metadata to visible",
+  "updatedAt": "2026-06-01T04:12:06Z",
+  "url": "https://github.com/self-evolving/repo/pull/390"
+}
