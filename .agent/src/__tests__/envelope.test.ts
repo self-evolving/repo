@@ -407,6 +407,7 @@ test("single-agent workflows resolve provider before runtime setup", () => {
   assert.match(reviewWorkflow, /reasoning_effort:\s*\$\{\{\s*steps\.synthesis_provider\.outputs\.reasoning_effort \|\| \(steps\.synthesis_provider\.outputs\.provider == 'claude' && 'max' \|\| 'xhigh'\)\s*\}\}/);
   assert.match(reviewWorkflow, /openai_api_key:\s*\$\{\{\s*secrets\.OPENAI_API_KEY\s*\}\}/);
   assert.match(reviewWorkflow, /anthropic_api_key:\s*\$\{\{\s*secrets\.ANTHROPIC_API_KEY\s*\}\}/);
+  assert.match(configurationList, /AGENT_DISPLAY_MODEL[\s\S]*Defaults to `true`; set to `false` to hide the footer\./);
   assert.match(reviewWorkflow, /name:\s*Resolve reviewer provider/);
   assert.match(reviewWorkflow, /id:\s*reviewer_provider/);
   assert.match(reviewWorkflow, /route:\s*review/);
@@ -1098,6 +1099,8 @@ test("shared run-agent-task action exists and requires explicit prompt/skill/lan
   assert.match(action, /skill_root:/);
   assert.match(action, /model:/);
   assert.match(action, /display_model:/);
+  const displayModelBlock = action.match(/display_model:[\s\S]*?(?=^  [a-z_]+:|^outputs:)/m)?.[0] || "";
+  assert.match(displayModelBlock, /default:\s*"true"/);
   assert.match(action, /anthropic_api_key:/);
   assert.match(action, /lane:/);
   assert.match(action, /session_policy:/);
@@ -1108,7 +1111,7 @@ test("shared run-agent-task action exists and requires explicit prompt/skill/lan
   assert.match(action, /SKILL_NAME/);
   assert.match(action, /SKILL_ROOT/);
   assert.match(action, /MODEL_ID/);
-  assert.match(action, /DISPLAY_MODEL/);
+  assert.match(action, /DISPLAY_MODEL:\s*\$\{\{\s*inputs\.display_model \|\| 'true'\s*\}\}/);
   assert.match(action, /ANTHROPIC_API_KEY/);
   assert.match(action, /LANE/);
   assert.match(action, /SESSION_POLICY/);
@@ -1163,6 +1166,9 @@ test("run-agent-task maps reasoning effort for Claude env and Codex thought leve
   assert.match(runtimeEnvSource, /env\.MODEL_REASONING_EFFORT = inputEnv\.MODEL_REASONING_EFFORT/);
   assert.match(runtimeEnvSource, /env\.CLAUDE_CODE_EFFORT_LEVEL = inputEnv\.MODEL_REASONING_EFFORT/);
   assert.match(runSource, /thoughtLevel:\s*process\.env\.MODEL_REASONING_EFFORT/);
+  assert.match(runSource, /parseBooleanFlag\(process\.env\.DISPLAY_MODEL, true\)/);
+  assert.match(runSource, /CODEX_REASONING_MODEL_SUFFIX/);
+  assert.match(runSource, /displayReasoningEffort/);
   assert.match(acpxSource, /"thought_level", thoughtLevel/);
 });
 
