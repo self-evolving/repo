@@ -164,12 +164,24 @@ jobs:
           pat: ${{ secrets.AGENT_PAT }}
           fallback_token: ${{ github.token }}
 
+      - name: Resolve reviewer provider
+        id: reviewer_provider
+        uses: ./.github/actions/resolve-agent-provider
+        with:
+          route: review
+          route_provider: ${{ matrix.agent }}
+          default_provider: ${{ vars.AGENT_DEFAULT_PROVIDER || 'auto' }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model_policy: ${{ vars.AGENT_MODEL_POLICY || '' }}
+
       - name: Setup agent runtime
         id: runtime
         uses: ./.github/actions/setup-agent-runtime
         with:
-          install_codex: ${{ matrix.agent == 'codex' && 'true' || 'false' }}
-          install_claude: ${{ matrix.agent == 'claude' && 'true' || 'false' }}
+          install_codex: ${{ steps.reviewer_provider.outputs.install_codex }}
+          install_claude: ${{ steps.reviewer_provider.outputs.install_claude }}
 
       - name: Resolve task timeout
         id: task_timeout
@@ -184,15 +196,16 @@ jobs:
         timeout-minutes: ${{ fromJson(steps.task_timeout.outputs.minutes || '30') }}
         uses: ./.github/actions/run-agent-task
         with:
-          agent: ${{ matrix.agent }}
+          agent: ${{ steps.reviewer_provider.outputs.provider }}
           github_token: ${{ steps.auth.outputs.token }}
           secondary_github_token: ${{ secrets.AGENT_SECONDARY_GITHUB_TOKEN }}
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: ${{ steps.reviewer_provider.outputs.model }}
           permission_mode: ${{ matrix.permission_mode }}
           prompt: review
-          reasoning_effort: ${{ matrix.reasoning_effort }}
+          reasoning_effort: ${{ steps.reviewer_provider.outputs.reasoning_effort || matrix.reasoning_effort }}
           lane: ${{ matrix.lane }}
           memory_mode_override: 'read-only'
           memory_ref: ${{ vars.AGENT_MEMORY_REF || 'agent/memory' }}

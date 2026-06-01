@@ -12,7 +12,7 @@ title: "Configurations list"
 | `AGENT_RUNS_ON` | JSON array string for runner selection. If you are using self-hosted runners, see [Self-hosted GitHub Action runner](../setup/self-hosted-github-action-runner.md). |
 | `AGENT_DEFAULT_PROVIDER` | Default provider for single-agent runs and review synthesis: `auto`, `codex`, or `claude`. Explicit `codex` / `claude` choices are honored even without matching repository secrets, allowing self-hosted runners to use local provider authentication. `auto` chooses Codex when `OPENAI_API_KEY` is configured; otherwise it chooses Claude when either `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` is configured. |
 | `AGENT_MODEL_POLICY` | Optional JSON policy for model/reasoning defaults, provider-specific model settings, and route overrides. It supports `default` for non-provider defaults, `providers.codex`, `providers.claude`, and `route_overrides`; reviewer lanes stay fixed as the built-in Claude/Codex matrix, while `review-synthesize` uses this policy. Use `AGENT_DEFAULT_PROVIDER` for the global/default provider. |
-| `AGENT_DISPLAY_MODEL` | Optional `true` / `false` toggle for appending compact run metadata to direct agent response comments that use the standard response posting helpers. When enabled, the footer order is <code>provider &#124; model &#124; reasoning effort &#124; runner</code>; empty optional values are omitted, and an empty model is shown as `default model`. Defaults to `false`. |
+| `AGENT_DISPLAY_MODEL` | Optional `true` / `false` toggle for appending compact run metadata to direct agent response comments that use the standard response posting helpers. When enabled, the footer order is <code>provider &#124; model &#124; reasoning effort &#124; runner</code>; empty optional values are omitted, and an empty model is shown as `default model`. Defaults to `true`; set to `false` to hide the footer. |
 | `AGENT_SESSION_BUNDLE_MODE` | Default session-bundle behavior: `auto`, `always`, or `never`. For the trade-offs behind this setting, see [Session continuity](../technical-details/session-continuity.md). |
 | `AGENT_AUTOMATION_MODE` | Orchestrator decision mode. Defaults to `agent` for planner-backed orchestration validated by runtime policy. Set to `heuristics` for deterministic status-based routing with lower model cost. Compatibility alias: `true` = `heuristics`; explicit `false` or legacy `disabled` values fall back to `heuristics` for explicit `/orchestrate` chains. See [Agent orchestrator](../architecture/agent-orchestrator.md). |
 | `AGENT_AUTOMATION_MAX_ROUNDS` | Maximum number of explicit orchestration handoff rounds. Defaults to `12`. |
@@ -38,13 +38,22 @@ title: "Configurations list"
 | `AGENT_COMMITTER_NAME` | Custom commit author name for implementation and PR-fix runs |
 | `AGENT_COMMITTER_EMAIL` | Custom commit author email for implementation and PR-fix runs |
 
+Built-in model defaults are intentionally small and pinned:
+
+| Provider | Default model |
+|---|---|
+| `codex` | `gpt-5.5` |
+| `claude` | `claude-opus-4-8` |
+
+Sepo does not maintain a general model catalog. Use `AGENT_MODEL_POLICY` when a repository needs different models, route-specific choices, or reasoning effort overrides.
+
 `AGENT_MODEL_POLICY` example:
 
 ```json
 {
   "providers": {
-    "codex": { "model": "gpt-5.4", "reasoning_effort": "xhigh" },
-    "claude": { "model": "claude-sonnet-4-5", "reasoning_effort": "max" }
+    "codex": { "model": "gpt-5.5", "reasoning_effort": "xhigh" },
+    "claude": { "model": "claude-opus-4-8", "reasoning_effort": "max" }
   },
   "route_overrides": {
     "answer": { "provider": "codex", "model": "gpt-5.4-mini", "reasoning_effort": "high" },
@@ -53,7 +62,9 @@ title: "Configurations list"
 }
 ```
 
-The bundled workflows still keep native YAML escape hatches: an inline `route_provider` in a workflow's `resolve-agent-provider` step overrides `AGENT_MODEL_POLICY` for that route. Provider selection precedence is inline `route_provider`, then `AGENT_MODEL_POLICY.route_overrides[route].provider`, then `AGENT_DEFAULT_PROVIDER`, then `auto` detection from configured provider secrets. The review workflow still launches explicit Claude and Codex reviewer lanes; model policy applies to the single synthesis step that combines produced review artifacts, not to the reviewer lane matrix.
+For Codex GPT-5 models, Sepo accepts provider-neutral `model` plus `reasoning_effort` policy entries and passes the effective ACP model id to acpx. For example, `{ "model": "gpt-5.5", "reasoning_effort": "xhigh" }` is sent to Codex ACP as `gpt-5.5/xhigh`, matching the model ids advertised by the bundled `@zed-industries/codex-acp` adapter. If a Codex model already includes an effort suffix such as `gpt-5.5/xhigh`, Sepo treats that model id as authoritative and does not send a separate `thought_level` setting. Claude and unknown/custom Codex model ids keep using the separate reasoning-effort path.
+
+The bundled workflows still keep native YAML escape hatches: an inline `route_provider` in a workflow's `resolve-agent-provider` step overrides `AGENT_MODEL_POLICY` for that route. Provider selection precedence is inline `route_provider`, then `AGENT_MODEL_POLICY.route_overrides[route].provider`, then `AGENT_DEFAULT_PROVIDER`, then `auto` detection from configured provider secrets. Model selection starts from Sepo's built-in provider default, then applies `AGENT_MODEL_POLICY.default.model`, `AGENT_MODEL_POLICY.providers[provider].model`, and `AGENT_MODEL_POLICY.route_overrides[route].model`; inline `route_provider` skips that route's policy override. The review workflow still launches explicit Claude and Codex reviewer lanes; those lane providers are fixed with inline `route_provider`, so built-in/default/provider-specific model settings apply while route-specific review overrides do not. The synthesis step is resolved separately as `review-synthesize`.
 
 ## Repository secrets
 

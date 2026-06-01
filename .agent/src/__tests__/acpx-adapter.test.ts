@@ -11,6 +11,7 @@ import {
   extractAssistantText,
   parseSessionIdentity,
   readSessionIdentityResult,
+  resolveAcpxModelSelection,
   runAcpx,
   runCommandWithFileCapture,
   selectPromptForSessionOutcome,
@@ -89,7 +90,36 @@ test("buildAcpxArgs passes model as a global acpx flag before the agent", () => 
   ]);
 });
 
-test("buildSessionSetupCommands uses acpx set model for named sessions", () => {
+test("resolveAcpxModelSelection folds GPT-5 Codex reasoning into the model id", () => {
+  assert.deepEqual(
+    resolveAcpxModelSelection({ agent: "codex", model: "gpt-5.5", thoughtLevel: "xhigh" }),
+    { model: "gpt-5.5/xhigh", thoughtLevel: undefined, reasoningEncodedInModel: true },
+  );
+
+  assert.deepEqual(
+    resolveAcpxModelSelection({ agent: "codex", model: "gpt-5.5/high", thoughtLevel: "xhigh" }),
+    { model: "gpt-5.5/high", thoughtLevel: undefined, reasoningEncodedInModel: true },
+  );
+
+  assert.deepEqual(
+    resolveAcpxModelSelection({ agent: "codex", model: "gpt-5.5[xhigh]", thoughtLevel: "high" }),
+    { model: "gpt-5.5[xhigh]", thoughtLevel: undefined, reasoningEncodedInModel: true },
+  );
+});
+
+test("resolveAcpxModelSelection keeps non-Codex and unknown Codex reasoning separate", () => {
+  assert.deepEqual(
+    resolveAcpxModelSelection({ agent: "claude", model: "claude-opus-4-8", thoughtLevel: "max" }),
+    { model: "claude-opus-4-8", thoughtLevel: "max", reasoningEncodedInModel: false },
+  );
+
+  assert.deepEqual(
+    resolveAcpxModelSelection({ agent: "codex", model: "o3", thoughtLevel: "high" }),
+    { model: "o3", thoughtLevel: "high", reasoningEncodedInModel: false },
+  );
+});
+
+test("buildSessionSetupCommands encodes Codex model reasoning for named sessions", () => {
   const commands = buildSessionSetupCommands({
     agent: "codex",
     sessionName: "pull_request-38-fix-pr-default",
@@ -99,8 +129,7 @@ test("buildSessionSetupCommands uses acpx set model for named sessions", () => {
   });
 
   assert.deepEqual(commands.map((command) => command.args), [
-    ["codex", "set", "model", "gpt-5.4", "-s", "pull_request-38-fix-pr-default"],
-    ["codex", "set", "-s", "pull_request-38-fix-pr-default", "thought_level", "xhigh"],
+    ["codex", "set", "model", "gpt-5.4/xhigh", "-s", "pull_request-38-fix-pr-default"],
     ["codex", "set-mode", "-s", "pull_request-38-fix-pr-default", "full-access"],
   ]);
 });
@@ -127,11 +156,10 @@ test("buildAcpxArgs keeps track-only synthesis in exec mode without a named sess
   assert.equal(args.includes("-s"), false);
 });
 
-test("runAcpx preserves Codex thought level for track-only exec without stable session reuse", () => {
+test("runAcpx encodes GPT-5 Codex thought level into the exec model id", () => {
   const dir = mkdtempSync(join(tmpdir(), "acpx-track-only-test-"));
   const oldPath = process.env.PATH;
   const threadKey = "self-evolving/repo:pull_request:268:review:synthesize";
-  const stableSessionName = sessionNameFromThreadKey(threadKey);
 
   try {
     const acpxPath = join(dir, "acpx");
@@ -142,9 +170,9 @@ test("runAcpx preserves Codex thought level for track-only exec without stable s
 const fs = require("node:fs");
 const args = process.argv.slice(2);
 fs.appendFileSync(process.env.ACPX_TEST_CALLS, JSON.stringify({ args }) + "\\n");
-if (args.includes("prompt")) {
+if (args.includes("exec")) {
   process.stdout.write([
-    '{"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess-track-only","models":{"currentModelId":"gpt-5.4"}}}',
+    '{"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess-track-only","models":{"currentModelId":"gpt-5.5/xhigh"}}}',
     '{"jsonrpc":"2.0","method":"session/update","params":{"update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"Done."}}}}',
     '{"jsonrpc":"2.0","id":2,"result":{"stopReason":"end_turn"}}'
   ].join("\\n") + "\\n");
@@ -169,35 +197,26 @@ if (args.includes("prompt")) {
 
     assert.equal(result.exitCode, 0);
     assert.equal(result.stdout, "Done.");
-    assert.equal(result.sessionEnsureOutcome.kind, "fresh");
-    assert.match(result.sessionName ?? "", /^pull_request-268-review-synthesize-exec-[0-9a-f]{12}$/);
-    assert.notEqual(result.sessionName, stableSessionName);
+    assert.equal(result.sessionEnsureOutcome.kind, "not_applicable");
+    assert.equal(result.sessionName, undefined);
 
-    const sessionName = result.sessionName!;
     const calls = readFileSync(callsPath, "utf8")
       .trim()
       .split("\n")
       .map((line) => JSON.parse(line) as { args: string[] });
 
-    assert.deepEqual(calls.map((call) => call.args), [
-      ["codex", "sessions", "new", "--name", sessionName],
-      ["codex", "set", "model", "gpt-5.5", "-s", sessionName],
-      ["codex", "set", "-s", sessionName, "thought_level", "xhigh"],
-      ["codex", "set-mode", "-s", sessionName, "full-access"],
-      [
-        "--approve-all",
-        "--format",
-        "json",
-        "--json-strict",
-        "--suppress-reads",
-        "codex",
-        "prompt",
-        "-s",
-        sessionName,
-        "synthesize current artifacts",
-      ],
-    ]);
-    assert.equal(calls.some((call) => call.args.includes(stableSessionName)), false);
+    assert.deepEqual(calls.map((call) => call.args), [[
+      "--approve-all",
+      "--format",
+      "json",
+      "--json-strict",
+      "--suppress-reads",
+      "--model",
+      "gpt-5.5/xhigh",
+      "codex",
+      "exec",
+      "synthesize current artifacts",
+    ]]);
   } finally {
     if (oldPath === undefined) {
       delete process.env.PATH;

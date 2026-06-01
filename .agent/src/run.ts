@@ -280,8 +280,10 @@ function persistFailureOutputs(
   return { rawStdoutFile, rawStderrFile };
 }
 
-function parseBooleanFlag(value: string | undefined): boolean {
-  return ["true", "1", "yes", "on"].includes(String(value || "").trim().toLowerCase());
+function parseBooleanFlag(value: string | undefined, defaultValue = false): boolean {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (!normalized) return defaultValue;
+  return ["true", "1", "yes", "on"].includes(normalized);
 }
 
 function extractSessionModel(sessionLog: string): string {
@@ -299,16 +301,39 @@ function extractSessionModel(sessionLog: string): string {
   return "";
 }
 
+const CODEX_REASONING_MODEL_SUFFIX = /(?:\/(?:low|medium|high|xhigh)|\[(?:low|medium|high|xhigh)\])$/u;
+
+function displayReasoningEffort(options: {
+  agent: string;
+  model: string;
+  reasoningEffort: string;
+}): string {
+  const reasoningEffort = options.reasoningEffort.trim();
+  if (!reasoningEffort) return "";
+  if (
+    options.agent.trim().toLowerCase() === "codex" &&
+    CODEX_REASONING_MODEL_SUFFIX.test(options.model.trim())
+  ) {
+    return "";
+  }
+  return reasoningEffort;
+}
+
 function buildModelDisplay(options: {
   agent: string;
   model: string;
   reasoningEffort: string;
   runnerName: string;
 }): string {
+  const model = options.model.trim();
   const parts = [
     options.agent.trim(),
-    options.model.trim() || "default model",
-    options.reasoningEffort.trim(),
+    model || "default model",
+    displayReasoningEffort({
+      agent: options.agent,
+      model,
+      reasoningEffort: options.reasoningEffort,
+    }),
     options.runnerName.trim(),
   ].filter(Boolean);
   return parts.length > 0 ? parts.map((part) => `\`${part}\``).join(" | ") : "";
@@ -606,7 +631,7 @@ function runDirectPath(opts: {
 
   const reportedModel = extractSessionModel(result.sessionLog) || requestedModel;
   setOutput("model", reportedModel);
-  if (parseBooleanFlag(process.env.DISPLAY_MODEL)) {
+  if (parseBooleanFlag(process.env.DISPLAY_MODEL, true)) {
     setOutput("model_display", buildModelDisplay({
       agent,
       model: reportedModel,
