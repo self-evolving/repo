@@ -1942,6 +1942,7 @@ test("normal workflows honor rubrics policy instead of forcing read-only", () =>
   const addRubricsWorkflow = readRepoFile(".github/workflows/agent-add-rubrics.yml");
   const addRubricsPrompt = readRepoFile(".github/prompts/agent-add-rubrics.md");
   const rubricsSource = readRepoFile(".agent/src/rubrics.ts");
+  const trustedCopyCli = readRepoFile(".agent/src/cli/prepare-add-rubrics-trusted-copy.ts");
   const rubricsInitializationWorkflow = readRepoFile(".github/workflows/agent-rubrics-initialization.yml");
   const rubricsInitializationPrompt = readRepoFile(".github/prompts/rubrics-initialization.md");
   const rubricsUpdateWorkflow = readRepoFile(".github/workflows/agent-rubrics-update.yml");
@@ -1970,11 +1971,12 @@ test("normal workflows honor rubrics policy instead of forcing read-only", () =>
   assert.match(addRubricsWorkflow, /steps\.checkout_trusted_rubrics\.outcome == 'success'/);
   assert.match(addRubricsWorkflow, /RUBRICS_SOURCE_DIR:\s*\$\{\{\s*steps\.add_rubrics\.outputs\.rubrics_dir\s*\}\}/);
   assert.match(addRubricsWorkflow, /TRUSTED_RUBRICS_DIR:\s*\$\{\{\s*steps\.checkout_trusted_rubrics\.outputs\.rubrics_dir\s*\}\}/);
-  assert.match(addRubricsWorkflow, /Unexpected symlink under rubrics\//);
+  assert.match(addRubricsWorkflow, /prepare-add-rubrics-trusted-copy\.js/);
+  assert.match(trustedCopyCli, /Unexpected symlink under rubrics\//);
   assert.match(rubricsSource, /ensureFile\(join\(root, RUBRICS_ROOT_DIR, domain, "\.gitkeep"\)/);
-  assert.match(addRubricsWorkflow, /Only rubrics\/\*\*\/\*\.yml, rubrics\/\*\*\/\*\.yaml, rubrics\/\*\*\/\.gitkeep, and top-level README\.md may be committed/);
-  assert.match(addRubricsWorkflow, /find "\$\{RUBRICS_SOURCE_DIR\}\/rubrics" -type f ! \\\( -name '\*\.yml' -o -name '\*\.yaml' -o -name '\.gitkeep' \\\) -print -quit/);
-  assert.match(addRubricsWorkflow, /find "\$\{RUBRICS_SOURCE_DIR\}\/rubrics" -type f \\\( -name '\*\.yml' -o -name '\*\.yaml' -o -name '\.gitkeep' \\\) -print0/);
+  assert.match(trustedCopyCli, /Only rubrics\/\*\*\/\*\.yml, rubrics\/\*\*\/\*\.yaml, rubrics\/\*\*\/\.gitkeep, and top-level README\.md may be committed/);
+  assert.match(trustedCopyCli, /name === "\.gitkeep"/);
+  assert.match(trustedCopyCli, /Top-level README\.md must not be a symlink/);
   assert.doesNotMatch(addRubricsWorkflow, /cp -R "\$\{RUBRICS_SOURCE_DIR\}\/rubrics"/);
   assert.match(addRubricsWorkflow, /COMMIT_CWD:\s*\$\{\{\s*steps\.checkout_trusted_rubrics\.outputs\.rubrics_dir\s*\}\}/);
   assert.doesNotMatch(addRubricsWorkflow, /COMMIT_CWD:\s*\$\{\{\s*steps\.add_rubrics\.outputs\.rubrics_dir\s*\}\}/);
@@ -2023,7 +2025,7 @@ test("add-rubrics route uses separate rubrics checkout for proposal PRs", () => 
   assert.match(addRubricsWorkflow, /rubrics\/validate\.js --dir "\$\{\{ steps\.checkout_trusted_rubrics\.outputs\.rubrics_dir \}\}"/);
   assert.match(addRubricsWorkflow, /agent_github_token:\s*\$\{\{\s*secrets\.AGENT_SECONDARY_GITHUB_TOKEN\s*\}\}/);
   assert.match(addRubricsWorkflow, /expose_github_token_to_agent:\s*"false"/);
-  assert.match(addRubricsWorkflow, /Top-level README\.md must not be a symlink/);
+  assert.match(addRubricsWorkflow, /prepare-add-rubrics-trusted-copy\.js/);
   assert.doesNotMatch(addRubricsWorkflow, /cp -R "\$\{RUBRICS_SOURCE_DIR\}\/rubrics"/);
   assert.match(addRubricsWorkflow, /COMMIT_CWD:\s*\$\{\{\s*steps\.checkout_trusted_rubrics\.outputs\.rubrics_dir\s*\}\}/);
   assert.doesNotMatch(addRubricsWorkflow, /COMMIT_CWD:\s*\$\{\{\s*steps\.add_rubrics\.outputs\.rubrics_dir\s*\}\}/);
