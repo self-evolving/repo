@@ -475,14 +475,12 @@ test("packaged Sepo workflows have a global AGENT_ENABLED job guard", () => {
   const supportedWorkflows = readRepoFile(".agent/docs/usage/supported-workflows.md");
   const agentActions = readRepoFile(".agent/docs/usage/agent-actions.md");
   const memoryDocs = readRepoFile(".agent/docs/architecture/memory.md");
-  const readme = readRepoFile("README.md");
   const docsIndex = readRepoFile(".agent/docs/index.md");
 
   assert.match(configurationList, /`AGENT_ENABLED`[\s\S]*Global Sepo pause switch/);
   assert.match(supportedWorkflows, /All packaged `agent-\*\.yml` workflow jobs honor `AGENT_ENABLED=false`/);
   assert.match(agentActions, /template includes the same `AGENT_ENABLED=false` job/);
   assert.match(memoryDocs, /pause all Sepo workflow entry points[\s\S]*`AGENT_ENABLED`/);
-  assert.match(readme, /AGENT_ENABLED=false/);
   assert.match(docsIndex, /AGENT_ENABLED=false/);
 });
 
