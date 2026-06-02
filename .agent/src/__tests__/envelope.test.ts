@@ -1947,6 +1947,47 @@ test("normal workflows honor rubrics policy instead of forcing read-only", () =>
   const rubricsInitializationPrompt = readRepoFile(".github/prompts/rubrics-initialization.md");
   const rubricsUpdateWorkflow = readRepoFile(".github/workflows/agent-rubrics-update.yml");
   const rubricsUpdatePrompt = readRepoFile(".github/prompts/rubrics-update.md");
+  const addRubricsParsed = parseYaml(addRubricsWorkflow) as unknown;
+
+  assert.ok(isRecord(addRubricsParsed), "add-rubrics workflow should parse");
+  assert.deepEqual(addRubricsParsed.permissions, { contents: "read" });
+  assert.ok(isRecord(addRubricsParsed.jobs), "add-rubrics workflow should define jobs");
+  const addRubricsJob = addRubricsParsed.jobs["add-rubrics"];
+  const addRubricsPostProcessJob = addRubricsParsed.jobs["add-rubrics-post-process"];
+  assert.ok(isRecord(addRubricsJob), "add-rubrics workflow should define model job");
+  assert.ok(isRecord(addRubricsPostProcessJob), "add-rubrics workflow should define post-process job");
+  assert.deepEqual(addRubricsJob.permissions, { contents: "read" });
+  assert.deepEqual(addRubricsPostProcessJob.permissions, {
+    contents: "write",
+    discussions: "write",
+    issues: "write",
+    "pull-requests": "write",
+    "id-token": "write",
+  });
+  assert.ok(Array.isArray(addRubricsJob.steps), "add-rubrics model job should define steps");
+  assert.ok(
+    Array.isArray(addRubricsPostProcessJob.steps),
+    "add-rubrics post-process job should define steps",
+  );
+  assert.ok(
+    !addRubricsJob.steps.some(
+      (step) => isRecord(step) && step.name === "Resolve GitHub auth",
+    ),
+    "add-rubrics model job must not mint write credentials",
+  );
+  const addRubricsRunStep = addRubricsJob.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Propose rubric edits",
+  );
+  assert.ok(addRubricsRunStep, "add-rubrics model job should run rubric proposal generation");
+  assert.ok(isRecord(addRubricsRunStep.with), "add-rubrics run step should define inputs");
+  assert.equal(addRubricsRunStep.with.github_token, "${{ github.token }}");
+  assert.ok(
+    addRubricsPostProcessJob.steps.some(
+      (step) => isRecord(step) && step.name === "Resolve GitHub auth",
+    ),
+    "add-rubrics post-process job should mint write credentials",
+  );
 
   for (const workflow of [implementWorkflow, fixPrWorkflow, reviewWorkflow, rubricsReviewWorkflow]) {
     assert.doesNotMatch(workflow, /rubrics_mode_override:\s*'read-only'/);
