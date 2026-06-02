@@ -283,9 +283,9 @@ jobs:
               exit 1
             fi
 
-            unexpected_file="$(find "${RUBRICS_SOURCE_DIR}/rubrics" -type f ! \( -name '*.yml' -o -name '*.yaml' \) -print -quit)"
+            unexpected_file="$(find "${RUBRICS_SOURCE_DIR}/rubrics" -type f ! \( -name '*.yml' -o -name '*.yaml' -o -name '.gitkeep' \) -print -quit)"
             if [ -n "${unexpected_file}" ]; then
-              echo "::error title=Invalid rubric proposal::Only rubrics/**/*.yml, rubrics/**/*.yaml, and top-level README.md may be committed; found ${unexpected_file}"
+              echo "::error title=Invalid rubric proposal::Only rubrics/**/*.yml, rubrics/**/*.yaml, rubrics/**/.gitkeep, and top-level README.md may be committed; found ${unexpected_file}"
               exit 1
             fi
 
@@ -293,7 +293,7 @@ jobs:
               relative_path="${rubric_file#${RUBRICS_SOURCE_DIR}/}"
               mkdir -p "${TRUSTED_RUBRICS_DIR}/$(dirname "${relative_path}")"
               cp "${rubric_file}" "${TRUSTED_RUBRICS_DIR}/${relative_path}"
-            done < <(find "${RUBRICS_SOURCE_DIR}/rubrics" -type f \( -name '*.yml' -o -name '*.yaml' \) -print0)
+            done < <(find "${RUBRICS_SOURCE_DIR}/rubrics" -type f \( -name '*.yml' -o -name '*.yaml' -o -name '.gitkeep' \) -print0)
           fi
 
           if [ -L "${RUBRICS_SOURCE_DIR}/README.md" ]; then

@@ -1941,6 +1941,7 @@ test("normal workflows honor rubrics policy instead of forcing read-only", () =>
   const rubricsReviewWorkflow = readRepoFile(".github/workflows/agent-rubrics-review.yml");
   const addRubricsWorkflow = readRepoFile(".github/workflows/agent-add-rubrics.yml");
   const addRubricsPrompt = readRepoFile(".github/prompts/agent-add-rubrics.md");
+  const rubricsSource = readRepoFile(".agent/src/rubrics.ts");
   const rubricsInitializationWorkflow = readRepoFile(".github/workflows/agent-rubrics-initialization.yml");
   const rubricsInitializationPrompt = readRepoFile(".github/prompts/rubrics-initialization.md");
   const rubricsUpdateWorkflow = readRepoFile(".github/workflows/agent-rubrics-update.yml");
@@ -1970,9 +1971,10 @@ test("normal workflows honor rubrics policy instead of forcing read-only", () =>
   assert.match(addRubricsWorkflow, /RUBRICS_SOURCE_DIR:\s*\$\{\{\s*steps\.add_rubrics\.outputs\.rubrics_dir\s*\}\}/);
   assert.match(addRubricsWorkflow, /TRUSTED_RUBRICS_DIR:\s*\$\{\{\s*steps\.checkout_trusted_rubrics\.outputs\.rubrics_dir\s*\}\}/);
   assert.match(addRubricsWorkflow, /Unexpected symlink under rubrics\//);
-  assert.match(addRubricsWorkflow, /Only rubrics\/\*\*\/\*\.yml, rubrics\/\*\*\/\*\.yaml, and top-level README\.md may be committed/);
-  assert.match(addRubricsWorkflow, /find "\$\{RUBRICS_SOURCE_DIR\}\/rubrics" -type f ! \\\( -name '\*\.yml' -o -name '\*\.yaml' \\\) -print -quit/);
-  assert.match(addRubricsWorkflow, /find "\$\{RUBRICS_SOURCE_DIR\}\/rubrics" -type f \\\( -name '\*\.yml' -o -name '\*\.yaml' \\\) -print0/);
+  assert.match(rubricsSource, /ensureFile\(join\(root, RUBRICS_ROOT_DIR, domain, "\.gitkeep"\)/);
+  assert.match(addRubricsWorkflow, /Only rubrics\/\*\*\/\*\.yml, rubrics\/\*\*\/\*\.yaml, rubrics\/\*\*\/\.gitkeep, and top-level README\.md may be committed/);
+  assert.match(addRubricsWorkflow, /find "\$\{RUBRICS_SOURCE_DIR\}\/rubrics" -type f ! \\\( -name '\*\.yml' -o -name '\*\.yaml' -o -name '\.gitkeep' \\\) -print -quit/);
+  assert.match(addRubricsWorkflow, /find "\$\{RUBRICS_SOURCE_DIR\}\/rubrics" -type f \\\( -name '\*\.yml' -o -name '\*\.yaml' -o -name '\.gitkeep' \\\) -print0/);
   assert.doesNotMatch(addRubricsWorkflow, /cp -R "\$\{RUBRICS_SOURCE_DIR\}\/rubrics"/);
   assert.match(addRubricsWorkflow, /COMMIT_CWD:\s*\$\{\{\s*steps\.checkout_trusted_rubrics\.outputs\.rubrics_dir\s*\}\}/);
   assert.doesNotMatch(addRubricsWorkflow, /COMMIT_CWD:\s*\$\{\{\s*steps\.add_rubrics\.outputs\.rubrics_dir\s*\}\}/);
