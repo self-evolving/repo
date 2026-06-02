@@ -1,5 +1,12 @@
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import {
+  createServer,
+  type IncomingMessage,
+  type Server,
+  type ServerResponse,
+} from "node:http";
+import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -19,9 +26,29 @@ type ResolverEnv = Partial<Record<
   | "CLAUDE_CODE_OAUTH_TOKEN"
   | "ANTHROPIC_API_KEY"
   | "REQUIRED"
-  | "AGENT_MODEL_POLICY",
+  | "AGENT_MODEL_POLICY"
+  | "SEPO_TEST_MODEL_DEFAULTS_URL"
+  | "SEPO_TEST_MODEL_DEFAULTS_TIMEOUT_MS",
   string
 >>;
+
+async function withRegistryServer(
+  handler: (request: IncomingMessage, response: ServerResponse) => void,
+  fn: (url: string) => Promise<void> | void,
+) {
+  const server: Server = createServer(handler);
+  await new Promise<void>((resolve) => {
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  const address = server.address() as AddressInfo;
+  try {
+    await fn(`http://127.0.0.1:${address.port}/model-defaults.json`);
+  } finally {
+    await new Promise<void>((resolve) => {
+      server.close(() => resolve());
+    });
+  }
+}
 
 function parseOutputs(outputFile: string): Record<string, string> {
   if (!existsSync(outputFile)) {
@@ -58,8 +85,62 @@ function runResolver(env: ResolverEnv = {}) {
         ANTHROPIC_API_KEY: "",
         REQUIRED: "true",
         AGENT_MODEL_POLICY: "",
+        SEPO_TEST_MODEL_DEFAULTS_URL: "http://127.0.0.1:1/model-defaults.json",
+        SEPO_TEST_MODEL_DEFAULTS_TIMEOUT_MS: "25",
         ...env,
       },
+    });
+
+    return {
+      ...result,
+      outputs: parseOutputs(outputFile),
+    };
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
+async function runResolverAsync(env: ResolverEnv = {}) {
+  const tempDir = mkdtempSync(path.join(tmpdir(), "agent-provider-"));
+  const outputFile = path.join(tempDir, "github-output");
+
+  try {
+    const result = await new Promise<{
+      status: number | null;
+      stdout: string;
+      stderr: string;
+    }>((resolve, reject) => {
+      const child = spawn(process.execPath, [resolverScript], {
+        env: {
+          ...process.env,
+          GITHUB_OUTPUT: outputFile,
+          ROUTE: "test-route",
+          ROUTE_PROVIDER: "",
+          DEFAULT_PROVIDER: "auto",
+          OPENAI_API_KEY: "",
+          CLAUDE_CODE_OAUTH_TOKEN: "",
+          ANTHROPIC_API_KEY: "",
+          REQUIRED: "true",
+          AGENT_MODEL_POLICY: "",
+          SEPO_TEST_MODEL_DEFAULTS_URL: "http://127.0.0.1:1/model-defaults.json",
+          SEPO_TEST_MODEL_DEFAULTS_TIMEOUT_MS: "25",
+          ...env,
+        },
+      });
+      let stdout = "";
+      let stderr = "";
+      child.stdout.setEncoding("utf8");
+      child.stderr.setEncoding("utf8");
+      child.stdout.on("data", (chunk) => {
+        stdout += chunk;
+      });
+      child.stderr.on("data", (chunk) => {
+        stderr += chunk;
+      });
+      child.on("error", reject);
+      child.on("close", (status) => {
+        resolve({ status, stdout, stderr });
+      });
     });
 
     return {
@@ -114,7 +195,7 @@ test("provider resolver auto-detects configured providers deterministically", ()
   assert.equal(bothClaudeCredentials.outputs.install_claude, "true");
 });
 
-test("provider resolver pins built-in provider model defaults", () => {
+test("provider resolver loads bundled provider model defaults", () => {
   const codex = runResolver({
     DEFAULT_PROVIDER: "codex",
   });
@@ -122,6 +203,7 @@ test("provider resolver pins built-in provider model defaults", () => {
   assert.equal(codex.status, 0, codex.stderr);
   assert.equal(codex.outputs.provider, "codex");
   assert.equal(codex.outputs.model, "gpt-5.5");
+  assert.equal(codex.outputs.model_source, "bundled");
   assert.equal(codex.outputs.reasoning_effort, "");
 
   const claude = runResolver({
@@ -131,7 +213,95 @@ test("provider resolver pins built-in provider model defaults", () => {
   assert.equal(claude.status, 0, claude.stderr);
   assert.equal(claude.outputs.provider, "claude");
   assert.equal(claude.outputs.model, "claude-opus-4-8");
+  assert.equal(claude.outputs.model_source, "bundled");
   assert.equal(claude.outputs.reasoning_effort, "");
+});
+
+test("provider resolver applies a valid remote model registry above bundled defaults", async () => {
+  await withRegistryServer((_, response) => {
+    response.setHeader("content-type", "application/json");
+    response.end(JSON.stringify({
+      version: 1,
+      providers: {
+        codex: { default: { model: "gpt-5.5/xhigh" } },
+        claude: { default: { model: "claude-remote" } },
+      },
+    }));
+  }, async (url) => {
+    const resolved = await runResolverAsync({
+      DEFAULT_PROVIDER: "codex",
+      SEPO_TEST_MODEL_DEFAULTS_URL: url,
+    });
+
+    assert.equal(resolved.status, 0, resolved.stderr);
+    assert.equal(resolved.outputs.provider, "codex");
+    assert.equal(resolved.outputs.model, "gpt-5.5/xhigh");
+    assert.equal(resolved.outputs.model_source, "remote");
+    assert.match(resolved.stdout, /Resolved agent model for test-route: gpt-5\.5\/xhigh \(remote\)\./);
+  });
+});
+
+test("provider resolver reports bundled source for providers missing from remote registry", async () => {
+  await withRegistryServer((_, response) => {
+    response.setHeader("content-type", "application/json");
+    response.end(JSON.stringify({
+      version: 1,
+      providers: {
+        codex: { default: { model: "gpt-5.5/high" } },
+      },
+    }));
+  }, async (url) => {
+    const resolved = await runResolverAsync({
+      DEFAULT_PROVIDER: "claude",
+      SEPO_TEST_MODEL_DEFAULTS_URL: url,
+    });
+
+    assert.equal(resolved.status, 0, resolved.stderr);
+    assert.equal(resolved.outputs.provider, "claude");
+    assert.equal(resolved.outputs.model, "claude-opus-4-8");
+    assert.equal(resolved.outputs.model_source, "bundled");
+  });
+});
+
+test("provider resolver falls back to bundled defaults after remote timeout", async () => {
+  await withRegistryServer(() => {
+    // Leave the response open so the resolver timeout path is exercised.
+  }, async (url) => {
+    const resolved = await runResolverAsync({
+      DEFAULT_PROVIDER: "claude",
+      SEPO_TEST_MODEL_DEFAULTS_URL: url,
+      SEPO_TEST_MODEL_DEFAULTS_TIMEOUT_MS: "25",
+    });
+
+    assert.equal(resolved.status, 0, resolved.stderr);
+    assert.equal(resolved.outputs.provider, "claude");
+    assert.equal(resolved.outputs.model, "claude-opus-4-8");
+    assert.equal(resolved.outputs.model_source, "bundled");
+    assert.match(resolved.stderr, /falling back to bundled defaults/);
+  });
+});
+
+test("provider resolver falls back to bundled defaults for invalid remote registries", async () => {
+  await withRegistryServer((_, response) => {
+    response.setHeader("content-type", "application/json");
+    response.end(JSON.stringify({
+      version: 1,
+      providers: {
+        codex: { default: { model: "gpt-5.5/ultra" } },
+      },
+    }));
+  }, async (url) => {
+    const fallback = await runResolverAsync({
+      DEFAULT_PROVIDER: "codex",
+      SEPO_TEST_MODEL_DEFAULTS_URL: url,
+    });
+
+    assert.equal(fallback.status, 0, fallback.stderr);
+    assert.equal(fallback.outputs.model, "gpt-5.5");
+    assert.equal(fallback.outputs.model_source, "bundled");
+    assert.match(fallback.stderr, /normalized Codex GPT-5 model id/);
+    assert.match(fallback.stderr, /falling back to bundled defaults/);
+  });
 });
 
 test("provider resolver honors default and inline route overrides", () => {
@@ -192,8 +362,37 @@ test("provider resolver applies model policy defaults and provider settings", ()
   assert.equal(resolved.outputs.provider, "claude");
   assert.equal(resolved.outputs.reason, "AGENT_DEFAULT_PROVIDER");
   assert.equal(resolved.outputs.model, "claude-default");
+  assert.equal(resolved.outputs.model_source, "policy");
   assert.equal(resolved.outputs.reasoning_effort, "max");
   assert.match(resolved.stderr, /relying on local Claude authentication/);
+});
+
+test("provider resolver keeps AGENT_MODEL_POLICY above remote registry defaults", async () => {
+  await withRegistryServer((_, response) => {
+    response.setHeader("content-type", "application/json");
+    response.end(JSON.stringify({
+      version: 1,
+      providers: {
+        codex: { default: { model: "gpt-5.5/high" } },
+      },
+    }));
+  }, async (url) => {
+    const resolved = await runResolverAsync({
+      DEFAULT_PROVIDER: "codex",
+      SEPO_TEST_MODEL_DEFAULTS_URL: url,
+      AGENT_MODEL_POLICY: JSON.stringify({
+        providers: {
+          codex: { model: "gpt-policy", reasoning_effort: "xhigh" },
+        },
+      }),
+    });
+
+    assert.equal(resolved.status, 0, resolved.stderr);
+    assert.equal(resolved.outputs.provider, "codex");
+    assert.equal(resolved.outputs.model, "gpt-policy");
+    assert.equal(resolved.outputs.model_source, "policy");
+    assert.equal(resolved.outputs.reasoning_effort, "xhigh");
+  });
 });
 
 test("provider resolver ignores display policy because display is handled by run-agent-task", () => {
@@ -207,6 +406,7 @@ test("provider resolver ignores display policy because display is handled by run
   assert.equal(policyDisplay.status, 0, policyDisplay.stderr);
   assert.equal(policyDisplay.outputs.provider, "codex");
   assert.equal(policyDisplay.outputs.model, "gpt-5.5");
+  assert.equal(policyDisplay.outputs.model_source, "bundled");
   assert.equal(policyDisplay.outputs.reasoning_effort, "");
 });
 
@@ -230,6 +430,7 @@ test("provider resolver lets route model policy override provider defaults", () 
   assert.equal(resolved.outputs.provider, "claude");
   assert.equal(resolved.outputs.reason, "AGENT_MODEL_POLICY route override for test-route");
   assert.equal(resolved.outputs.model, "claude-haiku-4-5");
+  assert.equal(resolved.outputs.model_source, "policy");
   assert.equal(resolved.outputs.reasoning_effort, "medium");
 });
 
@@ -253,7 +454,39 @@ test("provider resolver keeps inline route provider from inheriting route policy
   assert.equal(resolved.outputs.provider, "codex");
   assert.equal(resolved.outputs.reason, "route override for test-route");
   assert.equal(resolved.outputs.model, "gpt-5.4");
+  assert.equal(resolved.outputs.model_source, "policy");
   assert.equal(resolved.outputs.reasoning_effort, "xhigh");
+});
+
+test("provider resolver keeps reviewer lane route_provider above route model policy", async () => {
+  await withRegistryServer((_, response) => {
+    response.setHeader("content-type", "application/json");
+    response.end(JSON.stringify({
+      version: 1,
+      providers: {
+        codex: { default: { model: "gpt-5.5/xhigh" } },
+      },
+    }));
+  }, async (url) => {
+    const resolved = await runResolverAsync({
+      ROUTE: "review",
+      ROUTE_PROVIDER: "codex",
+      OPENAI_API_KEY: "openai-token",
+      SEPO_TEST_MODEL_DEFAULTS_URL: url,
+      AGENT_MODEL_POLICY: JSON.stringify({
+        route_overrides: {
+          review: { provider: "claude", model: "claude-route-review", reasoning_effort: "medium" },
+        },
+      }),
+    });
+
+    assert.equal(resolved.status, 0, resolved.stderr);
+    assert.equal(resolved.outputs.provider, "codex");
+    assert.equal(resolved.outputs.reason, "route override for review");
+    assert.equal(resolved.outputs.model, "gpt-5.5/xhigh");
+    assert.equal(resolved.outputs.model_source, "remote");
+    assert.equal(resolved.outputs.reasoning_effort, "");
+  });
 });
 
 test("provider resolver rejects model policy default provider", () => {
@@ -323,6 +556,7 @@ test("provider resolver preserves null and empty model policy token handling", (
   assert.equal(resolved.status, 0, resolved.stderr);
   assert.equal(resolved.outputs.provider, "codex");
   assert.equal(resolved.outputs.model, "");
+  assert.equal(resolved.outputs.model_source, "");
   assert.equal(resolved.outputs.reasoning_effort, "xhigh");
 });
 
@@ -334,6 +568,7 @@ test("provider resolver supports nonfatal unresolved setup passes", () => {
   assert.equal(soft.outputs.reason, "no configured provider");
   assert.equal(soft.outputs.install_codex, "false");
   assert.equal(soft.outputs.install_claude, "false");
+  assert.equal(soft.outputs.model_source, "");
   assert.match(soft.stderr, /No configured agent provider/);
   assert.match(soft.stdout, /unresolved/);
 });
