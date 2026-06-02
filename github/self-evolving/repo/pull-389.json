@@ -7,7 +7,7 @@
   },
   "baseRefName": "agent/codex-acp-model-normalization",
   "body": "## Summary\n- Add a small built-in provider default set: Codex `gpt-5.5` and Claude `claude-opus-4-8`.\n- Preserve route/workflow reasoning defaults on top of the Codex model default; #388 composes these into effective ACP ids such as `gpt-5.5/medium`, `gpt-5.5/high`, or `gpt-5.5/xhigh` before acpx sees them.\n- Preserve `AGENT_MODEL_POLICY` override precedence on top of built-in defaults.\n- Route fixed Claude/Codex review lanes through `resolve-agent-provider` so they receive pinned/provider-specific model settings.\n- Update docs for built-in defaults, reviewer lane behavior, and Claude Code minimum guidance for Opus 4.8.\n\n## Tests\n- `cd .agent && npm run build && node --test dist/__tests__/resolve-agent-provider.test.js dist/__tests__/envelope.test.js dist/__tests__/docs-validation.test.js dist/__tests__/acpx-adapter.test.js`\n\nStacked on #388. Supersedes the default-pinning portions of #380 with Codex model naming fixed first.\n\nCloses #375.\n",
-  "closedAt": null,
+  "closedAt": "2026-06-02T02:31:32Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABEYMFng",
@@ -187,6 +187,43 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/389#issuecomment-4596698907",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEgGQ8A",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer why https://github.com/self-evolving/repo/pull/389 is not merged when we merge #390? (I think they are all stacked?",
+      "createdAt": "2026-06-01T22:37:59Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/389#issuecomment-4597059824",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEgG_cw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Because #390 was merged into `main`, but #389’s PR base is still `agent/codex-acp-model-normalization` (#388’s branch), not `main`.\n\nCurrent stack state I found:\n\n- #388: `agent/codex-acp-model-normalization` → `main`, merged.\n- #389: `agent/pin-effective-model-defaults` → `agent/codex-acp-model-normalization`, still open.\n- #390: `agent/default-visible-model-display` → `main`, merged.\n\n#390’s merged commit list included the stack commits from #388 and #389:\n\n- `165eeae` - #388\n- `bd216e2` - #389\n- `02c87cc` - #390\n\nSo the **code from #389 did land through #390**, but GitHub did not mark PR #389 itself as merged because the PR record for #389 was not merged into its configured base branch. GitHub does not reliably cascade-close stacked PRs just because a later PR carried the same commits into `main`.\n\nAt this point #389 is effectively already included via #390. The clean follow-up is either:\n\n- retarget #389 to `main`; it should become empty/already included, then close it, or\n- close #389 manually as superseded/already landed via #390.\n\nThe confusing part is that #390 said “Stacked on #389” but was opened against `main`, so merging it merged the whole stack into `main` instead of advancing/merging the intermediate #389 PR record.\n\n---\n`codex` | `gpt-5.5` | `high` | `Macmini-runner-3`",
+      "createdAt": "2026-06-01T22:40:18Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/389#issuecomment-4597071731",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-06-01T00:33:26Z",
@@ -259,8 +296,8 @@
   "number": 389,
   "reviewDecision": "",
   "reviews": [],
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Pin provider model defaults",
-  "updatedAt": "2026-06-01T21:34:40Z",
+  "updatedAt": "2026-06-02T02:31:32Z",
   "url": "https://github.com/self-evolving/repo/pull/389"
 }

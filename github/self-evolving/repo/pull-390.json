@@ -5,9 +5,9 @@
     "login": "lolipopshock",
     "name": "Shannon Shen"
   },
-  "baseRefName": "agent/pin-effective-model-defaults",
+  "baseRefName": "main",
   "body": "## Summary\n- Default direct agent response model metadata footers to visible when `AGENT_DISPLAY_MODEL` / `display_model` is unset.\n- Preserve `false` as the explicit opt-out.\n- Suppress duplicate Codex reasoning text when the effective model id already encodes it, e.g. show `gpt-5.5/xhigh` without an additional `xhigh` footer field.\n- Update action metadata, docs, and envelope coverage.\n\n## Tests\n- `cd .agent && npm test`\n\nStacked on #389. Supersedes #387 with the Codex model-id display cleanup included.\n\nCloses #385.\n",
-  "closedAt": null,
+  "closedAt": "2026-06-01T22:36:57Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABEYMMYg",
@@ -98,20 +98,120 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/390#issuecomment-4589475771",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEf7pgw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer ok how it is different from #387 ? it's way more lines?",
+      "createdAt": "2026-06-01T22:06:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/390#issuecomment-4596885891",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEf8XnQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "#390 is #387 plus one extra cleanup needed by the newer stack.\n\n- #387 only flipped `AGENT_DISPLAY_MODEL` / `display_model` from hidden-by-default to visible-by-default.\n- #390 keeps that same behavior, but is stacked on #389 and also handles the new effective Codex model IDs from the stack, e.g. `gpt-5.5/xhigh`.\n- Without the extra cleanup, the footer could show duplicate reasoning info like ``codex | gpt-5.5/xhigh | xhigh | runner``. #390 suppresses the separate `xhigh` when it is already encoded in the model id.\n\nThe line count difference is mostly that cleanup:\n\n- #387: `12 insertions / 7 deletions`\n- #390 against its stack base: `40 insertions / 9 deletions`\n- Extra lines are mainly in `.agent/src/run.ts`: `CODEX_REASONING_MODEL_SUFFIX`, `displayReasoningEffort()`, and wiring it into `buildModelDisplay()`.\n- Docs and action metadata are basically the same default flip as #387.\n\nIf you are seeing a much larger diff, that is likely because #390 is stacked. Compared to `main`, it includes the earlier stack commits from #388/#389 too. The actual #390-specific diff is just the 4 files above.\n\n---\n`codex` | `gpt-5.5/xhigh` | `high` | `Macmini-runner-3`",
+      "createdAt": "2026-06-01T22:08:16Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/390#issuecomment-4596897693",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEgGWgQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #390.\n\nno rubric changes\n\nI inspected PR #390 history, linked context (#385, #387, #389), collaborator signals, inline comments, reviews, and existing rubrics. #390 had no inline comments or formal reviews; the only human PR comment was a scope clarification question from `lolipopshock`, and the rest was bot-authored review/rubrics output. The durable preferences surfaced by the bot output are already covered by active rubrics such as minimal defaults, compact status comments, docs sync, reuse existing code, and surgical changes.\n\nRubrics checkout remains clean.\n\n---\n`codex` | `gpt-5.5/medium` | `zucchini-m4-3`",
+      "createdAt": "2026-06-01T22:38:16Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/390#issuecomment-4597061249",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-06-01T00:36:09Z",
   "files": [
     {
       "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 15,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/setup/self-hosted-github-action-runner.md",
       "additions": 1,
       "deletions": 1,
       "changeType": "MODIFIED"
     },
     {
-      "path": ".agent/src/__tests__/envelope.test.ts",
-      "additions": 7,
+      "path": ".agent/docs/usage/internal-actions.md",
+      "additions": 1,
       "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/supported-workflows.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/package-lock.json",
+      "additions": 114,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/package.json",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/acpx-adapter.test.ts",
+      "additions": 49,
+      "deletions": 30,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 16,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/resolve-agent-provider.test.ts",
+      "additions": 21,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/acpx-adapter.ts",
+      "additions": 80,
+      "deletions": 11,
       "changeType": "MODIFIED"
     },
     {
@@ -121,9 +221,27 @@
       "changeType": "MODIFIED"
     },
     {
+      "path": ".github/actions/resolve-agent-provider/action.yml",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/resolve-agent-provider/resolve-provider.js",
+      "additions": 6,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
       "path": ".github/actions/run-agent-task/action.yml",
       "additions": 2,
       "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-review.yml",
+      "additions": 17,
+      "deletions": 4,
       "changeType": "MODIFIED"
     }
   ],
@@ -136,12 +254,12 @@
       "color": "0e8a16"
     }
   ],
-  "mergedAt": null,
+  "mergedAt": "2026-06-01T22:36:57Z",
   "number": 390,
   "reviewDecision": "",
   "reviews": [],
-  "state": "OPEN",
+  "state": "MERGED",
   "title": "Default model display metadata to visible",
-  "updatedAt": "2026-06-01T04:12:06Z",
+  "updatedAt": "2026-06-01T22:38:16Z",
   "url": "https://github.com/self-evolving/repo/pull/390"
 }
