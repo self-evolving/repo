@@ -1969,6 +1969,11 @@ test("normal workflows honor rubrics policy instead of forcing read-only", () =>
   assert.match(addRubricsWorkflow, /steps\.checkout_trusted_rubrics\.outcome == 'success'/);
   assert.match(addRubricsWorkflow, /RUBRICS_SOURCE_DIR:\s*\$\{\{\s*steps\.add_rubrics\.outputs\.rubrics_dir\s*\}\}/);
   assert.match(addRubricsWorkflow, /TRUSTED_RUBRICS_DIR:\s*\$\{\{\s*steps\.checkout_trusted_rubrics\.outputs\.rubrics_dir\s*\}\}/);
+  assert.match(addRubricsWorkflow, /Unexpected symlink under rubrics\//);
+  assert.match(addRubricsWorkflow, /Only rubrics\/\*\*\/\*\.yml, rubrics\/\*\*\/\*\.yaml, and top-level README\.md may be committed/);
+  assert.match(addRubricsWorkflow, /find "\$\{RUBRICS_SOURCE_DIR\}\/rubrics" -type f ! \\\( -name '\*\.yml' -o -name '\*\.yaml' \\\) -print -quit/);
+  assert.match(addRubricsWorkflow, /find "\$\{RUBRICS_SOURCE_DIR\}\/rubrics" -type f \\\( -name '\*\.yml' -o -name '\*\.yaml' \\\) -print0/);
+  assert.doesNotMatch(addRubricsWorkflow, /cp -R "\$\{RUBRICS_SOURCE_DIR\}\/rubrics"/);
   assert.match(addRubricsWorkflow, /COMMIT_CWD:\s*\$\{\{\s*steps\.checkout_trusted_rubrics\.outputs\.rubrics_dir\s*\}\}/);
   assert.doesNotMatch(addRubricsWorkflow, /COMMIT_CWD:\s*\$\{\{\s*steps\.add_rubrics\.outputs\.rubrics_dir\s*\}\}/);
   assert.match(addRubricsWorkflow, /steps\.validate_trusted_rubrics\.outcome == 'success'/);
@@ -2016,6 +2021,8 @@ test("add-rubrics route uses separate rubrics checkout for proposal PRs", () => 
   assert.match(addRubricsWorkflow, /rubrics\/validate\.js --dir "\$\{\{ steps\.checkout_trusted_rubrics\.outputs\.rubrics_dir \}\}"/);
   assert.match(addRubricsWorkflow, /agent_github_token:\s*\$\{\{\s*secrets\.AGENT_SECONDARY_GITHUB_TOKEN\s*\}\}/);
   assert.match(addRubricsWorkflow, /expose_github_token_to_agent:\s*"false"/);
+  assert.match(addRubricsWorkflow, /Top-level README\.md must not be a symlink/);
+  assert.doesNotMatch(addRubricsWorkflow, /cp -R "\$\{RUBRICS_SOURCE_DIR\}\/rubrics"/);
   assert.match(addRubricsWorkflow, /COMMIT_CWD:\s*\$\{\{\s*steps\.checkout_trusted_rubrics\.outputs\.rubrics_dir\s*\}\}/);
   assert.doesNotMatch(addRubricsWorkflow, /COMMIT_CWD:\s*\$\{\{\s*steps\.add_rubrics\.outputs\.rubrics_dir\s*\}\}/);
   assert.doesNotMatch(addRubricsWorkflow, /\.agent-tmp\/trusted-rubrics/);

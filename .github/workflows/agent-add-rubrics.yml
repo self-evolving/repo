@@ -276,8 +276,29 @@ jobs:
 
           if [ -d "${RUBRICS_SOURCE_DIR}/rubrics" ]; then
             mkdir -p "${TRUSTED_RUBRICS_DIR}"
-            cp -R "${RUBRICS_SOURCE_DIR}/rubrics" "${TRUSTED_RUBRICS_DIR}/rubrics"
-            find "${TRUSTED_RUBRICS_DIR}/rubrics" -name .git -prune -exec rm -rf {} +
+
+            symlink_path="$(find "${RUBRICS_SOURCE_DIR}/rubrics" -type l -print -quit)"
+            if [ -n "${symlink_path}" ]; then
+              echo "::error title=Invalid rubric proposal::Unexpected symlink under rubrics/: ${symlink_path}"
+              exit 1
+            fi
+
+            unexpected_file="$(find "${RUBRICS_SOURCE_DIR}/rubrics" -type f ! \( -name '*.yml' -o -name '*.yaml' \) -print -quit)"
+            if [ -n "${unexpected_file}" ]; then
+              echo "::error title=Invalid rubric proposal::Only rubrics/**/*.yml, rubrics/**/*.yaml, and top-level README.md may be committed; found ${unexpected_file}"
+              exit 1
+            fi
+
+            while IFS= read -r -d '' rubric_file; do
+              relative_path="${rubric_file#${RUBRICS_SOURCE_DIR}/}"
+              mkdir -p "${TRUSTED_RUBRICS_DIR}/$(dirname "${relative_path}")"
+              cp "${rubric_file}" "${TRUSTED_RUBRICS_DIR}/${relative_path}"
+            done < <(find "${RUBRICS_SOURCE_DIR}/rubrics" -type f \( -name '*.yml' -o -name '*.yaml' \) -print0)
+          fi
+
+          if [ -L "${RUBRICS_SOURCE_DIR}/README.md" ]; then
+            echo "::error title=Invalid rubric proposal::Top-level README.md must not be a symlink"
+            exit 1
           fi
 
           if [ -f "${RUBRICS_SOURCE_DIR}/README.md" ]; then
