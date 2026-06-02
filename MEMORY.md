@@ -107,3 +107,4 @@
 - Implicit follow-ups are agent-label gated, answer-only, preauthorized before intent, and prefer ignore when uncertain.
 - Codex GPT-5 reasoning belongs in effective ACP model IDs like gpt-5.5/xhigh; do not rely on separate thought_level.
 - Keep one-time migration/bootstrap caveats out of durable docs; put temporary update guidance in prompts or handoffs.
+- Provider model defaults stay tiny and pinned; reviewer lanes use resolve-agent-provider, with AGENT_MODEL_POLICY as the escape hatch.
