@@ -1953,9 +1953,20 @@ test("normal workflows honor rubrics policy instead of forcing read-only", () =>
     assert.match(workflow, /rubrics_policy:\s*\$\{\{\s*vars\.AGENT_RUBRICS_POLICY \|\| ''\s*\}\}/);
   }
   assert.match(addRubricsWorkflow, /rubrics_mode_override:\s*read-only/);
-  assert.match(addRubricsWorkflow, /Setup agent runtime[\s\S]*Setup proposal branch[\s\S]*prepare-add-rubrics-proposal\.js/);
+  assert.match(addRubricsWorkflow, /add-rubrics-post-process:\n\s+needs: add-rubrics/);
+  assert.match(addRubricsWorkflow, /Prepare add-rubrics handoff artifact[\s\S]*rubrics-source\.tar\.gz/);
+  assert.match(addRubricsWorkflow, /Upload add-rubrics handoff[\s\S]*actions\/upload-artifact@v4/);
+  assert.match(addRubricsWorkflow, /Download add-rubrics handoff[\s\S]*actions\/download-artifact@v4/);
+  assert.match(addRubricsWorkflow, /include-hidden-files:\s*true/);
+  assert.match(addRubricsWorkflow, /Archive contains links or special files/);
+  assert.match(addRubricsWorkflow, /Unexpected archive entry/);
+  assert.match(addRubricsWorkflow, /Unsafe archive entry/);
+  assert.match(
+    addRubricsWorkflow,
+    /add-rubrics-post-process:[\s\S]*Setup trusted post-processing runtime[\s\S]*Setup proposal branch[\s\S]*prepare-add-rubrics-proposal\.js/,
+  );
   assert.match(addRubricsWorkflow, /prepare-add-rubrics-proposal\.js/);
-  assert.doesNotMatch(addRubricsWorkflow, /github\.run_id/);
+  assert.match(addRubricsWorkflow, /add-rubrics-handoff-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}/);
   assert.match(addRubricsWorkflow, /agent_github_token:\s*\$\{\{\s*secrets\.AGENT_SECONDARY_GITHUB_TOKEN\s*\}\}/);
   assert.match(addRubricsWorkflow, /expose_github_token_to_agent:\s*"false"/);
   assert.match(addRubricsWorkflow, /memory_persist_credentials:\s*"false"/);
@@ -1969,7 +1980,7 @@ test("normal workflows honor rubrics policy instead of forcing read-only", () =>
   assert.doesNotMatch(addRubricsWorkflow, /path:\s*\.agent-tmp\/trusted-rubrics/);
   assert.match(addRubricsWorkflow, /Prepare trusted rubric commit checkout/);
   assert.match(addRubricsWorkflow, /steps\.checkout_trusted_rubrics\.outcome == 'success'/);
-  assert.match(addRubricsWorkflow, /RUBRICS_SOURCE_DIR:\s*\$\{\{\s*steps\.add_rubrics\.outputs\.rubrics_dir\s*\}\}/);
+  assert.match(addRubricsWorkflow, /RUBRICS_SOURCE_DIR:\s*\$\{\{\s*steps\.handoff\.outputs\.source_dir\s*\}\}/);
   assert.match(addRubricsWorkflow, /TRUSTED_RUBRICS_DIR:\s*\$\{\{\s*steps\.checkout_trusted_rubrics\.outputs\.rubrics_dir\s*\}\}/);
   assert.match(addRubricsWorkflow, /prepare-add-rubrics-trusted-copy\.js/);
   assert.match(trustedCopyCli, /Unexpected symlink under rubrics\//);
@@ -1987,6 +1998,10 @@ test("normal workflows honor rubrics policy instead of forcing read-only", () =>
   assert.match(addRubricsWorkflow, /PR_KIND:\s*add-rubrics/);
   assert.match(addRubricsWorkflow, /RUBRICS_REF:\s*\$\{\{\s*env\.RUBRICS_REF\s*\}\}/);
   assert.match(addRubricsWorkflow, /prepare-add-rubrics-proposal-summary\.js/);
+  assert.match(
+    addRubricsWorkflow,
+    /add-rubrics-post-process:[\s\S]*Commit proposal branch[\s\S]*Create rubric proposal PR[\s\S]*Post add-rubrics summary/,
+  );
   assert.match(addRubricsPrompt, /Read existing rubrics/);
   assert.match(addRubricsPrompt, /proposal PR targeting/);
   assert.match(rubricsInitializationWorkflow, /rubrics_mode_override:\s*'enabled'/);
@@ -2020,8 +2035,13 @@ test("add-rubrics route uses separate rubrics checkout for proposal PRs", () => 
   assert.match(addRubricsWorkflow, /prompt:\s*add-rubrics/);
   assert.match(addRubricsWorkflow, /route:\s*add-rubrics/);
   assert.match(addRubricsWorkflow, /rubrics_mode_override:\s*read-only/);
-  assert.match(addRubricsWorkflow, /Setup agent runtime[\s\S]*Setup proposal branch[\s\S]*prepare-add-rubrics-proposal\.js/);
-  assert.match(addRubricsWorkflow, /rubrics\/validate\.js --dir "\$\{\{ steps\.add_rubrics\.outputs\.rubrics_dir \}\}"/);
+  assert.match(
+    addRubricsWorkflow,
+    /add-rubrics-post-process:[\s\S]*Setup trusted post-processing runtime[\s\S]*Setup proposal branch[\s\S]*prepare-add-rubrics-proposal\.js/,
+  );
+  assert.match(addRubricsWorkflow, /actions\/upload-artifact@v4/);
+  assert.match(addRubricsWorkflow, /actions\/download-artifact@v4/);
+  assert.match(addRubricsWorkflow, /rubrics\/validate\.js --dir "\$\{\{ steps\.handoff\.outputs\.source_dir \}\}"/);
   assert.match(addRubricsWorkflow, /rubrics\/validate\.js --dir "\$\{\{ steps\.checkout_trusted_rubrics\.outputs\.rubrics_dir \}\}"/);
   assert.match(addRubricsWorkflow, /agent_github_token:\s*\$\{\{\s*secrets\.AGENT_SECONDARY_GITHUB_TOKEN\s*\}\}/);
   assert.match(addRubricsWorkflow, /expose_github_token_to_agent:\s*"false"/);

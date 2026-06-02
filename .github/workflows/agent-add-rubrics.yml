@@ -112,6 +112,9 @@ jobs:
   add-rubrics:
     if: vars.AGENT_ENABLED != 'false'
     runs-on: ${{ fromJson(inputs.runs_on || vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
+    outputs:
+      add_rubrics_outcome: ${{ steps.add_rubrics.outcome }}
+      rubrics_available: ${{ steps.add_rubrics.outputs.rubrics_available }}
     env:
       TARGET_NUMBER: ${{ inputs.target_number }}
       TARGET_URL: ${{ inputs.target_url }}
@@ -157,14 +160,6 @@ jobs:
         with:
           install_codex: ${{ steps.provider.outputs.install_codex }}
           install_claude: ${{ steps.provider.outputs.install_claude }}
-
-      - name: Setup proposal branch
-        id: proposal
-        env:
-          GH_TOKEN: ${{ steps.auth.outputs.token }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          REQUESTED_BY: ${{ env.REQUESTED_BY || github.actor }}
-        run: node .agent/dist/cli/prepare-add-rubrics-proposal.js
 
       - name: Resolve task timeout
         id: task_timeout
@@ -212,28 +207,170 @@ jobs:
           target_url: ${{ env.TARGET_URL }}
           workflow: agent-add-rubrics.yml
 
+      - name: Prepare add-rubrics handoff artifact
+        if: always()
+        id: handoff
+        env:
+          HANDOFF_DIR: ${{ runner.temp }}/add-rubrics-handoff
+          RESPONSE_FILE: ${{ steps.add_rubrics.outputs.response_file }}
+          RUBRICS_AVAILABLE: ${{ steps.add_rubrics.outputs.rubrics_available }}
+          RUBRICS_DIR: ${{ steps.add_rubrics.outputs.rubrics_dir }}
+        run: |
+          set -euo pipefail
+
+          rm -rf "${HANDOFF_DIR}"
+          mkdir -p "${HANDOFF_DIR}"
+          printf '%s\n' "${RUBRICS_AVAILABLE}" > "${HANDOFF_DIR}/rubrics_available.txt"
+
+          if [ -n "${RESPONSE_FILE}" ] && [ -f "${RESPONSE_FILE}" ]; then
+            cp "${RESPONSE_FILE}" "${HANDOFF_DIR}/response.md"
+          fi
+
+          if [ "${RUBRICS_AVAILABLE}" = "true" ] && [ -n "${RUBRICS_DIR}" ] && [ -d "${RUBRICS_DIR}" ]; then
+            tar_entries=()
+            if [ -e "${RUBRICS_DIR}/rubrics" ]; then
+              tar_entries+=(rubrics)
+            fi
+            if [ -e "${RUBRICS_DIR}/README.md" ]; then
+              tar_entries+=(README.md)
+            fi
+            if [ "${#tar_entries[@]}" -gt 0 ]; then
+              tar -C "${RUBRICS_DIR}" -czf "${HANDOFF_DIR}/rubrics-source.tar.gz" "${tar_entries[@]}"
+            fi
+          fi
+
+          printf 'handoff_dir=%s\n' "${HANDOFF_DIR}" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload add-rubrics handoff
+        if: always() && steps.handoff.outputs.handoff_dir != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: add-rubrics-handoff-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ steps.handoff.outputs.handoff_dir }}
+          include-hidden-files: true
+          retention-days: 1
+
+  add-rubrics-post-process:
+    needs: add-rubrics
+    if: always() && vars.AGENT_ENABLED != 'false'
+    runs-on: ${{ fromJson(inputs.runs_on || vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
+    env:
+      TARGET_NUMBER: ${{ inputs.target_number }}
+      TARGET_URL: ${{ inputs.target_url }}
+      TARGET_KIND: ${{ inputs.target_kind }}
+      SOURCE_KIND: ${{ inputs.source_kind }}
+      RESPONSE_KIND: ${{ inputs.response_kind }}
+      REQUEST_TEXT: ${{ inputs.request_text }}
+      REQUESTED_BY: ${{ inputs.requested_by }}
+      RUBRICS_REF: ${{ inputs.rubrics_ref || vars.AGENT_RUBRICS_REF || 'agent/rubrics' }}
+      REVIEW_COMMENT_ID: ${{ inputs.review_comment_id }}
+      DISCUSSION_ID: ${{ inputs.discussion_id }}
+      REPLY_TO_ID: ${{ inputs.reply_to_id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          ref: ${{ github.event.repository.default_branch }}
+          token: ${{ github.token }}
+
+      - name: Resolve GitHub auth
+        id: auth
+        uses: ./.github/actions/resolve-github-auth
+        with:
+          app_id: ${{ secrets.AGENT_APP_ID }}
+          app_private_key: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
+          pat: ${{ secrets.AGENT_PAT }}
+          fallback_token: ${{ github.token }}
+
+      - name: Setup trusted post-processing runtime
+        uses: ./.github/actions/setup-agent-runtime
+
+      - name: Download add-rubrics handoff
+        uses: actions/download-artifact@v4
+        with:
+          name: add-rubrics-handoff-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/add-rubrics-handoff
+
+      - name: Unpack add-rubrics handoff
+        id: handoff
+        env:
+          HANDOFF_DIR: ${{ runner.temp }}/add-rubrics-handoff
+          SOURCE_DIR: ${{ runner.temp }}/add-rubrics-source
+        run: |
+          set -euo pipefail
+
+          rm -rf "${SOURCE_DIR}"
+          mkdir -p "${SOURCE_DIR}"
+          if [ -f "${HANDOFF_DIR}/rubrics-source.tar.gz" ]; then
+            archive="${HANDOFF_DIR}/rubrics-source.tar.gz"
+            entries_file="${SOURCE_DIR}/rubrics-source.entries"
+
+            if tar -tvzf "${archive}" | LC_ALL=C grep -Eq '^[^d-]'; then
+              echo "::error title=Invalid add-rubrics handoff::Archive contains links or special files"
+              exit 1
+            fi
+
+            tar -tzf "${archive}" > "${entries_file}"
+            while IFS= read -r entry; do
+              case "${entry}" in
+                README.md|rubrics|rubrics/*) ;;
+                *)
+                  echo "::error title=Invalid add-rubrics handoff::Unexpected archive entry: ${entry}"
+                  exit 1
+                  ;;
+              esac
+
+              case "/${entry}/" in
+                *"/../"*|*"/./"*|*"/.git/"*)
+                  echo "::error title=Invalid add-rubrics handoff::Unsafe archive entry: ${entry}"
+                  exit 1
+                  ;;
+              esac
+            done < "${entries_file}"
+            rm -f "${entries_file}"
+
+            tar -xzf "${archive}" -C "${SOURCE_DIR}"
+          fi
+
+          response_file=""
+          if [ -f "${HANDOFF_DIR}/response.md" ]; then
+            response_file="${HANDOFF_DIR}/response.md"
+          fi
+
+          printf 'source_dir=%s\n' "${SOURCE_DIR}" >> "${GITHUB_OUTPUT}"
+          printf 'response_file=%s\n' "${response_file}" >> "${GITHUB_OUTPUT}"
+
+      - name: Setup proposal branch
+        id: proposal
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          REQUESTED_BY: ${{ env.REQUESTED_BY || github.actor }}
+        run: node .agent/dist/cli/prepare-add-rubrics-proposal.js
+
       - name: Parse proposal response
         if: always()
         id: response
         env:
-          AGENT_EXIT_CODE: ${{ steps.add_rubrics.outcome == 'success' && '0' || '1' }}
+          AGENT_EXIT_CODE: ${{ needs['add-rubrics'].outputs.add_rubrics_outcome == 'success' && '0' || '1' }}
           HAS_CHANGES: "true"
-          RESPONSE_FILE: ${{ steps.add_rubrics.outputs.response_file }}
+          RESPONSE_FILE: ${{ steps.handoff.outputs.response_file }}
           VERIFY_EXIT_CODE: "0"
         run: node .agent/dist/cli/parse-response.js
 
       - name: Validate rubric proposal
         if: >-
-          steps.add_rubrics.outcome == 'success' &&
-          steps.add_rubrics.outputs.rubrics_available == 'true' &&
-          steps.add_rubrics.outputs.rubrics_dir != ''
+          needs['add-rubrics'].outputs.add_rubrics_outcome == 'success' &&
+          needs['add-rubrics'].outputs.rubrics_available == 'true' &&
+          steps.handoff.outputs.source_dir != ''
         id: validate_rubrics
         continue-on-error: true
-        run: node .agent/dist/cli/rubrics/validate.js --dir "${{ steps.add_rubrics.outputs.rubrics_dir }}"
+        run: node .agent/dist/cli/rubrics/validate.js --dir "${{ steps.handoff.outputs.source_dir }}"
 
       - name: Checkout trusted rubric proposal base
         if: >-
-          steps.add_rubrics.outcome == 'success' &&
+          needs['add-rubrics'].outputs.add_rubrics_outcome == 'success' &&
           steps.validate_rubrics.outcome == 'success'
         id: checkout_trusted_rubrics
         continue-on-error: true
@@ -261,18 +398,18 @@ jobs:
 
       - name: Prepare trusted rubric commit checkout
         if: >-
-          steps.add_rubrics.outcome == 'success' &&
+          needs['add-rubrics'].outputs.add_rubrics_outcome == 'success' &&
           steps.validate_rubrics.outcome == 'success' &&
           steps.checkout_trusted_rubrics.outcome == 'success'
         id: trusted_rubrics
         env:
-          RUBRICS_SOURCE_DIR: ${{ steps.add_rubrics.outputs.rubrics_dir }}
+          RUBRICS_SOURCE_DIR: ${{ steps.handoff.outputs.source_dir }}
           TRUSTED_RUBRICS_DIR: ${{ steps.checkout_trusted_rubrics.outputs.rubrics_dir }}
         run: node .agent/dist/cli/prepare-add-rubrics-trusted-copy.js
 
       - name: Validate trusted rubric proposal
         if: >-
-          steps.add_rubrics.outcome == 'success' &&
+          needs['add-rubrics'].outputs.add_rubrics_outcome == 'success' &&
           steps.validate_rubrics.outcome == 'success' &&
           steps.checkout_trusted_rubrics.outcome == 'success' &&
           steps.trusted_rubrics.outcome == 'success'
@@ -282,7 +419,7 @@ jobs:
 
       - name: Commit proposal branch
         if: >-
-          steps.add_rubrics.outcome == 'success' &&
+          needs['add-rubrics'].outputs.add_rubrics_outcome == 'success' &&
           steps.validate_rubrics.outcome == 'success' &&
           steps.validate_trusted_rubrics.outcome == 'success'
         id: commit_rubrics
@@ -319,13 +456,13 @@ jobs:
           BODY_FILE: ${{ runner.temp }}/add-rubrics-summary.md
           PR_OUTCOME: ${{ steps.pr.outcome }}
           PR_URL: ${{ steps.pr.outputs.pr_url }}
-          RESPONSE_FILE: ${{ steps.add_rubrics.outputs.response_file }}
-          RUBRICS_AVAILABLE: ${{ steps.add_rubrics.outputs.rubrics_available }}
+          RESPONSE_FILE: ${{ steps.handoff.outputs.response_file }}
+          RUBRICS_AVAILABLE: ${{ needs['add-rubrics'].outputs.rubrics_available }}
           RUBRICS_COMMIT_OUTCOME: ${{ steps.commit_rubrics.outcome }}
           RUBRICS_COMMITTED: ${{ steps.commit_rubrics.outputs.committed }}
-          RUBRICS_DIR: ${{ steps.add_rubrics.outputs.rubrics_dir }}
+          RUBRICS_DIR: ${{ steps.handoff.outputs.source_dir }}
           RUBRICS_REF: ${{ env.RUBRICS_REF }}
-          RUBRICS_STEP_OUTCOME: ${{ steps.add_rubrics.outcome }}
+          RUBRICS_STEP_OUTCOME: ${{ needs['add-rubrics'].outputs.add_rubrics_outcome }}
           RUBRICS_TRUSTED_SETUP_OUTCOME: ${{ steps.checkout_trusted_rubrics.outcome != 'success' && steps.checkout_trusted_rubrics.outcome || steps.trusted_rubrics.outcome }}
           RUBRICS_TRUSTED_VALIDATION_OUTCOME: ${{ steps.validate_trusted_rubrics.outcome }}
           RUBRICS_VALIDATION_OUTCOME: ${{ steps.validate_rubrics.outcome }}
