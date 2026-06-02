@@ -304,6 +304,35 @@ test("provider resolver falls back to bundled defaults for invalid remote regist
   });
 });
 
+test("provider resolver rejects unused provider registry metadata", async () => {
+  await withRegistryServer((_, response) => {
+    response.setHeader("content-type", "application/json");
+    response.end(JSON.stringify({
+      version: 1,
+      source_url: "https://example.com/model-defaults.json",
+      verified_at: "2026-06-02",
+      providers: {
+        claude: {
+          default: { model: "claude-remote" },
+          source_url: "https://example.com/model-defaults.json",
+          verified_at: "2026-06-02",
+        },
+      },
+    }));
+  }, async (url) => {
+    const fallback = await runResolverAsync({
+      DEFAULT_PROVIDER: "claude",
+      SEPO_TEST_MODEL_DEFAULTS_URL: url,
+    });
+
+    assert.equal(fallback.status, 0, fallback.stderr);
+    assert.equal(fallback.outputs.model, "claude-opus-4-8");
+    assert.equal(fallback.outputs.model_source, "bundled");
+    assert.match(fallback.stderr, /providers\.claude\.source_url is not supported/);
+    assert.match(fallback.stderr, /falling back to bundled defaults/);
+  });
+});
+
 test("provider resolver honors default and inline route overrides", () => {
   const defaultOverride = runResolver({
     DEFAULT_PROVIDER: " Claude ",

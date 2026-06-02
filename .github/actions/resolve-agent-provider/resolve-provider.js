@@ -164,7 +164,7 @@ function parseModelDefaultsRegistry(payload, label) {
     if (!config || typeof config !== "object" || Array.isArray(config)) {
       throw new Error(`${label}.providers.${normalizedProvider} must be an object`);
     }
-    const allowedProviderKeys = new Set(["default", "min_cli_version", "source_url", "verified_at"]);
+    const allowedProviderKeys = new Set(["default"]);
     for (const key of Object.keys(config)) {
       if (!allowedProviderKeys.has(key)) {
         throw new Error(`${label}.providers.${normalizedProvider}.${key} is not supported`);
@@ -175,9 +175,6 @@ function parseModelDefaultsRegistry(payload, label) {
       config.default,
       `${label}.providers.${normalizedProvider}.default`,
     );
-    validateStringMetadata(config.min_cli_version, `${label}.providers.${normalizedProvider}.min_cli_version`);
-    validateStringMetadata(config.source_url, `${label}.providers.${normalizedProvider}.source_url`);
-    validateStringMetadata(config.verified_at, `${label}.providers.${normalizedProvider}.verified_at`);
   }
 
   return defaults;
