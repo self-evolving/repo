@@ -1,0 +1,115 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "TLDR just add an addition line to include the `@sepo-agent` tag \n\n\n@sepo-agent /answer what do you think?",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEpYSxg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, I think this is a good small additive change.\n\nThe existing pattern is [`install-sepo.yml`](https://github.com/self-evolving/repo/blob/main/.github/ISSUE_TEMPLATE/install-sepo.yml): it has an `agent-command` field with a fixed value, currently `@sepo-agent /install`. For “ask sepo”, I’d add a new issue form at:\n\n[` .github/ISSUE_TEMPLATE/ask-sepo.yml`](https://github.com/self-evolving/repo/tree/main/.github/ISSUE_TEMPLATE)\n\nSuggested shape:\n\n```yaml\nname: Ask Sepo\ndescription: Ask Sepo a question about this repository\ntitle: \"Ask Sepo: \"\nlabels: [\"agent\"]\nbody:\n  - type: textarea\n    id: agent-command\n    attributes:\n      label: Agent command\n      description: Leave this line unchanged so Sepo can route the request.\n      value: \"@sepo-agent /answer\"\n    validations:\n      required: true\n  - type: textarea\n    id: question\n    attributes:\n      label: Question\n      description: What should Sepo answer?\n      placeholder: Ask a repository question or request plan-only guidance.\n    validations:\n      required: true\n```\n\nI’d also add a focused assertion near the existing issue-template checks in [`envelope.test.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/envelope.test.ts) so the form stays parseable and keeps the `@sepo-agent /answer` routing line.\n\nSo: yes, implement it as a new issue template, with the extra fixed command line rather than changing router behavior.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-6`",
+      "createdAt": "2026-06-02T20:34:34Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/395#issuecomment-4606792390",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEpjDbg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "another small question: \n\nwhen I am on mobile, i can see that these two templates requires opening an external webapge? how so? can we make it easier? ",
+      "createdAt": "2026-06-02T20:59:37Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/395#issuecomment-4606968686",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEpj-6Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "That looks like GitHub Mobile behavior, not something in our templates.\n\nThis repo currently has only YAML issue forms: `.github/ISSUE_TEMPLATE/agent-goal.yml` and `.github/ISSUE_TEMPLATE/install-sepo.yml`. There is no `.github/ISSUE_TEMPLATE/config.yml` with `contact_links`, so we are not intentionally sending users to an external site. GitHub’s docs describe YAML issue forms as web form fields, and the mobile app often opens those in the GitHub web flow/browser instead of a fully native composer: https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-issue-forms\n\nWe can make it easier, though. I’d do two things:\n\n1. Add the `Ask Sepo` template as the simple YAML form we discussed, with only:\n   - fixed `@sepo-agent /answer`\n   - one required question textarea\n\n2. Add a mobile-friendly direct link somewhere prominent, like README/docs, that bypasses the template chooser and opens a prefilled issue:\n\n```text\nhttps://github.com/self-evolving/repo/issues/new?labels=agent&title=Ask%20Sepo%3A%20&body=%40sepo-agent%20%2Fanswer%0A%0A\n```\n\nGitHub supports prefilled issue URLs with `title`, `body`, and `labels`: https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/creating-an-issue#creating-an-issue-from-a-url-query\n\nSo we probably cannot stop GitHub Mobile from using the web flow for issue forms, but we can make “ask Sepo” one tap with the command already inserted.\n\n---\n`codex` | `gpt-5.5` | `high` | `Macmini-runner-5`",
+      "createdAt": "2026-06-02T21:01:46Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/395#issuecomment-4606983913",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEpsmRw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "I checked the template difference. The practical distinction is:\n\n- **Markdown issue templates** (`.md`) open the normal GitHub issue composer with prefilled text. They are simple, easy to edit, work well with direct prefilled issue URLs, and tend to be more mobile-friendly.\n- **YAML issue forms** (`.yml`) open GitHub's structured form UI. They support required fields, typed inputs, dropdowns, and validation, but they are more like a web form and GitHub Mobile may route users through a browser/web flow.\n\nFor the current Sepo templates, I think the simple ones should probably be Markdown by default. If a template is mostly just inserting a Sepo command plus one or two text fields, YAML is adding complexity without much benefit.\n\nSuggested direction:\n\n1. **Ask Sepo** should be Markdown:\n   - prefill `@sepo-agent /answer`\n   - include a simple `Question` section\n   - label with `agent`\n\n2. **Install Sepo** could also be Markdown:\n   - prefill `@sepo-agent /install`\n   - include a `Target public repository URL` section\n   - include optional notes\n   - Sepo can ask for missing info if the user leaves something out\n\n3. **Agent goal** is the only one where YAML may still be worth keeping, because it has multiple structured planning fields and required success criteria. But even that could be converted to Markdown if mobile simplicity matters more than field validation.\n\nSo the rule of thumb I would use is:\n\n> Use Markdown templates for simple Sepo command issues. Use YAML issue forms only when we truly need required fields or structured validation.\n",
+      "createdAt": "2026-06-02T21:22:39Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/395#issuecomment-4607125063",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEpsxSg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer what do you think? ",
+      "createdAt": "2026-06-02T21:23:05Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/395#issuecomment-4607127882",
+      "viewerDidAuthor": false
+    }
+  ],
+  "createdAt": "2026-06-02T20:32:37Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 395,
+  "state": "OPEN",
+  "title": "Add an issue template called \"ask sepo\"",
+  "updatedAt": "2026-06-02T21:23:25Z",
+  "url": "https://github.com/self-evolving/repo/issues/395"
+}

@@ -1,0 +1,196 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Add bundled `.agent/model-defaults.json` and layer it below the default Sepo-owned remote registry.\n- Preserve `AGENT_MODEL_POLICY` precedence, expose `model_source`, and validate registry model IDs including Codex GPT-5 suffixes like `gpt-5.5/xhigh`.\n- Update docs and focused resolver/envelope coverage without adding public `AGENT_MODEL_REGISTRY*` workflow knobs.\n\n## Verification\n- `cd .agent && npm run build`\n- `cd .agent && node --test dist/__tests__/resolve-agent-provider.test.js dist/__tests__/envelope.test.js dist/__tests__/docs-validation.test.js`\n- `cd .agent && node --test dist/__tests__/envelope.test.js dist/__tests__/docs-validation.test.js`\n- `git diff --check`\n\nCloses #392\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEpTBPQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review \r\n\r\nalso we aim to have a very clean and simple layer for this; so make sure that you are implementing this feature. ",
+      "createdAt": "2026-06-02T20:22:58Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/393#issuecomment-4606705981",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEpU9Tg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Minimal defaults, native escape hatches | pass | 8/8 | Uses one bundled manifest and a default Sepo-owned registry, while preserving `AGENT_MODEL_POLICY` and inline `route_provider` precedence; tests assert no `model_registry` / `model_registry_url` workflow wiring. [resolver](https://github.com/self-evolving/repo/blob/2836dfdd9bede987a8c9085d17c50a6081ca144f/.github/actions/resolve-agent-provider/resolve-provider.js#L228-L248), [tests](https://github.com/self-evolving/repo/blob/2836dfdd9bede987a8c9085d17c50a6081ca144f/.agent/src/__tests__/envelope.test.ts#L360-L391) |\n| coding_style/generic | Prefer simple implementations | pass | 7/7 | The layer is limited to `.agent/model-defaults.json`, resolver loading/validation, one `model_source` output, docs, and focused tests; no new public registry configuration surface was added. [manifest](https://github.com/self-evolving/repo/blob/2836dfdd9bede987a8c9085d17c50a6081ca144f/.agent/model-defaults.json#L1-L18), [action output](https://github.com/self-evolving/repo/blob/2836dfdd9bede987a8c9085d17c50a6081ca144f/.github/actions/resolve-agent-provider/action.yml#L50-L58) |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | The implementation extends the existing `resolve-agent-provider` action and tests its workflow contract instead of adding separate workflow glue or a parallel resolver. [action](https://github.com/self-evolving/repo/blob/2836dfdd9bede987a8c9085d17c50a6081ca144f/.github/actions/resolve-agent-provider/action.yml#L60-L78), [workflow contract tests](https://github.com/self-evolving/repo/blob/2836dfdd9bede987a8c9085d17c50a6081ca144f/.agent/src/__tests__/envelope.test.ts#L386-L416) |\n| coding_workflow/generic | Prefer agent-derived decisions | pass | 7/7 | The resolver chooses the Sepo-owned registry by default and falls back deterministically, rather than introducing repository-level registry knobs for the common case. [default URL/timeout](https://github.com/self-evolving/repo/blob/2836dfdd9bede987a8c9085d17c50a6081ca144f/.github/actions/resolve-agent-provider/resolve-provider.js#L12-L16), [fallback path](https://github.com/self-evolving/repo/blob/2836dfdd9bede987a8c9085d17c50a6081ca144f/.github/actions/resolve-agent-provider/resolve-provider.js#L232-L248) |\n| coding_workflow/generic | Prefer explicit structured inputs | pass | 7/7 | Keeps the existing structured `model_policy` action input and adds a typed `model_source` output; tests explicitly guard against duplicate registry inputs. [action inputs/outputs](https://github.com/self-evolving/repo/blob/2836dfdd9bede987a8c9085d17c50a6081ca144f/.github/actions/resolve-agent-provider/action.yml#L32-L58), [negative assertions](https://github.com/self-evolving/repo/blob/2836dfdd9bede987a8c9085d17c50a6081ca144f/.agent/src/__tests__/envelope.test.ts#L360-L363) |\n| coding_workflow/generic | Bound transient retries | pass | 7/7 | Remote registry loading has a bounded timeout and byte cap, then falls back without unbounded retries; timeout/fallback is covered. [fetch bounds](https://github.com/self-evolving/repo/blob/2836dfdd9bede987a8c9085d17c50a6081ca144f/.github/actions/resolve-agent-provider/resolve-provider.js#L195-L225), [timeout test](https://github.com/self-evolving/repo/blob/2836dfdd9bede987a8c9085d17c50a6081ca144f/.agent/src/__tests__/resolve-agent-provider.test.ts#L266-L281) |\n| coding_workflow/generic | Keep docs in sync | pass | 7/7 | Configuration, self-hosted runner, internal action, and supported workflow docs describe bundled defaults, default registry fetch, fallback, source output, and policy precedence. [configuration docs](https://github.com/self-evolving/repo/blob/2836dfdd9bede987a8c9085d17c50a6081ca144f/.agent/docs/customization/configuration-list.md#L41-L67), [workflow docs](https://github.com/self-evolving/repo/blob/2836dfdd9bede987a8c9085d17c50a6081ca144f/.agent/docs/usage/supported-workflows.md#L202-L202) |\n| communication/generic | Write audience-first documentation | pass | 7/7 | Docs explain the operator-facing behavior and customization path directly: bundled defaults, registry fallback, `AGENT_MODEL_POLICY`, and inline escape hatch. [configuration docs](https://github.com/self-evolving/repo/blob/2836dfdd9bede987a8c9085d17c50a6081ca144f/.agent/docs/customization/configuration-list.md#L48-L67), [self-hosted note](https://github.com/self-evolving/repo/blob/2836dfdd9bede987a8c9085d17c50a6081ca144f/.agent/docs/setup/self-hosted-github-action-runner.md#L24-L26) |\n| coding_workflow/generic | Make surgical changes | pass | 8/8 | The diff is scoped to the provider resolver/action metadata, bundled defaults file, relevant docs, and focused tests; it avoids unrelated workflow or route refactors. [changed files](https://github.com/self-evolving/repo/pull/393/files) |\n\n## Notes\n\n- The PR matches the requested clean layer from #392 and the superseded #386 discussion: default Sepo registry, bundled deterministic fallback, no public `AGENT_MODEL_REGISTRY*` knobs, and preserved repo-local policy precedence.\n- Local verification performed on PR head `2836dfdd9bede987a8c9085d17c50a6081ca144f`: `npm run build`, focused `node --test dist/__tests__/resolve-agent-provider.test.js dist/__tests__/envelope.test.js dist/__tests__/docs-validation.test.js`, and `git diff --check main..origin/pr-393` all passed.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific blocking findings. The implementation satisfies the selected clean/simple layering rubrics with focused code, strict validation, bounded fallback behavior, docs, and tests.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-1`",
+      "createdAt": "2026-06-02T20:27:15Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/393#issuecomment-4606737742",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEpZaVA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 2836dfdd9bede987a8c9085d17c50a6081ca144f -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #393 implements issue #392 by reintroducing layered model defaults on top of the current provider resolver.\n- It adds bundled defaults in `.agent/model-defaults.json`, checks the Sepo-owned remote registry by default, and falls back deterministically when the remote fetch or validation fails.\n- It preserves the intended precedence of bundled defaults, valid remote defaults, `AGENT_MODEL_POLICY`, and inline workflow escape hatches.\n- It also exposes `model_source`, updates docs, and adds focused resolver/workflow contract tests for remote success, fallback, policy precedence, reviewer lanes, and normalized Codex GPT-5 IDs.\n\n## Review\n- No BLOCKING issue is supported by the current review artifacts or PR state. The main implementation matches #392, and two reviewer lanes reported the PR as shippable, while one reviewer raised non-blocking cleanup concerns around keeping the layer minimal and robust.\n- The only direct inline action taken was one new comment on `.agent/model-defaults.json` line 15 for the inert `min_cli_version` field.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Unenforced `min_cli_version` metadata | WARNING | The registry parser validates `min_cli_version`, and the bundled manifest ships it, but the resolver never consumes it. A remote model bump could still select a Claude model requiring a newer CLI and fail later at invocation. |\n| Test-only registry override is read in production path | WARNING | `resolveModelDefaults()` reads `SEPO_TEST_MODEL_DEFAULTS_URL` and timeout env vars directly from runtime env. `action.yml` does not forward them, so normal workflow impact is limited, but ambient self-hosted runner env can still influence the fetch path. |\n| Bundled defaults are a hard file dependency | WARNING | The resolver now reads `.agent/model-defaults.json` before the remote fallback try/catch. A missing or malformed bundled file fails provider resolution instead of falling back to the previous tiny in-code defaults. |\n\n## Progress\n- Existing PR discussion asked for a clean/simple implementation; rubrics review passed that criterion and found no required follow-up.\n- Codex review verified build, focused tests, and `git diff --check`, and returned `SHIP`.\n- Claude review agreed the design matches #392 but flagged the three cleanup concerns above as non-blocking.\n- Existing inline comments and review threads were empty before mutation; I posted one inline comment on `.agent/model-defaults.json` line 15 and did not resolve, minimize, or reply to any existing thread.\n\n## Issue Details\n\n<details>\n<summary>Unenforced `min_cli_version` metadata</summary>\n\n**Cause:** `.agent/model-defaults.json` includes `claude.min_cli_version`, and `parseModelDefaultsRegistry()` validates that field, but the resolver only returns model defaults and source labels.\n\n**Candidate solutions:** Either remove `min_cli_version` from the schema/manifest/docs to keep the registry minimal, or enforce it before selecting a remote Claude default.\n\n**Comments:** This is the clearest line-specific cleanup concern, so I posted an inline comment on the field.\n</details>\n\n<details>\n<summary>Test-only registry override is read in production path</summary>\n\n**Cause:** The resolver reads `SEPO_TEST_MODEL_DEFAULTS_URL` and `SEPO_TEST_MODEL_DEFAULTS_TIMEOUT_MS` from `process.env` inside the production resolver path.\n\n**Candidate solutions:** Gate these variables behind an explicit test mode, rename/document them as internal resolver seams, or restrict override behavior more tightly.\n\n**Comments:** Blast radius is limited because `action.yml` does not pass these env vars and registry payloads are strictly validated, so this is not blocking.\n</details>\n\n<details>\n<summary>Bundled defaults are a hard file dependency</summary>\n\n**Cause:** `loadBundledModelDefaults()` runs before the remote registry try/catch, so a missing or invalid bundled JSON file rejects the resolver.\n\n**Candidate solutions:** Keep a tiny last-resort in-code fallback for the two built-in defaults, or make the failure diagnostic explicit and accept the atomic `.agent`/`.github` update assumption.\n\n**Comments:** Fresh install/update paths should ship the resolver and JSON together, which makes this unlikely but not impossible.\n</details>\n\n## Recommended Next Step\nHUMAN_DECISION: the remaining concerns are cleanup and robustness tradeoffs where reviewers disagree on whether the clean-layer bar requires more branch changes before merge.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Maintainer decide whether to require cleanup for the three WARNING items before merge; no automated branch-change action is required unless that decision is yes.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-3`",
+      "createdAt": "2026-06-02T20:37:07Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/393#issuecomment-4606810708",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEppCFA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer I think we should remove the min cli version and also check if there are other parts that can be somewhat simplified? ",
+      "createdAt": "2026-06-02T21:14:08Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/393#issuecomment-4607066644",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEpp48w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "The main simplification is clear: `min_cli_version` is parsed and validated but never used to select or block a model. I’m narrowing the final recommendation to changes that reduce surface area without weakening #392’s acceptance criteria.Yes, I agree with removing `min_cli_version`.\n\nIt is currently present in the bundled manifest at [` .agent/model-defaults.json#L15`](https://github.com/self-evolving/repo/blob/2836dfdd9bede987a8c9085d17c50a6081ca144f/.agent/model-defaults.json#L15), and the resolver accepts/validates it at [`resolve-provider.js#L167-L180`](https://github.com/self-evolving/repo/blob/2836dfdd9bede987a8c9085d17c50a6081ca144f/.github/actions/resolve-agent-provider/resolve-provider.js#L167-L180), but nothing later consumes it. Keeping it creates an unenforced registry contract, which is worse than leaving CLI compatibility as an operator/docs concern.\n\nI would simplify this PR as:\n\n1. Remove `min_cli_version` from `.agent/model-defaults.json`.\n2. Remove `min_cli_version` from the resolver schema and validation.\n3. Also consider removing provider-level `source_url` / `verified_at` support from the resolver unless we need it now; top-level registry metadata already covers the current use.\n4. Keep `model_source`; #392 explicitly asks for source visibility, and it is useful for debugging bundled vs remote vs policy resolution.\n5. Keep the bundled file dependency rather than adding an in-code fallback, since duplicating the defaults would make the layer less clean.\n\nSuggested implementation pass: trim the schema/manifest first, update the focused resolver tests, then rerun `cd .agent && npm run build` plus the resolver/envelope/docs tests.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-1`",
+      "createdAt": "2026-06-02T21:16:21Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/393#issuecomment-4607080691",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-06-02T19:10:59Z",
+  "files": [
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 3,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/setup/self-hosted-github-action-runner.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/internal-actions.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/supported-workflows.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/model-defaults.json",
+      "additions": 18,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 10,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/resolve-agent-provider.test.ts",
+      "additions": 238,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/resolve-agent-provider/action.yml",
+      "additions": 3,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/resolve-agent-provider/resolve-provider.js",
+      "additions": 213,
+      "deletions": 18,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-392/codex-26841635010",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 393,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABBw_Dfw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-06-02T20:36:16Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "2836dfdd9bede987a8c9085d17c50a6081ca144f"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Add layered model defaults registry",
+  "updatedAt": "2026-06-02T21:16:21Z",
+  "url": "https://github.com/self-evolving/repo/pull/393"
+}

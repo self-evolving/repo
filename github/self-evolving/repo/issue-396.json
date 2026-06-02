@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "For example, what if we just check the main branch and conduct some focused reviews? \n\n@sepo-agent ",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEpkoIw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, this is feasible, but it is not just a one-line router change. Today `/review` is intentionally PR-only:\n\n- Dispatch prompt says `review` is only valid for `pull_request`: https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-dispatch.md#L10-L17\n- `applyDispatchPolicy` rejects review requests unless `targetKind === \"pull_request\"`: https://github.com/self-evolving/repo/blob/main/.agent/src/triage.ts#L446-L457\n- `agent-router.yml` only calls `agent-review.yml` when the target is a PR: https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L1116-L1132\n- `agent-review.yml` requires `pr_number` and passes `target_kind: pull_request` into reviewer and synthesis runs: https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-review.yml#L3-L42 and https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-review.yml#L220-L225\n- The review prompt is diff-centered and tells reviewers to use `gh pr diff`: https://github.com/self-evolving/repo/blob/main/.github/prompts/review.md#L3-L12\n\nI’d implement this as an **issue-scoped focused review mode** under the existing `review` route, keeping PR review behavior unchanged.\n\nPlan:\n\n1. Allow `review` on `issue` and `pull_request` in `.agent/src/triage.ts`; still reject discussions/other targets. Update triage tests that currently assert review-on-issue is unsupported.\n\n2. Update `.github/workflows/agent-router.yml` so the review job can dispatch for issue targets too, passing `target_kind` and `target_number` instead of only `pr_number`.\n\n3. Refactor `.github/workflows/agent-review.yml` to accept:\n   - `target_kind`\n   - `target_number`\n   - legacy `pr_number` for workflow_dispatch compatibility\n\n   For PRs, preserve the current path: capture PR head, run PR diff review, rubrics review, synthesis, PR comment.\n\n   For issues, use the default branch checkout as the review subject, skip PR-head capture, skip inline PR comment management, and post the synthesis back to the issue.\n\n4. Add or generalize prompts:\n   - PR mode keeps using `gh pr view` / `gh pr diff`.\n   - Issue mode reads the issue body/comments, checks out the default branch, derives a focused scope from the request, and reviews only that scope. If the issue does not contain enough scope, the review should say so instead of attempting a whole-repo audit.\n\n5. Adjust synthesis so issue-mode review produces an issue-friendly summary and action items, with no PR inline-comment instructions.\n\n6. Update docs in `README.md` and `.agent/docs/usage/supported-workflows.md` to say `/review` works on PRs for diff review and issues for focused default-branch review.\n\n7. Add tests around:\n   - explicit `@sepo-agent /review` on issue dispatches review\n   - `agent/review` label on issue dispatches review\n   - PR review route remains unchanged\n   - issue review posts to issue comments and does not try PR-only inline operations\n\nRecommended default behavior: issue `/review` should require or infer a focused scope from the issue/request. It should not silently do a whole-main-branch review unless the user explicitly asks for a broad audit.\n\nApprove this direction and I can implement it.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-1`",
+      "createdAt": "2026-06-02T21:03:21Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/396#issuecomment-4606994467",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-06-02T21:00:19Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 396,
+  "state": "OPEN",
+  "title": "Allow review routes run on issues",
+  "updatedAt": "2026-06-02T21:03:21Z",
+  "url": "https://github.com/self-evolving/repo/issues/396"
+}

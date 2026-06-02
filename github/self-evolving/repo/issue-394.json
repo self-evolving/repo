@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "@sepo-agent /answer check how it is done today and find the proper ways to improve it. also check our rubrics and see what are the general principles we should aim for for implementing this feature. ",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEpXGxw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I checked issue #394. There is no parent/tracking issue or linked discussion in the issue body/comments, so I treated this as a focused design request.\n\nToday rubrics retrieval works like this:\n\n- `run-agent-task` resolves rubric policy, clones `agent/rubrics`, then calls `rubrics/select.js` before running the agent: [`.github/actions/run-agent-task/action.yml`](https://github.com/self-evolving/repo/blob/main/.github/actions/run-agent-task/action.yml#L291-L337).\n- The selector loads YAML rubrics from `rubrics/**/*.yaml`, validates them, filters by route/domain/status, ranks by severity + weight + request-text token matches, and renders markdown: [`.agent/src/rubrics.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/rubrics.ts#L254-L383).\n- The rendered shortlist is injected through `.github/prompts/_rubrics.md`: [`.github/prompts/_rubrics.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/_rubrics.md#L1-L17), and `run.ts` prepends that prompt fragment when rubrics are available: [`.agent/src/run.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/run.ts#L194-L216).\n- Docs describe this as intentionally simple prompt-time retrieval: route filter, answer communication filter, rank by severity/weight/token matches, inject top N: [`.agent/docs/architecture/rubrics.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/rubrics.md#L62-L80).\n- Tests already cover route filtering, `fix-pr` inheriting `implement`, `rubrics-review --all-routes`, answer-domain filtering, and best-effort validation: [`.agent/src/__tests__/rubrics.test.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/rubrics.test.ts#L162-L353).\n\nThe main weakness I see is that retrieval is too shallow and sometimes over-filtered. It only searches the raw request text, so terse slash commands or broad planning questions can miss relevant preferences. Also, answer runs are hard-filtered to `communication`, which is why this `/answer` run selected only `implicit-followups-prefer-silence`; it did not select `read-docs-first`, even though that rubric explicitly applies to `answer`, because its domain is `coding_workflow`.\n\nRecommended direction:\n\n1. Keep the existing typed selector in `.agent/src/rubrics.ts`; do not move retrieval logic into workflow shell.\n2. Replace the answer hard-domain filter with a softer preference: communication rubrics should rank higher for answers, but route-applicable non-communication answer rubrics should still be eligible.\n3. Add richer query context to selection. At minimum, pass route, target kind, request source, request text, and target title/body where available. For PR review/fix routes, include PR title/body/file paths/review summaries if already fetched by existing context helpers.\n4. Improve ranking inside `selectRubrics`, not by adding a new AI retrieval pass first. A simple scoring model should be enough: route match, domain preference, severity, weight, exact phrase/title/id matches, token matches, and possibly source/provenance matches with lower weight.\n5. Make selection explainable. Keep `matchedTerms`, but add enough metadata to understand why a rubric was selected, especially when severity/weight rather than query terms drove it.\n6. Keep reads best-effort and writes strict, matching current docs and policy.\n7. Update rubrics architecture docs and tests in the same PR.\n\nGeneral principles from the current active rubrics that should guide implementation:\n\n- Reuse existing code and keep workflow glue thin.\n- Prefer a simple implementation over a new retrieval subsystem.\n- Make surgical changes only around selector/query construction/prompt docs/tests.\n- Keep docs in sync with runtime behavior.\n- Prefer explicit structured inputs over parsing packed strings.\n- Keep privileged lifecycle routes out of rubric steering.\n- Treat rubrics as normative user/team preferences, not memory or generic context.\n\nConcrete execution plan, pending approval:\n\n1. Add tests showing the current miss: an `answer` route with a non-communication rubric that explicitly applies to `answer` should still be retrievable.\n2. Extend `RubricSearchOptions` with lightweight scoring preferences rather than new global config.\n3. Change `run-agent-task` so answer no longer passes `--domains communication`; instead pass route/context normally and let selector rank communication higher for answers.\n4. Add optional selector inputs for richer request context, starting with already-available workflow/action fields.\n5. Update `formatRubricsForPrompt` if needed to show selection reasons clearly.\n6. Update [rubrics architecture docs](https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/rubrics.md) to describe the new retrieval behavior.\n7. Run the focused `.agent` tests for rubrics and envelope behavior.\n\nNo blocker questions from me. I’d implement this as a small selector-focused PR rather than a semantic-search or model-based retrieval feature.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-1`",
+      "createdAt": "2026-06-02T20:31:55Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/394#issuecomment-4606772935",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-06-02T20:29:13Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 394,
+  "state": "OPEN",
+  "title": "Improve the rubrics retrieval",
+  "updatedAt": "2026-06-02T20:31:55Z",
+  "url": "https://github.com/self-evolving/repo/issues/394"
+}
