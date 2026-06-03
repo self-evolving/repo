@@ -22,6 +22,80 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/396#issuecomment-4606994467",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEpuASQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "but for the review route in issues, can you make sure the user inline message is included such that it will have a clear goal for what to review for? ",
+      "createdAt": "2026-06-02T21:26:16Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/396#issuecomment-4607148105",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEpxqSw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Implemented. Issue `/review` now carries the triggering inline message through as `request_text` plus source/comment metadata, and the review/synthesis prompts explicitly treat that text as the focused review goal for default-branch issue reviews.\n\nAlso updated routing so `review` is valid on issues and PRs, made `agent-review.yml` target-aware, posts issue review synthesis back to the issue, skips PR-only rubrics/head/inline behavior for issue targets, and updated docs/tests.\n\nVerification:\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/triage.test.js .agent/dist/__tests__/envelope.test.js`\n- `env -u GITHUB_OUTPUT npm --prefix .agent test` → 715 passed\n\n---\n`codex` | `gpt-5.5` | `high` | `Macmini-runner-5`",
+      "createdAt": "2026-06-02T21:36:19Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/396#issuecomment-4607208011",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEp6MNg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer\n\nPlease investigate an inconsistency in the answer-route footer / template metadata. I expected these two Sepo answers to use the same answer template and display model metadata consistently:\n\n- #396 initial issue mention answer: https://github.com/self-evolving/repo/issues/396#issuecomment-4606994467\n  - run: https://github.com/self-evolving/repo/actions/runs/26847747552\n  - footer: `codex` | `gpt-5.5/xhigh` | `Macmini-runner-1`\n- #395 implicit follow-up answer: https://github.com/self-evolving/repo/issues/395#issuecomment-4606983913\n  - run: https://github.com/self-evolving/repo/actions/runs/26847712984\n  - footer: `codex` | `gpt-5.5` | `high` | `Macmini-runner-5`\n\nQuestions:\n\n1. Are both actually using `.github/prompts/agent-answer.md`, or does the implicit follow-up path use a different answer template/context?\n2. Why does one footer encode reasoning in the model (`gpt-5.5/xhigh`) while the other shows model and reasoning separately (`gpt-5.5` | `high`)?\n3. Is this due to fresh vs resumed sessions, the `followup-intent` gate, or inconsistent reasoning-effort defaults between dispatch/answer paths?\n4. If it is just display metadata, please propose how to normalize it so answer-route comments show the same footer shape across explicit and implicit follow-up runs.\n\nNo implementation needed yet; first please investigate and explain the root cause / recommended fix.\n",
+      "createdAt": "2026-06-02T22:00:20Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/396#issuecomment-4607347766",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEp7awA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Context compacted\nI checked the current workflow/code and the two run records. Both runs were on the same SHA (`7ef46d3...`) and both final posted comments went through the `agent / answer` job with `prompt: answer`, which maps to `.github/prompts/agent-answer.md`.\n\nThe implicit follow-up path does add one extra portal step first: `followup-intent`. That uses the follow-up intent prompt as a gate to decide `respond` vs `ignore`, but it is not the posted answer template.\n\nThe footer mismatch looks like display metadata, not template selection.\n\nCurrent behavior:\n\n- The final answer job uses `reasoning_effort: provider_output || 'high'`.\n- `run.ts` prefers the ACP/Codex session-reported model over the requested model when building the footer.\n- Codex GPT-5 reasoning can be encoded into the effective model ID, for example `gpt-5.5/xhigh`.\n- If the reported model already contains `/high` or `/xhigh`, the footer suppresses the separate reasoning column.\n\nSo these two shapes can come from the same answer route:\n\n```text\nreported model: gpt-5.5/xhigh\nfooter: codex | gpt-5.5/xhigh | Macmini-runner-1\n\nreported model: gpt-5.5\nreasoning env: high\nfooter: codex | gpt-5.5 | high | Macmini-runner-5\n```\n\nThat means the inconsistency is not caused by `.github/prompts/agent-answer.md` vs another answer template. It also is not directly caused by the `followup-intent` gate, because the final answer job reruns the answer provider and answer prompt afterward.\n\nThe likely root cause is that the footer currently mixes two metadata representations: sometimes reasoning is encoded in the Codex model string, and sometimes it is displayed from `MODEL_REASONING_EFFORT`. Resumed answer sessions can make this more visible because the display trusts the session-reported model, but the bug is the footer normalization, not the existence of resumed sessions itself.\n\nRecommended fix:\n\n1. Normalize Codex model display before rendering the footer.\n2. Parse effective model IDs like `gpt-5.5/xhigh` into:\n   - model: `gpt-5.5`\n   - reasoning: `xhigh`\n3. Render one canonical answer footer shape for all answer-route comments.\n\nI’d recommend the canonical shape remain:\n\n```text\ncodex | gpt-5.5 | xhigh | runner\n```\n\nrather than:\n\n```text\ncodex | gpt-5.5/xhigh | runner\n```\n\nbecause existing footer semantics already appear to be provider, model, reasoning, runner.\n\nImplementation-wise, the clean change would be to update the model/footer helper so it decomposes Codex reasoning suffixes instead of only suppressing the reasoning column. Then add tests for:\n\n- `gpt-5.5/xhigh` renders as `codex | gpt-5.5 | xhigh | runner`\n- `gpt-5.5` plus `MODEL_REASONING_EFFORT=high` renders as `codex | gpt-5.5 | high | runner`\n- non-Codex providers keep their current behavior.\n\n---\n`codex` | `gpt-5.5` | `high` | `Macmini-runner-3`",
+      "createdAt": "2026-06-02T22:03:52Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/396#issuecomment-4607367872",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-06-02T21:00:19Z",
@@ -36,6 +110,6 @@
   "number": 396,
   "state": "OPEN",
   "title": "Allow review routes run on issues",
-  "updatedAt": "2026-06-02T21:03:21Z",
+  "updatedAt": "2026-06-02T22:03:52Z",
   "url": "https://github.com/self-evolving/repo/issues/396"
 }

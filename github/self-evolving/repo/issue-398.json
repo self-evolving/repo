@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "In #348 and follow up prs we allow responding to implicit messages. \n\nHow does work for users without accesses?\n\n@sepo-agent ",
+  "closedAt": "2026-06-02T23:38:29Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEpxPrw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Short version: implicit auto-response does **not** bypass user access.\n\nFlow for an unmentioned follow-up:\n\n1. The broad entrypoint may wake on a non-bot `created` issue/PR comment or submitted PR review if the target already has the fixed `agent` label: [agent-entrypoint.yml](https://github.com/self-evolving/repo/blob/7ef46d3c6be1e5fa3520df760a3b0dee705943df/.github/workflows/agent-entrypoint.yml#L48-L80).\n2. The router marks it as `implicit_followup=true`, then preauthorizes the `answer` route using the commenter’s `author_association` plus `AGENT_ACCESS_POLICY`: [agent-router.yml](https://github.com/self-evolving/repo/blob/7ef46d3c6be1e5fa3520df760a3b0dee705943df/.github/workflows/agent-router.yml#L249-L262).\n3. Only if that preauth resolves to `answer` does Sepo resolve the follow-up provider and run the intent gate: [agent-router.yml](https://github.com/self-evolving/repo/blob/7ef46d3c6be1e5fa3520df760a3b0dee705943df/.github/workflows/agent-router.yml#L279-L285), [agent-router.yml](https://github.com/self-evolving/repo/blob/7ef46d3c6be1e5fa3520df760a3b0dee705943df/.github/workflows/agent-router.yml#L350-L354).\n4. The intent gate can only produce `respond` or `ignore`; `respond` is forced through `answer`, and denied `answer` maps back to no route: [resolve-dispatch.ts](https://github.com/self-evolving/repo/blob/7ef46d3c6be1e5fa3520df760a3b0dee705943df/.agent/src/cli/resolve-dispatch.ts#L151-L190).\n\nSo for users without allowed access: the workflow may start from the cheap label/event prefilter, but the implicit path is dropped silently before the follow-up intent model runs and before any answer is posted.\n\nDefault allowed associations are `OWNER`, `MEMBER`, `COLLABORATOR`, and `CONTRIBUTOR` for both public and private repos: [access-policy.md](https://github.com/self-evolving/repo/blob/7ef46d3c6be1e5fa3520df760a3b0dee705943df/.agent/docs/customization/access-policy.md#L75-L80). So a prior contributor without repo write access can still trigger `answer` by default. If we want stricter public behavior, set `AGENT_ACCESS_POLICY`, for example:\n\n```json\n{\"allowed_associations\":[\"OWNER\",\"MEMBER\",\"COLLABORATOR\"]}\n```\n\nDocs currently state the same behavior: unmentioned implicit follow-ups are answer-only and are dropped silently when `answer` is not authorized: [supported-workflows.md](https://github.com/self-evolving/repo/blob/7ef46d3c6be1e5fa3520df760a3b0dee705943df/.agent/docs/usage/supported-workflows.md#L210-L224).\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-6`",
+      "createdAt": "2026-06-02T21:35:13Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/398#issuecomment-4607201199",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-06-02T21:32:12Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 398,
+  "state": "CLOSED",
+  "title": "How does automatic response work with user accesses?",
+  "updatedAt": "2026-06-02T23:38:29Z",
+  "url": "https://github.com/self-evolving/repo/issues/398"
+}

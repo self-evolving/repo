@@ -96,6 +96,101 @@
       ],
       "url": "https://github.com/self-evolving/repo/issues/395#issuecomment-4607127882",
       "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEptdlg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I think the “external webpage” part is GitHub Mobile’s handling of YAML issue forms, not something we configured.\n\nIn this repo, both current templates are YAML issue forms: [`agent-goal.yml`](https://github.com/self-evolving/repo/blob/main/.github/ISSUE_TEMPLATE/agent-goal.yml) and [`install-sepo.yml`](https://github.com/self-evolving/repo/blob/main/.github/ISSUE_TEMPLATE/install-sepo.yml). There is no `config.yml` with `contact_links`, so we are not intentionally sending people to an external page. GitHub documents issue forms as web-style form templates, and its issue URL query support is the better escape hatch for simple mobile flows: https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/creating-an-issue#creating-an-issue-from-a-url-query\n\nMy recommendation: keep the YAML templates, but add “quick links” for mobile that open a prefilled issue composer directly.\n\nFor ask:\n\n```text\nhttps://github.com/self-evolving/repo/issues/new?title=Ask%20Sepo%3A%20&body=%40sepo-agent%20%2Fanswer%0A%0A\n```\n\nFor install:\n\n```text\nhttps://github.com/self-evolving/repo/issues/new?title=Install%20Sepo%20into%20target%20repository&body=%40sepo-agent%20%2Finstall%0A%0ATarget%20repository%3A%20https%3A%2F%2Fgithub.com%2Fowner%2Frepo%0A%0ANotes%3A%20\n```\n\nI’d put those in `README.md` and the setup docs next to the existing `?template=install-sepo.yml` link. That gives desktop users the structured form, while mobile users get a lower-friction “open composer with the Sepo command already inserted” path.\n\n---\n`codex` | `gpt-5.5` | `high` | `Macmini-runner-3`",
+      "createdAt": "2026-06-02T21:24:46Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/395#issuecomment-4607139222",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEpwhEw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> I checked the template difference. The practical distinction is:\n> \n> * **Markdown issue templates** (`.md`) open the normal GitHub issue composer with prefilled text. They are simple, easy to edit, work well with direct prefilled issue URLs, and tend to be more mobile-friendly.\n> * **YAML issue forms** (`.yml`) open GitHub's structured form UI. They support required fields, typed inputs, dropdowns, and validation, but they are more like a web form and GitHub Mobile may route users through a browser/web flow.\n> \n> For the current Sepo templates, I think the simple ones should probably be Markdown by default. If a template is mostly just inserting a Sepo command plus one or two text fields, YAML is adding complexity without much benefit.\n> \n> Suggested direction:\n> \n> 1. **Ask Sepo** should be Markdown:\n>    \n>    * prefill `@sepo-agent /answer`\n>    * include a simple `Question` section\n>    * label with `agent`\n> 2. **Install Sepo** could also be Markdown:\n>    \n>    * prefill `@sepo-agent /install`\n>    * include a `Target public repository URL` section\n>    * include optional notes\n>    * Sepo can ask for missing info if the user leaves something out\n> 3. **Agent goal** is the only one where YAML may still be worth keeping, because it has multiple structured planning fields and required success criteria. But even that could be converted to Markdown if mobile simplicity matters more than field validation.\n> \n> So the rule of thumb I would use is:\n> \n> > Use Markdown templates for simple Sepo command issues. Use YAML issue forms only when we truly need required fields or structured validation.\n\nWe should simplify based on this ?",
+      "createdAt": "2026-06-02T21:33:09Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/395#issuecomment-4607189267",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEpxPsQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes. I’d simplify, with one caveat: keep `agent-goal` as YAML for now.\n\nCurrent state:\n- [`install-sepo.yml`](https://github.com/self-evolving/repo/blob/main/.github/ISSUE_TEMPLATE/install-sepo.yml) is a simple command-plus-two-fields form.\n- [`agent-goal.yml`](https://github.com/self-evolving/repo/blob/main/.github/ISSUE_TEMPLATE/agent-goal.yml) is genuinely structured: goal, why, success criteria, strategy, subgoals, related work.\n- Existing docs link directly to `?template=install-sepo.yml` in [`README.md`](https://github.com/self-evolving/repo/blob/main/README.md), [`docs index`](https://github.com/self-evolving/repo/blob/main/.agent/docs/index.md), and [`install-existing-repository.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/setup/install-existing-repository.md).\n- Tests currently assert the install YAML form in [`envelope.test.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/envelope.test.ts).\n\nRecommended implementation:\n\n1. Add `.github/ISSUE_TEMPLATE/ask-sepo.md` with Markdown front matter:\n   - `name: Ask Sepo`\n   - `about: Ask Sepo a question about this repository`\n   - `title: \"Ask Sepo: \"`\n   - `labels: agent`\n   - body starts with `@sepo-agent /answer`, then a `## Question` section.\n\n2. Convert `.github/ISSUE_TEMPLATE/install-sepo.yml` to `.github/ISSUE_TEMPLATE/install-sepo.md`:\n   - same title and `agent` label\n   - body starts with `@sepo-agent /install`\n   - include `## Target public repository URL` and `## Notes`.\n\n3. Keep `.github/ISSUE_TEMPLATE/agent-goal.yml` unchanged unless we decide mobile simplicity matters more than required planning fields.\n\n4. Update links from `?template=install-sepo.yml` to `?template=install-sepo.md`.\n\n5. Update `envelope.test.ts` so it checks the Markdown template front matter/body instead of parsing the install YAML form, and add a matching assertion for `ask-sepo.md`.\n\nThis matches GitHub’s template model: Markdown templates can still set default title and labels via YAML front matter, while YAML issue forms are better reserved for structured web-form validation. GitHub’s docs also note issue forms use customizable web form fields, which is exactly the piece creating friction on mobile: https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/configuring-issue-templates-for-your-repository\n\nI’d approve this direction.\n\n---\n`codex` | `gpt-5.5` | `high` | `Macmini-runner-4`",
+      "createdAt": "2026-06-02T21:35:13Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/395#issuecomment-4607201201",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEqX0nw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Yes. I’d simplify, with one caveat: keep `agent-goal` as YAML for now.\n> \n> Current state:\n> \n> * [`install-sepo.yml`](https://github.com/self-evolving/repo/blob/main/.github/ISSUE_TEMPLATE/install-sepo.yml) is a simple command-plus-two-fields form.\n> * [`agent-goal.yml`](https://github.com/self-evolving/repo/blob/main/.github/ISSUE_TEMPLATE/agent-goal.yml) is genuinely structured: goal, why, success criteria, strategy, subgoals, related work.\n> * Existing docs link directly to `?template=install-sepo.yml` in [`README.md`](https://github.com/self-evolving/repo/blob/main/README.md), [`docs index`](https://github.com/self-evolving/repo/blob/main/.agent/docs/index.md), and [`install-existing-repository.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/setup/install-existing-repository.md).\n> * Tests currently assert the install YAML form in [`envelope.test.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/envelope.test.ts).\n> \n> Recommended implementation:\n> \n> 1. Add `.github/ISSUE_TEMPLATE/ask-sepo.md` with Markdown front matter:\n>    \n>    * `name: Ask Sepo`\n>    * `about: Ask Sepo a question about this repository`\n>    * `title: \"Ask Sepo: \"`\n>    * `labels: agent`\n>    * body starts with `@sepo-agent /answer`, then a `## Question` section.\n> 2. Convert `.github/ISSUE_TEMPLATE/install-sepo.yml` to `.github/ISSUE_TEMPLATE/install-sepo.md`:\n>    \n>    * same title and `agent` label\n>    * body starts with `@sepo-agent /install`\n>    * include `## Target public repository URL` and `## Notes`.\n> 3. Keep `.github/ISSUE_TEMPLATE/agent-goal.yml` unchanged unless we decide mobile simplicity matters more than required planning fields.\n> 4. Update links from `?template=install-sepo.yml` to `?template=install-sepo.md`.\n> 5. Update `envelope.test.ts` so it checks the Markdown template front matter/body instead of parsing the install YAML form, and add a matching assertion for `ask-sepo.md`.\n> \n> This matches GitHub’s template model: Markdown templates can still set default title and labels via YAML front matter, while YAML issue forms are better reserved for structured web-form validation. GitHub’s docs also note issue forms use customizable web form fields, which is exactly the piece creating friction on mobile: https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/configuring-issue-templates-for-your-repository\n> \n> I’d approve this direction.\n> \n> `codex` | `gpt-5.5` | `high` | `Macmini-runner-4`\n\n@sepo-agent /orchestrate ",
+      "createdAt": "2026-06-02T23:35:43Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/395#issuecomment-4607833247",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEqYNFw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo orchestration stopped after `orchestrate` concluded `requested`.\n\n- Source action: `orchestrate`\n- Source conclusion: `requested`\n- Target: `issue #395`\n- Round: `1/40`\n- Reason: agent planner decision missing or invalid\n- Source run ID: `26854407939`\n\nNo follow-up workflow was dispatched. Inspect the source action status comment and workflow logs before retrying or continuing manually.\n\n<!-- sepo-agent-orchestrate-stop -->",
+      "createdAt": "2026-06-02T23:37:12Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/395#issuecomment-4607839511",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-06-02T20:32:37Z",
@@ -110,6 +205,6 @@
   "number": 395,
   "state": "OPEN",
   "title": "Add an issue template called \"ask sepo\"",
-  "updatedAt": "2026-06-02T21:23:25Z",
+  "updatedAt": "2026-06-02T23:37:12Z",
   "url": "https://github.com/self-evolving/repo/issues/395"
 }

@@ -1,0 +1,243 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Move footer model display logic into a testable helper.\n- Split Codex GPT-5 `/reasoning` and `[reasoning]` suffixes into the reasoning footer column.\n- Preserve plain fallback model display and non-Codex behavior.\n\n## Tests\n- `npm run build`\n- `node --test dist/__tests__/model-display.test.js`\n\nCloses #399\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEqo1Wg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #400 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: Implementation succeeded and produced open PR #400 for issue #399; an automated review is the appropriate next action before any human decision or merge.\n\n<!-- sepo-agent-handoff state:dispatched created:1780447169331 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY4NTY0MTAzMDA6aW1wbGVtZW50OjM5OTpyZXZpZXc6NDAwOjM -->",
+      "createdAt": "2026-06-03T00:39:29Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/400#issuecomment-4608111962",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEqpwpg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 97 | PASS | 5 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR closes issue #399 and implements the exact approved plan from the investigation thread: split Codex GPT-5 encoded reasoning, let ACP-reported encoded reasoning win, keep fallback/non-Codex behavior. |\n| coding_workflow / generic | Reuse existing code | partial | 7/8 | `run.ts` now delegates footer/session-model display logic to `model-display.ts`, making the former inline helper testable. Minor drift risk: the new helper repeats Codex GPT-5 suffix/prefix concepts also present in `acpx-adapter.ts`. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is limited to one helper, one focused test file, and the `run.ts` import/call-site replacement. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation uses a small parser/normalizer in `.agent/src/model-display.ts` without adding workflow inputs, settings, or extra control flow. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Existing docs already describe the footer order as `provider | model | reasoning effort | runner`; this change aligns runtime output with that documented shape rather than adding a new public surface. |\n\n## Notes\n\n- Verified locally on the PR branch with `npm --prefix .agent run build` and `node --test dist/__tests__/model-display.test.js` from `.agent`; both passed.\n- The test coverage matches the requested cases: slash suffix, bracket suffix, resumed/no-session-model fallback, non-GPT-5 Codex, and non-Codex behavior.\n- Smallest useful follow-up: if Codex model encoding changes again, consider extracting the shared prefix/suffix recognition used by both display normalization and ACP model selection.\n\n## Findings\n\n- **INFO:** Under `reuse-existing-code`, the PR duplicates private Codex GPT-5 model suffix recognition already used in ACP model selection. This is acceptable for the current surgical change, but it is the only rubric-specific maintainability caveat.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-4`",
+      "createdAt": "2026-06-03T00:43:09Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/400#issuecomment-4608127142",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEqriEQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 34f677ffc8204fd8fe52c48ecccf52ec0696cda0 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #400 closes [issue #399](https://github.com/self-evolving/repo/issues/399), which investigated inconsistent answer-route footer metadata between fresh and resumed Codex runs.\n- The approved direction was to keep both answer paths on the same template while normalizing Codex GPT-5 encoded reasoning into a stable footer shape.\n- This PR extracts footer/session model display logic into `model-display.ts`, adds focused tests, and updates `run.ts` to call the helper.\n- The core GPT-5 normalization works in isolation, but the current head still breaks an existing test and has one display/runtime semantics mismatch for suffixed Codex model IDs.\n\n## Review\n- Overall, the implementation is small and aligned with the main issue plan, but it is not ready to ship because a current test failure is verified at PR head.\n- Reviewer outputs agree on the stale `envelope.test.ts` failure; there is a meaningful disagreement on whether non-GPT-5 Codex suffix behavior is in scope, so that is treated as a warning rather than a second blocker.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Stale envelope source guard breaks test suite | BLOCKING | The PR imports the new helper from `model-display.ts`, but `envelope.test.ts` still asserts the moved symbols exist in `run.ts`; verified `node --test dist/__tests__/envelope.test.js` fails 1/74 after build. |\n| Codex suffixed-model display diverges from adapter semantics | WARNING | `model-display.ts` only decomposes GPT-5 suffixes, while `resolveAcpxModelSelection` treats any suffixed Codex model as encoded and drops separate `thoughtLevel`, so non-GPT-5 suffixed Codex footers can show a reasoning value runtime ignored. |\n| Optional helper coverage gaps | INFO | New tests cover the requested footer cases, but they do not directly verify a valid session log model line, default-model rendering, or encoded model with empty env reasoning. |\n\n## Progress\n- Rubrics review passed and confirmed the diff is surgical.\n- Verified at PR head: `npm --prefix .agent run build` passed and `node --test dist/__tests__/model-display.test.js` passed.\n- Verified at PR head: `node --test dist/__tests__/envelope.test.js` failed on the stale source assertion.\n- Existing inline comments and review threads were empty before synthesis; posted inline comments on [`run.ts:63`](https://github.com/self-evolving/repo/pull/400#discussion_r3345301553) and [`model-display.ts:47`](https://github.com/self-evolving/repo/pull/400#discussion_r3345302323).\n- No comments were minimized, no replies were added, and no threads were resolved.\n\n## Issue Details\n<details>\n<summary>Stale envelope source guard breaks test suite</summary>\n\n**Cause:** [`envelope.test.ts`](https://github.com/self-evolving/repo/blob/34f677ffc8204fd8fe52c48ecccf52ec0696cda0/.agent/src/__tests__/envelope.test.ts#L1168-L1169) still checks `run.ts` for `CODEX_REASONING_MODEL_SUFFIX` and `displayReasoningEffort`, but this PR moved/replaced that display logic via [`run.ts:63`](https://github.com/self-evolving/repo/blob/34f677ffc8204fd8fe52c48ecccf52ec0696cda0/.agent/src/run.ts#L63).\n\n**Candidate solutions:** Update the guard to inspect the new helper contract in `model-display.ts`, or remove the brittle source-name assertions now that behavior is covered by focused tests. Rebuild and rerun the envelope test.\n\n**Comments:** Both code reviewers flagged this, and local verification reproduced the failure.\n\n</details>\n\n<details>\n<summary>Codex suffixed-model display diverges from adapter semantics</summary>\n\n**Cause:** [`model-display.ts`](https://github.com/self-evolving/repo/blob/34f677ffc8204fd8fe52c48ecccf52ec0696cda0/.agent/src/model-display.ts#L47-L52) only decomposes suffixed GPT-5 Codex models, but [`resolveAcpxModelSelection`](https://github.com/self-evolving/repo/blob/34f677ffc8204fd8fe52c48ecccf52ec0696cda0/.agent/src/acpx-adapter.ts#L246-L256) treats any suffixed Codex model as encoded and suppresses separate thought level.\n\n**Candidate solutions:** Share the suffix parsing semantics with the adapter, or preserve legacy suppression for non-GPT-5 suffixed Codex models instead of rendering the env reasoning effort separately. Update the current non-GPT-5 Codex test expectation if behavior changes.\n\n**Comments:** Claude/rubrics treated GPT-5 scope as acceptable; Codex flagged this as adapter drift. Because the old display path suppressed separate reasoning for any suffixed Codex model, the synthesis keeps this as a real warning.\n\n</details>\n\n<details>\n<summary>Optional helper coverage gaps</summary>\n\n**Cause:** The new tests focus on footer normalization paths, but `extractSessionModel` is only exercised through a fallback case.\n\n**Candidate solutions:** Add direct tests for a valid `session` log model, empty model rendering as `default model`, and an encoded model with empty env reasoning.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: The stale suite guard is a verified branch failure, and the Codex suffix display mismatch is a small code/test alignment fix suitable for automated follow-up.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Update `envelope.test.ts` for the `model-display.ts` helper refactor and verify `node --test dist/__tests__/envelope.test.js` passes after build.\n- [ ] Align Codex suffixed-model footer normalization with `resolveAcpxModelSelection` or legacy suppression, and update the non-GPT-5 Codex test expectation accordingly.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-5`",
+      "createdAt": "2026-06-03T00:50:33Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/400#issuecomment-4608156177",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEqrwqQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #400 | 4 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis verdict is NEEDS_REWORK with Recommended Next Step FIX_PR on open PR #400; the remaining items are concrete branch changes suitable for automated follow-up.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Update `envelope.test.ts` for the `model-display.ts` helper refactor and verify `node --test dist/__tests__/envelope.test.js` passes after build.\n- Align Codex suffixed-model footer normalization with `resolveAcpxModelSelection` or legacy suppression, and update the non-GPT-5 Codex test expectation accordingly.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1780447887726 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY4NTY1ODg0NTM6cmV2aWV3OjQwMDpmaXhfcHI6NDAwOjQ -->",
+      "createdAt": "2026-06-03T00:51:28Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/400#issuecomment-4608159913",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEqsafg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-399/codex-26856410300`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Updated `envelope.test.ts` to validate the moved `model-display.ts` helper contract instead of stale `run.ts` symbols.\n- Adjusted Codex suffixed-model footer normalization so non-GPT-5 suffixed Codex models suppress separate env reasoning, matching adapter semantics.\n- Verified with `npm --prefix .agent run build`, `node --test dist/__tests__/envelope.test.js`, and `node --test dist/__tests__/model-display.test.js`.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-1`",
+      "createdAt": "2026-06-03T00:54:10Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/400#issuecomment-4608170622",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEqslMg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #400 | 5 / 40 | Dispatched |\n\nReason: agent planner selected review: The fix-pr action reported success on open PR #400, so one automated review is warranted to verify the requested corrections before stopping or leaving the PR to a human.\n\n<!-- sepo-agent-handoff state:dispatched created:1780448093870 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY4NTY5ODc4MzQ6Zml4X3ByOjQwMDpyZXZpZXc6NDAwOjU -->",
+      "createdAt": "2026-06-03T00:54:54Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/400#issuecomment-4608173362",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEqtVSA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 97 | PASS | 5 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #400 closes issue #399 and implements the approved normalization plan: split Codex GPT-5 `/reasoning` and `[reasoning]` suffixes, prefer ACP-reported encoded reasoning for display, preserve fallback/non-Codex behavior. |\n| coding_workflow / generic | Reuse existing code | partial | 7/8 | [`run.ts`](https://github.com/self-evolving/repo/blob/1ca755094549b68a565fd98fa82e6cc27d93d230/.agent/src/run.ts#L580-L588) now delegates the existing footer logic to [`model-display.ts`](https://github.com/self-evolving/repo/blob/1ca755094549b68a565fd98fa82e6cc27d93d230/.agent/src/model-display.ts#L1-L78). Minor drift risk remains because Codex suffix parsing mirrors adapter semantics rather than sharing an exported parser. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is limited to `run.ts`, one new helper, one focused test file, and the envelope guard update; no workflow or unrelated refactor churn. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation is a small parser/normalizer with direct string trimming and suffix handling in [`model-display.ts`](https://github.com/self-evolving/repo/blob/1ca755094549b68a565fd98fa82e6cc27d93d230/.agent/src/model-display.ts#L8-L57). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Existing docs already define the footer order as `provider | model | reasoning effort | runner`, and this PR brings runtime output into that documented shape: [`configuration-list.md`](https://github.com/self-evolving/repo/blob/1ca755094549b68a565fd98fa82e6cc27d93d230/.agent/docs/customization/configuration-list.md#L15). |\n\n## Notes\n\n- Verified current PR head `1ca755094549b68a565fd98fa82e6cc27d93d230`.\n- Local verification passed: `npm --prefix .agent run build`, `node --test dist/__tests__/model-display.test.js`, and `node --test dist/__tests__/envelope.test.js`.\n- Focused tests cover slash suffix, bracket suffix, resumed/no-session-model fallback, non-GPT-5 Codex suffix suppression, and non-Codex behavior.\n- Smallest useful follow-up: consider sharing Codex suffix parsing with ACP model selection if this logic grows beyond display normalization.\n\n## Findings\n\n- **INFO:** Under `reuse-existing-code`, the PR still duplicates Codex suffix recognition concepts near adapter behavior. This is acceptable for the current surgical change, but it is the only rubric-specific maintainability caveat.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-5`",
+      "createdAt": "2026-06-03T00:57:49Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/400#issuecomment-4608185672",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEqvVUA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 1ca755094549b68a565fd98fa82e6cc27d93d230 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #400 closes [issue #399](https://github.com/self-evolving/repo/issues/399), which investigated inconsistent answer-route footer metadata between fresh and resumed Codex runs.\n- The approved plan was to keep the same answer template while normalizing Codex GPT-5 encoded reasoning into a stable footer shape.\n- The PR moves footer model display logic into `.agent/src/model-display.ts`, updates `run.ts` to delegate to it, and adds focused tests for encoded GPT-5, fallback, non-GPT-5 Codex suffixes, and non-Codex behavior.\n- Current head is `1ca755094549b68a565fd98fa82e6cc27d93d230`.\n\n## Review\n- The current reviewer artifacts agree that the prior blocking test failure and Codex suffix semantics warning are fixed.\n- Claude and rubrics note a deferrable INFO-level duplication risk around Codex suffix parsing; Codex reports no findings. No unresolved branch-change work remains.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | Current review artifacts and PR diff show the earlier blockers are resolved; remaining notes are optional follow-up, not required PR work. |\n\n## Progress\n- Current diff confirms `envelope.test.ts` now checks the `model-display.ts` helper contract.\n- Current diff confirms non-GPT-5 Codex suffixed models now suppress separate env reasoning, matching adapter semantics.\n- Reviewer artifacts report passing build, targeted tests, and full `.agent` suite coverage.\n- Resolved two existing same-agent inline threads: `.agent/src/run.ts:63` and `.agent/src/model-display.ts:52`.\n- No new inline comments were posted, no replies were added, and no comments were minimized.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved actionable branch changes remain; humans can decide draft or merge readiness outside this synthesis.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-6`",
+      "createdAt": "2026-06-03T01:06:12Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/400#issuecomment-4608218448",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEqvyLQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "Is the gpt5 prefix etc overly hacky? Is it a generic enough implementation ",
+      "createdAt": "2026-06-03T01:07:56Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/400#issuecomment-4608225837",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEqwehA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I would not call it overly hacky for this PR. It is provider-specific, but it is scoped to the provider behavior that already exists in ACPX model selection: Codex GPT-5 reasoning is encoded into model IDs like `gpt-5.5/xhigh`, while other providers keep reasoning separate.\n\nThe `gpt-5` prefix check is reasonable as a guard, not a generic abstraction. It prevents the display formatter from splitting arbitrary slash-looking model names while still handling the known Codex GPT-5 shape: [`model-display.ts#L1-L27`](https://github.com/self-evolving/repo/blob/1ca755094549b68a565fd98fa82e6cc27d93d230/.agent/src/model-display.ts#L1-L27). That lines up with the runtime adapter’s existing semantics: [`acpx-adapter.ts#L232-L275`](https://github.com/self-evolving/repo/blob/1ca755094549b68a565fd98fa82e6cc27d93d230/.agent/src/acpx-adapter.ts#L232-L275).\n\nSo my read is:\n\n- Generic enough at the display boundary: `buildModelDisplay` still takes `agent`, `model`, `reasoningEffort`, and `runnerName`, then normalizes only when needed: [`model-display.ts#L44-L78`](https://github.com/self-evolving/repo/blob/1ca755094549b68a565fd98fa82e6cc27d93d230/.agent/src/model-display.ts#L44-L78).\n- Intentionally not provider-generic inside the Codex branch. That is fine because this is not a universal model parser; it is formatting ACPX/Codex effective model metadata.\n- The one real maintainability caveat is duplicated Codex suffix knowledge between `acpx-adapter.ts` and `model-display.ts`. I would not block on that now, but if this grows, the right follow-up is to extract a shared `codex-model` helper for parse/compose semantics.\n\nThe tests cover the important anti-hacky cases: GPT-5 slash/bracket split, resumed fallback, non-GPT-5 Codex suffix suppression, and non-Codex passthrough: [`model-display.test.ts#L6-L59`](https://github.com/self-evolving/repo/blob/1ca755094549b68a565fd98fa82e6cc27d93d230/.agent/src/__tests__/model-display.test.ts#L6-L59). So I’d treat this as acceptable and surgical, with a small future refactor only if Codex model encoding keeps expanding.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-6`",
+      "createdAt": "2026-06-03T01:10:23Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/400#issuecomment-4608237188",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-06-03T00:38:30Z",
+  "files": [
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 4,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/model-display.test.ts",
+      "additions": 60,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/model-display.ts",
+      "additions": 78,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/run.ts",
+      "additions": 1,
+      "deletions": 53,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-399/codex-26856410300",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 400,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABByMjSA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-06-03T00:49:10Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "34f677ffc8204fd8fe52c48ecccf52ec0696cda0"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABByMl9A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-06-03T00:49:18Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "34f677ffc8204fd8fe52c48ecccf52ec0696cda0"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Normalize Codex GPT-5 answer footer metadata",
+  "updatedAt": "2026-06-03T01:10:23Z",
+  "url": "https://github.com/self-evolving/repo/pull/400"
+}

@@ -1,0 +1,99 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "@sepo-agent /answer\n\nPlease investigate an inconsistency in the answer-route footer / template metadata. I expected these two Sepo answers to use the same answer template and display model metadata consistently:\n\n- #396 initial issue mention answer: https://github.com/self-evolving/repo/issues/396#issuecomment-4606994467\n  - run: https://github.com/self-evolving/repo/actions/runs/26847747552\n  - footer: `codex` | `gpt-5.5/xhigh` | `Macmini-runner-1`\n- #395 implicit follow-up answer: https://github.com/self-evolving/repo/issues/395#issuecomment-4606983913\n  - run: https://github.com/self-evolving/repo/actions/runs/26847712984\n  - footer: `codex` | `gpt-5.5` | `high` | `Macmini-runner-5`\n\nQuestions:\n\n1. Are both actually using `.github/prompts/agent-answer.md`, or does the implicit follow-up path use a different answer template/context?\n2. Why does one footer encode reasoning in the model (`gpt-5.5/xhigh`) while the other shows model and reasoning separately (`gpt-5.5` | `high`)?\n3. Is this due to fresh vs resumed sessions, the `followup-intent` gate, or inconsistent reasoning-effort defaults between dispatch/answer paths?\n4. If it is just display metadata, please propose how to normalize it so answer-route comments show the same footer shape across explicit and implicit follow-up runs.\n\nNo implementation needed yet; first please investigate and explain the root cause / recommended fix.\n\nMoved out from https://github.com/self-evolving/repo/issues/396#issuecomment-4607347766 so #396 can stay focused on issue-scoped `/review` routing.\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEqkA9Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Investigated. This is a display-normalization issue, with resumed answer sessions making it show up.\n\n1. Both final comments used `.github/prompts/agent-answer.md`.\n\nThe referenced runs both entered the same final `agent / answer` job with:\n\n- `prompt: answer`\n- `route: answer`\n- `session_policy: resume-best-effort`\n\nIn the runtime, `answer` maps to `.github/prompts/agent-answer.md` here:\n\nhttps://github.com/self-evolving/repo/blob/main/.agent/src/run.ts#L125-L132\n\nThe implicit follow-up path does run an extra portal gate first:\n\nhttps://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L350-L386\n\nThat gate uses `prompt: followup-intent`, but only to decide `respond` vs `ignore`. The posted answer is still produced later by the normal answer job:\n\nhttps://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L537-L571\n\nSo: same final answer template, different pre-routing path.\n\n2. The footer differs because it mixes ACP-reported model metadata with workflow reasoning metadata.\n\nFooter construction does this:\n\n- extract model from the ACP session log if present\n- otherwise fall back to requested `MODEL_ID`\n- include `MODEL_REASONING_EFFORT` unless the model string already has a Codex reasoning suffix like `/xhigh`\n\nRelevant code:\n\nhttps://github.com/self-evolving/repo/blob/main/.agent/src/run.ts#L289-L320\n\nhttps://github.com/self-evolving/repo/blob/main/.agent/src/run.ts#L322-L340\n\nhttps://github.com/self-evolving/repo/blob/main/.agent/src/run.ts#L632-L640\n\nThe observed logs line up with that:\n\n- #396 was a fresh answer session. The session log reported `gpt-5.5/xhigh`, so the footer rendered `codex | gpt-5.5/xhigh | runner` and suppressed the separate reasoning column.\n- #395 was a resumed answer session. It found prior thread state for `issue-395-answer-default`, resumed that ACP session, and the compacted resumed log did not include a session model line. So Sepo fell back to requested `MODEL_ID=gpt-5.5`, then appended the workflow reasoning input `high`, yielding `codex | gpt-5.5 | high | runner`.\n\n3. Root cause: mostly resumed-vs-fresh display metadata, not `followup-intent`.\n\nThe `followup-intent` gate explains why #395 had an extra portal step, but it does not control the final answer footer.\n\nThere is a related default inconsistency:\n\n- dispatch and follow-up intent gate default to `medium`\n- final answer defaults to `high`\n\nBut for these two posted comments, the final answer job used `reasoning_effort: high` in both cases. The visible mismatch came from whether the final answer run had an ACP-reported effective model (`gpt-5.5/xhigh`) or fell back to requested model plus separate reasoning (`gpt-5.5` + `high`).\n\nOne extra oddity: #396’s workflow input was still `high`, but ACP reported `gpt-5.5/xhigh`. Sepo currently trusts the ACP-reported model for display, so it surfaces that effective runtime state without reconciling it against the workflow reasoning input.\n\n4. Recommended normalization.\n\nNormalize before rendering the footer. For Codex GPT-5 model IDs, parse reasoning suffixes instead of suppressing the reasoning column.\n\nCanonical footer shape should be:\n\n```text\n`codex` | `gpt-5.5` | `xhigh` | `runner`\n```\n\nnot sometimes:\n\n```text\n`codex` | `gpt-5.5/xhigh` | `runner`\n```\n\nImplementation plan when approved:\n\n1. Add a small helper near `buildModelDisplay` that decomposes Codex model IDs:\n   - `gpt-5.5/xhigh` -> model `gpt-5.5`, reasoning `xhigh`\n   - `gpt-5.5[high]` -> model `gpt-5.5`, reasoning `high`\n   - otherwise keep existing model and reasoning fields\n\n2. Let ACP-reported encoded reasoning override the separate env reasoning for display, because it reflects the actual effective session metadata.\n\n3. Keep non-Codex providers unchanged.\n\n4. Add focused tests for:\n   - encoded Codex model renders as four-part footer\n   - plain model plus reasoning renders as four-part footer\n   - resumed/no-session-model fallback remains stable\n   - non-Codex behavior is unchanged\n\nNo implementation done in this run.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-6`",
+      "createdAt": "2026-06-03T00:20:39Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/399#issuecomment-4608033013",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEqnFXw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Investigated. This is a display-normalization issue, with resumed answer sessions making it show up.\n> \n> 1. Both final comments used `.github/prompts/agent-answer.md`.\n> \n> The referenced runs both entered the same final `agent / answer` job with:\n> \n> - `prompt: answer`\n> - `route: answer`\n> - `session_policy: resume-best-effort`\n> \n> In the runtime, `answer` maps to `.github/prompts/agent-answer.md` here:\n> \n> https://github.com/self-evolving/repo/blob/main/.agent/src/run.ts#L125-L132\n> \n> The implicit follow-up path does run an extra portal gate first:\n> \n> https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L350-L386\n> \n> That gate uses `prompt: followup-intent`, but only to decide `respond` vs `ignore`. The posted answer is still produced later by the normal answer job:\n> \n> https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L537-L571\n> \n> So: same final answer template, different pre-routing path.\n> \n> 2. The footer differs because it mixes ACP-reported model metadata with workflow reasoning metadata.\n> \n> Footer construction does this:\n> \n> - extract model from the ACP session log if present\n> - otherwise fall back to requested `MODEL_ID`\n> - include `MODEL_REASONING_EFFORT` unless the model string already has a Codex reasoning suffix like `/xhigh`\n> \n> Relevant code:\n> \n> https://github.com/self-evolving/repo/blob/main/.agent/src/run.ts#L289-L320\n> \n> https://github.com/self-evolving/repo/blob/main/.agent/src/run.ts#L322-L340\n> \n> https://github.com/self-evolving/repo/blob/main/.agent/src/run.ts#L632-L640\n> \n> The observed logs line up with that:\n> \n> - #396 was a fresh answer session. The session log reported `gpt-5.5/xhigh`, so the footer rendered `codex | gpt-5.5/xhigh | runner` and suppressed the separate reasoning column.\n> - #395 was a resumed answer session. It found prior thread state for `issue-395-answer-default`, resumed that ACP session, and the compacted resumed log did not include a session model line. So Sepo fell back to requested `MODEL_ID=gpt-5.5`, then appended the workflow reasoning input `high`, yielding `codex | gpt-5.5 | high | runner`.\n> \n> 3. Root cause: mostly resumed-vs-fresh display metadata, not `followup-intent`.\n> \n> The `followup-intent` gate explains why #395 had an extra portal step, but it does not control the final answer footer.\n> \n> There is a related default inconsistency:\n> \n> - dispatch and follow-up intent gate default to `medium`\n> - final answer defaults to `high`\n> \n> But for these two posted comments, the final answer job used `reasoning_effort: high` in both cases. The visible mismatch came from whether the final answer run had an ACP-reported effective model (`gpt-5.5/xhigh`) or fell back to requested model plus separate reasoning (`gpt-5.5` + `high`).\n> \n> One extra oddity: #396’s workflow input was still `high`, but ACP reported `gpt-5.5/xhigh`. Sepo currently trusts the ACP-reported model for display, so it surfaces that effective runtime state without reconciling it against the workflow reasoning input.\n> \n> 4. Recommended normalization.\n> \n> Normalize before rendering the footer. For Codex GPT-5 model IDs, parse reasoning suffixes instead of suppressing the reasoning column.\n> \n> Canonical footer shape should be:\n> \n> ```text\n> `codex` | `gpt-5.5` | `xhigh` | `runner`\n> ```\n> \n> not sometimes:\n> \n> ```text\n> `codex` | `gpt-5.5/xhigh` | `runner`\n> ```\n> \n> Implementation plan when approved:\n> \n> 1. Add a small helper near `buildModelDisplay` that decomposes Codex model IDs:\n>    - `gpt-5.5/xhigh` -> model `gpt-5.5`, reasoning `xhigh`\n>    - `gpt-5.5[high]` -> model `gpt-5.5`, reasoning `high`\n>    - otherwise keep existing model and reasoning fields\n> \n> 2. Let ACP-reported encoded reasoning override the separate env reasoning for display, because it reflects the actual effective session metadata.\n> \n> 3. Keep non-Codex providers unchanged.\n> \n> 4. Add focused tests for:\n>    - encoded Codex model renders as four-part footer\n>    - plain model plus reasoning renders as four-part footer\n>    - resumed/no-session-model fallback remains stable\n>    - non-Codex behavior is unchanged\n> \n> No implementation done in this run.\n> \n> ---\n> `codex` | `gpt-5.5/xhigh` | `Macmini-runner-6`\n\n@sepo-agent /orchestrate",
+      "createdAt": "2026-06-03T00:32:43Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/399#issuecomment-4608083295",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEqnb3g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | implement | Issue #399 | 2 / 40 | Dispatched |\n\nReason: agent planner selected implement: Issue #399 now has an approved, small, self-contained implementation plan after the investigation answer; no child issue is needed.\n\n<!-- sepo-agent-handoff state:dispatched created:1780446853856 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY4NTYzNjM1ODc6b3JjaGVzdHJhdGU6Mzk5OmltcGxlbWVudDozOTk6Mg -->",
+      "createdAt": "2026-06-03T00:34:14Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/399#issuecomment-4608089054",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABEqojJg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-399/codex-26856410300`\n- Pull request: https://github.com/self-evolving/repo/pull/400\n\nAdded a testable model-display helper that normalizes Codex GPT-5 encoded reasoning suffixes into the footer reasoning column while preserving plain fallback and non-Codex behavior. Verified with `npm run build` and `node --test dist/__tests__/model-display.test.js`.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-6`",
+      "createdAt": "2026-06-03T00:38:33Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/399#issuecomment-4608107302",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-06-02T23:41:29Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 399,
+  "state": "OPEN",
+  "title": "Investigate answer-route footer/template metadata inconsistency",
+  "updatedAt": "2026-06-03T00:38:33Z",
+  "url": "https://github.com/self-evolving/repo/issues/399"
+}
