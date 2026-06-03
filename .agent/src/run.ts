@@ -60,6 +60,7 @@ import {
 } from "./session-bundle.js";
 import { buildSharedEnv } from "./runtime-env.js";
 import { buildAnswerReviewContext } from "./answer-review-context.js";
+import { buildModelDisplay, extractSessionModel } from "./model-display.js";
 
 // --- Logging ---
 
@@ -284,59 +285,6 @@ function parseBooleanFlag(value: string | undefined, defaultValue = false): bool
   const normalized = String(value || "").trim().toLowerCase();
   if (!normalized) return defaultValue;
   return ["true", "1", "yes", "on"].includes(normalized);
-}
-
-function extractSessionModel(sessionLog: string): string {
-  for (const raw of sessionLog.split("\n")) {
-    if (!raw.trim()) continue;
-    try {
-      const entry = JSON.parse(raw) as Record<string, unknown>;
-      if (entry.type === "session" && typeof entry.model === "string" && entry.model.trim()) {
-        return entry.model.trim();
-      }
-    } catch {
-      // Ignore malformed compact log entries.
-    }
-  }
-  return "";
-}
-
-const CODEX_REASONING_MODEL_SUFFIX = /(?:\/(?:low|medium|high|xhigh)|\[(?:low|medium|high|xhigh)\])$/u;
-
-function displayReasoningEffort(options: {
-  agent: string;
-  model: string;
-  reasoningEffort: string;
-}): string {
-  const reasoningEffort = options.reasoningEffort.trim();
-  if (!reasoningEffort) return "";
-  if (
-    options.agent.trim().toLowerCase() === "codex" &&
-    CODEX_REASONING_MODEL_SUFFIX.test(options.model.trim())
-  ) {
-    return "";
-  }
-  return reasoningEffort;
-}
-
-function buildModelDisplay(options: {
-  agent: string;
-  model: string;
-  reasoningEffort: string;
-  runnerName: string;
-}): string {
-  const model = options.model.trim();
-  const parts = [
-    options.agent.trim(),
-    model || "default model",
-    displayReasoningEffort({
-      agent: options.agent,
-      model,
-      reasoningEffort: options.reasoningEffort,
-    }),
-    options.runnerName.trim(),
-  ].filter(Boolean);
-  return parts.length > 0 ? parts.map((part) => `\`${part}\``).join(" | ") : "";
 }
 
 // --- Main ---
