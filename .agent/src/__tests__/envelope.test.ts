@@ -1158,6 +1158,7 @@ test("run-agent-task maps reasoning effort for Claude env and Codex thought leve
   const runSource = readRepoFile(".agent/src/run.ts");
   const runtimeEnvSource = readRepoFile(".agent/src/runtime-env.ts");
   const acpxSource = readRepoFile(".agent/src/acpx-adapter.ts");
+  const modelDisplaySource = readRepoFile(".agent/src/model-display.ts");
 
   assert.match(action, /reasoning_effort:\n\s+description: "Model reasoning effort level"/);
   assert.match(action, /MODEL_REASONING_EFFORT:\s*\$\{\{\s*inputs\.reasoning_effort\s*\}\}/);
@@ -1165,8 +1166,9 @@ test("run-agent-task maps reasoning effort for Claude env and Codex thought leve
   assert.match(runtimeEnvSource, /env\.CLAUDE_CODE_EFFORT_LEVEL = inputEnv\.MODEL_REASONING_EFFORT/);
   assert.match(runSource, /thoughtLevel:\s*process\.env\.MODEL_REASONING_EFFORT/);
   assert.match(runSource, /parseBooleanFlag\(process\.env\.DISPLAY_MODEL, true\)/);
-  assert.match(runSource, /CODEX_REASONING_MODEL_SUFFIX/);
-  assert.match(runSource, /displayReasoningEffort/);
+  assert.match(runSource, /buildModelDisplay/);
+  assert.match(modelDisplaySource, /CODEX_REASONING_MODEL_SUFFIX/);
+  assert.match(modelDisplaySource, /decomposeCodexReasoningModel/);
   assert.match(acpxSource, /"thought_level", thoughtLevel/);
 });
 

@@ -13,7 +13,12 @@ function decomposeCodexReasoningModel(model: string): {
   if (!match) return null;
 
   const baseModel = model.slice(0, model.length - match[0].length);
-  if (!CODEX_GPT5_MODEL_PREFIX.test(baseModel)) return null;
+  if (!CODEX_GPT5_MODEL_PREFIX.test(baseModel)) {
+    return {
+      model,
+      reasoningEffort: "",
+    };
+  }
 
   return {
     model: baseModel,

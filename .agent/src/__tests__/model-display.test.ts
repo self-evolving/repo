@@ -37,7 +37,7 @@ test("buildModelDisplay keeps plain fallback model plus reasoning stable", () =>
   assert.equal(footer, "`codex` | `gpt-5.5` | `high` | `runner-5`");
 });
 
-test("buildModelDisplay keeps non-GPT-5 Codex suffixes unchanged", () => {
+test("buildModelDisplay suppresses separate reasoning for non-GPT-5 Codex suffixes", () => {
   const footer = buildModelDisplay({
     agent: "codex",
     model: "gpt-4.1/high",
@@ -45,7 +45,7 @@ test("buildModelDisplay keeps non-GPT-5 Codex suffixes unchanged", () => {
     runnerName: "runner-3",
   });
 
-  assert.equal(footer, "`codex` | `gpt-4.1/high` | `medium` | `runner-3`");
+  assert.equal(footer, "`codex` | `gpt-4.1/high` | `runner-3`");
 });
 
 test("buildModelDisplay leaves non-Codex encoded-looking models unchanged", () => {
