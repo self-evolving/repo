@@ -4,7 +4,7 @@
     "login": "app/sepo-agent-app"
   },
   "body": "## Goal\nReimplement the layered model defaults registry after the newer model-normalization stack, using the current provider/model semantics instead of rebasing the stale PR #386 branch.\n\n## Context\n- Requested from PR #386: https://github.com/self-evolving/repo/pull/386#issuecomment-4606086073\n- PR #386 was closed as superseded because it was based on stale work and predated the focused model stack.\n- Issue #384 remains the original tracker for the layered registry idea: https://github.com/self-evolving/repo/issues/384\n- The newer foundation is now in place:\n  - #388 merged Codex ACP model/reasoning normalization, composing Codex GPT-5 model plus reasoning into IDs like `gpt-5.5/xhigh`.\n  - #389 pinned provider defaults (`codex` `gpt-5.5`, `claude` `claude-opus-4-8`) and applied resolver output to review lanes; its code landed through #390 and the PR was closed.\n  - #390 merged model metadata display cleanup so suffixed Codex model IDs do not duplicate reasoning in footers.\n- The old #386 approach added `.agent/model-defaults.json`, remote registry loading, registry validation/fallback, and `model_source`, but reviewer feedback asked to avoid public `AGENT_MODEL_REGISTRY` / `AGENT_MODEL_REGISTRY_URL` workflow knobs. The desired shape was to check the Sepo-owned GitHub registry by default and fall back to bundled defaults.\n\n## Acceptance Criteria\n- Reintroduce a layered model defaults registry on top of the current resolver and normalized Codex ACP model semantics.\n- Keep bundled defaults available locally and deterministic for offline/fallback behavior.\n- Check the Sepo-owned remote registry by default, with short timeout and deterministic fallback to bundled defaults on fetch/validation failure.\n- Avoid adding the two public workflow variables/inputs from the stale PR (`AGENT_MODEL_REGISTRY` and `AGENT_MODEL_REGISTRY_URL`) unless a maintainer explicitly chooses a new configuration surface.\n- Preserve precedence: bundled defaults < valid Sepo registry defaults < `AGENT_MODEL_POLICY` default/provider/route overrides < existing inline workflow escape hatches.\n- Validate registry data strictly using the current provider/model validation and normalized Codex model-name expectations.\n- Expose/log the source of the effective model defaults clearly enough for debugging, without overriding repo-local policy.\n- Update docs for default registry behavior, fallback/determinism, and the relationship between registry refresh and agent updates.\n- Add focused tests for bundled-only behavior, valid remote registry, timeout/fallback, invalid registry fallback/rejection, policy precedence, reviewer lane behavior, and normalized Codex model IDs such as `gpt-5.5/xhigh`.\n\n---\n\nRequested via issue_comment at https://github.com/self-evolving/repo/pull/386\n",
-  "closedAt": null,
+  "closedAt": "2026-06-04T17:15:23Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABEoyJ3A",
@@ -32,8 +32,8 @@
     }
   ],
   "number": 392,
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Reimplement model registry on normalized model defaults",
-  "updatedAt": "2026-06-02T19:11:05Z",
+  "updatedAt": "2026-06-04T17:15:23Z",
   "url": "https://github.com/self-evolving/repo/issues/392"
 }

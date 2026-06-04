@@ -1,0 +1,203 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Add `Agent / Release / Publish` for marked merged release PRs, plus manual `version`, `target_sha`, and `dry_run` recovery inputs.\n- Add a typed publish CLI that validates release PR metadata, package version, changelog notes, target SHA, and tag absence before creating the GitHub Release/tag.\n- Update the release prompt and versioning docs so future release PRs carry the publish marker.\n\n## Verification\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/publish-release-cli.test.js .agent/dist/__tests__/release-version.test.js .agent/dist/__tests__/prepare-release-cli.test.js`\n- `node --test .agent/dist/__tests__/docs-validation.test.js`\n- `node -e \"const fs=require('fs'); const YAML=require('./.agent/node_modules/yaml'); YAML.parse(fs.readFileSync('.github/workflows/agent-release-publish.yml','utf8')); console.log('workflow yaml ok')\"`\n- `git diff --check`\n\nCloses #408\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABE7HfFw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #411 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: Implementation succeeded and produced open PR #411 for issue #408; an automated review is the appropriate next step before any human decision or merge path.\n\n<!-- sepo-agent-handoff state:dispatched created:1780600990334 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY5NzM3OTEwMTQ6aW1wbGVtZW50OjQwODpyZXZpZXc6NDExOjM -->",
+      "createdAt": "2026-06-04T19:23:10Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/411#issuecomment-4625391383",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABE7IjJA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 89 | PARTIAL | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR closes #408 and implements the previously discussed plan: publish after merged release PRs, require a marker, validate package/changelog, and add recovery inputs. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Reuses `parseReleaseVersion`, `gh`, and shared `setOutput` instead of duplicating release parsing, GitHub CLI wrapping, or Actions output handling. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Diff is limited to the release publish workflow, typed CLI/helper, focused tests, release prompt marker, and versioning docs. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation is a small workflow plus a deterministic CLI, matching the plan in #408 rather than adding agent-driven release writes. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | `.agent/docs/technical-details/versioning.md` now documents prepare vs. publish behavior, source-repo gating, and manual `version` / `target_sha` / `dry_run` recovery inputs. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | `workflow_dispatch` adds separate typed inputs for `version`, `target_sha`, and boolean `dry_run`; the CLI validates version and target SHA independently. |\n| coding_workflow / generic | Validate preview contracts | pass | 7/7 | Dry-run still validates release PR marker/files, package version, changelog notes, target SHA, and tag absence, and tests assert it does not call `gh release create`. |\n| coding_workflow / generic | Keep privileged workflows on trusted runtime code | partial | 6/8 | The workflow is hard-gated to `self-evolving/repo` and merged default-branch PRs, but manual `target_sha` is checked out and used to run local actions/scripts with `contents: write` without proving it is a trusted default-branch commit. |\n| coding_workflow / generic | Separate context from execution dependencies | partial | 5/7 | PR-triggered runs verify the merge commit matches `targetSha`, but manual runs only require a 40-character SHA before tagging it; they do not verify default-branch reachability despite the docs describing a default-branch commit. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Existing tags, missing changelog notes, mismatched versions, invalid target SHAs, and non-404 tag lookup failures throw or return explicit skipped/dry-run results rather than reporting clean success. |\n\n## Notes\n\n- Strong rubric fit overall: the PR follows the linked issue plan, keeps the release agent write-free, uses typed helper code, adds focused tests, and updates docs.\n- The main rubric gap is around manual recovery: `target_sha` is treated as an execution ref and release target, but the implementation does not validate that the SHA is actually eligible as a default-branch release commit.\n\n## Findings\n\n- **WARNING:** Manual `workflow_dispatch` accepts any full 40-character `target_sha`, checks it out, and runs repo-local actions/scripts from it with release-capable permissions. This partially misses the privileged-runtime and context/execution rubrics. A small follow-up would validate that `target_sha` is reachable from the default branch, or keep the workflow runtime on the trusted default branch and use `target_sha` only as data for tagging.\n\n## Final Rubric Verdict\n\nPARTIAL\n\n---\n`codex` | `gpt-5.5/xhigh` | `zucchini-m4-1`",
+      "createdAt": "2026-06-04T19:25:24Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/411#issuecomment-4625408804",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABE7L7vA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: c0afc729d88f6ca08fe7054d971d5c98154ccd5b -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #411 closes #408 by adding a deterministic `Agent / Release / Publish` workflow after merged Sepo release PRs. It adds a typed publish CLI that validates release metadata, package version, changelog notes, target SHA, and tag absence before creating the GitHub Release/tag. The release prompt and versioning docs are updated so future release PRs carry a publish marker. The approved design goal is to publish from merged default-branch commits, not from unmerged PR heads.\n\n## Review\nThe PR is directionally correct, but the manual recovery path has a privileged-runtime gap that needs a branch change before merge. Reviewers agreed the implementation is mostly focused and well tested for happy paths, but disagreed on severity: Codex marked the manual `target_sha` issue blocking, the rubric review flagged the same gap as a warning, and Claude treated the PR-triggered merged-commit path as safe.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Manual dispatch can execute unchecked target SHA | BLOCKING | `workflow_dispatch` checks out `inputs.target_sha` before resolving release-capable auth and running repo-local actions/scripts, while the CLI only shape-checks the SHA later. This can run publish code from an unmerged same-repo commit instead of trusted default-branch runtime code. |\n| Release PR marker is not enforced early or deterministically | WARNING | The publish marker is prompt-injected only, so a valid release PR can silently skip publishing if the model omits it. Unmarked merged PRs also enter checkout/auth/runtime setup before the CLI skips them. |\n| Safety guard branches lack regression coverage | WARNING | Tests cover dry-run, unmarked skip, manual publish, and version mismatch, but not several core guard branches such as tag-exists, target-SHA mismatch, missing required files, missing changelog notes, and prerelease flagging. |\n\n## Progress\n- Verified the live PR state, linked issue #408, PR diff, existing inline comments, and review threads.\n- Existing inline comments and review threads were empty before mutation.\n- Posted one inline comment on `.github/workflows/agent-release-publish.yml:49` for the unchecked manual `target_sha` checkout.\n- No comments were minimized, replied to, or threads resolved.\n- The PR-triggered merged-PR path does validate merged state, marker, required files, version/changelog, tag absence, and merge-commit target matching.\n\n## Issue Details\n<details>\n<summary>Manual dispatch can execute unchecked target SHA</summary>\n\n**Cause:** `.github/workflows/agent-release-publish.yml` uses `inputs.target_sha` as the checkout ref for manual runs, then runs local actions and `.agent/dist/cli/publish-release.js` with `contents: write`. `.agent/src/release-publish.ts` only verifies that `targetSha` is a full 40-character SHA and manual runs do not prove default-branch reachability.\n\n**Candidate solutions:** Keep the workflow checkout/runtime on the trusted default branch and treat `target_sha` only as data for release targeting, or perform a trusted default-branch reachability check before any checkout of `target_sha`. Add focused coverage for rejecting or safely handling non-default-branch target SHAs.\n\n**Comments:** This is the only issue that should block merge. It directly conflicts with the intended invariant from #408 that release tags point at merged default-branch commits.\n\n</details>\n\n<details>\n<summary>Release PR marker is not enforced early or deterministically</summary>\n\n**Cause:** `.github/prompts/agent-release.md` tells the agent to include `<!-- sepo-agent-release-pr -->`, and `validateReleasePr` skips when it is missing, but no deterministic PR-creation code injects or validates the marker. The workflow job condition also allows all merged default-branch PRs to reach checkout/auth/runtime setup.\n\n**Candidate solutions:** Deterministically inject or validate the marker when creating release PRs, or derive release intent from existing release-prepare metadata. Add a PR-event job guard such as marker detection to skip unmarked merges earlier.\n\n**Comments:** This is fail-safe because it skips instead of mispublishing, so it is not blocking.\n\n</details>\n\n<details>\n<summary>Safety guard branches lack regression coverage</summary>\n\n**Cause:** The added tests do not cover several branches that enforce release safety invariants.\n\n**Candidate solutions:** Add focused tests for duplicate tag detection, target SHA mismatch, unmerged PR rejection, missing required release files, missing changelog section, and prerelease flag creation.\n\n**Comments:** Claude manually verified some of these branches, but regression coverage should protect them long term.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: The manual dispatch runtime issue is concrete, branch-changeable, and safe for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Change manual publish dispatch so release-capable steps run trusted default-branch runtime code, or verify `target_sha` is default-branch reachable before it can become the checkout ref.\n- [ ] Add focused regression coverage for the manual `target_sha` trust boundary.\n\n---\n`codex` | `gpt-5.5/xhigh` | `zucchini-m4-6`",
+      "createdAt": "2026-06-04T19:33:51Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/411#issuecomment-4625464252",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABE7Mdmw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #411 | 4 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis is NEEDS_REWORK with Recommended Next Step FIX_PR; the remaining blocking issue is concrete, branch-changeable, and within the round budget.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items for PR #411:\n- Change manual publish dispatch so release-capable steps run trusted default-branch runtime code, or verify `target_sha` is default-branch reachable before it can become the checkout ref.\n- Add focused regression coverage for the manual `target_sha` trust boundary.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items. Preserve the existing source-repo gating and merged-release-PR publishing behavior.\n\n<!-- sepo-agent-handoff state:dispatched created:1780601704882 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY5NzQyNzM4ODQ6cmV2aWV3OjQxMTpmaXhfcHI6NDExOjQ -->",
+      "createdAt": "2026-06-04T19:35:05Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/411#issuecomment-4625472923",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABE7O1UQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-408/codex-26973791014`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Manual release publish dispatch now checks out the trusted default branch instead of `inputs.target_sha`, so local actions and the publish CLI run from trusted runtime code.\n- Publish CLI validates `TARGET_SHA` is reachable from the trusted checkout and reads package/changelog metadata from that target commit before tagging.\n- Added regression coverage for manual recovery against an older default-branch commit and rejection of unmerged target SHAs.\n\n<details><summary>Verification</summary>\n\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/publish-release-cli.test.js .agent/dist/__tests__/release-version.test.js .agent/dist/__tests__/prepare-release-cli.test.js`\n- `node -e \"const fs=require('fs'); const YAML=require('./.agent/node_modules/yaml'); YAML.parse(fs.readFileSync('.github/workflows/agent-release-publish.yml','utf8')); console.log('workflow yaml ok')\"`\n- `git diff --check`\n\n</details>\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-2`",
+      "createdAt": "2026-06-04T19:40:44Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/411#issuecomment-4625511761",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABE7PRPQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #411 | 5 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded after a NEEDS_REWORK review; the PR needs a fresh automated review of the current head to verify the manual release publish trust-boundary fix and regression coverage.\n\n<!-- sepo-agent-handoff state:dispatched created:1780602109532 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY5NzQ4ODE3OTU6Zml4X3ByOjQxMTpyZXZpZXc6NDExOjU -->",
+      "createdAt": "2026-06-04T19:41:49Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/411#issuecomment-4625518909",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABE7QVcw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #411 closes #408 and implements the issue’s recommended plan: publish after merged release PRs, use a marker plus required file checks, validate version/changelog/tag state, and provide `version`, `target_sha`, and `dry_run` recovery inputs. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The publish CLI reuses existing helpers such as `gh`, `setOutput`, and `parseReleaseVersion` instead of adding separate GitHub, output, or SemVer parsing logic. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is limited to the release publish workflow, publish CLI/source, focused tests, release prompt marker, and versioning docs. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation is a single deterministic workflow plus typed CLI, with no new agent route, broad settings layer, or agent-driven release write path. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | `.agent/docs/technical-details/versioning.md` now documents prepare vs. publish behavior, source-repo gating, and manual `version` / `target_sha` / `dry_run` recovery inputs. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | `workflow_dispatch` exposes separate `version`, `target_sha`, and boolean `dry_run` inputs; the CLI validates version and target SHA independently. |\n| coding_workflow / generic | Validate preview contracts | pass | 7/7 | Dry-run still validates PR marker/files, package version, changelog notes, target SHA, and tag absence, and tests assert it does not call `gh release create`. |\n| coding_workflow / generic | Keep privileged workflows on trusted runtime code | pass | 8/8 | The workflow is hard-gated to `self-evolving/repo`; manual dispatch checks out the default branch, while the CLI rejects target SHAs not reachable from trusted HEAD before release-capable actions run. |\n| coding_workflow / generic | Separate context from execution dependencies | pass | 7/7 | PR-triggered runs validate the merge commit against the PR metadata, and manual `target_sha` is treated as release target data only after reachability and version validation. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Existing tags, missing files, missing changelog notes, invalid target SHAs, version mismatches, and non-404 tag lookup failures fail or skip explicitly rather than reporting a clean publish. |\n\n## Notes\n\n- The earlier rubric concern around manual `target_sha` is addressed in the current head: manual runs use trusted default-branch runtime code, and `ensureTargetShaReachableFromHead` rejects unmerged target commits before any GitHub release call.\n- I scored only rubrics that map to this PR’s changed behavior. Orchestrator/delegated-route rubrics were not scored because this PR does not change orchestration dispatch or route authorization.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/xhigh` | `zucchini-m4-5`",
+      "createdAt": "2026-06-04T19:44:29Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/411#issuecomment-4625536371",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABE7ToBg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 48e1a1a2a35d28c621fa2bc3797627a4ff7c7ea4 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #411 closes [#408](https://github.com/self-evolving/repo/issues/408) by adding a deterministic Sepo release publish path after marked release PRs merge to the default branch. It adds `Agent / Release / Publish`, a typed publish CLI, tests, release prompt marker guidance, and versioning docs. The core safety goal from #408 is that release tags point at merged default-branch commits, not unmerged PR heads. The current head is `48e1a1a2a35d28c621fa2bc3797627a4ff7c7ea4`.\n\n## Review\nThe prior blocking manual `target_sha` trust-boundary issue is resolved in the current PR state. Reviewers agree the release-capable runtime now stays on trusted checkout code; remaining differences are severity only, with Claude rating two follow-ups as WARNING while Codex and the rubric review treat them as INFO/no required work.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Release PR marker depends on prompt compliance | INFO | Release PR recognition depends on the hidden marker requested in the release prompt. Omission fails closed and manual recovery exists, so this is a hardening note rather than required work. |\n| Remaining guard branches could use broader tests | INFO | Current tests cover the main publish paths and the manual `target_sha` trust boundary. Extra coverage for duplicate tags, missing changelog notes, PR mismatch, and prerelease flagging would reduce future regression risk. |\n\n## Progress\n- The current workflow no longer checks out `inputs.target_sha`; manual dispatch checks out the default branch and passes `TARGET_SHA` only as data.\n- The publish CLI now validates target reachability with `git merge-base --is-ancestor` before target file reads or GitHub release calls.\n- Review artifacts report focused regression coverage for rejecting unmerged manual target SHAs with zero `gh` calls.\n- Resolved the stale same-agent inline review thread `PRRT_kwDOSOhEMM6HLMeK`; no new inline comments, replies, or minimizations were added.\n\n## Issue Details\n<details>\n<summary>Release PR marker depends on prompt compliance</summary>\n\n**Cause:** The marker is requested in [`.github/prompts/agent-release.md`](https://github.com/self-evolving/repo/blob/48e1a1a2a35d28c621fa2bc3797627a4ff7c7ea4/.github/prompts/agent-release.md), and the publish CLI skips unmarked PRs.\n\n**Candidate solutions:** Future hardening could inject release intent deterministically at PR creation time, or derive it from release-prepare metadata plus required file changes.\n\n**Comments:** Claude marked this WARNING; Codex and the rubric review treated it as non-blocking because omission skips publishing rather than mispublishing.\n\n</details>\n\n<details>\n<summary>Remaining guard branches could use broader tests</summary>\n\n**Cause:** [`.agent/src/__tests__/publish-release-cli.test.ts`](https://github.com/self-evolving/repo/blob/48e1a1a2a35d28c621fa2bc3797627a4ff7c7ea4/.agent/src/__tests__/publish-release-cli.test.ts) covers the core paths but not every defensive branch in [`.agent/src/release-publish.ts`](https://github.com/self-evolving/repo/blob/48e1a1a2a35d28c621fa2bc3797627a4ff7c7ea4/.agent/src/release-publish.ts).\n\n**Candidate solutions:** Add follow-up tests for existing tags, missing required files, missing changelog sections, PR merge-target mismatch, and prerelease releases.\n\n**Comments:** This is useful test-depth work, but not required for the current fix because the highest-risk trust boundary is now covered.\n\n</details>\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: No unresolved required branch-change work remains; the remaining items are optional hardening notes.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-2`",
+      "createdAt": "2026-06-04T19:52:27Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/411#issuecomment-4625590278",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-06-04T19:22:00Z",
+  "files": [
+    {
+      "path": ".agent/docs/technical-details/versioning.md",
+      "additions": 13,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/publish-release-cli.test.ts",
+      "additions": 278,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/publish-release.ts",
+      "additions": 41,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/release-publish.ts",
+      "additions": 278,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/prompts/agent-release.md",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-release-publish.yml",
+      "additions": 75,
+      "deletions": 0,
+      "changeType": "ADDED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-408/codex-26973791014",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 411,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABCBmGKw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-06-04T19:32:50Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "c0afc729d88f6ca08fe7054d971d5c98154ccd5b"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Add gated Sepo release publish workflow",
+  "updatedAt": "2026-06-04T19:52:27Z",
+  "url": "https://github.com/self-evolving/repo/pull/411"
+}

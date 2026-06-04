@@ -1,0 +1,100 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "agent/implement-issue-399/codex-26856410300",
+  "body": "## Summary\n- Extend the #400 model-display helper to choose from both session-reported and requested model evidence.\n- Prefer concrete Claude model IDs over provider-local aliases such as `default`, while keeping alias-only fallbacks visibly non-canonical.\n- Preserve the compact `provider | model | reasoning effort | runner` footer contract and Codex GPT-5 reasoning suffix normalization.\n- Update `AGENT_DISPLAY_MODEL` docs to describe normalized footer behavior.\n\n## Tests\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/model-display.test.js`\n- `node --test .agent/dist/__tests__/envelope.test.js`\n- `node --test .agent/dist/__tests__/docs-validation.test.js`\n- `git diff --check`\n\nBuilds on #400.\nCloses #406\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABE6Pgew",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #407 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: Implementation succeeded and produced open stacked PR #407 for issue #406; automated review is warranted before stopping or human merge decisions.\n\n<!-- sepo-agent-handoff state:dispatched created:1780593148604 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY5NjcwOTAwNTg6aW1wbGVtZW50OjQwNjpyZXZpZXc6NDA3OjM -->",
+      "createdAt": "2026-06-04T17:12:29Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/407#issuecomment-4624474235",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABE6Qn2Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 98 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | PR #407 explicitly builds on #400 and closes #406; the diff extends the existing #400 `model-display` helper instead of adding a parallel display path. |\n| coding_workflow / generic | Reuse existing code | partial | 7/8 | [`run.ts`](https://github.com/self-evolving/repo/blob/5abc766621aca8c9d115f321fe590d821751dc39/.agent/src/run.ts#L577) continues to emit the same `model` output and delegates footer formatting to [`buildModelDisplay`](https://github.com/self-evolving/repo/blob/5abc766621aca8c9d115f321fe590d821751dc39/.agent/src/model-display.ts#L109). Minor caveat: Codex suffix knowledge still lives separately from adapter model-selection semantics. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The PR touches four focused files: one helper, one test file, one `run.ts` call site, and one config doc row. No workflow or unrelated refactor churn. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Claude alias handling is a small explicit branch in [`selectDisplayModel`](https://github.com/self-evolving/repo/blob/5abc766621aca8c9d115f321fe590d821751dc39/.agent/src/model-display.ts#L66) with no new settings, routes, or abstraction layers. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | `buildModelDisplay` now accepts separate `reportedSessionModel` and `requestedModel` fields, and `run.ts` passes both instead of collapsing them before normalization. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | [`AGENT_DISPLAY_MODEL`](https://github.com/self-evolving/repo/blob/5abc766621aca8c9d115f321fe590d821751dc39/.agent/docs/customization/configuration-list.md#L15) docs were updated to describe normalized footer behavior from session and requested-model evidence. |\n| communication / generic | Keep status comments compact | pass | 6/6 | The implementation preserves the compact footer contract: [`provider` \\| `model` \\| `reasoning effort` \\| `runner`], with one markdown-ready `model_display` string. |\n\n## Notes\n\n- The strongest score drivers are scope fit and contract preservation: #407 handles both #400’s Codex GPT-5 reasoning suffix normalization and #406’s Claude/default alias case through the same helper.\n- Regression coverage is focused and matches the requested cases: concrete Claude requested model over `default`, concrete session model preference, alias-only fallback, partial session metadata fallback, and Codex suffix normalization.\n- Smallest useful follow-up: if model alias or Codex suffix rules keep growing, extract shared provider model parsing semantics so display normalization and ACPX model selection cannot drift.\n\n## Findings\n\n- **INFO:** Under `reuse-existing-code`, the remaining duplication of Codex suffix concepts is acceptable for this focused PR, but it is the only rubric-specific maintainability caveat.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-1`",
+      "createdAt": "2026-06-04T17:14:52Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/407#issuecomment-4624492505",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABE6WduQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 5abc766621aca8c9d115f321fe590d821751dc39 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #407 closes #406 by normalizing agent model footer metadata across providers.\n- It builds on #400’s Codex GPT-5 footer normalization instead of adding a parallel display path.\n- The change passes separate session-reported and requested model evidence into the display helper, so Claude aliases like `default` no longer hide a concrete resolved model such as `claude-opus-4-8`.\n- It also preserves the compact `provider | model | reasoning effort | runner` footer contract and updates the `AGENT_DISPLAY_MODEL` docs.\n\n## Review\nAll current reviewer artifacts converge on code readiness: Claude and Codex both conclude SHIP, and rubrics review passes. The only severity mismatch is operational: Claude labels the stacked base on open PR #400 as a warning, while the other reviewers report no blocking or warning-level code issues.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable branch-change issues remain | INFO | Current reviews and PR state support the requested normalization; remaining notes are optional maintainability or merge-sequencing context. |\n\n## Progress\n- Reviewer artifacts report passing build, targeted tests, docs validation, `git diff --check`, and full `.agent` suite coverage at head `5abc766621aca8c9d115f321fe590d821751dc39`.\n- Live PR state confirms #407 is intentionally stacked on open PR #400; merge #400 before #407 or retarget after #400 lands.\n- Claude’s INFO notes on alias-list drift, duplicated Codex suffix parsing, default-alias fallback coupling, and raw `outputs.model` are acknowledged as deferrable.\n- Existing inline comments and review threads on #407 are empty; no new inline comments were posted, no replies were added, no comments were minimized, and no threads were resolved.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no unresolved branch-change work remains; humans only need to handle normal stacked-PR merge sequencing.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.\n\n---\n`codex` | `gpt-5.5/xhigh` | `zucchini-m4-6`",
+      "createdAt": "2026-06-04T17:26:16Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/407#issuecomment-4624588217",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-06-04T17:11:37Z",
+  "files": [
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/model-display.test.ts",
+      "additions": 79,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/model-display.ts",
+      "additions": 52,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/run.ts",
+      "additions": 4,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-406/codex-26967090058",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 407,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "OPEN",
+  "title": "Normalize agent model footer metadata",
+  "updatedAt": "2026-06-04T17:26:16Z",
+  "url": "https://github.com/self-evolving/repo/pull/407"
+}

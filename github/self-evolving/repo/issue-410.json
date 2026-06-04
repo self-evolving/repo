@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "e.g. https://github.com/augmented-mind/augmented-mind.github.io/pull/68#issuecomment-4625256820\n\n@sepo-agent /answer wdyt?",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABE7DJ4g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes. I’d skip the rubrics-review model run when there is nothing to score.\n\nThe linked example shows the current failure mode: `agent/rubrics` was absent, `RUBRICS_AVAILABLE=false`, and Sepo still spent a rubrics-review run to post an `N/A / 0 rubrics` comment. That is correct as a fallback, but it is not useful enough to justify a separate PR comment or model invocation during normal review.\n\nCurrent shape:\n- [`agent-review.yml`](https://github.com/self-evolving/repo/blob/2bad84098072f6748bd5c7a4d9d3fce86d475ac6/.github/workflows/agent-review.yml#L247-L259) always calls the independent rubrics-review workflow.\n- [`agent-rubrics-review.yml`](https://github.com/self-evolving/repo/blob/2bad84098072f6748bd5c7a4d9d3fce86d475ac6/.github/workflows/agent-rubrics-review.yml#L84-L141) resolves a provider and runs the agent before deciding whether the output is useful.\n- [`download-agent-rubrics`](https://github.com/self-evolving/repo/blob/2bad84098072f6748bd5c7a4d9d3fce86d475ac6/.github/actions/download-agent-rubrics/action.yml#L126-L130) already cleanly reports `rubrics_available=false` for a missing branch.\n- [`run-agent-task`](https://github.com/self-evolving/repo/blob/2bad84098072f6748bd5c7a4d9d3fce86d475ac6/.github/actions/run-agent-task/action.yml#L309-L338) already selects rubrics before the model run, and [`selectRubrics`](https://github.com/self-evolving/repo/blob/2bad84098072f6748bd5c7a4d9d3fce86d475ac6/.agent/src/rubrics.ts#L327-L357) can return zero selected rubrics.\n- Docs already say rubrics review is an independent advisory lane and does not block normal review synthesis: [`rubrics.md`](https://github.com/self-evolving/repo/blob/2bad84098072f6748bd5c7a4d9d3fce86d475ac6/.agent/docs/architecture/rubrics.md#L81-L90).\n\nProposed approach:\n1. Add a lightweight preflight in `agent-rubrics-review.yml` before provider/runtime setup.\n2. Use `download-agent-rubrics` with missing-branch continuation.\n3. If the branch exists, run `rubrics/select.js --all-routes --limit all --best-effort` to count active rubrics available for scoring.\n4. Skip provider setup, `run-agent-task`, artifact upload, and PR comment when either:\n   - the rubrics branch is absent, or\n   - selected active rubrics count is `0`.\n5. Emit a workflow notice/summary explaining the skip, but do not post a PR comment from the normal review path.\n6. Update docs/tests so this behavior is intentional and protected.\n\nI’d keep `Agent / Rubrics / Initialization` unchanged: it is still the explicit path that bootstraps a missing `agent/rubrics` branch. Rubrics review should not bootstrap or invent rubrics.\n\nNo blockers on my side. Approve and I’d implement this as a small workflow/action test change.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-5`",
+      "createdAt": "2026-06-04T19:13:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/410#issuecomment-4625320418",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-06-04T19:10:59Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 410,
+  "state": "OPEN",
+  "title": "Skip rubrics review if there are no rubrics / rubrics branch is not present?",
+  "updatedAt": "2026-06-04T19:13:38Z",
+  "url": "https://github.com/self-evolving/repo/issues/410"
+}

@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "The current test setup is really not ideal in my view. \n\n1. Right now there are a lot of documentation specific tests -- who needs that ?\n2. There are a bunch of other potential test issues ? Can you investigate?\n\n@sepo-agent /answer ",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABE6mXDw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I investigated the current setup. There is no broader parent/tracking issue referenced in #409, and the suite is currently green: `cd .agent && npm test` passes `714/714` in ~14s.\n\nThe core problem is real, but I’d frame it as **test taxonomy and coupling**, not simply “too many docs tests”.\n\nCurrent shape:\n- `.agent/package.json` has one catch-all test command that builds and runs every compiled test file: [`npm test`](https://github.com/self-evolving/repo/blob/main/.agent/package.json#L6-L10).\n- CI builds once, then `npm test` builds again, so CI does redundant work: [`test-scripts.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/test-scripts.yml#L17-L28).\n- CI also has separate Ruby validation steps for YAML and `GH_TOKEN` policy, outside the TypeScript test harness: [`test-scripts.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/test-scripts.yml#L30-L64).\n- There are 74 test files under one flat `.agent/src/__tests__` directory.\n- The docs-specific validation file is small, but very policy-specific: frontmatter, no README, no leading H1, relative links: [`docs-validation.test.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/docs-validation.test.ts#L47-L101).\n- The bigger docs issue is hidden inside `envelope.test.ts`: it mixes prompt checks, workflow/action fixture checks, doc content assertions, and actual envelope model tests in one 2,284-line file. Example docs assertions are at [`L235-L241`](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/envelope.test.ts#L235-L241), [`L488-L498`](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/envelope.test.ts#L488-L498), [`L1434-L1465`](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/envelope.test.ts#L1434-L1465), and [`L1744-L1765`](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/envelope.test.ts#L1744-L1765).\n- There is a lot of integration-style harness repetition: 30 test files spawn subprocesses, 40 create temp dirs, and 33 touch `process.env`. Example: [`extract-context-cli.test.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/extract-context-cli.test.ts#L29-L63).\n\nRecommended redesign:\n\n1. Keep docs tests, but demote them to a small `check:docs` lane.\n   - Keep link/frontmatter/nav-shape checks.\n   - Remove brittle “docs must mention phrase X” assertions from runtime/workflow tests unless they protect a real public contract.\n   - Move remaining docs checks out of the main runtime test suite.\n\n2. Split the suite into lanes:\n   - `test:unit`: pure TypeScript logic, no subprocesses, no git, no repo fixture files.\n   - `test:cli`: CLI subprocess tests using built `dist`.\n   - `test:workflow`: workflow/action/prompt contract checks.\n   - `check:docs`: docs structure/link checks only.\n   - `check:shell`: shell syntax and shell behavior checks.\n   - `test:ci`: one composed command for CI.\n\n3. Break up `envelope.test.ts`.\n   - Put envelope schema/model tests near `envelope`.\n   - Put workflow/action contract tests in a workflow fixture test file.\n   - Put prompt contract tests in a prompt fixture test file.\n   - Move doc assertions into docs checks or delete them.\n\n4. Replace ad hoc harness code with shared helpers.\n   - `withTempDir`\n   - `runCli`\n   - `fakeGh`\n   - `withEnv`\n   - Git fixture helpers for bare repo/worktree tests\n\n5. Move CI’s Ruby checks into typed Node checks.\n   - The repo already depends on `yaml`.\n   - Keeping workflow validation in TypeScript makes it easier to run locally and keeps policy checks in the same ecosystem.\n\n6. Fix CI redundancy.\n   - CI should run `npm ci`, `npm run build`, then lane commands that do not rebuild unless explicitly needed.\n\nI would not delete all docs tests. I would delete or move **content-coupled documentation assertions** and keep only cheap structural checks that prevent broken docs navigation/links. The larger win is making test failures answer “what broke?” immediately: unit behavior, CLI behavior, workflow contract, shell syntax, or docs hygiene.\n\n---\n`codex` | `gpt-5.5/xhigh` | `zucchini-m4-6`",
+      "createdAt": "2026-06-04T18:04:16Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/409#issuecomment-4624848655",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-06-04T18:01:24Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 409,
+  "state": "OPEN",
+  "title": "Redesign tests",
+  "updatedAt": "2026-06-04T18:04:16Z",
+  "url": "https://github.com/self-evolving/repo/issues/409"
+}

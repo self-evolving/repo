@@ -7,7 +7,7 @@
   },
   "baseRefName": "main",
   "body": "## Summary\nMoves Sepo's pinned per-provider default models out of the hardcoded `BUILTIN_PROVIDER_DEFAULTS` object in `resolve-provider.js` and into a bundled `.agent/model-defaults.json` that the resolver reads locally. Resolved models are unchanged (`gpt-5.5` / `claude-opus-4-8`); precedence stays `bundled defaults < AGENT_MODEL_POLICY`. The loader requires a non-empty default for both supported providers and fails loudly if the bundled file is malformed.\n\n## Why a new PR (vs #393)\n#393 implements the same data-file idea but adds a **layered remote registry**: every `resolve-agent-provider` run also fetches `raw.githubusercontent.com/self-evolving/repo/main/.agent/model-defaults.json`, with a hand-rolled http/https client, a strict validator, a `model_source` output, and fallback. That puts a network round-trip on the hot path of **every** agent run (3× per review, uncached) just to close the gap *between* `agent-update.yml` runs.\n\nBut `agent-update.yml` already syncs `.agent/` (including this file) to installed repos on its ~biweekly schedule and on demand, as a reviewed PR — and it bumps the model default together with the matching runtime/adapter version. A live per-run fetch bypasses that review and can push a model id a repo's installed runtime can't run.\n\nSo this PR keeps the good half of #393 (defaults as data) and drops the remote layer:\n- no per-run network / latency / rate-limit exposure\n- no remote fetch, http client, registry validator, or `model_source` plumbing\n- model + runtime updates stay coupled and reviewed via agent-update\n\n## Resolution of #392 / #393\nThis **supersedes #393** and intentionally **rescopes #392**: after weighing the remote-registry design, we're settling on the simpler bundled-only approach. #392's remote-registry acceptance criteria (`AGENT_MODEL_REGISTRY*`, per-run fetch + fallback) are deliberately dropped, because `agent-update.yml` already delivers `.agent/` updates to installed repos as a reviewed, runtime-coupled PR. This PR closes #392 as resolved by the bundled-only design.\n\nCloses #392.\n\n## Verification\n- `cd .agent && npm run build`\n- `cd .agent && node --test dist/__tests__/resolve-agent-provider.test.js dist/__tests__/envelope.test.js dist/__tests__/docs-validation.test.js` — 92 pass\n- `git diff --check` — clean\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)",
-  "closedAt": null,
+  "closedAt": "2026-06-04T17:15:22Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABE1gAaQ",
@@ -124,6 +124,21 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/401#issuecomment-4619777305",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABE6R3Kw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nUpdated [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #401.\n\nAdded one active workflow rubric:\n\n`rubrics/workflow/couple-runtime-dependent-defaults.yaml`\n\nIt captures the durable preference from PR #401: defaults or registry values that depend on installed agent/runtime compatibility should stay coupled to bundled or reviewed update paths, rather than live per-run remote fetches, unless compatibility and fallback are explicitly handled.\n\nValidation: `git diff --check` passed. No commit made.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-6`",
+      "createdAt": "2026-06-04T17:17:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/401#issuecomment-4624512811",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-06-04T06:09:47Z",
@@ -168,7 +183,7 @@
       "color": "0e8a16"
     }
   ],
-  "mergedAt": null,
+  "mergedAt": "2026-06-04T17:15:22Z",
   "number": 401,
   "reviewDecision": "",
   "reviews": [
@@ -188,8 +203,8 @@
       }
     }
   ],
-  "state": "OPEN",
+  "state": "MERGED",
   "title": "Bundle model defaults in .agent/model-defaults.json (simpler alternative to #393)",
-  "updatedAt": "2026-06-04T06:57:55Z",
+  "updatedAt": "2026-06-04T17:17:28Z",
   "url": "https://github.com/self-evolving/repo/pull/401"
 }

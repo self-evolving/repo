@@ -1,0 +1,99 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "for example, when we approve a release workflow #403 , then we should automatically create tag and then we can use it to release a new version? \n\n@sepo-agent /answer ",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABE6Xktw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, but I’d trigger it **after the release PR is merged**, not merely when the prepare workflow/PR is approved.\n\nFor #403 specifically, `v0.3.1` already exists: https://github.com/self-evolving/repo/releases/tag/v0.3.1\n\nCurrent release flow is intentionally “prepare only”:\n- [`agent-release-prepare.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-release-prepare.yml#L42-L62) creates/reuses a release issue, then dispatches implementation.\n- [`agent-release.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-release.md#L9-L15) tells the agent to update package/changelog but not create tags or releases.\n- [`versioning.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/technical-details/versioning.md#L22-L38) documents that same boundary.\n- [`release-version.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/release-version.ts#L16-L28) already gives us the canonical `version -> vX.Y.Z` tag mapping.\n\nRecommended plan:\n\n1. Keep `Agent / Release / Prepare` as the agentic PR-creation step.\n2. Add a deterministic `Agent / Release / Publish` workflow, source-repo gated like prepare.\n3. Trigger publish on merged release PRs, ideally identified by a release marker in the PR body plus the changed files `.agent/package.json` and `.agent/CHANGELOG.md`.\n4. In a typed CLI, read `.agent/package.json`, parse the version with `parseReleaseVersion`, verify the tag does not already exist, verify the changelog has notes for that version, then create the git tag and GitHub Release.\n5. Add manual `workflow_dispatch` inputs for rerun/recovery, e.g. `version`, `target_sha`, and `dry_run`.\n6. Update `versioning.md` so the documented flow becomes: prepare PR -> review/approve/merge -> publish workflow creates tag/release.\n\nMain safety point: the tag should point at the merged default-branch commit, not the PR branch head. That makes the release reproducible and avoids publishing unmerged code.\n\nIf approved, I’d implement this as a small workflow plus CLI/tests, without changing the agent release prompt to perform GitHub writes directly.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-1`",
+      "createdAt": "2026-06-04T17:28:42Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/408#issuecomment-4624606391",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABE7Cftw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate ",
+      "createdAt": "2026-06-04T19:11:55Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/408#issuecomment-4625309623",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABE7DO_g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | implement | Issue #408 | 2 / 40 | Dispatched |\n\nReason: agent planner selected implement: Issue #408 has a bounded approved follow-up from the prior answer and no existing open PR; implement the release publish workflow directly on the issue.\n\n<!-- sepo-agent-handoff state:dispatched created:1780600426836 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY5NzM2OTk3ODM6b3JjaGVzdHJhdGU6NDA4OmltcGxlbWVudDo0MDg6Mg -->",
+      "createdAt": "2026-06-04T19:13:47Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/408#issuecomment-4625321726",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABE7GzcQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-408/codex-26973791014`\n- Pull request: https://github.com/self-evolving/repo/pull/411\n\nAdded a source-repo-gated Agent / Release / Publish workflow with a typed publish CLI that recognizes marked merged release PRs, validates required release files, package version, changelog notes, target SHA, and tag absence, then creates the GitHub Release/tag. Updated release PR prompting and versioning docs; verified with the agent build, focused release tests, docs validation, workflow YAML parsing, and git diff checks.\n\n---\n`codex` | `gpt-5.5/xhigh` | `zucchini-m4-1`",
+      "createdAt": "2026-06-04T19:22:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/408#issuecomment-4625380209",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-06-04T17:26:14Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 408,
+  "state": "OPEN",
+  "title": "Improve release workflows?",
+  "updatedAt": "2026-06-04T19:22:04Z",
+  "url": "https://github.com/self-evolving/repo/issues/408"
+}
