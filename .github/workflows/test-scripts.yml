@@ -14,64 +14,41 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Install and build
+      - name: Install dependencies
         run: |
           set -euo pipefail
           cd .agent
           npm ci
-          npm run build
 
-      - name: Run tests
+      - name: Build agent
         run: |
           set -euo pipefail
           cd .agent
-          npm test
+          npm run build
 
-      - name: Parse workflow and action YAML
+      - name: Runtime tests
         run: |
           set -euo pipefail
-          ruby -e 'require "yaml"; (Dir[".github/workflows/*.yml"] + Dir[".github/actions/*/action.yml"] + Dir[".agent/action-templates/*.yml"]).sort.each { |file| YAML.load_file(file) }'
+          cd .agent
+          npm run test:runtime
 
-      - name: Validate gh-authenticated workflow steps
+      - name: Workflow and action checks
         run: |
           set -euo pipefail
-          ruby <<'RUBY'
-          require "yaml"
+          cd .agent
+          npm run check:workflow
 
-          failures = []
-
-          Dir[".github/workflows/*.yml"].sort.each do |file|
-            workflow = YAML.load_file(file)
-            jobs = workflow.fetch("jobs", {})
-
-            jobs.each_value do |job|
-              Array(job["steps"]).each do |step|
-                next unless step.is_a?(Hash)
-
-                allowed_tools = step.dig("with", "allowed_tools").to_s
-                next unless allowed_tools.include?("Bash(gh *)")
-
-                env = step["env"] || {}
-                next if env.key?("GH_TOKEN")
-
-                step_name = step["name"] || "(unnamed step)"
-                failures << "#{file}: #{step_name} allows gh without GH_TOKEN"
-              end
-            end
-          end
-
-          abort(failures.join("\n")) unless failures.empty?
-          RUBY
-
-      - name: Shell syntax checks
+      - name: Docs hygiene checks
         run: |
           set -euo pipefail
-          bash -n .agent/scripts/post-agent-verify.sh
-          bash -n .agent/scripts/resolve-scheduled-activity-gate.sh
-          bash -n .agent/scripts/resolve-pending-update-pr.sh
-          bash -n .agent/scripts/resolve-update-source.sh
-          bash -n .agent/scripts/resolve-discussion-post-gate.sh
-          bash -n .github/actions/check-agent-action-expiration/check-expiration.sh
+          cd .agent
+          npm run check:docs
+
+      - name: Shell checks
+        run: |
+          set -euo pipefail
+          cd .agent
+          npm run check:shell
 
       - name: Diff hygiene
         run: git diff --check
