@@ -30,6 +30,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
 }
 
+function readMarkdownIssueTemplate(relativePath: string): {
+  frontMatter: Record<string, unknown>;
+  body: string;
+} {
+  const template = readRepoFile(relativePath);
+  const match = template.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+  assert.ok(match, `${relativePath} should define YAML front matter`);
+  const frontMatter = parseYaml(match[1]) as unknown;
+  assert.ok(isRecord(frontMatter), `${relativePath} front matter should parse as a YAML object`);
+  return { frontMatter, body: match[2] };
+}
+
 function readBranchCleanupScript(): string {
   const workflow = parseYaml(readRepoFile(".github/workflows/agent-branch-cleanup.yml")) as unknown;
   assert.ok(isRecord(workflow), "branch cleanup workflow should parse as a YAML object");
@@ -1428,8 +1440,8 @@ test("workflow docs record the minimal metadata contract and developer notes", (
   const configurationList = readRepoFile(".agent/docs/customization/configuration-list.md");
   const skillsDocs = readRepoFile(".agent/docs/customization/skills.md");
   const existingRepoInstall = readRepoFile(".agent/docs/setup/install-existing-repository.md");
-  const installIssueTemplate = readRepoFile(".github/ISSUE_TEMPLATE/install-sepo.yml");
-  const installIssueTemplateForm = parseYaml(installIssueTemplate) as unknown;
+  const installIssueTemplate = readMarkdownIssueTemplate(".github/ISSUE_TEMPLATE/install-sepo.md");
+  const askIssueTemplate = readMarkdownIssueTemplate(".github/ISSUE_TEMPLATE/ask-sepo.md");
   const developerNotes = readRepoFile(".agent/docs/technical-details/developer-notes.md");
 
   assert.match(keyConcepts, /### RuntimeEnvelope/);
@@ -1472,27 +1484,24 @@ test("workflow docs record the minimal metadata contract and developer notes", (
   assert.match(existingRepoInstall, /Normal routes keep[\s\S]*GitHub auth resolver order/);
   assert.match(existingRepoInstall, /Install Sepo into another repository/);
   assert.match(existingRepoInstall, /source request issue[\s\S]*comment linking the install PR/);
-  assert.ok(isRecord(installIssueTemplateForm), "install issue form should parse as YAML");
-  assert.equal(installIssueTemplateForm.title, "Install Sepo into target repository");
-  assert.doesNotMatch(String(installIssueTemplateForm.title || ""), /owner\/repo|OWNER\/REPO|<owner\/repo>/);
-  assert.ok(Array.isArray(installIssueTemplateForm.body), "install issue form should define body fields");
-  const installIssueFields = installIssueTemplateForm.body as unknown[];
-  const commandField = installIssueFields.find(
-    (field): field is Record<string, unknown> => isRecord(field) && field.id === "agent-command",
+  assert.equal(installIssueTemplate.frontMatter.name, "Install Sepo into another repository");
+  assert.equal(
+    installIssueTemplate.frontMatter.about,
+    "Ask Sepo to open an install PR for a public target repository",
   );
-  assert.ok(commandField, "install issue form should submit an agent command field");
-  assert.ok(isRecord(commandField.attributes), "agent command field should define attributes");
-  assert.equal(commandField.attributes.value, "@sepo-agent /install");
-  const targetRepoField = installIssueFields.find(
-    (field): field is Record<string, unknown> => isRecord(field) && field.id === "target-repository",
-  );
-  assert.ok(targetRepoField, "install issue form should submit a target repository field");
-  assert.equal(targetRepoField.type, "input");
-  assert.ok(isRecord(targetRepoField.attributes), "target repository field should define attributes");
-  assert.equal(targetRepoField.attributes.label, "Target public repository URL");
-  assert.equal(targetRepoField.attributes.placeholder, "https://github.com/owner/repo");
-  assert.ok(isRecord(targetRepoField.validations), "target repository field should define validations");
-  assert.equal(targetRepoField.validations.required, true);
+  assert.equal(installIssueTemplate.frontMatter.title, "Install Sepo into target repository");
+  assert.equal(installIssueTemplate.frontMatter.labels, "agent");
+  assert.match(installIssueTemplate.body, /^@sepo-agent \/install\n/);
+  assert.match(installIssueTemplate.body, /## Target public repository URL/);
+  assert.match(installIssueTemplate.body, /https:\/\/github\.com\/owner\/repo/);
+  assert.match(installIssueTemplate.body, /## Notes/);
+  assert.doesNotMatch(String(installIssueTemplate.frontMatter.title || ""), /owner\/repo|OWNER\/REPO|<owner\/repo>/);
+  assert.equal(askIssueTemplate.frontMatter.name, "Ask Sepo");
+  assert.equal(askIssueTemplate.frontMatter.about, "Ask Sepo a question about this repository");
+  assert.equal(askIssueTemplate.frontMatter.title, "Ask Sepo: ");
+  assert.equal(askIssueTemplate.frontMatter.labels, "agent");
+  assert.match(askIssueTemplate.body, /^@sepo-agent \/answer\n/);
+  assert.match(askIssueTemplate.body, /## Question/);
   assert.match(memoryArchitecture, /Agent \/ Memory \/ Initialization[\s\S]*\|\s*Auto\s*\|/);
   assert.match(rubricsArchitecture, /agent\/rubrics/);
   assert.match(rubricsArchitecture, /AGENT_RUBRICS_POLICY/);
