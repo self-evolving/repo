@@ -110,3 +110,4 @@
 - Provider model defaults stay tiny and pinned; reviewer lanes use resolve-agent-provider, with AGENT_MODEL_POLICY as the escape hatch.
 - Do not assert target root README content in tests; duplicated repos need customizable READMEs.
 - Do not add per-run remote model-default fetches; bundled .agent/model-defaults.json updates ship via agent-update.
+- Simple Sepo command issue templates use Markdown; keep install defaults non-parseable so missing targets prompt clarification.
