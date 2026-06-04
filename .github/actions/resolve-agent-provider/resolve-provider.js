@@ -180,9 +180,10 @@ function loadModelDefaults() {
       providers[provider]?.default?.model,
       `model-defaults.json providers.${provider}.default.model`,
     );
-    if (model) {
-      defaults[provider] = { model };
+    if (!model) {
+      throw new Error(`model-defaults.json must define a non-empty providers.${provider}.default.model`);
     }
+    defaults[provider] = { model };
   }
   return defaults;
 }

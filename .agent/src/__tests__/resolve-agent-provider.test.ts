@@ -1,5 +1,13 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -132,6 +140,48 @@ test("provider resolver loads bundled provider model defaults", () => {
   assert.equal(claude.outputs.provider, "claude");
   assert.equal(claude.outputs.model, "claude-opus-4-8");
   assert.equal(claude.outputs.reasoning_effort, "");
+});
+
+test("provider resolver fails when a bundled provider default is missing", () => {
+  const tempDir = mkdtempSync(path.join(tmpdir(), "agent-provider-defaults-"));
+  const outputFile = path.join(tempDir, "github-output");
+
+  try {
+    // Recreate the action directory layout so the resolver's relative
+    // ../../../.agent/model-defaults.json path resolves inside the temp tree.
+    const actionDir = path.join(tempDir, ".github/actions/resolve-agent-provider");
+    mkdirSync(actionDir, { recursive: true });
+    const scopedResolver = path.join(actionDir, "resolve-provider.js");
+    copyFileSync(resolverScript, scopedResolver);
+
+    mkdirSync(path.join(tempDir, ".agent"), { recursive: true });
+    writeFileSync(
+      path.join(tempDir, ".agent/model-defaults.json"),
+      JSON.stringify({ providers: { codex: { default: { model: "gpt-5.5" } } } }),
+    );
+
+    const result = spawnSync(process.execPath, [scopedResolver], {
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        GITHUB_OUTPUT: outputFile,
+        ROUTE: "test-route",
+        ROUTE_PROVIDER: "",
+        DEFAULT_PROVIDER: "claude",
+        OPENAI_API_KEY: "",
+        CLAUDE_CODE_OAUTH_TOKEN: "",
+        ANTHROPIC_API_KEY: "",
+        REQUIRED: "true",
+        AGENT_MODEL_POLICY: "",
+      },
+    });
+
+    assert.equal(result.status, 1, result.stdout + result.stderr);
+    assert.match(result.stderr, /providers\.claude\.default\.model/);
+    assert.equal(parseOutputs(outputFile).model, undefined);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
 });
 
 test("provider resolver honors default and inline route overrides", () => {
