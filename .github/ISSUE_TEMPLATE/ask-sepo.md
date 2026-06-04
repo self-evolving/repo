@@ -6,6 +6,4 @@ labels: agent
 ---
 @sepo-agent /answer
 
-## Question
-
 <!-- Ask your repository question here. -->
