@@ -8,7 +8,7 @@ labels: agent
 
 ## Target public repository URL
 
-https://github.com/owner/repo
+<!-- Paste the public GitHub repository URL here. -->
 
 ## Notes
 

@@ -13,6 +13,7 @@ import {
   validateEnvelope,
 } from "../envelope.js";
 import { buildAnswerReviewContext } from "../answer-review-context.js";
+import { resolveInstallTargetFromText } from "../install-target.js";
 
 const repoRoot = path.resolve(__dirname, "../../..");
 
@@ -1493,9 +1494,12 @@ test("workflow docs record the minimal metadata contract and developer notes", (
   assert.equal(installIssueTemplate.frontMatter.labels, "agent");
   assert.match(installIssueTemplate.body, /^@sepo-agent \/install\n/);
   assert.match(installIssueTemplate.body, /## Target public repository URL/);
-  assert.match(installIssueTemplate.body, /https:\/\/github\.com\/owner\/repo/);
+  assert.match(installIssueTemplate.body, /Paste the public GitHub repository URL here/);
   assert.match(installIssueTemplate.body, /## Notes/);
   assert.doesNotMatch(String(installIssueTemplate.frontMatter.title || ""), /owner\/repo|OWNER\/REPO|<owner\/repo>/);
+  const defaultInstallTarget = resolveInstallTargetFromText(installIssueTemplate.body);
+  assert.equal(defaultInstallTarget.status, "missing");
+  assert.equal(defaultInstallTarget.targetRepo, "");
   assert.equal(askIssueTemplate.frontMatter.name, "Ask Sepo");
   assert.equal(askIssueTemplate.frontMatter.about, "Ask Sepo a question about this repository");
   assert.equal(askIssueTemplate.frontMatter.title, "Ask Sepo: ");
