@@ -36,3 +36,16 @@ Prepare:
 - The release prompt may update files, including `.agent/CHANGELOG.md`, and
   open a PR, but must not create git tags, GitHub Releases, or package
   publications.
+
+Publish:
+
+- After a marked release PR is merged into the default branch, `Agent / Release
+  / Publish` validates that the PR changed `.agent/package.json` and
+  `.agent/CHANGELOG.md`, reads the canonical version from `.agent/package.json`,
+  verifies `.agent/CHANGELOG.md` has notes for that version, and creates the
+  corresponding `vX.Y.Z` tag and GitHub Release at the merge commit.
+- The publish workflow is hard-gated to `self-evolving/repo` so forks and
+  installed repositories do not publish upstream Sepo releases.
+- Manual `workflow_dispatch` runs can provide `version`, `target_sha`, and
+  `dry_run` for validation or recovery. The requested version must match
+  `.agent/package.json` at the target commit.

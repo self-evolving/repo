@@ -13,6 +13,7 @@ Instructions:
 8. Run lightweight, directly relevant checks when applicable.
 9. Do not create git tags. Do not create or edit GitHub Releases. Do not publish packages.
 10. Do not commit. Leave changes in the working tree.
+11. Include the hidden marker `<!-- sepo-agent-release-pr -->` in the PR body so the publish workflow can recognize merged release PRs.
 
 Return exactly one JSON object and nothing else:
 
