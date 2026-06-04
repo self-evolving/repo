@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomBytes } from "node:crypto";
 import { gh } from "./github.js";
@@ -69,9 +69,24 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function readPackageVersion(workspace: string): ReleaseVersion {
-  const packagePath = join(workspace, ".agent/package.json");
-  const parsed = JSON.parse(readFileSync(packagePath, "utf8")) as PackageJson;
+function git(workspace: string, args: string[]): string {
+  return execFileSync("git", args, {
+    cwd: workspace,
+    stdio: "pipe",
+    maxBuffer: 1024 * 1024,
+  }).toString("utf8");
+}
+
+function readTargetFile(workspace: string, targetSha: string, path: string): string {
+  try {
+    return git(workspace, ["show", `${targetSha}:${path}`]);
+  } catch (err: unknown) {
+    throw new Error(`${path} must exist at target SHA ${targetSha}: ${commandErrorText(err)}`);
+  }
+}
+
+function readPackageVersion(workspace: string, targetSha: string): ReleaseVersion {
+  const parsed = JSON.parse(readTargetFile(workspace, targetSha, ".agent/package.json")) as PackageJson;
   if (typeof parsed.version !== "string" || !parsed.version.trim()) {
     throw new Error(".agent/package.json must contain a version string");
   }
@@ -102,11 +117,15 @@ function writeNotesFile(notes: string, runnerTemp: string, version: string): str
 }
 
 function currentHead(workspace: string): string {
-  return execFileSync("git", ["rev-parse", "HEAD"], {
-    cwd: workspace,
-    stdio: "pipe",
-    maxBuffer: 1024 * 1024,
-  }).toString("utf8").trim();
+  return git(workspace, ["rev-parse", "HEAD"]).trim();
+}
+
+function ensureTargetShaReachableFromHead(workspace: string, targetSha: string): void {
+  try {
+    git(workspace, ["merge-base", "--is-ancestor", targetSha, "HEAD"]);
+  } catch {
+    throw new Error(`target SHA ${targetSha} is not reachable from the checked-out trusted HEAD`);
+  }
 }
 
 function fetchPullRequest(repo: string, prNumber: string): PullRequestView {
@@ -187,15 +206,16 @@ export function publishRelease(opts: PublishReleaseOptions): PublishReleaseResul
   const repo = opts.repo.trim();
   if (!repo) throw new Error("Missing required env: GITHUB_REPOSITORY");
 
-  const packageVersion = readPackageVersion(opts.workspace);
-  const requested = opts.versionInput?.trim() ? parseReleaseVersion(opts.versionInput).version : "";
-  if (requested && requested !== packageVersion.version) {
-    throw new Error(`requested version ${requested} does not match .agent/package.json version ${packageVersion.version}`);
-  }
-
   const targetSha = (opts.targetShaInput || "").trim() || currentHead(opts.workspace);
   if (!/^[0-9a-f]{40}$/i.test(targetSha)) {
     throw new Error(`target SHA must be a full 40-character commit SHA, got ${targetSha || "(empty)"}`);
+  }
+  ensureTargetShaReachableFromHead(opts.workspace, targetSha);
+
+  const packageVersion = readPackageVersion(opts.workspace, targetSha);
+  const requested = opts.versionInput?.trim() ? parseReleaseVersion(opts.versionInput).version : "";
+  if (requested && requested !== packageVersion.version) {
+    throw new Error(`requested version ${requested} does not match .agent/package.json version ${packageVersion.version}`);
   }
 
   if (opts.prNumber?.trim()) {
@@ -214,7 +234,7 @@ export function publishRelease(opts: PublishReleaseOptions): PublishReleaseResul
   }
 
   const notes = extractChangelogNotes(
-    readFileSync(join(opts.workspace, ".agent/CHANGELOG.md"), "utf8"),
+    readTargetFile(opts.workspace, targetSha, ".agent/CHANGELOG.md"),
     packageVersion.version,
   );
   const notesFile = writeNotesFile(notes, opts.runnerTemp, packageVersion.version);

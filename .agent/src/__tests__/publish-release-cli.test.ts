@@ -6,7 +6,6 @@ import { test } from "node:test";
 import { strict as assert } from "node:assert";
 
 const repoRoot = resolve(__dirname, "../../..");
-const targetSha = "1234567890abcdef1234567890abcdef12345678";
 
 function parseGithubOutput(path: string): Map<string, string> {
   const raw = readFileSync(path, "utf8");
@@ -18,11 +17,34 @@ function parseGithubOutput(path: string): Map<string, string> {
   return outputs;
 }
 
-function writeReleaseFiles(workspace: string): void {
+function runGit(workspace: string, args: string[]): string {
+  return execFileSync("git", args, {
+    cwd: workspace,
+    encoding: "utf8",
+    stdio: "pipe",
+  }).trim();
+}
+
+function commitReleaseFiles(workspace: string, message: string): string {
+  runGit(workspace, ["add", ".agent/package.json", ".agent/CHANGELOG.md"]);
+  runGit(workspace, ["commit", "-m", message]);
+  return runGit(workspace, ["rev-parse", "HEAD"]);
+}
+
+function initReleaseRepo(workspace: string, version = "0.4.0"): string {
+  mkdirSync(workspace);
+  runGit(workspace, ["init"]);
+  runGit(workspace, ["config", "user.name", "Sepo Test"]);
+  runGit(workspace, ["config", "user.email", "sepo-test@example.com"]);
+  writeReleaseFiles(workspace, version);
+  return commitReleaseFiles(workspace, `release ${version}`);
+}
+
+function writeReleaseFiles(workspace: string, version = "0.4.0"): void {
   mkdirSync(join(workspace, ".agent"), { recursive: true });
   writeFileSync(
     join(workspace, ".agent/package.json"),
-    JSON.stringify({ name: "@self-evolving/sepo", version: "0.4.0" }, null, 2),
+    JSON.stringify({ name: "@self-evolving/sepo", version }, null, 2),
     "utf8",
   );
   writeFileSync(
@@ -30,7 +52,7 @@ function writeReleaseFiles(workspace: string): void {
     [
       "# Changelog",
       "",
-      "## 0.4.0 - 2026-06-04",
+      `## ${version} - 2026-06-04`,
       "",
       "### Added",
       "",
@@ -47,7 +69,7 @@ function writeReleaseFiles(workspace: string): void {
   );
 }
 
-function writeFakeGh(tempDir: string, mode: "eligible" | "unmarked" | "publish"): string {
+function writeFakeGh(tempDir: string, mode: "eligible" | "unmarked" | "publish", targetSha: string): string {
   const callsPath = join(tempDir, "gh-calls.txt");
   writeFileSync(callsPath, "", "utf8");
   const prBody = mode === "unmarked" ? "## Summary" : "## Summary <!-- sepo-agent-release-pr -->";
@@ -78,11 +100,10 @@ test("publish-release dry-run validates release PR marker and files", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-publish-release-"));
   try {
     const workspace = join(tempDir, "workspace");
-    mkdirSync(workspace);
-    writeReleaseFiles(workspace);
+    const targetSha = initReleaseRepo(workspace);
     const outputPath = join(tempDir, "github-output.txt");
     writeFileSync(outputPath, "", "utf8");
-    const callsPath = writeFakeGh(tempDir, "eligible");
+    const callsPath = writeFakeGh(tempDir, "eligible", targetSha);
 
     execFileSync("node", [".agent/dist/cli/publish-release.js"], {
       cwd: repoRoot,
@@ -119,11 +140,10 @@ test("publish-release skips merged PRs without the release marker", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-publish-release-"));
   try {
     const workspace = join(tempDir, "workspace");
-    mkdirSync(workspace);
-    writeReleaseFiles(workspace);
+    const targetSha = initReleaseRepo(workspace);
     const outputPath = join(tempDir, "github-output.txt");
     writeFileSync(outputPath, "", "utf8");
-    const callsPath = writeFakeGh(tempDir, "unmarked");
+    const callsPath = writeFakeGh(tempDir, "unmarked", targetSha);
 
     execFileSync("node", [".agent/dist/cli/publish-release.js"], {
       cwd: repoRoot,
@@ -156,11 +176,12 @@ test("publish-release creates a GitHub Release for manual recovery", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-publish-release-"));
   try {
     const workspace = join(tempDir, "workspace");
-    mkdirSync(workspace);
-    writeReleaseFiles(workspace);
+    const targetSha = initReleaseRepo(workspace);
+    writeReleaseFiles(workspace, "0.4.1");
+    commitReleaseFiles(workspace, "move default branch forward");
     const outputPath = join(tempDir, "github-output.txt");
     writeFileSync(outputPath, "", "utf8");
-    const callsPath = writeFakeGh(tempDir, "publish");
+    const callsPath = writeFakeGh(tempDir, "publish", targetSha);
 
     execFileSync("node", [".agent/dist/cli/publish-release.js"], {
       cwd: repoRoot,
@@ -184,8 +205,43 @@ test("publish-release creates a GitHub Release for manual recovery", () => {
 
     const calls = readFileSync(callsPath, "utf8");
     assert.match(calls, /release create v0\.4\.0/);
-    assert.match(calls, /--target 1234567890abcdef1234567890abcdef12345678/);
+    assert.match(calls, new RegExp(`--target ${targetSha}`));
     assert.match(calls, /--notes-file/);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("publish-release rejects manual target SHAs outside trusted default history", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-publish-release-"));
+  try {
+    const workspace = join(tempDir, "workspace");
+    initReleaseRepo(workspace);
+    const defaultBranch = runGit(workspace, ["branch", "--show-current"]);
+    runGit(workspace, ["checkout", "-b", "untrusted-target"]);
+    writeReleaseFiles(workspace, "0.4.1");
+    const untrustedSha = commitReleaseFiles(workspace, "unmerged release target");
+    runGit(workspace, ["checkout", defaultBranch]);
+    const callsPath = writeFakeGh(tempDir, "publish", untrustedSha);
+
+    const result = spawnSync("node", [".agent/dist/cli/publish-release.js"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        PATH: `${tempDir}:${process.env.PATH || ""}`,
+        GH_CALLS: callsPath,
+        GITHUB_REPOSITORY: "self-evolving/repo",
+        GITHUB_WORKSPACE: workspace,
+        TARGET_SHA: untrustedSha,
+        VERSION: "0.4.1",
+        RUNNER_TEMP: tempDir,
+      },
+    });
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /not reachable from the checked-out trusted HEAD/);
+    assert.equal(readFileSync(callsPath, "utf8"), "");
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
@@ -195,9 +251,8 @@ test("publish-release rejects requested versions that do not match package versi
   const tempDir = mkdtempSync(join(tmpdir(), "agent-publish-release-"));
   try {
     const workspace = join(tempDir, "workspace");
-    mkdirSync(workspace);
-    writeReleaseFiles(workspace);
-    const callsPath = writeFakeGh(tempDir, "publish");
+    const targetSha = initReleaseRepo(workspace);
+    const callsPath = writeFakeGh(tempDir, "publish", targetSha);
 
     const result = spawnSync("node", [".agent/dist/cli/publish-release.js"], {
       cwd: repoRoot,
