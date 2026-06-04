@@ -2,8 +2,8 @@ name: Setup Agent Runtime
 description: |
   Check out-independent runtime bootstrap for the Sepo agent.
   Reuses preinstalled Node.js on self-hosted runners, installs Node.js on
-  GitHub-hosted runners, then builds the TypeScript runtime in place and
-  optionally installs missing agent CLIs.
+  GitHub-hosted runners, optionally installs runtime dependencies, builds the
+  TypeScript runtime in place, and optionally installs missing agent CLIs.
 
 inputs:
   node_version:
@@ -26,6 +26,14 @@ inputs:
     description: Optional Claude Code version to install when the CLI is missing.
     required: false
     default: ""
+  install_dependencies:
+    description: Whether to install .agent runtime dependencies.
+    required: false
+    default: "true"
+  build_runtime:
+    description: Whether to build the .agent TypeScript runtime.
+    required: false
+    default: "true"
 
 runs:
   using: composite
@@ -77,11 +85,13 @@ runs:
         echo "NODE_PATH=$GITHUB_WORKSPACE/.agent/node_modules${NODE_PATH:+:$NODE_PATH}" >> "$GITHUB_ENV"
 
     - name: Install runtime dependencies
+      if: ${{ inputs.install_dependencies == 'true' }}
       shell: bash
       working-directory: .agent
       run: npm ci
 
     - name: Build runtime
+      if: ${{ inputs.build_runtime == 'true' }}
       shell: bash
       working-directory: .agent
       run: npm run build

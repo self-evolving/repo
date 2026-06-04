@@ -2005,8 +2005,52 @@ test("run-agent-task only bootstraps missing rubrics for first-run initializatio
   assert.match(rubricsPrompt, /Agent \/ Rubrics \/ Initialization and Agent \/ Rubrics \/ Update/);
 });
 
-test("rubrics-review preflights rubric availability before model setup", () => {
+test("rubrics-review builds runtime before CLI-backed preflight and gates model setup", () => {
   const workflow = readRepoFile(".github/workflows/agent-rubrics-review.yml");
+  const parsed = parseYaml(workflow) as unknown;
+  assert.ok(isRecord(parsed), "rubrics-review workflow should parse as a YAML object");
+  assert.ok(isRecord(parsed.jobs), "rubrics-review workflow should define jobs");
+  const job = parsed.jobs["rubrics-review"];
+  assert.ok(isRecord(job), "rubrics-review workflow should define a rubrics-review job");
+  assert.ok(Array.isArray(job.steps), "rubrics-review job should define steps");
+  const steps = job.steps.filter(isRecord);
+  const findStep = (name: string): { index: number; step: Record<string, unknown> } => {
+    const index = steps.findIndex((step) => step.name === name);
+    assert.notEqual(index, -1, `rubrics-review workflow should include step ${name}`);
+    return { index, step: steps[index]! };
+  };
+
+  const preflightRuntime = findStep("Setup agent runtime for rubrics preflight");
+  const rubricsMode = findStep("Resolve rubrics review mode");
+  const download = findStep("Download rubrics for review preflight");
+  const count = findStep("Count active rubrics for review");
+  const preflight = findStep("Resolve rubrics review preflight");
+  const provider = findStep("Resolve rubrics review provider");
+  const providerTools = findStep("Install rubrics review provider tools");
+  const runReview = findStep("Run rubrics review");
+
+  assert.equal(preflightRuntime.step.uses, "./.github/actions/setup-agent-runtime");
+  assert.ok(preflightRuntime.index < rubricsMode.index);
+  assert.ok(preflightRuntime.index < count.index);
+  assert.ok(rubricsMode.index < download.index);
+  assert.ok(download.index < count.index);
+  assert.ok(count.index < preflight.index);
+  assert.ok(preflight.index < provider.index);
+  assert.ok(provider.index < providerTools.index);
+  assert.ok(providerTools.index < runReview.index);
+  assert.equal(provider.step["if"], "${{ steps.preflight.outputs.should_run == 'true' }}");
+  assert.equal(providerTools.step["if"], "${{ steps.preflight.outputs.should_run == 'true' }}");
+  assert.ok(isRecord(providerTools.step.with), "provider tool setup should define inputs");
+  assert.equal(providerTools.step.with.install_dependencies, "false");
+  assert.equal(providerTools.step.with.build_runtime, "false");
+
+  for (const [index, step] of steps.entries()) {
+    const run = typeof step.run === "string" ? step.run : "";
+    assert.ok(
+      index > preflightRuntime.index || !/(?:node\s+)?\.agent\/dist\/|\.agent\/node_modules/.test(run),
+      `step ${String(step.name || index)} must not use built runtime before preflight setup`,
+    );
+  }
 
   assert.match(workflow, /name: Resolve rubrics review mode/);
   assert.match(workflow, /node \.agent\/dist\/cli\/rubrics\/resolve-policy\.js/);

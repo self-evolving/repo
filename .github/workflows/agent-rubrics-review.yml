@@ -81,6 +81,9 @@ jobs:
           pat: ${{ secrets.AGENT_PAT }}
           fallback_token: ${{ github.token }}
 
+      - name: Setup agent runtime for rubrics preflight
+        uses: ./.github/actions/setup-agent-runtime
+
       - name: Resolve rubrics review mode
         id: rubrics_mode
         env:
@@ -180,10 +183,12 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           model_policy: ${{ vars.AGENT_MODEL_POLICY || '' }}
 
-      - name: Setup agent runtime
+      - name: Install rubrics review provider tools
         if: ${{ steps.preflight.outputs.should_run == 'true' }}
         uses: ./.github/actions/setup-agent-runtime
         with:
+          install_dependencies: "false"
+          build_runtime: "false"
           install_codex: ${{ steps.provider.outputs.install_codex }}
           install_claude: ${{ steps.provider.outputs.install_claude }}
 
