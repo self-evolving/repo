@@ -6,7 +6,7 @@
 
 - Repository license is MIT.
 - Current near-term priorities: hosted App install webhook and fresh install/onboarding/update smoke tests.
-- Sepo v0.3.0 is the current public prerelease; 0.3.0 release prep landed May 24, 2026.
+- Sepo v0.3.1 is the current public prerelease; 0.3.1 was published June 4, 2026. [[github/self-evolving/repo/discussion-404.json]]
 ## Open Questions
 - Should Sepo add inner/reportable timeouts in run.ts/runAcpx/acpx-adapter after the GitHub-step timeout first pass?
 - Should hosted Sepo be the quick-start default while repo-local Actions remains first-class for control/auditability?
