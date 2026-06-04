@@ -114,7 +114,7 @@ test("provider resolver auto-detects configured providers deterministically", ()
   assert.equal(bothClaudeCredentials.outputs.install_claude, "true");
 });
 
-test("provider resolver pins built-in provider model defaults", () => {
+test("provider resolver loads bundled provider model defaults", () => {
   const codex = runResolver({
     DEFAULT_PROVIDER: "codex",
   });

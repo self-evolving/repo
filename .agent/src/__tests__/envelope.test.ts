@@ -361,6 +361,7 @@ test("single-agent workflows resolve provider before runtime setup", () => {
   assert.doesNotMatch(resolverAction, /display_model:/);
   assert.match(resolverImplementation, /DEFAULT_PROVIDER/);
   assert.match(resolverImplementation, /AGENT_MODEL_POLICY/);
+  assert.match(resolverImplementation, /\.agent\/model-defaults\.json/);
   assert.match(resolverImplementation, /OPENAI_API_KEY/);
   assert.match(resolverImplementation, /CLAUDE_CODE_OAUTH_TOKEN/);
   assert.match(resolverImplementation, /ANTHROPIC_API_KEY/);
