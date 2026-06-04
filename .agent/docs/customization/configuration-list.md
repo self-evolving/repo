@@ -38,14 +38,14 @@ title: "Configurations list"
 | `AGENT_COMMITTER_NAME` | Custom commit author name for implementation and PR-fix runs |
 | `AGENT_COMMITTER_EMAIL` | Custom commit author email for implementation and PR-fix runs |
 
-Built-in model defaults are intentionally small and pinned:
+Bundled model defaults live in `.agent/model-defaults.json` and are intentionally small and pinned:
 
 | Provider | Default model |
 |---|---|
 | `codex` | `gpt-5.5` |
 | `claude` | `claude-opus-4-8` |
 
-Sepo does not maintain a general model catalog. Use `AGENT_MODEL_POLICY` when a repository needs different models, route-specific choices, or reasoning effort overrides.
+Sepo does not maintain a general model catalog, and the resolver reads these defaults from the bundled file locally with no network access at run time. Updates to the file ship through `agent-update.yml` with the rest of `.agent/`. Use `AGENT_MODEL_POLICY` when a repository needs different models, route-specific choices, or reasoning effort overrides.
 
 `AGENT_MODEL_POLICY` example:
 

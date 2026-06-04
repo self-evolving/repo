@@ -1,15 +1,16 @@
 #!/usr/bin/env node
 
 const fs = require("node:fs");
+const path = require("node:path");
 
 const VALID_PROVIDERS = new Set(["auto", "codex", "claude"]);
 const VALID_ROUTE_KEY = /^[a-z0-9][a-z0-9._-]*$/;
 const SAFE_TOKEN = /^[A-Za-z0-9][A-Za-z0-9._:/+-]*$/;
-// Keep this small: Sepo pins one default model per supported provider, not a model catalog.
-const BUILTIN_PROVIDER_DEFAULTS = Object.freeze({
-  codex: Object.freeze({ model: "gpt-5.5" }),
-  claude: Object.freeze({ model: "claude-opus-4-8" }),
-});
+// Keep this small: Sepo ships one default model per supported provider in
+// .agent/model-defaults.json, not a model catalog. The file is bundled and
+// refreshed through agent-update.yml with the rest of .agent/, so provider
+// resolution stays offline and deterministic with no network fetch.
+const BUNDLED_MODEL_DEFAULTS_PATH = path.resolve(__dirname, "../../../.agent/model-defaults.json");
 
 function normalizeProvider(value) {
   return String(value || "").trim().toLowerCase();
@@ -166,9 +167,30 @@ function resolveProviderRequest(env, policy, route) {
   return { requestedProvider, requestedReason, hasRouteProviderOverride: Boolean(routeProvider) };
 }
 
-function resolveRunConfig(policy, provider, route, options = {}) {
+function loadModelDefaults() {
+  const payload = JSON.parse(fs.readFileSync(BUNDLED_MODEL_DEFAULTS_PATH, "utf8"));
+  const providers =
+    payload && typeof payload === "object" && !Array.isArray(payload) ? payload.providers : undefined;
+  if (!providers || typeof providers !== "object" || Array.isArray(providers)) {
+    throw new Error("model-defaults.json must define a providers object");
+  }
+  const defaults = {};
+  for (const provider of ["codex", "claude"]) {
+    const model = normalizeOptionalToken(
+      providers[provider]?.default?.model,
+      `model-defaults.json providers.${provider}.default.model`,
+    );
+    if (!model) {
+      throw new Error(`model-defaults.json must define a non-empty providers.${provider}.default.model`);
+    }
+    defaults[provider] = { model };
+  }
+  return defaults;
+}
+
+function resolveRunConfig(policy, modelDefaults, provider, route, options = {}) {
   const config = { model: "", reasoningEffort: "" };
-  applyRunConfig(config, BUILTIN_PROVIDER_DEFAULTS[provider] || {});
+  applyRunConfig(config, modelDefaults[provider] || {});
   applyRunConfig(config, policy.defaultConfig);
   applyRunConfig(config, policy.providers[provider] || {});
   if (!options.hasRouteProviderOverride) {
@@ -241,7 +263,8 @@ function main(env) {
     );
   }
 
-  const runConfig = resolveRunConfig(policy, provider, route, { hasRouteProviderOverride });
+  const modelDefaults = loadModelDefaults();
+  const runConfig = resolveRunConfig(policy, modelDefaults, provider, route, { hasRouteProviderOverride });
   writeOutputs({
     provider,
     reason,
