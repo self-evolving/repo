@@ -1526,6 +1526,8 @@ test("workflow docs record the minimal metadata contract and developer notes", (
   assert.match(rubricsInitializationPrompt, /Initialization context:/);
   assert.match(rubricsInitializationPrompt, /OWNER[\s\S]*MEMBER[\s\S]*COLLABORATOR/);
   assert.match(rubricsArchitecture, /Only rubric initialization bootstraps a missing branch/);
+  assert.match(rubricsArchitecture, /preflights rubric availability before provider setup/);
+  assert.match(rubricsArchitecture, /there is nothing to score/);
   assert.match(rubricsArchitecture, /Dispatch triage is always rubric-disabled/);
   assert.match(rubricsArchitecture, /honor `AGENT_RUBRICS_POLICY`/);
   assert.match(existingRepoInstall, /cannot silently skip persistence/);
@@ -2001,6 +2003,35 @@ test("run-agent-task only bootstraps missing rubrics for first-run initializatio
   assert.match(action, /all_route_args\+=\(--all-routes\)/);
   assert.match(action, /"\$\{all_route_args\[@\]\}"/);
   assert.match(rubricsPrompt, /Agent \/ Rubrics \/ Initialization and Agent \/ Rubrics \/ Update/);
+});
+
+test("rubrics-review preflights rubric availability before model setup", () => {
+  const workflow = readRepoFile(".github/workflows/agent-rubrics-review.yml");
+
+  assert.match(workflow, /name: Resolve rubrics review mode/);
+  assert.match(workflow, /node \.agent\/dist\/cli\/rubrics\/resolve-policy\.js/);
+  assert.match(workflow, /name: Download rubrics for review preflight/);
+  assert.match(workflow, /continue_on_missing:\s*"true"/);
+  assert.match(workflow, /bootstrap_if_missing:\s*"false"/);
+  assert.match(workflow, /name: Count active rubrics for review/);
+  assert.match(workflow, /node \.agent\/dist\/cli\/rubrics\/select\.js[\s\S]*--all-routes[\s\S]*--limit all/);
+  assert.match(workflow, /id:\s*preflight/);
+  assert.match(workflow, /should_run=true/);
+  assert.match(workflow, /Rubrics branch \$\{RUBRICS_REF\} is not available/);
+  assert.match(workflow, /No active rubrics are available to score/);
+  assert.match(workflow, /name: Report skipped rubric review[\s\S]*::notice title=Rubrics review skipped::/);
+  assert.match(
+    workflow,
+    /name: Resolve rubrics review provider[\s\S]*if:\s*\$\{\{\s*steps\.preflight\.outputs\.should_run == 'true'\s*\}\}/,
+  );
+  assert.match(
+    workflow,
+    /name: Run rubrics review[\s\S]*if:\s*\$\{\{\s*steps\.preflight\.outputs\.should_run == 'true'\s*\}\}/,
+  );
+  assert.match(
+    workflow,
+    /Post rubric review comment[\s\S]*inputs\.post_comment == 'true' && steps\.preflight\.outputs\.should_run == 'true' && steps\.review\.outputs\.response_file != ''/,
+  );
 });
 
 test("normal workflows honor rubrics policy instead of forcing read-only", () => {
