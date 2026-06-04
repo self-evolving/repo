@@ -1,0 +1,195 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\nMoves Sepo's pinned per-provider default models out of the hardcoded `BUILTIN_PROVIDER_DEFAULTS` object in `resolve-provider.js` and into a bundled `.agent/model-defaults.json` that the resolver reads locally. Resolved models are unchanged (`gpt-5.5` / `claude-opus-4-8`); precedence stays `bundled defaults < AGENT_MODEL_POLICY`. The loader requires a non-empty default for both supported providers and fails loudly if the bundled file is malformed.\n\n## Why a new PR (vs #393)\n#393 implements the same data-file idea but adds a **layered remote registry**: every `resolve-agent-provider` run also fetches `raw.githubusercontent.com/self-evolving/repo/main/.agent/model-defaults.json`, with a hand-rolled http/https client, a strict validator, a `model_source` output, and fallback. That puts a network round-trip on the hot path of **every** agent run (3× per review, uncached) just to close the gap *between* `agent-update.yml` runs.\n\nBut `agent-update.yml` already syncs `.agent/` (including this file) to installed repos on its ~biweekly schedule and on demand, as a reviewed PR — and it bumps the model default together with the matching runtime/adapter version. A live per-run fetch bypasses that review and can push a model id a repo's installed runtime can't run.\n\nSo this PR keeps the good half of #393 (defaults as data) and drops the remote layer:\n- no per-run network / latency / rate-limit exposure\n- no remote fetch, http client, registry validator, or `model_source` plumbing\n- model + runtime updates stay coupled and reviewed via agent-update\n\n## Resolution of #392 / #393\nThis **supersedes #393** and intentionally **rescopes #392**: after weighing the remote-registry design, we're settling on the simpler bundled-only approach. #392's remote-registry acceptance criteria (`AGENT_MODEL_REGISTRY*`, per-run fetch + fallback) are deliberately dropped, because `agent-update.yml` already delivers `.agent/` updates to installed repos as a reviewed, runtime-coupled PR. This PR closes #392 as resolved by the bundled-only design.\n\nCloses #392.\n\n## Verification\n- `cd .agent && npm run build`\n- `cd .agent && node --test dist/__tests__/resolve-agent-provider.test.js dist/__tests__/envelope.test.js dist/__tests__/docs-validation.test.js` — 92 pass\n- `git diff --check` — clean\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABE1gAaQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review ",
+      "createdAt": "2026-06-04T06:13:34Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/401#issuecomment-4619501673",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABE1hy2Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 88 | PARTIAL | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Minimal defaults, native escape hatches | pass | 8/8 | Defaults move to a tiny bundled JSON file with one model per provider, and customization remains through `AGENT_MODEL_POLICY` / inline `route_provider`. Evidence: [model-defaults.json](https://github.com/self-evolving/repo/blob/1b0159ecc2d0fbc559207fec1399295b44595769/.agent/model-defaults.json#L1-L14), [resolver precedence](https://github.com/self-evolving/repo/blob/1b0159ecc2d0fbc559207fec1399295b44595769/.github/actions/resolve-agent-provider/resolve-provider.js#L190-L197). |\n| coding_style/generic | Prefer simple implementations | pass | 7/7 | The PR avoids the remote registry layer from #393 and adds only local file loading plus focused docs/tests. Diff is 5 files, +48/-11. Evidence: [resolver file path/comment](https://github.com/self-evolving/repo/blob/1b0159ecc2d0fbc559207fec1399295b44595769/.github/actions/resolve-agent-provider/resolve-provider.js#L9-L13). |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | Extends the existing `resolve-agent-provider` action and resolver path instead of adding parallel workflow glue or a new resolver. Evidence: [load call in existing resolver](https://github.com/self-evolving/repo/blob/1b0159ecc2d0fbc559207fec1399295b44595769/.github/actions/resolve-agent-provider/resolve-provider.js#L265-L266). |\n| coding_workflow/generic | Prefer agent-derived decisions | pass | 7/7 | Keeps the default-model decision inside the bundled resolver data and avoids new repository-level settings for registry selection. Evidence: [bundled path constant](https://github.com/self-evolving/repo/blob/1b0159ecc2d0fbc559207fec1399295b44595769/.github/actions/resolve-agent-provider/resolve-provider.js#L13-L13). |\n| coding_workflow/generic | Prefer explicit structured inputs | pass | 7/7 | Uses a structured JSON manifest and preserves existing typed policy fields; no duplicate `AGENT_MODEL_REGISTRY*` knobs are added. Evidence: [manifest structure](https://github.com/self-evolving/repo/blob/1b0159ecc2d0fbc559207fec1399295b44595769/.agent/model-defaults.json#L1-L14), [envelope guard](https://github.com/self-evolving/repo/blob/1b0159ecc2d0fbc559207fec1399295b44595769/.agent/src/__tests__/envelope.test.ts#L358-L365). |\n| coding_workflow/generic | Keep docs in sync | pass | 7/7 | Configuration docs now describe bundled defaults, local offline resolution, `agent-update.yml` refresh, and the existing policy override path. Evidence: [configuration docs](https://github.com/self-evolving/repo/blob/1b0159ecc2d0fbc559207fec1399295b44595769/.agent/docs/customization/configuration-list.md#L41-L48). |\n| coding_workflow/generic | Make surgical changes | pass | 8/8 | Changes are scoped to resolver implementation, one bundled data file, one docs page, and focused resolver/envelope tests. Evidence: PR file list contains only 5 changed files. |\n| coding_workflow/generic | Generate context-derived artifact metadata | fail | 0/7 | PR body says #401 intentionally does not satisfy #392 as written, but live PR metadata reports `closingIssuesReferences` includes #392, likely from the “close #392” wording in the body. That would let merge close the tracker despite the stated rescope need. Evidence: [PR body](https://github.com/self-evolving/repo/pull/401), [issue #392 acceptance criteria](https://github.com/self-evolving/repo/issues/392). |\n\n## Notes\n\n- The implementation satisfies the selected simplicity, reuse, surgical-change, docs, and escape-hatch rubrics well.\n- Independent verification on PR head `1b0159ecc2d0fbc559207fec1399295b44595769`: `npm run build`, focused `node --test dist/__tests__/resolve-agent-provider.test.js dist/__tests__/envelope.test.js dist/__tests__/docs-validation.test.js` passed 91/91, and `git diff --check origin/main...HEAD` was clean.\n- Smallest useful follow-up: rewrite the PR body so GitHub does not treat #392 as a closing issue unless maintainers intentionally want this bundled-only PR to close that tracker.\n\n## Findings\n\n- **WARNING:** The PR currently has closing metadata for #392 while explicitly saying it does not satisfy #392 as written. Remove or reword the “close #392” phrase, or make the body explicitly close #392 only if the maintainer decision is to rescope that issue to this bundled-only design.\n\n## Final Rubric Verdict\n\nPARTIAL\n\n---\n`codex` | `gpt-5.5/xhigh` | `zucchini-m4-6`",
+      "createdAt": "2026-06-04T06:18:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/401#issuecomment-4619530969",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABE1khXQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 1b0159ecc2d0fbc559207fec1399295b44595769 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #401 moves Sepo’s pinned provider defaults from `resolve-provider.js` into bundled `.agent/model-defaults.json`.\n- The resolved defaults and precedence remain unchanged: bundled defaults stay below `AGENT_MODEL_POLICY`.\n- This is a simpler alternative to #393 and intentionally drops the remote registry layer requested by #392/#384.\n- The implementation is small and mostly aligns with the clean local-defaults direction, but reviewers found one runtime-validation gap.\n\n## Review\nNo BLOCKING issue is supported by the current review artifacts or PR state. The remaining code issue is concrete, safe for automated repair, and the PR metadata concern needs maintainer intent.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Bundled defaults can silently disappear | WARNING | `loadModelDefaults()` accepts missing or empty provider defaults and can later emit an empty model, weakening the old hardcoded guarantee. Require non-empty defaults for both supported providers and add negative coverage. |\n| PR metadata still closes #392 | WARNING | The PR body says #392 is intentionally not satisfied as written, but GitHub still reports `closingIssuesReferences` for #392. That should be reworded unless maintainers intend this PR to rescope and close the tracker. |\n\n## Progress\n- Rubrics review passed the simplicity, reuse, docs, escape-hatch, and surgical-change checks, but flagged the #392 closing metadata.\n- Claude and Codex both identified the new defaults-loader validation/test gap; Codex framed it as the main actionable issue.\n- Existing inline comments and review threads were empty before mutation.\n- Posted one new inline comment on `.github/actions/resolve-agent-provider/resolve-provider.js` line 183; no replies, minimizations, or thread resolutions were performed.\n\n## Issue Details\n\n<details>\n<summary>Bundled defaults can silently disappear</summary>\n\n**Cause:** In [`loadModelDefaults()`](https://github.com/self-evolving/repo/blob/1b0159ecc2d0fbc559207fec1399295b44595769/.github/actions/resolve-agent-provider/resolve-provider.js#L170-L187), missing provider entries or empty `default.model` values are skipped instead of rejected.\n\n**Candidate solutions:** Require both `codex` and `claude` to define a non-empty `default.model`, fail with a clear diagnostic when either is absent/empty, and add a focused negative resolver test.\n\n**Comments:** Reviewer emphasis differed slightly: Claude focused on missing negative coverage, while Codex identified the silent omission as the behavior gap.\n</details>\n\n<details>\n<summary>PR metadata still closes #392</summary>\n\n**Cause:** The PR body’s “close #392” wording creates GitHub closing metadata even though the body says this bundled-only PR does not satisfy #392 as written.\n\n**Candidate solutions:** Reword the PR body to avoid closing #392, or explicitly document the maintainer decision to rescope #392 to this simpler bundled-only design.\n\n**Comments:** This is metadata/human-intent cleanup, not branch code work.\n</details>\n\n## Recommended Next Step\nFIX_PR: the loader validation gap is concrete branch work and safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Require non-empty bundled defaults for both `codex` and `claude`, and add focused negative test coverage.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-5`",
+      "createdAt": "2026-06-04T06:24:39Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/401#issuecomment-4619575645",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABE1rvVg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review",
+      "createdAt": "2026-06-04T06:45:11Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/401#issuecomment-4619693910",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABE1tN7g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 94 | PARTIAL | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Minimal defaults, native escape hatches | pass | 8/8 | Defaults are a small bundled manifest with one model per provider, and customization remains through `AGENT_MODEL_POLICY` / inline workflow overrides. Evidence: [`model-defaults.json`](https://github.com/self-evolving/repo/blob/2d5afc54d145f3735bbd693103497677a66a6176/.agent/model-defaults.json#L1-L14), [resolver precedence](https://github.com/self-evolving/repo/blob/2d5afc54d145f3735bbd693103497677a66a6176/.github/actions/resolve-agent-provider/resolve-provider.js#L191-L199). |\n| coding_style/generic | Prefer simple implementations | pass | 7/7 | The PR avoids the remote registry layer from #393 and adds only local JSON loading, validation, docs, and focused tests. Evidence: [bundled path/comment](https://github.com/self-evolving/repo/blob/2d5afc54d145f3735bbd693103497677a66a6176/.github/actions/resolve-agent-provider/resolve-provider.js#L9-L13). |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | Extends the existing `resolve-agent-provider` resolver instead of adding separate workflow glue or a parallel resolver. Evidence: [load/use path](https://github.com/self-evolving/repo/blob/2d5afc54d145f3735bbd693103497677a66a6176/.github/actions/resolve-agent-provider/resolve-provider.js#L266-L267). |\n| coding_workflow/generic | Prefer agent-derived decisions | pass | 7/7 | The resolver owns the bundled default decision and no new repository-level setting is introduced for registry selection. Evidence: [constant](https://github.com/self-evolving/repo/blob/2d5afc54d145f3735bbd693103497677a66a6176/.github/actions/resolve-agent-provider/resolve-provider.js#L13-L13). |\n| coding_workflow/generic | Prefer explicit structured inputs | pass | 7/7 | Uses structured `.agent/model-defaults.json` and preserves existing `AGENT_MODEL_POLICY` fields rather than adding duplicate knobs. Evidence: [manifest structure](https://github.com/self-evolving/repo/blob/2d5afc54d145f3735bbd693103497677a66a6176/.agent/model-defaults.json#L1-L14). |\n| coding_workflow/generic | Keep docs in sync | pass | 7/7 | Docs now describe bundled defaults, offline local resolution, `agent-update.yml` refresh, and the policy override path. Evidence: [configuration docs](https://github.com/self-evolving/repo/blob/2d5afc54d145f3735bbd693103497677a66a6176/.agent/docs/customization/configuration-list.md#L41-L48). |\n| communication/generic | Write audience-first documentation | pass | 7/7 | The docs explain operator-facing behavior and the customization path directly, without front-loading implementation mechanics. Evidence: [configuration docs](https://github.com/self-evolving/repo/blob/2d5afc54d145f3735bbd693103497677a66a6176/.agent/docs/customization/configuration-list.md#L41-L50). |\n| coding_workflow/generic | Make surgical changes | pass | 8/8 | Diff is scoped to the bundled data file, resolver, focused tests, and one docs page; no unrelated workflow or route refactor is present. Evidence: [changed files](https://github.com/self-evolving/repo/pull/401/files). |\n| coding_workflow/generic | Generate context-derived artifact metadata | partial | 3/7 | The PR body explains that #392 is intentionally rescoped, but GitHub still reports #401 as closing #392 while #392’s live acceptance criteria still describe a remote registry. Evidence: [PR body](https://github.com/self-evolving/repo/pull/401), [issue #392](https://github.com/self-evolving/repo/issues/392). |\n\n## Notes\n\n- Current head `2d5afc54d145f3735bbd693103497677a66a6176` fixes the earlier loader-validation concern: `loadModelDefaults()` now requires non-empty defaults for both `codex` and `claude`, with negative test coverage.\n- Verification passed locally on the PR head: `npm run build`, focused resolver/envelope/docs tests with `92/92` passing, and `git diff --check origin/main...HEAD`.\n- Smallest useful follow-up: either reword the PR body so GitHub does not auto-close #392, or update/confirm #392’s acceptance criteria to match the bundled-only design before merge.\n\n## Findings\n\n- **WARNING:** The PR closing metadata still points at #392 even though this implementation intentionally drops #392’s remote-registry acceptance criteria. That may be fine as a maintainer rescope, but the tracking artifact should make that decision explicit before merge.\n\n## Final Rubric Verdict\n\nPARTIAL\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-4`",
+      "createdAt": "2026-06-04T06:49:06Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/401#issuecomment-4619718126",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABE1w1GQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 2d5afc54d145f3735bbd693103497677a66a6176 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #401 moves Sepo’s pinned provider defaults into bundled `.agent/model-defaults.json`.\n- The resolver still runs offline, preserves `bundled defaults < AGENT_MODEL_POLICY`, and keeps the resolved defaults unchanged.\n- This intentionally supersedes #393’s remote-registry approach and rescopes #392 to a bundled-only design.\n- The current head fixes the earlier loader gap by requiring non-empty defaults for both `codex` and `claude`.\n\n## Review\nNo BLOCKING code issue is supported by the current review artifacts or PR state. The remaining concern is a tracking/maintainer-intent item, not automated branch work.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Tracking metadata still closes #392 | WARNING | GitHub still reports #401 as closing #392 even though #392’s live acceptance criteria describe a remote registry. The PR body now explicitly says this is an intentional rescope, so this needs maintainer confirmation rather than code changes. |\n\n## Progress\n- The previous loader-validation finding is fixed in head `2d5afc54d145f3735bbd693103497677a66a6176`.\n- Reviewer verification reports `npm run build`, focused resolver/envelope/docs tests, and `git diff --check` passing.\n- No new inline comments were posted.\n- Marked older same-agent inline comment `3353937053` as outdated; no thread was resolved because `viewerCanResolve` is false.\n\n## Issue Details\n\n<details>\n<summary>Tracking metadata still closes #392</summary>\n\n**Cause:** PR #401 includes `Closes #392`, while issue #392 still lists remote-registry acceptance criteria that this PR deliberately drops.\n\n**Candidate solutions:** If maintainers intend the rescope, leave the PR as-is or update/comment on #392 to record the bundled-only decision. If the remote-registry work should remain tracked, reword the PR body so merge does not auto-close #392.\n\n**Comments:** Rubrics review treats this as a warning; Claude and Codex treat it as INFO/human intent because the current PR body explicitly documents the rescope.\n\n</details>\n\n## Recommended Next Step\nHUMAN_DECISION: the only remaining concern is tracking metadata and maintainer intent around closing #392.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] No required branch-change work remains.\n\n---\n`codex` | `gpt-5.5/xhigh` | `zucchini-m4-6`",
+      "createdAt": "2026-06-04T06:57:55Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/401#issuecomment-4619777305",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-06-04T06:09:47Z",
+  "files": [
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/model-defaults.json",
+      "additions": 14,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/resolve-agent-provider.test.ts",
+      "additions": 52,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/resolve-agent-provider/resolve-provider.js",
+      "additions": 31,
+      "deletions": 8,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "bundled-model-defaults",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 401,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABB8Xi1A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-06-04T06:23:34Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "1b0159ecc2d0fbc559207fec1399295b44595769"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Bundle model defaults in .agent/model-defaults.json (simpler alternative to #393)",
+  "updatedAt": "2026-06-04T06:57:55Z",
+  "url": "https://github.com/self-evolving/repo/pull/401"
+}
