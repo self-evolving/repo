@@ -577,12 +577,14 @@ function runDirectPath(opts: {
     session_ensure_outcome: result.sessionEnsureOutcome.kind,
   });
 
-  const reportedModel = extractSessionModel(result.sessionLog) || requestedModel;
+  const reportedSessionModel = extractSessionModel(result.sessionLog);
+  const reportedModel = reportedSessionModel || requestedModel;
   setOutput("model", reportedModel);
   if (parseBooleanFlag(process.env.DISPLAY_MODEL, true)) {
     setOutput("model_display", buildModelDisplay({
       agent,
-      model: reportedModel,
+      reportedSessionModel,
+      requestedModel,
       reasoningEffort: process.env.MODEL_REASONING_EFFORT || "",
       runnerName: process.env.RUNNER_NAME || "",
     }));

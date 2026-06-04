@@ -1,8 +1,22 @@
 const CODEX_GPT5_MODEL_PREFIX = /^gpt-5(?:[.-]|$)/u;
 const CODEX_REASONING_MODEL_SUFFIX = /(?:\/(low|medium|high|xhigh)|\[(low|medium|high|xhigh)\])$/u;
+const CLAUDE_MODEL_ALIASES = new Set(["default", "opus", "sonnet", "haiku"]);
 
 function isCodexAgent(agent: string): boolean {
   return agent.trim().toLowerCase() === "codex";
+}
+
+function isClaudeAgent(agent: string): boolean {
+  return agent.trim().toLowerCase() === "claude";
+}
+
+function isClaudeModelAlias(model: string): boolean {
+  return CLAUDE_MODEL_ALIASES.has(model.trim().toLowerCase());
+}
+
+function displayClaudeModelAlias(model: string): string {
+  const alias = model.trim().toLowerCase();
+  return alias === "default" ? "" : `${alias} alias`;
 }
 
 function decomposeCodexReasoningModel(model: string): {
@@ -41,12 +55,44 @@ export function extractSessionModel(sessionLog: string): string {
   return "";
 }
 
+function selectDisplayModel(options: {
+  agent: string;
+  reportedSessionModel: string;
+  requestedModel: string;
+}): string {
+  const reportedSessionModel = options.reportedSessionModel.trim();
+  const requestedModel = options.requestedModel.trim();
+
+  if (isClaudeAgent(options.agent)) {
+    if (reportedSessionModel && !isClaudeModelAlias(reportedSessionModel)) {
+      return reportedSessionModel;
+    }
+    if (requestedModel && !isClaudeModelAlias(requestedModel)) {
+      return requestedModel;
+    }
+    if (reportedSessionModel) {
+      return displayClaudeModelAlias(reportedSessionModel);
+    }
+    if (requestedModel) {
+      return displayClaudeModelAlias(requestedModel);
+    }
+    return "";
+  }
+
+  return reportedSessionModel || requestedModel;
+}
+
 function normalizeDisplayModel(options: {
   agent: string;
-  model: string;
+  reportedSessionModel: string;
+  requestedModel: string;
   reasoningEffort: string;
 }): { model: string; reasoningEffort: string } {
-  const model = options.model.trim();
+  const model = selectDisplayModel({
+    agent: options.agent,
+    reportedSessionModel: options.reportedSessionModel,
+    requestedModel: options.requestedModel,
+  });
   const reasoningEffort = options.reasoningEffort.trim();
 
   if (isCodexAgent(options.agent)) {
@@ -59,13 +105,15 @@ function normalizeDisplayModel(options: {
 
 export function buildModelDisplay(options: {
   agent: string;
-  model: string;
+  reportedSessionModel?: string;
+  requestedModel?: string;
   reasoningEffort: string;
   runnerName: string;
 }): string {
   const display = normalizeDisplayModel({
     agent: options.agent,
-    model: options.model,
+    reportedSessionModel: options.reportedSessionModel || "",
+    requestedModel: options.requestedModel || "",
     reasoningEffort: options.reasoningEffort,
   });
   const parts = [
