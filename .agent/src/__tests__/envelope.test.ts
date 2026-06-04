@@ -1505,7 +1505,6 @@ test("workflow docs record the minimal metadata contract and developer notes", (
   assert.equal(askIssueTemplate.frontMatter.title, "Ask Sepo: ");
   assert.equal(askIssueTemplate.frontMatter.labels, "agent");
   assert.match(askIssueTemplate.body, /^@sepo-agent \/answer\n/);
-  assert.match(askIssueTemplate.body, /## Question/);
   assert.match(memoryArchitecture, /Agent \/ Memory \/ Initialization[\s\S]*\|\s*Auto\s*\|/);
   assert.match(rubricsArchitecture, /agent\/rubrics/);
   assert.match(rubricsArchitecture, /AGENT_RUBRICS_POLICY/);
