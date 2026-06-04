@@ -109,3 +109,4 @@
 - Keep one-time migration/bootstrap caveats out of durable docs; put temporary update guidance in prompts or handoffs.
 - Provider model defaults stay tiny and pinned; reviewer lanes use resolve-agent-provider, with AGENT_MODEL_POLICY as the escape hatch.
 - Do not assert target root README content in tests; duplicated repos need customizable READMEs.
+- Do not add per-run remote model-default fetches; bundled .agent/model-defaults.json updates ship via agent-update.
