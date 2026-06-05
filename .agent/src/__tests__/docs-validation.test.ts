@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
@@ -12,6 +12,16 @@ function walkMarkdown(dir: string): string[] {
     const abs = path.join(dir, entry.name);
     if (entry.isDirectory()) out.push(...walkMarkdown(abs));
     else if (entry.isFile() && abs.toLowerCase().endsWith(".md")) out.push(abs);
+  }
+  return out;
+}
+
+function walkMetaFiles(dir: string): string[] {
+  const out: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const abs = path.join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...walkMetaFiles(abs));
+    else if (entry.isFile() && entry.name === "_meta.json") out.push(abs);
   }
   return out;
 }
@@ -42,6 +52,33 @@ function internalLinks(markdown: string): string[] {
 function stripLinkSuffix(link: string): string {
   const idx = [link.indexOf("#"), link.indexOf("?")].filter((i) => i >= 0).sort((a, b) => a - b)[0];
   return idx === undefined ? link : link.slice(0, idx);
+}
+
+function parseMeta(file: string): { label: string; pages: string[] } {
+  const parsed = JSON.parse(readFileSync(file, "utf8")) as unknown;
+  assert.ok(parsed && typeof parsed === "object" && !Array.isArray(parsed), `invalid nav metadata: ${path.relative(repoRoot, file)}`);
+  const meta = parsed as Record<string, unknown>;
+  const label = meta.label;
+  if (typeof label !== "string") {
+    assert.fail(`missing nav label: ${path.relative(repoRoot, file)}`);
+  }
+  assert.ok(label.trim(), `empty nav label: ${path.relative(repoRoot, file)}`);
+  assert.ok(Array.isArray(meta.pages), `missing nav pages: ${path.relative(repoRoot, file)}`);
+
+  const pages = meta.pages.map((page) => {
+    assert.equal(typeof page, "string", `nav page must be a string: ${path.relative(repoRoot, file)}`);
+    assert.ok(page.trim(), `nav page must not be empty: ${path.relative(repoRoot, file)}`);
+    assert.doesNotMatch(page, /[\\/]/, `nav page should be a local slug: ${path.relative(repoRoot, file)} -> ${page}`);
+    return page;
+  });
+
+  assert.deepEqual(
+    [...new Set(pages)],
+    pages,
+    `duplicate nav page in ${path.relative(repoRoot, file)}`,
+  );
+
+  return { label, pages };
 }
 
 test("no .agent/docs/**/README.md exists", () => {
@@ -95,6 +132,38 @@ test("relative links resolve inside .agent/docs", () => {
       assert.ok(
         existsSync(target),
         `relative link target does not exist: ${path.relative(repoRoot, file)} -> ${link}`,
+      );
+    }
+  }
+});
+
+test("doc navigation metadata lists existing local pages and sections", () => {
+  for (const file of walkMetaFiles(docsRoot)) {
+    const dir = path.dirname(file);
+    const { pages } = parseMeta(file);
+
+    const localPages = new Set(
+      readdirSync(dir, { withFileTypes: true })
+        .filter((entry) => {
+          if (entry.isDirectory()) return existsSync(path.join(dir, entry.name, "_meta.json"));
+          return entry.isFile() && entry.name.endsWith(".md") && entry.name !== "index.md";
+        })
+        .map((entry) => entry.isDirectory() ? entry.name : entry.name.slice(0, -3)),
+    );
+
+    assert.deepEqual(
+      new Set(pages),
+      localPages,
+      `nav pages should match local docs in ${path.relative(repoRoot, dir)}`,
+    );
+
+    for (const page of pages) {
+      const targetDir = path.join(dir, page);
+      const targetMarkdown = path.join(dir, `${page}.md`);
+      assert.ok(
+        (existsSync(targetDir) && statSync(targetDir).isDirectory() && existsSync(path.join(targetDir, "_meta.json"))) ||
+          (existsSync(targetMarkdown) && statSync(targetMarkdown).isFile()),
+        `nav target does not exist: ${path.relative(repoRoot, file)} -> ${page}`,
       );
     }
   }
