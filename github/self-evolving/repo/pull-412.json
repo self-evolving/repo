@@ -1,0 +1,227 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Add a lightweight rubrics-review preflight before provider/runtime setup.\n- Skip rubric model runs, artifacts, and PR comments when rubric reads are disabled, the rubrics branch is missing, or no active rubrics are selected.\n- Update docs and workflow tests for the skip behavior.\n\n## Verification\n- `npm run build`\n- `node --test dist/__tests__/envelope.test.js dist/__tests__/rubrics.test.js`\n- `git diff --check`\n\nCloses #410\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABE7kfxQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #412 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: Implementation succeeded and produced open PR #412 for issue #410; the next useful automated step is review before any human merge decision.\n\n<!-- sepo-agent-handoff state:dispatched created:1780605173094 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY5Nzc1NDU3MTk6aW1wbGVtZW50OjQxMDpyZXZpZXc6NDEyOjM -->",
+      "createdAt": "2026-06-04T20:32:53Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/412#issuecomment-4625866693",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABE7lnaQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 98 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Keep docs in sync | pass | 7/7 | Docs were updated in [`rubrics.md`](https://github.com/self-evolving/repo/blob/b59fe4dc2aa4418f2b0acce9299bc5c04387e631/.agent/docs/architecture/rubrics.md#L86) and [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/b59fe4dc2aa4418f2b0acce9299bc5c04387e631/.agent/docs/usage/supported-workflows.md#L150) to describe the new skip behavior. |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | The workflow reuses existing `rubrics/resolve-policy.js`, `download-agent-rubrics`, and `rubrics/select.js` instead of adding new parsing or selection logic. See [`agent-rubrics-review.yml`](https://github.com/self-evolving/repo/blob/b59fe4dc2aa4418f2b0acce9299bc5c04387e631/.github/workflows/agent-rubrics-review.yml#L84). |\n| coding_style/generic | Prefer simple implementations | pass | 7/7 | The change is a straightforward preflight gate plus existing workflow `if` guards; no new config surface or helper module was introduced. |\n| coding_workflow/generic | Make surgical changes | pass | 8/8 | The PR only touches the rubrics-review workflow, matching docs, and focused workflow-regression tests. |\n| coding_workflow/generic | Validate preview contracts | partial | 6/7 | The preflight validates rubric availability and selected count before skipping, and exposes invalid-rubric warning counts in the summary. Coverage exists, but it is regex-based rather than a functional workflow/output simulation. |\n| communication/generic | Keep status comments compact | pass | 6/6 | Skip output is a concise Actions notice and short step summary, while PR comment posting is gated off when nothing is scoreable. See [`agent-rubrics-review.yml`](https://github.com/self-evolving/repo/blob/b59fe4dc2aa4418f2b0acce9299bc5c04387e631/.github/workflows/agent-rubrics-review.yml#L153). |\n| coding_workflow/generic | Prefer agent-derived decisions | pass | 7/7 | The decision to skip comes from existing policy resolution and selected rubric count, not a new repository variable or duplicate knob. |\n\n## Notes\n\n- The implementation matches issue #410’s requested shape: preflight rubric reads, skip provider/runtime/model/comment work when the branch is missing or no active rubrics are selected, and keep initialization unchanged.\n- Independent verification passed: `npm run build`, `node --test dist/__tests__/envelope.test.js dist/__tests__/rubrics.test.js`, and `git diff --check origin/main...HEAD`.\n- Smallest useful follow-up: consider one functional test around `selected_count=0` / missing branch behavior if the project later adds workflow simulation tests. Not needed as a blocker here.\n\n## Findings\n\n- **INFO:** The regression coverage protects the workflow contract by asserting the key workflow gates and skip strings, but it does not execute the workflow branches. This is acceptable for this small workflow-only change.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-6`",
+      "createdAt": "2026-06-04T20:35:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/412#issuecomment-4625885033",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABE7qAQA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: b59fe4dc2aa4418f2b0acce9299bc5c04387e631 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #412 closes #410 by trying to avoid wasteful rubrics-review model runs when there is nothing to score.\n- The intended behavior is to preflight rubric read policy, rubric branch availability, and selected active rubric count before provider/model work.\n- The PR updates the rubrics-review workflow, adds workflow-regression assertions, and updates docs describing the skip behavior.\n- The implementation matches the requested shape conceptually, but the current workflow ordering breaks clean-checkout execution.\n\n## Review\nThe synthesis finds one blocking implementation regression. Claude and the rubrics lane judged the PR shippable, while Codex flagged a clean-checkout failure; current PR evidence supports Codex’s blocker.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Preflight runs compiled CLIs before runtime setup | BLOCKING | [`agent-rubrics-review.yml#L89`](https://github.com/self-evolving/repo/blob/b59fe4dc2aa4418f2b0acce9299bc5c04387e631/.github/workflows/agent-rubrics-review.yml#L89) calls `.agent/dist` before `setup-agent-runtime`, but `.agent/dist/` is ignored and absent from the PR tree. A clean Actions checkout will fail before the intended skip logic can run; the later `select.js` preflight has the same dependency class. |\n| Selection parity is implicit | WARNING | The preflight selector flags currently match the real rubrics-review selector in `run-agent-task`, but that parity is not enforced. Future drift could silently skip a rubrics-review lane that would otherwise select active rubrics. |\n\n## Progress\n- #410’s requested behavior is acknowledged and the PR updates docs plus workflow tests for the intended skip path.\n- Existing top-level PR discussion includes a passing rubrics review and implementation summary.\n- Existing inline comments and review threads were re-fetched before mutation; none existed.\n- Posted one new inline comment on `.github/workflows/agent-rubrics-review.yml` line 89 for the blocking runtime-order issue.\n- No inline replies, thread resolutions, or comment minimizations were performed.\n\n## Issue Details\n\n<details>\n<summary>Preflight runs compiled CLIs before runtime setup</summary>\n\n**Cause:** The new preflight is inserted before `Resolve rubrics review provider` and `Setup agent runtime`, but it invokes `node .agent/dist/cli/rubrics/resolve-policy.js`. The setup action is what runs `npm ci` and `npm run build`, and the PR tree has no tracked `.agent/dist/` files.\n\n**Candidate solutions:** Move the preflight after a deterministic Node dependency/build setup, split the runtime setup so build-only work can happen before provider/model CLI setup, or replace this preflight with a checked-in helper that does not depend on `.agent/dist` or `.agent/node_modules`. Update the workflow test so it catches the chosen ordering invariant.\n\n**Comments:** The existing regression test asserts workflow text and skip strings, but it does not catch this clean-checkout failure mode.\n\n</details>\n\n<details>\n<summary>Selection parity is implicit</summary>\n\n**Cause:** The preflight uses `--best-effort --all-routes --limit all`, which currently matches the rubrics-review path in [`run-agent-task`](https://github.com/self-evolving/repo/blob/b59fe4dc2aa4418f2b0acce9299bc5c04387e631/.github/actions/run-agent-task/action.yml#L309-L335). Nothing ties those call sites together.\n\n**Candidate solutions:** Add a small comment at both call sites, or add a workflow test that asserts the preflight and real rubrics-review selector stay aligned.\n\n**Comments:** This is not the current blocker because the flags match today; it is a maintenance risk noted by one reviewer.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the blocking workflow-ordering issue requires a concrete branch change and is safe for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Fix the rubrics-review preflight so it does not invoke `.agent/dist` or dependency-backed CLIs before runtime dependencies/build output exist.\n- [ ] Add or update regression coverage to catch the preflight/runtime setup ordering invariant.\n\n---\n`codex` | `gpt-5.5/xhigh` | `zucchini-m4-2`",
+      "createdAt": "2026-06-04T20:44:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/412#issuecomment-4625956928",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABE7qdUQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #412 | 4 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis for open PR #412 concluded NEEDS_REWORK with Recommended Next Step FIX_PR; the remaining blocker is a concrete workflow-ordering regression safe for automated repair.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Fix the rubrics-review preflight so it does not invoke `.agent/dist` or dependency-backed CLIs before runtime dependencies/build output exist.\n- Add or update regression coverage to catch the preflight/runtime setup ordering invariant.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1780605953024 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY5Nzc4NzQxMTU6cmV2aWV3OjQxMjpmaXhfcHI6NDEyOjQ -->",
+      "createdAt": "2026-06-04T20:45:53Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/412#issuecomment-4625964369",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABE7tNHg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-410/codex-26977545719`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Built the rubrics-review runtime before the CLI-backed preflight so `.agent/dist` and dependency-backed selectors exist in clean checkouts.\n- Added skip-capable setup action inputs so the later provider-tool install does not rerun `npm ci`/build.\n- Strengthened regression coverage to assert the preflight/runtime order and gated model setup.\n\n<details><summary>Verification</summary>\n\n- `cd .agent && npm run build`\n- `cd .agent && node --test dist/__tests__/envelope.test.js dist/__tests__/rubrics.test.js`\n- `git diff --check`\n</details>\n\n---\n`codex` | `gpt-5.5/xhigh` | `zucchini-m4-2`",
+      "createdAt": "2026-06-04T20:51:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/412#issuecomment-4626009374",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABE7tsEw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #412 | 5 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on open PR #412 and pushed current head 1d2f8eb9b5fbce18b54980bde8392b2fab8db8ae; the next useful automated step is review to verify the prior NEEDS_REWORK findings are resolved.\n\n<!-- sepo-agent-handoff state:dispatched created:1780606379330 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjY5Nzg1NDExODE6Zml4X3ByOjQxMjpyZXZpZXc6NDEyOjU -->",
+      "createdAt": "2026-06-04T20:52:59Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/412#issuecomment-4626017299",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABE7u36A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Keep docs in sync | pass | 7/7 | Docs now state rubrics review skips model work when reads are disabled, `agent/rubrics` is missing, or no active rubrics are selected: [rubrics.md](https://github.com/self-evolving/repo/blob/1d2f8eb9b5fbce18b54980bde8392b2fab8db8ae/.agent/docs/architecture/rubrics.md#L86), [supported-workflows.md](https://github.com/self-evolving/repo/blob/1d2f8eb9b5fbce18b54980bde8392b2fab8db8ae/.agent/docs/usage/supported-workflows.md#L150). |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | The workflow reuses existing `resolve-policy.js`, `download-agent-rubrics`, and `select.js` for the preflight instead of adding a separate rubric parser or selector: [agent-rubrics-review.yml](https://github.com/self-evolving/repo/blob/1d2f8eb9b5fbce18b54980bde8392b2fab8db8ae/.github/workflows/agent-rubrics-review.yml#L87). |\n| coding_style/generic | Prefer simple implementations | pass | 7/7 | The implementation is a direct preflight and `if` gating change, plus two narrowly scoped setup-action inputs for avoiding duplicate dependency/build work: [setup-agent-runtime/action.yml](https://github.com/self-evolving/repo/blob/1d2f8eb9b5fbce18b54980bde8392b2fab8db8ae/.github/actions/setup-agent-runtime/action.yml#L29). |\n| coding_workflow/generic | Make surgical changes | pass | 8/8 | The PR touches only rubrics-review workflow behavior, the shared runtime setup action needed by that workflow, focused tests, and matching docs. |\n| coding_workflow/generic | Validate preview contracts | pass | 7/7 | The skip path validates read policy, branch availability, selected rubric count, and invalid-rubric warning count before deciding whether to run: [agent-rubrics-review.yml](https://github.com/self-evolving/repo/blob/1d2f8eb9b5fbce18b54980bde8392b2fab8db8ae/.github/workflows/agent-rubrics-review.yml#L124). Tests assert ordering, gates, skip strings, and comment/artifact gating: [envelope.test.ts](https://github.com/self-evolving/repo/blob/1d2f8eb9b5fbce18b54980bde8392b2fab8db8ae/.agent/src/__tests__/envelope.test.ts#L2008). |\n| communication/generic | Keep status comments compact | pass | 6/6 | Empty rubric runs emit a concise Actions notice/step summary and skip PR comment posting: [agent-rubrics-review.yml](https://github.com/self-evolving/repo/blob/1d2f8eb9b5fbce18b54980bde8392b2fab8db8ae/.github/workflows/agent-rubrics-review.yml#L156), [agent-rubrics-review.yml](https://github.com/self-evolving/repo/blob/1d2f8eb9b5fbce18b54980bde8392b2fab8db8ae/.github/workflows/agent-rubrics-review.yml#L257). |\n| coding_workflow/generic | Prefer agent-derived decisions | pass | 7/7 | The skip decision is derived from current policy resolution and selected rubric count, not from a new repo variable or duplicate user setting: [agent-rubrics-review.yml](https://github.com/self-evolving/repo/blob/1d2f8eb9b5fbce18b54980bde8392b2fab8db8ae/.github/workflows/agent-rubrics-review.yml#L140). |\n| coding_workflow/generic | Prefer explicit structured inputs | pass | 7/7 | The setup action adds separate `install_dependencies` and `build_runtime` boolean inputs, then the rubrics workflow passes them explicitly for the second provider-tool setup call: [setup-agent-runtime/action.yml](https://github.com/self-evolving/repo/blob/1d2f8eb9b5fbce18b54980bde8392b2fab8db8ae/.github/actions/setup-agent-runtime/action.yml#L29), [agent-rubrics-review.yml](https://github.com/self-evolving/repo/blob/1d2f8eb9b5fbce18b54980bde8392b2fab8db8ae/.github/workflows/agent-rubrics-review.yml#L186). |\n\n## Notes\n\n- The current head addresses the earlier clean-checkout blocker by building the agent runtime before invoking `.agent/dist` CLIs, while still gating provider resolution, model execution, artifact upload, and PR comment posting on `should_run`.\n- The implementation matches issue #410’s requested behavior: no rubrics branch or zero selected active rubrics produces an Actions-visible skip, not a model-generated `N/A` PR comment.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific violations found.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-1`",
+      "createdAt": "2026-06-04T20:56:03Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/412#issuecomment-4626036712",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABE7yZ7w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 1d2f8eb9b5fbce18b54980bde8392b2fab8db8ae -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #412 closes #410 by skipping rubrics-review provider/model/comment work when there is nothing scoreable.\n- The workflow now preflights rubric read policy, rubrics branch availability, and selected active rubric count before running the model lane.\n- The fix-pr update addressed the prior clean-checkout blocker by building `.agent/dist` before invoking CLI-backed preflight steps.\n- Docs and workflow regression tests were updated to make the skip behavior intentional.\n\n## Review\nThe current head resolves the prior BLOCKING runtime-order issue. Codex and the rubrics lane report no blocking or warning issues; Claude flags one non-blocking selector-parity maintenance risk.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Selection parity remains implicit | WARNING | The preflight selector flags currently match the real `rubrics-review` selection path, but nothing enforces that relationship. Future drift could reintroduce a run where preflight and model selection disagree. |\n\n## Progress\n- Prior same-agent inline thread for the runtime-order blocker was re-fetched, verified as fixed, and resolved.\n- No new inline comments were posted because the selector-parity concern is already covered in PR discussion and is advisory.\n- No inline replies or comment minimizations were performed.\n- Reviewer verification reports `npm run build`, targeted node tests, `git diff --check`, and the current GitHub `check` status is passing.\n\n## Issue Details\n\n<details>\n<summary>Selection parity remains implicit</summary>\n\n**Cause:** The preflight in [`agent-rubrics-review.yml`](https://github.com/self-evolving/repo/blob/1d2f8eb9b5fbce18b54980bde8392b2fab8db8ae/.github/workflows/agent-rubrics-review.yml#L115) manually mirrors the effective `rubrics-review` selector behavior in [`run-agent-task`](https://github.com/self-evolving/repo/blob/1d2f8eb9b5fbce18b54980bde8392b2fab8db8ae/.github/actions/run-agent-task/action.yml#L309).\n\n**Candidate solutions:** Add a cross-reference comment at both call sites, or add a test asserting the preflight selector flags stay aligned with the real rubrics-review selector.\n\n**Comments:** This is not a current correctness defect because the flags match today.\n\n</details>\n\n## Recommended Next Step\nHUMAN_DECISION: the only remaining concern is optional maintenance hardening, not required automated branch-change work.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] No required branch-change work remains.\n\n---\n`codex` | `gpt-5.5/xhigh` | `zucchini-m4-4`",
+      "createdAt": "2026-06-04T21:05:00Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/412#issuecomment-4626094575",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-06-04T20:32:04Z",
+  "files": [
+    {
+      "path": ".agent/docs/architecture/rubrics.md",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/supported-workflows.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 75,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/setup-agent-runtime/action.yml",
+      "additions": 12,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-rubrics-review.yml",
+      "additions": 103,
+      "deletions": 7,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-410/codex-26977545719",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 412,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABCCCb-g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-06-04T20:43:24Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "b59fe4dc2aa4418f2b0acce9299bc5c04387e631"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABCCk_GQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "",
+      "submittedAt": "2026-06-04T22:30:52Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "1d2f8eb9b5fbce18b54980bde8392b2fab8db8ae"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABCCli-g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-06-04T22:32:36Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "1d2f8eb9b5fbce18b54980bde8392b2fab8db8ae"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Skip empty rubrics review runs",
+  "updatedAt": "2026-06-04T22:32:36Z",
+  "url": "https://github.com/self-evolving/repo/pull/412"
+}
