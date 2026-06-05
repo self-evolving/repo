@@ -111,3 +111,4 @@
 - Do not assert target root README content in tests; duplicated repos need customizable READMEs.
 - Do not add per-run remote model-default fetches; bundled .agent/model-defaults.json updates ship via agent-update.
 - Simple Sepo command issue templates use Markdown; keep install defaults non-parseable so missing targets prompt clarification.
+- .agent tests are lane-based: test:ci builds once, then runs test:runtime, check:workflow, check:docs, and check:shell.
