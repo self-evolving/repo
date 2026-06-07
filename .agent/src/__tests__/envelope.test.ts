@@ -1526,7 +1526,8 @@ test("workflow docs record the minimal metadata contract and developer notes", (
   assert.match(rubricsInitializationPrompt, /Initialization context:/);
   assert.match(rubricsInitializationPrompt, /OWNER[\s\S]*MEMBER[\s\S]*COLLABORATOR/);
   assert.match(rubricsArchitecture, /Only rubric initialization bootstraps a missing branch/);
-  assert.match(rubricsArchitecture, /preflights rubric availability before provider setup/);
+  assert.match(rubricsArchitecture, /preflights rubrics branch availability before provider setup/);
+  assert.match(rubricsArchitecture, /shared task action skips model execution after rubric selection/);
   assert.match(rubricsArchitecture, /there is nothing to score/);
   assert.match(rubricsArchitecture, /Dispatch triage is always rubric-disabled/);
   assert.match(rubricsArchitecture, /honor `AGENT_RUBRICS_POLICY`/);
@@ -2002,10 +2003,20 @@ test("run-agent-task only bootstraps missing rubrics for first-run initializatio
   assert.match(action, /RUBRICS_LIMIT:\s*\$\{\{\s*inputs\.route == 'rubrics-review' && 'all' \|\| inputs\.rubrics_limit\s*\}\}/);
   assert.match(action, /all_route_args\+=\(--all-routes\)/);
   assert.match(action, /"\$\{all_route_args\[@\]\}"/);
+  assert.match(action, /agent_run_skipped:/);
+  assert.match(action, /name: Resolve agent run gate/);
+  assert.match(action, /SELECTED_RUBRICS:\s*\$\{\{\s*steps\.select_rubrics\.outputs\.selected_count\s*\}\}/);
+  assert.match(action, /\[ "\$\{ROUTE\}" = "rubrics-review" \] && \[ "\$\{SELECTED_RUBRICS:-0\}" = "0" \]/);
+  assert.match(action, /No active rubrics are available to score/);
+  assert.match(
+    action,
+    /name: Run agent task[\s\S]*if:\s*\$\{\{\s*steps\.agent_run_gate\.outputs\.should_run == 'true'\s*\}\}/,
+  );
+  assert.match(action, /Propagate agent exit code[\s\S]*steps\.agent_run_gate\.outputs\.should_run == 'true'/);
   assert.match(rubricsPrompt, /Agent \/ Rubrics \/ Initialization and Agent \/ Rubrics \/ Update/);
 });
 
-test("rubrics-review builds runtime before CLI-backed preflight and gates model setup", () => {
+test("rubrics-review preflights only branch availability before model setup", () => {
   const workflow = readRepoFile(".github/workflows/agent-rubrics-review.yml");
   const parsed = parseYaml(workflow) as unknown;
   assert.ok(isRecord(parsed), "rubrics-review workflow should parse as a YAML object");
@@ -2020,49 +2031,60 @@ test("rubrics-review builds runtime before CLI-backed preflight and gates model 
     return { index, step: steps[index]! };
   };
 
-  const preflightRuntime = findStep("Setup agent runtime for rubrics preflight");
-  const rubricsMode = findStep("Resolve rubrics review mode");
   const download = findStep("Download rubrics for review preflight");
-  const count = findStep("Count active rubrics for review");
   const preflight = findStep("Resolve rubrics review preflight");
   const provider = findStep("Resolve rubrics review provider");
-  const providerTools = findStep("Install rubrics review provider tools");
+  const setupRuntime = findStep("Setup agent runtime");
   const runReview = findStep("Run rubrics review");
+  const reviewResult = findStep("Resolve rubrics review result");
+  const persistArtifact = findStep("Persist rubrics review artifact");
+  const postComment = findStep("Post rubric review comment");
 
-  assert.equal(preflightRuntime.step.uses, "./.github/actions/setup-agent-runtime");
-  assert.ok(preflightRuntime.index < rubricsMode.index);
-  assert.ok(preflightRuntime.index < count.index);
-  assert.ok(rubricsMode.index < download.index);
-  assert.ok(download.index < count.index);
-  assert.ok(count.index < preflight.index);
+  assert.equal(download.step.uses, "./.github/actions/download-agent-rubrics");
+  assert.ok(download.index < preflight.index);
   assert.ok(preflight.index < provider.index);
-  assert.ok(provider.index < providerTools.index);
-  assert.ok(providerTools.index < runReview.index);
+  assert.ok(provider.index < setupRuntime.index);
+  assert.ok(setupRuntime.index < runReview.index);
+  assert.ok(runReview.index < reviewResult.index);
+  assert.ok(reviewResult.index < persistArtifact.index);
+  assert.ok(reviewResult.index < postComment.index);
   assert.equal(provider.step["if"], "${{ steps.preflight.outputs.should_run == 'true' }}");
-  assert.equal(providerTools.step["if"], "${{ steps.preflight.outputs.should_run == 'true' }}");
-  assert.ok(isRecord(providerTools.step.with), "provider tool setup should define inputs");
-  assert.equal(providerTools.step.with.install_dependencies, "false");
-  assert.equal(providerTools.step.with.build_runtime, "false");
+  assert.equal(setupRuntime.step["if"], "${{ steps.preflight.outputs.should_run == 'true' }}");
+  assert.equal(runReview.step["if"], "${{ steps.preflight.outputs.should_run == 'true' }}");
+  assert.equal(reviewResult.step["if"], "always() && steps.preflight.outputs.should_run == 'true'");
+  assert.equal(persistArtifact.step["if"], "${{ steps.review_result.outputs.has_response == 'true' }}");
+  assert.equal(postComment.step["if"], "${{ steps.review_result.outputs.should_post_comment == 'true' }}");
+
+  assert.equal(
+    steps.find((step) => step.name === "Count active rubrics for review"),
+    undefined,
+    "workflow preflight should not duplicate the selector",
+  );
+  assert.equal(
+    steps.find((step) => step.name === "Resolve rubrics review mode"),
+    undefined,
+    "workflow preflight should not invoke the compiled rubrics policy CLI",
+  );
+  assert.equal(
+    steps.find((step) => step.name === "Setup agent runtime for rubrics preflight"),
+    undefined,
+    "workflow preflight should not build runtime before branch availability is known",
+  );
 
   for (const [index, step] of steps.entries()) {
     const run = typeof step.run === "string" ? step.run : "";
     assert.ok(
-      index > preflightRuntime.index || !/(?:node\s+)?\.agent\/dist\/|\.agent\/node_modules/.test(run),
-      `step ${String(step.name || index)} must not use built runtime before preflight setup`,
+      index > setupRuntime.index || !/(?:node\s+)?\.agent\/dist\/|\.agent\/node_modules/.test(run),
+      `step ${String(step.name || index)} must not use built runtime before setup-agent-runtime`,
     );
   }
 
-  assert.match(workflow, /name: Resolve rubrics review mode/);
-  assert.match(workflow, /node \.agent\/dist\/cli\/rubrics\/resolve-policy\.js/);
   assert.match(workflow, /name: Download rubrics for review preflight/);
   assert.match(workflow, /continue_on_missing:\s*"true"/);
   assert.match(workflow, /bootstrap_if_missing:\s*"false"/);
-  assert.match(workflow, /name: Count active rubrics for review/);
-  assert.match(workflow, /node \.agent\/dist\/cli\/rubrics\/select\.js[\s\S]*--all-routes[\s\S]*--limit all/);
   assert.match(workflow, /id:\s*preflight/);
   assert.match(workflow, /should_run=true/);
   assert.match(workflow, /Rubrics branch \$\{RUBRICS_REF\} is not available/);
-  assert.match(workflow, /No active rubrics are available to score/);
   assert.match(workflow, /name: Report skipped rubric review[\s\S]*::notice title=Rubrics review skipped::/);
   assert.match(
     workflow,
@@ -2072,10 +2094,7 @@ test("rubrics-review builds runtime before CLI-backed preflight and gates model 
     workflow,
     /name: Run rubrics review[\s\S]*if:\s*\$\{\{\s*steps\.preflight\.outputs\.should_run == 'true'\s*\}\}/,
   );
-  assert.match(
-    workflow,
-    /Post rubric review comment[\s\S]*inputs\.post_comment == 'true' && steps\.preflight\.outputs\.should_run == 'true' && steps\.review\.outputs\.response_file != ''/,
-  );
+  assert.doesNotMatch(workflow, /steps\.preflight\.outputs\.should_run == 'true' && steps\.review\.outputs\.response_file != ''/);
 });
 
 test("normal workflows honor rubrics policy instead of forcing read-only", () => {

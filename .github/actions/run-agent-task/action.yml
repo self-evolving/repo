@@ -231,6 +231,12 @@ outputs:
   rubrics_selected_count:
     description: "How many rubrics were selected for this run"
     value: ${{ steps.select_rubrics.outputs.selected_count }}
+  agent_run_skipped:
+    description: "Whether the model-backed agent run was skipped by a deterministic pre-run gate"
+    value: ${{ steps.agent_run_gate.outputs.skipped }}
+  agent_run_skip_reason:
+    description: "Human-readable reason for skipping the model-backed agent run"
+    value: ${{ steps.agent_run_gate.outputs.skip_reason }}
   rubrics_committed:
     description: "Whether the agent produced rubric edits that were committed and pushed"
     value: ${{ steps.commit_rubrics.outputs.committed }}
@@ -335,7 +341,42 @@ runs:
           --limit "${RUBRICS_LIMIT}" \
           --output-file "${RUBRICS_CONTEXT_FILE}"
 
+    - name: Resolve agent run gate
+      id: agent_run_gate
+      shell: bash
+      env:
+        ROUTE: ${{ inputs.route }}
+        SELECTED_RUBRICS: ${{ steps.select_rubrics.outputs.selected_count }}
+      run: |
+        set -euo pipefail
+
+        should_run=true
+        skipped=false
+        skip_reason=""
+
+        if [ "${ROUTE}" = "rubrics-review" ] && [ "${SELECTED_RUBRICS:-0}" = "0" ]; then
+          should_run=false
+          skipped=true
+          skip_reason="No active rubrics are available to score."
+        fi
+
+        echo "should_run=${should_run}" >> "$GITHUB_OUTPUT"
+        echo "skipped=${skipped}" >> "$GITHUB_OUTPUT"
+        echo "skip_reason=${skip_reason}" >> "$GITHUB_OUTPUT"
+
+        if [ "${skipped}" = "true" ]; then
+          echo "::notice title=Rubrics review skipped::${skip_reason}"
+          {
+            echo "### Rubrics review skipped"
+            echo
+            echo "${skip_reason}"
+            echo
+            echo "- Selected active rubrics: ${SELECTED_RUBRICS:-0}"
+          } >> "$GITHUB_STEP_SUMMARY"
+        fi
+
     - name: Run agent task
+      if: ${{ steps.agent_run_gate.outputs.should_run == 'true' }}
       id: run
       shell: bash
       env:
@@ -391,6 +432,7 @@ runs:
 
     - name: Commit memory edits
       if: >-
+        steps.agent_run_gate.outputs.should_run == 'true' &&
         steps.run.outputs.exit_code == '0' &&
         steps.memory_mode.outputs.write_enabled == 'true' &&
         steps.memory.outputs.memory_available == 'true' &&
@@ -418,6 +460,7 @@ runs:
 
     - name: Validate rubric edits
       if: >-
+        steps.agent_run_gate.outputs.should_run == 'true' &&
         steps.run.outputs.exit_code == '0' &&
         steps.rubrics_mode.outputs.write_enabled == 'true' &&
         steps.rubrics.outputs.rubrics_available == 'true' &&
@@ -437,6 +480,7 @@ runs:
 
     - name: Commit rubric edits
       if: >-
+        steps.agent_run_gate.outputs.should_run == 'true' &&
         steps.run.outputs.exit_code == '0' &&
         steps.rubrics_mode.outputs.write_enabled == 'true' &&
         steps.rubrics.outputs.rubrics_available == 'true' &&
@@ -464,7 +508,7 @@ runs:
         echo "::warning title=Rubrics commit failed::Failed to persist rubric updates for route '${ROUTE}' to '${RUBRICS_REF}'. Check the 'Commit rubric edits' step for the push error."
 
     - name: Require rubric initialization commit
-      if: always() && inputs.route == 'rubrics-initialization' && steps.run.outputs.exit_code == '0'
+      if: always() && steps.agent_run_gate.outputs.should_run == 'true' && inputs.route == 'rubrics-initialization' && steps.run.outputs.exit_code == '0'
       shell: bash
       env:
         COMMIT_OUTCOME: ${{ steps.commit_rubrics.outcome }}
@@ -477,7 +521,7 @@ runs:
         fi
 
     - name: Prepare session bundle
-      if: always() && steps.run.outputs.exit_code == '0'
+      if: always() && steps.agent_run_gate.outputs.should_run == 'true' && steps.run.outputs.exit_code == '0'
       id: bundle
       continue-on-error: true
       shell: bash
@@ -495,7 +539,7 @@ runs:
       run: node .agent/dist/cli/session-backup.js
 
     - name: Upload session bundle artifact
-      if: always() && steps.run.outputs.exit_code == '0' && steps.bundle.outputs.bundle_created == 'true'
+      if: always() && steps.agent_run_gate.outputs.should_run == 'true' && steps.run.outputs.exit_code == '0' && steps.bundle.outputs.bundle_created == 'true'
       id: upload_session_bundle
       continue-on-error: true
       uses: actions/upload-artifact@v4
@@ -505,7 +549,7 @@ runs:
         retention-days: ${{ inputs.session_bundle_retention_days }}
 
     - name: Register session bundle artifact
-      if: always() && steps.run.outputs.exit_code == '0' && steps.upload_session_bundle.outputs.artifact-id != ''
+      if: always() && steps.agent_run_gate.outputs.should_run == 'true' && steps.run.outputs.exit_code == '0' && steps.upload_session_bundle.outputs.artifact-id != ''
       id: register_session_bundle
       continue-on-error: true
       shell: bash
@@ -524,6 +568,6 @@ runs:
       run: node .agent/dist/cli/session-register.js
 
     - name: Propagate agent exit code
-      if: steps.run.outputs.exit_code != '0'
+      if: steps.agent_run_gate.outputs.should_run == 'true' && steps.run.outputs.exit_code != '0'
       shell: bash
       run: exit "${{ steps.run.outputs.exit_code }}"
