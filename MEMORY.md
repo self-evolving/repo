@@ -97,7 +97,7 @@
 - Packaged agent-*.yml jobs carry local vars.AGENT_ENABLED != 'false' guards; duplicate dependent-job guards are intentional.
 - AGENT_DEFAULT_PROVIDER is the only global provider knob; AGENT_MODEL_POLICY.default.provider is invalid.
 - Docs should describe setup checks as manual Agent / Onboarding / Check Setup runs, not template auto-run behavior.
-- ACPX model policy: named/transient sessions use set model during setup; only no-session exec uses global --model.
+- ACPX model policy: named/transient sessions use set model during setup; no-session exec uses global --model; pinned Claude IDs use ANTHROPIC_MODEL.
 - Codex runs mirror OPENAI_API_KEY into ACPX_AUTH_OPENAI_API_KEY and ACPX_AUTH_CODEX_API_KEY for acpx auth.
 - AGENT_DISPLAY_MODEL defaults to visible; footer order is provider | model | reasoning effort | runner; set false to hide.
 - Built-in repo updates use .github/prompts/agent-update.md with route update-agent, not .skills/update-agent.
