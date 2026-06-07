@@ -1,0 +1,37 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "baseRefName": "main",
+  "body": "## Problem\n\nClaude ACPX runs fail on **session resume** with:\n\n> Cannot apply --model \"claude-opus-4-8\": the ACP agent did not advertise that model. Available models: default, opus, haiku.\n\n`@agentclientprotocol/claude-agent-acp` advertises models as **aliases** (`opus`/`sonnet`/`haiku`), not date/version-pinned IDs. acpx validates the requested model (passed as `--model` for exec routes, or `set model` for named sessions) against that advertised menu. Sepo's built-in Claude default is the pinned `claude-opus-4-8`, which isn't an advertised alias — so acpx rejects it. It surfaces on `session/resume` (where the resume result carries the menu), which means multi-turn runs (plan → implement → answer) die on the follow-up turn even though the first turn looked fine.\n\nThe pinned ID is a real, accepted API model — it just isn't an *advertised ACP model*, so acpx won't apply it.\n\n## Fix\n\nFor pinned `claude-*` IDs, deliver the model through the Claude Agent SDK's **`ANTHROPIC_MODEL`** environment variable (set on every acpx spawn — session ensure, setup commands, and the prompt) and **omit acpx's `--model` / `set model`** flags. `ANTHROPIC_MODEL` selects the exact model directly, bypassing the advertised-alias menu, and applies identically to new and resumed sessions — so there's nothing for acpx to validate or reject.\n\n- **Advertised aliases** (`opus`, etc.) are unchanged — they still flow through acpx's `--model` / `set model`, which the adapter accepts.\n- **Non-Claude agents** (Codex) are unaffected.\n- An **operator-set `ANTHROPIC_MODEL`** is respected (not overridden).\n\nVerified end-to-end against `acpx@0.10.0` + `claude-agent-acp@0.36.1`: `ANTHROPIC_MODEL=claude-opus-4-8` with no `--model` runs cleanly on both `session/new` and `session/resume`; a deliberately invalid value errors with that value verbatim, confirming the env var drives model selection.\n\n## Tests\n\n- `buildClaudePinnedModelEnv` unit tests — pinned IDs (incl. the `[1m]` 1M-context suffix); aliases / Codex / preset-override all no-op.\n- `buildAcpxArgs` and `buildSessionSetupCommands` omit the model flag/command for pinned `claude-*` IDs but keep it for advertised aliases.\n- `runAcpx` integration test asserting `ANTHROPIC_MODEL` is set on the spawn and `--model` is not passed.\n\nFull suite green locally: 628 runtime + 76 workflow + 5 docs + 15 shell, 0 failures.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n",
+  "closedAt": "2026-06-07T00:24:19Z",
+  "comments": [],
+  "createdAt": "2026-06-06T22:45:14Z",
+  "files": [
+    {
+      "path": ".agent/src/__tests__/acpx-adapter.test.ts",
+      "additions": 167,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/acpx-adapter.ts",
+      "additions": 53,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "fix/claude-acpx-model-env",
+  "labels": [],
+  "mergedAt": "2026-06-07T00:24:19Z",
+  "number": 415,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "MERGED",
+  "title": "Pin Claude ACPX models via ANTHROPIC_MODEL (fix resume crash on date-pinned IDs)",
+  "updatedAt": "2026-06-07T00:24:19Z",
+  "url": "https://github.com/self-evolving/repo/pull/415"
+}

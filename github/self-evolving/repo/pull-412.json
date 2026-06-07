@@ -76,8 +76,8 @@
       "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-410/codex-26977545719`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Built the rubrics-review runtime before the CLI-backed preflight so `.agent/dist` and dependency-backed selectors exist in clean checkouts.\n- Added skip-capable setup action inputs so the later provider-tool install does not rerun `npm ci`/build.\n- Strengthened regression coverage to assert the preflight/runtime order and gated model setup.\n\n<details><summary>Verification</summary>\n\n- `cd .agent && npm run build`\n- `cd .agent && node --test dist/__tests__/envelope.test.js dist/__tests__/rubrics.test.js`\n- `git diff --check`\n</details>\n\n---\n`codex` | `gpt-5.5/xhigh` | `zucchini-m4-2`",
       "createdAt": "2026-06-04T20:51:47Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/412#issuecomment-4626009374",
       "viewerDidAuthor": true
@@ -126,6 +126,86 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/412#issuecomment-4626094575",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABFJ5wAA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \r\n\r\n```\r\n- name: Download rubrics for review preflight\r\n        if: ${{ steps.rubrics_mode.outputs.read_enabled == 'true' }}\r\n        id: preflight_rubrics\r\n        uses: ./.github/actions/download-agent-rubrics\r\n        with:\r\n          github_token: ${{ steps.auth.outputs.token }}\r\n          ref: ${{ inputs.rubrics_ref || vars.AGENT_RUBRICS_REF || 'agent/rubrics' }}\r\n          path: ${{ runner.temp }}/agent-rubrics-review-preflight\r\n          continue_on_missing: \"true\"\r\n          bootstrap_if_missing: \"false\"\r\n\r\n      - name: Count active rubrics for review\r\n        if: ${{ steps.preflight_rubrics.outputs.rubrics_available == 'true' && steps.preflight_rubrics.outputs.rubrics_dir != '' }}\r\n        id: preflight_select\r\n        env:\r\n          REQUEST_TEXT: ${{ inputs.request_text }}\r\n          ROUTE: rubrics-review\r\n          RUBRICS_DIR: ${{ steps.preflight_rubrics.outputs.rubrics_dir }}\r\n          RUBRICS_CONTEXT_FILE: ${{ runner.temp }}/rubrics-review-preflight.md\r\n        run: |\r\n          set -euo pipefail\r\n          node .agent/dist/cli/rubrics/select.js \\\r\n            --dir \"${RUBRICS_DIR}\" \\\r\n            --route \"${ROUTE}\" \\\r\n            --query \"${REQUEST_TEXT}\" \\\r\n            --best-effort \\\r\n            --all-routes \\\r\n            --limit all \\\r\n            --output-file \"${RUBRICS_CONTEXT_FILE}\" > /dev/null\r\n\r\n      - name: Resolve rubrics review preflight\r\n        id: preflight\r\n        env:\r\n          RUBRICS_READ_ENABLED: ${{ steps.rubrics_mode.outputs.read_enabled }}\r\n          RUBRICS_AVAILABLE: ${{ steps.preflight_rubrics.outputs.rubrics_available }}\r\n          RUBRICS_REF: ${{ steps.preflight_rubrics.outputs.rubrics_ref || inputs.rubrics_ref || vars.AGENT_RUBRICS_REF || 'agent/rubrics' }}\r\n          SELECTED_COUNT: ${{ steps.preflight_select.outputs.selected_count }}\r\n          RUBRIC_ERROR_COUNT: ${{ steps.preflight_select.outputs.rubric_error_count }}\r\n        run: |\r\n          set -euo pipefail\r\n\r\n          selected_count=\"${SELECTED_COUNT:-0}\"\r\n          rubric_error_count=\"${RUBRIC_ERROR_COUNT:-0}\"\r\n          should_run=false\r\n          skip_reason=\"\"\r\n\r\n          if [ \"${RUBRICS_READ_ENABLED}\" != \"true\" ]; then\r\n            skip_reason=\"Rubric reads are disabled for rubrics-review by AGENT_RUBRICS_POLICY.\"\r\n          elif [ \"${RUBRICS_AVAILABLE}\" != \"true\" ]; then\r\n            skip_reason=\"Rubrics branch ${RUBRICS_REF} is not available.\"\r\n          elif [ \"${selected_count}\" = \"0\" ]; then\r\n            skip_reason=\"No active rubrics are available to score.\"\r\n          else\r\n            should_run=true\r\n            skip_reason=\"Selected ${selected_count} active rubrics for scoring.\"\r\n          fi\r\n\r\n          echo \"should_run=${should_run}\" >> \"$GITHUB_OUTPUT\"\r\n          echo \"selected_count=${selected_count}\" >> \"$GITHUB_OUTPUT\"\r\n          echo \"rubric_error_count=${rubric_error_count}\" >> \"$GITHUB_OUTPUT\"\r\n          echo \"skip_reason\" \r\n```\r\n\r\n@sepo-agent /answer why did you add all these here? ",
+      "createdAt": "2026-06-07T00:26:06Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/412#issuecomment-4640894976",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABFJ57WA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "That block was added to make `agent-rubrics-review.yml` decide **before the model/provider path** whether a rubrics review is worth running.\n\nThe reason is issue #410: when `agent/rubrics` is missing, or when there are zero active rubrics, Sepo was still doing the expensive path: resolve provider, set up runtime/provider tools, run the rubrics-review agent, then post an `N/A / 0 rubrics` style comment. That was noisy and wasted a model run.\n\nSo this block does three preflight checks:\n\n- `Download rubrics for review preflight`: checks whether the rubrics branch exists, without bootstrapping it.\n- `Count active rubrics for review`: uses the existing rubric selector to see whether anything would actually be scored.\n- `Resolve rubrics review preflight`: turns that into `should_run=true/false` plus a human-readable skip reason.\n\nIf `should_run=false`, the workflow only writes an Actions notice/summary and skips provider setup, model execution, artifacts, and PR comments.\n\nThe reason it is in this workflow instead of only inside `run-agent-task` is timing: `run-agent-task` happens after provider/runtime setup, which is exactly the work this PR is trying to avoid when there are no rubrics to score.\n\n---\n`codex` | `gpt-5.5` | `high` | `Macmini-runner-4`",
+      "createdAt": "2026-06-07T00:27:30Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/412#issuecomment-4640897880",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABFJ6L4Q",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> That block was added to make `agent-rubrics-review.yml` decide **before the model/provider path** whether a rubrics review is worth running.\r\n> \r\n> The reason is issue #410: when `agent/rubrics` is missing, or when there are zero active rubrics, Sepo was still doing the expensive path: resolve provider, set up runtime/provider tools, run the rubrics-review agent, then post an `N/A / 0 rubrics` style comment. That was noisy and wasted a model run.\r\n> \r\n> So this block does three preflight checks:\r\n> \r\n> * `Download rubrics for review preflight`: checks whether the rubrics branch exists, without bootstrapping it.\r\n> * `Count active rubrics for review`: uses the existing rubric selector to see whether anything would actually be scored.\r\n> * `Resolve rubrics review preflight`: turns that into `should_run=true/false` plus a human-readable skip reason.\r\n> \r\n> If `should_run=false`, the workflow only writes an Actions notice/summary and skips provider setup, model execution, artifacts, and PR comments.\r\n> \r\n> The reason it is in this workflow instead of only inside `run-agent-task` is timing: `run-agent-task` happens after provider/runtime setup, which is exactly the work this PR is trying to avoid when there are no rubrics to score.\r\n> \r\n> `codex` | `gpt-5.5` | `high` | `Macmini-runner-4`\r\n\r\n@sepo-agent /fix-pr let's simplify this: \r\n\r\n1. for the gate, let's just skip if there's no rubrics branch \r\n2. and then later in the code, if it fetches rubrics and then we can configure to skip the agent runs with 0 rubrics. \r\n3. also the `        if: ${{ steps.preflight.outputs.should_run == 'true' && steps.review.outputs.response_file != '' }}` is so not elegant -- can we just do a two step action based gating ? ",
+      "createdAt": "2026-06-07T00:29:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/412#issuecomment-4640902113",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABFJ7Cfw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-410/codex-26977545719`. Requested by @lolipopshock.\n\n<!-- sepo-agent-fix-pr-status -->\n\nImplemented the simplification on the PR branch.\n\n- `agent-rubrics-review.yml` now preflights only the rubrics branch download before provider/runtime/model setup.\n- Zero selected rubrics are now handled inside `run-agent-task` after the existing selector, skipping `.agent/dist/run.js` and writing an Actions notice/summary.\n- Artifact upload and PR comment posting now use a named `review_result` gate instead of repeating the compound `preflight && response_file` condition.\n- Removed the temporary setup-action skip inputs from the previous iteration and updated docs/tests.\n\nVerification passed:\n\n- `cd .agent && npm run build`\n- `cd .agent && node --test dist/__tests__/envelope.test.js dist/__tests__/rubrics.test.js`\n- `git diff --check`\n\n---\n`codex` | `gpt-5.5` | `xhigh` | `Macmini-runner-2`",
+      "createdAt": "2026-06-07T00:36:35Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/412#issuecomment-4640916095",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-06-04T20:32:04Z",
@@ -144,20 +224,20 @@
     },
     {
       "path": ".agent/src/__tests__/envelope.test.ts",
-      "additions": 75,
+      "additions": 94,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
-      "path": ".github/actions/setup-agent-runtime/action.yml",
-      "additions": 12,
-      "deletions": 2,
+      "path": ".github/actions/run-agent-task/action.yml",
+      "additions": 49,
+      "deletions": 5,
       "changeType": "MODIFIED"
     },
     {
       "path": ".github/workflows/agent-rubrics-review.yml",
-      "additions": 103,
-      "deletions": 7,
+      "additions": 76,
+      "deletions": 6,
       "changeType": "MODIFIED"
     }
   ],
@@ -222,6 +302,6 @@
   ],
   "state": "OPEN",
   "title": "Skip empty rubrics review runs",
-  "updatedAt": "2026-06-04T22:32:36Z",
+  "updatedAt": "2026-06-07T00:36:35Z",
   "url": "https://github.com/self-evolving/repo/pull/412"
 }
