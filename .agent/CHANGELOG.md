@@ -1,11 +1,5 @@
 # Changelog
 
-## Unreleased
-
-### Fixed
-
-- Claude ACPX runs now pin date/version model IDs (for example `claude-opus-4-8`) through the Claude Agent SDK's `ANTHROPIC_MODEL` environment variable instead of acpx's `--model` / `set model` flags. The Claude ACP adapter advertises only aliases (`opus`/`sonnet`/`haiku`), so a pinned ID failed acpx's advertised-model validation and crashed on session resume; selecting it via the environment applies the exact model on new and resumed sessions alike. Advertised aliases continue to flow through acpx unchanged.
-
 ## 0.3.1 - 2026-06-04
 
 ### Fixed
