@@ -162,6 +162,11 @@ for i in $(seq 1 "$NUM_RUNNERS"); do
       --replace
   )
 
+  HOOK_SCRIPT="$BASE_DIR/hooks/post-job-cleanup.sh"
+  if [ -x "$HOOK_SCRIPT" ] && ! grep -q ACTIONS_RUNNER_HOOK_JOB_COMPLETED "$RUNNER_DIR/.env" 2>/dev/null; then
+    echo "ACTIONS_RUNNER_HOOK_JOB_COMPLETED=$HOOK_SCRIPT" >> "$RUNNER_DIR/.env"
+  fi
+
   echo "Runner $i configured as $RUNNER_NAME."
 done
 

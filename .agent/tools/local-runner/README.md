@@ -111,6 +111,20 @@ RUNNER_NAME_PREFIX=build-mac RUNNER_LABELS=self-hosted,macOS,ARM64,local \
   ./bootstrap.sh https://github.com/<OWNER> <REGISTRATION_TOKEN> 2
 ```
 
+## Post-job cleanup hook
+
+`hooks/post-job-cleanup.sh` runs after every job via the runner's
+`ACTIONS_RUNNER_HOOK_JOB_COMPLETED` mechanism. `setup-runners.sh` wires it into
+each runner's `.env`. On every job completion it:
+
+- trims `runner-N/_diag` to the last 30 files and drops anything older than 3 days;
+- removes `runner-N/_work/<repo>` checkouts not touched in the last 24 hours,
+  skipping the current job's repo so the checkout cache stays warm.
+
+It never fails the runner — errors are swallowed and progress is written to
+`runner-N/cleanup-hook.log`. Restart runners after editing the hook for the new
+behavior to take effect.
+
 ## Cleanup job
 
 `cleanup-runner.sh` writes to `cleanup.log` and:
