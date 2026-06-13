@@ -2039,7 +2039,8 @@ test("run-agent-task only bootstraps missing rubrics for first-run initializatio
   assert.match(action, /RUBRICS_LIMIT:\s*\$\{\{\s*inputs\.route == 'rubrics-review' && 'all' \|\| inputs\.rubrics_limit\s*\}\}/);
   assert.match(action, /all_route_args\+=\(--all-routes\)/);
   assert.match(action, /"\$\{all_route_args\[@\]\}"/);
-  assert.match(rubricsPrompt, /Agent \/ Rubrics \/ Initialization and Agent \/ Rubrics \/ Update/);
+  assert.match(rubricsPrompt, /dedicated rubrics routes should change rubric files/);
+  assert.match(rubricsPrompt, /Agent \/ Rubrics \/ Initialization, Agent \/ Rubrics \/ Update, or `add-rubrics` proposal runs/);
 });
 
 test("normal workflows honor rubrics policy instead of forcing read-only", () => {
