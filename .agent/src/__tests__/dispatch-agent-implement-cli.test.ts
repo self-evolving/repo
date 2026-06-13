@@ -33,6 +33,8 @@ exit 1
         REQUESTED_BY: "lolipopshock",
         BASE_BRANCH: "agent/parent-branch",
         BASE_PR: "",
+        IMPLEMENTATION_ROUTE: "add-rubrics",
+        IMPLEMENTATION_PROMPT: "agent-add-rubrics",
       },
       encoding: "utf8",
     });
@@ -42,6 +44,8 @@ exit 1
     const payload = JSON.parse(readFileSync(payloadPath, "utf8"));
     assert.equal(payload.inputs.base_branch, "agent/parent-branch");
     assert.equal(payload.inputs.base_pr, "");
+    assert.equal(payload.inputs.implementation_route, "add-rubrics");
+    assert.equal(payload.inputs.implementation_prompt, "agent-add-rubrics");
     assert.equal(payload.inputs.automation_max_rounds, "12");
   } finally {
     rmSync(tempDir, { recursive: true, force: true });

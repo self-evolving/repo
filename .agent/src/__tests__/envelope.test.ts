@@ -982,6 +982,7 @@ test("agent router dispatches agent-implement directly for explicit implement re
   // decision said an implementation-like route and no approval gate is needed.
   assert.match(implementJob, /needs\.portal\.outputs\.route == 'implement'/);
   assert.match(implementJob, /needs\.portal\.outputs\.route == 'create-action'/);
+  assert.match(implementJob, /needs\.portal\.outputs\.route == 'add-rubrics'/);
   assert.match(implementJob, /needs\.portal\.outputs\.needs_approval == 'false'/);
 
   // Runtime must be bootstrapped before any node .agent/dist/* calls.
@@ -1005,6 +1006,14 @@ test("agent router dispatches agent-implement directly for explicit implement re
     implementJob,
     /BASE_PR:\s*\$\{\{\s*needs\.portal\.outputs\.base_pr\s*\}\}/,
   );
+  assert.match(
+    implementJob,
+    /IMPLEMENTATION_PROMPT:\s*\$\{\{\s*needs\.portal\.outputs\.route == 'add-rubrics' && 'agent-add-rubrics' \|\| ''\s*\}\}/,
+  );
+  assert.match(
+    implementJob,
+    /BASE_BRANCH:\s*\$\{\{\s*needs\.portal\.outputs\.route == 'add-rubrics' && \(vars\.AGENT_RUBRICS_REF \|\| 'agent\/rubrics'\) \|\| ''\s*\}\}/,
+  );
 
   // Link-back comment on the originating PR/discussion points at the
   // tracking issue that was just created.
@@ -1016,6 +1025,8 @@ test("agent router dispatches agent-implement directly for explicit implement re
   // agent-approve.yml uses the same CLIs — no duplicate inline shell.
   assert.match(approveWorkflow, /node \.agent\/dist\/cli\/create-issue\.js/);
   assert.match(approveWorkflow, /node \.agent\/dist\/cli\/dispatch-agent-implement\.js/);
+  assert.match(approveWorkflow, /steps\.approval\.outputs\.route == 'add-rubrics' && 'agent-add-rubrics'/);
+  assert.match(approveWorkflow, /steps\.approval\.outputs\.route == 'add-rubrics' && \(vars\.AGENT_RUBRICS_REF \|\| 'agent\/rubrics'\)/);
   assert.doesNotMatch(approveWorkflow, /actions\/workflows\/\$\{WORKFLOW\}\/dispatches/);
 });
 
@@ -1623,6 +1634,30 @@ test("agent implement prompt input falls back to implementation route", () => {
   );
 });
 
+test("add-rubrics reuses implement workflow with a separate rubrics worktree", () => {
+  const implementWorkflow = readRepoFile(".github/workflows/agent-implement.yml");
+  const runAgentTaskAction = readRepoFile(".github/actions/run-agent-task/action.yml");
+  const runSource = readRepoFile(".agent/src/run.ts");
+  const verifySource = readRepoFile(".agent/src/verify.ts");
+  const prompt = readRepoFile(".github/prompts/agent-add-rubrics.md");
+
+  assert.match(implementWorkflow, /- name: Create add-rubrics worktree/);
+  assert.match(implementWorkflow, /BASE_BRANCH:\s*\$\{\{\s*inputs\.base_branch \|\| \(env\.IMPLEMENTATION_ROUTE == 'add-rubrics' && \(vars\.AGENT_RUBRICS_REF \|\| 'agent\/rubrics'\) \|\| ''\)\s*\}\}/);
+  assert.match(implementWorkflow, /if:\s*env\.IMPLEMENTATION_ROUTE == 'add-rubrics'/);
+  assert.match(implementWorkflow, /git worktree add -b "\$\{BRANCH\}" "\$\{worktree\}" FETCH_HEAD/);
+  assert.match(implementWorkflow, /agent_cwd:\s*\$\{\{\s*env\.AGENT_WORKTREE\s*\}\}/);
+  assert.match(implementWorkflow, /rubrics_mode_override:\s*\$\{\{\s*env\.IMPLEMENTATION_ROUTE == 'add-rubrics' && 'read-only' \|\| ''\s*\}\}/);
+  assert.match(implementWorkflow, /COMMIT_CWD:\s*\$\{\{\s*env\.AGENT_WORKTREE \|\| github\.workspace\s*\}\}/);
+  assert.match(runAgentTaskAction, /agent_cwd:/);
+  assert.match(runAgentTaskAction, /AGENT_CWD:\s*\$\{\{\s*inputs\.agent_cwd\s*\}\}/);
+  assert.match(runSource, /const agentCwd = process\.env\.AGENT_CWD/);
+  assert.match(runSource, /cwd:\s*agentCwd/);
+  assert.match(verifySource, /AGENT_RUNTIME_DIR/);
+  assert.match(prompt, /agent\/rubrics/);
+  assert.match(prompt, /rubrics\/<area>/);
+  assert.match(prompt, /rubrics\/validate\.js/);
+});
+
 test("execution workflows expose automation handoff inputs", () => {
   const entrypointWorkflow = readRepoFile(".github/workflows/agent-entrypoint.yml");
   const labelWorkflow = readRepoFile(".github/workflows/agent-label.yml");
@@ -1848,6 +1883,7 @@ test("validateEnvelope accepts dispatch, action, self-approval, update, and rubr
   for (const route of [
     "dispatch",
     "create-action",
+    "add-rubrics",
     "agent-self-approve",
     "agent-self-merge",
     "update-agent",

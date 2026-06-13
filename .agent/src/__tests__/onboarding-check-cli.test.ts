@@ -96,6 +96,7 @@ exit 1
     assert.match(result.stdout, /Sepo onboarding issue is #77/);
     const log = readFileSync(logPath, "utf8");
     assert.match(log, /^label create agent\/answer --color 1f883d --description Ask Sepo to answer/m);
+    assert.match(log, /^label create agent\/add-rubrics --color 6f42c1 --description Ask Sepo to propose updates to user\/team rubrics/m);
     assert.match(log, /^label create agent\/orchestrate --color fb8c00 --description Ask Sepo to run/m);
     assert.match(log, /^label create agent --color 0e8a16 --description Handled by the agent --repo self-evolving\/repo$/m);
     assert.match(

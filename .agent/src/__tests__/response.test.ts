@@ -101,6 +101,14 @@ test("summaryFromAgentResponse parses fix-pr JSON summaries", () => {
   assert.equal(summary, "- Fixed the failing parser\n- Added coverage");
 });
 
+test("summaryFromAgentResponse parses add-rubrics JSON summaries", () => {
+  const summary = summaryFromAgentResponse(
+    "add-rubrics",
+    '{"summary":"Added a concise workflow rubric.","commit_message":"docs(rubrics): add workflow rubric"}',
+  );
+  assert.equal(summary, "Added a concise workflow rubric.");
+});
+
 test("summaryFromAgentResponse leaves review text unchanged", () => {
   const summary = summaryFromAgentResponse("review", "## Summary\nLooks good.");
   assert.equal(summary, "## Summary\nLooks good.");

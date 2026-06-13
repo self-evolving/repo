@@ -974,7 +974,11 @@ jobs:
     if: >-
       vars.AGENT_ENABLED != 'false' &&
       needs.portal.outputs.should_respond == 'true' &&
-      (needs.portal.outputs.route == 'implement' || needs.portal.outputs.route == 'create-action') &&
+      (
+        needs.portal.outputs.route == 'implement' ||
+        needs.portal.outputs.route == 'create-action' ||
+        needs.portal.outputs.route == 'add-rubrics'
+      ) &&
       needs.portal.outputs.needs_approval == 'false'
     runs-on: ${{ fromJson(inputs.runs_on || vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
     steps:
@@ -1018,9 +1022,11 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           ISSUE_NUMBER: ${{ steps.create_issue.outputs.issue_number || needs.portal.outputs.target_number }}
           IMPLEMENTATION_ROUTE: ${{ needs.portal.outputs.route }}
+          IMPLEMENTATION_PROMPT: ${{ needs.portal.outputs.route == 'add-rubrics' && 'agent-add-rubrics' || '' }}
           REQUESTED_BY: ${{ needs.portal.outputs.requested_by }}
           REQUEST_TEXT: ${{ needs.portal.outputs.body }}
           SESSION_FORK_FROM_THREAD_KEY: ${{ github.repository }}:${{ needs.portal.outputs.target_kind }}:${{ needs.portal.outputs.target_number }}:answer:default
+          BASE_BRANCH: ${{ needs.portal.outputs.route == 'add-rubrics' && (vars.AGENT_RUBRICS_REF || 'agent/rubrics') || '' }}
           BASE_PR: ${{ needs.portal.outputs.base_pr }}
           AUTOMATION_MODE: ${{ inputs.automation_mode }}
           AUTOMATION_MAX_ROUNDS: ${{ inputs.automation_max_rounds }}

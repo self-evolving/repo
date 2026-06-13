@@ -209,6 +209,21 @@ severity: should
   assert.equal(selected[0]?.rubric.id, "implementation-guidance");
 });
 
+test("loadRubrics accepts add-rubrics as a route", () => {
+  const root = tempDir();
+  writeRubric(root, "add-rubrics.yaml", `
+id: add-rubrics-guidance
+title: Add rubrics guidance
+description: Add-rubrics runs should support route-specific rubrics.
+applies_to: [add-rubrics]
+severity: should
+`);
+
+  const { rubrics, errors } = loadRubrics(root);
+  assert.deepEqual(errors, []);
+  assert.equal(rubrics[0]?.applies_to[0], "add-rubrics");
+});
+
 test("selectRubrics can include all routes for rubric review", () => {
   const root = tempDir();
   writeRubric(root, "implementation.yaml", `

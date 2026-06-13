@@ -80,8 +80,10 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           ISSUE_NUMBER: ${{ steps.create_issue.outputs.issue_number || steps.approval.outputs.target_number }}
           IMPLEMENTATION_ROUTE: ${{ steps.approval.outputs.route }}
+          IMPLEMENTATION_PROMPT: ${{ steps.approval.outputs.route == 'add-rubrics' && 'agent-add-rubrics' || '' }}
           REQUESTED_BY: ${{ github.actor }}
           REQUEST_TEXT: ${{ steps.approval.outputs.request_text }}
+          BASE_BRANCH: ${{ steps.approval.outputs.route == 'add-rubrics' && (vars.AGENT_RUBRICS_REF || 'agent/rubrics') || '' }}
           AUTOMATION_MODE: ${{ vars.AGENT_AUTOMATION_MODE || 'agent' }}
           AUTOMATION_MAX_ROUNDS: ${{ vars.AGENT_AUTOMATION_MAX_ROUNDS || '12' }}
         run: node .agent/dist/cli/dispatch-agent-implement.js

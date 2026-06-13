@@ -38,6 +38,9 @@ Check [Install into an existing repository](.agent/docs/setup/install-existing-r
 # Use an explicit slash route when you already know the action
 @sepo-agent /implement implement issue #2
 
+# Propose user/team rubric updates against agent/rubrics
+@sepo-agent /add-rubrics prefer small PRs for workflow changes
+
 # Invoke arbitrary skills
 @sepo-agent /skill <skill-name>
 
@@ -66,6 +69,8 @@ Use `@sepo-agent /orchestrate` (or `agent/orchestrate`) to run the orchestration
 
 ### Tracking Workspace Memory and Rubrics
 Sepo persists long-lived context in `agent/memory` and preference rules in `agent/rubrics`, both as repository-owned branches. This lets later runs resume with durable project context and team-specific guidance.
+
+Use `@sepo-agent /add-rubrics` (or `agent/add-rubrics`) to propose add-or-update rubric changes in a draft PR targeting `agent/rubrics`.
 
 ### Scheduled Jobs
 You can run Sepo on a schedule to handle recurring maintenance, triage, or monitoring tasks without a manual mention. For example, [`agent-daily-summary.yml`](.github/workflows/agent-daily-summary.yml) can publish a daily repository activity summary discussion when enabled, and [`agent-update.yml`](.github/workflows/agent-update.yml) checks near-biweekly for Sepo agent infrastructure updates from the latest stable release tag. The packaged daily summary cron is disabled by default, while manual dispatch remains available. Manual update runs can pass `source_ref` to test `main`, a branch, or a specific tag; if no release exists yet, the workflow falls back to `main` and records that in the run summary. If an update PR is already open, later runs update that PR instead of opening a duplicate. Set `AGENT_AUTO_UPDATE=false` to disable the scheduled update check, or set `AGENT_ENABLED=false` to pause all Sepo agent workflows. Scheduled workflows still route through the same policy and memory layers, so they behave consistently with on-demand runs.

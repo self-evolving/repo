@@ -90,6 +90,12 @@ set `base_branch` to stack directly on another branch, or `base_pr` to stack on
 an open same-repository PR head branch. The implementation workflow rejects
 ambiguous input when both are set.
 
+The `add-rubrics` route reuses `agent-implement.yml` with
+`base_branch=agent/rubrics` and `.github/prompts/agent-add-rubrics.md`. For that
+route, Sepo keeps the default-branch runtime checkout in the main workspace and
+runs the agent in a separate rubrics worktree so the proposal PR can target the
+data-only `agent/rubrics` branch.
+
 For explicit `/implement` requests from pull requests, the router's
 metadata-only prompt may emit `base_pr` when the current user request asks for a
 stacked or follow-up PR. The portal validates that value as a positive integer
@@ -275,6 +281,7 @@ Applying one of these labels triggers the same downstream routing stack without 
 
 - `agent/answer`
 - `agent/implement`
+- `agent/add-rubrics`
 - `agent/create-action`
 - `agent/fix-pr`
 - `agent/review`

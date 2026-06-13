@@ -38,8 +38,12 @@ inputs:
     required: false
     default: xhigh
   route:
-    description: "Envelope route (implement, review, fix-pr, answer, create-action, dispatch, agent-self-approve, agent-self-merge, skill, install, update-agent, rubrics-review, rubrics-initialization, rubrics-update)"
+    description: "Envelope route (implement, review, fix-pr, answer, create-action, add-rubrics, dispatch, agent-self-approve, agent-self-merge, skill, install, update-agent, rubrics-review, rubrics-initialization, rubrics-update)"
     required: true
+  agent_cwd:
+    description: "Optional worktree where the agent process should run"
+    required: false
+    default: ""
   lane:
     description: "Logical lane for thread/session identity (defaults to 'default')"
     required: false
@@ -355,6 +359,8 @@ runs:
         RUBRICS_DIR: ${{ steps.rubrics.outputs.rubrics_dir }}
         RUBRICS_REF: ${{ steps.rubrics.outputs.rubrics_ref }}
         RUBRICS_CONTEXT_FILE: ${{ steps.select_rubrics.outputs.context_file }}
+        AGENT_CWD: ${{ inputs.agent_cwd }}
+        AGENT_RUNTIME_DIR: ${{ github.workspace }}
         MODEL_REASONING_EFFORT: ${{ inputs.reasoning_effort }}
         PROMPT_NAME: ${{ inputs.prompt }}
         REPO_SLUG: ${{ github.repository }}

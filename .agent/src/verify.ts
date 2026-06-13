@@ -5,6 +5,7 @@
 // for workflow use.
 
 import { execFileSync } from "node:child_process";
+import { join } from "node:path";
 
 const VERIFY_SCRIPT = ".agent/scripts/post-agent-verify.sh";
 
@@ -31,8 +32,11 @@ export function runVerification(cwd: string, options: VerifyOptions = {}): Verif
     if (options.baseSha) {
       env.VERIFY_BASE_SHA = options.baseSha;
     }
+    const verifyScript = process.env.AGENT_RUNTIME_DIR
+      ? join(process.env.AGENT_RUNTIME_DIR, VERIFY_SCRIPT)
+      : VERIFY_SCRIPT;
 
-    const output = execFileSync("bash", [VERIFY_SCRIPT], {
+    const output = execFileSync("bash", [verifyScript], {
       cwd,
       env,
       stdio: ["pipe", "pipe", "pipe"],

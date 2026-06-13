@@ -76,6 +76,8 @@ const SUPPLEMENTAL_PROMPT_VAR_NAMES = [
   "RUBRICS_DIR",
   "RUBRICS_REF",
   "RUBRICS_CONTEXT_FILE",
+  "AGENT_CWD",
+  "AGENT_RUNTIME_DIR",
   "REQUEST_COMMENT_ID",
   "REQUEST_COMMENT_URL",
   "REQUEST_SOURCE_KIND",
@@ -130,6 +132,7 @@ const PROMPT_TEMPLATES: Record<string, string> = {
   "fix-pr": ".github/prompts/agent-fix-pr.md",
   answer: ".github/prompts/agent-answer.md",
   "create-action": ".github/prompts/agent-create-action.md",
+  "add-rubrics": ".github/prompts/agent-add-rubrics.md",
   install: ".github/prompts/agent-install.md",
   "update-agent": ".github/prompts/agent-update.md",
   dispatch: ".github/prompts/agent-dispatch.md",
@@ -343,6 +346,14 @@ function buildModelDisplay(options: {
 
 function main(): void {
   const repoRoot = process.env.GITHUB_WORKSPACE || resolve(".");
+  const agentCwd = process.env.AGENT_CWD?.trim()
+    ? resolve(process.env.AGENT_CWD)
+    : repoRoot;
+  if (!existsSync(agentCwd) || !statSync(agentCwd).isDirectory()) {
+    log("error", "Agent working directory is not available", { agent_cwd: agentCwd });
+    process.exitCode = 2;
+    return;
+  }
   const agent = process.env.ACPX_AGENT;
   if (!agent) {
     log("error", "Missing required ACPX_AGENT");
@@ -402,6 +413,8 @@ function main(): void {
   // Aliases for backward compat
   promptVars.PR_NUMBER = promptVars.TARGET_NUMBER;
   promptVars.GITHUB_REPOSITORY = promptVars.REPO_SLUG;
+  promptVars.AGENT_CWD = agentCwd;
+  promptVars.AGENT_RUNTIME_DIR = repoRoot;
 
   const prompt = renderPrompt(templatePath, promptVars, repoRoot);
   const continuationPrompt = buildContinuationPrompt(promptVars);
@@ -455,6 +468,7 @@ function main(): void {
   runDirectPath({
     agent,
     repoRoot,
+    agentCwd,
     prompt,
     continuationPrompt: resumeContinuationPrompt,
     envelope,
@@ -470,6 +484,7 @@ function main(): void {
 function runDirectPath(opts: {
   agent: string;
   repoRoot: string;
+  agentCwd: string;
   prompt: string;
   continuationPrompt?: string;
   envelope: RuntimeEnvelope;
@@ -481,6 +496,7 @@ function runDirectPath(opts: {
   const {
     agent,
     repoRoot,
+    agentCwd,
     prompt,
     continuationPrompt,
     envelope,
@@ -603,7 +619,7 @@ function runDirectPath(opts: {
     agent,
     model: requestedModel,
     prompt,
-    cwd: repoRoot,
+    cwd: agentCwd,
     sessionMode: sessionModeForPolicy(sessionPolicy),
     threadKey: envelope.thread_key,
     permissionMode,

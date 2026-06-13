@@ -161,8 +161,9 @@ After the files and secrets are in place:
 4. wait for the `👀` reaction and the follow-up workflow run
 
 The onboarding workflow is safe to rerun. It creates the built-in trigger labels
-(`agent/answer`, `agent/implement`, `agent/create-action`, `agent/review`,
-`agent/fix-pr`, and `agent/orchestrate`) when they are missing, ensures the
+(`agent/answer`, `agent/implement`, `agent/add-rubrics`,
+`agent/create-action`, `agent/review`, `agent/fix-pr`, and
+`agent/orchestrate`) when they are missing, ensures the
 non-trigger `agent` status label exists, applies that label to the setup issue,
 then updates the same setup issue comment with GitHub auth, provider
 credentials, memory, rubrics, remaining setup, and test commands.

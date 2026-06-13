@@ -170,7 +170,11 @@ export function shouldCreateIssueFromApprovalRequest(
   request: Record<string, unknown>,
 ): boolean {
   return (
-    (request?.route === "implement" || request?.route === "create-action") &&
+    (
+      request?.route === "implement" ||
+      request?.route === "create-action" ||
+      request?.route === "add-rubrics"
+    ) &&
     request?.target_kind !== "issue" &&
     String(request?.issue_title || "").trim() !== ""
   );
