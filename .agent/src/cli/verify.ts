@@ -1,6 +1,6 @@
 // CLI: run post-agent verification.
 // Usage: node .agent/dist/cli/verify.js
-// Env: GITHUB_WORKSPACE, HEAD_CHANGED, VERIFY_BASE_SHA
+// Env: GITHUB_WORKSPACE, HEAD_CHANGED, VERIFY_BASE_SHA, ROUTE
 // Outputs: verify_exit_code, has_changes
 
 import { hasChanges } from "../git.js";
@@ -10,6 +10,7 @@ import { setOutput } from "../output.js";
 const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
 const headChanged = process.env.HEAD_CHANGED === "true";
 const verifyBaseSha = process.env.VERIFY_BASE_SHA || "";
+const route = process.env.ROUTE || "";
 const worktreeChanged = hasChanges(cwd);
 
 if (!shouldRunVerification(worktreeChanged, headChanged)) {
@@ -25,7 +26,11 @@ if (headChanged && !verifyBaseSha) {
   process.exit(1);
 }
 
-const result = runVerification(cwd, { baseSha: verifyBaseSha });
+const result = runVerification(cwd, { baseSha: verifyBaseSha, route });
+if (result.output.trim()) {
+  const log = result.exitCode === 0 ? console.log : console.error;
+  log(result.output.trim());
+}
 setOutput("verify_exit_code", String(result.exitCode));
 setOutput("has_changes", String(worktreeChanged));
 process.exitCode = result.exitCode;

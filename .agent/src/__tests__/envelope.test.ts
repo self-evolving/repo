@@ -1648,11 +1648,14 @@ test("add-rubrics reuses implement workflow with a separate rubrics worktree", (
   assert.match(implementWorkflow, /agent_cwd:\s*\$\{\{\s*env\.AGENT_WORKTREE\s*\}\}/);
   assert.match(implementWorkflow, /rubrics_mode_override:\s*\$\{\{\s*env\.IMPLEMENTATION_ROUTE == 'add-rubrics' && 'read-only' \|\| ''\s*\}\}/);
   assert.match(implementWorkflow, /COMMIT_CWD:\s*\$\{\{\s*env\.AGENT_WORKTREE \|\| github\.workspace\s*\}\}/);
+  assert.match(implementWorkflow, /ROUTE:\s*\$\{\{\s*env\.IMPLEMENTATION_ROUTE\s*\}\}/);
   assert.match(runAgentTaskAction, /agent_cwd:/);
   assert.match(runAgentTaskAction, /AGENT_CWD:\s*\$\{\{\s*inputs\.agent_cwd\s*\}\}/);
   assert.match(runSource, /const agentCwd = process\.env\.AGENT_CWD/);
   assert.match(runSource, /cwd:\s*agentCwd/);
   assert.match(verifySource, /AGENT_RUNTIME_DIR/);
+  assert.match(verifySource, /loadRubrics/);
+  assert.match(verifySource, /add-rubrics/);
   assert.match(prompt, /agent\/rubrics/);
   assert.match(prompt, /rubrics\/<area>/);
   assert.match(prompt, /rubrics\/validate\.js/);

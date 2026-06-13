@@ -6,6 +6,7 @@
 
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
+import { loadRubrics } from "./rubrics.js";
 
 const VERIFY_SCRIPT = ".agent/scripts/post-agent-verify.sh";
 
@@ -17,10 +18,30 @@ export interface VerifyResult {
 export interface VerifyOptions {
   /** Optional base commit used to verify clean history-only HEAD updates. */
   baseSha?: string;
+  /** Route being verified; add-rubrics runs require rubric schema validation. */
+  route?: string;
 }
 
 export function shouldRunVerification(hasWorktreeChanges: boolean, hasBranchUpdate: boolean): boolean {
   return hasWorktreeChanges || hasBranchUpdate;
+}
+
+function validateRubricsWorktree(cwd: string): VerifyResult {
+  const { rubrics, errors } = loadRubrics(cwd);
+  if (errors.length > 0) {
+    return {
+      exitCode: 1,
+      output: errors.map((error) => `${error.path}: ${error.message}`).join("\n"),
+    };
+  }
+  return {
+    exitCode: 0,
+    output: `validated ${rubrics.length} rubric${rubrics.length === 1 ? "" : "s"} in ${cwd}`,
+  };
+}
+
+function combineOutput(...parts: string[]): string {
+  return parts.map((part) => part.trim()).filter(Boolean).join("\n");
 }
 
 /**
@@ -42,7 +63,15 @@ export function runVerification(cwd: string, options: VerifyOptions = {}): Verif
       stdio: ["pipe", "pipe", "pipe"],
       timeout: 120_000,
     }).toString("utf8");
-    return { exitCode: 0, output };
+    if (String(options.route || process.env.ROUTE || "").trim().toLowerCase() !== "add-rubrics") {
+      return { exitCode: 0, output };
+    }
+
+    const rubricsValidation = validateRubricsWorktree(cwd);
+    return {
+      exitCode: rubricsValidation.exitCode,
+      output: combineOutput(output, rubricsValidation.output),
+    };
   } catch (err: unknown) {
     const error = err as { status?: number; stdout?: Buffer; stderr?: Buffer };
     const stdout = error.stdout?.toString("utf8") ?? "";

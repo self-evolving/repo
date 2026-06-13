@@ -4,6 +4,7 @@ import { strict as assert } from "node:assert";
 import {
   determineRunStatus,
   extractJsonObject,
+  formatAddRubricsComment,
   normalizeImplementationResponse,
   summaryFromAgentResponse,
   formatImplementComment,
@@ -11,6 +12,7 @@ import {
   formatReviewComment,
   formatRubricsUpdateComment,
   appendRunDisplayFooter,
+  isExplainedAddRubricsNoop,
 } from "../response.js";
 
 // --- determineRunStatus ---
@@ -21,6 +23,13 @@ test("determineRunStatus returns failed when agent exit is non-zero", () => {
 
 test("determineRunStatus returns no_changes when agent succeeded but no changes", () => {
   assert.equal(determineRunStatus(0, false, 0), "no_changes");
+});
+
+test("determineRunStatus treats explained add-rubrics no-ops as success", () => {
+  assert.equal(
+    determineRunStatus(0, false, 0, false, { route: "add-rubrics", explainedNoop: true }),
+    "success",
+  );
 });
 
 test("determineRunStatus returns success for clean branch head updates", () => {
@@ -93,6 +102,18 @@ test("normalizeImplementationResponse normalizes commit message whitespace", () 
   assert.equal(result.commitMessage, "feat: add feature");
 });
 
+test("isExplainedAddRubricsNoop requires add-rubrics route and empty PR fields", () => {
+  const response = normalizeImplementationResponse(
+    '{"summary":"Existing rubrics already cover this preference.","commit_message":"","pr_title":"","pr_body":""}',
+  );
+  assert.equal(isExplainedAddRubricsNoop("add-rubrics", response), true);
+  assert.equal(isExplainedAddRubricsNoop("implement", response), false);
+  assert.equal(
+    isExplainedAddRubricsNoop("add-rubrics", { ...response, prTitle: "Propose rubric update" }),
+    false,
+  );
+});
+
 test("summaryFromAgentResponse parses fix-pr JSON summaries", () => {
   const summary = summaryFromAgentResponse(
     "fix-pr",
@@ -131,6 +152,38 @@ test("formatImplementComment formats success with PR link", () => {
 test("formatImplementComment formats no_changes", () => {
   const body = formatImplementComment({ status: "no_changes" });
   assert.match(body, /did not produce code changes/);
+});
+
+test("formatAddRubricsComment formats proposal success with PR link", () => {
+  const body = formatAddRubricsComment({
+    status: "success",
+    summary: "Added the rubric proposal.",
+    branch: "agent/add-rubrics-issue-1/codex-2",
+    prUrl: "https://github.com/org/repo/pull/44",
+  });
+  assert.match(body, /proposed rubric updates/);
+  assert.match(body, /pull\/44/);
+});
+
+test("formatAddRubricsComment formats explained no-op success", () => {
+  const body = formatAddRubricsComment({
+    status: "success",
+    summary: "Existing rubrics already cover this preference.",
+    explainedNoop: true,
+  });
+  assert.match(body, /no rubric changes were needed/);
+  assert.match(body, /Existing rubrics already cover this preference/);
+  assert.doesNotMatch(body, /restate/);
+});
+
+test("formatAddRubricsComment does not infer no-op from a missing PR URL", () => {
+  const body = formatAddRubricsComment({
+    status: "success",
+    summary: "Added the rubric proposal.",
+  });
+  assert.match(body, /proposed rubric updates/);
+  assert.match(body, /Pull request: not created/);
+  assert.doesNotMatch(body, /no rubric changes were needed/);
 });
 
 // --- formatFixPrComment ---

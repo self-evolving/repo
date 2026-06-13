@@ -260,6 +260,7 @@ jobs:
         env:
           AGENT_RUNTIME_DIR: ${{ github.workspace }}
           GITHUB_WORKSPACE: ${{ env.AGENT_WORKTREE || github.workspace }}
+          ROUTE: ${{ env.IMPLEMENTATION_ROUTE }}
         run: node .agent/dist/cli/verify.js
 
       - name: Parse response
@@ -269,6 +270,7 @@ jobs:
           AGENT_EXIT_CODE: ${{ steps.agent.outcome == 'success' && '0' || '1' }}
           HAS_CHANGES: ${{ steps.verify.outputs.has_changes }}
           RESPONSE_FILE: ${{ steps.agent.outputs.response_file }}
+          ROUTE: ${{ env.IMPLEMENTATION_ROUTE }}
           VERIFY_EXIT_CODE: ${{ steps.verify.outputs.verify_exit_code }}
         run: node .agent/dist/cli/parse-response.js
 

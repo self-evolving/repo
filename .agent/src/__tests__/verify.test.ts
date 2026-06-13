@@ -2,10 +2,12 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { strict as assert } from "node:assert";
 import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { test } from "node:test";
 
-import { shouldRunVerification } from "../verify.js";
+import { runVerification, shouldRunVerification } from "../verify.js";
+
+const repoRoot = resolve(__dirname, "../../..");
 
 function git(cwd: string, args: string[]): string {
   return execFileSync("git", args, {
@@ -78,6 +80,44 @@ test("post-agent-verify uses VERIFY_BASE_SHA for clean history-only workflow cha
       `history-aware verification should inspect changed workflow files\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`,
     );
   } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test("runVerification validates add-rubrics worktree rubric schemas", () => {
+  const repo = mkdtempSync(join(tmpdir(), "add-rubrics-verify-"));
+  const previousRuntimeDir = process.env.AGENT_RUNTIME_DIR;
+  try {
+    git(repo, ["init"]);
+    git(repo, ["config", "user.name", "Test User"]);
+    git(repo, ["config", "user.email", "test@example.com"]);
+
+    mkdirSync(join(repo, "rubrics", "coding"), { recursive: true });
+    writeFileSync(join(repo, "README.md"), "rubrics\n", "utf8");
+    writeFileSync(
+      join(repo, "rubrics", "coding", "bad-weight.yaml"),
+      [
+        "id: bad-weight",
+        "title: Bad weight",
+        "description: Invalid rubric weights must block proposals.",
+        "applies_to: [implement]",
+        "weight: 99",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+
+    process.env.AGENT_RUNTIME_DIR = repoRoot;
+    const result = runVerification(repo, { route: "add-rubrics" });
+    assert.notEqual(result.exitCode, 0);
+    assert.match(result.output, /rubrics\/coding\/bad-weight\.yaml/);
+    assert.match(result.output, /weight must be an integer from 1 to 10/);
+  } finally {
+    if (previousRuntimeDir === undefined) {
+      delete process.env.AGENT_RUNTIME_DIR;
+    } else {
+      process.env.AGENT_RUNTIME_DIR = previousRuntimeDir;
+    }
     rmSync(repo, { recursive: true, force: true });
   }
 });
