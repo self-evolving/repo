@@ -1,13 +1,13 @@
 // CLI: run post-agent verification.
 // Usage: node .agent/dist/cli/verify.js
-// Env: GITHUB_WORKSPACE, HEAD_CHANGED, VERIFY_BASE_SHA, ROUTE
+// Env: VERIFY_CWD, GITHUB_WORKSPACE, HEAD_CHANGED, VERIFY_BASE_SHA, ROUTE
 // Outputs: verify_exit_code, has_changes
 
 import { hasChanges } from "../git.js";
 import { runVerification, shouldRunVerification } from "../verify.js";
 import { setOutput } from "../output.js";
 
-const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
+const cwd = process.env.VERIFY_CWD || process.env.GITHUB_WORKSPACE || process.cwd();
 const headChanged = process.env.HEAD_CHANGED === "true";
 const verifyBaseSha = process.env.VERIFY_BASE_SHA || "";
 const route = process.env.ROUTE || "";

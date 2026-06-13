@@ -1639,6 +1639,7 @@ test("add-rubrics reuses implement workflow with a separate rubrics worktree", (
   const runAgentTaskAction = readRepoFile(".github/actions/run-agent-task/action.yml");
   const runSource = readRepoFile(".agent/src/run.ts");
   const verifySource = readRepoFile(".agent/src/verify.ts");
+  const verifyCli = readRepoFile(".agent/src/cli/verify.ts");
   const prompt = readRepoFile(".github/prompts/agent-add-rubrics.md");
 
   assert.match(implementWorkflow, /- name: Create add-rubrics worktree/);
@@ -1649,10 +1650,13 @@ test("add-rubrics reuses implement workflow with a separate rubrics worktree", (
   assert.match(implementWorkflow, /rubrics_mode_override:\s*\$\{\{\s*env\.IMPLEMENTATION_ROUTE == 'add-rubrics' && 'read-only' \|\| ''\s*\}\}/);
   assert.match(implementWorkflow, /COMMIT_CWD:\s*\$\{\{\s*env\.AGENT_WORKTREE \|\| github\.workspace\s*\}\}/);
   assert.match(implementWorkflow, /ROUTE:\s*\$\{\{\s*env\.IMPLEMENTATION_ROUTE\s*\}\}/);
+  assert.match(implementWorkflow, /VERIFY_CWD:\s*\$\{\{\s*env\.AGENT_WORKTREE \|\| github\.workspace\s*\}\}/);
+  assert.doesNotMatch(implementWorkflow, /GITHUB_WORKSPACE:\s*\$\{\{\s*env\.AGENT_WORKTREE/);
   assert.match(runAgentTaskAction, /agent_cwd:/);
   assert.match(runAgentTaskAction, /AGENT_CWD:\s*\$\{\{\s*inputs\.agent_cwd\s*\}\}/);
   assert.match(runSource, /const agentCwd = process\.env\.AGENT_CWD/);
   assert.match(runSource, /cwd:\s*agentCwd/);
+  assert.match(verifyCli, /process\.env\.VERIFY_CWD \|\| process\.env\.GITHUB_WORKSPACE/);
   assert.match(verifySource, /AGENT_RUNTIME_DIR/);
   assert.match(verifySource, /loadRubrics/);
   assert.match(verifySource, /add-rubrics/);
