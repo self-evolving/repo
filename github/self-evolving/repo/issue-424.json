@@ -1,0 +1,99 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "@sepo-agent /answer\n\nWe have some existing unclosed PRs for the add rubrics.\n\n\nOk I don't get why this current pr and the new 343 tracked pr became so big. It should just be simple and straightforward right -- basically a new route that's based on the current implement route with agent/rubrics as  the base branch?",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABGCOw-A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, I agree with the direction: the route should be much smaller than PR #344/#382 made it.\n\nThe important caveat is that “reuse implement with `base_branch=agent/rubrics`” is conceptually right, but not literally safe with the current workflow. `agent-implement.yml` supports `base_branch` and `implementation_prompt` already: [`agent-implement.yml#L26-L40`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-implement.yml#L26-L40), and the dispatch helper already forwards those inputs: [`.agent/src/cli/dispatch-agent-implement.ts#L17-L39`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/dispatch-agent-implement.ts#L17-L39). But the workflow then checks out the implementation branch from `BASE_BRANCH` before running the local action: [`agent-implement.yml#L195-L226`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-implement.yml#L195-L226). If `BASE_BRANCH=agent/rubrics`, the workspace likely no longer has `.github/actions/run-agent-task` or `.agent/dist`, because `agent/rubrics` is a data branch. That is why the earlier PRs grew: they tried to preserve runtime-code trust boundaries, proposal PR behavior, direct-write modes, validation, and failure summaries all at once.\n\nI would simplify the next version to **proposal-only**:\n\n1. Add `add-rubrics` to route catalogs:\n   - [`.agent/src/triage.ts#L12-L20`](https://github.com/self-evolving/repo/blob/main/.agent/src/triage.ts#L12-L20)\n   - [`.agent/src/triage.ts#L32`](https://github.com/self-evolving/repo/blob/main/.agent/src/triage.ts#L32)\n   - [`.agent/src/envelope.ts#L55-L71`](https://github.com/self-evolving/repo/blob/main/.agent/src/envelope.ts#L55-L71)\n   - [`.agent/src/run.ts#L125-L141`](https://github.com/self-evolving/repo/blob/main/.agent/src/run.ts#L125-L141)\n\n2. Add `.github/prompts/agent-add-rubrics.md`.\n\n3. Route `/add-rubrics` through the existing implementation-like router path, but with:\n   - `IMPLEMENTATION_ROUTE=add-rubrics`\n   - `IMPLEMENTATION_PROMPT=agent-add-rubrics`\n   - `BASE_BRANCH=agent/rubrics`\n\n4. Make the implementation workflow keep Sepo runtime from the default branch while editing the `agent/rubrics` branch. This is the one mechanical change needed to make your idea work cleanly.\n\n5. Open a normal PR targeting `agent/rubrics`. Do not implement direct commit mode in this pass.\n\n6. Add focused tests for route parsing, envelope validation, prompt selection, and the dispatch inputs.\n\nSo yes: the mental model should be “implement route, different prompt, rubrics branch as the PR base.” The only adjustment is preserving the default-branch runtime while the editable worktree is based on `agent/rubrics`. I’d start from that narrow plan and leave direct commits, extra mode inference, and complex summary handling out of scope unless explicitly requested.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-2`",
+      "createdAt": "2026-06-13T22:18:46Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/424#issuecomment-4699959544",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABGCPB7Q",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate ",
+      "createdAt": "2026-06-13T22:20:46Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/424#issuecomment-4699963885",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABGCPU0g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | implement | Issue #424 | 2 / 40 | Dispatched |\n\nReason: agent planner selected implement: Issue #424 is a bounded implementation request for a narrower add-rubrics route, and current main does not contain the route. Direct implementation on this issue is more useful than continuing the existing oversized open PRs.\n\n<!-- sepo-agent-handoff state:dispatched created:1781389377013 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86Mjc0ODA4MzIxODE6b3JjaGVzdHJhdGU6NDI0OmltcGxlbWVudDo0MjQ6Mg -->",
+      "createdAt": "2026-06-13T22:22:57Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/424#issuecomment-4699968722",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABGCRuDw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-424/codex-27480879248`\n- Pull request: https://github.com/self-evolving/repo/pull/425\n\nImplemented the proposal-based `add-rubrics` route by wiring `/add-rubrics` and `agent/add-rubrics` through the existing implement workflow, using `agent/rubrics` as the PR base with a separate rubrics worktree while keeping the Sepo runtime on the default branch. Added the dedicated prompt, route/label/envelope/status handling, docs, and focused tests; verification passed with `npm --prefix .agent run build`, focused compiled tests, docs validation, and `git diff --check`.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-2`",
+      "createdAt": "2026-06-13T22:40:39Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/424#issuecomment-4700007951",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-06-13T22:16:19Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 424,
+  "state": "OPEN",
+  "title": "Add rubrics route, again",
+  "updatedAt": "2026-06-13T22:40:39Z",
+  "url": "https://github.com/self-evolving/repo/issues/424"
+}

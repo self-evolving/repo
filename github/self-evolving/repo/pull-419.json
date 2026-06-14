@@ -66,6 +66,43 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/419#issuecomment-4693822514",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABGCOr_Q",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "Given the reviews, what do you think are the needed fixes ",
+      "createdAt": "2026-06-13T22:18:10Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/419#issuecomment-4699958269",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABGCO6Jw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I’d fix three things before merge:\n\n1. Fix the workspace recency check in [`post-job-cleanup.sh`](https://github.com/self-evolving/repo/blob/50a40681ec941c94c1cb23f29bfd450c531ca8d6/.agent/tools/local-runner/hooks/post-job-cleanup.sh#L41-L51). Right now it checks only the outer `_work/<repo>` directory mtime, so an actively reused checkout can still look old and get deleted. Use either a hook-managed timestamp marker or a bounded `find` inside the repo tree to detect recent activity.\n\n2. Add a safety guard before the `rm -rf` loop in the same script. Since `WORK_DIR` is derived from `RUNNER_WORKSPACE`, assert it is actually named `_work` before pruning, e.g. exit unless `basename \"$WORK_DIR\"` is `_work`.\n\n3. Make existing-runner adoption explicit. `setup-runners.sh` currently skips configured runners before adding the hook env var, so rerunning setup will not update old runners: [`setup-runners.sh`](https://github.com/self-evolving/repo/blob/50a40681ec941c94c1cb23f29bfd450c531ca8d6/.agent/tools/local-runner/setup-runners.sh#L146-L169). Either move idempotent `.env` reconciliation before that skip, or add a durable README migration command plus restart instructions. I’d do both if the patch stays small, because #418 explicitly says existing runners need `.env` updates and restart.\n\nOptional but worthwhile: add at least shell syntax coverage for `.agent/tools/local-runner/**/*.sh`, and ideally a small fixture test for “keeps current repo, keeps fresh repo, prunes stale repo.” I would not treat that as required unless we want to raise confidence around the destructive cleanup path.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-3`",
+      "createdAt": "2026-06-13T22:19:53Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/419#issuecomment-4699961895",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-06-12T17:29:32Z",
@@ -135,6 +172,6 @@
   ],
   "state": "OPEN",
   "title": "Add post-job cleanup hook to self-hosted runner setup",
-  "updatedAt": "2026-06-12T17:44:41Z",
+  "updatedAt": "2026-06-13T22:19:53Z",
   "url": "https://github.com/self-evolving/repo/pull/419"
 }
