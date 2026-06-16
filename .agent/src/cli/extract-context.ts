@@ -11,7 +11,7 @@
 
 import { readFileSync } from "node:fs";
 import { isKnownAuthorAssociation } from "../access-policy.js";
-import { ghApi, ghApiOk } from "../github.js";
+import { gh, ghApi, ghApiOk } from "../github.js";
 import { setOutput } from "../output.js";
 import {
   DEFAULT_MENTION,
@@ -48,9 +48,71 @@ const WEAK_ASSOCIATIONS_FOR_COLLABORATOR_FALLBACK = new Set([
   "FIRST_TIMER",
   "NONE",
 ]);
+const TRUSTED_REPOSITORY_PERMISSIONS = new Set([
+  "admin",
+  "maintain",
+  "write",
+  "triage",
+]);
+const ISSUE_ASSOCIATION_REFRESH_ATTEMPTS = 3;
+const ISSUE_ASSOCIATION_REFRESH_BACKOFF_MS = 100;
+const SLEEP_BUFFER = new Int32Array(new SharedArrayBuffer(4));
+
+interface RepositoryPermissionLookup {
+  login: string;
+  permission: string;
+  roleName: string;
+  allowed: boolean;
+  error: boolean;
+  skippedReason: string;
+}
+
+interface IssueAssociationLookup {
+  association: string;
+  error: boolean;
+}
 
 function normalizeAssociation(association: string): string {
   return String(association || "").trim().toUpperCase();
+}
+
+function isWeakMentionAssociation(association: string): boolean {
+  return WEAK_ASSOCIATIONS_FOR_COLLABORATOR_FALLBACK.has(normalizeAssociation(association));
+}
+
+function sleep(ms: number): void {
+  if (ms > 0) {
+    Atomics.wait(SLEEP_BUFFER, 0, 0, ms);
+  }
+}
+
+function logMentionAssociationDiagnostic(message: string): void {
+  console.log(`[extract-context] ${message}`);
+}
+
+function isTrustedRepositoryPermission(permission: string, roleName: string): boolean {
+  return TRUSTED_REPOSITORY_PERMISSIONS.has(permission) ||
+    TRUSTED_REPOSITORY_PERMISSIONS.has(roleName);
+}
+
+function parseRepositoryPermissionResponse(raw: string): { permission: string; roleName: string } {
+  const trimmed = String(raw || "").trim();
+  if (!trimmed) {
+    return { permission: "", roleName: "" };
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed) as { permission?: unknown; role_name?: unknown; roleName?: unknown };
+    return {
+      permission: String(parsed.permission || "").trim().toLowerCase(),
+      roleName: String(parsed.role_name || parsed.roleName || "").trim().toLowerCase(),
+    };
+  } catch {
+    return {
+      permission: trimmed.toLowerCase(),
+      roleName: "",
+    };
+  }
 }
 
 function hasOrgMembership(orgLogin: string, userLogin: string): boolean {
@@ -68,27 +130,48 @@ function hasOrgMembership(orgLogin: string, userLogin: string): boolean {
   return ghApiOk([`orgs/${orgLogin}/members/${userLogin}`]);
 }
 
-function hasRepositoryPermission(userLogin: string): boolean {
-  if (!repository || !userLogin) {
-    return false;
-  }
-
-  const permission = ghApi([
-    `repos/${repository}/collaborators/${userLogin}/permission`,
-    "--jq",
-    ".permission // .role_name // empty",
-  ]).toLowerCase();
-
-  return Boolean(permission) && permission !== "none";
-}
-
-function hasRepositoryCollaborator(userLogin: string): boolean {
+function getRepositoryPermission(userLogin: string): RepositoryPermissionLookup {
   const login = String(userLogin || "").trim();
   if (!repository || !login) {
-    return false;
+    return {
+      login,
+      permission: "",
+      roleName: "",
+      allowed: false,
+      error: false,
+      skippedReason: !repository ? "missing repository" : "missing login",
+    };
   }
 
-  return ghApiOk([`repos/${repository}/collaborators/${login}`]);
+  try {
+    const parsed = parseRepositoryPermissionResponse(gh([
+      "api",
+      `repos/${repository}/collaborators/${login}/permission`,
+      "--jq",
+      '{permission: (.permission // ""), role_name: (.role_name // "")}',
+    ]));
+    return {
+      login,
+      permission: parsed.permission,
+      roleName: parsed.roleName,
+      allowed: isTrustedRepositoryPermission(parsed.permission, parsed.roleName),
+      error: false,
+      skippedReason: "",
+    };
+  } catch {
+    return {
+      login,
+      permission: "",
+      roleName: "",
+      allowed: false,
+      error: true,
+      skippedReason: "",
+    };
+  }
+}
+
+function hasRepositoryPermission(userLogin: string): boolean {
+  return getRepositoryPermission(userLogin).allowed;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -120,7 +203,7 @@ function resolveLabelActorAssociation(payload: Record<string, any>): string {
   return "NONE";
 }
 
-function refreshIssueAssociation(
+function refreshIssueAssociationWithRetry(
   association: string,
   issueNumber: string,
 ): string {
@@ -132,38 +215,95 @@ function refreshIssueAssociation(
     return normalizeAssociation(association) || association;
   }
 
-  const refreshed = ghApi([
-    `repos/${repository}/issues/${issueNumber}`,
-    "--jq",
-    ".author_association // empty",
-  ]).toUpperCase();
-  return refreshed || normalizeAssociation(association) || association;
+  let resolved = normalizeAssociation(association) || association;
+  for (let attempt = 1; attempt <= ISSUE_ASSOCIATION_REFRESH_ATTEMPTS; attempt += 1) {
+    const refreshed = getIssueAssociation(issueNumber);
+    logMentionAssociationDiagnostic(
+      `refreshed issue association attempt ${attempt}/${ISSUE_ASSOCIATION_REFRESH_ATTEMPTS}: ${refreshed.association || "empty"}${refreshed.error ? " error=true" : ""}`,
+    );
+
+    resolved = refreshed.association || resolved;
+    if (!isWeakMentionAssociation(resolved)) {
+      return resolved;
+    }
+
+    if (attempt < ISSUE_ASSOCIATION_REFRESH_ATTEMPTS) {
+      sleep(ISSUE_ASSOCIATION_REFRESH_BACKOFF_MS);
+    }
+  }
+
+  return resolved;
+}
+
+function getIssueAssociation(issueNumber: string): IssueAssociationLookup {
+  try {
+    return {
+      association: normalizeAssociation(gh([
+        "api",
+        `repos/${repository}/issues/${issueNumber}`,
+        "--jq",
+        ".author_association // empty",
+      ])),
+      error: false,
+    };
+  } catch {
+    return {
+      association: "",
+      error: true,
+    };
+  }
+}
+
+function describePermissionLookup(result: RepositoryPermissionLookup): string {
+  const parts = [
+    `login=${result.login || "empty"}`,
+    `permission=${result.permission || "empty"}`,
+    `role_name=${result.roleName || "empty"}`,
+    `allowed=${String(result.allowed)}`,
+  ];
+  if (result.error) {
+    parts.push("error=true");
+  }
+  if (result.skippedReason) {
+    parts.push(`skipped=${result.skippedReason}`);
+  }
+  return parts.join(" ");
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normalizeMentionAuthorAssociation(association: string, payload: Record<string, any>): string {
+  const rawAssociation = String(association || "").trim();
   const normalized = normalizeAssociation(association);
-  if (authorAssociationOverride || ASSOCIATIONS_TRUSTED_WITHOUT_REFRESH.has(normalized)) {
-    return normalized || association;
+  logMentionAssociationDiagnostic(`raw event association: ${rawAssociation || "empty"}`);
+
+  if (authorAssociationOverride || !isWeakMentionAssociation(normalized)) {
+    const finalAssociation = normalized || association;
+    logMentionAssociationDiagnostic(`final normalized association: ${finalAssociation || "empty"}`);
+    return finalAssociation;
   }
 
-  const resolved = refreshIssueAssociation(
+  const resolved = refreshIssueAssociationWithRetry(
     normalized || association,
     String(payload.issue?.number || ""),
   );
   const resolvedNormalized = normalizeAssociation(resolved);
   if (ASSOCIATIONS_TRUSTED_WITHOUT_REFRESH.has(resolvedNormalized)) {
+    logMentionAssociationDiagnostic(`final normalized association: ${resolvedNormalized}`);
     return resolvedNormalized;
   }
 
-  if (
-    WEAK_ASSOCIATIONS_FOR_COLLABORATOR_FALLBACK.has(resolvedNormalized) &&
-    hasRepositoryCollaborator(getRequestedBy(eventName, payload))
-  ) {
-    return "COLLABORATOR";
+  if (isWeakMentionAssociation(resolvedNormalized)) {
+    const permission = getRepositoryPermission(getRequestedBy(eventName, payload));
+    logMentionAssociationDiagnostic(`permission fallback result: ${describePermissionLookup(permission)}`);
+    if (permission.allowed) {
+      logMentionAssociationDiagnostic("final normalized association: COLLABORATOR");
+      return "COLLABORATOR";
+    }
   }
 
-  return resolvedNormalized || resolved;
+  const finalAssociation = resolvedNormalized || resolved;
+  logMentionAssociationDiagnostic(`final normalized association: ${finalAssociation || "empty"}`);
+  return finalAssociation;
 }
 
 if (!eventPath || !eventName) {

@@ -272,6 +272,89 @@ test("extract-context refreshes contributor issue author association from the Gi
   }
 });
 
+test("extract-context resolves stale issue body association on a later retry", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-extract-context-"));
+
+  try {
+    const eventPath = join(tempDir, "event.json");
+    const outputPath = join(tempDir, "github-output.txt");
+    const fakeGh = join(tempDir, "gh");
+    const ghCallLog = join(tempDir, "gh-calls.txt");
+    const issueCallCount = join(tempDir, "issue-call-count.txt");
+
+    writeFileSync(
+      eventPath,
+      JSON.stringify({
+        sender: { login: "alice", type: "User" },
+        issue: {
+          number: 6,
+          title: "Investigate auth",
+          body: "@sepo-agent /implement can you fix this?",
+          html_url: "https://github.com/self-evolving/repo/issues/6",
+          node_id: "I_6",
+          author_association: "NONE",
+          user: { login: "alice" },
+        },
+      }),
+      "utf8",
+    );
+    writeFileSync(outputPath, "", "utf8");
+    writeFileSync(ghCallLog, "", "utf8");
+    writeFileSync(issueCallCount, "0", "utf8");
+    writeFileSync(
+      fakeGh,
+      [
+        "#!/usr/bin/env bash",
+        `printf '%s\\n' "$*" >> ${JSON.stringify(ghCallLog)}`,
+        "if [ \"$1\" = \"api\" ] && [ \"$2\" = \"repos/self-evolving/repo/issues/6\" ]; then",
+        `  count=$(cat ${JSON.stringify(issueCallCount)})`,
+        "  count=$((count + 1))",
+        `  printf '%s' "$count" > ${JSON.stringify(issueCallCount)}`,
+        "  if [ \"$count\" = \"1\" ]; then",
+        "    printf 'NONE\\n'",
+        "  else",
+        "    printf 'COLLABORATOR\\n'",
+        "  fi",
+        "  exit 0",
+        "fi",
+        "if [ \"$1\" = \"api\" ] && [ \"$2\" = \"repos/self-evolving/repo/collaborators/alice/permission\" ]; then",
+        "  printf 'permission fallback should not be called\\n' >&2",
+        "  exit 1",
+        "fi",
+        "printf 'unexpected gh args: %s\\n' \"$*\" >&2",
+        "exit 1",
+        "",
+      ].join("\n"),
+      { encoding: "utf8", mode: 0o755 },
+    );
+
+    execFileSync("node", [".agent/dist/cli/extract-context.js"], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        PATH: `${tempDir}:${process.env.PATH || ""}`,
+        GITHUB_EVENT_PATH: eventPath,
+        GITHUB_EVENT_NAME: "issues",
+        GITHUB_OUTPUT: outputPath,
+        GITHUB_REPOSITORY: "self-evolving/repo",
+        INPUT_MENTION: "@sepo-agent",
+        INPUT_TRIGGER_KIND: "mention",
+      },
+      stdio: "pipe",
+    });
+
+    const outputs = parseGithubOutput(outputPath);
+    const ghCalls = readFileSync(ghCallLog, "utf8");
+    assert.equal(outputs.get("should_respond"), "true");
+    assert.equal(outputs.get("association"), "COLLABORATOR");
+    assert.equal(outputs.get("requested_route"), "implement");
+    assert.equal(readFileSync(issueCallCount, "utf8"), "2");
+    assert.doesNotMatch(ghCalls, /collaborators\/alice\/permission/);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("extract-context promotes weak issue author association for repository collaborators", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-extract-context-"));
 
@@ -305,7 +388,8 @@ test("extract-context promotes weak issue author association for repository coll
         "  printf 'CONTRIBUTOR\\n'",
         "  exit 0",
         "fi",
-        "if [ \"$1\" = \"api\" ] && [ \"$2\" = \"repos/self-evolving/repo/collaborators/alice\" ]; then",
+        "if [ \"$1\" = \"api\" ] && [ \"$2\" = \"repos/self-evolving/repo/collaborators/alice/permission\" ]; then",
+        "  printf 'write\\n'",
         "  exit 0",
         "fi",
         "printf 'unexpected gh args: %s\\n' \"$*\" >&2",
@@ -339,9 +423,172 @@ test("extract-context promotes weak issue author association for repository coll
   }
 });
 
+for (const permission of ["admin", "maintain", "write", "triage"]) {
+  test(`extract-context promotes weak issue body association from ${permission} repository permission`, () => {
+    const outputs = runExtractContextCli({
+      eventName: "issues",
+      payload: {
+        sender: { login: "alice", type: "User" },
+        issue: {
+          number: 358,
+          title: "Auth hardening",
+          body: "@sepo-agent /implement harden issue body auth",
+          html_url: "https://github.com/self-evolving/repo/issues/358",
+          node_id: "I_358",
+          author_association: "NONE",
+          user: { login: "alice" },
+        },
+      },
+      ghScript: [
+        "#!/usr/bin/env bash",
+        "if [ \"$1\" = \"api\" ] && [ \"$2\" = \"repos/self-evolving/repo/issues/358\" ]; then",
+        "  printf 'NONE\\n'",
+        "  exit 0",
+        "fi",
+        "if [ \"$1\" = \"api\" ] && [ \"$2\" = \"repos/self-evolving/repo/collaborators/alice/permission\" ]; then",
+        `  printf '${permission}\\n'`,
+        "  exit 0",
+        "fi",
+        "printf 'unexpected gh args: %s\\n' \"$*\" >&2",
+        "exit 1",
+        "",
+      ].join("\n"),
+      env: {
+        GITHUB_REPOSITORY: "self-evolving/repo",
+      },
+    });
+
+    assert.equal(outputs.get("should_respond"), "true");
+    assert.equal(outputs.get("association"), "COLLABORATOR");
+    assert.equal(outputs.get("source_kind"), "issue");
+    assert.equal(outputs.get("requested_by"), "alice");
+    assert.equal(outputs.get("requested_route"), "implement");
+  });
+}
+
+test("extract-context preserves weak issue body association for public read permission", () => {
+  const outputs = runExtractContextCli({
+    eventName: "issues",
+    payload: {
+      sender: { login: "alice", type: "User" },
+      issue: {
+        number: 360,
+        title: "Auth hardening",
+        body: "@sepo-agent /implement harden issue body auth",
+        html_url: "https://github.com/self-evolving/repo/issues/360",
+        node_id: "I_360",
+        author_association: "NONE",
+        user: { login: "alice" },
+      },
+    },
+    ghScript: [
+      "#!/usr/bin/env bash",
+      "if [ \"$1\" = \"api\" ] && [ \"$2\" = \"repos/self-evolving/repo/issues/360\" ]; then",
+      "  printf 'NONE\\n'",
+      "  exit 0",
+      "fi",
+      "if [ \"$1\" = \"api\" ] && [ \"$2\" = \"repos/self-evolving/repo/collaborators/alice/permission\" ]; then",
+      "  printf 'read\\n'",
+      "  exit 0",
+      "fi",
+      "printf 'unexpected gh args: %s\\n' \"$*\" >&2",
+      "exit 1",
+      "",
+    ].join("\n"),
+    env: {
+      GITHUB_REPOSITORY: "self-evolving/repo",
+    },
+  });
+
+  assert.equal(outputs.get("should_respond"), "true");
+  assert.equal(outputs.get("association"), "NONE");
+  assert.equal(outputs.get("requested_by"), "alice");
+  assert.equal(outputs.get("requested_route"), "implement");
+});
+
+test("extract-context promotes weak issue body association for triage role_name", () => {
+  const outputs = runExtractContextCli({
+    eventName: "issues",
+    payload: {
+      sender: { login: "alice", type: "User" },
+      issue: {
+        number: 361,
+        title: "Auth hardening",
+        body: "@sepo-agent /implement harden issue body auth",
+        html_url: "https://github.com/self-evolving/repo/issues/361",
+        node_id: "I_361",
+        author_association: "NONE",
+        user: { login: "alice" },
+      },
+    },
+    ghScript: [
+      "#!/usr/bin/env bash",
+      "if [ \"$1\" = \"api\" ] && [ \"$2\" = \"repos/self-evolving/repo/issues/361\" ]; then",
+      "  printf 'NONE\\n'",
+      "  exit 0",
+      "fi",
+      "if [ \"$1\" = \"api\" ] && [ \"$2\" = \"repos/self-evolving/repo/collaborators/alice/permission\" ]; then",
+      "  printf '{\"permission\":\"read\",\"role_name\":\"triage\"}\\n'",
+      "  exit 0",
+      "fi",
+      "printf 'unexpected gh args: %s\\n' \"$*\" >&2",
+      "exit 1",
+      "",
+    ].join("\n"),
+    env: {
+      GITHUB_REPOSITORY: "self-evolving/repo",
+    },
+  });
+
+  assert.equal(outputs.get("should_respond"), "true");
+  assert.equal(outputs.get("association"), "COLLABORATOR");
+  assert.equal(outputs.get("requested_by"), "alice");
+  assert.equal(outputs.get("requested_route"), "implement");
+});
+
+test("extract-context preserves weak issue body association when permission lookup fails", () => {
+  const outputs = runExtractContextCli({
+    eventName: "issues",
+    payload: {
+      sender: { login: "alice", type: "User" },
+      issue: {
+        number: 359,
+        title: "Auth hardening",
+        body: "@sepo-agent /implement harden issue body auth",
+        html_url: "https://github.com/self-evolving/repo/issues/359",
+        node_id: "I_359",
+        author_association: "NONE",
+        user: { login: "alice" },
+      },
+    },
+    ghScript: [
+      "#!/usr/bin/env bash",
+      "if [ \"$1\" = \"api\" ] && [ \"$2\" = \"repos/self-evolving/repo/issues/359\" ]; then",
+      "  printf 'NONE\\n'",
+      "  exit 0",
+      "fi",
+      "if [ \"$1\" = \"api\" ] && [ \"$2\" = \"repos/self-evolving/repo/collaborators/alice/permission\" ]; then",
+      "  exit 1",
+      "fi",
+      "printf 'unexpected gh args: %s\\n' \"$*\" >&2",
+      "exit 1",
+      "",
+    ].join("\n"),
+    env: {
+      GITHUB_REPOSITORY: "self-evolving/repo",
+    },
+  });
+
+  assert.equal(outputs.get("should_respond"), "true");
+  assert.equal(outputs.get("association"), "NONE");
+  assert.equal(outputs.get("requested_by"), "alice");
+  assert.equal(outputs.get("requested_route"), "implement");
+});
+
 const collaboratorGhScript = [
   "#!/usr/bin/env bash",
-  "if [ \"$1\" = \"api\" ] && [ \"$2\" = \"repos/self-evolving/repo/collaborators/alice\" ]; then",
+  "if [ \"$1\" = \"api\" ] && [ \"$2\" = \"repos/self-evolving/repo/collaborators/alice/permission\" ]; then",
+  "  printf 'write\\n'",
   "  exit 0",
   "fi",
   "if [ \"$1\" = \"api\" ] && [ \"$2\" = \"graphql\" ]; then",
@@ -480,7 +727,7 @@ for (const testCase of weakMentionCollaboratorCases) {
 
 const nonCollaboratorGhScript = [
   "#!/usr/bin/env bash",
-  "if [ \"$1\" = \"api\" ] && [ \"$2\" = \"repos/self-evolving/repo/collaborators/alice\" ]; then",
+  "if [ \"$1\" = \"api\" ] && [ \"$2\" = \"repos/self-evolving/repo/collaborators/alice/permission\" ]; then",
   "  exit 1",
   "fi",
   "if [ \"$1\" = \"api\" ] && [ \"$2\" = \"graphql\" ]; then",
@@ -1037,12 +1284,79 @@ test("extract-context responds when an edited review comment adds a mention", ()
   }
 });
 
+test("extract-context trusts strong issue comment association without GitHub lookup", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-extract-context-"));
+
+  try {
+    const eventPath = join(tempDir, "event.json");
+    const outputPath = join(tempDir, "github-output.txt");
+    const fakeGh = join(tempDir, "gh");
+    const ghCallLog = join(tempDir, "gh-calls.txt");
+
+    writeFileSync(
+      eventPath,
+      JSON.stringify({
+        sender: { login: "alice", type: "User" },
+        comment: {
+          id: 108,
+          node_id: "IC_108",
+          html_url: "https://github.com/self-evolving/repo/issues/173#issuecomment-108",
+          body: "@sepo-agent /answer please check this",
+          author_association: "COLLABORATOR",
+          user: { login: "alice" },
+        },
+        issue: {
+          number: 173,
+          html_url: "https://github.com/self-evolving/repo/issues/173",
+        },
+      }),
+      "utf8",
+    );
+    writeFileSync(outputPath, "", "utf8");
+    writeFileSync(ghCallLog, "", "utf8");
+    writeFileSync(
+      fakeGh,
+      [
+        "#!/usr/bin/env bash",
+        `printf '%s\\n' "$*" >> ${JSON.stringify(ghCallLog)}`,
+        "exit 1",
+        "",
+      ].join("\n"),
+      { encoding: "utf8", mode: 0o755 },
+    );
+
+    execFileSync("node", [".agent/dist/cli/extract-context.js"], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        PATH: `${tempDir}:${process.env.PATH || ""}`,
+        GITHUB_EVENT_PATH: eventPath,
+        GITHUB_EVENT_NAME: "issue_comment",
+        GITHUB_OUTPUT: outputPath,
+        GITHUB_REPOSITORY: "self-evolving/repo",
+        INPUT_MENTION: "@sepo-agent",
+        INPUT_TRIGGER_KIND: "mention",
+      },
+      stdio: "pipe",
+    });
+
+    const outputs = parseGithubOutput(outputPath);
+    assert.equal(outputs.get("should_respond"), "true");
+    assert.equal(outputs.get("association"), "COLLABORATOR");
+    assert.equal(outputs.get("requested_route"), "answer");
+    assert.equal(readFileSync(ghCallLog, "utf8"), "");
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("extract-context lets public contributor mentions reach dispatch triage", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-extract-context-"));
 
   try {
     const eventPath = join(tempDir, "event.json");
     const outputPath = join(tempDir, "github-output.txt");
+    const fakeGh = join(tempDir, "gh");
 
     writeFileSync(
       eventPath,
@@ -1065,14 +1379,20 @@ test("extract-context lets public contributor mentions reach dispatch triage", (
       "utf8",
     );
     writeFileSync(outputPath, "", "utf8");
+    writeFileSync(fakeGh, nonCollaboratorGhScript, {
+      encoding: "utf8",
+      mode: 0o755,
+    });
 
     execFileSync("node", [".agent/dist/cli/extract-context.js"], {
       cwd: repoRoot,
       env: {
         ...process.env,
+        PATH: `${tempDir}:${process.env.PATH || ""}`,
         GITHUB_EVENT_PATH: eventPath,
         GITHUB_EVENT_NAME: "issue_comment",
         GITHUB_OUTPUT: outputPath,
+        GITHUB_REPOSITORY: "self-evolving/repo",
         INPUT_MENTION: "@sepo-agent",
         INPUT_TRIGGER_KIND: "mention",
       },
@@ -1094,6 +1414,7 @@ test("extract-context preserves explicit routes for later policy checks", () => 
   try {
     const eventPath = join(tempDir, "event.json");
     const outputPath = join(tempDir, "github-output.txt");
+    const fakeGh = join(tempDir, "gh");
 
     writeFileSync(
       eventPath,
@@ -1116,14 +1437,20 @@ test("extract-context preserves explicit routes for later policy checks", () => 
       "utf8",
     );
     writeFileSync(outputPath, "", "utf8");
+    writeFileSync(fakeGh, nonCollaboratorGhScript, {
+      encoding: "utf8",
+      mode: 0o755,
+    });
 
     execFileSync("node", [".agent/dist/cli/extract-context.js"], {
       cwd: repoRoot,
       env: {
         ...process.env,
+        PATH: `${tempDir}:${process.env.PATH || ""}`,
         GITHUB_EVENT_PATH: eventPath,
         GITHUB_EVENT_NAME: "issue_comment",
         GITHUB_OUTPUT: outputPath,
+        GITHUB_REPOSITORY: "self-evolving/repo",
         INPUT_MENTION: "@sepo-agent",
         INPUT_TRIGGER_KIND: "mention",
       },
@@ -1144,6 +1471,7 @@ test("extract-context keeps known associations available for later policy checks
   try {
     const eventPath = join(tempDir, "event.json");
     const outputPath = join(tempDir, "github-output.txt");
+    const fakeGh = join(tempDir, "gh");
 
     writeFileSync(
       eventPath,
@@ -1165,14 +1493,20 @@ test("extract-context keeps known associations available for later policy checks
       "utf8",
     );
     writeFileSync(outputPath, "", "utf8");
+    writeFileSync(fakeGh, nonCollaboratorGhScript, {
+      encoding: "utf8",
+      mode: 0o755,
+    });
 
     execFileSync("node", [".agent/dist/cli/extract-context.js"], {
       cwd: repoRoot,
       env: {
         ...process.env,
+        PATH: `${tempDir}:${process.env.PATH || ""}`,
         GITHUB_EVENT_PATH: eventPath,
         GITHUB_EVENT_NAME: "issue_comment",
         GITHUB_OUTPUT: outputPath,
+        GITHUB_REPOSITORY: "self-evolving/repo",
         INPUT_MENTION: "@sepo-agent",
         INPUT_TRIGGER_KIND: "mention",
       },
