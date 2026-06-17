@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": " Private GitHub attachments are often exposed to the agent only as Markdown links like\n https://github.com/user-attachments/files/.... In private repositories, those URLs may return 404\n unless the request includes a token with repository access. The workflow may already have a valid\n GITHUB_TOKEN or GitHub App token, but if the agent uses an unauthenticated curl, browser tool, or\n generic web fetcher, GitHub treats the file as inaccessible. This makes the agent report that the file\n cannot be read even though the action itself has permission to access it.\n\n The fix is to handle attachments deterministically before the agent runs. The workflow/runtime should\n scan the relevant issue, PR, discussion, and comment bodies for GitHub attachment URLs, download those\n files using the resolved GitHub token, and save them to a known local directory on the runner, such as\n $RUNNER_TEMP/agent-attachments/. It should also generate a small manifest listing each original URL,\n filename, local path, size/type if available, and any download errors.\n\n Then the agent prompt should include that manifest and explicitly tell the agent to use the local file\n paths instead of fetching the original private GitHub URLs. This keeps authentication out of the\n model’s hands, avoids leaking tokens, and turns private file access from a best-effort model behavior\n into a reliable workflow capability.\n\n@sepo-agent /answer ",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABGa9AEg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes. This should be implemented as a shared runtime capability, not as model guidance alone.\n\nCurrent fit in the codebase:\n\n- Auth is already resolved before agent runs in [`resolve-github-auth`](https://github.com/self-evolving/repo/blob/main/.github/actions/resolve-github-auth/action.yml#L1), and `run-agent-task` receives that token as `github_token`.\n- All prompt routes converge through [`run-agent-task`](https://github.com/self-evolving/repo/blob/main/.github/actions/run-agent-task/action.yml#L1), which then passes explicit env into [`run.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/run.ts#L378).\n- Prompt vars are intentionally allowlisted in [`SUPPLEMENTAL_PROMPT_VAR_NAMES`](https://github.com/self-evolving/repo/blob/main/.agent/src/run.ts#L71), so the manifest should be added through that explicit contract.\n- The base prompt currently tells the agent to use `gh` and repo files, but has no local attachment contract yet: [`_base.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/_base.md#L17).\n\nRecommended implementation plan:\n\n1. Add a typed attachment module, likely `.agent/src/attachments.ts`, plus CLI `.agent/src/cli/download-attachments.ts`.\n2. The CLI should scan the relevant target bodies:\n   - issue/PR title/body and issue comments,\n   - PR reviews and PR review comments,\n   - discussion body/comments/replies, reusing the existing discussion GraphQL pattern from [`discussion-transcript.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/discussion-transcript.ts#L35),\n   - the forwarded `REQUEST_TEXT` as a fallback.\n3. Match `https://github.com/user-attachments/files/...` links, dedupe by URL, and download with Node `fetch` using the resolved primary GitHub token from `GH_TOKEN`/`INPUT_GITHUB_TOKEN`. Do not expose the token to the prompt or command-line args.\n4. Save files under `${RUNNER_TEMP}/agent-attachments/`, with deterministic safe filenames and collision handling.\n5. Write a manifest, for example `${RUNNER_TEMP}/agent-attachments/manifest.json`, containing original URL, source body/comment metadata, filename, local path, content type, size, status, and error if any.\n6. Add a `run-agent-task` step before `Run agent task` that invokes the downloader and passes `ATTACHMENTS_MANIFEST_FILE` into the runtime.\n7. Update [`run.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/run.ts#L399) to read that manifest into an allowlisted prompt var such as `${ATTACHMENTS_MANIFEST}`.\n8. Update [`_base.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/_base.md#L12) with a short section telling the agent to use local attachment paths from the manifest instead of fetching original `github.com/user-attachments` URLs.\n9. Add tests for URL extraction, dedupe, filename/content-disposition handling, download errors, manifest shape, and prompt/workflow wiring. The existing workflow validation tests around prompt vars and `run-agent-task` are the right place to extend.\n10. Update docs for [`run-agent-task`](https://github.com/self-evolving/repo/blob/main/.agent/docs/usage/internal-actions.md#L14) and supported workflow behavior.\n\nI would proceed with this as an `/implement` task. The main design choice is whether to scan the whole target thread every time or only the triggering body; I recommend the whole target thread, because it matches the request and avoids missing attachments referenced earlier in the conversation.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-6`",
+      "createdAt": "2026-06-17T04:14:53Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/426#issuecomment-4725882898",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-06-17T04:11:49Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 426,
+  "state": "OPEN",
+  "title": "Handle comment files in private repos",
+  "updatedAt": "2026-06-17T04:14:53Z",
+  "url": "https://github.com/self-evolving/repo/issues/426"
+}

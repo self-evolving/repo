@@ -226,8 +226,8 @@
       "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-424/codex-27480879248`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Switched add-rubrics verification to pass `VERIFY_CWD` and made `verify.ts` prefer it before `GITHUB_WORKSPACE`.\n- Updated the remaining technical route catalogs to include `add-rubrics`.\n- Added workflow-shape coverage for the verifier CWD contract.\n\n<details><summary>Verification</summary>\n\n- `npm --prefix .agent run build`\n- `node --test dist/__tests__/envelope.test.js dist/__tests__/docs-validation.test.js dist/__tests__/workflow-action-validation.test.js`\n- `git diff --check`\n\n</details>\n\n---\n`codex` | `gpt-5.5` | `xhigh` | `zucchini-m4-6`",
       "createdAt": "2026-06-13T23:48:38Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/425#issuecomment-4700140101",
       "viewerDidAuthor": true
@@ -276,6 +276,151 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/425#issuecomment-4700173975",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABGbCk5A",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "https://github.com/self-evolving/repo/pull/425#pullrequestreview-4512236902\r\n\r\n@sepo-agent /answer check this ?",
+      "createdAt": "2026-06-17T04:32:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/425#issuecomment-4725974244",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABGbDO_Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, I checked it. I agree with the review comments, and I would treat this as `CHANGES_REQUESTED`.\n\nConcrete takeaways:\n\n- Remove `agent/add-rubrics` as a trigger label. A label-only trigger is too ambiguous for rubric creation; `/add-rubrics` should be an explicit request with text/context. That means removing it from `.agent/src/trigger-labels.ts` plus docs/tests that list built-in labels.\n- Remove `using Codex` from the fallback PR body in `.agent/src/cli/create-pr.ts`. Provider/model details should not be hardcoded there.\n- The `''` default in `agent-router.yml` is currently used as “unset, let `dispatch-agent-implement` fall back to the route name.” That part is defensible, but it should probably get a small comment if it stays.\n- I also agree that creating a separate tracking issue for `/add-rubrics` from a PR is excessive. The cleaner behavior is: explicit `/add-rubrics` should dispatch directly and create the proposal PR targeting `agent/rubrics`, using the original issue/PR/comment as context.\n\nRecommended next action: run a focused fix pass to remove the label trigger and tracking-issue behavior for explicit `/add-rubrics`, while keeping the proposal PR against `agent/rubrics`.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-6`",
+      "createdAt": "2026-06-17T04:35:08Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/425#issuecomment-4725985021",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABGbPbgQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> * explicit `/add-rubrics` should dispatch directly and create the proposal PR targeting `agent/rubrics`, using the original issue/PR/comment as context.\r\n\r\n@sepo-agent /answer this will cause a bigger structural change to the code right (I guess this is how implement works now? ",
+      "createdAt": "2026-06-17T04:58:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/425#issuecomment-4726184833",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABGbQRng",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, that instinct is right.\n\nToday `implement` is issue-backed. For explicit `/implement` from a PR/comment/discussion, the router first creates a tracking issue, then dispatches `agent-implement.yml` with `issue_number`. Downstream assumes that shape in several places: branch naming, target URL, status comment target, source labeling, PR fallback text, and the implement prompt’s `Closes #...` guidance.\n\nSo making explicit `/add-rubrics` skip the tracking issue and create a PR directly from the original PR/comment would be a bigger structural change than the other review fixes. It would need either:\n\n- a generalized implementation contract like `target_kind`, `target_number`, `target_url`, and `source_url`, instead of assuming `issue_number`, or\n- an `add-rubrics`-specific direct-dispatch path that carefully avoids the issue-backed assumptions.\n\nI would not fold that into a small fix pass unless we intentionally want to refactor the implementation workflow contract. The smaller fix is: remove `agent/add-rubrics` label support, clean up the hardcoded `using Codex` text, and either keep the existing issue-backed explicit path for now or track “direct add-rubrics PR without tracking issue” as a separate follow-up.\n\n---\n`codex` | `gpt-5.5` | `high` | `zucchini-m4-4`",
+      "createdAt": "2026-06-17T05:00:19Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/425#issuecomment-4726198686",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABGbS_uw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Yes, I checked it. I agree with the review comments, and I would treat this as `CHANGES_REQUESTED`.\r\n> \r\n> Concrete takeaways:\r\n> \r\n> * Remove `agent/add-rubrics` as a trigger label. A label-only trigger is too ambiguous for rubric creation; `/add-rubrics` should be an explicit request with text/context. That means removing it from `.agent/src/trigger-labels.ts` plus docs/tests that list built-in labels.\r\n> * Remove `using Codex` from the fallback PR body in `.agent/src/cli/create-pr.ts`. Provider/model details should not be hardcoded there.\r\n> * The `''` default in `agent-router.yml` is currently used as “unset, let `dispatch-agent-implement` fall back to the route name.” That part is defensible, but it should probably get a small comment if it stays.\r\n\r\n@sepo-agent /fix-pr let's start with a small fix then \r\n\r\n",
+      "createdAt": "2026-06-17T05:05:52Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/425#issuecomment-4726243259",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABGbVXbA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-424/codex-27480879248`. Requested by @lolipopshock.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Removed `agent/add-rubrics` as a label trigger from the built-in label catalog and label resolver, with docs/tests updated to keep `/add-rubrics` as the explicit request path.\n- Removed hardcoded `using Codex` wording from the fallback PR body.\n- Added a small `agent-router.yml` comment explaining the empty `IMPLEMENTATION_PROMPT` fallback.\n- Verification: `npm --prefix .agent run build`, targeted `node --test ...` suite, and `git diff --check` passed.\n\n---\n`codex` | `gpt-5.5` | `xhigh` | `zucchini-m4-3`",
+      "createdAt": "2026-06-17T05:10:49Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/425#issuecomment-4726282092",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABGbWIuQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review",
+      "createdAt": "2026-06-17T05:13:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/425#issuecomment-4726294713",
+      "viewerDidAuthor": false
     }
   ],
   "createdAt": "2026-06-13T22:40:36Z",
@@ -300,14 +445,8 @@
     },
     {
       "path": ".agent/docs/overview/quick-start.md",
-      "additions": 2,
+      "additions": 1,
       "deletions": 0,
-      "changeType": "MODIFIED"
-    },
-    {
-      "path": ".agent/docs/setup/install-existing-repository.md",
-      "additions": 3,
-      "deletions": 2,
       "changeType": "MODIFIED"
     },
     {
@@ -336,7 +475,7 @@
     },
     {
       "path": ".agent/docs/usage/supported-workflows.md",
-      "additions": 7,
+      "additions": 6,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
@@ -378,7 +517,7 @@
     },
     {
       "path": ".agent/src/__tests__/triage.test.ts",
-      "additions": 44,
+      "additions": 41,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
@@ -450,14 +589,8 @@
     },
     {
       "path": ".agent/src/triage.ts",
-      "additions": 53,
+      "additions": 50,
       "deletions": 1,
-      "changeType": "MODIFIED"
-    },
-    {
-      "path": ".agent/src/trigger-labels.ts",
-      "additions": 6,
-      "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
@@ -516,7 +649,7 @@
     },
     {
       "path": ".github/workflows/agent-router.yml",
-      "additions": 7,
+      "additions": 8,
       "deletions": 1,
       "changeType": "MODIFIED"
     },
@@ -544,7 +677,7 @@
   ],
   "mergedAt": null,
   "number": 425,
-  "reviewDecision": "",
+  "reviewDecision": "CHANGES_REQUESTED",
   "reviews": [
     {
       "id": "PRR_kwDOSOhEMM8AAAABC8CXow",
@@ -605,10 +738,25 @@
       "commit": {
         "oid": "f3b72d37fffeae8b09379c0fcae513c563b2dde6"
       }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABDPNFZg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \r\ncan you review my comments in this PR? \r\n\r\nAlso I think adding a separate issue to track the rubrics creation is a bit too excessive. we can just create a pr there directly? ",
+      "submittedAt": "2026-06-17T04:20:48Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "CHANGES_REQUESTED",
+      "commit": {
+        "oid": "754268fbfd167561a16dd904b032a528ad663af9"
+      }
     }
   ],
   "state": "OPEN",
   "title": "Add proposal-based rubrics route",
-  "updatedAt": "2026-06-14T00:05:54Z",
+  "updatedAt": "2026-06-17T05:13:46Z",
   "url": "https://github.com/self-evolving/repo/pull/425"
 }
