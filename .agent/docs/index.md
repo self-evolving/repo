@@ -73,7 +73,7 @@ Use `@sepo-agent /orchestrate` (or `agent/orchestrate`) to run the orchestration
 
 Sepo persists long-lived context in `agent/memory` and preference rules in `agent/rubrics`, both as repository-owned branches. This lets later runs resume with durable project context and team-specific guidance.
 
-Use `@sepo-agent /add-rubrics` (or `agent/add-rubrics`) to propose add-or-update rubric changes in a draft PR targeting `agent/rubrics`.
+Use `@sepo-agent /add-rubrics` to propose add-or-update rubric changes in a draft PR targeting `agent/rubrics`.
 
 ### Scheduled Jobs
 

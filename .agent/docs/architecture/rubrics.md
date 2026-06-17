@@ -85,7 +85,7 @@ Read-only selection is best-effort: invalid rubric files are emitted as workflow
 | `agent-rubrics-initialization.yml` (`Agent / Rubrics / Initialization`) | `workflow_dispatch` | Creates `agent/rubrics`, seeds the branch layout, and asks an agent to populate initial rubrics from supplied context or repository history | Yes |
 | `agent-rubrics-review.yml` (`Agent / Rubrics / Review`) | `workflow_dispatch`, `workflow_call` | Scores a PR against selected active rubrics and uploads or posts a review artifact | No |
 | `agent-rubrics-update.yml` (`Agent / Rubrics / Update`) | merged `pull_request_target.closed` with review interaction, `workflow_dispatch` | Distills durable user/team preferences from merged PR conversations | Yes |
-| `/add-rubrics` / `agent/add-rubrics` | issue/PR/discussion mention or trigger label | Proposes requested add-or-update rubric changes in a draft PR targeting `agent/rubrics` | No direct write; PR proposal |
+| `/add-rubrics` | issue/PR/discussion mention | Proposes requested add-or-update rubric changes in a draft PR targeting `agent/rubrics` | No direct write; PR proposal |
 
 `agent-review.yml` calls `Agent / Rubrics / Review` as an independent review lane that posts its own PR comment. Core review synthesis does not depend on rubrics review, so rubric scoring failures do not block the normal review comment.
 

@@ -46,7 +46,6 @@ You can also trigger the same built-in routes with labels:
 |---|---|
 | `agent/answer` | Answer |
 | `agent/implement` | Implement |
-| `agent/add-rubrics` | Add rubrics |
 | `agent/create-action` | Create action |
 | `agent/review` | Review |
 | `agent/fix-pr` | Fix PR |

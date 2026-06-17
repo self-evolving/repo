@@ -364,9 +364,6 @@ export function resolveRequestedLabel(labelName: string): RequestedLabelDecision
   if (normalized === "agent/create-action") {
     return { route: "create-action", skill: "" };
   }
-  if (normalized === "agent/add-rubrics") {
-    return { route: "add-rubrics", skill: "" };
-  }
   if (normalized.startsWith(LABEL_SKILL_PREFIX)) {
     const skill = raw.slice(LABEL_SKILL_PREFIX.length).trim().toLowerCase();
     if (!skill || !VALID_SKILL_LABEL.test(skill)) {

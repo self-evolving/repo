@@ -332,10 +332,7 @@ test("resolveRequestedLabel maps built-in and skill labels", () => {
     route: "create-action",
     skill: "",
   });
-  assert.deepEqual(resolveRequestedLabel("agent/add-rubrics"), {
-    route: "add-rubrics",
-    skill: "",
-  });
+  assert.equal(resolveRequestedLabel("agent/add-rubrics"), null);
   assert.deepEqual(resolveRequestedLabel("agent/s/release-notes"), {
     route: "skill",
     skill: "release-notes",

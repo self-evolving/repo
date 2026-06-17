@@ -281,7 +281,6 @@ Applying one of these labels triggers the same downstream routing stack without 
 
 - `agent/answer`
 - `agent/implement`
-- `agent/add-rubrics`
 - `agent/create-action`
 - `agent/fix-pr`
 - `agent/review`
