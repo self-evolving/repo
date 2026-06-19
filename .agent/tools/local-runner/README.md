@@ -126,8 +126,9 @@ It never fails the runner — errors are swallowed and progress is written to
 behavior to take effect.
 
 To wire the hook into already-configured runners on a host that predates this
-change, rerun `setup-runners.sh` (it appends the env var to each `runner-*/.env`
-if missing and leaves the runner config alone) and then restart:
+change, rerun `setup-runners.sh` and restart. The script reconciles every
+existing `runner-*/.env` regardless of `num_runners`, so any non-empty token
+works (use a fresh registration token if you also want to add more runners):
 
 ```bash
 ./setup-runners.sh https://github.com/<ORG_OR_USER> <REGISTRATION_TOKEN>

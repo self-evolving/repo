@@ -150,6 +150,14 @@ ensure_hook_env() {
   echo "Wired post-job cleanup hook into $runner_dir/.env (restart runner to apply)."
 }
 
+# Reconcile the hook into every existing runner, regardless of NUM_RUNNERS,
+# so multi-runner hosts get all runners updated on a plain rerun.
+for existing in "$BASE_DIR"/runner-*/; do
+  [ -d "$existing" ] || continue
+  [ -f "$existing/.runner" ] || continue
+  ensure_hook_env "${existing%/}"
+done
+
 for i in $(seq 1 "$NUM_RUNNERS"); do
   RUNNER_DIR="$BASE_DIR/runner-$i"
   RUNNER_NAME="$RUNNER_NAME_PREFIX-$i"
