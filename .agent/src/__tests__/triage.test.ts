@@ -139,6 +139,10 @@ test("extractRequestedRoute detects explicit slash routes after the agent mentio
     extractRequestedRoute("@sepo-agent /create-action monitor flaky tests", "@sepo-agent"),
     "create-action",
   );
+  assert.equal(
+    extractRequestedRoute("@sepo-agent /add-rubrics capture this preference", "@sepo-agent"),
+    "add-rubrics",
+  );
 });
 
 test("extractRequestedRouteDecision detects mention-based skill requests", () => {
@@ -296,6 +300,18 @@ test("buildRequestedRouteDecision builds deterministic create-action metadata", 
   assert.match(d.issueBody, /scheduled GitHub Actions workflow/);
 });
 
+test("buildRequestedRouteDecision builds deterministic add-rubrics metadata", () => {
+  const d = buildRequestedRouteDecision(
+    "add-rubrics",
+    "@sepo-agent /add-rubrics prefer small PRs for workflow changes",
+  );
+  assert.equal(d.route, "add-rubrics");
+  assert.equal(d.needsApproval, false);
+  assert.equal(d.issueTitle, "Propose rubric updates");
+  assert.match(d.issueBody, /Review existing rubrics/);
+  assert.match(d.summary, /rubric updates/);
+});
+
 test("buildRequestedRouteDecision supports skill routes", () => {
   const d = buildRequestedRouteDecision("skill", "agent/s/release-notes");
   assert.equal(d.route, "skill");
@@ -316,6 +332,7 @@ test("resolveRequestedLabel maps built-in and skill labels", () => {
     route: "create-action",
     skill: "",
   });
+  assert.equal(resolveRequestedLabel("agent/add-rubrics"), null);
   assert.deepEqual(resolveRequestedLabel("agent/s/release-notes"), {
     route: "skill",
     skill: "release-notes",
@@ -367,6 +384,30 @@ test("applyDispatchPolicy requires approval for triaged create-action decisions"
   );
   assert.equal(d.route, "create-action");
   assert.equal(d.needsApproval, true);
+});
+
+test("applyDispatchPolicy requires approval for triaged add-rubrics decisions", () => {
+  const d = applyDispatchPolicy(
+    normalizeDispatch(
+      '{"route":"add-rubrics","needs_approval":false,"summary":"s","issue_title":"t","issue_body":"b"}',
+    ),
+    "issue",
+  );
+  assert.equal(d.route, "add-rubrics");
+  assert.equal(d.needsApproval, true);
+});
+
+test("applyDispatchPolicy skips approval gate for explicit add-rubrics requests", () => {
+  const d = applyDispatchPolicy(
+    buildRequestedRouteDecision("add-rubrics", "@sepo-agent /add-rubrics capture this"),
+    "issue",
+    "MEMBER",
+    undefined,
+    false,
+    true,
+  );
+  assert.equal(d.route, "add-rubrics");
+  assert.equal(d.needsApproval, false);
 });
 
 test("applyDispatchPolicy skips approval gate for explicit create-action requests", () => {

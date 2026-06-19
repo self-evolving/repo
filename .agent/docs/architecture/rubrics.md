@@ -36,7 +36,7 @@ description: >-
 type: generic # generic | specific
 domain: coding_workflow # coding_style | coding_workflow | communication | review_quality
 applies_to:
-  - implement # implement | fix-pr | review | agent-self-approve | agent-self-merge | answer | skill | rubrics-review | rubrics-initialization | rubrics-update
+  - implement # implement | add-rubrics | fix-pr | review | agent-self-approve | agent-self-merge | answer | skill | rubrics-review | rubrics-initialization | rubrics-update
 severity: should # must | should | consider
 weight: 3 # 1-10
 status: active # active | draft | retired
@@ -85,12 +85,20 @@ Read-only selection is best-effort: invalid rubric files are emitted as workflow
 | `agent-rubrics-initialization.yml` (`Agent / Rubrics / Initialization`) | `workflow_dispatch` | Creates `agent/rubrics`, seeds the branch layout, and asks an agent to populate initial rubrics from supplied context or repository history | Yes |
 | `agent-rubrics-review.yml` (`Agent / Rubrics / Review`) | `workflow_dispatch`, `workflow_call` | Scores a PR against selected active rubrics and uploads or posts a review artifact | No |
 | `agent-rubrics-update.yml` (`Agent / Rubrics / Update`) | merged `pull_request_target.closed` with review interaction, `workflow_dispatch` | Distills durable user/team preferences from merged PR conversations | Yes |
+| `/add-rubrics` | issue/PR/discussion mention | Proposes requested add-or-update rubric changes in a draft PR targeting `agent/rubrics` | No direct write; PR proposal |
 
 `agent-review.yml` calls `Agent / Rubrics / Review` as an independent review lane that posts its own PR comment. Core review synthesis does not depend on rubrics review, so rubric scoring failures do not block the normal review comment.
 
 `Agent / Rubrics / Initialization` is the recommended first-run setup path. It rejects existing rubrics branches, bootstraps the branch skeleton, then runs an initialization prompt. Operators can provide arbitrary context, such as desired team preferences or links to important PRs/issues. When context is omitted, the agent inspects recent merged PRs and trusted contributor feedback to seed only durable rubrics. Initialization fails if the workflow cannot commit and push the new rubrics branch.
 
 `Agent / Rubrics / Update` posts a short PR summary after each completed learning run. The summary says whether `agent/rubrics` was committed and includes the agent's explanation, including `no rubric changes` decisions, so skipped learning is visible without opening Actions logs.
+
+The public `/add-rubrics` route is proposal-oriented. It reuses
+`agent-implement.yml` with `agent/rubrics` as the PR base branch and a dedicated
+rubric-editing prompt, while the workflow keeps Sepo runtime files checked out
+from the repository default branch. The agent edits a separate rubrics worktree,
+the normal implementation post-processing commits those changes, and the PR
+targets `agent/rubrics`.
 
 Rubric learning remains conservative about trust. Owner/admin/maintain comments are primary signals, and `OWNER`, `MEMBER`, and `COLLABORATOR` author associations are trusted contributor signals for clear durable preferences. On automatic merged-PR update runs, the `requested_by` field is the close/merge actor; if that same actor authored an explicit request to add or update rubrics, the prompt treats that source as trusted even when best-effort GitHub App collaborator lookups are incomplete. That exception does not trust other PR participants.
 

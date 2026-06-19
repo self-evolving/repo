@@ -8,6 +8,7 @@ Agent actions are route-level behaviors exposed by the `.agent` backend. They ar
 |---|---|---|---|
 | Answer | `answer` | `.github/prompts/agent-answer.md` | inline response through `agent-router.yml`; review-triggered answers may post targeted inline replies |
 | Implement | `implement` | `.github/prompts/agent-implement.md` | explicit `/implement` or `agent/implement` label dispatches `agent-implement.yml` directly; triaged implement goes through approval first |
+| Add rubrics | `add-rubrics` | `.github/prompts/agent-add-rubrics.md` | implementation-like proposal flow that branches from `agent/rubrics`, keeps Sepo runtime on the default branch, and opens a draft PR targeting `agent/rubrics` |
 | Fix PR | `fix-pr` | `.github/prompts/agent-fix-pr.md` | PR-only dispatch to `agent-fix-pr.yml` |
 | Review | `review` | `.github/prompts/review.md` and `.github/prompts/review-synthesize.md` | parallel review jobs plus synthesis in `agent-review.yml` |
 | Orchestrate | `orchestrate` | `.github/prompts/agent-orchestrator.md` | explicit `/orchestrate`, `agent/orchestrate`, or dispatch-triaged issue/PR requests dispatch `agent-orchestrator.yml`, which selects the next action based on current target state |
@@ -38,6 +39,12 @@ For explicit `/implement` requests on pull requests, the router can obtain
 asks for stacked or follow-up implementation work. If that inferred source PR is
 closed or merged, the router drops `base_pr` so the implementation starts from
 the default branch; the tracking issue still links the closed PR as context.
+
+The `add-rubrics` route reuses the implementation workflow with
+`base_branch=agent/rubrics` and the dedicated add-rubrics prompt. Because the
+rubrics branch is a data branch, the workflow keeps the Sepo runtime checkout on
+the repository default branch and runs the agent in a separate rubrics worktree.
+Successful runs open a draft proposal PR against `agent/rubrics`.
 
 ## Consumption model
 

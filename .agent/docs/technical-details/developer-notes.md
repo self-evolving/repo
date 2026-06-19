@@ -39,7 +39,7 @@ resolver order.
 > before onboarding it.
 
 - Workflow-level GitHub token permissions are broader than route-level `acpx` permission modes.
-- Slash routes are hardcoded to `/answer`, `/implement`, `/create-action`, `/fix-pr`, `/review`, `/orchestrate`, `/skill`, and `/install`.
+- Slash routes are hardcoded to `/answer`, `/implement`, `/add-rubrics`, `/create-action`, `/fix-pr`, `/review`, `/orchestrate`, `/skill`, and `/install`.
 - Mention parsing does not fully handle lazy blockquote continuations or multi-backtick inline code spans.
 - Implementation approval uses comments, not reactions.
 - The verify chain is a lightweight post-agent check, not a full CI substitute.

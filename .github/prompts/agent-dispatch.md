@@ -14,13 +14,14 @@ Choose exactly one route:
 - `review`: start the review workflow immediately; only valid for `pull_request`
 - `orchestrate`: start the orchestrator workflow immediately; only valid for `issue` or `pull_request`
 - `create-action`: request approval to create a scheduled GitHub Actions workflow for recurring agent automation
+- `add-rubrics`: request approval to propose user/team rubric updates on `agent/rubrics`
 - `unsupported`: explain the limitation inline
 
 Return exactly one JSON object and nothing else:
 
 ```json
 {
-  "route": "answer | implement | fix-pr | review | orchestrate | create-action | unsupported",
+  "route": "answer | implement | fix-pr | review | orchestrate | create-action | add-rubrics | unsupported",
   "needs_approval": true,
   "summary": "One short sentence for the user describing what the agent will do next.",
   "confidence": "low | medium | high",
@@ -37,6 +38,7 @@ Rules:
 - Use `review` only when the user is explicitly asking for a PR review or another review pass.
 - Use `orchestrate` when the user explicitly asks for orchestration, follow-up automation, or a bounded multi-step agent workflow on an issue or pull request.
 - Use `create-action` when the user asks to create an automatically running or durable automation, monitor, scheduled job, or recurring check.
+- Use `add-rubrics` when the user asks to add, update, capture, or propose user/team rubrics or agent behavior preferences for future implementation/review work.
 - Use `answer` for questions, clarification, lightweight analysis, or discussion.
   - Default to `answer` for planning, design discussion, investigation, diagnosis, "let's think", "best way", "figure out why", "plans", "check", "look into", or similar wording unless the live mention also clearly asks the agent to make changes.
   - If the user asks the agent to "check whether", "check how", "look into whether", or "investigate how" to change something, use `answer`.
@@ -46,11 +48,11 @@ Rules:
 - `fix-pr` is only valid for `pull_request` targets. If the request is not on a pull request, use `unsupported`.
 - `orchestrate` is only valid for `issue` and `pull_request` targets. If the request is on another target kind, use `unsupported`.
 - Keep `summary` short and user-facing.
-- When `route` is `implement` or `create-action`, always populate `issue_title` (concise, under 70 chars)
+- When `route` is `implement`, `create-action`, or `add-rubrics`, always populate `issue_title` (concise, under 70 chars)
   and `issue_body` (structured markdown with goal, acceptance criteria, and any
   relevant context from the original message). These will be used to create a
   tracking issue that the user can review and edit before approving.
-- When `route` is not `implement` or `create-action`, leave `issue_title` and `issue_body` empty.
+- When `route` is not `implement`, `create-action`, or `add-rubrics`, leave `issue_title` and `issue_body` empty.
 
 Examples:
 - Mention: `@sepo-agent let's think about the best way to do it`
