@@ -203,6 +203,13 @@ test("shouldCreateIssueFromApprovalRequest only for non-issue implementation-lik
     }),
   );
   assert.ok(
+    shouldCreateIssueFromApprovalRequest({
+      route: "add-rubrics",
+      target_kind: "discussion",
+      issue_title: "Propose rubric updates",
+    }),
+  );
+  assert.ok(
     !shouldCreateIssueFromApprovalRequest({
       route: "implement",
       target_kind: "issue",

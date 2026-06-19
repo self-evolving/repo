@@ -10,7 +10,7 @@ Use rubrics as normative guidance:
 - During implementation or PR fixes, satisfy applicable rubrics when they fit the request and repository state.
 - During review, inspect additional review or coding rubrics when needed, then evaluate whether the proposed implementation satisfies applicable rubrics and cite concrete evidence.
 - If a selected rubric clearly does not apply, ignore it briefly rather than overfitting the task.
-- Do not edit rubrics during normal implementation/review runs; only Agent / Rubrics / Initialization and Agent / Rubrics / Update should change the rubrics branch.
+- Do not edit rubrics during normal implementation, fix, review, or answer runs. Only dedicated rubrics routes should change rubric files: Agent / Rubrics / Initialization, Agent / Rubrics / Update, or `add-rubrics` proposal runs when the route-specific prompt asks for rubric edits.
 
 Selected rubrics:
 

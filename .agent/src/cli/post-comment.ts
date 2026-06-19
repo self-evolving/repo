@@ -12,10 +12,12 @@ import {
   collapsePreviousReviewSummaries,
 } from "../review-summary-minimize.js";
 import {
+  formatAddRubricsComment,
   formatImplementComment,
   formatFixPrComment,
   formatReviewComment,
   appendRunDisplayFooter,
+  isExplainedAddRubricsNoop,
   normalizeImplementationResponse,
   summaryFromAgentResponse,
   type RunStatus,
@@ -76,6 +78,16 @@ if (route === "review") {
     branch,
     requestedBy: requestedBy || undefined,
     approvalCommentUrl: approvalCommentUrl || undefined,
+  });
+} else if (route === "add-rubrics") {
+  const parsed = normalizeImplementationResponse(rawResponse);
+  body = formatAddRubricsComment({
+    status,
+    summary: parsed.summary,
+    branch: branch || undefined,
+    prUrl: prUrl || undefined,
+    approvalCommentUrl: approvalCommentUrl || undefined,
+    explainedNoop: isExplainedAddRubricsNoop(route, parsed),
   });
 } else {
   // implement or other

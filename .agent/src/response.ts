@@ -12,6 +12,11 @@ import { buildFixPrStatusMarker } from "./fix-pr-status.js";
  */
 export type RunStatus = "success" | "no_changes" | "verify_failed" | "failed" | "unsupported";
 
+export interface DetermineRunStatusOptions {
+  route?: string;
+  explainedNoop?: boolean;
+}
+
 /**
  * Determines the run status from agent exit code, change detection, and
  * verification result. This is the shared logic currently duplicated in
@@ -22,9 +27,14 @@ export function determineRunStatus(
   hasChanges: boolean,
   verifyExitCode: number,
   hasBranchUpdate = false,
+  options: DetermineRunStatusOptions = {},
 ): RunStatus {
   if (agentExitCode !== 0) return "failed";
-  if (!hasChanges && !hasBranchUpdate) return "no_changes";
+  if (!hasChanges && !hasBranchUpdate) {
+    const route = String(options.route || "").trim().toLowerCase();
+    if (route === "add-rubrics" && options.explainedNoop) return "success";
+    return "no_changes";
+  }
   if (verifyExitCode !== 0) return "verify_failed";
   return "success";
 }
@@ -38,6 +48,7 @@ export interface StatusCommentData {
   prUrl?: string;
   requestedBy?: string;
   approvalCommentUrl?: string;
+  explainedNoop?: boolean;
 }
 
 function formatMention(loginOrHandle: string): string {
@@ -75,6 +86,54 @@ export function formatImplementComment(data: StatusCommentData): string {
     default:
       return [
         "**Sepo could not complete the implementation run.**",
+        "",
+        "Inspect the workflow logs and retry if appropriate.",
+        "",
+        data.summary ?? "",
+      ].join("\n");
+  }
+}
+
+export function formatAddRubricsComment(data: StatusCommentData): string {
+  switch (data.status) {
+    case "success": {
+      if (data.explainedNoop) {
+        return [
+          "**Sepo found no rubric changes were needed.**",
+          "",
+          data.summary ?? "",
+        ].join("\n");
+      }
+      const lines = ["**Sepo proposed rubric updates.**", ""];
+      if (data.branch) lines.push(`- Branch: \`${data.branch}\``);
+      if (data.prUrl) {
+        lines.push(`- Pull request: ${data.prUrl}`);
+      } else {
+        lines.push("- Pull request: not created");
+      }
+      if (data.approvalCommentUrl) lines.push(`- Approval: ${data.approvalCommentUrl}`);
+      lines.push("", data.summary ?? "");
+      return lines.join("\n");
+    }
+    case "no_changes":
+      return [
+        "**Sepo did not produce rubric changes for this request.**",
+        "",
+        "Please add more context or restate the requested rubric preference, then re-request add-rubrics.",
+        "",
+        data.summary ?? "",
+      ].join("\n");
+    case "verify_failed":
+      return [
+        "**Sepo made rubric changes, but validation failed.**",
+        "",
+        "Inspect the workflow logs before retrying add-rubrics.",
+        "",
+        data.summary ?? "",
+      ].join("\n");
+    default:
+      return [
+        "**Sepo could not complete the add-rubrics run.**",
         "",
         "Inspect the workflow logs and retry if appropriate.",
         "",
@@ -252,9 +311,22 @@ export interface ImplementationResponse {
   prBody: string;
 }
 
+export function isExplainedAddRubricsNoop(route: string, response: ImplementationResponse): boolean {
+  const normalizedRoute = String(route || "").trim().toLowerCase();
+  return normalizedRoute === "add-rubrics" &&
+    Boolean(response.summary.trim()) &&
+    !response.commitMessage.trim() &&
+    !response.prTitle.trim() &&
+    !response.prBody.trim();
+}
+
 export function summaryFromAgentResponse(route: string, raw: string): string {
   const normalizedRoute = String(route || "").trim().toLowerCase();
-  if (normalizedRoute === "implement" || normalizedRoute === "fix-pr") {
+  if (
+    normalizedRoute === "implement" ||
+    normalizedRoute === "fix-pr" ||
+    normalizedRoute === "add-rubrics"
+  ) {
     return normalizeImplementationResponse(raw).summary;
   }
   return String(raw ?? "").trim();

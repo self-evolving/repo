@@ -6,6 +6,7 @@
 import { readFileSync } from "node:fs";
 import {
   determineRunStatus,
+  isExplainedAddRubricsNoop,
   normalizeImplementationResponse,
 } from "../response.js";
 import { setOutput } from "../output.js";
@@ -15,9 +16,7 @@ const hasChanges = process.env.HAS_CHANGES === "true";
 const headChanged = process.env.HEAD_CHANGED === "true";
 const verifyExit = Number(process.env.VERIFY_EXIT_CODE || "0");
 const responseFile = process.env.RESPONSE_FILE || "";
-
-const status = determineRunStatus(agentExit, hasChanges, verifyExit, headChanged);
-setOutput("status", status);
+const route = process.env.ROUTE || "";
 
 let raw = "";
 if (responseFile) {
@@ -25,6 +24,11 @@ if (responseFile) {
 }
 
 const response = normalizeImplementationResponse(raw);
+const status = determineRunStatus(agentExit, hasChanges, verifyExit, headChanged, {
+  route,
+  explainedNoop: isExplainedAddRubricsNoop(route, response),
+});
+setOutput("status", status);
 setOutput("summary", response.summary);
 setOutput("commit_message", response.commitMessage);
 setOutput("pr_title", response.prTitle);
