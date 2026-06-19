@@ -207,6 +207,10 @@ manual dispatch remains available for explicit source ref testing.
 
 Single-agent routes, autonomous agent workflows, fixed review lanes, and the review synthesis step resolve provider/model settings before installing provider CLIs. Explicit provider choices from inline workflow `route_provider`, `AGENT_MODEL_POLICY.route_overrides[route].provider`, or `AGENT_DEFAULT_PROVIDER` are authoritative: the workflows select that provider even when the matching repository secret is absent, so self-hosted runners can rely on local Codex or Claude authentication. When the provider is `auto`, detection uses configured provider secrets and prefers Codex when `OPENAI_API_KEY` is configured; otherwise Claude is selected when either `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` is present. Resolved Codex and Claude runs use Sepo's small pinned model defaults unless `AGENT_MODEL_POLICY` overrides them: `gpt-5.5` for Codex and `claude-opus-4-8` for Claude. `AGENT_MODEL_POLICY` can also set provider-specific models and route-specific model or reasoning effort overrides; inline workflow `route_provider` remains the native escape hatch. Portal and skill jobs use non-fatal early resolution before non-agent response paths, then require a provider only immediately before invoking an agent. The review workflow's Claude/Codex reviewer lanes keep fixed providers through inline `route_provider`, so provider-specific model settings apply there while route-specific review overrides are left to synthesis.
 
+### Attachment handling
+
+Before any `run-agent-task` invocation renders the prompt, Sepo scans the current issue, pull request, discussion, and forwarded request text for `https://github.com/user-attachments/...` links. Matching files are downloaded with the resolved GitHub token into `$RUNNER_TEMP/agent-attachments`, and the base prompt receives a JSON manifest with the original URL, source metadata, local path, content type, size, and any per-file download error. Agents should inspect downloaded files through the local `localPath` values instead of fetching the original attachment URLs.
+
 ## Trigger details
 
 ### `agent-entrypoint.yml`

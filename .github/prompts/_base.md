@@ -9,6 +9,15 @@ URL: ${TARGET_URL}
 Requested by: ${REQUESTED_BY}
 Request: ${REQUEST_TEXT}
 
+## GitHub attachments
+
+${ATTACHMENTS_MANIFEST}
+
+If the manifest lists attachments with status `downloaded`, use the `localPath`
+values to inspect those files. Do not fetch the original
+`https://github.com/user-attachments/...` URLs. If the manifest reports a
+download error, use the error details to explain the limitation.
+
 ## General guidelines
 
 - Before starting, check for broader project context:

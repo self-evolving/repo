@@ -76,6 +76,7 @@ const SUPPLEMENTAL_PROMPT_VAR_NAMES = [
   "RUBRICS_DIR",
   "RUBRICS_REF",
   "RUBRICS_CONTEXT_FILE",
+  "ATTACHMENTS_MANIFEST_FILE",
   "AGENT_CWD",
   "AGENT_RUNTIME_DIR",
   "REQUEST_COMMENT_ID",
@@ -409,6 +410,14 @@ function main(): void {
   }
   if (promptVars.RUBRICS_CONTEXT_FILE && existsSync(promptVars.RUBRICS_CONTEXT_FILE)) {
     promptVars.RUBRICS_CONTEXT = readFileSync(promptVars.RUBRICS_CONTEXT_FILE, "utf8");
+  }
+  if (promptVars.ATTACHMENTS_MANIFEST_FILE && existsSync(promptVars.ATTACHMENTS_MANIFEST_FILE)) {
+    promptVars.ATTACHMENTS_MANIFEST = readFileSync(
+      promptVars.ATTACHMENTS_MANIFEST_FILE,
+      "utf8",
+    );
+  } else {
+    promptVars.ATTACHMENTS_MANIFEST = "No GitHub attachment manifest was generated.";
   }
   // Aliases for backward compat
   promptVars.PR_NUMBER = promptVars.TARGET_NUMBER;

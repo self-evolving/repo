@@ -339,6 +339,20 @@ runs:
           --limit "${RUBRICS_LIMIT}" \
           --output-file "${RUBRICS_CONTEXT_FILE}"
 
+    - name: Download GitHub attachments
+      id: attachments
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github_token }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        INPUT_GITHUB_TOKEN: ${{ inputs.github_token }}
+        REPO_SLUG: ${{ github.repository }}
+        REQUEST_TEXT: ${{ inputs.request_text }}
+        TARGET_KIND: ${{ inputs.target_kind }}
+        TARGET_NUMBER: ${{ inputs.target_number }}
+        ATTACHMENTS_DIR: ${{ runner.temp }}/agent-attachments
+      run: node .agent/dist/cli/download-attachments.js
+
     - name: Run agent task
       id: run
       shell: bash
@@ -359,6 +373,7 @@ runs:
         RUBRICS_DIR: ${{ steps.rubrics.outputs.rubrics_dir }}
         RUBRICS_REF: ${{ steps.rubrics.outputs.rubrics_ref }}
         RUBRICS_CONTEXT_FILE: ${{ steps.select_rubrics.outputs.context_file }}
+        ATTACHMENTS_MANIFEST_FILE: ${{ steps.attachments.outputs.manifest_file }}
         AGENT_CWD: ${{ inputs.agent_cwd }}
         AGENT_RUNTIME_DIR: ${{ github.workspace }}
         MODEL_REASONING_EFFORT: ${{ inputs.reasoning_effort }}

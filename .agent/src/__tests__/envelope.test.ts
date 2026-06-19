@@ -101,10 +101,51 @@ test("shared base prompt exists and contains the metadata contract", () => {
   assert.match(base, /\$\{REPO_SLUG\}/);
   assert.match(base, /\$\{REQUESTED_BY\}/);
   assert.match(base, /\$\{REQUEST_TEXT\}/);
+  assert.match(base, /\$\{ATTACHMENTS_MANIFEST\}/);
+  assert.match(base, /GitHub attachments/);
+  assert.match(base, /localPath/);
   assert.match(base, /gh issue view/);
   assert.match(base, /gh pr view/);
   assert.match(base, /likely transient server, rate-limit, timeout, or connection error/);
   assert.match(base, /Do not repeatedly retry deterministic failures/);
+});
+
+test("attachment manifest is downloaded before run-agent-task renders prompts", () => {
+  const runAgentTaskAction = parseYaml(readRepoFile(".github/actions/run-agent-task/action.yml")) as unknown;
+  const runSource = readRepoFile(".agent/src/run.ts");
+  const supplementalPromptVarNames = readSupplementalPromptVarNames(runSource);
+
+  assert.ok(isRecord(runAgentTaskAction), "run-agent-task action should parse");
+  assert.ok(isRecord(runAgentTaskAction.runs), "run-agent-task action should define runs");
+  assert.ok(Array.isArray(runAgentTaskAction.runs.steps), "run-agent-task action should define steps");
+  const steps = runAgentTaskAction.runs.steps;
+  const attachmentsStepIndex = steps.findIndex(
+    (step): step is Record<string, unknown> => isRecord(step) && step.id === "attachments",
+  );
+  const runStepIndex = steps.findIndex(
+    (step): step is Record<string, unknown> => isRecord(step) && step.id === "run",
+  );
+  assert.ok(attachmentsStepIndex >= 0, "run-agent-task should download attachments");
+  assert.ok(runStepIndex > attachmentsStepIndex, "attachments should download before the agent runs");
+
+  const attachmentsStep = steps[attachmentsStepIndex];
+  assert.ok(isRecord(attachmentsStep), "attachments step should be a record");
+  assert.equal(attachmentsStep.run, "node .agent/dist/cli/download-attachments.js");
+  assert.ok(isRecord(attachmentsStep.env), "attachments step should define env");
+  assert.equal(attachmentsStep.env.GH_TOKEN, "${{ inputs.github_token }}");
+  assert.equal(attachmentsStep.env.INPUT_GITHUB_TOKEN, "${{ inputs.github_token }}");
+  assert.equal(attachmentsStep.env.ATTACHMENTS_DIR, "${{ runner.temp }}/agent-attachments");
+
+  const runStep = steps[runStepIndex];
+  assert.ok(isRecord(runStep), "run step should be a record");
+  assert.ok(isRecord(runStep.env), "run step should define env");
+  assert.equal(
+    runStep.env.ATTACHMENTS_MANIFEST_FILE,
+    "${{ steps.attachments.outputs.manifest_file }}",
+  );
+
+  assert.ok(supplementalPromptVarNames.has("ATTACHMENTS_MANIFEST_FILE"));
+  assert.match(runSource, /ATTACHMENTS_MANIFEST\s*=\s*readFileSync/);
 });
 
 test("route prompts do not duplicate the base metadata header", () => {
