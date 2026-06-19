@@ -113,3 +113,4 @@
 - Simple Sepo command issue templates use Markdown; keep install defaults non-parseable so missing targets prompt clarification.
 - .agent tests are lane-based: test:ci builds once, then runs test:runtime, check:workflow, check:docs, and check:shell.
 - Add-rubrics is proposal-only: reuse implement flow to open PRs against agent/rubrics while runtime stays on default branch.
+- Local-runner cleanup is host-level: ACTIONS_RUNNER_HOOK_JOB_COMPLETED trims _diag and stale _work checkouts.
