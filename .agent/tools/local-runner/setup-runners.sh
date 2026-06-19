@@ -139,12 +139,32 @@ fi
 echo "Verifying $RUNNER_ASSET..."
 verify_runner_tarball
 
+HOOK_SCRIPT="$BASE_DIR/hooks/post-job-cleanup.sh"
+
+ensure_hook_env() {
+  local runner_dir="$1"
+  [ -x "$HOOK_SCRIPT" ] || return 0
+  [ -f "$runner_dir/.env" ] || return 0
+  grep -q '^ACTIONS_RUNNER_HOOK_JOB_COMPLETED=' "$runner_dir/.env" && return 0
+  echo "ACTIONS_RUNNER_HOOK_JOB_COMPLETED=$HOOK_SCRIPT" >> "$runner_dir/.env"
+  echo "Wired post-job cleanup hook into $runner_dir/.env (restart runner to apply)."
+}
+
+# Reconcile the hook into every existing runner, regardless of NUM_RUNNERS,
+# so multi-runner hosts get all runners updated on a plain rerun.
+for existing in "$BASE_DIR"/runner-*/; do
+  [ -d "$existing" ] || continue
+  [ -f "$existing/.runner" ] || continue
+  ensure_hook_env "${existing%/}"
+done
+
 for i in $(seq 1 "$NUM_RUNNERS"); do
   RUNNER_DIR="$BASE_DIR/runner-$i"
   RUNNER_NAME="$RUNNER_NAME_PREFIX-$i"
 
   if [ -d "$RUNNER_DIR" ] && [ -f "$RUNNER_DIR/.runner" ]; then
     echo "Runner $i already configured at $RUNNER_DIR; skipping setup."
+    ensure_hook_env "$RUNNER_DIR"
     continue
   fi
 
@@ -161,6 +181,8 @@ for i in $(seq 1 "$NUM_RUNNERS"); do
       --unattended \
       --replace
   )
+
+  ensure_hook_env "$RUNNER_DIR"
 
   echo "Runner $i configured as $RUNNER_NAME."
 done
