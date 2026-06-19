@@ -17,6 +17,7 @@ WORKSPACE="${RUNNER_WORKSPACE:-}"
 [ -n "$WORKSPACE" ] || exit 0
 
 WORK_DIR="$(dirname "$WORKSPACE")"
+[ "$(basename "$WORK_DIR")" = "_work" ] || exit 0
 RUNNER_ROOT="$(dirname "$WORK_DIR")"
 DIAG_DIR="$RUNNER_ROOT/_diag"
 LOG="$RUNNER_ROOT/cleanup-hook.log"
@@ -45,7 +46,10 @@ if [ -d "$WORK_DIR" ]; then
     case "$name" in
       _*|"$current_repo") continue ;;
     esac
-    if [ -z "$(find "$d" -maxdepth 0 -mtime -1 -print 2>/dev/null)" ]; then
+    # Check for any file (incl. nested) touched in the last 24h. -print -quit
+    # stops on first match so warm checkouts return immediately; cold trees pay
+    # the full scan but are about to be deleted.
+    if [ -z "$(find "$d" -type f -mtime -1 -print -quit 2>/dev/null)" ]; then
       size=$(du -sk "$d" 2>/dev/null | awk '{print $1}')
       rm -rf "$d" 2>/dev/null && log "pruned _work/$name (${size:-?}K)"
     fi

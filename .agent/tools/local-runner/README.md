@@ -125,6 +125,21 @@ It never fails the runner — errors are swallowed and progress is written to
 `runner-N/cleanup-hook.log`. Restart runners after editing the hook for the new
 behavior to take effect.
 
+To wire the hook into already-configured runners on a host that predates this
+change, rerun `setup-runners.sh` (it appends the env var to each `runner-*/.env`
+if missing and leaves the runner config alone) and then restart:
+
+```bash
+./setup-runners.sh https://github.com/<ORG_OR_USER> <REGISTRATION_TOKEN>
+./stop-runners.sh && ./start-runners.sh
+```
+
+Or append the line manually to each `runner-N/.env` and restart:
+
+```
+ACTIONS_RUNNER_HOOK_JOB_COMPLETED=/absolute/path/to/local-runner/hooks/post-job-cleanup.sh
+```
+
 ## Cleanup job
 
 `cleanup-runner.sh` writes to `cleanup.log` and:
