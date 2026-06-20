@@ -96,6 +96,43 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/428#issuecomment-4755369551",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABG4NYrA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "Ok the first q that i want to ask is, does it only download the file in the latest comment or all past comments? \n\nI think this causes a broader issue: what if agents keep searching for all issues for files? We cannot exhaust everything right? \n\nBut the way seems to provide the environment key to download the file? Or? We are a customized and protected file download command? What to do? ",
+      "createdAt": "2026-06-20T05:11:31Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/428#issuecomment-4756560044",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABG4Nq9w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "It currently scans **all past comments on the current target**, not only the latest comment.\n\nFor PR #428 specifically, `collectAttachmentTextSources` scans:\n\n- forwarded `REQUEST_TEXT`\n- issue body + issue comments\n- PR body + issue comments + PR reviews + PR review comments\n- discussion body + discussion comments/replies\n\nSee the current PR code around [`attachments.ts#L317-L395`](https://github.com/self-evolving/repo/blob/487b2b404cbb9c881252ec7f3155b91d6bba4a88/.agent/src/attachments.ts#L317-L395). It dedupes attachment URLs by exact URL before downloading: [`attachments.ts#L161-L188`](https://github.com/self-evolving/repo/blob/487b2b404cbb9c881252ec7f3155b91d6bba4a88/.agent/src/attachments.ts#L161-L188).\n\nIt **does not search all issues in the repo**. It only queries the current issue/PR/discussion target number passed into `run-agent-task`. So the broader “agents searching every issue for files” concern is real in principle, but this PR does not implement that behavior.\n\nOn auth: yes, this is meant to be a customized protected pre-agent download path. The action passes the resolved GitHub token only to the downloader step: [`run-agent-task/action.yml#L342-L354`](https://github.com/self-evolving/repo/blob/487b2b404cbb9c881252ec7f3155b91d6bba4a88/.github/actions/run-agent-task/action.yml#L342-L354). The downloader uses it as an `Authorization: Bearer ...` header: [`attachments.ts#L529-L536`](https://github.com/self-evolving/repo/blob/487b2b404cbb9c881252ec7f3155b91d6bba4a88/.agent/src/attachments.ts#L529-L536). The prompt only receives the manifest/local paths, not the token: [`_base.md#L12-L19`](https://github.com/self-evolving/repo/blob/487b2b404cbb9c881252ec7f3155b91d6bba4a88/.github/prompts/_base.md#L12-L19).\n\nWhat I’d do before merging:\n\n1. Keep downloader scope bounded to the **current target thread only**.\n2. Add hard limits: max attachment count, max bytes per file, and fetch timeout.\n3. Make the downloader best-effort so failures produce manifest errors instead of blocking the whole agent run.\n4. Optionally narrow policy further: for `issue_comment` triggers, download only `REQUEST_TEXT` plus target body by default, and scan older comments only if we decide that cross-comment attachments are important enough.\n\nMy recommendation: keep current-target scanning, but add the resource limits. Do **not** add repo-wide issue search for attachments.\n\n---\n`codex` | `gpt-5.5/xhigh` | `zucchini-m4-1`",
+      "createdAt": "2026-06-20T05:13:44Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/428#issuecomment-4756564727",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-06-19T22:52:35Z",
@@ -216,6 +253,6 @@
   ],
   "state": "OPEN",
   "title": "Download GitHub attachments before agent runs",
-  "updatedAt": "2026-06-19T23:07:27Z",
+  "updatedAt": "2026-06-20T05:13:44Z",
   "url": "https://github.com/self-evolving/repo/pull/428"
 }
