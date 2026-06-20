@@ -6,13 +6,13 @@
     "name": "Shannon Shen"
   },
   "body": "## Problem\n\nSelf-hosted runners under `.agent/tools/local-runner/` accumulate disk usage indefinitely under sustained job volume.\n\nTwo sources of growth:\n\n- `runner-N/_work/<repo>` — every distinct repo a job touches gets its own persistent checkout. The runner doesn't garbage-collect cross-repo workspaces, so they accumulate one dir per repo that has ever run on the host.\n- `runner-N/_diag` — diagnostic logs only rotate by date. The existing `cleanup-runner.sh` launchd job only deletes files older than 7 days, which can be too conservative on high-throughput hosts.\n\n## Change\n\nWire `ACTIONS_RUNNER_HOOK_JOB_COMPLETED` (a built-in self-hosted runner feature) to a host-level cleanup script that runs after every job:\n\n- **New `hooks/post-job-cleanup.sh`** — trims `_diag` to the last 30 files and drops anything older than 3 days; removes `_work/<repo>` checkouts not touched in the last 24h, skipping the current job's repo so checkout caching stays warm. Errors are swallowed so the hook never fails a job. Activity is logged to `runner-N/cleanup-hook.log`.\n- **`setup-runners.sh`** — newly configured runners automatically get `ACTIONS_RUNNER_HOOK_JOB_COMPLETED` appended to their `.env`.\n- **`README.md`** — documents the hook.\n\nExisting runners need their `.env` updated and a restart to pick up the hook.\n\n## Notes\n\n- This is a self-hosted runner host-level feature, not a workflow change — workflow YAML is unaffected.\n- The 24h / 3d / 30-file thresholds are defaults that can be tuned in the hook script per host.",
-  "closedAt": null,
+  "closedAt": "2026-06-19T22:39:27Z",
   "comments": [],
   "createdAt": "2026-06-12T17:28:28Z",
   "labels": [],
   "number": 418,
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Add post-job cleanup hook to self-hosted runner setup",
-  "updatedAt": "2026-06-12T17:28:28Z",
+  "updatedAt": "2026-06-19T22:39:27Z",
   "url": "https://github.com/self-evolving/repo/issues/418"
 }

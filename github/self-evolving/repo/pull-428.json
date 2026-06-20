@@ -1,0 +1,221 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- add a shared attachment scanner/downloader and CLI that writes a manifest under `$RUNNER_TEMP/agent-attachments`\n- wire `run-agent-task` to run it before the agent and inject the manifest into the base prompt\n- document attachment handling and add runtime/workflow coverage\n\n## Tests\n- `npm run build`\n- `node --test dist/__tests__/attachments.test.js dist/__tests__/envelope.test.js dist/__tests__/workflow-action-validation.test.js dist/__tests__/docs-validation.test.js`\n- `git diff --check`\n\nCloses #426\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABG3BwqQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #428 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: Implementation succeeded and opened PR #428 for issue #426; an automated review is the appropriate next step before human approval or merge.\n\n<!-- sepo-agent-handoff state:dispatched created:1781909598866 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86Mjc4NTE2NDk4Nzk6aW1wbGVtZW50OjQyNjpyZXZpZXc6NDI4OjM -->",
+      "createdAt": "2026-06-19T22:53:19Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/428#issuecomment-4755321001",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABG3CeKA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Keep docs in sync | pass | 7/7 | Docs now describe attachment handling in supported workflows and `run-agent-task`: [supported-workflows.md#L210-L212](https://github.com/self-evolving/repo/blob/487b2b404cbb9c881252ec7f3155b91d6bba4a88/.agent/docs/usage/supported-workflows.md#L210-L212), [internal-actions.md#L14](https://github.com/self-evolving/repo/blob/487b2b404cbb9c881252ec7f3155b91d6bba4a88/.agent/docs/usage/internal-actions.md#L14). |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | The implementation reuses the shared `run-agent-task` action, existing `gh` wrapper, discussion transcript helper, GraphQL client, and `setOutput` helper rather than adding per-route workflow glue: [attachments.ts#L1-L10](https://github.com/self-evolving/repo/blob/487b2b404cbb9c881252ec7f3155b91d6bba4a88/.agent/src/attachments.ts#L1-L10), [download-attachments.ts#L8-L14](https://github.com/self-evolving/repo/blob/487b2b404cbb9c881252ec7f3155b91d6bba4a88/.agent/src/cli/download-attachments.ts#L8-L14). |\n| coding_workflow/generic | Prefer explicit structured inputs | pass | 7/7 | Attachment data flows through explicit env fields and a JSON manifest path, with prompt injection gated by the runtime allowlist: [action.yml#L342-L376](https://github.com/self-evolving/repo/blob/487b2b404cbb9c881252ec7f3155b91d6bba4a88/.github/actions/run-agent-task/action.yml#L342-L376), [run.ts#L71-L80](https://github.com/self-evolving/repo/blob/487b2b404cbb9c881252ec7f3155b91d6bba4a88/.agent/src/run.ts#L71-L80), [run.ts#L414-L420](https://github.com/self-evolving/repo/blob/487b2b404cbb9c881252ec7f3155b91d6bba4a88/.agent/src/run.ts#L414-L420). |\n| coding_workflow/generic | Surface stateful failures | pass | 7/7 | Collection and download failures are preserved in the manifest instead of being hidden, including missing-token, HTTP, and thrown-fetch paths: [attachments.ts#L411-L416](https://github.com/self-evolving/repo/blob/487b2b404cbb9c881252ec7f3155b91d6bba4a88/.agent/src/attachments.ts#L411-L416), [attachments.ts#L517-L579](https://github.com/self-evolving/repo/blob/487b2b404cbb9c881252ec7f3155b91d6bba4a88/.agent/src/attachments.ts#L517-L579), [attachments.test.ts#L187-L251](https://github.com/self-evolving/repo/blob/487b2b404cbb9c881252ec7f3155b91d6bba4a88/.agent/src/__tests__/attachments.test.ts#L187-L251). |\n| coding_workflow/generic | Minimal defaults, native escape hatches | pass | 8/8 | The feature is a default shared runtime capability under `run-agent-task`, with no new public settings or route-specific knobs; advanced behavior remains customizable in repo-owned workflow/runtime code: [action.yml#L342-L354](https://github.com/self-evolving/repo/blob/487b2b404cbb9c881252ec7f3155b91d6bba4a88/.github/actions/run-agent-task/action.yml#L342-L354). |\n| coding_workflow/generic | Name config by capability | pass | 6/6 | New env/output names describe the general attachment capability, not a narrow first use case: `ATTACHMENTS_DIR`, `ATTACHMENTS_MANIFEST_FILE`, and `manifest_file`: [download-attachments.ts#L21-L41](https://github.com/self-evolving/repo/blob/487b2b404cbb9c881252ec7f3155b91d6bba4a88/.agent/src/cli/download-attachments.ts#L21-L41), [download-attachments.ts#L67-L70](https://github.com/self-evolving/repo/blob/487b2b404cbb9c881252ec7f3155b91d6bba4a88/.agent/src/cli/download-attachments.ts#L67-L70). |\n| coding/coding_style | Prefer simple implementations | pass | 7/7 | The implementation uses one typed module, one CLI, one shared action step, and base-prompt guidance; it avoids extra routes, settings, or duplicated per-workflow scanners. |\n| coding/coding | Make surgical changes | pass | 8/8 | The diff is limited to the attachment module/CLI, shared runtime wiring, prompt contract, focused docs, and targeted tests; no unrelated workflow or route refactors were introduced. |\n| coding_workflow/generic | Read docs and linked context first | pass | 6/6 | The PR closes issue #426 and implements the exact linked design: scan issue/PR/discussion/request text, download with the resolved token, write a manifest, and instruct agents to use local paths. The current diff matches that scope. |\n\n## Notes\n\n- The strongest score drivers are the shared `run-agent-task` integration, explicit manifest contract, focused docs update, and regression coverage for extraction, dedupe, safe filenames, authenticated downloads, per-file errors, and workflow/prompt wiring.\n- I verified the PR head locally with `npm ci`, `npm run build`, `node --test dist/__tests__/attachments.test.js dist/__tests__/envelope.test.js dist/__tests__/workflow-action-validation.test.js dist/__tests__/docs-validation.test.js` (91 passing subtests), and `git diff --check`.\n- Not scored: selected authorization, orchestration, rubric-lifecycle, merge, preview, and status-comment rubrics that do not apply to this attachment-handling implementation.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No blocking or warning findings against the applicable selected rubrics.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/xhigh` | `zucchini-m4-3`",
+      "createdAt": "2026-06-19T22:56:44Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/428#issuecomment-4755332648",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABG3EQqg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 487b2b404cbb9c881252ec7f3155b91d6bba4a88 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #428 implements issue #426 by downloading GitHub `user-attachments` before the agent runs, using the resolved GitHub token, and passing a local manifest into the prompt. The goal is to make private-repo attachments readable without exposing tokens to the model or relying on unauthenticated fetches. The implementation adds a shared scanner/downloader, wires it into `run-agent-task`, updates the base prompt, and adds focused docs/tests. The current design is well placed on the shared runtime path, but the current diff still has one correctness gap for resumed sessions and two robustness issues on the shared pre-agent path.\n\n## Review\nOverall, the PR is directionally solid and matches the linked issue plan, but it should not ship until resumed runs receive the attachment manifest. Reviewers disagreed on severity: the rubrics review passed with no warnings, while the code reviews identified concrete runtime issues; the resumed-session gap is supported by the current PR head.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Resumed sessions lose attachment manifests | BLOCKING | The manifest is injected only into the full/base prompt, but resumed persistent sessions use the lightweight continuation prompt, which does not include `ATTACHMENTS_MANIFEST` or local-path instructions. |\n| Attachment enrichment can fail all agent runs | WARNING | The new shared attachment step lacks `continue-on-error: true`, so top-level CLI failures can stop the composite action before the agent runs. |\n| Attachment downloads lack resource bounds | WARNING | The downloader buffers each response with `arrayBuffer()` and has no file-size cap, attachment-count cap, or fetch timeout for URLs collected from issue/PR/discussion text. |\n\n## Progress\n- PR already implements the shared scanner/downloader, manifest injection, prompt guidance, docs, and targeted runtime/workflow tests.\n- Rubrics review reported PASS and no rubric-specific follow-up.\n- Existing inline comments and review threads were empty before synthesis.\n- Posted three inline comments for the concrete changed-line issues: `.agent/src/run.ts#L414`, `.github/actions/run-agent-task/action.yml#L342`, and `.agent/src/attachments.ts#L558`.\n\n## Issue Details\n<details>\n<summary>Resumed sessions lose attachment manifests</summary>\n\n**Cause:** `run.ts` reads `ATTACHMENTS_MANIFEST` into `promptVars`, then renders the full prompt, but resumed sessions can pass `buildContinuationPrompt(...)` to `runAcpx`. `buildContinuationPrompt` only includes trigger metadata, optional answer-review context, and `REQUEST_TEXT`, so follow-up `/answer` or `/fix-pr` runs can download an attachment without telling the agent the `localPath`.\n\n**Candidate solutions:** Include the attachment manifest section in continuation prompts, or force full prompt replay when a manifest exists. Add `prompt-continuation.test.ts` coverage for an attachment-bearing resumed run.\n\n**Comments:** This is the main reviewer disagreement: rubrics passed, but the current runtime code confirms the resumed prompt path drops the new manifest context.\n\n</details>\n\n<details>\n<summary>Attachment enrichment can fail all agent runs</summary>\n\n**Cause:** The `Download GitHub attachments` step is on the shared `run-agent-task` path and lacks `continue-on-error: true`. Per-file download errors are captured in the manifest, but top-level failures such as output directory creation, manifest writing, or `setOutput` can still reject and fail the action.\n\n**Candidate solutions:** Make the step non-fatal with `continue-on-error: true`, matching nearby best-effort enrichment steps, and rely on the existing `run.ts` missing-manifest fallback.\n\n</details>\n\n<details>\n<summary>Attachment downloads lack resource bounds</summary>\n\n**Cause:** `downloadGitHubAttachments` fetches every collected URL sequentially and buffers the full body with `await response.arrayBuffer()` before writing to disk. There is no cap on response size, number of references, or request duration.\n\n**Candidate solutions:** Add a maximum attachment count, a per-file size cap using `Content-Length` plus a guarded read, and a fetch timeout such as `AbortSignal.timeout(...)`. Record over-limit and timeout failures as manifest errors instead of failing the run.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: The unresolved issues are concrete branch changes suitable for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Ensure resumed-session continuation prompts include the attachment manifest/local-path guidance, or replay the full prompt when a manifest exists, with regression coverage.\n- [ ] Make the shared attachment download step non-fatal so best-effort enrichment cannot block every agent run.\n- [ ] Add attachment download size, count, and timeout bounds while preserving manifest-level error reporting.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-6`",
+      "createdAt": "2026-06-19T23:05:05Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/428#issuecomment-4755361962",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABG3Eajg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #428 | 4 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis for open PR #428 is NEEDS_REWORK with Recommended Next Step FIX_PR; the unresolved items are concrete branch changes and round budget remains available.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Ensure resumed-session continuation prompts include the attachment manifest/local-path guidance, or replay the full prompt when a manifest exists, with regression coverage.\n- Make the shared attachment download step non-fatal so best-effort enrichment cannot block every agent run.\n- Add attachment download size, count, and timeout bounds while preserving manifest-level error reporting.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1781910354950 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86Mjc4NTIwMTQ1NjQ6cmV2aWV3OjQyODpmaXhfcHI6NDI4OjQ -->",
+      "createdAt": "2026-06-19T23:05:55Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/428#issuecomment-4755364494",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABG3EduQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo could not complete the PR fix run.**\n\n<!-- sepo-agent-fix-pr-status -->\n\nInspect the workflow logs and retry if appropriate.\n\n",
+      "createdAt": "2026-06-19T23:06:11Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/428#issuecomment-4755365305",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABG3EuTw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo orchestration needs clarification before it can continue.\n\nSepo cannot continue the automatic PR-fix chain safely. The fix-pr run failed before the agent started because the PR branch's shared action calls `.agent/dist/cli/download-attachments.js`, but that built file was not present in the runtime checkout. The review findings on PR #428 remain unresolved; a human should inspect the workflow logs for run 27852387063 and either repair the runtime/build artifact issue or rerun fix-pr after the branch can execute `run-agent-task` successfully.\n\n- Source action: `fix-pr`\n- Source conclusion: `failed`\n- Target: `pull_request #428`\n- Round: `4/40`\n- Reason: agent planner blocked: The latest fix-pr run failed before the agent could run, due to a deterministic runtime error: PR #428's shared action invokes .agent/dist/cli/download-attachments.js, but that built CLI is absent in the checked-out runtime. Policy forbids handing a failed fix-pr directly to review or another automatic fix-pr pass.\n- Source run ID: `27852387063`\n\nNo follow-up workflow was dispatched. Reply with the requested context, then continue with `/orchestrate`, `/implement`, or `/answer` when ready.\n\n<!-- sepo-agent-orchestrate-stop -->",
+      "createdAt": "2026-06-19T23:07:27Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/428#issuecomment-4755369551",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-06-19T22:52:35Z",
+  "files": [
+    {
+      "path": ".agent/docs/usage/internal-actions.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/supported-workflows.md",
+      "additions": 4,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/attachments.test.ts",
+      "additions": 291,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 41,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/attachments.ts",
+      "additions": 599,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/download-attachments.ts",
+      "additions": 92,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/run.ts",
+      "additions": 9,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/run-agent-task/action.yml",
+      "additions": 15,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/_base.md",
+      "additions": 9,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-426/codex-27851649879",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 428,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABDllpeA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-06-19T23:04:24Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "487b2b404cbb9c881252ec7f3155b91d6bba4a88"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABDllpeQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-06-19T23:04:24Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "487b2b404cbb9c881252ec7f3155b91d6bba4a88"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABDllpew",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-06-19T23:04:24Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "487b2b404cbb9c881252ec7f3155b91d6bba4a88"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Download GitHub attachments before agent runs",
+  "updatedAt": "2026-06-19T23:07:27Z",
+  "url": "https://github.com/self-evolving/repo/pull/428"
+}

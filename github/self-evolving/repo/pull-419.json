@@ -7,7 +7,7 @@
   },
   "baseRefName": "main",
   "body": "## Summary\n- Add `hooks/post-job-cleanup.sh`, wired via the runner's `ACTIONS_RUNNER_HOOK_JOB_COMPLETED` mechanism: trims `_diag` to the last 30 files / 3 days, and removes `_work/<repo>` checkouts not touched in 24h (skipping the current job's repo so its cache stays warm).\n- Update `setup-runners.sh` to append the env var to each new runner's `.env` at config time.\n- Document the hook in `README.md`.\n\nCloses #418\n\n## Test plan\n- [ ] On a host with existing runners: append `ACTIONS_RUNNER_HOOK_JOB_COMPLETED=<abs path>/hooks/post-job-cleanup.sh` to each `runner-*/.env`, restart runners, run a job, and confirm `runner-*/cleanup-hook.log` records the invocation.\n- [ ] Confirm `_work/<repo>` for an unrelated repo gets pruned after its mtime crosses 24h.\n- [ ] Confirm the current job's `_work/<repo>` is preserved across consecutive runs.\n- [ ] Re-run `setup-runners.sh` for a fresh runner index and verify the new `.env` includes the hook line.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)",
-  "closedAt": null,
+  "closedAt": "2026-06-19T22:39:26Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABF8RPYQ",
@@ -156,10 +156,83 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 4cde0c4849b73d55d222977ee1314ee7bdd3fce2 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #419 addresses #418 by adding a self-hosted runner post-job cleanup hook under `.agent/tools/local-runner`.\n- The hook trims `_diag` logs and prunes stale `_work/<repo>` checkouts while preserving the current repo checkout.\n- The PR also wires the hook through `setup-runners.sh` and documents operator setup and migration steps.\n- The current head `4cde0c4` has already fixed the earlier review concerns around `_work` scoping, nested checkout recency detection, and hook reconciliation for configured runners included in setup.\n\n## Review\nThe implementation is now close: the destructive cleanup logic is materially safer than the first reviewed version, and both modified shell scripts pass `bash -n`. One documentation/setup mismatch remains for existing multi-runner hosts.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Existing-runner rerun command can miss runner 2+ | WARNING | The README says rerunning setup appends the hook env var to each `runner-*/.env`, but the shown command omits `[num_runners]` and `setup-runners.sh` defaults to `NUM_RUNNERS=1`. Existing multi-runner hosts following the docs literally can leave runner 2+ unhooked. |\n| Local-runner shell coverage remains optional | INFO | Reviewers noted that `.agent/tools/local-runner/**/*.sh` is still outside automated shell/fixture coverage. This is useful follow-up for a destructive hook but not required for this PR. |\n\n## Progress\n- Used all review artifacts found under `claude-review-419`, `codex-review-419`, and `rubrics-review-419`; the `session.txt` files were empty.\n- Prior hook findings are addressed in current head: `_work` guard, nested file recency check, and existing-runner `ensure_hook_env` for configured runners in the setup loop.\n- Re-fetched inline comments and review threads. No new inline comment was posted because the remaining docs issue is already clearly covered by the current rubrics review.\n- No inline replies, thread resolutions, or minimizations were performed; existing hook threads are not viewer-resolvable, and same-account minimization could not be verified via `/user`.\n\n## Issue Details\n<details>\n<summary>Existing-runner rerun command can miss runner 2+</summary>\n\n**Cause:** [`README.md`](https://github.com/self-evolving/repo/blob/4cde0c4849b73d55d222977ee1314ee7bdd3fce2/.agent/tools/local-runner/README.md#L128-L134) claims rerunning setup updates each `runner-*/.env`, but the command omits the runner count. [`setup-runners.sh`](https://github.com/self-evolving/repo/blob/4cde0c4849b73d55d222977ee1314ee7bdd3fce2/.agent/tools/local-runner/setup-runners.sh#L15) defaults to `1` and only loops through `1..NUM_RUNNERS`.\n\n**Candidate solutions:** Update the README to pass the host’s runner count, or change setup reconciliation to discover and update all existing `runner-*` directories independently of `NUM_RUNNERS`.\n\n**Comments:** Claude/Codex considered the branch otherwise shippable; the rubric review flagged this as a warning. This synthesis keeps it required because #418 explicitly calls out existing-runner adoption.\n\n</details>\n\n<details>\n<summary>Local-runner shell coverage remains optional</summary>\n\n**Cause:** The local-runner scripts do not appear to be covered by the existing automated shell checks.\n\n**Candidate solutions:** Extend shell syntax coverage to `.agent/tools/local-runner/**/*.sh`, and optionally add a fixture test for keeping current/fresh repos while pruning stale repos.\n\n**Comments:** This is optional confidence work; the PR head hook and setup script both pass `bash -n`.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: One concrete docs/setup mismatch remains and is safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Fix existing-runner migration guidance or setup reconciliation so multi-runner hosts wire every existing `runner-*/.env`, not only `runner-1`.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-5`",
       "createdAt": "2026-06-19T18:51:47Z",
       "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/419#issuecomment-4754023832",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABG2y9iA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review ",
+      "createdAt": "2026-06-19T22:19:23Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/419#issuecomment-4755078536",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABG20JrA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Bash does not treat `${unset##*/}` as a nounset failure in this form, so that specific edge case is not a blocker. I have enough current evidence now and will return the markdown review.## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 98 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR keeps the behavior in the existing `.agent/tools/local-runner` scripts and uses the native `ACTIONS_RUNNER_HOOK_JOB_COMPLETED` mechanism requested by #418 rather than adding workflow glue. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The hook is a small shell script with direct threshold rules for `_diag` trimming and stale `_work/<repo>` pruning, with no new dependencies. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | `README.md` documents the new hook, thresholds, log file, restart requirement, existing-runner migration, and manual `.env` fallback. |\n| communication / generic | Make setup guidance actionable | pass | 7/7 | The README gives concrete commands for rerunning `setup-runners.sh`, restarting runners, and manually appending `ACTIONS_RUNNER_HOOK_JOB_COMPLETED`. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | `ensure_hook_env` skips runners without `.env`, avoids duplicate hook lines with `grep`, reconciles all existing `runner-*` directories, and also wires newly configured runners. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | The implementation uses narrow defaults from #418: last 30 diag files, 3 days, 24h workspace recency, and host-local hook editing as the customization path. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The live diff is limited to `.agent/tools/local-runner/README.md`, `setup-runners.sh`, and the new `hooks/post-job-cleanup.sh`. |\n\n## Notes\n\n- Current head `40a46d344eac49def35001c368a8180abbd13506` addresses the earlier rubric warnings: setup now reconciles every existing `runner-*` directory regardless of `num_runners`, README says that explicitly, the hook guards `_work`, and recency checks nested files.\n- The selected authorization, route parsing, review synthesis, model-default, and privileged workflow rubrics do not genuinely apply to this local-runner cleanup PR.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** Automated shell coverage still does not appear to include `.agent/tools/local-runner/**/*.sh`; `check:shell` currently targets `.agent/scripts` and `.github/actions`. This is useful confidence work for a destructive cleanup hook, but not a rubric blocker for this scoped PR.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-1`",
+      "createdAt": "2026-06-19T22:22:04Z",
+      "includesCreatedEdit": false,
       "isMinimized": false,
       "minimizedReason": "",
       "reactionGroups": [],
-      "url": "https://github.com/self-evolving/repo/pull/419#issuecomment-4754023832",
+      "url": "https://github.com/self-evolving/repo/pull/419#issuecomment-4755098028",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABG25T6A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 40a46d344eac49def35001c368a8180abbd13506 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #419 addresses #418 by adding a self-hosted runner post-job cleanup hook under `.agent/tools/local-runner`. The hook uses `ACTIONS_RUNNER_HOOK_JOB_COMPLETED` to trim `_diag` logs and prune stale `_work/<repo>` checkouts while preserving the current repo cache. The PR also wires the hook through `setup-runners.sh` and documents both new-runner setup and existing-runner migration. Current head `40a46d344eac49def35001c368a8180abbd13506` fixes the earlier review concerns around deletion scoping, nested recency detection, and multi-runner adoption.\n\n## Review\nThe current implementation is shippable. All review artifacts agree the prior warning-level issues are addressed, and the remaining notes are optional confidence or cleanup follow-ups.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues | INFO | Current head includes the `_work` guard, nested file recency check, all-runner `.env` reconciliation, and matching README migration guidance. Optional shell coverage for `.agent/tools/local-runner/**/*.sh` remains useful but is not required for this PR. |\n\n## Progress\n- Used all current review artifacts from `codex-review-419`, `claude-review-419`, and `rubrics-review-419`.\n- Reviewed the live PR conversation, linked issue #418, live PR diff, inline review comments, and review threads.\n- Confirmed the two older inline hook comments are now addressed by code, but both threads are unresolved with `viewerCanResolve=false`.\n- Posted no new inline comments, replies, minimizations, or thread resolutions.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: no unresolved actionable branch work remains.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.\n\n---\n`codex` | `gpt-5.5/xhigh` | `zucchini-m4-5`",
+      "createdAt": "2026-06-19T22:31:57Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/419#issuecomment-4755182568",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABG29d-Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #419.\n\nno rubric changes\n\nI reviewed PR #419 history, linked issue #418, inline comments, reviews, repo ownership/collaborator signals, and existing rubrics. The substantive implementation feedback came from bot/agent review artifacts, while the only human PR comments from `lolipopshock` were review requests or questions and showed `CONTRIBUTOR` association. The only admin/maintain collaborator returned was `tongshuangwu`, with no trusted maintainer rubric instruction in this conversation.\n\nThe durable lessons from the review are already covered by existing rubrics such as `keep-docs-in-sync`, `actionable-setup-guidance`, and `idempotent-user-facing-automation`, so I made no rubric file edits.\n\n---\n`codex` | `gpt-5.5/xhigh` | `zucchini-m4-6`",
+      "createdAt": "2026-06-19T22:40:39Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/419#issuecomment-4755250681",
       "viewerDidAuthor": true
     }
   ],
@@ -193,7 +266,7 @@
       "color": "0e8a16"
     }
   ],
-  "mergedAt": null,
+  "mergedAt": "2026-06-19T22:39:26Z",
   "number": 419,
   "reviewDecision": "",
   "reviews": [
@@ -228,8 +301,8 @@
       }
     }
   ],
-  "state": "OPEN",
+  "state": "MERGED",
   "title": "Add post-job cleanup hook to self-hosted runner setup",
-  "updatedAt": "2026-06-19T19:48:03Z",
+  "updatedAt": "2026-06-19T22:40:39Z",
   "url": "https://github.com/self-evolving/repo/pull/419"
 }
