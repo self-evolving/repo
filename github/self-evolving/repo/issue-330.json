@@ -6,8 +6,24 @@
     "name": "Shannon Shen"
   },
   "body": "## Summary\n\nThere is a state-reconciliation bug between the sub-orchestrator route and the self-approval/self-merge loop.\n\nA child issue can produce a PR, get reviewed as shippable, receive self-approval, then have `agent-self-merge` return `blocked` because a required status check is failing. That blocked self-merge result is reported back to the parent as a terminal child result. If the PR is later repaired/re-reviewed/self-approved/self-merged successfully, the parent issue and child marker can remain stuck in the earlier `blocked` state.\n\nThis leaves the visible parent orchestration saying the child task is blocked even though the child PR has actually merged.\n\n## Generic reproduction shape\n\n1. Start an issue-level `/orchestrate` run on a parent goal issue.\n2. The parent delegates a child issue.\n3. The child implementation opens a PR.\n4. Review concludes `SHIP`.\n5. `agent-self-approve` concludes `approved`.\n6. First `agent-self-merge` concludes `blocked` because a required check is failing.\n7. The sub-orchestrator terminal reporting path records the child as blocked and resumes the parent.\n8. The PR is repaired or brought up to date, checks pass, review/self-approval/self-merge run again, and the PR merges.\n9. The parent issue still has the earlier child completion report saying `Blocked`, and the child issue marker can still say `state:blocked`.\n\nThere is a second failure mode during step 7: the resumed parent orchestrator may correctly infer that the underlying PR needs CI repair, but try to reuse the existing child issue with a new `child_stage` such as `fix-ci-and-remerge`. The runtime rejects this because the existing child is already bound to its original stage. The result is a parent-level stop/block even though the right next action is really PR-level recovery or later terminal-state reconciliation.\n\n## Expected behavior\n\nThe orchestration state should converge on the actual latest child/PR outcome.\n\nPossible acceptable behavior:\n\n- If a child PR later merges, update the parent progress report from `Blocked` to `Ready to ship` / `Done` and update the child marker from `state:blocked` to `state:done`.\n- Or avoid treating self-merge `blocked` from recoverable PR conditions as terminal for the child while the PR remains open and actionable.\n- Or have the parent resume path dispatch a PR-level recovery action (`review`/`fix-pr`/self-approval/self-merge as appropriate) instead of trying to delegate a new stage onto the already-bound child issue.\n\n## Actual behavior\n\nA recoverable self-merge block can be treated as terminal by the child-to-parent reporting path. Later successful PR merge updates the PR's own self-merge status comment, but does not necessarily update:\n\n- the parent issue's child progress report,\n- the child issue's hidden sub-orchestrator marker,\n- or the parent orchestrator's view of whether the child is complete.\n\nThis creates stale public state and can make the parent goal appear blocked after the work has actually shipped.\n\n## Impact\n\n- Parent goal issues can show false blocked status.\n- Users may retry or intervene manually despite successful merge.\n- The orchestrator can dispatch or stop based on stale child state.\n- The issue timeline becomes confusing: PR-local status says merged, parent-local status says blocked.\n\n## Implementation notes / possible fixes\n\nAreas to inspect:\n\n- Terminal child reporting from PR-target actions back to a parent issue.\n- Handling of `agent-self-merge` conclusions, especially `blocked` due failed/pending checks while the PR is still open.\n- Dedupe/update logic for existing sub-orchestrator progress comments after `resume:dispatched`.\n- Existing-child delegation validation when `child_issue_number` is supplied with a different `child_stage`.\n\nPossible fix directions:\n\n1. Add a monotonic/reconciling child result update path: a later `merged` terminal result for the same child/PR should be allowed to supersede an earlier `blocked` report.\n2. Update the child issue marker when the linked PR later reaches a stronger terminal state.\n3. Classify self-merge blocks into recoverable vs terminal. For example, failing/pending checks on an open PR may be recoverable and should not necessarily finalize the child as blocked.\n4. Preserve enough context when resuming the parent so it can choose PR-level recovery instead of invalid child-stage redelegation.\n5. Improve the planner prompt or policy so an existing child issue cannot be reused with a different stage; if the intended work is PR repair, use PR-level `fix-pr`/`review` instead.\n\n## Suggested tests\n\n- Child PR self-merge blocked by failing check reports parent as blocked; later self-merge merged for the same PR updates parent report and child marker to done.\n- A blocked child with an open linked PR does not permanently prevent later successful terminal reporting.\n- Parent orchestrator recovery from a child self-merge block has a valid path to PR-level repair/re-review.\n- `delegate_issue` with `child_issue_number` and mismatched `child_stage` produces a clear planner-facing recovery message, or normalizes to the existing stage when safe.\n\n## Acceptance criteria\n\n- Parent issue status cannot remain stale-blocked after the corresponding child PR has merged.\n- The child issue marker and parent progress comment agree with the final PR outcome.\n- Recoverable self-merge failures do not force invalid parent-level redelegation.\n- Regression tests cover blocked-then-merged self-merge flow.\n",
-  "closedAt": null,
-  "comments": [],
+  "closedAt": "2026-06-20T11:08:13Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABG5FrNA",
+      "author": {
+        "login": "github-actions"
+      },
+      "authorAssociation": "NONE",
+      "body": "Closing because this agent issue has had no activity for 30 days.",
+      "createdAt": "2026-06-20T11:08:13Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/330#issuecomment-4757482292",
+      "viewerDidAuthor": false
+    }
+  ],
   "createdAt": "2026-05-20T21:00:48Z",
   "labels": [
     {
@@ -24,8 +40,8 @@
     }
   ],
   "number": 330,
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Reconcile sub-orchestrator state after recoverable self-merge blocks",
-  "updatedAt": "2026-05-20T21:00:48Z",
+  "updatedAt": "2026-06-20T11:08:13Z",
   "url": "https://github.com/self-evolving/repo/issues/330"
 }

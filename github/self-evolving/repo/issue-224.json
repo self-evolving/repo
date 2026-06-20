@@ -6,7 +6,7 @@
     "name": "Shannon Shen"
   },
   "body": "## Problem\n\nThe self-approval guard currently verifies that the authenticated approval actor is distinct from the pull request author, but it does not also verify that the initiating requester is distinct from the pull request author.\n\nThat leaves a policy gap for orchestrated or manually dispatched self-approval runs:\n\n1. A human opens a PR.\n2. The same human requests Sepo self-approval, directly or through an orchestrator handoff.\n3. The workflow submits approval using the Sepo app/PAT actor.\n4. The current same-author guard passes because the approval token actor differs from the PR author, even though the requesting human authored the PR.\n\nFor a privileged self-approval gate, the requester should also be treated as part of the approval authority boundary.\n\n## Desired behavior\n\nBlock self-approval when either of these normalized logins matches the PR author:\n\n- the authenticated approval token actor, or\n- the trusted initiating requester.\n\n## Suggested implementation\n\n- Preserve trusted requester context through self-approval:\n  - direct/manual `agent-self-approve.yml` runs should use `github.actor` when `requested_by` is not provided;\n  - orchestrator handoffs should continue forwarding the original `requested_by` value.\n- Pass the requester into self-approval preflight/resolution.\n- Extend the actor guard so it blocks when `requested_by` matches the PR author, with a clear status reason.\n- Add focused tests for:\n  - requester equals PR author -> blocked;\n  - approval actor equals PR author -> blocked;\n  - requester and approval actor both distinct from PR author -> existing approval path remains allowed.\n\n## Notes\n\nThis is a small follow-up to the self-approval safety boundary. The existing architecture still keeps the agent read-only and performs deterministic approval submission; this issue tightens who is allowed to initiate that deterministic approval.\n",
-  "closedAt": null,
+  "closedAt": "2026-06-20T11:08:22Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABDBeswQ",
@@ -67,6 +67,21 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/224#issuecomment-4497918749",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABG5FtDw",
+      "author": {
+        "login": "github-actions"
+      },
+      "authorAssociation": "NONE",
+      "body": "Closing because this agent issue has had no activity for 30 days.",
+      "createdAt": "2026-06-20T11:08:22Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/224#issuecomment-4757482767",
+      "viewerDidAuthor": false
     }
   ],
   "createdAt": "2026-05-13T04:00:08Z",
@@ -97,8 +112,8 @@
     }
   ],
   "number": 224,
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Block self-approval when requester authored the PR",
-  "updatedAt": "2026-05-20T14:40:27Z",
+  "updatedAt": "2026-06-20T11:08:22Z",
   "url": "https://github.com/self-evolving/repo/issues/224"
 }

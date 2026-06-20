@@ -6,7 +6,7 @@
     "name": "Shannon Shen"
   },
   "body": "## Problem\n\nWhen a PR review synthesis concludes that no more branch-change automation is needed, orchestration can currently stop instead of consulting the self-approval gate. In full self-governance mode this can leave an otherwise-ready PR stranded: no fix/review loop is warranted, but no self-approval/self-merge path is attempted either.\n\nThis is understandable if `NO_AUTOMATED_ACTION` means \"do not run fix-pr/review again\", but in self-governance mode it should not necessarily mean \"do not consult the approval gate\".\n\n## Expected behavior\n\nWhen all of the following are true:\n\n- target is an open PR;\n- latest trusted review synthesis is for the current head;\n- final verdict is non-blocking, e.g. `MINOR_ISSUES`;\n- recommended next step is `NO_AUTOMATED_ACTION`;\n- synthesis/action items say no required branch-change work remains;\n- `AGENT_ALLOW_SELF_APPROVE=true`;\n\nthen orchestration should be able to hand off to `agent-self-approve` as the decision gate.\n\nIf `AGENT_ALLOW_SELF_MERGE=true` is also enabled and self-approval returns approved, the existing self-merge handoff can decide whether to merge, enable auto-merge, mark ready, or block.\n\n## Why this matters\n\n`NO_AUTOMATED_ACTION` is currently overloaded:\n\n1. no more automated branch mutation/review loops are useful; and\n2. no automation at all should continue.\n\nFor self-governance, those are different states. A PR can be done with branch changes while still needing an approval decision. In that case, `agent-self-approve` is exactly the deterministic/current-head gate that should make the final approval/block/request-changes decision.\n\n## Possible implementation direction\n\nOptions:\n\n1. Update the orchestrator handoff policy so `review -> MINOR_ISSUES + NO_AUTOMATED_ACTION` can route to `agent-self-approve` when self-approval is enabled and no required branch-change work remains.\n2. Alternatively, change review synthesis to emit `HUMAN_DECISION` instead of `NO_AUTOMATED_ACTION` for non-blocking done states where a maintainer/self-approval gate should decide.\n3. Make the provenance accepted by `agent-self-approve` explicit for this case, so it does not only trust `SHIP` or `HUMAN_DECISION` when the current-head synthesis says no required branch-change work remains.\n\n## Acceptance criteria\n\n- Add/update tests for a PR orchestration handoff where latest review synthesis is current-head `MINOR_ISSUES`, recommends `NO_AUTOMATED_ACTION`, and says no required branch-change work remains.\n- With `AGENT_ALLOW_SELF_APPROVE=true`, that scenario dispatches or permits `agent-self-approve` rather than stopping.\n- With self-approval disabled, the orchestrator still stops cleanly and explains why.\n- Blocking findings or required branch-change action items must still prevent self-approval and route to fix/review/stop as appropriate.\n- Documentation clarifies that `NO_AUTOMATED_ACTION` from review means no more branch mutation/review loops, not necessarily no approval gate in self-governance mode.\n\n## Related context\n\nThis follows the same self-governance direction as PR #299, which added same-actor self-approval/status-comment handling when both self-approval and self-merge are enabled.\n",
-  "closedAt": null,
+  "closedAt": "2026-06-20T11:08:17Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABC_5z-g",
@@ -104,6 +104,21 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/318#issuecomment-4496605489",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABG5Fr4Q",
+      "author": {
+        "login": "github-actions"
+      },
+      "authorAssociation": "NONE",
+      "body": "Closing because this agent issue has had no activity for 30 days.",
+      "createdAt": "2026-06-20T11:08:16Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/318#issuecomment-4757482465",
+      "viewerDidAuthor": false
     }
   ],
   "createdAt": "2026-05-20T08:23:31Z",
@@ -116,8 +131,8 @@
     }
   ],
   "number": 318,
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Route no-more-branch-work review outcomes to self-approval",
-  "updatedAt": "2026-05-20T09:25:53Z",
+  "updatedAt": "2026-06-20T11:08:17Z",
   "url": "https://github.com/self-evolving/repo/issues/318"
 }
