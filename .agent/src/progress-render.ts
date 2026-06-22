@@ -34,6 +34,12 @@ const DEFAULT_ACTIVITY_LIMIT = 6;
 const DEFAULT_MESSAGE_CHARS = 240;
 const TOOL_DETAIL_CHARS = 120;
 
+interface ToolEvent {
+  key: string;
+  name?: string;
+  status?: string;
+}
+
 export function buildProgressViewModel(
   ndjsonTail: string,
   options: ProgressViewModelOptions,
@@ -41,7 +47,9 @@ export function buildProgressViewModel(
   const recentActivityLimit = Math.max(0, options.recentActivityLimit ?? DEFAULT_ACTIVITY_LIMIT);
   const maxMessageChars = Math.max(20, options.maxMessageChars ?? DEFAULT_MESSAGE_CHARS);
   const allActivity: ProgressActivity[] = [];
-  const toolNames = toolDisplayNamesFromNdjson(ndjsonTail);
+  const toolEvents = toolEventsFromNdjson(ndjsonTail);
+  const toolActivityIndexByKey = new Map<string, number>();
+  const toolNameByKey = new Map<string, string>();
   let toolIndex = 0;
   let stepCount = 0;
   let lastMessage = "";
@@ -57,8 +65,25 @@ export function buildProgressViewModel(
     }
 
     if (entry.type === "tool_call" || entry.type === "tool_call_update") {
-      stepCount += 1;
-      allActivity.push(toolActivity(entry, toolNames[toolIndex]));
+      const event = toolEvents[toolIndex];
+      const key = event?.key ?? `compact:${toolIndex}`;
+      const eventName = event?.name;
+      if (eventName) {
+        toolNameByKey.set(key, eventName);
+      }
+      const activity = toolActivity(
+        entry,
+        eventName || toolNameByKey.get(key),
+        event?.status,
+      );
+      const existingIndex = toolActivityIndexByKey.get(key);
+      if (existingIndex === undefined) {
+        stepCount += 1;
+        toolActivityIndexByKey.set(key, allActivity.length);
+        allActivity.push(activity);
+      } else {
+        allActivity[existingIndex] = activity;
+      }
       toolIndex += 1;
       continue;
     }
@@ -144,8 +169,11 @@ export function progressMarker(runId: string): string {
   return `<!-- sepo-progress:run-${normalizeRunId(runId)} -->`;
 }
 
-function toolDisplayNamesFromNdjson(ndjsonTail: string): string[] {
-  const names: string[] = [];
+function toolEventsFromNdjson(ndjsonTail: string): ToolEvent[] {
+  const events: ToolEvent[] = [];
+  let anonymousToolIndex = 0;
+  let lastToolKey = "";
+
   for (const rawLine of ndjsonTail.split("\n")) {
     if (!rawLine.trim()) continue;
     try {
@@ -155,17 +183,45 @@ function toolDisplayNamesFromNdjson(ndjsonTail: string): string[] {
       if (update?.sessionUpdate !== "tool_call" && update?.sessionUpdate !== "tool_call_update") {
         continue;
       }
-      names.push(cleanSingleLine(String(update.title ?? update.name ?? "")));
+      const name = cleanSingleLine(String(update.title ?? update.name ?? ""));
+      const status = cleanSingleLine(String(update.status ?? ""));
+      const toolCallId = cleanSingleLine(String(update.toolCallId ?? ""));
+      let key = toolCallId ? `id:${toolCallId}` : "";
+
+      if (!key) {
+        if (update.sessionUpdate === "tool_call") {
+          anonymousToolIndex += 1;
+          key = `anonymous:${anonymousToolIndex}`;
+        } else if (lastToolKey) {
+          key = lastToolKey;
+        } else if (name) {
+          key = `name:${name}`;
+        } else {
+          anonymousToolIndex += 1;
+          key = `anonymous:${anonymousToolIndex}`;
+        }
+      }
+
+      lastToolKey = key;
+      events.push({
+        key,
+        name: name || undefined,
+        status: status || undefined,
+      });
     } catch {
       // Ignore malformed and partial lines; compactSessionLog handles them too.
     }
   }
-  return names;
+  return events;
 }
 
-function toolActivity(entry: Record<string, unknown>, preferredName?: string): ProgressActivity {
+function toolActivity(
+  entry: Record<string, unknown>,
+  preferredName?: string,
+  preferredStatus?: string,
+): ProgressActivity {
   const rawName = cleanSingleLine(preferredName || String(entry.name ?? ""));
-  const status = cleanSingleLine(String(entry.status ?? ""));
+  const status = cleanSingleLine(preferredStatus || String(entry.status ?? ""));
   const label = toolLabel(rawName);
   const detail = toolDetail(rawName, label);
   return {

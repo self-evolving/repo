@@ -38,6 +38,24 @@ function titledToolEvent(name: string, title: string, status = "completed"): str
   });
 }
 
+function correlatedToolEvent(
+  sessionUpdate: "tool_call" | "tool_call_update",
+  toolCallId: string,
+  fields: { name?: string; title?: string; status?: string },
+): string {
+  return ndjsonLine({
+    jsonrpc: "2.0",
+    method: "session/update",
+    params: {
+      update: {
+        sessionUpdate,
+        toolCallId,
+        ...fields,
+      },
+    },
+  });
+}
+
 function messageEvent(text: string): string {
   return ndjsonLine({
     params: {
@@ -136,6 +154,39 @@ test("prefers ACP tool title over name when present", () => {
   assert.equal(model.recentActivity[0]?.label, "📖 Read");
   assert.equal(model.recentActivity[0]?.detail, "Read .agent/src/run.ts");
   assert.match(renderRunning(model), /- 📖 Read `Read \.agent\/src\/run\.ts` \(completed\)/);
+});
+
+test("collapses related tool call updates while preserving title metadata", () => {
+  const tail = [
+    correlatedToolEvent("tool_call", "call-1", {
+      name: "tool_1",
+      title: "Read .agent/src/progress-render.ts",
+      status: "running",
+    }),
+    correlatedToolEvent("tool_call_update", "call-1", {
+      status: "completed",
+    }),
+  ].join("");
+  const model = buildProgressViewModel(tail, {
+    runId: "tool-updates",
+    route: "implement",
+    elapsedMs: 2_000,
+  });
+
+  assert.equal(model.stepCount, 1);
+  assert.deepEqual(model.recentActivity, [
+    {
+      kind: "tool",
+      label: "📖 Read",
+      detail: "Read .agent/src/progress-render.ts",
+      status: "completed",
+    },
+  ]);
+
+  const body = renderRunning(model);
+  assert.match(body, /Sepo is working — implement · 2s · 1 step/);
+  assert.match(body, /- 📖 Read `Read \.agent\/src\/progress-render\.ts` \(completed\)/);
+  assert.doesNotMatch(body, /Used tool/);
 });
 
 test("truncates long messages deterministically", () => {
