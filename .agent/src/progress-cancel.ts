@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -12,6 +12,8 @@ export interface ReconciledProgressStatus {
   cancelledBy: string;
 }
 
+export type ProgressCancelMarkerState = "confirmed" | "failed";
+
 export function defaultProgressCancelMarkerFile(env: NodeJS.ProcessEnv = process.env): string {
   const explicit = firstEnv(
     env,
@@ -24,24 +26,17 @@ export function defaultProgressCancelMarkerFile(env: NodeJS.ProcessEnv = process
   return join(firstEnv(env, "RUNNER_TEMP") || tmpdir(), PROGRESS_CANCEL_MARKER_FILENAME);
 }
 
-export function writeProgressCancelMarker(path: string, login: string): void {
+export function writeProgressCancelMarker(
+  path: string,
+  login: string,
+  state: ProgressCancelMarkerState = "confirmed",
+): void {
   const markerPath = path.trim();
   if (!markerPath) {
     throw new Error("progress cancel marker path is empty");
   }
   mkdirSync(dirname(markerPath), { recursive: true });
-  writeFileSync(markerPath, `${cleanLogin(login)}\n`, "utf8");
-}
-
-export function clearProgressCancelMarker(path: string): void {
-  const markerPath = path.trim();
-  if (!markerPath) return;
-
-  try {
-    rmSync(markerPath, { force: true });
-  } catch {
-    // Best effort: cleanup must not hide the cancellation failure.
-  }
+  writeFileSync(markerPath, `${formatProgressCancelMarker(login, state)}\n`, "utf8");
 }
 
 export function readProgressCancelMarker(path: string): string {
@@ -49,7 +44,7 @@ export function readProgressCancelMarker(path: string): string {
   if (!markerPath || !existsSync(markerPath)) return "";
 
   try {
-    return cleanLogin(readFileSync(markerPath, "utf8").split(/\r?\n/, 1)[0] ?? "");
+    return parseProgressCancelMarker(readFileSync(markerPath, "utf8").split(/\r?\n/, 1)[0] ?? "");
   } catch {
     return "";
   }
@@ -77,6 +72,19 @@ export function cleanLogin(login: string): string {
     .replace(/^@+/, "")
     .trim()
     .slice(0, 100);
+}
+
+function formatProgressCancelMarker(login: string, state: ProgressCancelMarkerState): string {
+  const cleaned = cleanLogin(login);
+  if (state === "confirmed") return cleaned;
+  return `${state}:${cleaned}`;
+}
+
+function parseProgressCancelMarker(value: string): string {
+  const marker = String(value || "").trim();
+  if (marker.startsWith("failed:")) return "";
+  if (marker.startsWith("confirmed:")) return cleanLogin(marker.slice("confirmed:".length));
+  return cleanLogin(marker);
 }
 
 function normalizeRunStatus(status: string): RunStatus {

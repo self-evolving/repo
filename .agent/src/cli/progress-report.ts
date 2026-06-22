@@ -3,7 +3,6 @@ import { existsSync, openSync, readSync, closeSync, statSync } from "node:fs";
 
 import { createIssueComment, updateIssueComment } from "../github.js";
 import {
-  clearProgressCancelMarker,
   defaultProgressCancelMarkerFile,
   writeProgressCancelMarker,
 } from "../progress-cancel.js";
@@ -316,7 +315,13 @@ export function invokeProgressCancellation(
   try {
     cancelWorkflowRun(config.runId);
   } catch (err: unknown) {
-    clearProgressCancelMarker(config.cancelMarkerFile);
+    try {
+      writeProgressCancelMarker(config.cancelMarkerFile, reaction.user, "failed");
+    } catch (markerErr: unknown) {
+      throw new Error(
+        `${errorMessage(err)}; could not mark progress cancellation as failed: ${errorMessage(markerErr)}`,
+      );
+    }
     throw err;
   }
 }

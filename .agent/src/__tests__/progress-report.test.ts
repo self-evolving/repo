@@ -11,9 +11,10 @@ import {
   type ProgressReporterConfig,
   type ProgressReporterDeps,
 } from "../cli/progress-report.js";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { reconcileProgressCancelStatus } from "../progress-cancel.js";
 
 function ndjsonLine(payload: unknown): string {
   return `${JSON.stringify(payload)}\n`;
@@ -333,7 +334,7 @@ printf 'args=%s\\n' "$*" >> "$FAKE_GH_LOG"
   }
 });
 
-test("default cancellation action clears marker when workflow cancellation fails", () => {
+test("default cancellation action leaves non-authoritative marker when workflow cancellation fails", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "progress-report-cancel-"));
   try {
     const markerFile = join(tempDir, "agent-progress-cancelled");
@@ -376,7 +377,12 @@ exit 7
       }
     }
 
-    assert.equal(existsSync(markerFile), false);
+    assert.equal(readFileSync(markerFile, "utf8"), "failed:alice\n");
+    assert.deepEqual(reconcileProgressCancelStatus({ status: "failed", markerFile }), {
+      status: "failed",
+      cancelled: false,
+      cancelledBy: "",
+    });
     assert.match(readFileSync(ghLog, "utf8"), /^marker=alice$/m);
     assert.match(readFileSync(ghLog, "utf8"), /^args=run cancel 123456$/m);
   } finally {

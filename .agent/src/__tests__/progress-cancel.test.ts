@@ -51,6 +51,22 @@ test("status reconciliation reports cancelled when marker is present", () => {
   }
 });
 
+test("status reconciliation ignores failed marker state", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "progress-cancel-"));
+  try {
+    const marker = join(tempDir, "agent-progress-cancelled");
+
+    writeProgressCancelMarker(marker, "alice", "failed");
+    assert.deepEqual(reconcileProgressCancelStatus({ status: "failed", markerFile: marker }), {
+      status: "failed",
+      cancelled: false,
+      cancelledBy: "",
+    });
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("status reconciliation preserves known statuses without a marker", () => {
   assert.deepEqual(reconcileProgressCancelStatus({ status: "verify_failed", markerFile: "/missing" }), {
     status: "verify_failed",
