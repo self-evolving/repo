@@ -4,13 +4,14 @@ import { strict as assert } from "node:assert";
 import {
   createProgressReporterState,
   finalizeProgressReporter,
+  invokeProgressCancellation,
   parseProgressReporterConfig,
   progressReporterTick,
   readStreamTail,
   type ProgressReporterConfig,
   type ProgressReporterDeps,
 } from "../cli/progress-report.js";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -60,6 +61,7 @@ function baseConfig(overrides: Partial<ProgressReporterConfig> = {}): ProgressRe
     runId: "123",
     pollIntervalMs: 1_000,
     cancelEnabled: true,
+    cancelMarkerFile: "/tmp/agent-progress-cancelled",
     maxStreamBytes: 1024 * 1024,
     ...overrides,
   };
@@ -78,6 +80,7 @@ function createHarness(options: {
     creates: string[];
     updates: string[];
     cancels: string[];
+    sequence: string[];
     logs: string[];
     reactionLists: number;
   };
@@ -94,6 +97,7 @@ function createHarness(options: {
     creates: [] as string[],
     updates: [] as string[],
     cancels: [] as string[],
+    sequence: [] as string[],
     logs: [] as string[],
     reactionLists: 0,
   };
@@ -107,10 +111,12 @@ function createHarness(options: {
     createComment: (_repo, _issueNumber, body) => {
       if (options.createError) throw options.createError;
       calls.creates.push(body);
+      calls.sequence.push("create");
       return "999";
     },
     updateComment: (_repo, _commentId, body) => {
       calls.updates.push(body);
+      calls.sequence.push(body.includes("Sepo cancelled") ? "patch-cancelled" : "patch-running");
       if (updateError) throw updateError;
     },
     listReactions: () => {
@@ -125,8 +131,9 @@ function createHarness(options: {
         ? { content: "THUMBS_DOWN", user: match.user, authorization: "REQUESTER" }
         : null;
     },
-    invokeCancel: (reaction) => {
+    invokeCancel: (_config, reaction) => {
       calls.cancels.push(reaction.user);
+      calls.sequence.push("cancel");
     },
     log: (message) => {
       calls.logs.push(message);
@@ -233,8 +240,12 @@ test("authorized thumbs-down invokes the cancel path at most once", () => {
   const second = progressReporterTick(config, state, harness.deps);
 
   assert.equal(first.cancelInvoked, true);
+  assert.equal(first.shouldContinue, false);
+  assert.equal(first.finalized, true);
   assert.equal(second.cancelInvoked, false);
   assert.deepEqual(harness.calls.cancels, ["alice"]);
+  assert.deepEqual(harness.calls.sequence, ["create", "patch-cancelled", "cancel"]);
+  assert.match(harness.calls.updates[0], /Cancelled by @alice\./);
   assert.equal(harness.calls.reactionLists, 1);
 });
 
@@ -252,6 +263,74 @@ test("disabled cancellation ignores authorized thumbs-down reactions", () => {
   assert.equal(result.cancelInvoked, false);
   assert.deepEqual(harness.calls.cancels, []);
   assert.equal(harness.calls.reactionLists, 0);
+});
+
+test("cancel patch failures do not write marker or cancel the run", () => {
+  const config = baseConfig({ cancelEnabled: true });
+  const state = createProgressReporterState(0);
+  const harness = createHarness({
+    stream: "",
+    now: 0,
+    reactions: [{ content: "THUMBS_DOWN", user: "alice" }],
+    updateError: new Error("patch failed"),
+  });
+
+  const result = progressReporterTick(config, state, harness.deps);
+
+  assert.equal(result.cancelInvoked, false);
+  assert.equal(result.shouldContinue, true);
+  assert.equal(state.finalized, false);
+  assert.deepEqual(harness.calls.cancels, []);
+  assert.deepEqual(harness.calls.sequence, ["create", "patch-cancelled"]);
+  assert.match(harness.calls.logs.join("\n"), /patch failed/);
+});
+
+test("default cancellation action writes marker before cancelling the workflow run", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "progress-report-cancel-"));
+  try {
+    const markerFile = join(tempDir, "agent-progress-cancelled");
+    const ghLog = join(tempDir, "gh.log");
+    writeFileSync(
+      join(tempDir, "gh"),
+      `#!/usr/bin/env bash
+printf 'marker=%s\\n' "$(cat "$FAKE_MARKER" 2>/dev/null)" >> "$FAKE_GH_LOG"
+printf 'args=%s\\n' "$*" >> "$FAKE_GH_LOG"
+`,
+      { encoding: "utf8", mode: 0o755 },
+    );
+
+    const originalPath = process.env.PATH;
+    const originalMarker = process.env.FAKE_MARKER;
+    const originalLog = process.env.FAKE_GH_LOG;
+    process.env.PATH = `${tempDir}:${process.env.PATH || ""}`;
+    process.env.FAKE_MARKER = markerFile;
+    process.env.FAKE_GH_LOG = ghLog;
+    try {
+      invokeProgressCancellation(baseConfig({ cancelMarkerFile: markerFile, runId: "123456" }), {
+        content: "THUMBS_DOWN",
+        user: "alice",
+        authorization: "REQUESTER",
+      });
+    } finally {
+      process.env.PATH = originalPath;
+      if (originalMarker === undefined) {
+        delete process.env.FAKE_MARKER;
+      } else {
+        process.env.FAKE_MARKER = originalMarker;
+      }
+      if (originalLog === undefined) {
+        delete process.env.FAKE_GH_LOG;
+      } else {
+        process.env.FAKE_GH_LOG = originalLog;
+      }
+    }
+
+    assert.equal(readFileSync(markerFile, "utf8"), "alice\n");
+    assert.match(readFileSync(ghLog, "utf8"), /^marker=alice$/m);
+    assert.match(readFileSync(ghLog, "utf8"), /^args=run cancel 123456$/m);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
 });
 
 test("comment create failure stops the reporter without throwing", () => {
@@ -321,6 +400,7 @@ test("parseProgressReporterConfig accepts issue and pull request targets", () =>
   });
 
   assert.equal(issueConfig?.cancelEnabled, true);
+  assert.match(issueConfig?.cancelMarkerFile ?? "", /agent-progress-cancelled$/);
   assert.equal(issueConfig?.targetKind, "issue");
   assert.equal(issueConfig?.pollIntervalMs, 10_000);
   assert.equal(prConfig?.targetKind, "pull_request");

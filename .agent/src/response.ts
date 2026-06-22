@@ -10,7 +10,7 @@ import { buildFixPrStatusMarker } from "./fix-pr-status.js";
 /**
  * Run statuses for post-agent workflow steps.
  */
-export type RunStatus = "success" | "no_changes" | "verify_failed" | "failed" | "unsupported";
+export type RunStatus = "success" | "no_changes" | "verify_failed" | "failed" | "unsupported" | "cancelled";
 
 export interface DetermineRunStatusOptions {
   route?: string;
@@ -49,6 +49,7 @@ export interface StatusCommentData {
   requestedBy?: string;
   approvalCommentUrl?: string;
   explainedNoop?: boolean;
+  cancelledBy?: string;
 }
 
 function formatMention(loginOrHandle: string): string {
@@ -83,6 +84,14 @@ export function formatImplementComment(data: StatusCommentData): string {
         "",
         data.summary ?? "",
       ].join("\n");
+    case "cancelled":
+      return [
+        "**Sepo stopped this implementation run.**",
+        "",
+        formatCancelledBy(data.cancelledBy),
+        "",
+        data.summary ?? "",
+      ].filter((line) => line !== "").join("\n");
     default:
       return [
         "**Sepo could not complete the implementation run.**",
@@ -131,6 +140,14 @@ export function formatAddRubricsComment(data: StatusCommentData): string {
         "",
         data.summary ?? "",
       ].join("\n");
+    case "cancelled":
+      return [
+        "**Sepo stopped this add-rubrics run.**",
+        "",
+        formatCancelledBy(data.cancelledBy),
+        "",
+        data.summary ?? "",
+      ].filter((line) => line !== "").join("\n");
     default:
       return [
         "**Sepo could not complete the add-rubrics run.**",
@@ -181,6 +198,16 @@ export function formatFixPrComment(data: StatusCommentData): string {
         "PR fix runs currently support open same-repository pull requests only.",
         data.approvalCommentUrl ? `- Approval: ${data.approvalCommentUrl}` : "",
       ].filter(Boolean).join("\n");
+    case "cancelled":
+      return [
+        "**Sepo stopped this PR fix run.**",
+        "",
+        marker,
+        "",
+        formatCancelledBy(data.cancelledBy),
+        "",
+        data.summary ?? "",
+      ].filter((line) => line !== "").join("\n");
     default:
       return [
         "**Sepo could not complete the PR fix run.**",
@@ -192,6 +219,11 @@ export function formatFixPrComment(data: StatusCommentData): string {
         data.summary ?? "",
       ].join("\n");
   }
+}
+
+function formatCancelledBy(loginOrHandle: string | undefined): string {
+  const requestedBy = loginOrHandle ? formatMention(loginOrHandle) : "";
+  return requestedBy ? `Stopped by ${requestedBy}.` : "Stopped by a progress comment cancellation request.";
 }
 
 export function formatReviewComment(data: {
