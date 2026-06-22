@@ -1,0 +1,107 @@
+import { test } from "node:test";
+import { strict as assert } from "node:assert";
+
+import { resolveProgressMode } from "../cli/progress/resolve-policy.js";
+import {
+  DEFAULT_PROGRESS_MODE,
+  DEFAULT_PROGRESS_ROUTE_OVERRIDES,
+  getProgressModeForRoute,
+  isProgressMode,
+  parseProgressPolicy,
+  progressModeAllowsCancel,
+  progressModeAllowsComment,
+  progressTargetSupportsComments,
+} from "../progress-policy.js";
+
+test("parseProgressPolicy defaults implement and fix-pr to enabled with cancellation", () => {
+  const policy = parseProgressPolicy("");
+  assert.equal(policy.defaultMode, DEFAULT_PROGRESS_MODE);
+  assert.equal(DEFAULT_PROGRESS_MODE, "disabled");
+  assert.deepEqual(policy.routeOverrides, DEFAULT_PROGRESS_ROUTE_OVERRIDES);
+  assert.equal(getProgressModeForRoute(policy, "implement"), "enabled");
+  assert.equal(getProgressModeForRoute(policy, "fix-pr"), "enabled");
+  assert.equal(progressModeAllowsComment(getProgressModeForRoute(policy, "implement")), true);
+  assert.equal(progressModeAllowsCancel(getProgressModeForRoute(policy, "implement")), true);
+});
+
+test("parseProgressPolicy disables review and answer by default", () => {
+  const policy = parseProgressPolicy("");
+  assert.equal(getProgressModeForRoute(policy, "review"), "disabled");
+  assert.equal(getProgressModeForRoute(policy, "answer"), "disabled");
+  assert.equal(progressModeAllowsComment(getProgressModeForRoute(policy, "review")), false);
+  assert.equal(progressModeAllowsCancel(getProgressModeForRoute(policy, "answer")), false);
+});
+
+test("parseProgressPolicy accepts default mode and route overrides", () => {
+  const policy = parseProgressPolicy(
+    '{"default_mode":"report-only","route_overrides":{"fix-pr":"disabled","answer":"enabled"}}',
+  );
+  assert.equal(policy.defaultMode, "report-only");
+  assert.equal(getProgressModeForRoute(policy, "implement"), "enabled");
+  assert.equal(getProgressModeForRoute(policy, "fix-pr"), "disabled");
+  assert.equal(getProgressModeForRoute(policy, "answer"), "enabled");
+  assert.equal(getProgressModeForRoute(policy, "dispatch"), "report-only");
+});
+
+test("parseProgressPolicy normalizes route keys to lowercase", () => {
+  const policy = parseProgressPolicy('{"route_overrides":{"IMPLEMENT":"report-only"}}');
+  assert.equal(policy.routeOverrides.implement, "report-only");
+  assert.equal(policy.routeOverrides.IMPLEMENT, undefined);
+});
+
+test("parseProgressPolicy rejects unknown modes and invalid route keys", () => {
+  assert.throws(
+    () => parseProgressPolicy('{"default_mode":"banana"}'),
+    /default_mode must be one of/,
+  );
+  assert.throws(
+    () => parseProgressPolicy('{"route_overrides":{"../bad":"enabled"}}'),
+    /Invalid route override key/,
+  );
+  assert.throws(
+    () => parseProgressPolicy('{"route_overrides":["implement"]}'),
+    /route_overrides must be an object/,
+  );
+});
+
+test("resolveProgressMode falls closed to disabled on malformed policy", () => {
+  const originalError = console.error;
+  console.error = () => { /* swallow */ };
+  try {
+    assert.equal(
+      resolveProgressMode({
+        ROUTE: "implement",
+        AGENT_PROGRESS_POLICY: '{"default_mode":"banana"}',
+      }),
+      "disabled",
+    );
+  } finally {
+    console.error = originalError;
+  }
+});
+
+test("mode predicates distinguish reporting from cancellation", () => {
+  assert.equal(progressModeAllowsComment("enabled"), true);
+  assert.equal(progressModeAllowsComment("report-only"), true);
+  assert.equal(progressModeAllowsComment("disabled"), false);
+
+  assert.equal(progressModeAllowsCancel("enabled"), true);
+  assert.equal(progressModeAllowsCancel("report-only"), false);
+  assert.equal(progressModeAllowsCancel("disabled"), false);
+});
+
+test("target support is limited to issues and pull requests", () => {
+  assert.equal(progressTargetSupportsComments("issue"), true);
+  assert.equal(progressTargetSupportsComments("pull_request"), true);
+  assert.equal(progressTargetSupportsComments("pr"), true);
+  assert.equal(progressTargetSupportsComments("discussion"), false);
+  assert.equal(progressTargetSupportsComments("repository"), false);
+});
+
+test("isProgressMode gates string inputs", () => {
+  assert.equal(isProgressMode("enabled"), true);
+  assert.equal(isProgressMode("report-only"), true);
+  assert.equal(isProgressMode("disabled"), true);
+  assert.equal(isProgressMode("anything"), false);
+  assert.equal(isProgressMode(undefined), false);
+});

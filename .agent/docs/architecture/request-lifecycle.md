@@ -24,6 +24,8 @@ Explicit mentions remain the primary trigger. When `AGENT_FOLLOWUP_INTENT_MODE` 
 
 PR fix requests never create a tracking issue or a new pull request. The runner updates the existing PR branch after reading PR metadata and review comments. Dirty worktree changes are committed and pushed back to the PR branch; clean history-only updates, such as a successful rebase, run verification against the original PR head and then push the updated `HEAD` back to the PR branch with a lease against that original head. If persistence fails after a successful agent run, the final status comment reports the run as failed. Automatic pushing is limited to open same-repository pull requests, and route access follows the configured trigger access policy.
 
+Implementation and PR-fix runs also publish a live progress comment on issue and pull request surfaces by default. The shared `run-agent-task` action starts a best-effort reporter before the agent run, passes it the agent's ACP stream file, and tears it down after the run so the comment can collapse into a final activity log. An authorized 👎 reaction from the requester, repository owner, member, or collaborator first marks the progress comment as cancelled, then requests GitHub Actions cancellation. `AGENT_PROGRESS_POLICY` can disable the comment or switch a route to `report-only`; review and answer runs remain disabled by default.
+
 ## Branch naming
 
 Agent workflows that create branches use:
