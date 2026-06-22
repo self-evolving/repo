@@ -11,7 +11,7 @@ import {
   type ProgressReporterConfig,
   type ProgressReporterDeps,
 } from "../cli/progress-report.js";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -326,6 +326,57 @@ printf 'args=%s\\n' "$*" >> "$FAKE_GH_LOG"
     }
 
     assert.equal(readFileSync(markerFile, "utf8"), "alice\n");
+    assert.match(readFileSync(ghLog, "utf8"), /^marker=alice$/m);
+    assert.match(readFileSync(ghLog, "utf8"), /^args=run cancel 123456$/m);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("default cancellation action clears marker when workflow cancellation fails", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "progress-report-cancel-"));
+  try {
+    const markerFile = join(tempDir, "agent-progress-cancelled");
+    const ghLog = join(tempDir, "gh.log");
+    writeFileSync(
+      join(tempDir, "gh"),
+      `#!/usr/bin/env bash
+printf 'marker=%s\\n' "$(cat "$FAKE_MARKER" 2>/dev/null)" >> "$FAKE_GH_LOG"
+printf 'args=%s\\n' "$*" >> "$FAKE_GH_LOG"
+exit 7
+`,
+      { encoding: "utf8", mode: 0o755 },
+    );
+
+    const originalPath = process.env.PATH;
+    const originalMarker = process.env.FAKE_MARKER;
+    const originalLog = process.env.FAKE_GH_LOG;
+    process.env.PATH = `${tempDir}:${process.env.PATH || ""}`;
+    process.env.FAKE_MARKER = markerFile;
+    process.env.FAKE_GH_LOG = ghLog;
+    try {
+      assert.throws(() =>
+        invokeProgressCancellation(baseConfig({ cancelMarkerFile: markerFile, runId: "123456" }), {
+          content: "THUMBS_DOWN",
+          user: "alice",
+          authorization: "REQUESTER",
+        }),
+      );
+    } finally {
+      process.env.PATH = originalPath;
+      if (originalMarker === undefined) {
+        delete process.env.FAKE_MARKER;
+      } else {
+        process.env.FAKE_MARKER = originalMarker;
+      }
+      if (originalLog === undefined) {
+        delete process.env.FAKE_GH_LOG;
+      } else {
+        process.env.FAKE_GH_LOG = originalLog;
+      }
+    }
+
+    assert.equal(existsSync(markerFile), false);
     assert.match(readFileSync(ghLog, "utf8"), /^marker=alice$/m);
     assert.match(readFileSync(ghLog, "utf8"), /^args=run cancel 123456$/m);
   } finally {

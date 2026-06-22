@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -31,6 +31,17 @@ export function writeProgressCancelMarker(path: string, login: string): void {
   }
   mkdirSync(dirname(markerPath), { recursive: true });
   writeFileSync(markerPath, `${cleanLogin(login)}\n`, "utf8");
+}
+
+export function clearProgressCancelMarker(path: string): void {
+  const markerPath = path.trim();
+  if (!markerPath) return;
+
+  try {
+    rmSync(markerPath, { force: true });
+  } catch {
+    // Best effort: cleanup must not hide the cancellation failure.
+  }
 }
 
 export function readProgressCancelMarker(path: string): string {
