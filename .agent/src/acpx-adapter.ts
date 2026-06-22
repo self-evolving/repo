@@ -92,6 +92,7 @@ const PERSISTENT_SESSION_MODE = "full-access";
 const CLAUDE_BYPASS_MODE = "bypassPermissions";
 const DEFAULT_PERMISSION_MODE: PermissionMode = "approve-all";
 const ACPX_MAX_BUFFER = 50 * 1024 * 1024; // 50 MB
+const AGENT_PROGRESS_STREAM_FILE_ENV = "AGENT_PROGRESS_STREAM_FILE";
 const TRANSIENT_EXEC_SESSION_BYTES = 6;
 const CODEX_REASONING_EFFORTS = new Set(["low", "medium", "high", "xhigh"]);
 const CODEX_REASONING_SUFFIX = /(?:\/(?:low|medium|high|xhigh)|\[(?:low|medium|high|xhigh)\])$/u;
@@ -124,18 +125,33 @@ export interface FileCaptureRunResult {
  */
 export function runCommandWithFileCapture(options: FileCaptureRunOptions): FileCaptureRunResult {
   const captureDir = mkdtempSync(join(tmpdir(), "acpx-capture-"));
-  const stdoutPath = join(captureDir, "stdout.log");
+  const fallbackStdoutPath = join(captureDir, "stdout.log");
   const stderrPath = join(captureDir, "stderr.log");
+  const env = options.env ?? process.env;
+  const configuredStdoutPath = env[AGENT_PROGRESS_STREAM_FILE_ENV]?.trim() || "";
+  let stdoutPath = configuredStdoutPath || fallbackStdoutPath;
   let stdoutFd: number | null = null;
   let stderrFd: number | null = null;
 
   try {
-    stdoutFd = openSync(stdoutPath, "w");
+    try {
+      stdoutFd = openSync(stdoutPath, "w");
+    } catch (err) {
+      if (!configuredStdoutPath) {
+        throw err;
+      }
+      const message = err instanceof Error ? err.message : String(err);
+      console.warn(
+        `${AGENT_PROGRESS_STREAM_FILE_ENV} '${configuredStdoutPath}' is not writable; falling back to ephemeral acpx stdout capture: ${message}`,
+      );
+      stdoutPath = fallbackStdoutPath;
+      stdoutFd = openSync(stdoutPath, "w");
+    }
     stderrFd = openSync(stderrPath, "w");
 
     const result = spawnSync(options.command, options.args, {
       cwd: options.cwd,
-      env: options.env,
+      env,
       stdio: ["ignore", stdoutFd, stderrFd],
       timeout: options.timeout ? options.timeout * 1000 : undefined,
     });
@@ -918,10 +934,13 @@ export function readSessionIdentityResult(
   cwd: string,
 ): SessionIdentityReadResult {
   try {
+    const env = { ...process.env };
+    delete env[AGENT_PROGRESS_STREAM_FILE_ENV];
     const result = runCommandWithFileCapture({
       command: "acpx",
       args: ["--format", "json", agent, "sessions", "show", sessionName],
       cwd,
+      env,
     });
 
     if (result.exitCode !== 0) {
