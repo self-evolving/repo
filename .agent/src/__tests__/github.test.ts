@@ -4,11 +4,56 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
 
-import { dispatchWorkflow } from "../github.js";
+import { createIssueComment, dispatchWorkflow } from "../github.js";
 
 function writeExecutable(path: string, content: string): void {
   writeFileSync(path, content, { encoding: "utf8", mode: 0o755 });
 }
+
+test("createIssueComment posts to issue comments and returns the comment id", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-create-issue-comment-"));
+  const originalPath = process.env.PATH;
+
+  try {
+    const binDir = join(tempDir, "bin");
+    const argsPath = join(tempDir, "args");
+    mkdirSync(binDir, { recursive: true });
+
+    writeExecutable(join(binDir, "gh"), [
+      "#!/usr/bin/env bash",
+      "set -euo pipefail",
+      `args_path=${JSON.stringify(argsPath)}`,
+      "printf '%s\\0' \"$@\" > \"$args_path\"",
+      "if [[ \"$1\" == \"api\" && \"$2\" == \"--method\" && \"$3\" == \"POST\" && \"$4\" == \"repos/self-evolving/repo/issues/42/comments\" ]]; then",
+      "  printf '123456\\n'",
+      "  exit 0",
+      "fi",
+      "printf 'unexpected gh args: %s\\n' \"$*\" >&2",
+      "exit 1",
+      "",
+    ].join("\n"));
+
+    process.env.PATH = `${binDir}:${originalPath || ""}`;
+
+    const id = createIssueComment("self-evolving/repo", 42, "hello body");
+    const args = readFileSync(argsPath, "utf8").split("\0").filter(Boolean);
+
+    assert.equal(id, "123456");
+    assert.deepEqual(args, [
+      "api",
+      "--method",
+      "POST",
+      "repos/self-evolving/repo/issues/42/comments",
+      "-f",
+      "body=hello body",
+      "--jq",
+      ".id",
+    ]);
+  } finally {
+    process.env.PATH = originalPath;
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
 
 test("dispatchWorkflow retries without inputs unsupported by the live workflow schema", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-dispatch-workflow-"));

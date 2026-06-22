@@ -9,7 +9,7 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { dispatchWorkflow, gh } from "../github.js";
+import { createIssueComment, dispatchWorkflow, gh, updateIssueComment } from "../github.js";
 import { setOutput } from "../output.js";
 import {
   type HandoffDecision,
@@ -324,30 +324,6 @@ function findHandoffMarkers(
       };
     })
     .filter((marker): marker is HandoffMarkerRecord => Boolean(marker?.id));
-}
-
-function createIssueComment(repo: string, issueNumber: number, body: string): string {
-  return gh([
-    "api",
-    "--method",
-    "POST",
-    `repos/${repo}/issues/${issueNumber}/comments`,
-    "-f",
-    `body=${body}`,
-    "--jq",
-    ".id",
-  ]).trim();
-}
-
-function updateIssueComment(repo: string, commentId: string, body: string): void {
-  gh([
-    "api",
-    "--method",
-    "PATCH",
-    `repos/${repo}/issues/comments/${commentId}`,
-    "-f",
-    `body=${body}`,
-  ]);
 }
 
 function fetchIssue(repoSlug: string, issueNumber: number): IssueRecord | null {
