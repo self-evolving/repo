@@ -37,6 +37,13 @@ const TOOL_DETAIL_CHARS = 120;
 interface ToolEvent {
   key: string;
   name?: string;
+  title?: string;
+  status?: string;
+}
+
+interface ToolMetadata {
+  name?: string;
+  title?: string;
   status?: string;
 }
 
@@ -49,7 +56,7 @@ export function buildProgressViewModel(
   const allActivity: ProgressActivity[] = [];
   const toolEvents = toolEventsFromNdjson(ndjsonTail);
   const toolActivityIndexByKey = new Map<string, number>();
-  const toolNameByKey = new Map<string, string>();
+  const toolMetadataByKey = new Map<string, ToolMetadata>();
   let toolIndex = 0;
   let stepCount = 0;
   let lastMessage = "";
@@ -67,15 +74,9 @@ export function buildProgressViewModel(
     if (entry.type === "tool_call" || entry.type === "tool_call_update") {
       const event = toolEvents[toolIndex];
       const key = event?.key ?? `compact:${toolIndex}`;
-      const eventName = event?.name;
-      if (eventName) {
-        toolNameByKey.set(key, eventName);
-      }
-      const activity = toolActivity(
-        entry,
-        eventName || toolNameByKey.get(key),
-        event?.status,
-      );
+      const metadata = mergeToolMetadata(toolMetadataByKey.get(key), event, entry);
+      toolMetadataByKey.set(key, metadata);
+      const activity = toolActivity(metadata);
       const existingIndex = toolActivityIndexByKey.get(key);
       if (existingIndex === undefined) {
         stepCount += 1;
@@ -183,7 +184,8 @@ function toolEventsFromNdjson(ndjsonTail: string): ToolEvent[] {
       if (update?.sessionUpdate !== "tool_call" && update?.sessionUpdate !== "tool_call_update") {
         continue;
       }
-      const name = cleanSingleLine(String(update.title ?? update.name ?? ""));
+      const name = cleanSingleLine(String(update.name ?? ""));
+      const title = cleanSingleLine(String(update.title ?? ""));
       const status = cleanSingleLine(String(update.status ?? ""));
       const toolCallId = cleanSingleLine(String(update.toolCallId ?? ""));
       let key = toolCallId ? `id:${toolCallId}` : "";
@@ -196,6 +198,8 @@ function toolEventsFromNdjson(ndjsonTail: string): ToolEvent[] {
           key = lastToolKey;
         } else if (name) {
           key = `name:${name}`;
+        } else if (title) {
+          key = `title:${title}`;
         } else {
           anonymousToolIndex += 1;
           key = `anonymous:${anonymousToolIndex}`;
@@ -206,6 +210,7 @@ function toolEventsFromNdjson(ndjsonTail: string): ToolEvent[] {
       events.push({
         key,
         name: name || undefined,
+        title: title || undefined,
         status: status || undefined,
       });
     } catch {
@@ -215,25 +220,65 @@ function toolEventsFromNdjson(ndjsonTail: string): ToolEvent[] {
   return events;
 }
 
-function toolActivity(
+function mergeToolMetadata(
+  current: ToolMetadata | undefined,
+  event: ToolEvent | undefined,
   entry: Record<string, unknown>,
-  preferredName?: string,
-  preferredStatus?: string,
-): ProgressActivity {
-  const rawName = cleanSingleLine(preferredName || String(entry.name ?? ""));
-  const status = cleanSingleLine(preferredStatus || String(entry.status ?? ""));
-  const label = toolLabel(rawName);
-  const detail = toolDetail(rawName, label);
+): ToolMetadata {
+  const next: ToolMetadata = { ...current };
+  const fallbackName = cleanSingleLine(String(entry.name ?? ""));
+  const candidateName = event?.name || (!event ? fallbackName : "");
+
+  if (candidateName && shouldStoreToolName(candidateName, next.name)) {
+    next.name = candidateName;
+  }
+  if (event?.title && shouldStoreToolTitle(event.title, next.title)) {
+    next.title = event.title;
+  }
+  if (!next.name && fallbackName) {
+    next.name = fallbackName;
+  }
+  if (event?.status) {
+    next.status = event.status;
+  } else {
+    const fallbackStatus = cleanSingleLine(String(entry.status ?? ""));
+    if (fallbackStatus) {
+      next.status = fallbackStatus;
+    }
+  }
+  return next;
+}
+
+function shouldStoreToolName(candidate: string, current?: string): boolean {
+  if (!current) {
+    return true;
+  }
+  return isGenericToolName(current) && !isGenericToolName(candidate);
+}
+
+function shouldStoreToolTitle(candidate: string, current?: string): boolean {
+  if (!current) {
+    return true;
+  }
+  return isGenericToolName(current) && !isGenericToolName(candidate);
+}
+
+function toolActivity(metadata: ToolMetadata): ProgressActivity {
+  const toolName = metadata.name ?? "";
+  const displayTitle = metadata.title || toolName;
+  const label = toolLabel(toolName, displayTitle);
+  const detail = toolDetail(displayTitle, label);
   return {
     kind: "tool",
     label,
     detail,
-    status: status || undefined,
+    status: metadata.status,
   };
 }
 
-function toolLabel(toolName: string): string {
-  const normalized = toolName.trim().toLowerCase();
+function toolLabel(toolName: string, displayTitle = ""): string {
+  const source = toolName && !isGenericToolName(toolName) ? toolName : displayTitle || toolName;
+  const normalized = source.trim().toLowerCase();
   if (!normalized) {
     return "🔧 Used tool";
   }
@@ -250,6 +295,10 @@ function toolLabel(toolName: string): string {
     return "🔍 Searched";
   }
   return "🔧 Used tool";
+}
+
+function isGenericToolName(toolName: string): boolean {
+  return /^tool(?:[_-]?\d+)?$/i.test(toolName.trim());
 }
 
 function toolDetail(toolName: string, label: string): string | undefined {

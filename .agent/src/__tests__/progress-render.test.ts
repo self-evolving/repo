@@ -25,6 +25,18 @@ function toolEvent(name: string, status = "completed"): string {
   });
 }
 
+function toolUpdateEvent(name: string, status = "completed"): string {
+  return ndjsonLine({
+    params: {
+      update: {
+        sessionUpdate: "tool_call_update",
+        name,
+        status,
+      },
+    },
+  });
+}
+
 function titledToolEvent(name: string, title: string, status = "completed"): string {
   return ndjsonLine({
     params: {
@@ -156,6 +168,16 @@ test("prefers ACP tool title over name when present", () => {
   assert.match(renderRunning(model), /- 📖 Read `Read \.agent\/src\/run\.ts` \(completed\)/);
 });
 
+test("classifies tools by stable name while rendering title details", () => {
+  const model = buildProgressViewModel(titledToolEvent("shell", "npm test"), {
+    runId: "stable-name",
+  });
+
+  assert.equal(model.recentActivity[0]?.label, "💻 Ran");
+  assert.equal(model.recentActivity[0]?.detail, "npm test");
+  assert.match(renderRunning(model), /- 💻 Ran `npm test` \(completed\)/);
+});
+
 test("collapses related tool call updates while preserving title metadata", () => {
   const tail = [
     correlatedToolEvent("tool_call", "call-1", {
@@ -187,6 +209,50 @@ test("collapses related tool call updates while preserving title metadata", () =
   assert.match(body, /Sepo is working — implement · 2s · 1 step/);
   assert.match(body, /- 📖 Read `Read \.agent\/src\/progress-render\.ts` \(completed\)/);
   assert.doesNotMatch(body, /Used tool/);
+});
+
+test("preserves richer titles when updates repeat generic names", () => {
+  const tail = [
+    correlatedToolEvent("tool_call", "call-2", {
+      name: "tool_1",
+      title: "Read .agent/package.json",
+      status: "running",
+    }),
+    correlatedToolEvent("tool_call_update", "call-2", {
+      name: "tool_1",
+      status: "completed",
+    }),
+  ].join("");
+  const model = buildProgressViewModel(tail, {
+    runId: "generic-update",
+  });
+
+  assert.equal(model.stepCount, 1);
+  assert.deepEqual(model.recentActivity, [
+    {
+      kind: "tool",
+      label: "📖 Read",
+      detail: "Read .agent/package.json",
+      status: "completed",
+    },
+  ]);
+});
+
+test("collapses no-toolCallId shell call and update events", () => {
+  const model = buildProgressViewModel(`${toolEvent("shell", "running")}${toolUpdateEvent("shell")}`, {
+    runId: "shell-no-id",
+  });
+
+  assert.equal(model.stepCount, 1);
+  assert.deepEqual(model.recentActivity, [
+    {
+      kind: "tool",
+      label: "💻 Ran",
+      detail: "shell",
+      status: "completed",
+    },
+  ]);
+  assert.match(renderRunning(model), /- 💻 Ran `shell` \(completed\)/);
 });
 
 test("truncates long messages deterministically", () => {
