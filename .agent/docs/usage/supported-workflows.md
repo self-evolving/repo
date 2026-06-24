@@ -22,6 +22,7 @@ title: "Supported workflows"
 | `agent-close-stale-issues.yml` | `schedule` (daily), `workflow_dispatch` | Closes open `agent` issues that have had no activity for 30 days by default | None |
 | `agent-daily-summary.yml` | `schedule` (daily, disabled by default), `workflow_dispatch` | Generates a concise repository activity summary and posts it as a Discussion | Auto |
 | `agent-project-manager.yml` | `schedule` (every 6h), `workflow_dispatch` | Opt-in agent-driven triage for open issues and PRs, with dry-run summaries and optional priority/effort label updates | Auto |
+| `agent-self-improvement.yml` | `schedule` (every 2h), `workflow_dispatch` | Opt-in liveness-first self-improvement planner that chooses a new issue, existing issue, or existing PR, then dispatches the orchestrator | Auto |
 | `agent-update.yml` | `schedule` (1st and 15th), `workflow_dispatch` | Checks for Sepo agent infrastructure updates and opens a PR only when updates are available | Auto |
 | `agent-onboarding.yml` | `workflow_dispatch` | First-run setup check that creates built-in labels and opens or updates an agent-tracked setup issue | None |
 | `test-scripts.yml` | `pull_request`, `workflow_dispatch` | CI for helper tests, YAML parsing, and shell syntax | None |
@@ -180,6 +181,17 @@ Optional summary comments require `post_summary=true`; when enabled, that final
 step finds today's `Daily Summary — YYYY-MM-DD` discussion in the configured
 discussion category and comments there. If that discussion does not exist yet,
 it leaves only the Actions step summary.
+
+`agent-self-improvement.yml` is disabled by default. Enable it with
+`AGENT_SELF_IMPROVEMENT_ENABLED=true`. The workflow intentionally does not use
+memory-cursor throttling or an open-proposal backlog gate: every enabled cron or
+manual run wakes the planner and asks for one routing decision. The planner must
+inspect recent self-improvement issues, pull requests, and workflow failures,
+then return `new_issue`, `continue_issue`, or `continue_pr`. Deterministic
+post-agent code validates the JSON decision, creates a marked proposal issue or
+posts a continuation trace comment, and dispatches `agent-orchestrator.yml` on
+the chosen target. This keeps prior failed or stuck attempts as context instead
+of locks that can deadlock future self-improvement runs.
 
 `agent-daily-summary.yml` checks repository discussion settings before gathering
 activity signals or resolving an agent provider. If discussions are disabled, or
