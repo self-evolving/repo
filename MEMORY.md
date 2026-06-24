@@ -112,5 +112,5 @@
 - Do not add per-run remote model-default fetches; bundled .agent/model-defaults.json updates ship via agent-update.
 - Simple Sepo command issue templates use Markdown; keep install defaults non-parseable so missing targets prompt clarification.
 - .agent tests are lane-based: test:ci builds once, then runs test:runtime, check:workflow, check:docs, and check:shell.
-- Add-rubrics is proposal-only: reuse implement flow to open PRs against agent/rubrics while runtime stays on default branch.
+- Add-rubrics is explicit-only and proposal-only: reuse implement flow to PR against agent/rubrics with runtime on default.
 - Local-runner cleanup is host-level: ACTIONS_RUNNER_HOOK_JOB_COMPLETED trims _diag and stale _work checkouts.
