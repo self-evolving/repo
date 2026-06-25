@@ -183,10 +183,11 @@ discussion category and comments there. If that discussion does not exist yet,
 it leaves only the Actions step summary.
 
 `agent-self-improvement.yml` is disabled by default. Enable it with
-`AGENT_SELF_IMPROVEMENT_ENABLED=true`. The workflow intentionally does not use
-memory-cursor throttling or an open-proposal backlog gate: every enabled cron or
-manual run wakes the planner and asks for one routing decision. The planner must
-inspect recent self-improvement issues, pull requests, and workflow failures,
+`AGENT_SELF_IMPROVEMENT_ENABLED=true`. The workflow honors
+`AGENT_SCHEDULE_POLICY` for explicit scheduled-run disables, but intentionally
+does not use memory-cursor throttling or an open-proposal backlog gate: every
+enabled cron or manual run wakes the planner and asks for one routing decision.
+The planner must inspect recent self-improvement issues, pull requests, and workflow failures,
 then return `new_issue`, `continue_issue`, or `continue_pr`. Deterministic
 post-agent code validates the JSON decision, creates a marked proposal issue or
 posts a continuation trace comment, verifies continuation targets are open and

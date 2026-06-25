@@ -22,8 +22,32 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  plan:
+  gate:
     if: vars.AGENT_ENABLED != 'false' && vars.AGENT_SELF_IMPROVEMENT_ENABLED == 'true'
+    runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
+    outputs:
+      skip: ${{ steps.gate.outputs.skip }}
+      mode: ${{ steps.gate.outputs.mode }}
+      reason: ${{ steps.gate.outputs.reason }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          ref: ${{ github.event.repository.default_branch }}
+          token: ${{ github.token }}
+
+      - name: Resolve scheduled activity gate
+        id: gate
+        uses: ./.github/actions/scheduled-activity-gate
+        with:
+          github_token: ${{ github.token }}
+          schedule_policy: ${{ vars.AGENT_SCHEDULE_POLICY || '' }}
+          workflow: agent-self-improvement.yml
+
+  plan:
+    needs: gate
+    if: vars.AGENT_ENABLED != 'false' && needs.gate.outputs.skip != 'true'
     runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
     permissions:
       actions: read
@@ -95,6 +119,7 @@ jobs:
             - repository: ${{ github.repository }}
             - event: ${{ github.event_name }}
             - workflow schedule: every 2 hours at minute 23 UTC
+            - scheduled activity gate: ${{ needs.gate.outputs.mode }} (${{ needs.gate.outputs.reason }})
             - no memory-cursor gate is used
             - no open-proposal backlog gate is used
             - the planner must decide whether to create a new issue, continue an existing issue, or continue an existing PR

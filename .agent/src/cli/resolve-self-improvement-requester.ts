@@ -11,40 +11,12 @@
 //      GITHUB_REPOSITORY_OWNER, GITHUB_REPOSITORY_OWNER_TYPE
 // Outputs: requested_by, author_association, authorization_source
 
-import { ghApi, ghApiOk } from "../github.js";
 import { setOutput } from "../output.js";
+import { hasOrgMembership, hasRepositoryPermission } from "../repository-permissions.js";
 import { resolveSelfImprovementRequester } from "../self-improvement-requester.js";
 
 function normalize(value: string): string {
   return String(value || "").trim();
-}
-
-function hasOrgMembership(orgLogin: string, userLogin: string): boolean {
-  const org = normalize(orgLogin);
-  const user = normalize(userLogin);
-  if (!org || !user) return false;
-
-  const membershipState = ghApi([
-    `orgs/${org}/memberships/${user}`,
-    "--jq",
-    ".state // empty",
-  ]).toLowerCase();
-  if (membershipState === "active") return true;
-
-  return ghApiOk([`orgs/${org}/members/${user}`]);
-}
-
-function hasRepositoryPermission(repository: string, userLogin: string): boolean {
-  const repo = normalize(repository);
-  const user = normalize(userLogin);
-  if (!repo || !user) return false;
-
-  const permission = ghApi([
-    `repos/${repo}/collaborators/${user}/permission`,
-    "--jq",
-    ".permission // .role_name // empty",
-  ]).toLowerCase();
-  return Boolean(permission) && permission !== "none";
 }
 
 export function runResolveSelfImprovementRequester(): number {

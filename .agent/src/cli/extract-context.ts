@@ -11,8 +11,13 @@
 
 import { readFileSync } from "node:fs";
 import { isKnownAuthorAssociation } from "../access-policy.js";
-import { ghApi, ghApiOk } from "../github.js";
+import { ghApi } from "../github.js";
 import { setOutput } from "../output.js";
+import {
+  hasOrgMembership,
+  hasRepositoryCollaborator,
+  hasRepositoryPermission,
+} from "../repository-permissions.js";
 import {
   DEFAULT_MENTION,
   extractEventContext,
@@ -53,44 +58,6 @@ function normalizeAssociation(association: string): string {
   return String(association || "").trim().toUpperCase();
 }
 
-function hasOrgMembership(orgLogin: string, userLogin: string): boolean {
-  const membershipState = ghApi([
-    `orgs/${orgLogin}/memberships/${userLogin}`,
-    "--jq",
-    ".state // empty",
-  ]).toLowerCase();
-  if (membershipState === "active") {
-    return true;
-  }
-
-  // Public membership endpoint returns 204 (empty body) on success, so use
-  // ghApiOk rather than checking the body.
-  return ghApiOk([`orgs/${orgLogin}/members/${userLogin}`]);
-}
-
-function hasRepositoryPermission(userLogin: string): boolean {
-  if (!repository || !userLogin) {
-    return false;
-  }
-
-  const permission = ghApi([
-    `repos/${repository}/collaborators/${userLogin}/permission`,
-    "--jq",
-    ".permission // .role_name // empty",
-  ]).toLowerCase();
-
-  return Boolean(permission) && permission !== "none";
-}
-
-function hasRepositoryCollaborator(userLogin: string): boolean {
-  const login = String(userLogin || "").trim();
-  if (!repository || !login) {
-    return false;
-  }
-
-  return ghApiOk([`repos/${repository}/collaborators/${login}`]);
-}
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function resolveLabelActorAssociation(payload: Record<string, any>): string {
   const override = String(authorAssociationOverride || "").trim().toUpperCase();
@@ -113,7 +80,7 @@ function resolveLabelActorAssociation(payload: Record<string, any>): string {
     return "MEMBER";
   }
 
-  if (hasRepositoryPermission(senderLogin)) {
+  if (hasRepositoryPermission(repository, senderLogin)) {
     return "COLLABORATOR";
   }
 
@@ -158,7 +125,7 @@ function normalizeMentionAuthorAssociation(association: string, payload: Record<
 
   if (
     WEAK_ASSOCIATIONS_FOR_COLLABORATOR_FALLBACK.has(resolvedNormalized) &&
-    hasRepositoryCollaborator(getRequestedBy(eventName, payload))
+    hasRepositoryCollaborator(repository, getRequestedBy(eventName, payload))
   ) {
     return "COLLABORATOR";
   }

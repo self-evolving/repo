@@ -84,24 +84,34 @@ function validateContinuationTarget(
   if (!targetNumber) throw new Error(`${decision.decision} is missing target number`);
 
   if (decision.decision === "continue_pr") {
-    const raw = gh([
-      "api",
-      `repos/${repo}/pulls/${targetNumber}`,
-      "--jq",
-      ".state // empty",
-    ]).trim().toLowerCase();
+    let raw = "";
+    try {
+      raw = gh([
+        "api",
+        `repos/${repo}/pulls/${targetNumber}`,
+        "--jq",
+        ".state // empty",
+      ]).trim().toLowerCase();
+    } catch {
+      raw = "";
+    }
     if (raw !== "open") {
       throw new Error(`continue_pr target #${targetNumber} must be an open pull request; got ${raw || "missing"}`);
     }
     return;
   }
 
-  const issue = JSON.parse(gh([
-    "api",
-    `repos/${repo}/issues/${targetNumber}`,
-  ])) as Record<string, unknown>;
-  const state = String(issue.state || "").trim().toLowerCase();
-  if (issue.pull_request) {
+  let issue: Record<string, unknown> | null = null;
+  try {
+    issue = JSON.parse(gh([
+      "api",
+      `repos/${repo}/issues/${targetNumber}`,
+    ])) as Record<string, unknown>;
+  } catch {
+    issue = null;
+  }
+  const state = String(issue?.state || "").trim().toLowerCase();
+  if (issue?.pull_request) {
     throw new Error(`continue_issue target #${targetNumber} is a pull request, not an issue`);
   }
   if (state !== "open") {

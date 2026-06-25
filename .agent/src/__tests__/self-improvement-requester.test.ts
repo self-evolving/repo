@@ -28,6 +28,22 @@ test("scheduled self-improvement runs use system owner authorization", () => {
   });
 });
 
+test("manual self-improvement dispatch maps user-owned repositories to OWNER", () => {
+  const result = resolveSelfImprovementRequester({
+    eventName: "workflow_dispatch",
+    actor: "alice",
+    repository: "alice/repo",
+    repositoryOwner: "alice",
+    repositoryOwnerType: "User",
+  }, lookup);
+
+  assert.deepEqual(result, {
+    requestedBy: "alice",
+    authorAssociation: "OWNER",
+    authorizationSource: "workflow-dispatch-actor",
+  });
+});
+
 test("manual self-improvement dispatch derives the real actor association", () => {
   assert.equal(resolveSelfImprovementRequester({
     eventName: "workflow_dispatch",
