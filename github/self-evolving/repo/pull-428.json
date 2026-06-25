@@ -133,6 +133,117 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/428#issuecomment-4756564727",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABHjlOqw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \r\n\r\n`On auth: yes, this is meant to be a customized protected pre-agent download path. The action passes the resolved GitHub token only to the downloader step: [run-agent-task/action.yml#L342-L354](https://github.com/self-evolving/repo/blob/487b2b404cbb9c881252ec7f3155b91d6bba4a88/.github/actions/run-agent-task/action.yml#L342-L354). The downloader uses it as an Authorization: Bearer ... header: [attachments.ts#L529-L536](https://github.com/self-evolving/repo/blob/487b2b404cbb9c881252ec7f3155b91d6bba4a88/.agent/src/attachments.ts#L529-L536). The prompt only receives the manifest/local paths, not the token: [_base.md#L12-L19](https://github.com/self-evolving/repo/blob/487b2b404cbb9c881252ec7f3155b91d6bba4a88/.github/prompts/_base.md#L12-L19).`\r\n\r\nGiven this, can we go deeper to this idea if \"building a customized and protected file download command and share that in the prompt with the agent\"? ",
+      "createdAt": "2026-06-25T16:44:52Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/428#issuecomment-4802039467",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABHjmYLQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, we can go deeper, but I’d separate two meanings of “protected command”:\n\n1. **Current PR model: protected pre-download**\n   - Before the agent starts, `run-agent-task` runs a downloader with the GitHub token.\n   - The agent only receives a manifest of local files.\n   - This is the cleanest version because the model never needs to decide how to authenticate attachment downloads.\n   - Current PR shape: [`download-attachments.ts`](https://github.com/self-evolving/repo/blob/487b2b404cbb9c881252ec7f3155b91d6bba4a88/.agent/src/cli/download-attachments.ts#L34-L77), prompt manifest injection in [`_base.md`](https://github.com/self-evolving/repo/blob/487b2b404cbb9c881252ec7f3155b91d6bba4a88/.github/prompts/_base.md#L12-L19).\n\n2. **Agent-callable protected download command**\n   - We could expose a command in the prompt, but it should **not** be `download any URL`.\n   - It should be something like:\n     ```bash\n     node .agent/dist/cli/attachment.js get --id attachment-003\n     ```\n   - The command should only download URLs already discovered from the current target thread and written into a manifest/allowlist.\n   - It should reject arbitrary URLs, cross-repo URLs, excessive size, too many files, and timeouts.\n\nThe important caveat: a CLI alone is **not a hard security boundary** if the agent process also has the raw GitHub token in its environment. In the current runtime, `run-agent-task` passes GitHub auth into the agent step for normal repo operations. So a “protected command” is useful for policy, auditability, limits, and better behavior, but it does not fully prevent a sufficiently capable shell agent from using credentials elsewhere.\n\nSo my recommendation is:\n\n- For this PR: keep the **pre-download + manifest** design.\n- Make it bounded: current target only, max count, max size, timeout, best-effort failure.\n- Do **not** expose a general URL downloader.\n- If we later want a true protected interactive downloader, design it as a broker:\n  - token is not placed in the agent environment,\n  - agent can only request files by manifest ID,\n  - broker enforces target/repo allowlist and limits,\n  - all downloads are logged into the manifest.\n\nSo the short answer is: yes, “customized protected file download command” is a good direction, but for now I’d treat this PR’s pre-agent downloader as the safer first version. A command shared in the prompt should only operate on pre-approved manifest entries, not arbitrary attachment URLs.\n\n---\n`codex` | `gpt-5.5` | `high` | `Macmini-runner-3`",
+      "createdAt": "2026-06-25T16:47:16Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/428#issuecomment-4802058285",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABHjySUQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "```\r\nAgent-callable protected download command\r\n\r\nWe could expose a command in the prompt, but it should not be download any URL.\r\nIt should be something like:\r\nnode .agent/dist/cli/attachment.js get --id attachment-003\r\nThe command should only download URLs already discovered from the current target thread and written into a manifest/allowlist.\r\nIt should reject arbitrary URLs, cross-repo URLs, excessive size, too many files, and timeouts.\r\n```\r\n\r\n@sepo-agent /answer can we implement this version directly without the preloaded (we should explore this as a completely direction -- branching out from main and workin on that). ",
+      "createdAt": "2026-06-25T17:11:22Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/428#issuecomment-4802253393",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABHjzKyA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, but “directly without preload” should mean **no pre-downloading file bytes**, not “no pre-run setup at all”.\n\nWe still need a pre-agent **index/allowlist** step, because the protected command needs to know which attachment IDs are allowed. The better branch direction from `main` would be:\n\n1. Add an attachment indexer:\n   - scans only the current target thread,\n   - records discovered `github.com/user-attachments/...` URLs,\n   - writes a manifest like:\n     ```json\n     {\n       \"attachments\": [\n         {\n           \"id\": \"attachment-001\",\n           \"url\": \"...\",\n           \"sources\": [...],\n           \"status\": \"available\"\n         }\n       ]\n     }\n     ```\n   - does **not** download file contents yet.\n\n2. Add an agent-callable command:\n   ```bash\n   node .agent/dist/cli/attachment.js get --id attachment-001\n   ```\n   This command should:\n   - accept only manifest IDs, not raw URLs,\n   - reject IDs not in the current-run manifest,\n   - enforce max count, max size, timeout, and current repo/target constraints,\n   - download to `$RUNNER_TEMP/agent-attachments/`,\n   - update the manifest with `localPath`, size, content type, and errors.\n\n3. Update the prompt to say:\n   - use `attachment.js list` to inspect available attachments,\n   - use `attachment.js get --id ...` to fetch one,\n   - do not fetch original `github.com/user-attachments` URLs directly.\n\nThe hard part: today `run-agent-task` passes `INPUT_GITHUB_TOKEN` into the agent step, and `buildSharedEnv()` mirrors it to `GH_TOKEN`/`GITHUB_TOKEN`: [`runtime-env.ts#L29-L35`](https://github.com/self-evolving/repo/blob/main/.agent/src/runtime-env.ts#L29-L35). So a CLI wrapper is not a true security boundary while the agent also has raw GitHub auth. It is still useful for policy and auditability, but not fully “protected”.\n\nSo I’d split implementation into two phases:\n\n- **Phase 1:** implement on-demand download by manifest ID, with limits and logging. This replaces preloaded file bytes.\n- **Phase 2:** make it truly protected by changing the auth boundary: do not pass raw GitHub token into the agent, or introduce a local broker process that holds the token and only serves allowlisted attachment IDs.\n\nMy recommendation: create a new branch from `main` for this direction, not continue PR #428 as-is. PR #428 is the “pre-download manifest” design; this would be a cleaner alternate design: **pre-index only, download on demand by allowlisted ID**.\n\n---\n`codex` | `gpt-5.5` | `high` | `Macmini-runner-1`",
+      "createdAt": "2026-06-25T17:13:13Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/428#issuecomment-4802267848",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABHj7Y3Q",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Add an attachment indexer:\r\n> \r\n> * scans only the current target thread,\r\n> * records discovered `github.com/user-attachments/...` URLs,\r\n> * writes a manifest like:\r\n>   ```json\r\n>   {\r\n>     \"attachments\": [\r\n>       {\r\n>         \"id\": \"attachment-001\",\r\n>         \"url\": \"...\",\r\n>         \"sources\": [...],\r\n>         \"status\": \"available\"\r\n>       }\r\n>     ]\r\n>   }\r\n>   ```\r\n> * does **not** download file contents yet.\r\n\r\nNo I don't think we should do this. We just simplify this: \r\n- build a command, takes in any given a github url, and then it will parse it and download it. \r\n\r\n@sepo-agent /answer ",
+      "createdAt": "2026-06-25T17:29:27Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/428#issuecomment-4802402525",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABHlNI_g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, we can implement this as a new direction from `main`: **no preloaded files, no indexer, just an agent-callable download command**.\n\nI would still narrow “any given GitHub URL” to **any GitHub user-attachment URL**:\n\n```bash\nnode .agent/dist/cli/download-github-attachment.js \\\n  --url \"https://github.com/user-attachments/files/...\"\n```\n\nThe command should:\n\n- accept a raw URL from the agent,\n- validate `https://github.com/user-attachments/(files|assets)/...`,\n- reject non-GitHub and non-attachment URLs,\n- download using `INPUT_GITHUB_TOKEN` / `GH_TOKEN`,\n- enforce max file size, timeout, and safe filename handling,\n- write to `$RUNNER_TEMP/agent-attachments/`,\n- print the local path and metadata.\n\nI would **not** make it a general authenticated `github.com` downloader. That becomes too close to “authenticated curl for anything GitHub can access.” Attachment URLs are the real problem, so the command should be attachment-specific.\n\nCurrent architecture fit:\n\n- `run-agent-task` already passes `INPUT_GITHUB_TOKEN` into the agent step: [`run-agent-task/action.yml#L342-L351`](https://github.com/self-evolving/repo/blob/main/.github/actions/run-agent-task/action.yml#L342-L351)\n- `buildSharedEnv()` mirrors that into `GH_TOKEN` / `GITHUB_TOKEN`: [`runtime-env.ts#L29-L35`](https://github.com/self-evolving/repo/blob/main/.agent/src/runtime-env.ts#L29-L35)\n- the base prompt already documents token handling boundaries: [`_base.md#L28-L31`](https://github.com/self-evolving/repo/blob/main/.github/prompts/_base.md#L28-L31)\n\nSo this version is simpler than PR #428:\n\n1. Add `.agent/src/cli/download-github-attachment.ts`.\n2. Add a small shared helper for URL validation, filename sanitization, fetch timeout, and size cap.\n3. Update `_base.md` to tell agents: use this command for `github.com/user-attachments` links; do not use raw `curl`/browser fetches for private attachments.\n4. Add tests for valid attachment URLs, rejected URLs, missing token, timeout, oversized response, filename handling, and successful download.\n5. Update docs for the command.\n\nI’d close or supersede PR #428 and branch from `main` for this alternate design. It gives us the behavior you want without scanning all past comments and without pre-downloading anything.\n\n---\n`codex` | `gpt-5.5` | `high` | `Macmini-runner-3`",
+      "createdAt": "2026-06-25T20:10:16Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/428#issuecomment-4803741950",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-06-19T22:52:35Z",
@@ -253,6 +364,6 @@
   ],
   "state": "OPEN",
   "title": "Download GitHub attachments before agent runs",
-  "updatedAt": "2026-06-20T05:13:44Z",
+  "updatedAt": "2026-06-25T20:10:16Z",
   "url": "https://github.com/self-evolving/repo/pull/428"
 }
