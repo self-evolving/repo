@@ -26,6 +26,7 @@ export interface ProgressViewModelOptions {
   route?: string;
   status?: ProgressStatus;
   elapsedMs?: number;
+  totalStepCount?: number;
   recentActivityLimit?: number;
   maxMessageChars?: number;
 }
@@ -109,11 +110,15 @@ export function buildProgressViewModel(
     runId: normalizeRunId(options.runId),
     route: cleanSingleLine(options.route ?? ""),
     elapsedMs: Math.max(0, Math.floor(options.elapsedMs ?? 0)),
-    stepCount,
+    stepCount: normalizeStepCount(options.totalStepCount, stepCount),
     recentActivity: allActivity.slice(-recentActivityLimit),
     lastMessage: lastMessage || undefined,
     stopReason: stopReason || undefined,
   };
+}
+
+export function countProgressSteps(ndjson: string): number {
+  return buildProgressViewModel(ndjson, { runId: "count" }).stepCount;
 }
 
 export function renderRunning(model: ProgressViewModel): string {
@@ -376,6 +381,13 @@ function truncate(value: string, maxChars: number): string {
 function normalizeRunId(runId: string): string {
   const normalized = cleanSingleLine(runId).replace(/[^A-Za-z0-9._-]/g, "-");
   return normalized || "unknown";
+}
+
+function normalizeStepCount(value: number | undefined, fallback: number): number {
+  if (value === undefined || !Number.isFinite(value)) {
+    return fallback;
+  }
+  return Math.max(0, Math.floor(value));
 }
 
 function cleanLogin(login: string): string {

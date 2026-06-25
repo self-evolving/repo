@@ -3,6 +3,7 @@ import { strict as assert } from "node:assert";
 
 import {
   buildProgressViewModel,
+  countProgressSteps,
   progressMarker,
   renderCancelled,
   renderFinal,
@@ -156,6 +157,37 @@ test("caps recent activity while preserving total step count", () => {
     model.recentActivity.map((item) => item.label),
     ["💻 Ran", "🔍 Searched"],
   );
+});
+
+test("uses explicit total step count while rendering tail activity", () => {
+  const model = buildProgressViewModel(toolEvent("Bash"), {
+    runId: "tail-count",
+    elapsedMs: 1_000,
+    totalStepCount: 9,
+  });
+
+  assert.equal(model.stepCount, 9);
+  assert.deepEqual(
+    model.recentActivity.map((item) => item.label),
+    ["💻 Ran"],
+  );
+  assert.match(renderRunning(model), /Sepo is working — 1s · 9 steps/);
+});
+
+test("counts collapsed logical progress steps from a full stream", () => {
+  const tail = [
+    correlatedToolEvent("tool_call", "call-1", {
+      name: "tool_1",
+      title: "Read .agent/src/progress-render.ts",
+      status: "running",
+    }),
+    correlatedToolEvent("tool_call_update", "call-1", {
+      status: "completed",
+    }),
+    messageEvent("Done."),
+  ].join("");
+
+  assert.equal(countProgressSteps(tail), 2);
 });
 
 test("prefers ACP tool title over name when present", () => {
