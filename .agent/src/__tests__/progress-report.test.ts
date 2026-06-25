@@ -195,6 +195,23 @@ test("first tick creates one starting comment and suppresses identical patches",
   assert.deepEqual(harness.calls.updates, []);
 });
 
+test("first tick writes the created progress comment id to the configured file", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "progress-report-id-"));
+  try {
+    const commentIdFile = join(tempDir, "progress-comment.id");
+    const config = baseConfig({ cancelEnabled: false, commentIdFile });
+    const state = createProgressReporterState(0);
+    const harness = createHarness({ stream: "", now: 0 });
+
+    const result = progressReporterTick(config, state, harness.deps);
+
+    assert.equal(result.created, true);
+    assert.equal(readFileSync(commentIdFile, "utf8"), "999\n");
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("stream growth patches the existing progress comment", () => {
   const config = baseConfig({ cancelEnabled: false });
   const state = createProgressReporterState(0);
@@ -555,6 +572,7 @@ test("parseProgressReporterConfig accepts issue and pull request targets", () =>
   });
 
   assert.equal(issueConfig?.cancelEnabled, true);
+  assert.equal(issueConfig?.commentIdFile, undefined);
   assert.match(issueConfig?.cancelMarkerFile ?? "", /agent-progress-cancelled$/);
   assert.equal(issueConfig?.targetKind, "issue");
   assert.equal(issueConfig?.pollIntervalMs, 10_000);

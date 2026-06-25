@@ -24,11 +24,12 @@ test("parseProgressPolicy defaults implement and fix-pr to enabled with cancella
   assert.equal(progressModeAllowsCancel(getProgressModeForRoute(policy, "implement")), true);
 });
 
-test("parseProgressPolicy disables review and answer by default", () => {
+test("parseProgressPolicy disables review and enables answer reporting by default", () => {
   const policy = parseProgressPolicy("");
   assert.equal(getProgressModeForRoute(policy, "review"), "disabled");
-  assert.equal(getProgressModeForRoute(policy, "answer"), "disabled");
+  assert.equal(getProgressModeForRoute(policy, "answer"), "report-only");
   assert.equal(progressModeAllowsComment(getProgressModeForRoute(policy, "review")), false);
+  assert.equal(progressModeAllowsComment(getProgressModeForRoute(policy, "answer")), true);
   assert.equal(progressModeAllowsCancel(getProgressModeForRoute(policy, "answer")), false);
 });
 

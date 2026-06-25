@@ -67,7 +67,7 @@ For example, adding the `agent/review` label will run the review agent. The `Age
 
 ### Live Progress and Cancel Control
 
-For `/implement` and `/fix-pr` runs on issues or pull requests, Sepo posts one live progress comment and edits it as the agent works. The original requester, repository owner, member, or collaborator can react 👎 on that progress comment to stop the in-flight run.
+For `/implement` and `/fix-pr` runs on issues or pull requests, Sepo posts one live progress comment and edits it as the agent works. `/answer` runs on issues and pull requests show report-only progress by default. When the run finishes, Sepo updates that progress comment with the final response or status and keeps the activity log collapsed below it. The original requester, repository owner, member, or collaborator can react 👎 on cancellable progress comments to stop the in-flight run.
 
 ### Task Orchestration Route
 
