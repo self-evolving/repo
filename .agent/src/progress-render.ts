@@ -1,7 +1,7 @@
 import { compactSessionLog } from "./acpx-adapter.js";
 
 export type ProgressStatus = "running" | "finalized" | "cancelled";
-export type ProgressOutcome = "success" | "failure";
+export type ProgressOutcome = "success" | "failure" | "finished";
 
 export interface ProgressActivity {
   kind: "tool" | "message";
@@ -138,7 +138,7 @@ export function renderRunning(model: ProgressViewModel): string {
 }
 
 export function renderFinal(model: ProgressViewModel, outcome: ProgressOutcome): string {
-  const title = outcome === "success" ? "✅ Sepo finished" : "❌ Sepo finished with errors";
+  const title = finalTitle(outcome);
   const lines = [
     `### ${title}${renderMeta(model)}`,
     "",
@@ -150,6 +150,12 @@ export function renderFinal(model: ProgressViewModel, outcome: ProgressOutcome):
 
   lines.push(...renderCollapsedActivity(model.recentActivity), "", progressMarker(model.runId));
   return lines.join("\n");
+}
+
+function finalTitle(outcome: ProgressOutcome): string {
+  if (outcome === "success") return "✅ Sepo finished";
+  if (outcome === "failure") return "❌ Sepo finished with errors";
+  return "Sepo finished";
 }
 
 export function renderCancelled(model: ProgressViewModel, byLogin: string): string {

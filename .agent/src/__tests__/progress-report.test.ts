@@ -200,7 +200,7 @@ test("terminal stream completion finalizes with a collapsed body and stops", () 
   assert.equal(result.shouldContinue, false);
   assert.equal(state.finalized, true);
   assert.equal(harness.calls.updates.length, 1);
-  assert.match(harness.calls.updates[0], /### ✅ Sepo finished — implement · 5s · 2 steps/);
+  assert.match(harness.calls.updates[0], /### Sepo finished — implement · 5s · 2 steps/);
   assert.match(harness.calls.updates[0], /<details>\n<summary>Activity<\/summary>/);
 });
 
@@ -217,7 +217,7 @@ test("signal-style finalization patches a final body and exits the state machine
   assert.equal(state.finalized, true);
   assert.equal(state.stopped, true);
   assert.equal(harness.calls.updates.length, 1);
-  assert.match(harness.calls.updates[0], /### ✅ Sepo finished — implement · 2s · 1 step/);
+  assert.match(harness.calls.updates[0], /### Sepo finished — implement · 2s · 1 step/);
 });
 
 test("authorized thumbs-down invokes the cancel path at most once", () => {
@@ -325,6 +325,26 @@ test("parseProgressReporterConfig accepts issue and pull request targets", () =>
   assert.equal(issueConfig?.pollIntervalMs, 10_000);
   assert.equal(prConfig?.targetKind, "pull_request");
   assert.equal(prConfig?.targetNumber, 11);
+});
+
+test("parseProgressReporterConfig rejects sub-5s poll intervals", () => {
+  const tooFast = parseProgressReporterConfig({
+    AGENT_PROGRESS_STREAM_FILE: "/tmp/progress",
+    GITHUB_REPOSITORY: "self-evolving/repo",
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "10",
+    AGENT_PROGRESS_POLL_INTERVAL_MS: "4999",
+  });
+  const allowed = parseProgressReporterConfig({
+    AGENT_PROGRESS_STREAM_FILE: "/tmp/progress",
+    GITHUB_REPOSITORY: "self-evolving/repo",
+    TARGET_KIND: "issue",
+    TARGET_NUMBER: "10",
+    AGENT_PROGRESS_POLL_INTERVAL_MS: "5000",
+  });
+
+  assert.equal(tooFast?.pollIntervalMs, 10_000);
+  assert.equal(allowed?.pollIntervalMs, 5_000);
 });
 
 test("readStreamTail returns only the configured tail bytes", () => {

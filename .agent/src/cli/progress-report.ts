@@ -63,7 +63,7 @@ export interface ProgressReporterTickResult {
 
 const DEFAULT_POLL_INTERVAL_MS = 10_000;
 const DEFAULT_MAX_STREAM_BYTES = 1024 * 1024;
-const MIN_POLL_INTERVAL_MS = 250;
+const MIN_POLL_INTERVAL_MS = 5_000;
 
 export function createProgressReporterState(startTimeMs = Date.now()): ProgressReporterState {
   return {
@@ -358,7 +358,7 @@ function renderFinalBestEffort(
       status: "finalized",
       elapsedMs: deps.now() - state.startTimeMs,
     });
-    return renderFinal(model, "success");
+    return renderFinal(model, "finished");
   } catch (err: unknown) {
     deps.log(`Could not render final progress comment: ${errorMessage(err)}`);
     return null;
