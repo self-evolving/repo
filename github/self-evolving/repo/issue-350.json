@@ -6,7 +6,7 @@
     "name": "Shannon Shen"
   },
   "body": "## Summary\n\nAdd `pi` as a supported Sepo provider alongside `codex` and `claude`, so Sepo workflows can run agent tasks through [pi-coding-agent](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent) instead of only invoking Codex/Claude through `acpx`.\n\n## Motivation\n\nSome users already authenticate and configure multiple model providers through Pi (`~/.pi/agent/auth.json`, API keys, `/login`, model registry, custom providers). Sepo could let repositories opt into Pi as the runtime/provider while preserving the existing GitHub-native routing, memory, rubrics, and session-bundle behavior.\n\nThis would also provide a path for teams that want Sepo automation to use Pi's provider abstraction instead of requiring Codex CLI or Claude Code directly on the runner.\n\n## Proposed design\n\n### Provider selection\n\n- Extend provider validation/resolution to accept `pi`:\n  - `AGENT_DEFAULT_PROVIDER=pi`\n  - `AGENT_MODEL_POLICY.providers.pi`\n  - `AGENT_MODEL_POLICY.route_overrides.<route>.provider = \"pi\"`\n- Keep existing `auto` behavior unchanged unless Pi credentials are explicitly configured.\n\n### Runtime setup\n\n- Extend `.github/actions/setup-agent-runtime` with `install_pi` and optional `pi_version`.\n- Install with npm when missing, e.g.:\n  - `npm install -g @mariozechner/pi-coding-agent`\n\n### Invocation adapter\n\nAdd a Pi adapter path parallel to the current `acpx` adapter. Possible invocation modes:\n\n- One-shot tasks:\n  - `pi --mode json --no-session --model <model> <prompt>`\n  - or `pi -p --model <model> <prompt>` if plain text output is enough\n- Session-backed tasks:\n  - use Pi's `--session`, `--fork`, and/or `--session-dir` support\n  - persist the relevant Pi session JSONL files in Sepo session bundles\n\nThe adapter should normalize Pi output into the same Sepo outputs currently produced by `run-agent-task`:\n\n- final assistant response file\n- raw stdout/stderr files on failure\n- compact session log\n- session identity/continuity metadata where applicable\n\n### Credential resolution\n\nPi supports both API-key credentials and subscription/OAuth credentials. Suggested precedence:\n\n1. Standard provider API keys from GitHub Secrets / environment variables, e.g. `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, etc.\n2. Pre-existing local Pi auth on a trusted self-hosted runner (`~/.pi/agent/auth.json`).\n3. Optional explicit GitHub Secret such as `PI_AUTH_JSON_B64` or `PI_AUTH_JSON`, restored at runtime to an isolated Pi config dir such as `$RUNNER_TEMP/pi-agent/auth.json`, with:\n   - `PI_CODING_AGENT_DIR=$RUNNER_TEMP/pi-agent`\n   - `chmod 600 auth.json`\n   - cleanup after the run\n\nImportant: this should be documented as a **GitHub Secret**, not a repository Variable. Pi `auth.json` can contain OAuth access and refresh tokens and must be treated like a password. It should not be committed, pasted into issues, stored in repository Variables, or exposed to untrusted PR workflows.\n\nFor public repositories and untrusted triggers, prefer per-project API keys, ChatGPT Enterprise access tokens if available, or a self-hosted runner with local credentials and strict access policy.\n\n## Security considerations\n\n- `~/.pi/agent/auth.json` may contain long-lived OAuth refresh tokens.\n- GitHub repository Variables are not appropriate for auth payloads; use Secrets only, ideally environment-protected Secrets.\n- Avoid passing Pi auth secrets to workflows triggered by untrusted forks or unauthorized users.\n- Mask any restored secret-derived values in logs.\n- Use an isolated `PI_CODING_AGENT_DIR` instead of writing into the runner user's normal `~/.pi/agent` on GitHub-hosted runners.\n- Remove restored auth files at the end of the job.\n\n## Acceptance criteria\n\n- `pi` is accepted by provider resolver tests.\n- Setup action can install Pi when selected.\n- `run-agent-task` can invoke Pi for at least one one-shot route and produce the standard Sepo response outputs.\n- Documentation covers:\n  - `AGENT_DEFAULT_PROVIDER=pi`\n  - model policy examples for Pi\n  - API-key auth\n  - self-hosted local Pi auth\n  - optional `PI_AUTH_JSON(_B64)` Secret restoration with strong warnings\n- Tests cover provider selection, invocation argument construction, and secret/auth-file restoration behavior without exposing real tokens.\n",
-  "closedAt": null,
+  "closedAt": "2026-06-25T11:32:33Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABDl8bqw",
@@ -154,6 +154,21 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/350#issuecomment-4536762790",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABHgcxdg",
+      "author": {
+        "login": "github-actions"
+      },
+      "authorAssociation": "NONE",
+      "body": "Closing because this agent issue has had no activity for 30 days.",
+      "createdAt": "2026-06-25T11:32:33Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/350#issuecomment-4798755190",
+      "viewerDidAuthor": false
     }
   ],
   "createdAt": "2026-05-25T17:08:41Z",
@@ -166,8 +181,8 @@
     }
   ],
   "number": 350,
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Add Pi provider support for Sepo agent runs",
-  "updatedAt": "2026-05-25T19:39:07Z",
+  "updatedAt": "2026-06-25T11:32:33Z",
   "url": "https://github.com/self-evolving/repo/issues/350"
 }
