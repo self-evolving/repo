@@ -189,9 +189,13 @@ manual run wakes the planner and asks for one routing decision. The planner must
 inspect recent self-improvement issues, pull requests, and workflow failures,
 then return `new_issue`, `continue_issue`, or `continue_pr`. Deterministic
 post-agent code validates the JSON decision, creates a marked proposal issue or
-posts a continuation trace comment, and dispatches `agent-orchestrator.yml` on
-the chosen target. This keeps prior failed or stuck attempts as context instead
-of locks that can deadlock future self-improvement runs.
+posts a continuation trace comment, verifies continuation targets are open and
+of the requested kind, and dispatches `agent-orchestrator.yml` on the chosen
+target. Manual dispatches derive the real dispatcher's repository association
+before forwarding delegated-route authorization context; scheduled runs are
+system-authorized by the repository owner opt-in. This keeps prior failed or
+stuck attempts as context instead of locks that can deadlock future
+self-improvement runs.
 
 `agent-daily-summary.yml` checks repository discussion settings before gathering
 activity signals or resolving an agent provider. If discussions are disabled, or

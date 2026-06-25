@@ -21,7 +21,7 @@
 //   decision, target_kind, target_number, issue_url, comment_posted
 
 import { readFileSync } from "node:fs";
-import { createIssue, dispatchWorkflow, postIssueComment, postPrComment } from "../github.js";
+import { createIssue, dispatchWorkflow, gh, postIssueComment, postPrComment } from "../github.js";
 import { setOutput } from "../output.js";
 import {
   buildSelfImprovementContinuationComment,
@@ -76,12 +76,46 @@ function createNewProposalIssue(
   };
 }
 
+function validateContinuationTarget(
+  decision: SelfImprovementDecision,
+  repo: string,
+): void {
+  const targetNumber = decision.targetNumber || 0;
+  if (!targetNumber) throw new Error(`${decision.decision} is missing target number`);
+
+  if (decision.decision === "continue_pr") {
+    const raw = gh([
+      "api",
+      `repos/${repo}/pulls/${targetNumber}`,
+      "--jq",
+      ".state // empty",
+    ]).trim().toLowerCase();
+    if (raw !== "open") {
+      throw new Error(`continue_pr target #${targetNumber} must be an open pull request; got ${raw || "missing"}`);
+    }
+    return;
+  }
+
+  const issue = JSON.parse(gh([
+    "api",
+    `repos/${repo}/issues/${targetNumber}`,
+  ])) as Record<string, unknown>;
+  const state = String(issue.state || "").trim().toLowerCase();
+  if (issue.pull_request) {
+    throw new Error(`continue_issue target #${targetNumber} is a pull request, not an issue`);
+  }
+  if (state !== "open") {
+    throw new Error(`continue_issue target #${targetNumber} must be an open issue; got ${state || "missing"}`);
+  }
+}
+
 function postContinuationComment(
   decision: SelfImprovementDecision,
   context: SelfImprovementRunContext,
 ): void {
   const targetNumber = decision.targetNumber || 0;
   if (!targetNumber) throw new Error(`${decision.decision} is missing target number`);
+  validateContinuationTarget(decision, context.repo);
   const body = buildSelfImprovementContinuationComment(decision, context);
   if (decision.decision === "continue_pr") {
     postPrComment(targetNumber, body, context.repo);
@@ -115,7 +149,7 @@ function dispatchOrchestrator(input: {
     source_run_id: optionalEnv("GITHUB_RUN_ID"),
     target_kind: input.targetKind,
     target_number: String(input.targetNumber),
-    author_association: optionalEnv("AUTHOR_ASSOCIATION", "OWNER"),
+    author_association: requiredEnv("AUTHOR_ASSOCIATION"),
     access_policy: optionalEnv("ACCESS_POLICY"),
     repository_private: optionalEnv("REPOSITORY_PRIVATE"),
     next_target_number: "",

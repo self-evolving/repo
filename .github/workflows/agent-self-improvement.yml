@@ -40,15 +40,6 @@ jobs:
           ref: ${{ github.event.repository.default_branch }}
           token: ${{ github.token }}
 
-      - name: Resolve GitHub auth
-        id: auth
-        uses: ./.github/actions/resolve-github-auth
-        with:
-          app_id: ${{ secrets.AGENT_APP_ID }}
-          app_private_key: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
-          pat: ${{ secrets.AGENT_PAT }}
-          fallback_token: ${{ github.token }}
-
       - name: Resolve self-improvement provider
         id: provider
         uses: ./.github/actions/resolve-agent-provider
@@ -79,7 +70,7 @@ jobs:
         uses: ./.github/actions/run-agent-task
         with:
           agent: ${{ steps.provider.outputs.provider }}
-          github_token: ${{ steps.auth.outputs.token }}
+          github_token: ${{ github.token }}
           secondary_github_token: ${{ secrets.AGENT_SECONDARY_GITHUB_TOKEN }}
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -154,6 +145,17 @@ jobs:
       - name: Setup agent runtime
         uses: ./.github/actions/setup-agent-runtime
 
+      - name: Resolve self-improvement requester
+        id: requester
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+          GITHUB_REPOSITORY_OWNER_TYPE: ${{ github.event.repository.owner.type }}
+        run: node .agent/dist/cli/resolve-self-improvement-requester.js
+
       - name: Download self-improvement decision
         uses: actions/download-artifact@v4
         with:
@@ -178,7 +180,7 @@ jobs:
         id: apply
         env:
           ACCESS_POLICY: ${{ vars.AGENT_ACCESS_POLICY || '' }}
-          AUTHOR_ASSOCIATION: OWNER
+          AUTHOR_ASSOCIATION: ${{ steps.requester.outputs.author_association }}
           AUTOMATION_MAX_ROUNDS: ${{ vars.AGENT_AUTOMATION_MAX_ROUNDS || '12' }}
           AUTOMATION_MODE: ${{ vars.AGENT_AUTOMATION_MODE || 'agent' }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
@@ -186,7 +188,7 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_TOKEN: ${{ steps.auth.outputs.token }}
           REPOSITORY_PRIVATE: ${{ github.event.repository.private && 'true' || 'false' }}
-          REQUESTED_BY: ${{ github.actor }}
+          REQUESTED_BY: ${{ steps.requester.outputs.requested_by }}
           RESPONSE_FILE: ${{ steps.decision_response.outputs.response_file }}
           SESSION_BUNDLE_MODE: ${{ vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
         run: node .agent/dist/cli/apply-self-improvement-decision.js

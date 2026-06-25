@@ -217,19 +217,22 @@ export function buildSelfImprovementContinuationComment(
 ): string {
   const target = targetLabel(decision);
   const comment = String(decision.comment || "").trim();
-  return [
-    `Scheduled self-improvement selected this ${target} for continuation.`,
-    "",
+  const summaryLines = [
     `- Decision: \`${decision.decision}\``,
     `- Reason: ${decision.reason}`,
     context.runUrl ? `- Source run: ${context.runUrl}` : "",
     context.eventName ? `- Event: \`${context.eventName}\`` : "",
-    comment ? "" : "",
-    comment,
-    "",
+  ].filter(Boolean);
+  const markerLines = [
     SELF_IMPROVEMENT_DECISION_MARKER,
     runMarker(context.runId),
-  ].filter((line) => line !== "").join("\n").trim() + "\n";
+  ].filter(Boolean);
+  return [
+    `Scheduled self-improvement selected this ${target} for continuation.`,
+    summaryLines.join("\n"),
+    comment,
+    markerLines.join("\n"),
+  ].filter((block) => block.trim()).join("\n\n").trim() + "\n";
 }
 
 export function writeTempMarkdownFile(prefix: string, markdown: string): string {

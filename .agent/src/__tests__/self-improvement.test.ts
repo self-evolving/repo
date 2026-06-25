@@ -113,6 +113,8 @@ test("buildSelfImprovementContinuationComment records selected target and reason
   assert.match(comment, /pull request #17/);
   assert.match(comment, /Existing PR has the latest useful work/);
   assert.match(comment, /Please continue this PR/);
+  assert.match(comment, /\n\n- Decision: `continue_pr`/);
+  assert.match(comment, /\n\nPlease continue this PR/);
   assert.match(comment, /sepo-agent-self-improvement-decision/);
   assert.match(comment, /sepo-agent-self-improvement-run:1001/);
 });
