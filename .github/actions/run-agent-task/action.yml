@@ -129,6 +129,10 @@ inputs:
     description: "Progress reporting policy JSON. Empty defaults to live progress with cancellation for implement/fix-pr and report-only progress for answer."
     required: false
     default: ""
+  orchestration_enabled:
+    description: "Whether this run belongs to an orchestrated chain; forces progress reporting off."
+    required: false
+    default: "false"
   memory_mode_override:
     description: |
       Explicit memory mode (enabled, read-only, disabled) that bypasses the policy.
@@ -355,6 +359,7 @@ runs:
       shell: bash
       env:
         AGENT_PROGRESS_POLICY: ${{ inputs.progress_policy }}
+        ORCHESTRATION_ENABLED: ${{ inputs.orchestration_enabled }}
         RESPONSE_KIND: ${{ inputs.response_kind }}
         ROUTE: ${{ inputs.route }}
         TARGET_KIND: ${{ inputs.target_kind }}

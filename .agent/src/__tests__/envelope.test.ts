@@ -31,6 +31,26 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
 }
 
+function readRunAgentTaskSteps(relativePath: string): Array<{
+  jobId: string;
+  step: Record<string, unknown>;
+}> {
+  const workflow = parseYaml(readRepoFile(relativePath)) as unknown;
+  assert.ok(isRecord(workflow), `${relativePath} should parse as a YAML object`);
+  assert.ok(isRecord(workflow.jobs), `${relativePath} should define jobs`);
+
+  const steps: Array<{ jobId: string; step: Record<string, unknown> }> = [];
+  for (const [jobId, job] of Object.entries(workflow.jobs)) {
+    if (!isRecord(job) || !Array.isArray(job.steps)) continue;
+    for (const step of job.steps) {
+      if (isRecord(step) && step.uses === "./.github/actions/run-agent-task") {
+        steps.push({ jobId, step });
+      }
+    }
+  }
+  return steps;
+}
+
 function readMarkdownIssueTemplate(relativePath: string): {
   frontMatter: Record<string, unknown>;
   body: string;
@@ -314,6 +334,49 @@ test("all execution workflows use the shared run-agent-task action", () => {
   }
 
   assert.doesNotMatch(fixPrWorkflow, /build-linked-context\.cjs/);
+});
+
+test("orchestrated workflows pass orchestration state into run-agent-task", () => {
+  const action = parseYaml(readRepoFile(".github/actions/run-agent-task/action.yml")) as unknown;
+  assert.ok(isRecord(action), "run-agent-task action should parse");
+  assert.ok(isRecord(action.inputs), "run-agent-task should define inputs");
+  const orchestrationInput = action.inputs.orchestration_enabled;
+  assert.ok(isRecord(orchestrationInput), "run-agent-task should define orchestration_enabled");
+  assert.equal(orchestrationInput.default, "false");
+
+  assert.ok(isRecord(action.runs), "run-agent-task action should define runs");
+  assert.ok(Array.isArray(action.runs.steps), "run-agent-task action should define steps");
+  const progressPolicyStep = action.runs.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.id === "progress_policy",
+  );
+  assert.ok(progressPolicyStep, "run-agent-task action should resolve progress policy");
+  assert.ok(isRecord(progressPolicyStep.env), "progress policy step should define env");
+  assert.equal(progressPolicyStep.env.ORCHESTRATION_ENABLED, "${{ inputs.orchestration_enabled }}");
+
+  for (const workflowPath of [
+    ".github/workflows/agent-implement.yml",
+    ".github/workflows/agent-fix-pr.yml",
+    ".github/workflows/agent-review.yml",
+    ".github/workflows/agent-self-approve.yml",
+  ]) {
+    const steps = readRunAgentTaskSteps(workflowPath);
+    assert.ok(steps.length > 0, `${workflowPath} should call run-agent-task`);
+    for (const { jobId, step } of steps) {
+      assert.ok(isRecord(step.with), `${workflowPath} job ${jobId} run-agent-task needs inputs`);
+      assert.equal(
+        step.with.orchestration_enabled,
+        "${{ inputs.orchestration_enabled }}",
+        `${workflowPath} job ${jobId} should forward orchestration_enabled`,
+      );
+    }
+  }
+
+  const orchestratorSteps = readRunAgentTaskSteps(".github/workflows/agent-orchestrator.yml");
+  assert.equal(orchestratorSteps.length, 1);
+  const orchestratorStep = orchestratorSteps[0]!.step;
+  assert.ok(isRecord(orchestratorStep.with), "orchestrator run-agent-task should define inputs");
+  assert.equal(orchestratorStep.with.orchestration_enabled, "true");
 });
 
 test("run-agent-task workflow steps are guarded by resolved task timeouts", () => {

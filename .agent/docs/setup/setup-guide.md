@@ -114,7 +114,8 @@ and PR-fix workflows already have the comment and Actions permissions needed to
 post one progress comment, update it during the run, merge the final status into
 that comment, and honor an authorized 👎 reaction as a cancellation request.
 Answer runs on issue and pull request surfaces use report-only progress by
-default and merge the final answer into the same comment.
+default and merge the final answer into the same comment. Orchestrated chains
+force progress comments off and use handoff or status comments instead.
 
 Set `AGENT_PROGRESS_POLICY` only when you want to change that default. Use
 `report-only` for progress without cancellation, or `disabled` to turn progress
