@@ -26,6 +26,7 @@ export interface ProgressViewModelOptions {
   route?: string;
   status?: ProgressStatus;
   elapsedMs?: number;
+  totalStepCount?: number;
   recentActivityLimit?: number;
   maxMessageChars?: number;
 }
@@ -45,6 +46,31 @@ interface ToolMetadata {
   name?: string;
   title?: string;
   status?: string;
+}
+
+interface ToolKeyState {
+  anonymousToolIndex: number;
+  lastToolKey: string;
+}
+
+export interface ProgressStepCounterState {
+  count: number;
+  partialLine: string;
+  messageOpen: boolean;
+  anonymousToolIndex: number;
+  lastToolKey: string;
+  seenToolKeys: Set<string>;
+}
+
+export function createProgressStepCounter(): ProgressStepCounterState {
+  return {
+    count: 0,
+    partialLine: "",
+    messageOpen: false,
+    anonymousToolIndex: 0,
+    lastToolKey: "",
+    seenToolKeys: new Set<string>(),
+  };
 }
 
 export function buildProgressViewModel(
@@ -109,11 +135,31 @@ export function buildProgressViewModel(
     runId: normalizeRunId(options.runId),
     route: cleanSingleLine(options.route ?? ""),
     elapsedMs: Math.max(0, Math.floor(options.elapsedMs ?? 0)),
-    stepCount,
+    stepCount: normalizeStepCount(options.totalStepCount, stepCount),
     recentActivity: allActivity.slice(-recentActivityLimit),
     lastMessage: lastMessage || undefined,
     stopReason: stopReason || undefined,
   };
+}
+
+export function countProgressSteps(ndjson: string): number {
+  return appendProgressStepCount(createProgressStepCounter(), ndjson);
+}
+
+export function appendProgressStepCount(state: ProgressStepCounterState, ndjsonChunk: string): number {
+  const text = state.partialLine + ndjsonChunk;
+  const lines = text.split("\n");
+  state.partialLine = text.endsWith("\n") ? "" : lines.pop() ?? "";
+
+  for (const line of lines) {
+    countProgressLine(state, line);
+  }
+
+  if (state.partialLine && countProgressLine(state, state.partialLine)) {
+    state.partialLine = "";
+  }
+
+  return state.count;
 }
 
 export function renderRunning(model: ProgressViewModel): string {
@@ -178,8 +224,7 @@ export function progressMarker(runId: string): string {
 
 function toolEventsFromNdjson(ndjsonTail: string): ToolEvent[] {
   const events: ToolEvent[] = [];
-  let anonymousToolIndex = 0;
-  let lastToolKey = "";
+  const keyState: ToolKeyState = { anonymousToolIndex: 0, lastToolKey: "" };
 
   for (const rawLine of ndjsonTail.split("\n")) {
     if (!rawLine.trim()) continue;
@@ -194,25 +239,7 @@ function toolEventsFromNdjson(ndjsonTail: string): ToolEvent[] {
       const title = cleanSingleLine(String(update.title ?? ""));
       const status = cleanSingleLine(String(update.status ?? ""));
       const toolCallId = cleanSingleLine(String(update.toolCallId ?? ""));
-      let key = toolCallId ? `id:${toolCallId}` : "";
-
-      if (!key) {
-        if (update.sessionUpdate === "tool_call") {
-          anonymousToolIndex += 1;
-          key = `anonymous:${anonymousToolIndex}`;
-        } else if (lastToolKey) {
-          key = lastToolKey;
-        } else if (name) {
-          key = `name:${name}`;
-        } else if (title) {
-          key = `title:${title}`;
-        } else {
-          anonymousToolIndex += 1;
-          key = `anonymous:${anonymousToolIndex}`;
-        }
-      }
-
-      lastToolKey = key;
+      const key = progressToolKey(keyState, String(update.sessionUpdate), { name, title, toolCallId });
       events.push({
         key,
         name: name || undefined,
@@ -224,6 +251,77 @@ function toolEventsFromNdjson(ndjsonTail: string): ToolEvent[] {
     }
   }
   return events;
+}
+
+function countProgressLine(state: ProgressStepCounterState, rawLine: string): boolean {
+  if (!rawLine.trim()) return true;
+
+  let event: Record<string, unknown>;
+  try {
+    event = JSON.parse(rawLine) as Record<string, unknown>;
+  } catch {
+    return false;
+  }
+
+  const update = (event.params as Record<string, unknown> | undefined)
+    ?.update as Record<string, unknown> | undefined;
+  if (!update?.sessionUpdate) return true;
+
+  const updateType = update.sessionUpdate;
+  if (updateType === "agent_message_chunk") {
+    const content = update.content as Record<string, unknown> | undefined;
+    if (content?.type === "text" && content.text && !state.messageOpen) {
+      state.count += 1;
+      state.messageOpen = true;
+    }
+    return true;
+  }
+
+  if (updateType === "tool_call" || updateType === "tool_call_update") {
+    state.messageOpen = false;
+    const key = progressToolKey(state, String(updateType), {
+      name: cleanSingleLine(String(update.name ?? "")),
+      title: cleanSingleLine(String(update.title ?? "")),
+      toolCallId: cleanSingleLine(String(update.toolCallId ?? "")),
+    });
+    if (!state.seenToolKeys.has(key)) {
+      state.count += 1;
+      state.seenToolKeys.add(key);
+    }
+    return true;
+  }
+
+  if (updateType === "usage_update") {
+    state.messageOpen = false;
+  }
+  return true;
+}
+
+function progressToolKey(
+  state: ToolKeyState,
+  updateType: string,
+  fields: { name: string; title: string; toolCallId: string },
+): string {
+  let key = fields.toolCallId ? `id:${fields.toolCallId}` : "";
+
+  if (!key) {
+    if (updateType === "tool_call") {
+      state.anonymousToolIndex += 1;
+      key = `anonymous:${state.anonymousToolIndex}`;
+    } else if (state.lastToolKey) {
+      key = state.lastToolKey;
+    } else if (fields.name) {
+      key = `name:${fields.name}`;
+    } else if (fields.title) {
+      key = `title:${fields.title}`;
+    } else {
+      state.anonymousToolIndex += 1;
+      key = `anonymous:${state.anonymousToolIndex}`;
+    }
+  }
+
+  state.lastToolKey = key;
+  return key;
 }
 
 function mergeToolMetadata(
@@ -382,6 +480,13 @@ function truncate(value: string, maxChars: number): string {
 function normalizeRunId(runId: string): string {
   const normalized = cleanSingleLine(runId).replace(/[^A-Za-z0-9._-]/g, "-");
   return normalized || "unknown";
+}
+
+function normalizeStepCount(value: number | undefined, fallback: number): number {
+  if (value === undefined || !Number.isFinite(value)) {
+    return fallback;
+  }
+  return Math.max(0, Math.floor(value));
 }
 
 function cleanLogin(login: string): string {

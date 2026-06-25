@@ -2,11 +2,13 @@ import { test } from "node:test";
 import { strict as assert } from "node:assert";
 
 import {
+  createProgressStepCountReaderState,
   createProgressReporterState,
   finalizeProgressReporter,
   invokeProgressCancellation,
   parseProgressReporterConfig,
   progressReporterTick,
+  readProgressStepCount,
   readStreamTail,
   type ProgressReporterConfig,
   type ProgressReporterDeps,
@@ -15,6 +17,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { reconcileProgressCancelStatus } from "../progress-cancel.js";
+import { countProgressSteps } from "../progress-render.js";
 
 function ndjsonLine(payload: unknown): string {
   return `${JSON.stringify(payload)}\n`;
@@ -75,6 +78,8 @@ function createHarness(options: {
   createError?: Error;
   updateError?: Error;
   readError?: Error;
+  stepCountStream?: string;
+  stepCountError?: Error;
 } = {}): {
   deps: ProgressReporterDeps;
   calls: {
@@ -89,11 +94,15 @@ function createHarness(options: {
   setNow: (now: number) => void;
   setUpdateError: (error?: Error) => void;
   setReadError: (error?: Error) => void;
+  setStepCountStream: (stream: string) => void;
+  setStepCountError: (error?: Error) => void;
 } {
   let stream = options.stream ?? "";
+  let stepCountStream = options.stepCountStream;
   let now = options.now ?? 0;
   let updateError = options.updateError;
   let readError = options.readError;
+  let stepCountError = options.stepCountError;
   const calls = {
     creates: [] as string[],
     updates: [] as string[],
@@ -108,6 +117,10 @@ function createHarness(options: {
     readStream: () => {
       if (readError) throw readError;
       return stream;
+    },
+    readStepCount: () => {
+      if (stepCountError) throw stepCountError;
+      return countProgressSteps(stepCountStream ?? stream);
     },
     createComment: (_repo, _issueNumber, body) => {
       if (options.createError) throw options.createError;
@@ -156,6 +169,12 @@ function createHarness(options: {
     setReadError: (error) => {
       readError = error;
     },
+    setStepCountStream: (next) => {
+      stepCountStream = next;
+    },
+    setStepCountError: (error) => {
+      stepCountError = error;
+    },
   };
 }
 
@@ -191,6 +210,85 @@ test("stream growth patches the existing progress comment", () => {
   assert.equal(harness.calls.updates.length, 1);
   assert.match(harness.calls.updates[0], /- 📖 Read \(completed\)/);
   assert.match(harness.calls.updates[0], /Checking files\./);
+});
+
+test("truncated stream tails keep a monotonic whole-run step count", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "progress-report-count-"));
+  try {
+    const streamPath = join(tempDir, "stream.ndjson");
+    const firstStream = [toolEvent("Read"), toolEvent("Edit"), toolEvent("Bash")].join("");
+    const secondStream = `${firstStream}${toolEvent("Grep")}${toolEvent("Write")}`;
+    writeFileSync(streamPath, firstStream, "utf8");
+
+    let now = 0;
+    const calls = {
+      creates: [] as string[],
+      updates: [] as string[],
+      logs: [] as string[],
+    };
+    const config = baseConfig({
+      streamFile: streamPath,
+      cancelEnabled: false,
+      maxStreamBytes: Buffer.byteLength(toolEvent("Bash")),
+    });
+    const state = createProgressReporterState(0);
+    const stepCountReaderState = createProgressStepCountReaderState();
+    const deps: ProgressReporterDeps = {
+      now: () => now,
+      readStream: readStreamTail,
+      readStepCount: (path) => readProgressStepCount(path, stepCountReaderState),
+      createComment: (_repo, _issueNumber, body) => {
+        calls.creates.push(body);
+        return "999";
+      },
+      updateComment: (_repo, _commentId, body) => {
+        calls.updates.push(body);
+      },
+      listReactions: () => [],
+      findAuthorizedCancel: () => null,
+      invokeCancel: () => {
+        throw new Error("unexpected cancel");
+      },
+      log: (message) => {
+        calls.logs.push(message);
+      },
+    };
+
+    progressReporterTick(config, state, deps);
+    assert.match(calls.creates[0], /3 steps/);
+    assert.doesNotMatch(calls.creates[0], /📖 Read/);
+
+    writeFileSync(streamPath, secondStream, "utf8");
+    now = 1_000;
+
+    const result = progressReporterTick(config, state, deps);
+
+    assert.equal(result.patched, true);
+    assert.match(calls.updates[0], /5 steps/);
+    assert.doesNotMatch(calls.updates[0], /1 step/);
+    assert.doesNotMatch(calls.updates[0], /📖 Read/);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("incremental step counter reads only newly appended stream bytes", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "progress-report-count-"));
+  try {
+    const streamPath = join(tempDir, "stream.ndjson");
+    const firstStream = `${toolEvent("Read")}${toolEvent("Edit")}`;
+    const state = createProgressStepCountReaderState();
+    writeFileSync(streamPath, firstStream, "utf8");
+
+    assert.equal(readProgressStepCount(streamPath, state), 2);
+
+    const corruptedPrefix = "not json\n".padEnd(Buffer.byteLength(firstStream), " ");
+    writeFileSync(streamPath, `${corruptedPrefix}${toolEvent("Bash")}`, "utf8");
+
+    assert.equal(readProgressStepCount(streamPath, state), 3);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
 });
 
 test("terminal stream completion finalizes with a collapsed body and stops", () => {

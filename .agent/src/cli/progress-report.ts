@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, openSync, readSync, closeSync, statSync } from "node:fs";
+import { StringDecoder } from "node:string_decoder";
 
 import { createIssueComment, updateIssueComment } from "../github.js";
 import {
@@ -7,7 +8,10 @@ import {
   writeProgressCancelMarker,
 } from "../progress-cancel.js";
 import {
+  appendProgressStepCount,
   buildProgressViewModel,
+  createProgressStepCounter,
+  type ProgressStepCounterState,
   renderCancelled,
   renderFinal,
   renderRunning,
@@ -40,6 +44,7 @@ export interface ProgressReporterState {
   lastBody: string;
   lastStreamText: string;
   startTimeMs: number;
+  totalStepCount: number;
   cancelInvoked: boolean;
   finalized: boolean;
   stopped: boolean;
@@ -48,6 +53,7 @@ export interface ProgressReporterState {
 export interface ProgressReporterDeps {
   now: () => number;
   readStream: (path: string, maxBytes: number) => string;
+  readStepCount: (path: string) => number;
   createComment: (repo: string, issueNumber: number, body: string) => string;
   updateComment: (repo: string, commentId: string, body: string) => void;
   listReactions: (repo: string, commentId: string) => ReturnType<typeof listCommentReactions>;
@@ -64,6 +70,12 @@ export interface ProgressReporterDeps {
   log: (message: string) => void;
 }
 
+export interface ProgressStepCountReaderState {
+  offset: number;
+  parser: ProgressStepCounterState;
+  decoder: StringDecoder;
+}
+
 export interface ProgressReporterTickResult {
   shouldContinue: boolean;
   created: boolean;
@@ -76,12 +88,21 @@ const DEFAULT_POLL_INTERVAL_MS = 10_000;
 const DEFAULT_MAX_STREAM_BYTES = 1024 * 1024;
 const MIN_POLL_INTERVAL_MS = 5_000;
 
+export function createProgressStepCountReaderState(): ProgressStepCountReaderState {
+  return {
+    offset: 0,
+    parser: createProgressStepCounter(),
+    decoder: new StringDecoder("utf8"),
+  };
+}
+
 export function createProgressReporterState(startTimeMs = Date.now()): ProgressReporterState {
   return {
     commentId: "",
     lastBody: "",
     lastStreamText: "",
     startTimeMs,
+    totalStepCount: 0,
     cancelInvoked: false,
     finalized: false,
     stopped: false,
@@ -106,7 +127,8 @@ export function progressReporterTick(
   }
 
   const streamText = readStreamBestEffort(config, state, deps);
-  const rendered = renderRunningBestEffort(config, state, deps, streamText);
+  const totalStepCount = readStepCountBestEffort(config, state, deps);
+  const rendered = renderRunningBestEffort(config, state, deps, streamText, totalStepCount);
   if (!rendered) {
     return result;
   }
@@ -129,7 +151,7 @@ export function progressReporterTick(
   }
 
   if (model.stopReason) {
-    result.patched = finalizeProgressReporter(config, state, deps, streamText) || result.patched;
+    result.patched = finalizeProgressReporter(config, state, deps, streamText, totalStepCount) || result.patched;
     result.finalized = true;
     result.shouldContinue = false;
     return result;
@@ -148,7 +170,7 @@ export function progressReporterTick(
   if (config.cancelEnabled && !state.cancelInvoked) {
     const cancelReaction = findCancelReactionBestEffort(config, state, deps);
     if (cancelReaction) {
-      const cancelled = cancelProgressReporter(config, state, deps, streamText, cancelReaction);
+      const cancelled = cancelProgressReporter(config, state, deps, streamText, totalStepCount, cancelReaction);
       result.patched = cancelled.patched || result.patched;
       result.finalized = cancelled.finalized;
       result.cancelInvoked = cancelled.cancelInvoked;
@@ -164,6 +186,7 @@ export function finalizeProgressReporter(
   state: ProgressReporterState,
   deps: ProgressReporterDeps,
   streamText = readStreamBestEffort(config, state, deps),
+  totalStepCount = readStepCountBestEffort(config, state, deps),
 ): boolean {
   if (!state.commentId || state.finalized) {
     state.finalized = true;
@@ -171,7 +194,7 @@ export function finalizeProgressReporter(
     return false;
   }
 
-  const finalBody = renderFinalBestEffort(config, state, deps, streamText);
+  const finalBody = renderFinalBestEffort(config, state, deps, streamText, totalStepCount);
   if (!finalBody) {
     state.finalized = true;
     state.stopped = true;
@@ -230,9 +253,11 @@ export function parseProgressReporterConfig(
 }
 
 export function defaultProgressReporterDeps(): ProgressReporterDeps {
+  const stepCountReaderState = createProgressStepCountReaderState();
   return {
     now: () => Date.now(),
     readStream: readStreamTail,
+    readStepCount: (path) => readProgressStepCount(path, stepCountReaderState),
     createComment: createIssueComment,
     updateComment: updateIssueComment,
     listReactions: listCommentReactions,
@@ -307,6 +332,44 @@ export function readStreamTail(path: string, maxBytes = DEFAULT_MAX_STREAM_BYTES
   }
 }
 
+export function readProgressStepCount(path: string, state: ProgressStepCountReaderState): number {
+  if (!path || !existsSync(path)) return state.parser.count;
+
+  const size = statSync(path).size;
+  if (size < state.offset) {
+    state.offset = 0;
+    state.parser = createProgressStepCounter();
+    state.decoder = new StringDecoder("utf8");
+  }
+  if (size === state.offset) return state.parser.count;
+
+  let fd: number | undefined;
+  try {
+    fd = openSync(path, "r");
+    const bytesToRead = size - state.offset;
+    const buffer = Buffer.alloc(bytesToRead);
+    let bytesRead = 0;
+    while (bytesRead < bytesToRead) {
+      const read = readSync(fd, buffer, bytesRead, bytesToRead - bytesRead, state.offset + bytesRead);
+      if (read === 0) break;
+      bytesRead += read;
+    }
+    state.offset += bytesRead;
+    if (bytesRead > 0) {
+      appendProgressStepCount(state.parser, state.decoder.write(buffer.subarray(0, bytesRead)));
+    }
+    return state.parser.count;
+  } finally {
+    if (fd !== undefined) {
+      try {
+        closeSync(fd);
+      } catch {
+        // Best effort only.
+      }
+    }
+  }
+}
+
 export function invokeProgressCancellation(
   config: ProgressReporterConfig,
   reaction: AuthorizedCancelReaction,
@@ -351,6 +414,22 @@ function readStreamBestEffort(
   }
 }
 
+function readStepCountBestEffort(
+  config: ProgressReporterConfig,
+  state: ProgressReporterState,
+  deps: ProgressReporterDeps,
+): number {
+  try {
+    const next = deps.readStepCount(config.streamFile);
+    if (Number.isFinite(next)) {
+      state.totalStepCount = Math.max(state.totalStepCount, Math.max(0, Math.floor(next)));
+    }
+  } catch (err: unknown) {
+    deps.log(`Could not read progress step count: ${errorMessage(err)}`);
+  }
+  return state.totalStepCount;
+}
+
 function findCancelReactionBestEffort(
   config: ProgressReporterConfig,
   state: ProgressReporterState,
@@ -370,9 +449,10 @@ function cancelProgressReporter(
   state: ProgressReporterState,
   deps: ProgressReporterDeps,
   streamText: string,
+  totalStepCount: number,
   reaction: AuthorizedCancelReaction,
 ): { patched: boolean; finalized: boolean; cancelInvoked: boolean } {
-  const cancelledBody = renderCancelledBestEffort(config, state, deps, streamText, reaction.user);
+  const cancelledBody = renderCancelledBestEffort(config, state, deps, streamText, totalStepCount, reaction.user);
   if (!cancelledBody) {
     return { patched: false, finalized: false, cancelInvoked: false };
   }
@@ -406,12 +486,14 @@ function renderRunningBestEffort(
   state: ProgressReporterState,
   deps: ProgressReporterDeps,
   streamText: string,
+  totalStepCount: number,
 ): { model: ReturnType<typeof buildProgressViewModel>; body: string } | null {
   try {
     const model = buildProgressViewModel(streamText, {
       runId: config.runId,
       route: config.route,
       elapsedMs: deps.now() - state.startTimeMs,
+      totalStepCount,
     });
     return { model, body: renderRunning(model) };
   } catch (err: unknown) {
@@ -425,6 +507,7 @@ function renderFinalBestEffort(
   state: ProgressReporterState,
   deps: ProgressReporterDeps,
   streamText: string,
+  totalStepCount: number,
 ): string | null {
   try {
     const model = buildProgressViewModel(streamText, {
@@ -432,6 +515,7 @@ function renderFinalBestEffort(
       route: config.route,
       status: "finalized",
       elapsedMs: deps.now() - state.startTimeMs,
+      totalStepCount,
     });
     return renderFinal(model, "finished");
   } catch (err: unknown) {
@@ -445,6 +529,7 @@ function renderCancelledBestEffort(
   state: ProgressReporterState,
   deps: ProgressReporterDeps,
   streamText: string,
+  totalStepCount: number,
   byLogin: string,
 ): string | null {
   try {
@@ -453,6 +538,7 @@ function renderCancelledBestEffort(
       route: config.route,
       status: "cancelled",
       elapsedMs: deps.now() - state.startTimeMs,
+      totalStepCount,
     });
     return renderCancelled(model, byLogin);
   } catch (err: unknown) {
