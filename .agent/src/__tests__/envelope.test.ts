@@ -358,6 +358,7 @@ test("orchestrated workflows pass orchestration state into run-agent-task", () =
     ".github/workflows/agent-implement.yml",
     ".github/workflows/agent-fix-pr.yml",
     ".github/workflows/agent-review.yml",
+    ".github/workflows/agent-rubrics-review.yml",
     ".github/workflows/agent-self-approve.yml",
   ]) {
     const steps = readRunAgentTaskSteps(workflowPath);
@@ -371,6 +372,33 @@ test("orchestrated workflows pass orchestration state into run-agent-task", () =
       );
     }
   }
+
+  const reviewWorkflow = parseYaml(readRepoFile(".github/workflows/agent-review.yml")) as unknown;
+  assert.ok(isRecord(reviewWorkflow), "agent-review workflow should parse");
+  assert.ok(isRecord(reviewWorkflow.jobs), "agent-review workflow should define jobs");
+  const nestedRubricsReviewJob = reviewWorkflow.jobs["rubrics-review"];
+  assert.ok(isRecord(nestedRubricsReviewJob), "agent-review should define rubrics-review job");
+  assert.equal(
+    nestedRubricsReviewJob.uses,
+    "./.github/workflows/agent-rubrics-review.yml",
+  );
+  assert.ok(isRecord(nestedRubricsReviewJob.with), "rubrics-review job should pass inputs");
+  assert.equal(
+    nestedRubricsReviewJob.with.orchestration_enabled,
+    "${{ inputs.orchestration_enabled }}",
+  );
+
+  const rubricsReviewWorkflow = parseYaml(
+    readRepoFile(".github/workflows/agent-rubrics-review.yml"),
+  ) as unknown;
+  assert.ok(isRecord(rubricsReviewWorkflow), "agent-rubrics-review workflow should parse");
+  assert.ok(isRecord(rubricsReviewWorkflow.on), "agent-rubrics-review should define triggers");
+  const rubricsReviewWorkflowCall = rubricsReviewWorkflow.on.workflow_call;
+  assert.ok(isRecord(rubricsReviewWorkflowCall), "agent-rubrics-review should define workflow_call");
+  assert.ok(isRecord(rubricsReviewWorkflowCall.inputs), "workflow_call should define inputs");
+  const rubricsOrchestrationInput = rubricsReviewWorkflowCall.inputs.orchestration_enabled;
+  assert.ok(isRecord(rubricsOrchestrationInput), "workflow_call should accept orchestration_enabled");
+  assert.equal(rubricsOrchestrationInput.default, "false");
 
   const orchestratorSteps = readRunAgentTaskSteps(".github/workflows/agent-orchestrator.yml");
   assert.equal(orchestratorSteps.length, 1);
