@@ -16,6 +16,7 @@
 
 import { setOutput } from "../../output.js";
 import {
+  getProgressModeForOrchestration,
   getProgressModeForRoute,
   parseProgressPolicy,
   progressModeAllowsCancel,
@@ -34,14 +35,15 @@ export interface ProgressPolicyResolution {
 }
 
 export function resolveProgressMode(env: NodeJS.ProcessEnv = process.env): ProgressMode {
-  if (String(env.ORCHESTRATION_ENABLED || "").trim().toLowerCase() === "true") {
-    return "disabled";
-  }
-
+  const orchestrationEnabled =
+    String(env.ORCHESTRATION_ENABLED || "").trim().toLowerCase() === "true";
   const route = String(env.ROUTE || "").trim().toLowerCase();
 
   try {
     const policy = parseProgressPolicy(env.AGENT_PROGRESS_POLICY || "");
+    if (orchestrationEnabled) {
+      return getProgressModeForOrchestration(policy);
+    }
     return getProgressModeForRoute(policy, route);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
