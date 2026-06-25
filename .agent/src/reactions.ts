@@ -4,11 +4,19 @@
 // consistent with the self-serve pattern in the local runtime's GitHub helpers.
 
 import { execFileSync } from "node:child_process";
-import { isKnownAuthorAssociation } from "./access-policy.js";
-import { ghApi, ghApiOk } from "./github.js";
+import {
+  normalizeGithubActorLogin,
+  resolveGithubActorAssociation,
+} from "./actor-association.js";
+import { ghApi } from "./github.js";
 
 const MAX_BUFFER = 10 * 1024 * 1024;
-const TRUSTED_CANCEL_ASSOCIATIONS = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
+type TrustedCancelAssociation = "OWNER" | "MEMBER" | "COLLABORATOR";
+const TRUSTED_CANCEL_ASSOCIATIONS = new Set<TrustedCancelAssociation>([
+  "OWNER",
+  "MEMBER",
+  "COLLABORATOR",
+]);
 
 export interface CommentReaction {
   content: string;
@@ -61,23 +69,12 @@ function extractLogin(value: unknown): string {
   return typeof login === "string" ? login.trim() : "";
 }
 
-function normalizeActorLogin(value: string): string {
-  return String(value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/^app\//i, "")
-    .replace(/\[bot\]$/i, "");
-}
-
-function normalizeAssociation(value: string): string {
-  return String(value || "").trim().toUpperCase();
-}
-
 function isTrustedCancelAssociation(
   association: string,
-): boolean {
-  const normalized = normalizeAssociation(association);
-  return isKnownAuthorAssociation(normalized) && TRUSTED_CANCEL_ASSOCIATIONS.has(normalized);
+): association is TrustedCancelAssociation {
+  return TRUSTED_CANCEL_ASSOCIATIONS.has(
+    String(association || "").trim().toUpperCase() as TrustedCancelAssociation,
+  );
 }
 
 function normalizeReactionRecord(value: unknown): CommentReaction | null {
@@ -121,52 +118,16 @@ export function listCommentReactions(
   }
 }
 
-function escapePathPart(value: string): string {
-  return encodeURIComponent(String(value || "").trim());
-}
-
-function hasOrgMembership(orgLogin: string, userLogin: string): boolean {
-  const org = escapePathPart(orgLogin);
-  const user = escapePathPart(userLogin);
-  if (!org || !user) return false;
-
-  const membershipState = ghApi([
-    `orgs/${org}/memberships/${user}`,
-    "--jq",
-    ".state // empty",
-  ]).toLowerCase();
-  if (membershipState === "active") return true;
-
-  return ghApiOk([`orgs/${org}/members/${user}`]);
-}
-
 function resolveTrustedCancelAssociation(
   repo: string,
   userLogin: string,
-): "OWNER" | "MEMBER" | "COLLABORATOR" | null {
-  const repository = String(repo || "").trim();
-  const login = String(userLogin || "").trim();
-  const [owner] = repository.split("/");
-  if (!repository || !login || !owner) return null;
-
-  if (normalizeActorLogin(owner) === normalizeActorLogin(login)) {
-    return "OWNER";
-  }
-
-  const permission = ghApi([
-    `repos/${repository}/collaborators/${escapePathPart(login)}/permission`,
-    "--jq",
-    ".permission // .role_name // empty",
-  ]).toLowerCase();
-  if (permission && permission !== "none") {
-    return "COLLABORATOR";
-  }
-
-  if (hasOrgMembership(owner, login)) {
-    return "MEMBER";
-  }
-
-  return null;
+): TrustedCancelAssociation | null {
+  const association = resolveGithubActorAssociation({
+    repo,
+    actorLogin: userLogin,
+    lookupOrder: "repository-first",
+  });
+  return isTrustedCancelAssociation(association) ? association : null;
 }
 
 export function findAuthorizedCancelReaction(
@@ -174,11 +135,11 @@ export function findAuthorizedCancelReaction(
   reactions: readonly CommentReaction[],
   requesterLogin: string,
 ): AuthorizedCancelReaction | null {
-  const requester = normalizeActorLogin(requesterLogin);
+  const requester = normalizeGithubActorLogin(requesterLogin);
   for (const reaction of reactions) {
     if (normalizeReactionContent(reaction.content) !== "THUMBS_DOWN") continue;
 
-    const reactor = normalizeActorLogin(reaction.user);
+    const reactor = normalizeGithubActorLogin(reaction.user);
     if (!reactor) continue;
 
     if (requester && reactor === requester) {
