@@ -281,6 +281,10 @@ test("renderFinal collapses activity and includes outcome and marker", () => {
 
   const failure = renderFinal(model, "failure");
   assert.match(failure, /### ❌ Sepo finished with errors/);
+
+  const finished = renderFinal(model, "finished");
+  assert.match(finished, /### Sepo finished — implement · 4m51s · 2 steps/);
+  assert.doesNotMatch(finished, /✅|❌/);
 });
 
 test("renderCancelled attributes the cancelling login", () => {
