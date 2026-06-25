@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, openSync, readFileSync, readSync, closeSync, statSync } from "node:fs";
+import { existsSync, openSync, readSync, closeSync, statSync } from "node:fs";
+import { StringDecoder } from "node:string_decoder";
 
 import { createIssueComment, updateIssueComment } from "../github.js";
 import {
@@ -7,8 +8,10 @@ import {
   writeProgressCancelMarker,
 } from "../progress-cancel.js";
 import {
+  appendProgressStepCount,
   buildProgressViewModel,
-  countProgressSteps,
+  createProgressStepCounter,
+  type ProgressStepCounterState,
   renderCancelled,
   renderFinal,
   renderRunning,
@@ -67,6 +70,12 @@ export interface ProgressReporterDeps {
   log: (message: string) => void;
 }
 
+export interface ProgressStepCountReaderState {
+  offset: number;
+  parser: ProgressStepCounterState;
+  decoder: StringDecoder;
+}
+
 export interface ProgressReporterTickResult {
   shouldContinue: boolean;
   created: boolean;
@@ -78,6 +87,14 @@ export interface ProgressReporterTickResult {
 const DEFAULT_POLL_INTERVAL_MS = 10_000;
 const DEFAULT_MAX_STREAM_BYTES = 1024 * 1024;
 const MIN_POLL_INTERVAL_MS = 250;
+
+export function createProgressStepCountReaderState(): ProgressStepCountReaderState {
+  return {
+    offset: 0,
+    parser: createProgressStepCounter(),
+    decoder: new StringDecoder("utf8"),
+  };
+}
 
 export function createProgressReporterState(startTimeMs = Date.now()): ProgressReporterState {
   return {
@@ -236,10 +253,11 @@ export function parseProgressReporterConfig(
 }
 
 export function defaultProgressReporterDeps(): ProgressReporterDeps {
+  const stepCountReaderState = createProgressStepCountReaderState();
   return {
     now: () => Date.now(),
     readStream: readStreamTail,
-    readStepCount: readProgressStepCount,
+    readStepCount: (path) => readProgressStepCount(path, stepCountReaderState),
     createComment: createIssueComment,
     updateComment: updateIssueComment,
     listReactions: listCommentReactions,
@@ -314,13 +332,41 @@ export function readStreamTail(path: string, maxBytes = DEFAULT_MAX_STREAM_BYTES
   }
 }
 
-export function readProgressStepCount(path: string): number {
-  if (!path || !existsSync(path)) return 0;
+export function readProgressStepCount(path: string, state: ProgressStepCountReaderState): number {
+  if (!path || !existsSync(path)) return state.parser.count;
 
+  const size = statSync(path).size;
+  if (size < state.offset) {
+    state.offset = 0;
+    state.parser = createProgressStepCounter();
+    state.decoder = new StringDecoder("utf8");
+  }
+  if (size === state.offset) return state.parser.count;
+
+  let fd: number | undefined;
   try {
-    return countProgressSteps(readFileSync(path, "utf8"));
-  } catch {
-    return 0;
+    fd = openSync(path, "r");
+    const bytesToRead = size - state.offset;
+    const buffer = Buffer.alloc(bytesToRead);
+    let bytesRead = 0;
+    while (bytesRead < bytesToRead) {
+      const read = readSync(fd, buffer, bytesRead, bytesToRead - bytesRead, state.offset + bytesRead);
+      if (read === 0) break;
+      bytesRead += read;
+    }
+    state.offset += bytesRead;
+    if (bytesRead > 0) {
+      appendProgressStepCount(state.parser, state.decoder.write(buffer.subarray(0, bytesRead)));
+    }
+    return state.parser.count;
+  } finally {
+    if (fd !== undefined) {
+      try {
+        closeSync(fd);
+      } catch {
+        // Best effort only.
+      }
+    }
   }
 }
 

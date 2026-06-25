@@ -2,6 +2,7 @@ import { test } from "node:test";
 import { strict as assert } from "node:assert";
 
 import {
+  createProgressStepCountReaderState,
   createProgressReporterState,
   finalizeProgressReporter,
   invokeProgressCancellation,
@@ -231,10 +232,11 @@ test("truncated stream tails keep a monotonic whole-run step count", () => {
       maxStreamBytes: Buffer.byteLength(toolEvent("Bash")),
     });
     const state = createProgressReporterState(0);
+    const stepCountReaderState = createProgressStepCountReaderState();
     const deps: ProgressReporterDeps = {
       now: () => now,
       readStream: readStreamTail,
-      readStepCount: readProgressStepCount,
+      readStepCount: (path) => readProgressStepCount(path, stepCountReaderState),
       createComment: (_repo, _issueNumber, body) => {
         calls.creates.push(body);
         return "999";
@@ -265,6 +267,25 @@ test("truncated stream tails keep a monotonic whole-run step count", () => {
     assert.match(calls.updates[0], /5 steps/);
     assert.doesNotMatch(calls.updates[0], /1 step/);
     assert.doesNotMatch(calls.updates[0], /📖 Read/);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("incremental step counter reads only newly appended stream bytes", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "progress-report-count-"));
+  try {
+    const streamPath = join(tempDir, "stream.ndjson");
+    const firstStream = `${toolEvent("Read")}${toolEvent("Edit")}`;
+    const state = createProgressStepCountReaderState();
+    writeFileSync(streamPath, firstStream, "utf8");
+
+    assert.equal(readProgressStepCount(streamPath, state), 2);
+
+    const corruptedPrefix = "not json\n".padEnd(Buffer.byteLength(firstStream), " ");
+    writeFileSync(streamPath, `${corruptedPrefix}${toolEvent("Bash")}`, "utf8");
+
+    assert.equal(readProgressStepCount(streamPath, state), 3);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
