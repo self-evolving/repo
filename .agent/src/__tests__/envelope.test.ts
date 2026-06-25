@@ -202,12 +202,26 @@ test("answer route passes trigger metadata into prompt variables", () => {
     (step): step is Record<string, unknown> =>
       isRecord(step) && step.name === "Run answer agent",
   );
+  const postAnswerStep = answerJob.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Post answer",
+  );
   assert.ok(runAnswerStep, "answer job should run the answer agent");
   assert.ok(isRecord(runAnswerStep.with), "answer agent step should define inputs");
   assert.equal(runAnswerStep.with.request_source_kind, "${{ needs.portal.outputs.source_kind }}");
   assert.equal(runAnswerStep.with.request_comment_id, "${{ needs.portal.outputs.source_comment_id }}");
   assert.equal(runAnswerStep.with.request_comment_url, "${{ needs.portal.outputs.source_comment_url }}");
   assert.equal(runAnswerStep.with.response_kind, "${{ needs.portal.outputs.response_kind }}");
+  assert.ok(postAnswerStep, "answer job should post the final answer");
+  assert.equal(
+    String(postAnswerStep.if || "").replace(/\s+/g, " ").trim(),
+    "always() && needs.portal.outputs.route == 'answer' && steps.answer.outcome != 'skipped'",
+  );
+  assert.ok(isRecord(postAnswerStep.env), "post answer step should define env");
+  assert.equal(
+    postAnswerStep.env.STATUS,
+    "${{ steps.answer.outcome == 'success' && 'success' || steps.answer.outcome == 'cancelled' && 'cancelled' || 'failed' }}",
+  );
 
   assert.ok(isRecord(runAgentTaskAction), "run-agent-task action should parse");
   assert.ok(isRecord(runAgentTaskAction.inputs), "run-agent-task action should define inputs");
@@ -862,6 +876,10 @@ test("agent router preauthorizes implicit follow-up answer gates", () => {
   assert.match(
     runnerWorkflow.slice(intentIndex, resolveRouteIndex),
     /steps\.followup_authorization\.outputs\.route == 'answer'/,
+  );
+  assert.match(
+    runnerWorkflow.slice(intentIndex, resolveRouteIndex),
+    /progress_policy:\s*'\{"route_overrides":\{"answer":"disabled"\}\}'/,
   );
   assert.match(
     runnerWorkflow.slice(resolveRouteIndex, runnerWorkflow.indexOf("- name: React with eyes", resolveRouteIndex)),
@@ -2156,6 +2174,7 @@ test("memory workflows exist and point at the right CLIs / prompts", () => {
   assert.match(prClosedWorkflow, /prompt: memory-pr-closed/);
   assert.match(prClosedWorkflow, /memory_mode_override: 'enabled'/);
   assert.match(prClosedWorkflow, /memory_policy:\s*\$\{\{\s*vars\.AGENT_MEMORY_POLICY \|\| ''\s*\}\}/);
+  assert.match(prClosedWorkflow, /progress_policy:\s*'\{"route_overrides":\{"answer":"disabled"\}\}'/);
   assert.doesNotMatch(prClosedWorkflow, /memory_bootstrap_if_missing:/);
   assert.match(prClosedWorkflow, /inputs\.memory_ref \|\| vars\.AGENT_MEMORY_REF \|\| 'agent\/memory'/);
   assert.doesNotMatch(prClosedWorkflow, /continue-on-error:\s*true/);
