@@ -121,6 +121,10 @@ inputs:
     description: "Memory access policy JSON. Workflow callers can pass repository variables explicitly."
     required: false
     default: ""
+  progress_policy:
+    description: "Progress reporting policy JSON. Empty defaults to live progress with cancellation for implement and fix-pr."
+    required: false
+    default: ""
   memory_mode_override:
     description: |
       Explicit memory mode (enabled, read-only, disabled) that bypasses the policy.
@@ -339,11 +343,52 @@ runs:
           --limit "${RUBRICS_LIMIT}" \
           --output-file "${RUBRICS_CONTEXT_FILE}"
 
+    - name: Resolve progress policy
+      id: progress_policy
+      shell: bash
+      env:
+        AGENT_PROGRESS_POLICY: ${{ inputs.progress_policy }}
+        ROUTE: ${{ inputs.route }}
+        TARGET_KIND: ${{ inputs.target_kind }}
+      run: node .agent/dist/cli/progress/resolve-policy.js
+
+    - name: Start progress reporter
+      if: steps.progress_policy.outputs.enabled == 'true' && steps.progress_policy.outputs.target_supported == 'true'
+      id: progress_reporter
+      continue-on-error: true
+      shell: bash
+      env:
+        AGENT_PROGRESS_CANCEL_ENABLED: ${{ steps.progress_policy.outputs.cancel_enabled }}
+        AGENT_PROGRESS_CANCEL_MARKER_FILE: ${{ runner.temp }}/agent-progress-cancelled
+        AGENT_PROGRESS_LOG_FILE: ${{ runner.temp }}/agent-progress-reporter-${{ github.run_id }}.log
+        AGENT_PROGRESS_PID_FILE: ${{ runner.temp }}/agent-progress-reporter-${{ github.run_id }}.pid
+        AGENT_PROGRESS_REPO: ${{ github.repository }}
+        AGENT_PROGRESS_REQUESTER: ${{ inputs.requested_by }}
+        AGENT_PROGRESS_ROUTE: ${{ inputs.route }}
+        AGENT_PROGRESS_RUN_ID: ${{ github.run_id }}
+        AGENT_PROGRESS_STREAM_FILE: ${{ runner.temp }}/agent-progress-${{ github.run_id }}-${{ inputs.route }}-${{ inputs.target_kind }}-${{ inputs.target_number }}.ndjson
+        AGENT_PROGRESS_TARGET_KIND: ${{ inputs.target_kind }}
+        AGENT_PROGRESS_TARGET_NUMBER: ${{ inputs.target_number }}
+        GH_TOKEN: ${{ inputs.github_token }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        INPUT_GITHUB_TOKEN: ${{ inputs.github_token }}
+      run: |
+        set -euo pipefail
+        echo "stream_file=${AGENT_PROGRESS_STREAM_FILE}" >> "$GITHUB_OUTPUT"
+        echo "pid_file=${AGENT_PROGRESS_PID_FILE}" >> "$GITHUB_OUTPUT"
+        echo "log_file=${AGENT_PROGRESS_LOG_FILE}" >> "$GITHUB_OUTPUT"
+
+        mkdir -p "$(dirname "${AGENT_PROGRESS_STREAM_FILE}")"
+        : > "${AGENT_PROGRESS_STREAM_FILE}"
+        node .agent/dist/cli/progress-report.js > "${AGENT_PROGRESS_LOG_FILE}" 2>&1 &
+        echo "$!" > "${AGENT_PROGRESS_PID_FILE}"
+
     - name: Run agent task
       id: run
       shell: bash
       env:
         ACPX_AGENT: ${{ inputs.agent }}
+        AGENT_PROGRESS_STREAM_FILE: ${{ steps.progress_reporter.outputs.stream_file }}
         MODEL_ID: ${{ inputs.model }}
         DISPLAY_MODEL: ${{ inputs.display_model || 'true' }}
         ACPX_PERMISSION_MODE: ${{ inputs.permission_mode }}
@@ -394,6 +439,34 @@ runs:
         exit_code=$?
         echo "exit_code=${exit_code}" >> "$GITHUB_OUTPUT"
         exit 0
+
+    - name: Stop progress reporter
+      if: always() && steps.progress_reporter.outputs.pid_file != ''
+      continue-on-error: true
+      shell: bash
+      env:
+        AGENT_PROGRESS_PID_FILE: ${{ steps.progress_reporter.outputs.pid_file }}
+      run: |
+        set +e
+        if [ ! -f "${AGENT_PROGRESS_PID_FILE}" ]; then
+          exit 0
+        fi
+
+        pid="$(cat "${AGENT_PROGRESS_PID_FILE}" 2>/dev/null)"
+        if [ -z "${pid}" ]; then
+          exit 0
+        fi
+
+        if kill -0 "${pid}" 2>/dev/null; then
+          kill -TERM "${pid}" 2>/dev/null || true
+          for _ in 1 2 3 4 5; do
+            if ! kill -0 "${pid}" 2>/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          kill -KILL "${pid}" 2>/dev/null || true
+        fi
 
     - name: Commit memory edits
       if: >-
