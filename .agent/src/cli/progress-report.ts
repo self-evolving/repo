@@ -1,8 +1,14 @@
+import { execFileSync } from "node:child_process";
 import { existsSync, openSync, readSync, closeSync, statSync } from "node:fs";
 
 import { createIssueComment, updateIssueComment } from "../github.js";
 import {
+  defaultProgressCancelMarkerFile,
+  writeProgressCancelMarker,
+} from "../progress-cancel.js";
+import {
   buildProgressViewModel,
+  renderCancelled,
   renderFinal,
   renderRunning,
 } from "../progress-render.js";
@@ -25,6 +31,7 @@ export interface ProgressReporterConfig {
   runId: string;
   pollIntervalMs: number;
   cancelEnabled: boolean;
+  cancelMarkerFile: string;
   maxStreamBytes: number;
 }
 
@@ -49,7 +56,11 @@ export interface ProgressReporterDeps {
     reactions: ReturnType<typeof listCommentReactions>,
     requester: string,
   ) => AuthorizedCancelReaction | null;
-  invokeCancel: (reaction: AuthorizedCancelReaction, state: ProgressReporterState) => void;
+  invokeCancel: (
+    config: ProgressReporterConfig,
+    reaction: AuthorizedCancelReaction,
+    state: ProgressReporterState,
+  ) => void;
   log: (message: string) => void;
 }
 
@@ -137,13 +148,11 @@ export function progressReporterTick(
   if (config.cancelEnabled && !state.cancelInvoked) {
     const cancelReaction = findCancelReactionBestEffort(config, state, deps);
     if (cancelReaction) {
-      state.cancelInvoked = true;
-      result.cancelInvoked = true;
-      try {
-        deps.invokeCancel(cancelReaction, state);
-      } catch (err: unknown) {
-        deps.log(`Could not invoke progress cancellation: ${errorMessage(err)}`);
-      }
+      const cancelled = cancelProgressReporter(config, state, deps, streamText, cancelReaction);
+      result.patched = cancelled.patched || result.patched;
+      result.finalized = cancelled.finalized;
+      result.cancelInvoked = cancelled.cancelInvoked;
+      result.shouldContinue = !cancelled.finalized;
     }
   }
 
@@ -211,6 +220,7 @@ export function parseProgressReporterConfig(
       DEFAULT_POLL_INTERVAL_MS,
     ),
     cancelEnabled: parseBoolean(firstEnv(env, "AGENT_PROGRESS_CANCEL_ENABLED", "PROGRESS_CANCEL_ENABLED")),
+    cancelMarkerFile: defaultProgressCancelMarkerFile(env),
     maxStreamBytes: parseDurationMs(
       firstEnv(env, "AGENT_PROGRESS_MAX_STREAM_BYTES", "PROGRESS_MAX_STREAM_BYTES"),
       DEFAULT_MAX_STREAM_BYTES,
@@ -227,8 +237,8 @@ export function defaultProgressReporterDeps(): ProgressReporterDeps {
     updateComment: updateIssueComment,
     listReactions: listCommentReactions,
     findAuthorizedCancel: findAuthorizedCancelReaction,
-    invokeCancel: (reaction) => {
-      console.log(`Authorized progress cancellation requested by @${reaction.user}.`);
+    invokeCancel: (config, reaction) => {
+      invokeProgressCancellation(config, reaction);
     },
     log: (message) => console.warn(message),
   };
@@ -297,6 +307,35 @@ export function readStreamTail(path: string, maxBytes = DEFAULT_MAX_STREAM_BYTES
   }
 }
 
+export function invokeProgressCancellation(
+  config: ProgressReporterConfig,
+  reaction: AuthorizedCancelReaction,
+): void {
+  writeProgressCancelMarker(config.cancelMarkerFile, reaction.user);
+  try {
+    cancelWorkflowRun(config.runId);
+  } catch (err: unknown) {
+    try {
+      writeProgressCancelMarker(config.cancelMarkerFile, reaction.user, "failed");
+    } catch (markerErr: unknown) {
+      throw new Error(
+        `${errorMessage(err)}; could not mark progress cancellation as failed: ${errorMessage(markerErr)}`,
+      );
+    }
+    throw err;
+  }
+}
+
+export function cancelWorkflowRun(runId: string): void {
+  const normalizedRunId = runId.trim();
+  if (!normalizedRunId || normalizedRunId === "unknown") {
+    throw new Error("GITHUB_RUN_ID is not available for progress cancellation");
+  }
+  execFileSync("gh", ["run", "cancel", normalizedRunId], {
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+}
+
 function readStreamBestEffort(
   config: ProgressReporterConfig,
   state: ProgressReporterState,
@@ -323,6 +362,42 @@ function findCancelReactionBestEffort(
   } catch (err: unknown) {
     deps.log(`Could not inspect progress reactions: ${errorMessage(err)}`);
     return null;
+  }
+}
+
+function cancelProgressReporter(
+  config: ProgressReporterConfig,
+  state: ProgressReporterState,
+  deps: ProgressReporterDeps,
+  streamText: string,
+  reaction: AuthorizedCancelReaction,
+): { patched: boolean; finalized: boolean; cancelInvoked: boolean } {
+  const cancelledBody = renderCancelledBestEffort(config, state, deps, streamText, reaction.user);
+  if (!cancelledBody) {
+    return { patched: false, finalized: false, cancelInvoked: false };
+  }
+
+  let patched = false;
+  if (cancelledBody !== state.lastBody) {
+    try {
+      deps.updateComment(config.repo, state.commentId, cancelledBody);
+      state.lastBody = cancelledBody;
+      patched = true;
+    } catch (err: unknown) {
+      deps.log(`Could not update progress comment before cancellation: ${errorMessage(err)}`);
+      return { patched: false, finalized: false, cancelInvoked: false };
+    }
+  }
+
+  try {
+    deps.invokeCancel(config, reaction, state);
+    state.cancelInvoked = true;
+    state.finalized = true;
+    state.stopped = true;
+    return { patched, finalized: true, cancelInvoked: true };
+  } catch (err: unknown) {
+    deps.log(`Could not invoke progress cancellation: ${errorMessage(err)}`);
+    return { patched, finalized: false, cancelInvoked: false };
   }
 }
 
@@ -361,6 +436,27 @@ function renderFinalBestEffort(
     return renderFinal(model, "finished");
   } catch (err: unknown) {
     deps.log(`Could not render final progress comment: ${errorMessage(err)}`);
+    return null;
+  }
+}
+
+function renderCancelledBestEffort(
+  config: ProgressReporterConfig,
+  state: ProgressReporterState,
+  deps: ProgressReporterDeps,
+  streamText: string,
+  byLogin: string,
+): string | null {
+  try {
+    const model = buildProgressViewModel(streamText, {
+      runId: config.runId,
+      route: config.route,
+      status: "cancelled",
+      elapsedMs: deps.now() - state.startTimeMs,
+    });
+    return renderCancelled(model, byLogin);
+  } catch (err: unknown) {
+    deps.log(`Could not render cancelled progress comment: ${errorMessage(err)}`);
     return null;
   }
 }

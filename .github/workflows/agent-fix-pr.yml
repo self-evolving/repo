@@ -241,8 +241,16 @@ jobs:
           VERIFY_EXIT_CODE: ${{ steps.verify.outputs.verify_exit_code }}
         run: node .agent/dist/cli/parse-response.js
 
+      - name: Resolve progress cancellation status
+        if: always() && steps.pr.outputs.cross_repo != 'true' && steps.pr.outputs.pr_state == 'OPEN'
+        id: progress_status
+        env:
+          AGENT_PROGRESS_CANCEL_MARKER_FILE: ${{ runner.temp }}/agent-progress-cancelled
+          STATUS: ${{ steps.response.outputs.status || 'failed' }}
+        run: node .agent/dist/cli/resolve-progress-status.js
+
       - name: Commit and push to PR branch
-        if: steps.response.outputs.status == 'success' && steps.verify.outputs.has_changes == 'true'
+        if: steps.progress_status.outputs.status == 'success' && steps.verify.outputs.has_changes == 'true'
         id: commit
         env:
           BRANCH: ${{ steps.pr.outputs.head_ref }}
@@ -256,7 +264,7 @@ jobs:
         run: node .agent/dist/cli/commit.js
 
       - name: Push PR branch head update
-        if: steps.response.outputs.status == 'success' && steps.verify.outputs.has_changes != 'true' && steps.head.outputs.head_changed == 'true'
+        if: steps.progress_status.outputs.status == 'success' && steps.verify.outputs.has_changes != 'true' && steps.head.outputs.head_changed == 'true'
         id: push-head
         env:
           BRANCH: ${{ steps.pr.outputs.head_ref }}
@@ -279,8 +287,9 @@ jobs:
           MODEL_DISPLAY: ${{ steps.agent.outputs.model_display }}
           RESUME_STATUS: ${{ steps.agent.outputs.resume_status }}
           ROUTE: fix-pr
-          STATUS: ${{ (steps.commit.outcome == 'failure' || steps.push-head.outcome == 'failure') && 'failed' || steps.response.outputs.status || 'failed' }}
+          STATUS: ${{ steps.progress_status.outputs.cancelled == 'true' && 'cancelled' || (steps.commit.outcome == 'failure' || steps.push-head.outcome == 'failure') && 'failed' || steps.progress_status.outputs.status || steps.response.outputs.status || 'failed' }}
           TARGET_NUMBER: ${{ env.PR_NUMBER }}
+          CANCELLED_BY: ${{ steps.progress_status.outputs.cancelled_by }}
         run: node .agent/dist/cli/post-comment.js
 
       - name: Post unsupported status
@@ -300,6 +309,7 @@ jobs:
           always() &&
           steps.pr.outputs.cross_repo != 'true' &&
           steps.pr.outputs.pr_state == 'OPEN' &&
+          steps.progress_status.outputs.cancelled != 'true' &&
           inputs.orchestration_enabled == 'true'
         env:
           AUTOMATION_CURRENT_ROUND: ${{ inputs.automation_current_round }}
@@ -313,6 +323,6 @@ jobs:
           REQUEST_TEXT: ${{ inputs.request_text }}
           SESSION_BUNDLE_MODE: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
           SOURCE_ACTION: fix-pr
-          SOURCE_CONCLUSION: ${{ steps.response.outputs.status || 'failed' }}
+          SOURCE_CONCLUSION: ${{ steps.progress_status.outputs.status || steps.response.outputs.status || 'failed' }}
           TARGET_NUMBER: ${{ env.PR_NUMBER }}
         run: node .agent/dist/cli/dispatch-agent-orchestrator.js

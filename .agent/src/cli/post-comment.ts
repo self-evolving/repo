@@ -2,7 +2,7 @@
 // Usage: node .agent/dist/cli/post-comment.js
 // Env: COMMENT_TARGET (issue or pr), TARGET_NUMBER, ROUTE, STATUS,
 //      RESPONSE_FILE (optional), BRANCH, PR_URL, REQUESTED_BY,
-//      APPROVAL_COMMENT_URL, AGENT_COLLAPSE_OLD_REVIEWS
+//      APPROVAL_COMMENT_URL, CANCELLED_BY, AGENT_COLLAPSE_OLD_REVIEWS
 // Outputs: status
 
 import { readFileSync } from "node:fs";
@@ -34,6 +34,7 @@ const branch = process.env.BRANCH || "";
 const prUrl = process.env.PR_URL || "";
 const requestedBy = process.env.REQUESTED_BY || "";
 const approvalCommentUrl = process.env.APPROVAL_COMMENT_URL || "";
+const cancelledBy = process.env.CANCELLED_BY || "";
 const resumeStatus = process.env.RESUME_STATUS || "";
 const modelDisplay = process.env.MODEL_DISPLAY || process.env.AGENT_RUN_DISPLAY || "";
 const repo = process.env.GITHUB_REPOSITORY || "";
@@ -78,6 +79,7 @@ if (route === "review") {
     branch,
     requestedBy: requestedBy || undefined,
     approvalCommentUrl: approvalCommentUrl || undefined,
+    cancelledBy: cancelledBy || undefined,
   });
 } else if (route === "add-rubrics") {
   const parsed = normalizeImplementationResponse(rawResponse);
@@ -88,6 +90,7 @@ if (route === "review") {
     prUrl: prUrl || undefined,
     approvalCommentUrl: approvalCommentUrl || undefined,
     explainedNoop: isExplainedAddRubricsNoop(route, parsed),
+    cancelledBy: cancelledBy || undefined,
   });
 } else {
   // implement or other
@@ -100,6 +103,7 @@ if (route === "review") {
     branch: branch || undefined,
     prUrl: prUrl || undefined,
     approvalCommentUrl: approvalCommentUrl || undefined,
+    cancelledBy: cancelledBy || undefined,
   });
 }
 
