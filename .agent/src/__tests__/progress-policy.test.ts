@@ -1,7 +1,10 @@
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
 
-import { resolveProgressMode } from "../cli/progress/resolve-policy.js";
+import {
+  resolveProgressMode,
+  resolveProgressPolicy,
+} from "../cli/progress/resolve-policy.js";
 import {
   DEFAULT_PROGRESS_MODE,
   DEFAULT_PROGRESS_ROUTE_OVERRIDES,
@@ -79,6 +82,40 @@ test("resolveProgressMode falls closed to disabled on malformed policy", () => {
   } finally {
     console.error = originalError;
   }
+});
+
+test("resolveProgressPolicy disables answer progress for review comment replies", () => {
+  const resolution = resolveProgressPolicy({
+    AGENT_PROGRESS_POLICY: '{"route_overrides":{"answer":"enabled"}}',
+    RESPONSE_KIND: "review_comment_reply",
+    ROUTE: "answer",
+    TARGET_KIND: "pull_request",
+  });
+
+  assert.equal(resolution.mode, "enabled");
+  assert.equal(resolution.targetSupported, true);
+  assert.equal(resolution.responseSupported, false);
+  assert.equal(resolution.enabled, false);
+  assert.equal(resolution.cancelEnabled, false);
+});
+
+test("resolveProgressPolicy keeps answer progress for mergeable responses", () => {
+  const issueResolution = resolveProgressPolicy({
+    RESPONSE_KIND: "issue_comment",
+    ROUTE: "answer",
+    TARGET_KIND: "issue",
+  });
+  const prResolution = resolveProgressPolicy({
+    RESPONSE_KIND: "pr_comment",
+    ROUTE: "answer",
+    TARGET_KIND: "pull_request",
+  });
+
+  assert.equal(issueResolution.enabled, true);
+  assert.equal(issueResolution.cancelEnabled, false);
+  assert.equal(issueResolution.responseSupported, true);
+  assert.equal(prResolution.enabled, true);
+  assert.equal(prResolution.responseSupported, true);
 });
 
 test("mode predicates distinguish reporting from cancellation", () => {

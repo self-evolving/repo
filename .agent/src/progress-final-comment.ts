@@ -87,7 +87,7 @@ function extractProgressActivity(progressBody: string): string {
     parts.push("Activity", details);
   } else {
     const fallback = body.replace(/^###\s+.+\n?/, "").trim();
-    if (fallback) {
+    if (fallback && fallback !== beforeDetails) {
       parts.push(fallback);
     }
   }

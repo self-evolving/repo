@@ -207,14 +207,23 @@ test("answer route passes trigger metadata into prompt variables", () => {
   assert.equal(runAnswerStep.with.request_source_kind, "${{ needs.portal.outputs.source_kind }}");
   assert.equal(runAnswerStep.with.request_comment_id, "${{ needs.portal.outputs.source_comment_id }}");
   assert.equal(runAnswerStep.with.request_comment_url, "${{ needs.portal.outputs.source_comment_url }}");
+  assert.equal(runAnswerStep.with.response_kind, "${{ needs.portal.outputs.response_kind }}");
 
   assert.ok(isRecord(runAgentTaskAction), "run-agent-task action should parse");
   assert.ok(isRecord(runAgentTaskAction.inputs), "run-agent-task action should define inputs");
   assert.ok(isRecord(runAgentTaskAction.inputs.request_source_kind));
   assert.ok(isRecord(runAgentTaskAction.inputs.request_comment_id));
   assert.ok(isRecord(runAgentTaskAction.inputs.request_comment_url));
+  assert.ok(isRecord(runAgentTaskAction.inputs.response_kind));
   assert.ok(isRecord(runAgentTaskAction.runs), "run-agent-task action should define runs");
   assert.ok(Array.isArray(runAgentTaskAction.runs.steps), "run-agent-task action should define steps");
+  const progressPolicyStep = runAgentTaskAction.runs.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.id === "progress_policy",
+  );
+  assert.ok(progressPolicyStep, "run-agent-task action should resolve progress policy");
+  assert.ok(isRecord(progressPolicyStep.env), "progress policy step should define env");
+  assert.equal(progressPolicyStep.env.RESPONSE_KIND, "${{ inputs.response_kind }}");
   const runStep = runAgentTaskAction.runs.steps.find(
     (step): step is Record<string, unknown> => isRecord(step) && step.id === "run",
   );

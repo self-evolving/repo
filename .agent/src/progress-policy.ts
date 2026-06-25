@@ -107,6 +107,16 @@ export function progressModeAllowsCancel(mode: ProgressMode): boolean {
   return mode === "enabled";
 }
 
+export function progressResponseSupportsComments(route: string, responseKind: string): boolean {
+  const normalizedRoute = String(route || "").trim().toLowerCase();
+  const normalizedResponseKind = String(responseKind || "").trim().toLowerCase();
+  if (normalizedRoute !== "answer" || !normalizedResponseKind) {
+    return true;
+  }
+
+  return normalizedResponseKind === "issue_comment" || normalizedResponseKind === "pr_comment";
+}
+
 export function isProgressMode(value: unknown): value is ProgressMode {
   return typeof value === "string" && VALID_MODE_SET.has(value);
 }
