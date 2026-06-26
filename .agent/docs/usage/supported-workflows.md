@@ -192,12 +192,13 @@ then return `new_issue`, `continue_issue`, or `continue_pr`. Deterministic
 post-agent code validates the JSON decision, creates a marked proposal issue or
 posts a continuation trace comment, verifies continuation targets are open and
 of the requested kind, and dispatches `agent-orchestrator.yml` on the chosen
-target. It uses the current run marker to reuse a proposal issue or skip a
-duplicate trace comment on retry/rerun, without treating older proposals as a
-backlog lock. Manual dispatches derive the real dispatcher's repository
-association before forwarding delegated-route authorization context; scheduled
-runs are system-authorized by the repository owner opt-in. This keeps prior
-failed or stuck attempts as context instead of locks that can deadlock future
+target. It uses the current run marker to skip a duplicate trace comment on
+retry/rerun, and reuses marked proposal issues only when they were authored by
+the authenticated Sepo actor, without treating older proposals as a backlog
+lock. Manual dispatches derive the real dispatcher's repository association
+before forwarding delegated-route authorization context; scheduled runs are
+system-authorized by the repository owner opt-in. This keeps prior failed or
+stuck attempts as context instead of locks that can deadlock future
 self-improvement runs.
 
 `agent-daily-summary.yml` checks repository discussion settings before gathering

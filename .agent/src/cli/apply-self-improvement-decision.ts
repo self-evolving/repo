@@ -21,7 +21,15 @@
 //   decision, target_kind, target_number, issue_url, comment_posted
 
 import { readFileSync } from "node:fs";
-import { createIssue, dispatchWorkflow, gh, postIssueComment, postPrComment } from "../github.js";
+import {
+  createIssue,
+  dispatchWorkflow,
+  fetchAuthenticatedActorLogin,
+  gh,
+  normalizeActorLogin,
+  postIssueComment,
+  postPrComment,
+} from "../github.js";
 import { setOutput } from "../output.js";
 import {
   SELF_IMPROVEMENT_DECISION_MARKER,
@@ -74,9 +82,25 @@ function fallbackIssueUrl(repo: string, issueNumber: number): string {
   return `${server}/${repo}/issues/${issueNumber}`;
 }
 
+function loginFromRecord(value: unknown): string {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return "";
+  const login = (value as Record<string, unknown>).login;
+  return typeof login === "string" ? login.trim() : "";
+}
+
+function issueAuthorLogin(issue: Record<string, unknown>): string {
+  return loginFromRecord(issue.user) || loginFromRecord(issue.author);
+}
+
+function isTrustedAuthorLogin(authorLogin: string, authenticatedLogin: string): boolean {
+  const normalizedAuthor = normalizeActorLogin(authorLogin);
+  return Boolean(normalizedAuthor) && normalizedAuthor === normalizeActorLogin(authenticatedLogin);
+}
+
 function findExistingRunProposalIssue(context: SelfImprovementRunContext): { issueUrl: string; targetNumber: number } | null {
   const marker = selfImprovementRunMarker(context.runId);
   if (!marker) return null;
+  let authenticatedLogin = "";
 
   const issues = asRecordArray(gh([
     "api",
@@ -100,6 +124,11 @@ function findExistingRunProposalIssue(context: SelfImprovementRunContext): { iss
     ) {
       continue;
     }
+    const authorLogin = issueAuthorLogin(issue);
+    if (!authorLogin) continue;
+    authenticatedLogin ||= fetchAuthenticatedActorLogin();
+    if (!isTrustedAuthorLogin(authorLogin, authenticatedLogin)) continue;
+
     const number = Number(issue.number || "");
     if (!Number.isInteger(number) || number <= 0) continue;
     return {
