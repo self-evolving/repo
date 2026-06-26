@@ -111,6 +111,62 @@ exit 1
   }
 });
 
+test("post-response CLI merges issue answers into a progress comment when configured", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-post-response-"));
+
+  try {
+    const logPath = join(tempDir, "gh.log");
+    const bodyPath = join(tempDir, "body.md");
+    writeFileSync(bodyPath, "Answer body.\n", "utf8");
+    writeFakeGh(
+      tempDir,
+      `#!/usr/bin/env bash
+printf '%s\\n' "$*" >> "$FAKE_GH_LOG"
+if [ "$1" = "api" ] && [ "$2" = "repos/self-evolving/repo/issues/comments/999" ]; then
+  printf '### Sepo finished — answer · 3s · 1 step\\n\\n<details>\\n<summary>Activity</summary>\\n\\n- 💬 Message "Checking."\\n</details>\\n\\n<!-- sepo-progress:run-456 -->\\n'
+  exit 0
+fi
+if [ "$1" = "api" ] && [ "$2" = "--method" ] && [ "$3" = "PATCH" ] && [ "$4" = "repos/self-evolving/repo/issues/comments/999" ]; then
+  exit 0
+fi
+if [ "$1" = "issue" ] && [ "$2" = "comment" ]; then
+  printf 'unexpected fallback post\\n' >&2
+  exit 1
+fi
+printf 'unexpected gh args: %s\\n' "$*" >&2
+exit 1
+`,
+    );
+
+    const result = spawnSync("node", [".agent/dist/cli/post-response.js"], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        PATH: `${tempDir}:${process.env.PATH || ""}`,
+        AGENT_PROGRESS_COMMENT_ID: "999",
+        AGENT_PROGRESS_FINAL_COMMENT_MODE: "merge",
+        BODY_FILE: bodyPath,
+        RESPONSE_KIND: "issue_comment",
+        TARGET_NUMBER: "321",
+        GITHUB_REPOSITORY: "self-evolving/repo",
+        FAKE_GH_LOG: logPath,
+      },
+      encoding: "utf8",
+    });
+
+    assert.equal(result.status, 0, result.stderr);
+    const log = readFileSync(logPath, "utf8");
+    assert.match(log, /^api repos\/self-evolving\/repo\/issues\/comments\/999 --jq \.body$/m);
+    assert.match(log, /^api --method PATCH repos\/self-evolving\/repo\/issues\/comments\/999 /m);
+    assert.match(log, /Answer body\./);
+    assert.match(log, /<summary>Sepo activity<\/summary>/);
+    assert.match(log, /<!-- sepo-progress:run-456 -->/);
+    assert.doesNotMatch(log, /^issue comment /m);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("post-response CLI updates latest Sepo self-approval marker comment", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-post-response-"));
 

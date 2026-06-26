@@ -28,6 +28,10 @@ on:
         description: "Session bundle persistence mode (defaults to repository variable AGENT_SESSION_BUNDLE_MODE or 'auto')"
         required: false
         default: ""
+      orchestration_enabled:
+        description: "Whether this run belongs to an explicit orchestrator chain"
+        required: false
+        default: "false"
   workflow_call:
     inputs:
       pr_number:
@@ -54,6 +58,10 @@ on:
       session_bundle_mode:
         type: string
         default: ""
+      orchestration_enabled:
+        type: string
+        required: false
+        default: "false"
 
 permissions:
   actions: read
@@ -174,6 +182,8 @@ jobs:
           memory_mode_override: 'read-only'
           memory_ref: ${{ vars.AGENT_MEMORY_REF || 'agent/memory' }}
           memory_policy: ${{ vars.AGENT_MEMORY_POLICY || '' }}
+          progress_policy: ${{ vars.AGENT_PROGRESS_POLICY || '' }}
+          orchestration_enabled: ${{ inputs.orchestration_enabled }}
           rubrics_ref: ${{ inputs.rubrics_ref || vars.AGENT_RUBRICS_REF || 'agent/rubrics' }}
           rubrics_policy: ${{ vars.AGENT_RUBRICS_POLICY || '' }}
           rubrics_limit: ${{ inputs.rubrics_limit || vars.AGENT_RUBRICS_LIMIT || '10' }}

@@ -240,6 +240,8 @@ jobs:
           agent_cwd: ${{ env.AGENT_WORKTREE }}
           memory_ref: ${{ vars.AGENT_MEMORY_REF || 'agent/memory' }}
           memory_policy: ${{ vars.AGENT_MEMORY_POLICY || '' }}
+          progress_policy: ${{ vars.AGENT_PROGRESS_POLICY || '' }}
+          orchestration_enabled: ${{ inputs.orchestration_enabled }}
           rubrics_ref: ${{ vars.AGENT_RUBRICS_REF || 'agent/rubrics' }}
           rubrics_policy: ${{ vars.AGENT_RUBRICS_POLICY || '' }}
           rubrics_mode_override: ${{ env.IMPLEMENTATION_ROUTE == 'add-rubrics' && 'read-only' || '' }}
@@ -274,8 +276,16 @@ jobs:
           VERIFY_EXIT_CODE: ${{ steps.verify.outputs.verify_exit_code }}
         run: node .agent/dist/cli/parse-response.js
 
+      - name: Resolve progress cancellation status
+        if: always()
+        id: progress_status
+        env:
+          AGENT_PROGRESS_CANCEL_MARKER_FILE: ${{ runner.temp }}/agent-progress-cancelled
+          STATUS: ${{ steps.response.outputs.status || 'failed' }}
+        run: node .agent/dist/cli/resolve-progress-status.js
+
       - name: Commit and push
-        if: steps.response.outputs.status == 'success'
+        if: steps.progress_status.outputs.status == 'success'
         id: commit
         env:
           BRANCH: ${{ env.BRANCH }}
@@ -323,17 +333,21 @@ jobs:
           ISSUE_NUMBER: ${{ env.ISSUE_NUMBER }}
           PR_URL: ${{ steps.pr.outputs.pr_url }}
           RESPONSE_FILE: ${{ steps.agent.outputs.response_file }}
+          AGENT_PROGRESS_COMMENT_ID: ${{ steps.agent.outputs.progress_comment_id }}
+          AGENT_PROGRESS_FINAL_COMMENT_MODE: merge
           MODEL_DISPLAY: ${{ steps.agent.outputs.model_display }}
           RESUME_STATUS: ${{ steps.agent.outputs.resume_status }}
           ROUTE: ${{ env.IMPLEMENTATION_ROUTE }}
-          STATUS: ${{ steps.response.outputs.status || 'failed' }}
+          STATUS: ${{ steps.progress_status.outputs.status || steps.response.outputs.status || 'failed' }}
           TARGET_NUMBER: ${{ env.ISSUE_NUMBER }}
+          CANCELLED_BY: ${{ steps.progress_status.outputs.cancelled_by }}
         run: node .agent/dist/cli/post-comment.js
 
       - name: Orchestrate automation handoff
         if: >-
           always() &&
           steps.auth.outputs.token &&
+          steps.progress_status.outputs.cancelled != 'true' &&
           inputs.orchestration_enabled == 'true'
         env:
           AUTOMATION_CURRENT_ROUND: ${{ inputs.automation_current_round }}
@@ -348,6 +362,6 @@ jobs:
           REQUEST_TEXT: ${{ inputs.request_text }}
           SESSION_BUNDLE_MODE: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
           SOURCE_ACTION: implement
-          SOURCE_CONCLUSION: ${{ steps.response.outputs.status || 'failed' }}
+          SOURCE_CONCLUSION: ${{ steps.progress_status.outputs.status || steps.response.outputs.status || 'failed' }}
           TARGET_NUMBER: ${{ env.ISSUE_NUMBER }}
         run: node .agent/dist/cli/dispatch-agent-orchestrator.js

@@ -31,6 +31,26 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
 }
 
+function readRunAgentTaskSteps(relativePath: string): Array<{
+  jobId: string;
+  step: Record<string, unknown>;
+}> {
+  const workflow = parseYaml(readRepoFile(relativePath)) as unknown;
+  assert.ok(isRecord(workflow), `${relativePath} should parse as a YAML object`);
+  assert.ok(isRecord(workflow.jobs), `${relativePath} should define jobs`);
+
+  const steps: Array<{ jobId: string; step: Record<string, unknown> }> = [];
+  for (const [jobId, job] of Object.entries(workflow.jobs)) {
+    if (!isRecord(job) || !Array.isArray(job.steps)) continue;
+    for (const step of job.steps) {
+      if (isRecord(step) && step.uses === "./.github/actions/run-agent-task") {
+        steps.push({ jobId, step });
+      }
+    }
+  }
+  return steps;
+}
+
 function readMarkdownIssueTemplate(relativePath: string): {
   frontMatter: Record<string, unknown>;
   body: string;
@@ -202,19 +222,42 @@ test("answer route passes trigger metadata into prompt variables", () => {
     (step): step is Record<string, unknown> =>
       isRecord(step) && step.name === "Run answer agent",
   );
+  const postAnswerStep = answerJob.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Post answer",
+  );
   assert.ok(runAnswerStep, "answer job should run the answer agent");
   assert.ok(isRecord(runAnswerStep.with), "answer agent step should define inputs");
   assert.equal(runAnswerStep.with.request_source_kind, "${{ needs.portal.outputs.source_kind }}");
   assert.equal(runAnswerStep.with.request_comment_id, "${{ needs.portal.outputs.source_comment_id }}");
   assert.equal(runAnswerStep.with.request_comment_url, "${{ needs.portal.outputs.source_comment_url }}");
+  assert.equal(runAnswerStep.with.response_kind, "${{ needs.portal.outputs.response_kind }}");
+  assert.ok(postAnswerStep, "answer job should post the final answer");
+  assert.equal(
+    String(postAnswerStep.if || "").replace(/\s+/g, " ").trim(),
+    "always() && needs.portal.outputs.route == 'answer' && steps.answer.outcome != 'skipped'",
+  );
+  assert.ok(isRecord(postAnswerStep.env), "post answer step should define env");
+  assert.equal(
+    postAnswerStep.env.STATUS,
+    "${{ steps.answer.outcome == 'success' && 'success' || steps.answer.outcome == 'cancelled' && 'cancelled' || 'failed' }}",
+  );
 
   assert.ok(isRecord(runAgentTaskAction), "run-agent-task action should parse");
   assert.ok(isRecord(runAgentTaskAction.inputs), "run-agent-task action should define inputs");
   assert.ok(isRecord(runAgentTaskAction.inputs.request_source_kind));
   assert.ok(isRecord(runAgentTaskAction.inputs.request_comment_id));
   assert.ok(isRecord(runAgentTaskAction.inputs.request_comment_url));
+  assert.ok(isRecord(runAgentTaskAction.inputs.response_kind));
   assert.ok(isRecord(runAgentTaskAction.runs), "run-agent-task action should define runs");
   assert.ok(Array.isArray(runAgentTaskAction.runs.steps), "run-agent-task action should define steps");
+  const progressPolicyStep = runAgentTaskAction.runs.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.id === "progress_policy",
+  );
+  assert.ok(progressPolicyStep, "run-agent-task action should resolve progress policy");
+  assert.ok(isRecord(progressPolicyStep.env), "progress policy step should define env");
+  assert.equal(progressPolicyStep.env.RESPONSE_KIND, "${{ inputs.response_kind }}");
   const runStep = runAgentTaskAction.runs.steps.find(
     (step): step is Record<string, unknown> => isRecord(step) && step.id === "run",
   );
@@ -291,6 +334,77 @@ test("all execution workflows use the shared run-agent-task action", () => {
   }
 
   assert.doesNotMatch(fixPrWorkflow, /build-linked-context\.cjs/);
+});
+
+test("orchestrated workflows pass orchestration state into run-agent-task", () => {
+  const action = parseYaml(readRepoFile(".github/actions/run-agent-task/action.yml")) as unknown;
+  assert.ok(isRecord(action), "run-agent-task action should parse");
+  assert.ok(isRecord(action.inputs), "run-agent-task should define inputs");
+  const orchestrationInput = action.inputs.orchestration_enabled;
+  assert.ok(isRecord(orchestrationInput), "run-agent-task should define orchestration_enabled");
+  assert.equal(orchestrationInput.default, "false");
+
+  assert.ok(isRecord(action.runs), "run-agent-task action should define runs");
+  assert.ok(Array.isArray(action.runs.steps), "run-agent-task action should define steps");
+  const progressPolicyStep = action.runs.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.id === "progress_policy",
+  );
+  assert.ok(progressPolicyStep, "run-agent-task action should resolve progress policy");
+  assert.ok(isRecord(progressPolicyStep.env), "progress policy step should define env");
+  assert.equal(progressPolicyStep.env.ORCHESTRATION_ENABLED, "${{ inputs.orchestration_enabled }}");
+
+  for (const workflowPath of [
+    ".github/workflows/agent-implement.yml",
+    ".github/workflows/agent-fix-pr.yml",
+    ".github/workflows/agent-review.yml",
+    ".github/workflows/agent-rubrics-review.yml",
+    ".github/workflows/agent-self-approve.yml",
+  ]) {
+    const steps = readRunAgentTaskSteps(workflowPath);
+    assert.ok(steps.length > 0, `${workflowPath} should call run-agent-task`);
+    for (const { jobId, step } of steps) {
+      assert.ok(isRecord(step.with), `${workflowPath} job ${jobId} run-agent-task needs inputs`);
+      assert.equal(
+        step.with.orchestration_enabled,
+        "${{ inputs.orchestration_enabled }}",
+        `${workflowPath} job ${jobId} should forward orchestration_enabled`,
+      );
+    }
+  }
+
+  const reviewWorkflow = parseYaml(readRepoFile(".github/workflows/agent-review.yml")) as unknown;
+  assert.ok(isRecord(reviewWorkflow), "agent-review workflow should parse");
+  assert.ok(isRecord(reviewWorkflow.jobs), "agent-review workflow should define jobs");
+  const nestedRubricsReviewJob = reviewWorkflow.jobs["rubrics-review"];
+  assert.ok(isRecord(nestedRubricsReviewJob), "agent-review should define rubrics-review job");
+  assert.equal(
+    nestedRubricsReviewJob.uses,
+    "./.github/workflows/agent-rubrics-review.yml",
+  );
+  assert.ok(isRecord(nestedRubricsReviewJob.with), "rubrics-review job should pass inputs");
+  assert.equal(
+    nestedRubricsReviewJob.with.orchestration_enabled,
+    "${{ inputs.orchestration_enabled }}",
+  );
+
+  const rubricsReviewWorkflow = parseYaml(
+    readRepoFile(".github/workflows/agent-rubrics-review.yml"),
+  ) as unknown;
+  assert.ok(isRecord(rubricsReviewWorkflow), "agent-rubrics-review workflow should parse");
+  assert.ok(isRecord(rubricsReviewWorkflow.on), "agent-rubrics-review should define triggers");
+  const rubricsReviewWorkflowCall = rubricsReviewWorkflow.on.workflow_call;
+  assert.ok(isRecord(rubricsReviewWorkflowCall), "agent-rubrics-review should define workflow_call");
+  assert.ok(isRecord(rubricsReviewWorkflowCall.inputs), "workflow_call should define inputs");
+  const rubricsOrchestrationInput = rubricsReviewWorkflowCall.inputs.orchestration_enabled;
+  assert.ok(isRecord(rubricsOrchestrationInput), "workflow_call should accept orchestration_enabled");
+  assert.equal(rubricsOrchestrationInput.default, "false");
+
+  const orchestratorSteps = readRunAgentTaskSteps(".github/workflows/agent-orchestrator.yml");
+  assert.equal(orchestratorSteps.length, 1);
+  const orchestratorStep = orchestratorSteps[0]!.step;
+  assert.ok(isRecord(orchestratorStep.with), "orchestrator run-agent-task should define inputs");
+  assert.equal(orchestratorStep.with.orchestration_enabled, "true");
 });
 
 test("run-agent-task workflow steps are guarded by resolved task timeouts", () => {
@@ -853,6 +967,10 @@ test("agent router preauthorizes implicit follow-up answer gates", () => {
   assert.match(
     runnerWorkflow.slice(intentIndex, resolveRouteIndex),
     /steps\.followup_authorization\.outputs\.route == 'answer'/,
+  );
+  assert.match(
+    runnerWorkflow.slice(intentIndex, resolveRouteIndex),
+    /progress_policy:\s*'\{"route_overrides":\{"answer":"disabled"\}\}'/,
   );
   assert.match(
     runnerWorkflow.slice(resolveRouteIndex, runnerWorkflow.indexOf("- name: React with eyes", resolveRouteIndex)),
@@ -2241,6 +2359,7 @@ test("memory workflows exist and point at the right CLIs / prompts", () => {
   assert.match(prClosedWorkflow, /prompt: memory-pr-closed/);
   assert.match(prClosedWorkflow, /memory_mode_override: 'enabled'/);
   assert.match(prClosedWorkflow, /memory_policy:\s*\$\{\{\s*vars\.AGENT_MEMORY_POLICY \|\| ''\s*\}\}/);
+  assert.match(prClosedWorkflow, /progress_policy:\s*'\{"route_overrides":\{"answer":"disabled"\}\}'/);
   assert.doesNotMatch(prClosedWorkflow, /memory_bootstrap_if_missing:/);
   assert.match(prClosedWorkflow, /inputs\.memory_ref \|\| vars\.AGENT_MEMORY_REF \|\| 'agent\/memory'/);
   assert.doesNotMatch(prClosedWorkflow, /continue-on-error:\s*true/);

@@ -29,6 +29,7 @@ title: "Configurations list"
 | `AGENT_AUTO_UPDATE` | Set to `false` to disable scheduled `agent-update.yml` checks. Defaults to enabled; manual workflow dispatch remains available. The canonical `self-evolving/repo` source repository should use this when scheduled self-updates are not wanted. |
 | `AGENT_ACCESS_POLICY` | JSON trigger allowlist policy. See [Trigger access policy](access-policy.md). |
 | `AGENT_TASK_TIMEOUT_POLICY` | JSON policy for GitHub Actions step timeouts on agent tasks. Defaults to `{"default_minutes":30}` and accepts route overrides, for example `{"default_minutes":30,"route_overrides":{"implement":60,"review":45}}`. Values must be 1-360 minutes. |
+| `AGENT_PROGRESS_POLICY` | JSON policy controlling live progress comments and thumbs-down cancellation. Defaults to `implement` and `fix-pr` enabled, `answer` report-only, and other routes disabled. Modes are `enabled`, `report-only`, and `disabled`. Explicit orchestration context defaults to `disabled` and only honors the orchestration-specific `orchestration_mode` opt-in. |
 | `AGENT_MEMORY_POLICY` | JSON policy controlling which routes can read or write repository memory. See [Repository memory](../architecture/memory.md). |
 | `AGENT_MEMORY_REF` | Default branch name used when workflows mount repository memory. Defaults to `agent/memory`. |
 | `AGENT_SCHEDULE_POLICY` | JSON policy controlling scheduled workflow runs. By default, scheduled daily summaries are disabled while manual dispatch remains available. See [Repository memory](../architecture/memory.md#scheduled-workflow-policy-agent_schedule_policy). |
@@ -65,6 +66,22 @@ Sepo does not maintain a general model catalog, and the resolver reads these def
 For Codex GPT-5 models, Sepo accepts provider-neutral `model` plus `reasoning_effort` policy entries and passes the effective ACP model id to acpx. For example, `{ "model": "gpt-5.5", "reasoning_effort": "xhigh" }` is sent to Codex ACP as `gpt-5.5/xhigh`, matching the model ids advertised by the bundled `@zed-industries/codex-acp` adapter. If a Codex model already includes an effort suffix such as `gpt-5.5/xhigh`, Sepo treats that model id as authoritative and does not send a separate `thought_level` setting. Claude and unknown/custom Codex model ids keep using the separate reasoning-effort path.
 
 The bundled workflows still keep native YAML escape hatches: an inline `route_provider` in a workflow's `resolve-agent-provider` step overrides `AGENT_MODEL_POLICY` for that route. Provider selection precedence is inline `route_provider`, then `AGENT_MODEL_POLICY.route_overrides[route].provider`, then `AGENT_DEFAULT_PROVIDER`, then `auto` detection from configured provider secrets. Model selection starts from Sepo's built-in provider default, then applies `AGENT_MODEL_POLICY.default.model`, `AGENT_MODEL_POLICY.providers[provider].model`, and `AGENT_MODEL_POLICY.route_overrides[route].model`; inline `route_provider` skips that route's policy override. The review workflow still launches explicit Claude and Codex reviewer lanes; those lane providers are fixed with inline `route_provider`, so built-in/default/provider-specific model settings apply while route-specific review overrides do not. The synthesis step is resolved separately as `review-synthesize`.
+
+`AGENT_PROGRESS_POLICY` example:
+
+```json
+{
+  "default_mode": "disabled",
+  "orchestration_mode": "report-only",
+  "route_overrides": {
+    "implement": "enabled",
+    "fix-pr": "report-only",
+    "answer": "report-only"
+  }
+}
+```
+
+`enabled` starts the progress comment and allows authorized 👎 cancellation. `report-only` starts the progress comment but ignores cancellation reactions. `disabled` preserves the normal run without a progress comment. Malformed policy disables progress for that run instead of failing the workflow. Orchestrated chains default to `disabled` progress mode and rely on handoff or status comments; set `orchestration_mode` to `report-only` to opt into non-cancellable progress comments for orchestrated runs. `enabled` is not accepted for `orchestration_mode` because cancellable chained-run semantics are not defined.
 
 ## Repository secrets
 

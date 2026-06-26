@@ -1,7 +1,14 @@
 import { randomBytes } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { addIssueLabel, createIssue, ensureLabel, gh, postIssueComment } from "./github.js";
+import {
+  addIssueLabel,
+  createIssue,
+  createIssueComment,
+  ensureLabel,
+  gh,
+  updateIssueComment,
+} from "./github.js";
 import { BUILT_IN_TRIGGER_LABELS } from "./trigger-labels.js";
 
 const ONBOARDING_TITLE = "Sepo setup check";
@@ -142,17 +149,6 @@ function findOnboardingComment(repo: string, issueNumber: number): ExistingComme
   ]);
   const comments = JSON.parse(output) as ExistingComment[];
   return comments.find((comment) => comment.body.includes(COMMENT_MARKER)) ?? null;
-}
-
-function updateIssueComment(repo: string, commentId: number, body: string): void {
-  gh([
-    "api",
-    "-X",
-    "PATCH",
-    apiPath(repo, `issues/comments/${commentId}`),
-    "-f",
-    `body=${body}`,
-  ]);
 }
 
 function issueBody(): string {
@@ -341,7 +337,7 @@ export function runOnboardingCheck(opts: OnboardingOptions): number {
   if (existingComment) {
     updateIssueComment(opts.repo, existingComment.id, body);
   } else {
-    postIssueComment(issueNumber, body, opts.repo);
+    createIssueComment(opts.repo, issueNumber, body);
   }
 
   return issueNumber;
