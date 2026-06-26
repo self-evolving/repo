@@ -542,7 +542,6 @@ runs:
 
     - name: Commit memory edits
       if: >-
-        steps.agent_run_gate.outputs.should_run == 'true' &&
         steps.run.outputs.exit_code == '0' &&
         steps.memory_mode.outputs.write_enabled == 'true' &&
         steps.memory.outputs.memory_available == 'true' &&
@@ -570,7 +569,6 @@ runs:
 
     - name: Validate rubric edits
       if: >-
-        steps.agent_run_gate.outputs.should_run == 'true' &&
         steps.run.outputs.exit_code == '0' &&
         steps.rubrics_mode.outputs.write_enabled == 'true' &&
         steps.rubrics.outputs.rubrics_available == 'true' &&
@@ -590,7 +588,6 @@ runs:
 
     - name: Commit rubric edits
       if: >-
-        steps.agent_run_gate.outputs.should_run == 'true' &&
         steps.run.outputs.exit_code == '0' &&
         steps.rubrics_mode.outputs.write_enabled == 'true' &&
         steps.rubrics.outputs.rubrics_available == 'true' &&
@@ -618,7 +615,7 @@ runs:
         echo "::warning title=Rubrics commit failed::Failed to persist rubric updates for route '${ROUTE}' to '${RUBRICS_REF}'. Check the 'Commit rubric edits' step for the push error."
 
     - name: Require rubric initialization commit
-      if: always() && steps.agent_run_gate.outputs.should_run == 'true' && inputs.route == 'rubrics-initialization' && steps.run.outputs.exit_code == '0'
+      if: always() && inputs.route == 'rubrics-initialization' && steps.run.outputs.exit_code == '0'
       shell: bash
       env:
         COMMIT_OUTCOME: ${{ steps.commit_rubrics.outcome }}
@@ -631,7 +628,7 @@ runs:
         fi
 
     - name: Prepare session bundle
-      if: always() && steps.agent_run_gate.outputs.should_run == 'true' && steps.run.outputs.exit_code == '0'
+      if: always() && steps.run.outputs.exit_code == '0'
       id: bundle
       continue-on-error: true
       shell: bash
@@ -649,7 +646,7 @@ runs:
       run: node .agent/dist/cli/session-backup.js
 
     - name: Upload session bundle artifact
-      if: always() && steps.agent_run_gate.outputs.should_run == 'true' && steps.run.outputs.exit_code == '0' && steps.bundle.outputs.bundle_created == 'true'
+      if: always() && steps.run.outputs.exit_code == '0' && steps.bundle.outputs.bundle_created == 'true'
       id: upload_session_bundle
       continue-on-error: true
       uses: actions/upload-artifact@v4
@@ -659,7 +656,7 @@ runs:
         retention-days: ${{ inputs.session_bundle_retention_days }}
 
     - name: Register session bundle artifact
-      if: always() && steps.agent_run_gate.outputs.should_run == 'true' && steps.run.outputs.exit_code == '0' && steps.upload_session_bundle.outputs.artifact-id != ''
+      if: always() && steps.run.outputs.exit_code == '0' && steps.upload_session_bundle.outputs.artifact-id != ''
       id: register_session_bundle
       continue-on-error: true
       shell: bash

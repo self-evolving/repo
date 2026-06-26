@@ -2150,6 +2150,16 @@ test("run-agent-task resolves memory mode from policy and threads memory env to 
 test("run-agent-task only bootstraps missing rubrics for first-run initialization", () => {
   const action = readRepoFile(".github/actions/run-agent-task/action.yml");
   const rubricsPrompt = readRepoFile(".github/prompts/_rubrics.md");
+  const parsedAction = parseYaml(action) as unknown;
+  assert.ok(isRecord(parsedAction), "run-agent-task action should parse as a YAML object");
+  assert.ok(isRecord(parsedAction.runs), "run-agent-task action should define runs");
+  assert.ok(Array.isArray(parsedAction.runs.steps), "run-agent-task action should define steps");
+  const steps = parsedAction.runs.steps.filter(isRecord);
+  const stepIf = (name: string): string => {
+    const step = steps.find((candidate) => candidate.name === name);
+    assert.ok(step, `run-agent-task action should include step ${name}`);
+    return typeof step.if === "string" ? step.if : "";
+  };
 
   assert.match(
     action,
@@ -2174,6 +2184,27 @@ test("run-agent-task only bootstraps missing rubrics for first-run initializatio
     /name: Run agent task[\s\S]*if:\s*\$\{\{\s*steps\.agent_run_gate\.outputs\.should_run == 'true'\s*\}\}/,
   );
   assert.match(action, /Propagate agent exit code[\s\S]*steps\.agent_run_gate\.outputs\.should_run == 'true'/);
+  assert.match(stepIf("Resolve progress policy"), /steps\.agent_run_gate\.outputs\.should_run == 'true'/);
+  assert.match(stepIf("Start progress reporter"), /steps\.agent_run_gate\.outputs\.should_run == 'true'/);
+  assert.match(stepIf("Run agent task"), /steps\.agent_run_gate\.outputs\.should_run == 'true'/);
+  assert.match(stepIf("Propagate agent exit code"), /steps\.agent_run_gate\.outputs\.should_run == 'true'/);
+  for (const name of [
+    "Commit memory edits",
+    "Validate rubric edits",
+    "Commit rubric edits",
+    "Require rubric initialization commit",
+    "Prepare session bundle",
+    "Upload session bundle artifact",
+    "Register session bundle artifact",
+  ]) {
+    const condition = stepIf(name);
+    assert.match(condition, /steps\.run\.outputs\.exit_code == '0'/, `${name} should be gated on a successful run`);
+    assert.doesNotMatch(
+      condition,
+      /steps\.agent_run_gate\.outputs\.should_run/,
+      `${name} should rely on the run exit-code gate instead of duplicating the agent-run gate`,
+    );
+  }
   assert.match(rubricsPrompt, /dedicated rubrics routes should change rubric files/);
   assert.match(rubricsPrompt, /Agent \/ Rubrics \/ Initialization, Agent \/ Rubrics \/ Update, or `add-rubrics` proposal runs/);
 });
