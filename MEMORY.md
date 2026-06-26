@@ -115,3 +115,4 @@
 - Add-rubrics is explicit-only and proposal-only: reuse implement flow to PR against agent/rubrics with runtime on default.
 - Local-runner cleanup is host-level: ACTIONS_RUNNER_HOOK_JOB_COMPLETED trims _diag and stale _work checkouts.
 - Agent runs post one live progress comment; an authorized thumbs-down reaction on it cancels the in-flight run.
+- Handle GitHub user-attachments on demand with an attachment-specific CLI; avoid thread-wide pre-download scanning.
