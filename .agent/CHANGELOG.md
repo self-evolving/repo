@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.4.0 - 2026-06-26
+
+### Added
+
+- Direct implementation and PR-fix runs now publish one live progress comment, merge final responses into that comment where possible, and support authorized thumbs-down reactions to cancel cancellable runs.
+- The new `/add-rubrics` route proposes user/team rubric changes through draft PRs against `agent/rubrics` while keeping the Sepo runtime on the trusted default-branch checkout.
+- Agents can now download private GitHub user attachments on demand through the dedicated `download-github-attachment` CLI, with token lookup, safe filenames, timeouts, and size limits.
+- Provider model defaults now ship as bundled `.agent/model-defaults.json` data that installs and updates with the Sepo runtime.
+- Self-hosted local-runner setup can install a post-job cleanup hook that trims old diagnostics and stale `_work` checkouts.
+- `.agent` now exposes lane-based test scripts for runtime, workflow/action, docs, and shell checks.
+
+### Changed
+
+- Ask Sepo and Install Sepo issue templates now use Markdown templates with command bodies instead of the previous install issue form.
+- Rubrics review preflight now skips model work, artifacts, and PR comments when rubrics are unavailable or no active rubrics match.
+- Progress reporting policy now has route-aware defaults, including report-only answer progress and disabled progress comments for orchestrated runs unless explicitly opted in.
+
+### Fixed
+
+- Claude ACPX runs with date-pinned `claude-*` model IDs now set `ANTHROPIC_MODEL` instead of passing unsupported ACP model flags, fixing resumed-session failures.
+- Progress cancellation, progress finalization, step counting, and tool-title rendering are more robust across long-running agent tasks.
+- GitHub attachment downloads keep timeout enforcement active through response body reads.
+
 ## 0.3.1 - 2026-06-04
 
 ### Fixed
