@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
+import { firstEnv } from "./env.js";
 import type { RunStatus } from "./response.js";
 
 export const PROGRESS_CANCEL_MARKER_FILENAME = "agent-progress-cancelled";
@@ -99,12 +100,4 @@ function normalizeRunStatus(status: string): RunStatus {
     return normalized;
   }
   return "failed";
-}
-
-function firstEnv(env: NodeJS.ProcessEnv, ...names: string[]): string {
-  for (const name of names) {
-    const value = env[name]?.trim();
-    if (value) return value;
-  }
-  return "";
 }

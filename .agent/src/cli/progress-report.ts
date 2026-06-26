@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, openSync, readSync, closeSync, statSync, writeFileSync } from "node:fs";
 import { StringDecoder } from "node:string_decoder";
 
+import { firstEnv } from "../env.js";
 import { createIssueComment, updateIssueComment } from "../github.js";
 import {
   defaultProgressCancelMarkerFile,
@@ -563,14 +564,6 @@ function renderCancelledBestEffort(
     deps.log(`Could not render cancelled progress comment: ${errorMessage(err)}`);
     return null;
   }
-}
-
-function firstEnv(env: NodeJS.ProcessEnv, ...names: string[]): string {
-  for (const name of names) {
-    const value = env[name]?.trim();
-    if (value) return value;
-  }
-  return "";
 }
 
 function normalizeTargetKind(value: string): ProgressTargetKind | null {
