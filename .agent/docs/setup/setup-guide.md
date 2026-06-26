@@ -107,6 +107,23 @@ install-only primary token described in developer notes. `AGENT_SECONDARY_GITHUB
 is a read-only secondary credential for explicit agent opt-in, not the install
 replacement token.
 
+## Progress comments and cancellation
+
+No extra setup is required for the default live progress control. Implementation
+and PR-fix workflows already have the comment and Actions permissions needed to
+post one progress comment, update it during the run, merge the final status into
+that comment, and honor an authorized 👎 reaction as a cancellation request.
+Answer runs on issue and pull request surfaces use report-only progress by
+default and merge the final answer into the same comment. Orchestrated chains
+use handoff or status comments by default, and can opt into non-cancellable
+progress comments with `AGENT_PROGRESS_POLICY.orchestration_mode`.
+
+Set `AGENT_PROGRESS_POLICY` only when you want to change that default. Use
+`report-only` for progress without cancellation, or `disabled` to turn progress
+comments off for a route. For orchestrated runs, only
+`"orchestration_mode":"report-only"` opts into progress comments; regular route
+overrides remain ignored while orchestration is active.
+
 ## Workflow token fallback
 
 If no higher-priority auth mode is configured, the backend can still fall back to `github.token`. This is useful as a lowest-friction fallback, but it should not be treated as the preferred long-term setup for more advanced automation.

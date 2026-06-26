@@ -154,6 +154,12 @@ test("formatImplementComment formats no_changes", () => {
   assert.match(body, /did not produce code changes/);
 });
 
+test("formatImplementComment formats cancelled", () => {
+  const body = formatImplementComment({ status: "cancelled", cancelledBy: "alice" });
+  assert.match(body, /stopped this implementation run/);
+  assert.match(body, /Stopped by @alice\./);
+});
+
 test("formatAddRubricsComment formats proposal success with PR link", () => {
   const body = formatAddRubricsComment({
     status: "success",
@@ -212,6 +218,13 @@ test("formatFixPrComment accepts preformatted agent handles", () => {
 test("formatFixPrComment formats unsupported", () => {
   const body = formatFixPrComment({ status: "unsupported" });
   assert.match(body, /could not update this PR/);
+  assert.match(body, /<!-- sepo-agent-fix-pr-status -->/);
+});
+
+test("formatFixPrComment formats cancelled", () => {
+  const body = formatFixPrComment({ status: "cancelled", cancelledBy: "alice" });
+  assert.match(body, /stopped this PR fix run/);
+  assert.match(body, /Stopped by @alice\./);
   assert.match(body, /<!-- sepo-agent-fix-pr-status -->/);
 });
 
