@@ -117,3 +117,4 @@
 - Agent runs post one live progress comment; an authorized thumbs-down reaction on it cancels the in-flight run.
 - Handle GitHub user-attachments on demand with an attachment-specific CLI; avoid thread-wide pre-download scanning.
 - Rubrics review skips model/comment work when reads are disabled, agent/rubrics is missing, or no active rubrics select.
+- test-scripts.yml runner labels resolve AGENT_TEST_RUNS_ON, then AGENT_RUNS_ON, then ["ubuntu-latest"].
