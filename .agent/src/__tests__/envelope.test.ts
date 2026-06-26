@@ -2183,57 +2183,81 @@ test("rubrics-review preflights only branch availability before model setup", ()
   const parsed = parseYaml(workflow) as unknown;
   assert.ok(isRecord(parsed), "rubrics-review workflow should parse as a YAML object");
   assert.ok(isRecord(parsed.jobs), "rubrics-review workflow should define jobs");
-  const job = parsed.jobs["rubrics-review"];
-  assert.ok(isRecord(job), "rubrics-review workflow should define a rubrics-review job");
-  assert.ok(Array.isArray(job.steps), "rubrics-review job should define steps");
-  const steps = job.steps.filter(isRecord);
-  const findStep = (name: string): { index: number; step: Record<string, unknown> } => {
-    const index = steps.findIndex((step) => step.name === name);
-    assert.notEqual(index, -1, `rubrics-review workflow should include step ${name}`);
-    return { index, step: steps[index]! };
+  const preflightJob = parsed.jobs.preflight;
+  const reviewJob = parsed.jobs["rubrics-review"];
+  assert.ok(isRecord(preflightJob), "rubrics-review workflow should define a preflight job");
+  assert.ok(isRecord(reviewJob), "rubrics-review workflow should define a rubrics-review job");
+  assert.ok(isRecord(preflightJob.outputs), "preflight job should expose outputs");
+  assert.equal(preflightJob.outputs.should_run, "${{ steps.preflight.outputs.should_run }}");
+  assert.equal(reviewJob.needs, "preflight");
+  assert.equal(reviewJob["if"], "vars.AGENT_ENABLED != 'false' && needs.preflight.outputs.should_run == 'true'");
+  assert.ok(Array.isArray(preflightJob.steps), "preflight job should define steps");
+  assert.ok(Array.isArray(reviewJob.steps), "rubrics-review job should define steps");
+  const preflightSteps = preflightJob.steps.filter(isRecord);
+  const reviewSteps = reviewJob.steps.filter(isRecord);
+  const allSteps = [...preflightSteps, ...reviewSteps];
+  const findPreflightStep = (name: string): { index: number; step: Record<string, unknown> } => {
+    const index = preflightSteps.findIndex((step) => step.name === name);
+    assert.notEqual(index, -1, `preflight job should include step ${name}`);
+    return { index, step: preflightSteps[index]! };
   };
-
-  const download = findStep("Download rubrics for review preflight");
-  const preflight = findStep("Resolve rubrics review preflight");
-  const provider = findStep("Resolve rubrics review provider");
-  const setupRuntime = findStep("Setup agent runtime");
-  const runReview = findStep("Run rubrics review");
-  const reviewResult = findStep("Resolve rubrics review result");
-  const persistArtifact = findStep("Persist rubrics review artifact");
-  const postComment = findStep("Post rubric review comment");
+  const findReviewStep = (name: string): { index: number; step: Record<string, unknown> } => {
+    const index = reviewSteps.findIndex((step) => step.name === name);
+    assert.notEqual(index, -1, `rubrics-review job should include step ${name}`);
+    return { index, step: reviewSteps[index]! };
+  };
+  const download = findPreflightStep("Download rubrics for review preflight");
+  const preflight = findPreflightStep("Resolve rubrics review preflight");
+  const provider = findReviewStep("Resolve rubrics review provider");
+  const setupRuntime = findReviewStep("Setup agent runtime");
+  const runReview = findReviewStep("Run rubrics review");
+  const reviewResult = findReviewStep("Resolve rubrics review result");
+  const persistArtifact = findReviewStep("Persist rubrics review artifact");
+  const postComment = findReviewStep("Post rubric review comment");
 
   assert.equal(download.step.uses, "./.github/actions/download-agent-rubrics");
   assert.ok(download.index < preflight.index);
-  assert.ok(preflight.index < provider.index);
   assert.ok(provider.index < setupRuntime.index);
   assert.ok(setupRuntime.index < runReview.index);
   assert.ok(runReview.index < reviewResult.index);
   assert.ok(reviewResult.index < persistArtifact.index);
   assert.ok(reviewResult.index < postComment.index);
-  assert.equal(provider.step["if"], "${{ steps.preflight.outputs.should_run == 'true' }}");
-  assert.equal(setupRuntime.step["if"], "${{ steps.preflight.outputs.should_run == 'true' }}");
-  assert.equal(runReview.step["if"], "${{ steps.preflight.outputs.should_run == 'true' }}");
-  assert.equal(reviewResult.step["if"], "always() && steps.preflight.outputs.should_run == 'true'");
+  assert.equal(provider.step["if"], undefined);
+  assert.equal(setupRuntime.step["if"], undefined);
+  assert.equal(runReview.step["if"], undefined);
+  assert.equal(reviewResult.step["if"], "always()");
   assert.equal(persistArtifact.step["if"], "${{ steps.review_result.outputs.has_response == 'true' }}");
   assert.equal(postComment.step["if"], "${{ steps.review_result.outputs.should_post_comment == 'true' }}");
 
   assert.equal(
-    steps.find((step) => step.name === "Count active rubrics for review"),
+    reviewSteps.find((step) => step.name === "Download rubrics for review preflight"),
+    undefined,
+    "rubrics-review job should rely on the preflight job for branch availability",
+  );
+  assert.equal(
+    allSteps.find((step) => step.name === "Count active rubrics for review"),
     undefined,
     "workflow preflight should not duplicate the selector",
   );
   assert.equal(
-    steps.find((step) => step.name === "Resolve rubrics review mode"),
+    allSteps.find((step) => step.name === "Resolve rubrics review mode"),
     undefined,
     "workflow preflight should not invoke the compiled rubrics policy CLI",
   );
   assert.equal(
-    steps.find((step) => step.name === "Setup agent runtime for rubrics preflight"),
+    allSteps.find((step) => step.name === "Setup agent runtime for rubrics preflight"),
     undefined,
     "workflow preflight should not build runtime before branch availability is known",
   );
 
-  for (const [index, step] of steps.entries()) {
+  for (const [index, step] of preflightSteps.entries()) {
+    const run = typeof step.run === "string" ? step.run : "";
+    assert.ok(
+      !/(?:node\s+)?\.agent\/dist\/|\.agent\/node_modules/.test(run),
+      `preflight step ${String(step.name || index)} must not use built runtime`,
+    );
+  }
+  for (const [index, step] of reviewSteps.entries()) {
     const run = typeof step.run === "string" ? step.run : "";
     assert.ok(
       index > setupRuntime.index || !/(?:node\s+)?\.agent\/dist\/|\.agent\/node_modules/.test(run),
@@ -2250,12 +2274,9 @@ test("rubrics-review preflights only branch availability before model setup", ()
   assert.match(workflow, /name: Report skipped rubric review[\s\S]*::notice title=Rubrics review skipped::/);
   assert.match(
     workflow,
-    /name: Resolve rubrics review provider[\s\S]*if:\s*\$\{\{\s*steps\.preflight\.outputs\.should_run == 'true'\s*\}\}/,
+    /rubrics-review:\n\s+needs: preflight\n\s+if: vars\.AGENT_ENABLED != 'false' && needs\.preflight\.outputs\.should_run == 'true'/,
   );
-  assert.match(
-    workflow,
-    /name: Run rubrics review[\s\S]*if:\s*\$\{\{\s*steps\.preflight\.outputs\.should_run == 'true'\s*\}\}/,
-  );
+  assert.doesNotMatch(workflow, /if:\s*\$\{\{\s*steps\.preflight\.outputs\.should_run == 'true'\s*\}\}/);
   assert.doesNotMatch(workflow, /steps\.preflight\.outputs\.should_run == 'true' && steps\.review\.outputs\.response_file != ''/);
 });
 

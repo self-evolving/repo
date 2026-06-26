@@ -70,9 +70,12 @@ permissions:
   id-token: write # required for GitHub Actions OIDC broker exchange
 
 jobs:
-  rubrics-review:
+  preflight:
     if: vars.AGENT_ENABLED != 'false'
     runs-on: ${{ fromJson(inputs.runs_on || vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
+    outputs:
+      should_run: ${{ steps.preflight.outputs.should_run }}
+      skip_reason: ${{ steps.preflight.outputs.skip_reason }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -133,8 +136,27 @@ jobs:
             echo "${SKIP_REASON}"
           } >> "$GITHUB_STEP_SUMMARY"
 
+  rubrics-review:
+    needs: preflight
+    if: vars.AGENT_ENABLED != 'false' && needs.preflight.outputs.should_run == 'true'
+    runs-on: ${{ fromJson(inputs.runs_on || vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.repository.default_branch }}
+          token: ${{ github.token }}
+
+      - name: Resolve GitHub auth
+        id: auth
+        uses: ./.github/actions/resolve-github-auth
+        with:
+          app_id: ${{ secrets.AGENT_APP_ID }}
+          app_private_key: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
+          pat: ${{ secrets.AGENT_PAT }}
+          fallback_token: ${{ github.token }}
+
       - name: Resolve rubrics review provider
-        if: ${{ steps.preflight.outputs.should_run == 'true' }}
         id: provider
         uses: ./.github/actions/resolve-agent-provider
         with:
@@ -146,14 +168,12 @@ jobs:
           model_policy: ${{ vars.AGENT_MODEL_POLICY || '' }}
 
       - name: Setup agent runtime
-        if: ${{ steps.preflight.outputs.should_run == 'true' }}
         uses: ./.github/actions/setup-agent-runtime
         with:
           install_codex: ${{ steps.provider.outputs.install_codex }}
           install_claude: ${{ steps.provider.outputs.install_claude }}
 
       - name: Resolve task timeout
-        if: ${{ steps.preflight.outputs.should_run == 'true' }}
         id: task_timeout
         env:
           AGENT_TASK_TIMEOUT_POLICY: ${{ vars.AGENT_TASK_TIMEOUT_POLICY || '' }}
@@ -161,7 +181,6 @@ jobs:
         run: node .agent/dist/cli/resolve-task-timeout.js
 
       - name: Run rubrics review
-        if: ${{ steps.preflight.outputs.should_run == 'true' }}
         id: review
         continue-on-error: true
         timeout-minutes: ${{ fromJson(steps.task_timeout.outputs.minutes || '30') }}
@@ -199,7 +218,7 @@ jobs:
           workflow: agent-rubrics-review.yml
 
       - name: Resolve rubrics review result
-        if: always() && steps.preflight.outputs.should_run == 'true'
+        if: always()
         id: review_result
         env:
           RESPONSE_FILE: ${{ steps.review.outputs.response_file }}
@@ -251,6 +270,6 @@ jobs:
         run: node .agent/dist/cli/post-response.js
 
       - name: Report failed rubric review
-        if: always() && steps.preflight.outputs.should_run == 'true' && steps.review.outcome == 'failure'
+        if: always() && steps.review.outcome == 'failure'
         run: |
           echo "::warning title=Rubrics review failed::Rubrics review failed before producing a response; continuing because rubric scoring is advisory."
