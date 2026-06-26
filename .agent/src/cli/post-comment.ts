@@ -7,6 +7,7 @@
 
 import { readFileSync } from "node:fs";
 import { fetchPrMeta, postIssueComment, postPrComment } from "../github.js";
+import { tryMergeProgressFinalComment } from "../progress-final-comment.js";
 import {
   collapsePreviousFixPrComments,
   collapsePreviousReviewSummaries,
@@ -38,6 +39,8 @@ const cancelledBy = process.env.CANCELLED_BY || "";
 const resumeStatus = process.env.RESUME_STATUS || "";
 const modelDisplay = process.env.MODEL_DISPLAY || process.env.AGENT_RUN_DISPLAY || "";
 const repo = process.env.GITHUB_REPOSITORY || "";
+const progressFinalCommentMode = process.env.AGENT_PROGRESS_FINAL_COMMENT_MODE || "";
+const progressCommentId = process.env.AGENT_PROGRESS_COMMENT_ID || process.env.PROGRESS_COMMENT_ID || "";
 const collapseOldReviews = !["false", "0", "no", "off"].includes(
   (process.env.AGENT_COLLAPSE_OLD_REVIEWS || "").trim().toLowerCase(),
 );
@@ -112,7 +115,7 @@ if (continuityNote) {
   body = `> ${continuityNote}\n\n${body}`;
 }
 
-body = appendRunDisplayFooter(body, modelDisplay);
+const bodyWithFooter = appendRunDisplayFooter(body, modelDisplay);
 
 if (target === "pr") {
   if (route === "review" && collapseOldReviews) {
@@ -141,9 +144,27 @@ if (target === "pr") {
       );
     }
   }
-  postPrComment(targetNumber, body);
+  const merged = tryMergeProgressFinalComment({
+    repo,
+    commentId: progressCommentId,
+    mode: progressFinalCommentMode,
+    finalBody: body,
+    footer: modelDisplay,
+  });
+  if (!merged) {
+    postPrComment(targetNumber, bodyWithFooter);
+  }
 } else {
-  postIssueComment(targetNumber, body);
+  const merged = tryMergeProgressFinalComment({
+    repo,
+    commentId: progressCommentId,
+    mode: progressFinalCommentMode,
+    finalBody: body,
+    footer: modelDisplay,
+  });
+  if (!merged) {
+    postIssueComment(targetNumber, bodyWithFooter);
+  }
 }
 
 setOutput("comment_posted", "true");

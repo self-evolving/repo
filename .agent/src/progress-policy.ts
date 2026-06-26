@@ -11,7 +11,8 @@
 //   }
 //
 // Default when the variable is empty or unset: implement and fix-pr get
-// progress comments with cancellation; other routes are disabled.
+// progress comments with cancellation; answer gets reporting without
+// cancellation; other routes are disabled.
 
 export const PROGRESS_MODES = ["enabled", "report-only", "disabled"] as const;
 export type ProgressMode = typeof PROGRESS_MODES[number];
@@ -21,7 +22,7 @@ export const DEFAULT_PROGRESS_ROUTE_OVERRIDES: Record<string, ProgressMode> = {
   implement: "enabled",
   "fix-pr": "enabled",
   review: "disabled",
-  answer: "disabled",
+  answer: "report-only",
 };
 
 const VALID_MODE_SET: ReadonlySet<string> = new Set(PROGRESS_MODES);
@@ -104,6 +105,16 @@ export function progressModeAllowsComment(mode: ProgressMode): boolean {
 
 export function progressModeAllowsCancel(mode: ProgressMode): boolean {
   return mode === "enabled";
+}
+
+export function progressResponseSupportsComments(route: string, responseKind: string): boolean {
+  const normalizedRoute = String(route || "").trim().toLowerCase();
+  const normalizedResponseKind = String(responseKind || "").trim().toLowerCase();
+  if (normalizedRoute !== "answer" || !normalizedResponseKind) {
+    return true;
+  }
+
+  return normalizedResponseKind === "issue_comment" || normalizedResponseKind === "pr_comment";
 }
 
 export function isProgressMode(value: unknown): value is ProgressMode {

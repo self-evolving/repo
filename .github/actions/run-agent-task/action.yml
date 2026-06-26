@@ -73,6 +73,10 @@ inputs:
     description: "Triggering comment or review URL for route-specific prompt context"
     required: false
     default: ""
+  response_kind:
+    description: "Final response surface for progress/final-comment merge eligibility"
+    required: false
+    default: ""
   request_text:
     description: "User request text"
     required: false
@@ -122,7 +126,7 @@ inputs:
     required: false
     default: ""
   progress_policy:
-    description: "Progress reporting policy JSON. Empty defaults to live progress with cancellation for implement and fix-pr."
+    description: "Progress reporting policy JSON. Empty defaults to live progress with cancellation for implement/fix-pr and report-only progress for answer."
     required: false
     default: ""
   memory_mode_override:
@@ -248,6 +252,9 @@ outputs:
   install_pr_url:
     description: "Structured /install target pull request URL from install-fork-pr helper"
     value: ${{ steps.run.outputs.install_pr_url }}
+  progress_comment_id:
+    description: "Issue comment id used by the live progress reporter, when one was created"
+    value: ${{ steps.stop_progress_reporter.outputs.progress_comment_id }}
 
 runs:
   using: composite
@@ -348,6 +355,7 @@ runs:
       shell: bash
       env:
         AGENT_PROGRESS_POLICY: ${{ inputs.progress_policy }}
+        RESPONSE_KIND: ${{ inputs.response_kind }}
         ROUTE: ${{ inputs.route }}
         TARGET_KIND: ${{ inputs.target_kind }}
       run: node .agent/dist/cli/progress/resolve-policy.js
@@ -360,6 +368,7 @@ runs:
       env:
         AGENT_PROGRESS_CANCEL_ENABLED: ${{ steps.progress_policy.outputs.cancel_enabled }}
         AGENT_PROGRESS_CANCEL_MARKER_FILE: ${{ runner.temp }}/agent-progress-cancelled
+        AGENT_PROGRESS_COMMENT_ID_FILE: ${{ runner.temp }}/agent-progress-comment-${{ github.run_id }}.id
         AGENT_PROGRESS_LOG_FILE: ${{ runner.temp }}/agent-progress-reporter-${{ github.run_id }}.log
         AGENT_PROGRESS_PID_FILE: ${{ runner.temp }}/agent-progress-reporter-${{ github.run_id }}.pid
         AGENT_PROGRESS_REPO: ${{ github.repository }}
@@ -377,6 +386,7 @@ runs:
         echo "stream_file=${AGENT_PROGRESS_STREAM_FILE}" >> "$GITHUB_OUTPUT"
         echo "pid_file=${AGENT_PROGRESS_PID_FILE}" >> "$GITHUB_OUTPUT"
         echo "log_file=${AGENT_PROGRESS_LOG_FILE}" >> "$GITHUB_OUTPUT"
+        echo "comment_id_file=${AGENT_PROGRESS_COMMENT_ID_FILE}" >> "$GITHUB_OUTPUT"
 
         mkdir -p "$(dirname "${AGENT_PROGRESS_STREAM_FILE}")"
         : > "${AGENT_PROGRESS_STREAM_FILE}"
@@ -442,18 +452,31 @@ runs:
 
     - name: Stop progress reporter
       if: always() && steps.progress_reporter.outputs.pid_file != ''
+      id: stop_progress_reporter
       continue-on-error: true
       shell: bash
       env:
+        AGENT_PROGRESS_COMMENT_ID_FILE: ${{ steps.progress_reporter.outputs.comment_id_file }}
         AGENT_PROGRESS_PID_FILE: ${{ steps.progress_reporter.outputs.pid_file }}
       run: |
         set +e
+        emit_comment_id() {
+          if [ -f "${AGENT_PROGRESS_COMMENT_ID_FILE}" ]; then
+            comment_id="$(tr -d '\r\n' < "${AGENT_PROGRESS_COMMENT_ID_FILE}" 2>/dev/null)"
+            if [ -n "${comment_id}" ]; then
+              echo "progress_comment_id=${comment_id}" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+        }
+
         if [ ! -f "${AGENT_PROGRESS_PID_FILE}" ]; then
+          emit_comment_id
           exit 0
         fi
 
         pid="$(cat "${AGENT_PROGRESS_PID_FILE}" 2>/dev/null)"
         if [ -z "${pid}" ]; then
+          emit_comment_id
           exit 0
         fi
 
@@ -461,12 +484,14 @@ runs:
           kill -TERM "${pid}" 2>/dev/null || true
           for _ in 1 2 3 4 5; do
             if ! kill -0 "${pid}" 2>/dev/null; then
+              emit_comment_id
               exit 0
             fi
             sleep 1
           done
           kill -KILL "${pid}" 2>/dev/null || true
         fi
+        emit_comment_id
 
     - name: Commit memory edits
       if: >-

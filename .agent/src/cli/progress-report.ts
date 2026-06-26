@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, openSync, readSync, closeSync, statSync } from "node:fs";
+import { existsSync, openSync, readSync, closeSync, statSync, writeFileSync } from "node:fs";
 import { StringDecoder } from "node:string_decoder";
 
 import { createIssueComment, updateIssueComment } from "../github.js";
@@ -36,6 +36,7 @@ export interface ProgressReporterConfig {
   pollIntervalMs: number;
   cancelEnabled: boolean;
   cancelMarkerFile: string;
+  commentIdFile?: string;
   maxStreamBytes: number;
 }
 
@@ -141,6 +142,7 @@ export function progressReporterTick(
         throw new Error("GitHub returned an empty progress comment id");
       }
       state.lastBody = runningBody;
+      writeCommentIdBestEffort(config, state, deps);
       result.created = true;
     } catch (err: unknown) {
       deps.log(`Could not create progress comment: ${errorMessage(err)}`);
@@ -244,12 +246,28 @@ export function parseProgressReporterConfig(
     ),
     cancelEnabled: parseBoolean(firstEnv(env, "AGENT_PROGRESS_CANCEL_ENABLED", "PROGRESS_CANCEL_ENABLED")),
     cancelMarkerFile: defaultProgressCancelMarkerFile(env),
+    commentIdFile: firstEnv(env, "AGENT_PROGRESS_COMMENT_ID_FILE", "PROGRESS_COMMENT_ID_FILE") || undefined,
     maxStreamBytes: parseDurationMs(
       firstEnv(env, "AGENT_PROGRESS_MAX_STREAM_BYTES", "PROGRESS_MAX_STREAM_BYTES"),
       DEFAULT_MAX_STREAM_BYTES,
       1,
     ),
   };
+}
+
+function writeCommentIdBestEffort(
+  config: ProgressReporterConfig,
+  state: ProgressReporterState,
+  deps: ProgressReporterDeps,
+): void {
+  const path = config.commentIdFile?.trim();
+  if (!path) return;
+
+  try {
+    writeFileSync(path, `${state.commentId}\n`, "utf8");
+  } catch (err: unknown) {
+    deps.log(`Could not write progress comment id file: ${errorMessage(err)}`);
+  }
 }
 
 export function defaultProgressReporterDeps(): ProgressReporterDeps {

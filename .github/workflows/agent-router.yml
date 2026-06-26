@@ -370,7 +370,7 @@ jobs:
           route: answer
           memory_ref: ${{ vars.AGENT_MEMORY_REF || 'agent/memory' }}
           memory_policy: ${{ vars.AGENT_MEMORY_POLICY || '' }}
-          progress_policy: ${{ vars.AGENT_PROGRESS_POLICY || '' }}
+          progress_policy: '{"route_overrides":{"answer":"disabled"}}'
           rubrics_ref: ${{ vars.AGENT_RUBRICS_REF || 'agent/rubrics' }}
           rubrics_policy: ${{ vars.AGENT_RUBRICS_POLICY || '' }}
           rubrics_limit: ${{ vars.AGENT_RUBRICS_LIMIT || '10' }}
@@ -566,6 +566,7 @@ jobs:
           request_comment_id: ${{ needs.portal.outputs.source_comment_id }}
           request_comment_url: ${{ needs.portal.outputs.source_comment_url }}
           request_source_kind: ${{ needs.portal.outputs.source_kind }}
+          response_kind: ${{ needs.portal.outputs.response_kind }}
           requested_by: ${{ needs.portal.outputs.requested_by }}
           source_kind: ${{ needs.portal.outputs.source_kind }}
           target_kind: ${{ needs.portal.outputs.target_kind }}
@@ -582,9 +583,14 @@ jobs:
         run: printf '%s\n' "${SUMMARY}" > "${BODY_FILE}"
 
       - name: Post answer
-        if: needs.portal.outputs.route == 'answer'
+        if: >-
+          always() &&
+          needs.portal.outputs.route == 'answer' &&
+          steps.answer.outcome != 'skipped'
         env:
           BODY_FILE: ${{ steps.answer.outputs.response_file }}
+          AGENT_PROGRESS_COMMENT_ID: ${{ steps.answer.outputs.progress_comment_id }}
+          AGENT_PROGRESS_FINAL_COMMENT_MODE: merge
           MODEL_DISPLAY: ${{ steps.answer.outputs.model_display }}
           DISCUSSION_ID: ${{ needs.portal.outputs.discussion_node_id }}
           GH_TOKEN: ${{ steps.auth.outputs.token }}
@@ -593,6 +599,7 @@ jobs:
           RESPONSE_KIND: ${{ needs.portal.outputs.response_kind }}
           RESUME_STATUS: ${{ steps.answer.outputs.resume_status }}
           REVIEW_COMMENT_ID: ${{ needs.portal.outputs.review_comment_id }}
+          STATUS: ${{ steps.answer.outcome == 'success' && 'success' || steps.answer.outcome == 'cancelled' && 'cancelled' || 'failed' }}
           TARGET_NUMBER: ${{ needs.portal.outputs.target_number }}
         run: node .agent/dist/cli/post-response.js
 

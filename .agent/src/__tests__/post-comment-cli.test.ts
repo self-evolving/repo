@@ -308,6 +308,74 @@ exit 1
   }
 });
 
+test("post-comment CLI merges final status into a progress comment when configured", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-post-comment-"));
+
+  try {
+    const logPath = join(tempDir, "gh.log");
+    const outputPath = join(tempDir, "github-output.txt");
+    const responsePath = join(tempDir, "response.json");
+    writeFileSync(responsePath, '{"summary":"Updated tests."}\n', "utf8");
+    writeFileSync(outputPath, "", "utf8");
+    writeFakeGh(
+      tempDir,
+      `#!/usr/bin/env bash
+printf '%s\\n' "$*" >> "$FAKE_GH_LOG"
+if [ "$1" = "api" ] && [ "$2" = "repos/self-evolving/repo/issues/comments/999" ]; then
+  printf '### Sepo finished — fix-pr · 5s · 2 steps\\n\\n<details>\\n<summary>Activity</summary>\\n\\n- 📖 Read \`file.ts\`\\n</details>\\n\\n<!-- sepo-progress:run-123 -->\\n'
+  exit 0
+fi
+if [ "$1" = "api" ] && [ "$2" = "--method" ] && [ "$3" = "PATCH" ] && [ "$4" = "repos/self-evolving/repo/issues/comments/999" ]; then
+  exit 0
+fi
+if [ "$1" = "pr" ] && [ "$2" = "comment" ]; then
+  printf 'unexpected fallback post\\n' >&2
+  exit 1
+fi
+printf 'unexpected gh args: %s\\n' "$*" >&2
+exit 1
+`,
+    );
+
+    const result = spawnSync("node", [".agent/dist/cli/post-comment.js"], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        PATH: `${tempDir}:${process.env.PATH || ""}`,
+        AGENT_COLLAPSE_OLD_REVIEWS: "false",
+        AGENT_PROGRESS_COMMENT_ID: "999",
+        AGENT_PROGRESS_FINAL_COMMENT_MODE: "merge",
+        BRANCH: "agent/fix",
+        COMMENT_TARGET: "pr",
+        TARGET_NUMBER: "321",
+        ROUTE: "fix-pr",
+        STATUS: "success",
+        RESPONSE_FILE: responsePath,
+        REQUESTED_BY: "lolipopshock",
+        GITHUB_REPOSITORY: "self-evolving/repo",
+        GITHUB_OUTPUT: outputPath,
+        FAKE_GH_LOG: logPath,
+      },
+      encoding: "utf8",
+    });
+
+    assert.equal(result.status, 0, result.stderr);
+    const log = readFileSync(logPath, "utf8");
+    assert.match(log, /^api repos\/self-evolving\/repo\/issues\/comments\/999 --jq \.body$/m);
+    assert.match(log, /^api --method PATCH repos\/self-evolving\/repo\/issues\/comments\/999 /m);
+    assert.match(log, /\*\*Sepo pushed fixes for this PR\.\*\*/);
+    assert.match(log, /<summary>Sepo activity<\/summary>/);
+    assert.match(log, /<!-- sepo-agent-fix-pr-status -->/);
+    assert.match(log, /<!-- sepo-progress:run-123 -->/);
+    assert.doesNotMatch(log, /^pr comment /m);
+
+    const output = readFileSync(outputPath, "utf8");
+    assert.match(output, /^comment_posted<</m);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("post-comment CLI routes unsupported fix-pr status through cleanup", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-post-comment-"));
 

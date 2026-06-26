@@ -67,6 +67,15 @@ export function updateIssueComment(repo: string, commentId: string | number, bod
   ]);
 }
 
+export function fetchIssueCommentBody(repo: string, commentId: string | number): string {
+  return gh([
+    "api",
+    `repos/${repo}/issues/comments/${commentId}`,
+    "--jq",
+    ".body",
+  ]);
+}
+
 export function createIssueComment(repo: string, issueNumber: number, body: string): string {
   return gh([
     "api",

@@ -11,6 +11,7 @@
 //   enabled                  "true" | "false"
 //   cancel_enabled           "true" | "false"
 //   target_supported         "true" | "false"
+//   response_supported       "true" | "false"
 
 import { setOutput } from "../../output.js";
 import {
@@ -18,9 +19,18 @@ import {
   parseProgressPolicy,
   progressModeAllowsCancel,
   progressModeAllowsComment,
+  progressResponseSupportsComments,
   progressTargetSupportsComments,
   type ProgressMode,
 } from "../../progress-policy.js";
+
+export interface ProgressPolicyResolution {
+  mode: ProgressMode;
+  enabled: boolean;
+  cancelEnabled: boolean;
+  targetSupported: boolean;
+  responseSupported: boolean;
+}
 
 export function resolveProgressMode(env: NodeJS.ProcessEnv = process.env): ProgressMode {
   const route = String(env.ROUTE || "").trim().toLowerCase();
@@ -35,18 +45,31 @@ export function resolveProgressMode(env: NodeJS.ProcessEnv = process.env): Progr
   }
 }
 
-export function runProgressResolvePolicyCli(env: NodeJS.ProcessEnv = process.env): number {
+export function resolveProgressPolicy(env: NodeJS.ProcessEnv = process.env): ProgressPolicyResolution {
   const mode = resolveProgressMode(env);
-  const enabled = progressModeAllowsComment(mode);
-  const cancelEnabled = progressModeAllowsCancel(mode);
-  const targetSupported = progressTargetSupportsComments(env.TARGET_KIND || "");
+  const responseSupported = progressResponseSupportsComments(
+    env.ROUTE || "",
+    env.RESPONSE_KIND || "",
+  );
+  return {
+    mode,
+    enabled: progressModeAllowsComment(mode) && responseSupported,
+    cancelEnabled: progressModeAllowsCancel(mode) && responseSupported,
+    targetSupported: progressTargetSupportsComments(env.TARGET_KIND || ""),
+    responseSupported,
+  };
+}
 
-  setOutput("mode", mode);
-  setOutput("enabled", String(enabled));
-  setOutput("cancel_enabled", String(cancelEnabled));
-  setOutput("target_supported", String(targetSupported));
+export function runProgressResolvePolicyCli(env: NodeJS.ProcessEnv = process.env): number {
+  const resolution = resolveProgressPolicy(env);
+
+  setOutput("mode", resolution.mode);
+  setOutput("enabled", String(resolution.enabled));
+  setOutput("cancel_enabled", String(resolution.cancelEnabled));
+  setOutput("target_supported", String(resolution.targetSupported));
+  setOutput("response_supported", String(resolution.responseSupported));
   console.log(
-    `progress mode: ${mode}; target_supported=${targetSupported}; cancel_enabled=${cancelEnabled}`,
+    `progress mode: ${resolution.mode}; target_supported=${resolution.targetSupported}; response_supported=${resolution.responseSupported}; cancel_enabled=${resolution.cancelEnabled}`,
   );
   return 0;
 }
