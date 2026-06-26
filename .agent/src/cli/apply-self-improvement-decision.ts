@@ -25,6 +25,7 @@ import {
   createIssue,
   dispatchWorkflow,
   fetchAuthenticatedActorLogin,
+  fetchIssueCommentRecords,
   gh,
   normalizeActorLogin,
   postIssueComment,
@@ -210,17 +211,14 @@ function hasExistingRunContinuationComment(
   const targetNumber = decision.targetNumber || 0;
   if (!marker || !targetNumber) return false;
 
-  const comments = asRecordArray(gh([
-    "api",
-    "--method",
-    "GET",
-    `repos/${context.repo}/issues/${targetNumber}/comments`,
-    "-f",
-    "per_page=100",
-  ]));
+  const comments = fetchIssueCommentRecords(targetNumber, context.repo);
+  let authenticatedLogin = "";
   return comments.some((comment) => {
     const body = String(comment.body || "");
-    return body.includes(marker) && body.includes(SELF_IMPROVEMENT_DECISION_MARKER);
+    if (!body.includes(marker) || !body.includes(SELF_IMPROVEMENT_DECISION_MARKER)) return false;
+    if (!comment.authorLogin) return false;
+    authenticatedLogin ||= fetchAuthenticatedActorLogin();
+    return isTrustedAuthorLogin(comment.authorLogin, authenticatedLogin);
   });
 }
 

@@ -45,9 +45,11 @@ if [ "\${1-}" = "api" ] && [ "\${2-}" = "graphql" ]; then
   printf '{"data":{"viewer":{"login":"sepo-agent-app[bot]"}}}\n'
   exit 0
 fi
-if [ "\${1-}" = "api" ] && [ "\${2-}" = "--method" ] && [ "\${3-}" = "GET" ] && [[ "\${4-}" = repos/*/issues/*/comments ]]; then
+if [ "\${1-}" = "api" ] && [ "\${2-}" = "--paginate" ] && [ "\${3-}" = "--slurp" ] && [[ "\${4-}" = repos/*/issues/*/comments ]]; then
   if [ "\${FAKE_EXISTING_CONTINUATION_COMMENT:-}" = "true" ]; then
-    printf '%s\n' '[{"body":"Existing continuation trace.\\n\\n<!-- sepo-agent-self-improvement-decision -->\\n<!-- sepo-agent-self-improvement-run:12345 -->"}]'
+    author="\${FAKE_EXISTING_CONTINUATION_COMMENT_AUTHOR:-app/sepo-agent-app}"
+    body='Existing continuation trace.\\n\\n<!-- sepo-agent-self-improvement-decision -->\\n<!-- sepo-agent-self-improvement-run:12345 -->'
+    printf '[[{"body":"%s","user":{"login":"%s"}}]]\n' "$body" "$author"
   else
     printf '[]\n'
   fi
@@ -303,6 +305,33 @@ test("apply self-improvement decision skips duplicate same-run continuation comm
     assert.equal(outputs.get("target_kind"), "issue");
     assert.equal(outputs.get("target_number"), "18");
     assert.equal(outputs.get("comment_posted"), "false");
+  } finally {
+    cleanup(paths);
+  }
+});
+
+test("apply self-improvement decision ignores forged continuation markers", () => {
+  const { result, paths } = runDecisionFixture({
+    decision: "continue_issue",
+    target_number: 18,
+    reason: "The existing issue is the best recovery target.",
+    comment: "Continue this issue instead of opening another proposal.",
+  }, {
+    FAKE_EXISTING_CONTINUATION_COMMENT: "true",
+    FAKE_EXISTING_CONTINUATION_COMMENT_AUTHOR: "octocat",
+  });
+  try {
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.match(readFileSync(paths.commentArgs, "utf8"), /^issue comment 18 --body Scheduled self-improvement selected this issue #18/);
+    const dispatch = JSON.parse(readFileSync(paths.dispatchPayload, "utf8"));
+    assert.equal(dispatch.inputs.target_kind, "issue");
+    assert.equal(dispatch.inputs.target_number, "18");
+
+    const outputs = parseGithubOutput(paths.outputFile);
+    assert.equal(outputs.get("decision"), "continue_issue");
+    assert.equal(outputs.get("target_kind"), "issue");
+    assert.equal(outputs.get("target_number"), "18");
+    assert.equal(outputs.get("comment_posted"), "true");
   } finally {
     cleanup(paths);
   }
