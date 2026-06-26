@@ -137,6 +137,10 @@ function positiveInteger(value: number | undefined, fallback: number): number {
   return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : fallback;
 }
 
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === "AbortError";
+}
+
 async function readResponseBodyWithLimit(response: Response, maxBytes: number): Promise<Buffer> {
   const contentLength = parseContentLength(headerValue(response, "content-length"));
   if (contentLength !== null && contentLength > maxBytes) {
@@ -215,9 +219,12 @@ export async function downloadGitHubAttachment(options: {
     controller.abort();
   }, timeoutMs);
 
-  let response: Response;
+  let contentType = "";
+  let filename = "";
+  let httpStatus = 0;
+  let bytes: Buffer;
   try {
-    response = await fetcher(url, {
+    const response = await fetcher(url, {
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: "application/octet-stream",
@@ -226,8 +233,23 @@ export async function downloadGitHubAttachment(options: {
       redirect: "follow",
       signal: controller.signal,
     });
+
+    contentType = headerValue(response, "content-type");
+    const contentDisposition = headerValue(response, "content-disposition");
+    const preferredName = filenameFromContentDisposition(contentDisposition) || filenameFromUrl(url);
+    filename = deterministicGitHubAttachmentFilename(url, preferredName);
+    httpStatus = response.status;
+
+    if (!response.ok) {
+      throw new GitHubAttachmentDownloadError(
+        `Attachment download failed: HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ""}.`,
+        1,
+      );
+    }
+
+    bytes = await readResponseBodyWithLimit(response, maxBytes);
   } catch (error: unknown) {
-    if (timedOut || (error instanceof Error && error.name === "AbortError")) {
+    if (timedOut || isAbortError(error)) {
       throw new GitHubAttachmentDownloadError(
         `Timed out after ${timeoutMs}ms downloading attachment.`,
         1,
@@ -238,19 +260,6 @@ export async function downloadGitHubAttachment(options: {
     clearTimeout(timeout);
   }
 
-  const contentType = headerValue(response, "content-type");
-  const contentDisposition = headerValue(response, "content-disposition");
-  const preferredName = filenameFromContentDisposition(contentDisposition) || filenameFromUrl(url);
-  const filename = deterministicGitHubAttachmentFilename(url, preferredName);
-
-  if (!response.ok) {
-    throw new GitHubAttachmentDownloadError(
-      `Attachment download failed: HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ""}.`,
-      1,
-    );
-  }
-
-  const bytes = await readResponseBodyWithLimit(response, maxBytes);
   mkdirSync(options.outputDir, { recursive: true });
   const localPath = join(options.outputDir, filename);
   writeFileSync(localPath, bytes);
@@ -261,6 +270,6 @@ export async function downloadGitHubAttachment(options: {
     localPath,
     contentType,
     sizeBytes: bytes.length,
-    httpStatus: response.status,
+    httpStatus,
   };
 }

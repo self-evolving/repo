@@ -19,6 +19,12 @@ function tempAttachmentDir(): string {
   return mkdtempSync(join(tmpdir(), "github-attachment-download-"));
 }
 
+function abortError(): Error {
+  const error = new Error("aborted");
+  error.name = "AbortError";
+  return error;
+}
+
 test("validates only GitHub user attachment URLs", () => {
   assert.equal(
     normalizeGitHubAttachmentUrl("https://github.com/user-attachments/files/123/report.pdf)."),
@@ -162,9 +168,7 @@ test("downloadGitHubAttachment applies fetch timeout", async () => {
     const fetcher: GitHubAttachmentFetch = async (_url, init) =>
       new Promise<Response>((_resolve, reject) => {
         init?.signal?.addEventListener("abort", () => {
-          const error = new Error("aborted");
-          error.name = "AbortError";
-          reject(error);
+          reject(abortError());
         });
       });
 
@@ -178,6 +182,45 @@ test("downloadGitHubAttachment applies fetch timeout", async () => {
       }),
       /Timed out after 1ms/,
     );
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("downloadGitHubAttachment applies timeout while reading a stalled body", async () => {
+  const tempDir = tempAttachmentDir();
+  try {
+    let aborted = false;
+    const fetcher: GitHubAttachmentFetch = async (_url, init) => {
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          init?.signal?.addEventListener(
+            "abort",
+            () => {
+              aborted = true;
+              controller.error(abortError());
+            },
+            { once: true },
+          );
+        },
+      });
+      return new Response(body, {
+        status: 200,
+        headers: { "content-type": "text/plain" },
+      });
+    };
+
+    await assert.rejects(
+      downloadGitHubAttachment({
+        url: "https://github.com/user-attachments/files/123/stalled.txt",
+        outputDir: tempDir,
+        token: "token-123",
+        fetch: fetcher,
+        timeoutMs: 1,
+      }),
+      /Timed out after 1ms/,
+    );
+    assert.equal(aborted, true);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
