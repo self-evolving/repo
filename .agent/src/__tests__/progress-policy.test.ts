@@ -6,8 +6,10 @@ import {
   resolveProgressPolicy,
 } from "../cli/progress/resolve-policy.js";
 import {
+  DEFAULT_ORCHESTRATION_PROGRESS_MODE,
   DEFAULT_PROGRESS_MODE,
   DEFAULT_PROGRESS_ROUTE_OVERRIDES,
+  getProgressModeForOrchestration,
   getProgressModeForRoute,
   isProgressMode,
   parseProgressPolicy,
@@ -20,6 +22,8 @@ test("parseProgressPolicy defaults implement and fix-pr to enabled with cancella
   const policy = parseProgressPolicy("");
   assert.equal(policy.defaultMode, DEFAULT_PROGRESS_MODE);
   assert.equal(DEFAULT_PROGRESS_MODE, "disabled");
+  assert.equal(policy.orchestrationMode, DEFAULT_ORCHESTRATION_PROGRESS_MODE);
+  assert.equal(DEFAULT_ORCHESTRATION_PROGRESS_MODE, "disabled");
   assert.deepEqual(policy.routeOverrides, DEFAULT_PROGRESS_ROUTE_OVERRIDES);
   assert.equal(getProgressModeForRoute(policy, "implement"), "enabled");
   assert.equal(getProgressModeForRoute(policy, "fix-pr"), "enabled");
@@ -36,15 +40,16 @@ test("parseProgressPolicy disables review and enables answer reporting by defaul
   assert.equal(progressModeAllowsCancel(getProgressModeForRoute(policy, "answer")), false);
 });
 
-test("parseProgressPolicy accepts default mode and route overrides", () => {
+test("parseProgressPolicy accepts default mode, route overrides, and orchestration mode", () => {
   const policy = parseProgressPolicy(
-    '{"default_mode":"report-only","route_overrides":{"fix-pr":"disabled","answer":"enabled"}}',
+    '{"default_mode":"report-only","route_overrides":{"fix-pr":"disabled","answer":"enabled"},"orchestration_mode":"report-only"}',
   );
   assert.equal(policy.defaultMode, "report-only");
   assert.equal(getProgressModeForRoute(policy, "implement"), "enabled");
   assert.equal(getProgressModeForRoute(policy, "fix-pr"), "disabled");
   assert.equal(getProgressModeForRoute(policy, "answer"), "enabled");
   assert.equal(getProgressModeForRoute(policy, "dispatch"), "report-only");
+  assert.equal(getProgressModeForOrchestration(policy), "report-only");
 });
 
 test("parseProgressPolicy normalizes route keys to lowercase", () => {
@@ -65,6 +70,10 @@ test("parseProgressPolicy rejects unknown modes and invalid route keys", () => {
   assert.throws(
     () => parseProgressPolicy('{"route_overrides":["implement"]}'),
     /route_overrides must be an object/,
+  );
+  assert.throws(
+    () => parseProgressPolicy('{"orchestration_mode":"enabled"}'),
+    /orchestration_mode must be one of report-only, disabled/,
   );
 });
 
@@ -97,12 +106,28 @@ test("resolveProgressMode disables progress when orchestration is enabled", () =
 test("resolveProgressMode keeps orchestration disabled over custom progress policy", () => {
   assert.equal(
     resolveProgressMode({
-      AGENT_PROGRESS_POLICY: '{"default_mode":"enabled","route_overrides":{"orchestrator":"enabled"}}',
+      AGENT_PROGRESS_POLICY: '{"default_mode":"enabled","route_overrides":{"implement":"enabled"}}',
       ORCHESTRATION_ENABLED: "true",
-      ROUTE: "orchestrator",
+      ROUTE: "implement",
     }),
     "disabled",
   );
+});
+
+test("resolveProgressPolicy enables report-only orchestration progress by explicit opt-in", () => {
+  const resolution = resolveProgressPolicy({
+    AGENT_PROGRESS_POLICY: '{"default_mode":"disabled","orchestration_mode":"report-only"}',
+    ORCHESTRATION_ENABLED: "true",
+    RESPONSE_KIND: "issue_comment",
+    ROUTE: "implement",
+    TARGET_KIND: "issue",
+  });
+
+  assert.equal(resolution.mode, "report-only");
+  assert.equal(resolution.enabled, true);
+  assert.equal(resolution.cancelEnabled, false);
+  assert.equal(resolution.targetSupported, true);
+  assert.equal(resolution.responseSupported, true);
 });
 
 test("resolveProgressPolicy disables answer progress for review comment replies", () => {

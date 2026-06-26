@@ -115,11 +115,14 @@ post one progress comment, update it during the run, merge the final status into
 that comment, and honor an authorized 👎 reaction as a cancellation request.
 Answer runs on issue and pull request surfaces use report-only progress by
 default and merge the final answer into the same comment. Orchestrated chains
-force progress comments off and use handoff or status comments instead.
+use handoff or status comments by default, and can opt into non-cancellable
+progress comments with `AGENT_PROGRESS_POLICY.orchestration_mode`.
 
 Set `AGENT_PROGRESS_POLICY` only when you want to change that default. Use
 `report-only` for progress without cancellation, or `disabled` to turn progress
-comments off for a route.
+comments off for a route. For orchestrated runs, only
+`"orchestration_mode":"report-only"` opts into progress comments; regular route
+overrides remain ignored while orchestration is active.
 
 ## Workflow token fallback
 
