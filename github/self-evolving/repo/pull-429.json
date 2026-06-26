@@ -1,0 +1,467 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\r\n\r\nWhen `@sepo-agent` starts a run it reacts 👀 on the trigger, then can go silent until it posts a final reply — often many minutes later. The only intermediate visibility is the GitHub Actions log, which requires leaving the issue/PR.\r\n\r\nThis PR adds a live progress comment: right after the run begins, Sepo posts one comment on the triggering issue or PR and edits it in place on a throttle as the agent works, rendering a human-friendly view of what it's doing: tools used, files touched, milestone messages, elapsed time, and step count. When the run ends, that progress comment can collapse into a tidy activity log; final answers/status comments merge into it where supported, with fallback to normal posting when merge data is unavailable.\r\n\r\nIt also adds a control signal: the reporter polls reactions on the progress comment, and an authorized 👎 cancels/aborts the in-flight run cleanly — no pause/resume.\r\n\r\nThe capture source is the ACP NDJSON stream `acpx` already emits, so no agent prompt changes are required. A standalone reporter process tails that stream, keeping the design decoupled and unit-testable.\r\n\r\nThis sync also includes follow-up hardening from the internal development branch: progress policy configuration, orchestration defaults/opt-in, workflow/docs updates, and shared actor association/env helpers.\r\n\r\n## Verification\r\n\r\nLocal verification performed against the imported tree before opening this PR:\r\n\r\n- `npm ci`\r\n- `npm test`\r\n",
+  "closedAt": "2026-06-26T04:54:19Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABHnzaNg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review ",
+      "createdAt": "2026-06-26T04:52:25Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/429#issuecomment-4806466102",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABHn0B-A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "### Sepo finished — answer · 1m09s · 24 steps\n\nLast message\n> Recorded memory for PR #429. Daily bullet added: `Merged live agent progress comments with activity logs and authorized thumbs-down cancellation.` Durable memory added: `Agent runs post one live progress comment; an authorized thumbs-down…\n\n<details>\n<summary>Activity</summary>\n\n- ✏️ Edited `node .agent/dist/cli/memory/update.js add --dir /Users/shannon/projects/2604_sepo/repo/.agent/tools/local-runner/runner…` (completed)\n- 💬 Message \"The memory writes succeeded. I’m doing a quick diff check now to confirm the daily and durable entries are exactly the intended changes.\"\n- 📖 Read `Read 2026-06-26.md` (completed)\n- 📖 Read `Read MEMORY.md` (completed)\n- 🔧 Used tool `git -C /Users/shannon/projects/2604_sepo/repo/.agent/tools/local-runner/runner-2/_work/_temp/agent-memory diff -- MEMOR…` (completed)\n- 💬 Message \"Recorded memory for PR #429. Daily bullet added: `Merged live agent progress comments with activity logs and authorized thumbs-down cancellation.` Durable memory added: `Agent runs post one live progress comment; an authorized thumbs-down…\"\n</details>\n\n<!-- sepo-progress:run-28218011762 -->",
+      "createdAt": "2026-06-26T04:54:44Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/429#issuecomment-4806476280",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABHn0QfQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #429.\n\nno rubric changes\n\nPR #429 had no human review comments or reviews. The only human PR comment was `@sepo-agent /review` from `lolipopshock`; the rest was bot-generated progress output. I did not find trusted, durable, non-duplicate user/team preference feedback to encode as a rubric.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-5`",
+      "createdAt": "2026-06-26T04:55:37Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/429#issuecomment-4806479997",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABHn0qiw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | Progress is wired through the shared `run-agent-task` action and typed `.agent/src` modules, not ad hoc workflow logic: [action.yml](https://github.com/self-evolving/repo/blob/0010cd5f1e95e6a700391eb2d6c30f12fff5503d/.github/actions/run-agent-task/action.yml#L357-L406). |\n| coding_workflow/generic | Prefer explicit structured inputs | pass | 7/7 | Adds explicit `progress_policy`, `orchestration_enabled`, and `response_kind` inputs/fields, with typed JSON validation in policy code: [progress-policy.ts](https://github.com/self-evolving/repo/blob/0010cd5f1e95e6a700391eb2d6c30f12fff5503d/.agent/src/progress-policy.ts#L64-L115). |\n| coding_workflow/generic | Minimal defaults, native escape hatches | pass | 8/8 | Defaults are narrow by route, with `AGENT_PROGRESS_POLICY` as the escape hatch and orchestration limited to `report-only`/`disabled`: [progress-policy.ts](https://github.com/self-evolving/repo/blob/0010cd5f1e95e6a700391eb2d6c30f12fff5503d/.agent/src/progress-policy.ts#L22-L35). |\n| coding_workflow/generic | Separate decision gates from action authorization | pass | 8/8 | Cancellation only proceeds from requester or trusted owner/member/collaborator reaction checks before invoking `gh run cancel`: [reactions.ts](https://github.com/self-evolving/repo/blob/0010cd5f1e95e6a700391eb2d6c30f12fff5503d/.agent/src/reactions.ts#L133-L164). |\n| coding_workflow/generic | Keep docs in sync | pass | 7/7 | Runtime behavior and configuration are documented in lifecycle and configuration docs: [request-lifecycle.md](https://github.com/self-evolving/repo/blob/0010cd5f1e95e6a700391eb2d6c30f12fff5503d/.agent/docs/architecture/request-lifecycle.md#L27) and [configuration-list.md](https://github.com/self-evolving/repo/blob/0010cd5f1e95e6a700391eb2d6c30f12fff5503d/.agent/docs/customization/configuration-list.md#L32-L84). |\n| communication/generic | Keep status comments compact | pass | 6/6 | Progress comments render a short live summary and collapse final activity under details before final-comment merge: [progress-final-comment.ts](https://github.com/self-evolving/repo/blob/0010cd5f1e95e6a700391eb2d6c30f12fff5503d/.agent/src/progress-final-comment.ts#L19-L42). |\n| coding_workflow/generic | Make user-facing automation idempotent | pass | 7/7 | Within a run, one comment ID is captured, updates patch that comment, and final responses merge into it instead of creating extra status comments: [progress-report.ts](https://github.com/self-evolving/repo/blob/0010cd5f1e95e6a700391eb2d6c30f12fff5503d/.agent/src/cli/progress-report.ts#L139-L170). |\n| coding_workflow/generic | Surface stateful failures | pass | 7/7 | Reporter/comment/cancel failures are logged or marked failed rather than treated as clean cancellation; tests cover failed cancellation markers and retryable patch errors. |\n| coding_workflow/generic | Name config by capability | pass | 6/6 | The public variable is capability-scoped as `AGENT_PROGRESS_POLICY`, not tied to one route or first use case: [configuration-list.md](https://github.com/self-evolving/repo/blob/0010cd5f1e95e6a700391eb2d6c30f12fff5503d/.agent/docs/customization/configuration-list.md#L32). |\n| coding_workflow/generic | Surgical changes | pass | 8/8 | The broad file set is still scoped to live progress, final-comment merge, cancellation authorization, workflow wiring, tests, and matching docs; no unrelated refactor stood out in the reviewed diff. |\n\n## Notes\n\n- The strongest rubric drivers are the typed policy surface, explicit orchestration default-off behavior, trusted cancellation checks, compact final-comment merging, and docs coverage.\n- Verified locally in a temporary PR worktree: `npm --prefix .agent run build` passed, then 54 focused tests passed for progress policy, progress reporting, reactions, final comment merge, and post-comment/post-response CLI behavior.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific blocking or warning findings.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-3`",
+      "createdAt": "2026-06-26T04:57:07Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/429#issuecomment-4806486667",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABHn39aA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 0010cd5f1e95e6a700391eb2d6c30f12fff5503d -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #429 adds live Sepo progress comments for long-running agent work, including in-place updates, a collapsed activity log, and final-response merging. It also adds authorized thumbs-down cancellation for cancellable direct runs, backed by ACP stream capture and a separate reporter process. The PR updates route policy, workflow wiring, tests, and docs for the new progress behavior. The PR is currently `MERGED` at `0010cd5f1e95e6a700391eb2d6c30f12fff5503d`.\n\n## Review\nOverall, reviewers found the design sound, well-tested, and non-blocking. The only material concern is an edge case where outer GitHub step timeouts can bypass the reporter cleanup path.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Progress comments can be orphaned on outer task timeout | WARNING | `progress_comment_id` is emitted only by the composite action cleanup step, but callers timeout the entire composite action. If that timeout fires, the final status can fall back to a separate comment while the live progress comment remains stale. |\n| Unauthorized cancel reactions are re-checked every poll | INFO | A lingering unauthorized thumbs-down can trigger repeated association lookups every poll because negative authorization results are not cached. This is an API/rate-cost issue, not an authorization bypass. |\n| Optional cleanup notes | INFO | Reviewer cleanup notes covered a misleading parser name, a dead `filter(...)`, first-marker-only extraction, and documenting that cancel-enabled routes need `actions: write`. None are blocking. |\n\n## Progress\n- Existing inline comments and review threads were empty before synthesis.\n- Posted one new inline warning on `.github/actions/run-agent-task/action.yml:458` for the timeout/finalization edge case.\n- No comments were minimized, no threads were resolved, and no replies were added.\n- Rubrics review passed; both code-review lanes reported no blocking bugs.\n- Reviewers reported successful verification with `npm test`; rubrics review also reported focused build/test coverage.\n\n## Issue Details\n<details>\n<summary>Progress comments can be orphaned on outer task timeout</summary>\n\n**Cause:** At PR head, [`run-agent-task`](https://github.com/self-evolving/repo/blob/0010cd5f1e95e6a700391eb2d6c30f12fff5503d/.github/actions/run-agent-task/action.yml#L458) exposes `progress_comment_id` from the `Stop progress reporter` step, while callers like [`agent-implement.yml`](https://github.com/self-evolving/repo/blob/0010cd5f1e95e6a700391eb2d6c30f12fff5503d/.github/workflows/agent-implement.yml#L226) and [`agent-fix-pr.yml`](https://github.com/self-evolving/repo/blob/0010cd5f1e95e6a700391eb2d6c30f12fff5503d/.github/workflows/agent-fix-pr.yml#L183) apply `timeout-minutes` to the whole composite action.\n\n**Candidate solutions:** Move timeout enforcement inside `run-agent-task` around `node .agent/dist/run.js`, or let callers rediscover and finalize the progress comment by marker/run id if the composite action times out.\n\n**Comments:** This was raised by the Codex reviewer and verified against the PR head. It is non-blocking but worth follow-up if stale progress comments on timeouts are unacceptable.\n</details>\n\n<details>\n<summary>Unauthorized cancel reactions are re-checked every poll</summary>\n\n**Cause:** [`findCancelReactionBestEffort`](https://github.com/self-evolving/repo/blob/0010cd5f1e95e6a700391eb2d6c30f12fff5503d/.agent/src/cli/progress-report.ts#L452) lists reactions and delegates to authorization checks each poll; unauthorized negative results are not memoized.\n\n**Candidate solutions:** Cache normalized logins that have already resolved as unauthorized for the life of the reporter process, while preserving requester and trusted-actor short-circuit behavior.\n\n**Comments:** Claude flagged this as low warning. It is an efficiency concern only; the trust boundary still fails closed.\n</details>\n\n<details>\n<summary>Optional cleanup notes</summary>\n\n**Cause:** Claude noted several small maintainability issues: `parseDurationMs` is reused for byte counts, `mergeFinalBodyWithProgress` has a no-op filter, marker extraction strips only the first marker, and docs could state that cancel-enabled routes require `actions: write`.\n\n**Candidate solutions:** Rename or split the bounded-int parser, simplify the join path in `progress-final-comment.ts`, leave marker behavior as-is unless comment reuse is added, and add the permission note near `AGENT_PROGRESS_POLICY` docs.\n\n**Comments:** These are opportunistic cleanups and should not drive automation on this merged PR.\n</details>\n\n## Recommended Next Step\n`HUMAN_DECISION`: PR #429 is already merged, and the remaining warning has multiple reasonable follow-up designs, so maintainers should decide whether to open a follow-up hardening PR.\n\n## Final Verdict\n`MINOR_ISSUES`\n\n## Action Items\n- [ ] No required branch-change work remains for PR #429.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-3`",
+      "createdAt": "2026-06-26T05:08:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/429#issuecomment-4806540648",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-06-26T04:47:38Z",
+  "files": [
+    {
+      "path": ".agent/action-templates/agent-action-template.yml",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/request-lifecycle.md",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 17,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/index.md",
+      "additions": 4,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/setup/setup-guide.md",
+      "additions": 17,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/acpx-adapter.test.ts",
+      "additions": 171,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/actor-association.test.ts",
+      "additions": 147,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/env.test.ts",
+      "additions": 24,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 119,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/github.test.ts",
+      "additions": 46,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/onboarding-check-cli.test.ts",
+      "additions": 6,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/post-comment-cli.test.ts",
+      "additions": 68,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/post-response-cli.test.ts",
+      "additions": 56,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/progress-cancel.test.ts",
+      "additions": 81,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/progress-final-comment.test.ts",
+      "additions": 30,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/progress-policy.test.ts",
+      "additions": 191,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/progress-render.test.ts",
+      "additions": 347,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/progress-report.test.ts",
+      "additions": 614,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/reactions.test.ts",
+      "additions": 173,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/response.test.ts",
+      "additions": 13,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/acpx-adapter.ts",
+      "additions": 22,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/actor-association.ts",
+      "additions": 116,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/extract-context.ts",
+      "additions": 13,
+      "deletions": 53,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrate-handoff.ts",
+      "additions": 1,
+      "deletions": 25,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/post-comment.ts",
+      "additions": 29,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/post-response.ts",
+      "additions": 21,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/progress-report.ts",
+      "additions": 604,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/progress/resolve-policy.ts",
+      "additions": 86,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/resolve-progress-status.ts",
+      "additions": 25,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/env.ts",
+      "additions": 7,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/github.ts",
+      "additions": 22,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/onboarding.ts",
+      "additions": 9,
+      "deletions": 13,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/progress-cancel.ts",
+      "additions": 103,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/progress-final-comment.ts",
+      "additions": 96,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/progress-policy.ts",
+      "additions": 158,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/progress-render.ts",
+      "additions": 495,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/reactions.ts",
+      "additions": 140,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/response.ts",
+      "additions": 33,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/run-agent-task/action.yml",
+      "additions": 103,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-daily-summary.yml",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-fix-pr.yml",
+      "additions": 18,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-implement.yml",
+      "additions": 17,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-memory-bootstrap.yml",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-memory-pr-closed.yml",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-memory-scan.yml",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-orchestrator.yml",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-project-manager.yml",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-review.yml",
+      "additions": 5,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-router.yml",
+      "additions": 14,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-rubrics-initialization.yml",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-rubrics-review.yml",
+      "additions": 10,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-rubrics-update.yml",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-self-approve.yml",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-update.yml",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": "README.md",
+      "additions": 4,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "sync/internal-dev-progress-20260626",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": "2026-06-26T04:54:19Z",
+  "number": 429,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABEMy73g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-06-26T05:07:46Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "0010cd5f1e95e6a700391eb2d6c30f12fff5503d"
+      }
+    }
+  ],
+  "state": "MERGED",
+  "title": "Live agent progress comment with 👎-to-cancel",
+  "updatedAt": "2026-06-26T07:08:24Z",
+  "url": "https://github.com/self-evolving/repo/pull/429"
+}

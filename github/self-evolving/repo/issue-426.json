@@ -6,7 +6,7 @@
     "name": "Shannon Shen"
   },
   "body": " Private GitHub attachments are often exposed to the agent only as Markdown links like\n https://github.com/user-attachments/files/.... In private repositories, those URLs may return 404\n unless the request includes a token with repository access. The workflow may already have a valid\n GITHUB_TOKEN or GitHub App token, but if the agent uses an unauthenticated curl, browser tool, or\n generic web fetcher, GitHub treats the file as inaccessible. This makes the agent report that the file\n cannot be read even though the action itself has permission to access it.\n\n The fix is to handle attachments deterministically before the agent runs. The workflow/runtime should\n scan the relevant issue, PR, discussion, and comment bodies for GitHub attachment URLs, download those\n files using the resolved GitHub token, and save them to a known local directory on the runner, such as\n $RUNNER_TEMP/agent-attachments/. It should also generate a small manifest listing each original URL,\n filename, local path, size/type if available, and any download errors.\n\n Then the agent prompt should include that manifest and explicitly tell the agent to use the local file\n paths instead of fetching the original private GitHub URLs. This keeps authentication out of the\n model’s hands, avoids leaking tokens, and turns private file access from a best-effort model behavior\n into a reliable workflow capability.\n\n@sepo-agent /answer ",
-  "closedAt": null,
+  "closedAt": "2026-06-26T05:55:42Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABGa9AEg",
@@ -92,8 +92,8 @@
     }
   ],
   "number": 426,
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Handle comment files in private repos",
-  "updatedAt": "2026-06-19T22:52:38Z",
+  "updatedAt": "2026-06-26T05:55:42Z",
   "url": "https://github.com/self-evolving/repo/issues/426"
 }

@@ -1,0 +1,39 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "body": "## Goal\nImplement an alternate attachment-download design from `main`: no preloaded files and no attachment indexer. Add an agent-callable command that downloads only GitHub user-attachment URLs on demand.\n\n## Context\nThis supersedes the broader pre-download approach in PR #428: https://github.com/self-evolving/repo/pull/428\n\nThe requested command shape is:\n\n```shell\nnode .agent/dist/cli/download-github-attachment.js \\\n  --url \"https://github.com/user-attachments/files/...\"\n```\n\nThe command should be attachment-specific, not a general authenticated GitHub downloader. It should accept raw URLs from the agent but only allow `https://github.com/user-attachments/(files|assets)/...` URLs. This avoids scanning all past comments, avoids pre-downloading files before the agent starts, and avoids exposing an authenticated curl-like primitive for arbitrary GitHub URLs.\n\nCurrent architecture notes:\n- `run-agent-task` already passes `INPUT_GITHUB_TOKEN` into the agent step.\n- `buildSharedEnv()` mirrors that into `GH_TOKEN` / `GITHUB_TOKEN`.\n- The base prompt already documents token handling boundaries.\n\n## Acceptance Criteria\n- Add `.agent/src/cli/download-github-attachment.ts` and ensure it builds to `.agent/dist/cli/download-github-attachment.js`.\n- The CLI accepts `--url <raw-url>` from the agent.\n- The CLI validates only `https://github.com/user-attachments/files/...` and `https://github.com/user-attachments/assets/...`.\n- The CLI rejects non-GitHub URLs and non-attachment GitHub URLs.\n- The CLI downloads using `INPUT_GITHUB_TOKEN`, `GH_TOKEN`, or an existing repo-supported token env var order, without printing token values.\n- The CLI enforces a fetch timeout and max file size, including protection against oversized responses.\n- The CLI uses safe filename handling and writes only under `$RUNNER_TEMP/agent-attachments/`.\n- The CLI prints the local path and useful metadata such as URL, filename, bytes, content type, and destination path.\n- Add shared helper code as appropriate for URL validation, filename sanitization, timeout handling, and size caps.\n- Update `.github/prompts/_base.md` to tell agents to use this command for `github.com/user-attachments` links and not raw `curl` or browser fetches for private attachments.\n- Update docs for the command.\n- Add tests for valid attachment URLs, rejected URLs, missing token, timeout, oversized response, filename handling, and successful download.\n\n---\n\nRequested via issue_comment at https://github.com/self-evolving/repo/pull/428\n",
+  "closedAt": "2026-06-26T05:44:57Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABHn06rg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-430/codex-28218115894`\n- Pull request: https://github.com/self-evolving/repo/pull/431\n\nImplemented an on-demand GitHub user-attachment downloader CLI with strict attachment URL validation, token-based fetches, timeout and size limits, safe filenames, JSON metadata output, prompt/docs guidance, and focused coverage. Verified with `npm run build`, targeted `node --test`, CLI help, and `git diff --check`.\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — implement · 5m14s · 52 steps**\n\nLast message\n> {\"summary\":\"Implemented an on-demand GitHub user-attachment downloader CLI with strict attachment URL validation, token-based fetches, timeout and size limits, safe filenames, JSON metadata output, prompt/docs guidance, and focused coverag…\n\nActivity\n\n- 📖 Read `Read github-attachment-download.ts` (completed)\n- 📖 Read `Read github-attachment-download.test.ts` (completed)\n- 📖 Read `Read _base.md` (completed)\n- 💬 Message \"The code review pass looks consistent with the requested scope. I’ll run the built CLI help once to verify the compiled entrypoint exists and starts cleanly.\"\n- 🔧 Used tool `node dist/cli/download-github-attachment.js --help` (completed)\n- 💬 Message \"{\"summary\":\"Implemented an on-demand GitHub user-attachment downloader CLI with strict attachment URL validation, token-based fetches, timeout and size limits, safe filenames, JSON metadata output, prompt/docs guidance, and focused coverag…\"\n</details>\n\n<!-- sepo-progress:run-28218115894 -->\n\n---\n`codex` | `gpt-5.5` | `xhigh` | `Macmini-runner-3`",
+      "createdAt": "2026-06-26T04:58:02Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/430#issuecomment-4806490798",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-06-26T04:57:29Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 430,
+  "state": "CLOSED",
+  "title": "Add on-demand GitHub attachment downloader CLI",
+  "updatedAt": "2026-06-26T05:44:57Z",
+  "url": "https://github.com/self-evolving/repo/issues/430"
+}

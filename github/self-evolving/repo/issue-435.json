@@ -1,0 +1,99 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "@sepo-agent /answer \nwhat do you think?",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABHpQwng",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I’d keep `test-scripts.yml` on `ubuntu-latest` by default.\n\n`AGENT_RUNS_ON` is a good fit for Sepo’s agent workflows because it routes agent execution to the operator’s chosen runner. But [`test-scripts.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/test-scripts.yml) is normal PR CI: it runs on `pull_request`, checks out the PR, installs dependencies, builds, and executes tests. If a public repo sets `AGENT_RUNS_ON` to self-hosted, that would make untrusted PR code run on the self-hosted agent runner, which is a different security posture than running gated Sepo workflows there.\n\nSo my recommendation:\n\n- Do **not** switch `test-scripts.yml` to plain `fromJson(vars.AGENT_RUNS_ON || '[\"ubuntu-latest\"]')`.\n- If we want configurability, add a separate variable like `AGENT_TEST_RUNS_ON` or `SEPO_TEST_RUNS_ON`, defaulting to `[\"ubuntu-latest\"]`.\n- Document it as CI-specific and warn that using self-hosted runners for `pull_request` CI runs PR code on that machine.\n\nThat keeps `AGENT_RUNS_ON` scoped to agent runtime placement, while still giving maintainers an explicit escape hatch for test CI.\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — answer · 1m19s · 18 steps**\n\nLast message\n> I’d keep `test-scripts.yml` on `ubuntu-latest` by default. `AGENT_RUNS_ON` is a good fit for Sepo’s agent workflows because it routes agent execution to the operator’s chosen runner. But [`test-scripts.yml`](https://github.com/self-evolvin…\n\nActivity\n\n- 📖 Read `Read envelope.test.ts` (completed)\n- 📖 Read `Read configuration-list.md, Read self-hosted-github-action-runner.md` (completed)\n- 📖 Read `Read agent-action-template.yml` (completed)\n- 🔍 Searched `Search test-scripts|AGENT_RUNS_ON|self-hosted|pull_request in README.md` (completed)\n- 🔧 Used tool `git status --short && git branch --show-current && git log --oneline -5` (completed)\n- 💬 Message \"I’d keep `test-scripts.yml` on `ubuntu-latest` by default. `AGENT_RUNS_ON` is a good fit for Sepo’s agent workflows because it routes agent execution to the operator’s chosen runner. But [`test-scripts.yml`](https://github.com/self-evolvin…\"\n</details>\n\n<!-- sepo-progress:run-28227403208 -->\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-1`",
+      "createdAt": "2026-06-26T08:47:15Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/435#issuecomment-4807995550",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABHpSWWQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate \n\nLet's do this: \n\nvars.AGENT_TEST_RUNS_ON  | vars.AGENT_RUNS_ON | '[\"ubuntu-latest\"]'",
+      "createdAt": "2026-06-26T08:51:10Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/435#issuecomment-4808021593",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABHpTOWg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | implement | Issue #435 | 2 / 40 | Dispatched |\n\nReason: agent planner selected implement: Issue #435 is a small self-contained workflow/docs change accepted by the maintainer after the prior answer.\n\n<!-- sepo-agent-handoff state:dispatched created:1782463983234 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjgyMjc2OTYzMzE6b3JjaGVzdHJhdGU6NDM1OmltcGxlbWVudDo0MzU6Mg -->",
+      "createdAt": "2026-06-26T08:53:03Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/435#issuecomment-4808035930",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABHpUZdw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-435/codex-28227786106`\n- Pull request: https://github.com/self-evolving/repo/pull/436\n\nUpdated `test-scripts.yml` to select runners from `AGENT_TEST_RUNS_ON`, then `AGENT_RUNS_ON`, then `ubuntu-latest`; documented the new CI-specific variable and added regression coverage for the fallback chain. Verified with `npm run build && npm run check:workflow`, `npm run check:docs`, and `git diff --check`.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-3`",
+      "createdAt": "2026-06-26T08:56:00Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/435#issuecomment-4808055159",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-06-26T08:44:52Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 435,
+  "state": "OPEN",
+  "title": "Use AGENT_RUNS_ON for test scripts?",
+  "updatedAt": "2026-06-26T08:56:00Z",
+  "url": "https://github.com/self-evolving/repo/issues/435"
+}

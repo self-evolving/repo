@@ -5,7 +5,7 @@
   },
   "baseRefName": "main",
   "body": "## Summary\n- add a shared attachment scanner/downloader and CLI that writes a manifest under `$RUNNER_TEMP/agent-attachments`\n- wire `run-agent-task` to run it before the agent and inject the manifest into the base prompt\n- document attachment handling and add runtime/workflow coverage\n\n## Tests\n- `npm run build`\n- `node --test dist/__tests__/attachments.test.js dist/__tests__/envelope.test.js dist/__tests__/workflow-action-validation.test.js dist/__tests__/docs-validation.test.js`\n- `git diff --check`\n\nCloses #426\n",
-  "closedAt": null,
+  "closedAt": "2026-06-26T05:12:46Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABG3BwqQ",
@@ -244,6 +244,49 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/428#issuecomment-4803741950",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABHn0ckQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Yes, we can implement this as a new direction from `main`: **no preloaded files, no indexer, just an agent-callable download command**.\r\n> \r\n> I would still narrow “any given GitHub URL” to **any GitHub user-attachment URL**:\r\n> \r\n> ```shell\r\n> node .agent/dist/cli/download-github-attachment.js \\\r\n>   --url \"https://github.com/user-attachments/files/...\"\r\n> ```\r\n> \r\n> The command should:\r\n> \r\n> * accept a raw URL from the agent,\r\n> * validate `https://github.com/user-attachments/(files|assets)/...`,\r\n> * reject non-GitHub and non-attachment URLs,\r\n> * download using `INPUT_GITHUB_TOKEN` / `GH_TOKEN`,\r\n> * enforce max file size, timeout, and safe filename handling,\r\n> * write to `$RUNNER_TEMP/agent-attachments/`,\r\n> * print the local path and metadata.\r\n> \r\n> I would **not** make it a general authenticated `github.com` downloader. That becomes too close to “authenticated curl for anything GitHub can access.” Attachment URLs are the real problem, so the command should be attachment-specific.\r\n> \r\n> Current architecture fit:\r\n> \r\n> * `run-agent-task` already passes `INPUT_GITHUB_TOKEN` into the agent step: [`run-agent-task/action.yml#L342-L351`](https://github.com/self-evolving/repo/blob/main/.github/actions/run-agent-task/action.yml#L342-L351)\r\n> * `buildSharedEnv()` mirrors that into `GH_TOKEN` / `GITHUB_TOKEN`: [`runtime-env.ts#L29-L35`](https://github.com/self-evolving/repo/blob/main/.agent/src/runtime-env.ts#L29-L35)\r\n> * the base prompt already documents token handling boundaries: [`_base.md#L28-L31`](https://github.com/self-evolving/repo/blob/main/.github/prompts/_base.md#L28-L31)\r\n> \r\n> So this version is simpler than PR #428:\r\n> \r\n> 1. Add `.agent/src/cli/download-github-attachment.ts`.\r\n> 2. Add a small shared helper for URL validation, filename sanitization, fetch timeout, and size cap.\r\n> 3. Update `_base.md` to tell agents: use this command for `github.com/user-attachments` links; do not use raw `curl`/browser fetches for private attachments.\r\n> 4. Add tests for valid attachment URLs, rejected URLs, missing token, timeout, oversized response, filename handling, and successful download.\r\n> 5. Update docs for the command.\r\n> \r\n> I’d close or supersede PR #428 and branch from `main` for this alternate design. It gives us the behavior you want without scanning all past comments and without pre-downloading anything.\r\n> \r\n> `codex` | `gpt-5.5` | `high` | `Macmini-runner-3`\r\n\r\n@sepo-agent /implement sounds good. can we implement it?",
+      "createdAt": "2026-06-26T04:56:18Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/428#issuecomment-4806483089",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABHn0xdA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Implementing this request — tracking in https://github.com/self-evolving/repo/issues/430.\n",
+      "createdAt": "2026-06-26T04:57:31Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/428#issuecomment-4806488436",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-06-19T22:52:35Z",
@@ -362,8 +405,8 @@
       }
     }
   ],
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Download GitHub attachments before agent runs",
-  "updatedAt": "2026-06-25T20:10:16Z",
+  "updatedAt": "2026-06-26T05:12:46Z",
   "url": "https://github.com/self-evolving/repo/pull/428"
 }

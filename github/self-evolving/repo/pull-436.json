@@ -1,0 +1,191 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Configure `test-scripts.yml` to use `AGENT_TEST_RUNS_ON`, falling back to `AGENT_RUNS_ON` and then `ubuntu-latest`.\n- Document the CI runner variable and self-hosted PR-code caveat.\n- Add workflow regression coverage for the fallback chain.\n\n## Verification\n- `npm run build && npm run check:workflow`\n- `npm run check:docs`\n- `git diff --check`\n\nCloses #435\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABHpU2SQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #436 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: Implementation succeeded and opened PR #436 for issue #435; an automated review is the appropriate next step before any human merge decision.\n\n<!-- sepo-agent-handoff state:dispatched created:1782464229045 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjgyMjc3ODYxMDY6aW1wbGVtZW50OjQzNTpyZXZpZXc6NDM2OjM -->",
+      "createdAt": "2026-06-26T08:57:09Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/436#issuecomment-4808062537",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABHpVs3w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 98 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The PR touches only `test-scripts.yml`, two relevant docs pages, and existing workflow/docs assertions in `envelope.test.ts`. |\n| coding / generic | Reuse existing code | pass | 8/8 | The workflow uses the same existing `fromJson(vars.* || '[\"ubuntu-latest\"]')` runner-selection pattern already used by packaged agent workflows. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation is a single `runs-on` expression with no new helper, parser, or workflow abstraction. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The new `AGENT_TEST_RUNS_ON` variable is documented in `configuration-list.md`, and `supported-workflows.md` records the fallback chain for `test-scripts.yml`. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | The default remains `[\"ubuntu-latest\"]` when no variables are set, while repo owners can override via native repository variables. |\n| coding_workflow / generic | Name config by capability | pass | 6/6 | `AGENT_TEST_RUNS_ON` names the specific CI runner-selection capability instead of overloading only the general agent runtime variable. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The PR adds a separate JSON-array runner variable with an explicit ordered fallback rather than encoding this as command text or a multi-purpose setting. |\n| communication / generic | Make setup guidance actionable | partial | 6/7 | The docs warn that self-hosted labels in `AGENT_TEST_RUNS_ON` allow PR code to run on that runner, but they do not link directly to the self-hosted runner guidance from the new variable row. |\n\n## Notes\n\n- The PR matches the linked issue request: `AGENT_TEST_RUNS_ON`, then `AGENT_RUNS_ON`, then `[\"ubuntu-latest\"]`.\n- Regression coverage was added for the workflow expression and matching docs text, and the live PR check named `check` is passing.\n- Smallest useful follow-up: add the same self-hosted runner guide link to the new `AGENT_TEST_RUNS_ON` row that `AGENT_RUNS_ON` already has.\n\n## Findings\n\n- **INFO:** The rubric-specific gap is only documentation polish: the new CI-specific variable includes the important self-hosted PR-code warning, but a direct link to the self-hosted runner guide would make the setup guidance more actionable.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-4`",
+      "createdAt": "2026-06-26T08:59:15Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/436#issuecomment-4808076511",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABHpZSWw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 77916baf9178a23a2f972104026353f1f361aa8a -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #436 implements the maintainer-requested fallback chain from issue #435: `AGENT_TEST_RUNS_ON`, then `AGENT_RUNS_ON`, then `[\"ubuntu-latest\"]`.\n- The change updates `test-scripts.yml`, documents the new CI-specific variable, and adds regression coverage for the workflow/docs contract.\n- The main behavior change is that repositories with only `AGENT_RUNS_ON` set may now route normal `pull_request` test CI onto that runner.\n- Reviewers agreed the implementation is small and consistent with existing workflow patterns; the only unresolved concern is documentation visibility for existing self-hosted runner users.\n\n## Review\nThe PR is functionally correct and matches the explicit maintainer request. One reviewer raised a non-blocking docs warning that is still supported by the current diff, while the other code review found no blocking or warning issues and the rubrics review passed.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Document AGENT_RUNS_ON fallback PR-runner risk | WARNING | The new `AGENT_TEST_RUNS_ON` row warns about self-hosted PR code, but existing operators are more likely to trigger the behavior through the `AGENT_RUNS_ON` fallback. Add a caveat or cross-reference where `AGENT_RUNS_ON` is documented. |\n\n## Progress\n- PR implements the fallback chain explicitly requested by the maintainer on #435.\n- Current PR checks show `check` passing; agent-related jobs are skipped.\n- Existing inline comments and review threads were empty before synthesis.\n- Posted one inline comment on `.agent/docs/customization/configuration-list.md` line 13 for the docs warning.\n\n## Issue Details\n<details>\n<summary>Document AGENT_RUNS_ON fallback PR-runner risk</summary>\n\n**Cause:** `test-scripts.yml` now falls back from `AGENT_TEST_RUNS_ON` to `AGENT_RUNS_ON`, so repos that already set `AGENT_RUNS_ON` to a self-hosted label can run `pull_request` CI on that runner even without setting the new variable.\n\n**Candidate solutions:** Add a short caveat to the `AGENT_RUNS_ON` row, or add a cross-reference from that row to the `AGENT_TEST_RUNS_ON` warning. The key point is that `test-scripts.yml` runs PR code when its runner labels resolve to self-hosted infrastructure.\n\n**Comments:** This is not a request to reverse the fallback chain; the maintainer asked for that design. Reviewer split: Codex marked the PR as SHIP, Claude raised this as a non-blocking warning, and the rubrics review passed with related INFO-level docs polish.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: The remaining issue is a concrete one-line docs improvement and is safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Add an `AGENT_RUNS_ON` caveat or cross-reference explaining that the fallback can route `test-scripts.yml` `pull_request` CI onto self-hosted runners.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-6`",
+      "createdAt": "2026-06-26T09:07:30Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/436#issuecomment-4808135259",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABHpZtwA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #436 | 4 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis verdict is MINOR_ISSUES with Recommended Next Step FIX_PR; the remaining item is a concrete one-line docs caveat safe for automated fixing.\n\nTask for fix-pr:\nAddress only the latest review synthesis action item: add an `AGENT_RUNS_ON` caveat or cross-reference explaining that the fallback can route `test-scripts.yml` `pull_request` CI onto self-hosted runners. Preserve the requested fallback chain (`AGENT_TEST_RUNS_ON` | `AGENT_RUNS_ON` | `'[\"ubuntu-latest\"]'`). Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by this action item.\n\n<!-- sepo-agent-handoff state:dispatched created:1782464910377 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjgyMjc5OTE2NDY6cmV2aWV3OjQzNjpmaXhfcHI6NDM2OjQ -->",
+      "createdAt": "2026-06-26T09:08:31Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/436#issuecomment-4808142272",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABHpamyg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-435/codex-28227786106`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Added an `AGENT_RUNS_ON` docs caveat explaining that `test-scripts.yml` falls back to it after `AGENT_TEST_RUNS_ON`, which can route `pull_request` CI onto self-hosted runners.\n- Preserved the requested workflow fallback chain unchanged.\n- Checks passed: `git diff --check`; `npm run check:docs` from `.agent`.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-6`",
+      "createdAt": "2026-06-26T09:10:40Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/436#issuecomment-4808156874",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABHpbKkQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #436 | 5 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr completed successfully after the prior MINOR_ISSUES review item, so one automated review should verify the docs caveat fix and current PR head before stopping.\n\n<!-- sepo-agent-handoff state:dispatched created:1782465115351 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjgyMjg1NTEyODE6Zml4X3ByOjQzNjpyZXZpZXc6NDM2OjU -->",
+      "createdAt": "2026-06-26T09:11:55Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/436#issuecomment-4808166033",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABHpcHfA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 98 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The live diff only touches `test-scripts.yml`, two relevant docs pages, and existing workflow/docs assertions in `envelope.test.ts`. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The workflow uses the established `fromJson(vars.* || '[\"ubuntu-latest\"]')` runner-selection pattern already used across packaged workflows. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The behavior is implemented as one `runs-on` expression with no new parser, helper, or abstraction. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | `configuration-list.md` documents `AGENT_TEST_RUNS_ON` and the `AGENT_RUNS_ON` fallback caveat; `supported-workflows.md` documents the full fallback chain. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | The default remains `[\"ubuntu-latest\"]`, while repository owners can override via native repo variables. |\n| coding_workflow / generic | Name config by capability | pass | 6/6 | `AGENT_TEST_RUNS_ON` names the CI runner-selection capability instead of overloading only the general agent runtime variable. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The PR adds a separate JSON-array variable with an ordered fallback instead of encoding this in command text or a multi-purpose setting. |\n| communication / generic | Make setup guidance actionable | partial | 6/7 | The docs now warn that both `AGENT_TEST_RUNS_ON` and the `AGENT_RUNS_ON` fallback can route `pull_request` CI onto self-hosted runners; the new `AGENT_TEST_RUNS_ON` row still lacks a direct link to the self-hosted runner guide. |\n\n## Notes\n\n- The implementation matches issue #435’s explicit request: `vars.AGENT_TEST_RUNS_ON`, then `vars.AGENT_RUNS_ON`, then `[\"ubuntu-latest\"]`.\n- The current PR check named `check` is passing.\n- I did not score unrelated orchestration, authorization, merge, lifecycle, or review-synthesis rubrics because this PR changes only CI runner selection, docs, and regression assertions.\n- Smallest useful follow-up: add the self-hosted runner guide link directly to the `AGENT_TEST_RUNS_ON` row as well.\n\n## Findings\n\n- **INFO:** The remaining rubric-specific gap is documentation polish: the new CI-specific variable warns about self-hosted `pull_request` risk, but a direct guide link in that same row would make the setup path more actionable.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-2`",
+      "createdAt": "2026-06-26T09:14:12Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/436#issuecomment-4808181628",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABHpfSJQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 6190d1a5b26b71d94992aa72c0778f1b52307a65 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #436 implements issue #435’s requested runner fallback for `test-scripts.yml`: `AGENT_TEST_RUNS_ON`, then `AGENT_RUNS_ON`, then `[\"ubuntu-latest\"]`.\n- The PR updates workflow YAML, documents the new CI runner variable, and adds regression assertions for the workflow/docs contract.\n- The linked issue shows the `AGENT_RUNS_ON` fallback was an explicit maintainer choice after the self-hosted `pull_request` risk was discussed.\n- A follow-up fix added the missing `AGENT_RUNS_ON` caveat, resolving the prior actionable review item.\n\n## Review\nThe current PR head is ready to ship. Codex found no issues, Claude’s remaining notes are non-blocking awareness/polish, and the rubrics review passed with only optional documentation polish.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | The prior `AGENT_RUNS_ON` documentation caveat has been added, tests/checks are passing, and remaining notes do not require branch changes. |\n\n## Progress\n- Current PR head is `6190d1a5b26b71d94992aa72c0778f1b52307a65`.\n- Existing `check` status is passing.\n- The previous inline comment requesting an `AGENT_RUNS_ON` caveat is addressed by the current diff.\n- Resolved one same-agent inline review thread: `PRRT_kwDOSOhEMM6MeHid`.\n- No new inline comments were posted.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: No unresolved actionable branch-change work remains.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch changes.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-6`",
+      "createdAt": "2026-06-26T09:21:55Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/436#issuecomment-4808233509",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-06-26T08:55:55Z",
+  "files": [
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 2,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/supported-workflows.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 8,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/test-scripts.yml",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-435/codex-28227786106",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 436,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABEOHp5w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-06-26T09:06:34Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "77916baf9178a23a2f972104026353f1f361aa8a"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Configure test CI runner fallback variables",
+  "updatedAt": "2026-06-26T09:21:56Z",
+  "url": "https://github.com/self-evolving/repo/pull/436"
+}
