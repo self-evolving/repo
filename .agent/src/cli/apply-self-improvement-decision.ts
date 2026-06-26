@@ -24,10 +24,13 @@ import { readFileSync } from "node:fs";
 import { createIssue, dispatchWorkflow, gh, postIssueComment, postPrComment } from "../github.js";
 import { setOutput } from "../output.js";
 import {
+  SELF_IMPROVEMENT_DECISION_MARKER,
+  SELF_IMPROVEMENT_PROPOSAL_MARKER,
   buildSelfImprovementContinuationComment,
   buildSelfImprovementIssueBody,
   normalizeIssueTitle,
   parseSelfImprovementDecision,
+  selfImprovementRunMarker,
   writeTempMarkdownFile,
   type SelfImprovementDecision,
   type SelfImprovementRunContext,
@@ -59,10 +62,61 @@ function parseCreatedIssueNumber(issueUrl: string): number {
   return parsed;
 }
 
+function asRecordArray(raw: string): Record<string, unknown>[] {
+  const parsed = JSON.parse(raw) as unknown;
+  return Array.isArray(parsed)
+    ? parsed.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item))
+    : [];
+}
+
+function fallbackIssueUrl(repo: string, issueNumber: number): string {
+  const server = optionalEnv("GITHUB_SERVER_URL", "https://github.com").replace(/\/+$/, "");
+  return `${server}/${repo}/issues/${issueNumber}`;
+}
+
+function findExistingRunProposalIssue(context: SelfImprovementRunContext): { issueUrl: string; targetNumber: number } | null {
+  const marker = selfImprovementRunMarker(context.runId);
+  if (!marker) return null;
+
+  const issues = asRecordArray(gh([
+    "api",
+    "--method",
+    "GET",
+    `repos/${context.repo}/issues`,
+    "-f",
+    "state=all",
+    "-f",
+    "per_page=100",
+  ]));
+  for (const issue of issues) {
+    if (issue.pull_request) continue;
+    const state = String(issue.state || "").trim().toLowerCase();
+    if (state && state !== "open") continue;
+    const body = String(issue.body || "");
+    if (
+      !body.includes(marker) ||
+      !body.includes(SELF_IMPROVEMENT_PROPOSAL_MARKER) ||
+      !body.includes(SELF_IMPROVEMENT_DECISION_MARKER)
+    ) {
+      continue;
+    }
+    const number = Number(issue.number || "");
+    if (!Number.isInteger(number) || number <= 0) continue;
+    return {
+      issueUrl: String(issue.html_url || "") || fallbackIssueUrl(context.repo, number),
+      targetNumber: number,
+    };
+  }
+  return null;
+}
+
 function createNewProposalIssue(
   decision: SelfImprovementDecision,
   context: SelfImprovementRunContext,
 ): { issueUrl: string; targetNumber: number } {
+  const existing = findExistingRunProposalIssue(context);
+  if (existing) return existing;
+
   const body = buildSelfImprovementIssueBody(decision, context);
   const bodyFile = writeTempMarkdownFile("agent-self-improvement-issue", body);
   const issueUrl = createIssue({
@@ -119,19 +173,46 @@ function validateContinuationTarget(
   }
 }
 
+function hasExistingRunContinuationComment(
+  decision: SelfImprovementDecision,
+  context: SelfImprovementRunContext,
+): boolean {
+  const marker = selfImprovementRunMarker(context.runId);
+  const targetNumber = decision.targetNumber || 0;
+  if (!marker || !targetNumber) return false;
+
+  const comments = asRecordArray(gh([
+    "api",
+    "--method",
+    "GET",
+    `repos/${context.repo}/issues/${targetNumber}/comments`,
+    "-f",
+    "per_page=100",
+  ]));
+  return comments.some((comment) => {
+    const body = String(comment.body || "");
+    return body.includes(marker) && body.includes(SELF_IMPROVEMENT_DECISION_MARKER);
+  });
+}
+
 function postContinuationComment(
   decision: SelfImprovementDecision,
   context: SelfImprovementRunContext,
-): void {
+): boolean {
   const targetNumber = decision.targetNumber || 0;
   if (!targetNumber) throw new Error(`${decision.decision} is missing target number`);
   validateContinuationTarget(decision, context.repo);
+  if (hasExistingRunContinuationComment(decision, context)) {
+    return false;
+  }
+
   const body = buildSelfImprovementContinuationComment(decision, context);
   if (decision.decision === "continue_pr") {
     postPrComment(targetNumber, body, context.repo);
   } else {
     postIssueComment(targetNumber, body, context.repo);
   }
+  return true;
 }
 
 function dispatchOrchestrator(input: {
@@ -197,8 +278,7 @@ export function runApplySelfImprovementDecision(): number {
       targetNumber = created.targetNumber;
       targetKind = "issue";
     } else {
-      postContinuationComment(decision, context);
-      commentPosted = "true";
+      commentPosted = postContinuationComment(decision, context) ? "true" : "false";
     }
 
     if (!targetNumber) {

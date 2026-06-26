@@ -31,6 +31,22 @@ function writeFakeGh(path: string): void {
     path,
     `#!/usr/bin/env bash
 set -euo pipefail
+if [ "\${1-}" = "api" ] && [ "\${2-}" = "--method" ] && [ "\${3-}" = "GET" ] && [[ "\${4-}" = repos/*/issues ]]; then
+  if [ "\${FAKE_EXISTING_PROPOSAL_ISSUE:-}" = "true" ]; then
+    printf '%s\n' '[{"number":89,"html_url":"https://github.com/co-evolving/repo/issues/89","body":"# Existing proposal\\n\\n<!-- sepo-agent-self-improvement-proposal -->\\n<!-- sepo-agent-self-improvement-decision -->\\n<!-- sepo-agent-self-improvement-run:12345 -->"}]'
+  else
+    printf '[]\n'
+  fi
+  exit 0
+fi
+if [ "\${1-}" = "api" ] && [ "\${2-}" = "--method" ] && [ "\${3-}" = "GET" ] && [[ "\${4-}" = repos/*/issues/*/comments ]]; then
+  if [ "\${FAKE_EXISTING_CONTINUATION_COMMENT:-}" = "true" ]; then
+    printf '%s\n' '[{"body":"Existing continuation trace.\\n\\n<!-- sepo-agent-self-improvement-decision -->\\n<!-- sepo-agent-self-improvement-run:12345 -->"}]'
+  else
+    printf '[]\n'
+  fi
+  exit 0
+fi
 if [ "\${1-}" = "issue" ] && [ "\${2-}" = "create" ]; then
   body_file=""
   while [ "$#" -gt 0 ]; do
@@ -184,6 +200,30 @@ test("apply self-improvement decision creates new issue and dispatches orchestra
   }
 });
 
+test("apply self-improvement decision reuses same-run proposal issue", () => {
+  const { result, paths } = runDecisionFixture({
+    decision: "new_issue",
+    reason: "No existing target is better.",
+    issue_title: "code-quality: Add self-improvement tests",
+    issue_body: "## Proposal\n\nAdd tests for the route.",
+  }, { FAKE_EXISTING_PROPOSAL_ISSUE: "true" });
+  try {
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.equal(existsSync(paths.issueBody), false, "issue should not be created again");
+    const dispatch = JSON.parse(readFileSync(paths.dispatchPayload, "utf8"));
+    assert.equal(dispatch.inputs.target_kind, "issue");
+    assert.equal(dispatch.inputs.target_number, "89");
+
+    const outputs = parseGithubOutput(paths.outputFile);
+    assert.equal(outputs.get("decision"), "new_issue");
+    assert.equal(outputs.get("target_kind"), "issue");
+    assert.equal(outputs.get("target_number"), "89");
+    assert.equal(outputs.get("issue_url"), "https://github.com/co-evolving/repo/issues/89");
+  } finally {
+    cleanup(paths);
+  }
+});
+
 test("apply self-improvement decision comments on existing issue and dispatches it", () => {
   const { result, paths } = runDecisionFixture({
     decision: "continue_issue",
@@ -206,6 +246,30 @@ test("apply self-improvement decision comments on existing issue and dispatches 
     assert.equal(outputs.get("target_kind"), "issue");
     assert.equal(outputs.get("target_number"), "18");
     assert.equal(outputs.get("comment_posted"), "true");
+  } finally {
+    cleanup(paths);
+  }
+});
+
+test("apply self-improvement decision skips duplicate same-run continuation comment", () => {
+  const { result, paths } = runDecisionFixture({
+    decision: "continue_issue",
+    target_number: 18,
+    reason: "The existing issue is the best recovery target.",
+    comment: "Continue this issue instead of opening another proposal.",
+  }, { FAKE_EXISTING_CONTINUATION_COMMENT: "true" });
+  try {
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.equal(existsSync(paths.commentArgs), false, "comment should not be posted again");
+    const dispatch = JSON.parse(readFileSync(paths.dispatchPayload, "utf8"));
+    assert.equal(dispatch.inputs.target_kind, "issue");
+    assert.equal(dispatch.inputs.target_number, "18");
+
+    const outputs = parseGithubOutput(paths.outputFile);
+    assert.equal(outputs.get("decision"), "continue_issue");
+    assert.equal(outputs.get("target_kind"), "issue");
+    assert.equal(outputs.get("target_number"), "18");
+    assert.equal(outputs.get("comment_posted"), "false");
   } finally {
     cleanup(paths);
   }

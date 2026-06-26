@@ -87,33 +87,10 @@ function parseDecisionPayload(raw: string): Record<string, unknown> | null {
   return record;
 }
 
-function stripKnownLeadingSentinel(markdown: string): string {
-  return String(markdown || "")
-    .replace(/^\s*Context compacted\s*(?:\r?\n)+/i, "")
-    .trim();
-}
-
-function markdownProposalFallback(raw: string): SelfImprovementDecision | null {
-  const body = stripKnownLeadingSentinel(raw);
-  const title = body.match(/^\s*#\s+(.+?)\s*$/m)?.[1] || "";
-  if (!title.trim()) return null;
-
-  return {
-    decision: "new_issue",
-    reason: "Planner returned a markdown proposal without a JSON decision; treating it as a new self-improvement proposal.",
-    issueTitle: normalizeWhitespace(title),
-    issueBody: body,
-    targetNumber: null,
-    comment: "",
-  };
-}
-
 export function parseSelfImprovementDecision(raw: string): SelfImprovementDecision {
   const payload = parseDecisionPayload(raw);
   if (!payload) {
-    const fallback = markdownProposalFallback(raw);
-    if (fallback) return fallback;
-    throw new Error("Self-improvement planner response must contain a JSON object decision or a markdown proposal starting with an H1.");
+    throw new Error("Self-improvement planner response must contain a JSON object decision.");
   }
   const decision = normalizeSelfImprovementDecisionKind(stringField(payload, "decision", "action"));
   if (!decision) {
@@ -157,7 +134,7 @@ export function normalizeIssueTitle(raw: string): string {
   return title.length <= 70 ? title : `${title.slice(0, 67).trimEnd()}...`;
 }
 
-function runMarker(runId: string | undefined): string {
+export function selfImprovementRunMarker(runId: string | undefined): string {
   const normalized = String(runId || "").trim();
   return normalized ? `<!-- sepo-agent-self-improvement-run:${normalized} -->` : "";
 }
@@ -190,7 +167,7 @@ export function buildSelfImprovementIssueBody(
   const marked = insertMarkersAfterH1(bodyWithTitle, [
     SELF_IMPROVEMENT_PROPOSAL_MARKER,
     SELF_IMPROVEMENT_DECISION_MARKER,
-    runMarker(context.runId),
+    selfImprovementRunMarker(context.runId),
   ].filter(Boolean));
 
   const footer = [
@@ -225,7 +202,7 @@ export function buildSelfImprovementContinuationComment(
   ].filter(Boolean);
   const markerLines = [
     SELF_IMPROVEMENT_DECISION_MARKER,
-    runMarker(context.runId),
+    selfImprovementRunMarker(context.runId),
   ].filter(Boolean);
   return [
     `Scheduled self-improvement selected this ${target} for continuation.`,

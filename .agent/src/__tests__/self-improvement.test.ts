@@ -56,19 +56,17 @@ test("parseSelfImprovementDecision accepts fenced JSON for new issues", () => {
   assert.match(decision.issueBody, /## Proposal/);
 });
 
-test("parseSelfImprovementDecision falls back to markdown proposal H1", () => {
-  const decision = parseSelfImprovementDecision([
-    "Context compacted",
-    "# documentation-clarity: Explain self-improvement route",
-    "",
-    "## Proposal",
-    "Document the route.",
-  ].join("\n"));
-
-  assert.equal(decision.decision, "new_issue");
-  assert.equal(decision.issueTitle, "documentation-clarity: Explain self-improvement route");
-  assert.match(decision.issueBody, /^# documentation-clarity/m);
-  assert.doesNotMatch(decision.issueBody, /Context compacted/);
+test("parseSelfImprovementDecision rejects markdown without JSON", () => {
+  assert.throws(
+    () => parseSelfImprovementDecision([
+      "Context compacted",
+      "# documentation-clarity: Explain self-improvement route",
+      "",
+      "## Proposal",
+      "Document the route.",
+    ].join("\n")),
+    /must contain a JSON object decision/,
+  );
 });
 
 test("parseSelfImprovementDecision requires target number for continuations", () => {
