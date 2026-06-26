@@ -9,6 +9,18 @@ URL: ${TARGET_URL}
 Requested by: ${REQUESTED_BY}
 Request: ${REQUEST_TEXT}
 
+## GitHub attachments
+
+When you need to inspect a `https://github.com/user-attachments/...` file,
+download it with:
+
+```shell
+node .agent/dist/cli/download-github-attachment.js --url "<attachment-url>"
+```
+
+Use the `localPath` from the JSON output. Do not use raw `curl`, browser
+fetches, or generic web fetches for private GitHub attachment URLs.
+
 ## General guidelines
 
 - Before starting, check for broader project context:
