@@ -247,6 +247,12 @@ outputs:
   rubrics_selected_count:
     description: "How many rubrics were selected for this run"
     value: ${{ steps.select_rubrics.outputs.selected_count }}
+  agent_run_skipped:
+    description: "Whether the model-backed agent run was skipped by a deterministic pre-run gate"
+    value: ${{ steps.agent_run_gate.outputs.skipped }}
+  agent_run_skip_reason:
+    description: "Human-readable reason for skipping the model-backed agent run"
+    value: ${{ steps.agent_run_gate.outputs.skip_reason }}
   rubrics_committed:
     description: "Whether the agent produced rubric edits that were committed and pushed"
     value: ${{ steps.commit_rubrics.outputs.committed }}
@@ -354,7 +360,42 @@ runs:
           --limit "${RUBRICS_LIMIT}" \
           --output-file "${RUBRICS_CONTEXT_FILE}"
 
+    - name: Resolve agent run gate
+      id: agent_run_gate
+      shell: bash
+      env:
+        ROUTE: ${{ inputs.route }}
+        SELECTED_RUBRICS: ${{ steps.select_rubrics.outputs.selected_count }}
+      run: |
+        set -euo pipefail
+
+        should_run=true
+        skipped=false
+        skip_reason=""
+
+        if [ "${ROUTE}" = "rubrics-review" ] && [ "${SELECTED_RUBRICS:-0}" = "0" ]; then
+          should_run=false
+          skipped=true
+          skip_reason="No active rubrics are available to score."
+        fi
+
+        echo "should_run=${should_run}" >> "$GITHUB_OUTPUT"
+        echo "skipped=${skipped}" >> "$GITHUB_OUTPUT"
+        echo "skip_reason=${skip_reason}" >> "$GITHUB_OUTPUT"
+
+        if [ "${skipped}" = "true" ]; then
+          echo "::notice title=Rubrics review skipped::${skip_reason}"
+          {
+            echo "### Rubrics review skipped"
+            echo
+            echo "${skip_reason}"
+            echo
+            echo "- Selected active rubrics: ${SELECTED_RUBRICS:-0}"
+          } >> "$GITHUB_STEP_SUMMARY"
+        fi
+
     - name: Resolve progress policy
+      if: ${{ steps.agent_run_gate.outputs.should_run == 'true' }}
       id: progress_policy
       shell: bash
       env:
@@ -366,7 +407,7 @@ runs:
       run: node .agent/dist/cli/progress/resolve-policy.js
 
     - name: Start progress reporter
-      if: steps.progress_policy.outputs.enabled == 'true' && steps.progress_policy.outputs.target_supported == 'true'
+      if: steps.agent_run_gate.outputs.should_run == 'true' && steps.progress_policy.outputs.enabled == 'true' && steps.progress_policy.outputs.target_supported == 'true'
       id: progress_reporter
       continue-on-error: true
       shell: bash
@@ -399,6 +440,7 @@ runs:
         echo "$!" > "${AGENT_PROGRESS_PID_FILE}"
 
     - name: Run agent task
+      if: ${{ steps.agent_run_gate.outputs.should_run == 'true' }}
       id: run
       shell: bash
       env:
@@ -633,6 +675,6 @@ runs:
       run: node .agent/dist/cli/session-register.js
 
     - name: Propagate agent exit code
-      if: steps.run.outputs.exit_code != '0'
+      if: steps.agent_run_gate.outputs.should_run == 'true' && steps.run.outputs.exit_code != '0'
       shell: bash
       run: exit "${{ steps.run.outputs.exit_code }}"

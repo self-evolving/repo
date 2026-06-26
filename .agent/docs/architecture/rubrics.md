@@ -83,11 +83,11 @@ Read-only selection is best-effort: invalid rubric files are emitted as workflow
 | Workflow | Trigger | Purpose | Writes `agent/rubrics`? |
 |---|---|---|---|
 | `agent-rubrics-initialization.yml` (`Agent / Rubrics / Initialization`) | `workflow_dispatch` | Creates `agent/rubrics`, seeds the branch layout, and asks an agent to populate initial rubrics from supplied context or repository history | Yes |
-| `agent-rubrics-review.yml` (`Agent / Rubrics / Review`) | `workflow_dispatch`, `workflow_call` | Scores a PR against selected active rubrics and uploads or posts a review artifact | No |
+| `agent-rubrics-review.yml` (`Agent / Rubrics / Review`) | `workflow_dispatch`, `workflow_call` | Scores a PR against selected active rubrics and uploads or posts a review artifact; skips model work when rubric reads are disabled, `agent/rubrics` is missing, or no active rubrics are selected | No |
 | `agent-rubrics-update.yml` (`Agent / Rubrics / Update`) | merged `pull_request_target.closed` with review interaction, `workflow_dispatch` | Distills durable user/team preferences from merged PR conversations | Yes |
 | `/add-rubrics` | issue/PR/discussion mention | Proposes requested add-or-update rubric changes in a draft PR targeting `agent/rubrics` | No direct write; PR proposal |
 
-`agent-review.yml` calls `Agent / Rubrics / Review` as an independent review lane that posts its own PR comment. Core review synthesis does not depend on rubrics review, so rubric scoring failures do not block the normal review comment.
+`agent-review.yml` calls `Agent / Rubrics / Review` as an independent review lane that posts its own PR comment. The rubrics review workflow preflights rubrics branch availability before provider setup, then the shared task action skips model execution after rubric selection when there is nothing to score. Skipped rubrics reviews post no PR comment. Core review synthesis does not depend on rubrics review, so rubric scoring skips or failures do not block the normal review comment.
 
 `Agent / Rubrics / Initialization` is the recommended first-run setup path. It rejects existing rubrics branches, bootstraps the branch skeleton, then runs an initialization prompt. Operators can provide arbitrary context, such as desired team preferences or links to important PRs/issues. When context is omitted, the agent inspects recent merged PRs and trusted contributor feedback to seed only durable rubrics. Initialization fails if the workflow cannot commit and push the new rubrics branch.
 

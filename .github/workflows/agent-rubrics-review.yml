@@ -70,8 +70,75 @@ permissions:
   id-token: write # required for GitHub Actions OIDC broker exchange
 
 jobs:
-  rubrics-review:
+  preflight:
     if: vars.AGENT_ENABLED != 'false'
+    runs-on: ${{ fromJson(inputs.runs_on || vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
+    outputs:
+      should_run: ${{ steps.preflight.outputs.should_run }}
+      skip_reason: ${{ steps.preflight.outputs.skip_reason }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.repository.default_branch }}
+          token: ${{ github.token }}
+
+      - name: Resolve GitHub auth
+        id: auth
+        uses: ./.github/actions/resolve-github-auth
+        with:
+          app_id: ${{ secrets.AGENT_APP_ID }}
+          app_private_key: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
+          pat: ${{ secrets.AGENT_PAT }}
+          fallback_token: ${{ github.token }}
+
+      - name: Download rubrics for review preflight
+        id: preflight_rubrics
+        uses: ./.github/actions/download-agent-rubrics
+        with:
+          github_token: ${{ steps.auth.outputs.token }}
+          ref: ${{ inputs.rubrics_ref || vars.AGENT_RUBRICS_REF || 'agent/rubrics' }}
+          path: ${{ runner.temp }}/agent-rubrics-review-preflight
+          continue_on_missing: "true"
+          bootstrap_if_missing: "false"
+
+      - name: Resolve rubrics review preflight
+        id: preflight
+        env:
+          RUBRICS_AVAILABLE: ${{ steps.preflight_rubrics.outputs.rubrics_available }}
+          RUBRICS_REF: ${{ steps.preflight_rubrics.outputs.rubrics_ref || inputs.rubrics_ref || vars.AGENT_RUBRICS_REF || 'agent/rubrics' }}
+        run: |
+          set -euo pipefail
+
+          should_run=false
+          skip_reason=""
+
+          if [ "${RUBRICS_AVAILABLE}" != "true" ]; then
+            skip_reason="Rubrics branch ${RUBRICS_REF} is not available."
+          else
+            should_run=true
+            skip_reason="Rubrics branch ${RUBRICS_REF} is available."
+          fi
+
+          echo "should_run=${should_run}" >> "$GITHUB_OUTPUT"
+          echo "skip_reason=${skip_reason}" >> "$GITHUB_OUTPUT"
+
+      - name: Report skipped rubric review
+        if: ${{ steps.preflight.outputs.should_run != 'true' }}
+        env:
+          SKIP_REASON: ${{ steps.preflight.outputs.skip_reason }}
+        run: |
+          set -euo pipefail
+          echo "::notice title=Rubrics review skipped::${SKIP_REASON}"
+          {
+            echo "### Rubrics review skipped"
+            echo
+            echo "${SKIP_REASON}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  rubrics-review:
+    needs: preflight
+    if: vars.AGENT_ENABLED != 'false' && needs.preflight.outputs.should_run == 'true'
     runs-on: ${{ fromJson(inputs.runs_on || vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
     steps:
       - uses: actions/checkout@v4
@@ -150,8 +217,30 @@ jobs:
           reasoning_effort: ${{ steps.provider.outputs.reasoning_effort || 'high' }}
           workflow: agent-rubrics-review.yml
 
+      - name: Resolve rubrics review result
+        if: always()
+        id: review_result
+        env:
+          RESPONSE_FILE: ${{ steps.review.outputs.response_file }}
+          POST_COMMENT: ${{ inputs.post_comment }}
+        run: |
+          set -euo pipefail
+
+          has_response=false
+          if [ -n "${RESPONSE_FILE}" ]; then
+            has_response=true
+          fi
+
+          should_post_comment=false
+          if [ "${POST_COMMENT}" = "true" ] && [ "${has_response}" = "true" ]; then
+            should_post_comment=true
+          fi
+
+          echo "has_response=${has_response}" >> "$GITHUB_OUTPUT"
+          echo "should_post_comment=${should_post_comment}" >> "$GITHUB_OUTPUT"
+
       - name: Persist rubrics review artifact
-        if: ${{ steps.review.outputs.response_file != '' }}
+        if: ${{ steps.review_result.outputs.has_response == 'true' }}
         run: |
           set -euo pipefail
           cp "${{ steps.review.outputs.response_file }}" "${{ runner.temp }}/review.md"
@@ -160,7 +249,7 @@ jobs:
           fi
 
       - uses: actions/upload-artifact@v4
-        if: ${{ steps.review.outputs.response_file != '' }}
+        if: ${{ steps.review_result.outputs.has_response == 'true' }}
         with:
           name: rubrics-review-${{ inputs.pr_number }}
           path: |
@@ -169,7 +258,7 @@ jobs:
           retention-days: 30
 
       - name: Post rubric review comment
-        if: inputs.post_comment == 'true' && steps.review.outputs.response_file != ''
+        if: ${{ steps.review_result.outputs.should_post_comment == 'true' }}
         env:
           BODY_FILE: ${{ steps.review.outputs.response_file }}
           MODEL_DISPLAY: ${{ steps.review.outputs.model_display }}
@@ -180,7 +269,7 @@ jobs:
           TARGET_NUMBER: ${{ inputs.pr_number }}
         run: node .agent/dist/cli/post-response.js
 
-      - name: Report skipped rubric review
+      - name: Report failed rubric review
         if: always() && steps.review.outcome == 'failure'
         run: |
-          echo "::warning title=Rubrics review skipped::Rubrics review failed before producing a response; continuing because rubric scoring is advisory."
+          echo "::warning title=Rubrics review failed::Rubrics review failed before producing a response; continuing because rubric scoring is advisory."
