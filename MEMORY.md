@@ -114,3 +114,4 @@
 - .agent tests are lane-based: test:ci builds once, then runs test:runtime, check:workflow, check:docs, and check:shell.
 - Add-rubrics is explicit-only and proposal-only: reuse implement flow to PR against agent/rubrics with runtime on default.
 - Local-runner cleanup is host-level: ACTIONS_RUNNER_HOOK_JOB_COMPLETED trims _diag and stale _work checkouts.
+- Agent runs post one live progress comment; an authorized thumbs-down reaction on it cancels the in-flight run.
