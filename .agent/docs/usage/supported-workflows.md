@@ -207,6 +207,16 @@ manual dispatch remains available for explicit source ref testing.
 
 Single-agent routes, autonomous agent workflows, fixed review lanes, and the review synthesis step resolve provider/model settings before installing provider CLIs. Explicit provider choices from inline workflow `route_provider`, `AGENT_MODEL_POLICY.route_overrides[route].provider`, or `AGENT_DEFAULT_PROVIDER` are authoritative: the workflows select that provider even when the matching repository secret is absent, so self-hosted runners can rely on local Codex or Claude authentication. When the provider is `auto`, detection uses configured provider secrets and prefers Codex when `OPENAI_API_KEY` is configured; otherwise Claude is selected when either `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` is present. Resolved Codex and Claude runs use Sepo's small pinned model defaults unless `AGENT_MODEL_POLICY` overrides them: `gpt-5.5` for Codex and `claude-opus-4-8` for Claude. `AGENT_MODEL_POLICY` can also set provider-specific models and route-specific model or reasoning effort overrides; inline workflow `route_provider` remains the native escape hatch. Portal and skill jobs use non-fatal early resolution before non-agent response paths, then require a provider only immediately before invoking an agent. The review workflow's Claude/Codex reviewer lanes keep fixed providers through inline `route_provider`, so provider-specific model settings apply there while route-specific review overrides are left to synthesis.
 
+### GitHub attachment downloads
+
+Agent prompts include an on-demand command for private GitHub attachment links:
+
+```shell
+node .agent/dist/cli/download-github-attachment.js --url "<attachment-url>"
+```
+
+The command is attachment-specific. It accepts only `https://github.com/user-attachments/files/...` and `https://github.com/user-attachments/assets/...` URLs, downloads with the normal agent GitHub token from `INPUT_GITHUB_TOKEN`, `GH_TOKEN`, or `GITHUB_TOKEN`, and writes files under `$RUNNER_TEMP/agent-attachments`. It rejects other GitHub URLs and non-GitHub URLs so the command does not become a general authenticated fetch primitive. Downloads use safe filenames, a 30 second timeout, and a 25 MiB default size cap. `GITHUB_ATTACHMENT_TIMEOUT_MS` and `GITHUB_ATTACHMENT_MAX_BYTES` may override those limits for a run. The command prints JSON metadata including the original URL, local path, filename, byte count, content type, and HTTP status.
+
 ## Trigger details
 
 ### `agent-entrypoint.yml`
