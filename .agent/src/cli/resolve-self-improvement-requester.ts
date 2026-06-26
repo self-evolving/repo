@@ -12,7 +12,10 @@
 // Outputs: requested_by, author_association, authorization_source
 
 import { setOutput } from "../output.js";
-import { hasOrgMembership, hasRepositoryPermission } from "../repository-permissions.js";
+import {
+  hasGithubOrgMembership,
+  hasGithubRepositoryPermission,
+} from "../actor-association.js";
 import { resolveSelfImprovementRequester } from "../self-improvement-requester.js";
 
 function normalize(value: string): string {
@@ -28,8 +31,8 @@ export function runResolveSelfImprovementRequester(): number {
     repositoryOwner: normalize(process.env.GITHUB_REPOSITORY_OWNER || repository.split("/")[0] || ""),
     repositoryOwnerType: normalize(process.env.GITHUB_REPOSITORY_OWNER_TYPE || ""),
   }, {
-    hasOrgMembership,
-    hasRepositoryPermission,
+    hasOrgMembership: hasGithubOrgMembership,
+    hasRepositoryPermission: hasGithubRepositoryPermission,
   });
 
   setOutput("requested_by", result.requestedBy);

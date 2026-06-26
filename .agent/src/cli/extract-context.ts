@@ -11,13 +11,12 @@
 
 import { readFileSync } from "node:fs";
 import { isKnownAuthorAssociation } from "../access-policy.js";
+import {
+  hasGithubRepositoryCollaborator,
+  resolveGithubActorAssociation,
+} from "../actor-association.js";
 import { ghApi } from "../github.js";
 import { setOutput } from "../output.js";
-import {
-  hasOrgMembership,
-  hasRepositoryCollaborator,
-  hasRepositoryPermission,
-} from "../repository-permissions.js";
 import {
   DEFAULT_MENTION,
   extractEventContext,
@@ -72,19 +71,13 @@ function resolveLabelActorAssociation(payload: Record<string, any>): string {
     return "NONE";
   }
 
-  if (ownerType === "user" && senderLogin.toLowerCase() === ownerLogin.toLowerCase()) {
-    return "OWNER";
-  }
-
-  if (ownerType === "organization" && ownerLogin && hasOrgMembership(ownerLogin, senderLogin)) {
-    return "MEMBER";
-  }
-
-  if (hasRepositoryPermission(repository, senderLogin)) {
-    return "COLLABORATOR";
-  }
-
-  return "NONE";
+  return resolveGithubActorAssociation({
+    repo: repository,
+    actorLogin: senderLogin,
+    ownerLogin,
+    ownerType,
+    lookupOrder: "organization-first",
+  });
 }
 
 function refreshIssueAssociation(
@@ -125,7 +118,7 @@ function normalizeMentionAuthorAssociation(association: string, payload: Record<
 
   if (
     WEAK_ASSOCIATIONS_FOR_COLLABORATOR_FALLBACK.has(resolvedNormalized) &&
-    hasRepositoryCollaborator(repository, getRequestedBy(eventName, payload))
+    hasGithubRepositoryCollaborator(repository, getRequestedBy(eventName, payload))
   ) {
     return "COLLABORATOR";
   }
