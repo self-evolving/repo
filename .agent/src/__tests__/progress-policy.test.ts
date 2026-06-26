@@ -84,6 +84,27 @@ test("resolveProgressMode falls closed to disabled on malformed policy", () => {
   }
 });
 
+test("resolveProgressMode disables progress when orchestration is enabled", () => {
+  assert.equal(
+    resolveProgressMode({
+      ROUTE: "implement",
+      ORCHESTRATION_ENABLED: "true",
+    }),
+    "disabled",
+  );
+});
+
+test("resolveProgressMode keeps orchestration disabled over custom progress policy", () => {
+  assert.equal(
+    resolveProgressMode({
+      AGENT_PROGRESS_POLICY: '{"default_mode":"enabled","route_overrides":{"orchestrator":"enabled"}}',
+      ORCHESTRATION_ENABLED: "true",
+      ROUTE: "orchestrator",
+    }),
+    "disabled",
+  );
+});
+
 test("resolveProgressPolicy disables answer progress for review comment replies", () => {
   const resolution = resolveProgressPolicy({
     AGENT_PROGRESS_POLICY: '{"route_overrides":{"answer":"enabled"}}',

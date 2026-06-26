@@ -5,6 +5,7 @@
 //   ROUTE                    current route
 //   TARGET_KIND              issue, pull_request, discussion, repository, ...
 //   AGENT_PROGRESS_POLICY    raw JSON policy string
+//   ORCHESTRATION_ENABLED    true when this run belongs to an orchestrated chain
 //
 // Outputs:
 //   mode                     enabled | report-only | disabled
@@ -33,6 +34,10 @@ export interface ProgressPolicyResolution {
 }
 
 export function resolveProgressMode(env: NodeJS.ProcessEnv = process.env): ProgressMode {
+  if (String(env.ORCHESTRATION_ENABLED || "").trim().toLowerCase() === "true") {
+    return "disabled";
+  }
+
   const route = String(env.ROUTE || "").trim().toLowerCase();
 
   try {
