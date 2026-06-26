@@ -29,7 +29,9 @@ title: "Supported workflows"
 All packaged `agent-*.yml` workflow jobs honor `AGENT_ENABLED=false` as a
 global Sepo pause before checkout, auth, provider resolution, or runtime setup.
 Unset `AGENT_ENABLED` or any value other than exact `false` leaves Sepo enabled.
-`test-scripts.yml` remains normal CI and is not paused by this flag.
+`test-scripts.yml` remains normal CI and is not paused by this flag. Its runner
+labels come from `AGENT_TEST_RUNS_ON`, then `AGENT_RUNS_ON`, then
+`["ubuntu-latest"]`.
 
 `agent-orchestrator.yml` is started explicitly through `/orchestrate` or
 `agent/orchestrate`. Dispatch triage can also select `orchestrate` for issue and
