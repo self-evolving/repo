@@ -116,3 +116,4 @@
 - Local-runner cleanup is host-level: ACTIONS_RUNNER_HOOK_JOB_COMPLETED trims _diag and stale _work checkouts.
 - Agent runs post one live progress comment; an authorized thumbs-down reaction on it cancels the in-flight run.
 - Handle GitHub user-attachments on demand with an attachment-specific CLI; avoid thread-wide pre-download scanning.
+- Rubrics review skips model/comment work when reads are disabled, agent/rubrics is missing, or no active rubrics select.
