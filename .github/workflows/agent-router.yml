@@ -134,6 +134,7 @@ jobs:
       requested_route: ${{ steps.context.outputs.requested_route }}
       requested_skill: ${{ steps.context.outputs.requested_skill }}
       implicit_followup: ${{ steps.context.outputs.implicit_followup }}
+      edited_comment_command_blocked: ${{ steps.context.outputs.edited_comment_command_blocked }}
       route: ${{ steps.dispatch.outputs.route }}
       needs_approval: ${{ steps.dispatch.outputs.needs_approval }}
       confidence: ${{ steps.dispatch.outputs.confidence }}
@@ -223,7 +224,8 @@ jobs:
       - name: React with eyes
         if: >-
           steps.context.outputs.should_respond == 'true' &&
-          steps.context.outputs.implicit_followup != 'true'
+          steps.context.outputs.implicit_followup != 'true' &&
+          steps.context.outputs.edited_comment_command_blocked != 'true'
         env:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           REACTION_SUBJECT_ID: ${{ steps.context.outputs.reaction_subject_id }}
@@ -446,6 +448,28 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: node .agent/dist/cli/resolve-dispatch.js
 
+      - name: Post edited-comment PR command response
+        if: >-
+          steps.context.outputs.should_respond == 'true' &&
+          steps.context.outputs.edited_comment_command_blocked == 'true' &&
+          (
+            steps.dispatch.outputs.route == 'review' ||
+            steps.dispatch.outputs.route == 'fix-pr'
+          )
+        env:
+          BODY: ${{ steps.context.outputs.edited_comment_command_block_message }}
+          BODY_FILE: ${{ runner.temp }}/edited-comment-pr-command.md
+          DISCUSSION_ID: ${{ steps.context.outputs.discussion_node_id }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          REPLY_TO_ID: ${{ steps.context.outputs.reply_to_id }}
+          RESPONSE_KIND: ${{ steps.context.outputs.response_kind }}
+          REVIEW_COMMENT_ID: ${{ steps.context.outputs.review_comment_id }}
+          TARGET_NUMBER: ${{ steps.context.outputs.target_number }}
+        run: |
+          printf '%s\n' "${BODY}" > "${BODY_FILE}"
+          node .agent/dist/cli/post-response.js
+
       - name: React with eyes (implicit answer)
         if: >-
           steps.context.outputs.should_respond == 'true' &&
@@ -461,6 +485,7 @@ jobs:
         if: >-
           steps.context.outputs.should_respond == 'true' &&
           vars.AGENT_STATUS_LABEL_ENABLED == 'true' &&
+          steps.context.outputs.edited_comment_command_blocked != 'true' &&
           steps.dispatch.outputs.route != '' &&
           steps.dispatch.outputs.route != 'unsupported' &&
           (steps.context.outputs.target_kind == 'issue' || steps.context.outputs.target_kind == 'pull_request')

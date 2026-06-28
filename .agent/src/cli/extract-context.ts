@@ -7,7 +7,8 @@
 //          target_number, target_url, reaction_subject_id, response_kind,
 //          source_comment_id, source_comment_url, review_comment_id,
 //          discussion_node_id, reply_to_id, requested_by, requested_route,
-//          requested_skill, implicit_followup
+//          requested_skill, implicit_followup, edited_comment_command_blocked,
+//          edited_comment_command_block_message
 
 import { readFileSync } from "node:fs";
 import { isKnownAuthorAssociation } from "../access-policy.js";
@@ -41,6 +42,8 @@ const labelName = process.env.INPUT_LABEL_NAME || "";
 const authorAssociationOverride = process.env.INPUT_AUTHOR_ASSOCIATION || "";
 const followupIntentModeRaw = process.env.INPUT_FOLLOWUP_INTENT_MODE || process.env.AGENT_FOLLOWUP_INTENT_MODE || "";
 const repository = process.env.GITHUB_REPOSITORY || "";
+const EDITED_COMMENT_COMMAND_BLOCK_MESSAGE = "I noticed this command on an edited comment, but PR-modifying actions only run from new comments. Please post a new comment with the command.";
+const EDITED_COMMENT_BLOCKED_ROUTES = new Set(["review", "fix-pr"]);
 const ASSOCIATIONS_TRUSTED_WITHOUT_REFRESH = new Set([
   "OWNER",
   "MEMBER",
@@ -55,6 +58,23 @@ const WEAK_ASSOCIATIONS_FOR_COLLABORATOR_FALLBACK = new Set([
 
 function normalizeAssociation(association: string): string {
   return String(association || "").trim().toUpperCase();
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function isEditedCommentPrCommandBlocked(args: {
+  eventName: string;
+  payload: Record<string, any>;
+  triggerKind: string;
+  targetKind: string;
+  requestedRoute: string;
+}): boolean {
+  return (
+    args.triggerKind !== "label" &&
+    args.payload.action === "edited" &&
+    (args.eventName === "issue_comment" || args.eventName === "pull_request_review_comment") &&
+    args.targetKind === "pull_request" &&
+    EDITED_COMMENT_BLOCKED_ROUTES.has(args.requestedRoute)
+  );
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -202,6 +222,13 @@ if (!eventPath || !eventName) {
             : extractRequestedRouteDecision(ctx.body, mention);
           const requestedRoute = requestedLabel?.route || requestedMention.route;
           const requestedSkill = requestedLabel?.skill || requestedMention.skill;
+          const editedCommentCommandBlocked = isEditedCommentPrCommandBlocked({
+            eventName,
+            payload,
+            triggerKind,
+            targetKind: ctx.targetKind,
+            requestedRoute,
+          });
 
           if (triggerKind === "label" && !requestedLabel) {
             setOutput("should_respond", "false");
@@ -225,6 +252,8 @@ if (!eventPath || !eventName) {
             setOutput("requested_route", requestedRoute);
             setOutput("requested_skill", requestedSkill);
             setOutput("implicit_followup", implicitFollowup ? "true" : "false");
+            setOutput("edited_comment_command_blocked", editedCommentCommandBlocked ? "true" : "false");
+            setOutput("edited_comment_command_block_message", editedCommentCommandBlocked ? EDITED_COMMENT_COMMAND_BLOCK_MESSAGE : "");
           }
         }
       }

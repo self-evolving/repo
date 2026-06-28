@@ -1037,6 +1037,122 @@ test("extract-context responds when an edited review comment adds a mention", ()
   }
 });
 
+const editedPrCommandCases: Array<{
+  name: string;
+  eventName: string;
+  route: "review" | "fix-pr";
+  payload: Record<string, unknown>;
+}> = [
+  {
+    name: "issue comment review",
+    eventName: "issue_comment",
+    route: "review",
+    payload: {
+      action: "edited",
+      sender: { login: "alice", type: "User" },
+      comment: {
+        id: 401,
+        node_id: "IC_401",
+        html_url: "https://github.com/self-evolving/repo/pull/401#issuecomment-401",
+        body: "@sepo-agent /review",
+        author_association: "CONTRIBUTOR",
+        user: { login: "alice" },
+      },
+      changes: { body: { from: "please review" } },
+      issue: {
+        number: 401,
+        html_url: "https://github.com/self-evolving/repo/pull/401",
+        pull_request: { url: "https://api.github.com/repos/self-evolving/repo/pulls/401" },
+      },
+    },
+  },
+  {
+    name: "issue comment fix-pr",
+    eventName: "issue_comment",
+    route: "fix-pr",
+    payload: {
+      action: "edited",
+      sender: { login: "alice", type: "User" },
+      comment: {
+        id: 402,
+        node_id: "IC_402",
+        html_url: "https://github.com/self-evolving/repo/pull/402#issuecomment-402",
+        body: "@sepo-agent /fix-pr",
+        author_association: "CONTRIBUTOR",
+        user: { login: "alice" },
+      },
+      changes: { body: { from: "please fix" } },
+      issue: {
+        number: 402,
+        html_url: "https://github.com/self-evolving/repo/pull/402",
+        pull_request: { url: "https://api.github.com/repos/self-evolving/repo/pulls/402" },
+      },
+    },
+  },
+  {
+    name: "PR review comment review",
+    eventName: "pull_request_review_comment",
+    route: "review",
+    payload: {
+      action: "edited",
+      sender: { login: "alice", type: "User" },
+      comment: {
+        id: 403,
+        node_id: "PRRC_403",
+        html_url: "https://github.com/self-evolving/repo/pull/403#discussion_r403",
+        body: "@sepo-agent /review",
+        author_association: "CONTRIBUTOR",
+        user: { login: "alice" },
+      },
+      changes: { body: { from: "please review" } },
+      pull_request: {
+        number: 403,
+        html_url: "https://github.com/self-evolving/repo/pull/403",
+      },
+    },
+  },
+  {
+    name: "PR review comment fix-pr",
+    eventName: "pull_request_review_comment",
+    route: "fix-pr",
+    payload: {
+      action: "edited",
+      sender: { login: "alice", type: "User" },
+      comment: {
+        id: 404,
+        node_id: "PRRC_404",
+        html_url: "https://github.com/self-evolving/repo/pull/404#discussion_r404",
+        body: "@sepo-agent /fix-pr",
+        author_association: "CONTRIBUTOR",
+        user: { login: "alice" },
+      },
+      changes: { body: { from: "please fix" } },
+      pull_request: {
+        number: 404,
+        html_url: "https://github.com/self-evolving/repo/pull/404",
+      },
+    },
+  },
+];
+
+for (const testCase of editedPrCommandCases) {
+  test(`extract-context flags edited ${testCase.name} commands as blocked`, () => {
+    const outputs = runExtractContextCli({
+      eventName: testCase.eventName,
+      payload: testCase.payload,
+    });
+
+    assert.equal(outputs.get("should_respond"), "true");
+    assert.equal(outputs.get("target_kind"), "pull_request");
+    assert.equal(outputs.get("requested_route"), testCase.route);
+    assert.equal(outputs.get("edited_comment_command_blocked"), "true");
+    assert.match(
+      outputs.get("edited_comment_command_block_message") || "",
+      /PR-modifying actions only run from new comments/,
+    );
+  });
+}
+
 test("extract-context lets public contributor mentions reach dispatch triage", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-extract-context-"));
 

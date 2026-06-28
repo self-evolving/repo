@@ -926,6 +926,49 @@ test("agent router bypasses dispatch triage for explicit mention slash routes", 
   assert.doesNotMatch(runnerWorkflow, /requested_install_target_repo:/);
 });
 
+test("agent router explains edited PR command comments without action signals", () => {
+  const routerWorkflow = parseYaml(readRepoFile(".github/workflows/agent-router.yml")) as unknown;
+
+  assert.ok(isRecord(routerWorkflow), "agent-router workflow should parse");
+  assert.ok(isRecord(routerWorkflow.jobs), "agent-router workflow should define jobs");
+  const portalJob = routerWorkflow.jobs.portal;
+  assert.ok(isRecord(portalJob), "agent-router should define portal job");
+  assert.ok(isRecord(portalJob.outputs), "portal job should define outputs");
+  assert.equal(
+    portalJob.outputs.edited_comment_command_blocked,
+    "${{ steps.context.outputs.edited_comment_command_blocked }}",
+  );
+  assert.ok(Array.isArray(portalJob.steps), "portal job should define steps");
+  const steps = portalJob.steps.filter(isRecord);
+  const stepByName = (name: string): Record<string, unknown> => {
+    const step = steps.find((candidate) => candidate.name === name);
+    assert.ok(step, `portal job should include step ${name}`);
+    return step;
+  };
+
+  const eyesStep = stepByName("React with eyes");
+  assert.match(String(eyesStep.if || ""), /edited_comment_command_blocked != 'true'/);
+
+  const explanationStep = stepByName("Post edited-comment PR command response");
+  const explanationCondition = String(explanationStep.if || "");
+  assert.match(explanationCondition, /edited_comment_command_blocked == 'true'/);
+  assert.match(explanationCondition, /steps\.dispatch\.outputs\.route == 'review'/);
+  assert.match(explanationCondition, /steps\.dispatch\.outputs\.route == 'fix-pr'/);
+  assert.ok(isRecord(explanationStep.env), "edited-comment response should define env");
+  assert.equal(
+    explanationStep.env.BODY,
+    "${{ steps.context.outputs.edited_comment_command_block_message }}",
+  );
+  assert.equal(explanationStep.env.RESPONSE_KIND, "${{ steps.context.outputs.response_kind }}");
+  assert.equal(explanationStep.env.REVIEW_COMMENT_ID, "${{ steps.context.outputs.review_comment_id }}");
+
+  const statusLabelStep = stepByName("Label handled issue or PR");
+  assert.match(String(statusLabelStep.if || ""), /edited_comment_command_blocked != 'true'/);
+
+  const thumbsUpStep = stepByName("React with thumbs up (dispatch acknowledgment)");
+  assert.match(String(thumbsUpStep.if || ""), /github\.event\.action != 'edited'/);
+});
+
 test("agent router preauthorizes implicit follow-up answer gates", () => {
   const entrypointWorkflow = readRepoFile(".github/workflows/agent-entrypoint.yml");
   const runnerWorkflow = readRepoFile(".github/workflows/agent-router.yml");
