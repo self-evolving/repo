@@ -1153,6 +1153,96 @@ for (const testCase of editedPrCommandCases) {
   });
 }
 
+test("extract-context flags edited PR commands added to existing mentions", () => {
+  const outputs = runExtractContextCli({
+    eventName: "issue_comment",
+    payload: {
+      action: "edited",
+      sender: { login: "alice", type: "User" },
+      comment: {
+        id: 405,
+        node_id: "IC_405",
+        html_url: "https://github.com/self-evolving/repo/pull/405#issuecomment-405",
+        body: "@sepo-agent /review",
+        author_association: "CONTRIBUTOR",
+        user: { login: "alice" },
+      },
+      changes: { body: { from: "please check @sepo-agent" } },
+      issue: {
+        number: 405,
+        html_url: "https://github.com/self-evolving/repo/pull/405",
+        pull_request: { url: "https://api.github.com/repos/self-evolving/repo/pulls/405" },
+      },
+    },
+  });
+
+  assert.equal(outputs.get("should_respond"), "true");
+  assert.equal(outputs.get("requested_route"), "review");
+  assert.equal(outputs.get("edited_comment_command_blocked"), "true");
+});
+
+const repeatedEditedPrCommandCases: Array<{
+  name: string;
+  eventName: string;
+  payload: Record<string, unknown>;
+}> = [
+  {
+    name: "issue comment review",
+    eventName: "issue_comment",
+    payload: {
+      action: "edited",
+      sender: { login: "alice", type: "User" },
+      comment: {
+        id: 406,
+        node_id: "IC_406",
+        html_url: "https://github.com/self-evolving/repo/pull/406#issuecomment-406",
+        body: "@sepo-agent /review\n\nupdated details",
+        author_association: "CONTRIBUTOR",
+        user: { login: "alice" },
+      },
+      changes: { body: { from: "@sepo-agent /review" } },
+      issue: {
+        number: 406,
+        html_url: "https://github.com/self-evolving/repo/pull/406",
+        pull_request: { url: "https://api.github.com/repos/self-evolving/repo/pulls/406" },
+      },
+    },
+  },
+  {
+    name: "PR review comment fix-pr",
+    eventName: "pull_request_review_comment",
+    payload: {
+      action: "edited",
+      sender: { login: "alice", type: "User" },
+      comment: {
+        id: 407,
+        node_id: "PRRC_407",
+        html_url: "https://github.com/self-evolving/repo/pull/407#discussion_r407",
+        body: "@sepo-agent /fix-pr\n\nupdated details",
+        author_association: "CONTRIBUTOR",
+        user: { login: "alice" },
+      },
+      changes: { body: { from: "@sepo-agent /fix-pr" } },
+      pull_request: {
+        number: 407,
+        html_url: "https://github.com/self-evolving/repo/pull/407",
+      },
+    },
+  },
+];
+
+for (const testCase of repeatedEditedPrCommandCases) {
+  test(`extract-context ignores repeated edited ${testCase.name} commands`, () => {
+    const outputs = runExtractContextCli({
+      eventName: testCase.eventName,
+      payload: testCase.payload,
+    });
+
+    assert.equal(outputs.get("should_respond"), "false");
+    assert.notEqual(outputs.get("edited_comment_command_blocked"), "true");
+  });
+}
+
 test("extract-context lets public contributor mentions reach dispatch triage", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-extract-context-"));
 

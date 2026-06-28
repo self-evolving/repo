@@ -22,6 +22,7 @@ import {
   DEFAULT_MENTION,
   extractEventContext,
   getAuthorAssociation,
+  getPreviousEditedBody,
   getRequestedBy,
   shouldSkipSender,
   shouldRespondToMention,
@@ -64,17 +65,28 @@ function normalizeAssociation(association: string): string {
 function isEditedCommentPrCommandBlocked(args: {
   eventName: string;
   payload: Record<string, any>;
+  mention: string;
   triggerKind: string;
   targetKind: string;
   requestedRoute: string;
 }): boolean {
-  return (
-    args.triggerKind !== "label" &&
-    args.payload.action === "edited" &&
-    (args.eventName === "issue_comment" || args.eventName === "pull_request_review_comment") &&
-    args.targetKind === "pull_request" &&
-    EDITED_COMMENT_BLOCKED_ROUTES.has(args.requestedRoute)
-  );
+  if (
+    args.triggerKind === "label" ||
+    args.payload.action !== "edited" ||
+    (args.eventName !== "issue_comment" && args.eventName !== "pull_request_review_comment") ||
+    args.targetKind !== "pull_request" ||
+    !EDITED_COMMENT_BLOCKED_ROUTES.has(args.requestedRoute)
+  ) {
+    return false;
+  }
+
+  const previousBody = getPreviousEditedBody(args.eventName, args.payload);
+  if (previousBody === null) {
+    return false;
+  }
+
+  const previousRoute = extractRequestedRouteDecision(previousBody, args.mention).route;
+  return previousRoute !== args.requestedRoute;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -175,7 +187,24 @@ if (!eventPath || !eventName) {
         setOutput("should_respond", "false");
         console.log("No target number found");
       } else {
-        const hasMentionTrigger = triggerKind !== "label" && shouldRespondToMention(eventName, payload, mention);
+        const requestedLabel = triggerKind === "label" ? resolveRequestedLabel(labelName) : null;
+        const requestedMention = triggerKind === "label"
+          ? { route: "", skill: "" }
+          : extractRequestedRouteDecision(ctx.body, mention);
+        const requestedRoute = requestedLabel?.route || requestedMention.route;
+        const requestedSkill = requestedLabel?.skill || requestedMention.skill;
+        const editedCommentCommandBlocked = isEditedCommentPrCommandBlocked({
+          eventName,
+          payload,
+          mention,
+          triggerKind,
+          targetKind: ctx.targetKind,
+          requestedRoute,
+        });
+        const hasMentionTrigger = triggerKind !== "label" && (
+          shouldRespondToMention(eventName, payload, mention) ||
+          editedCommentCommandBlocked
+        );
         let implicitFollowup = false;
         if (triggerKind !== "label" && !hasMentionTrigger) {
           try {
@@ -216,19 +245,6 @@ if (!eventPath || !eventName) {
 
           const requestedBy =
             (triggerKind === "label" ? payload.sender?.login : "") || getRequestedBy(eventName, payload);
-          const requestedLabel = triggerKind === "label" ? resolveRequestedLabel(labelName) : null;
-          const requestedMention = triggerKind === "label" || implicitFollowup
-            ? { route: "", skill: "" }
-            : extractRequestedRouteDecision(ctx.body, mention);
-          const requestedRoute = requestedLabel?.route || requestedMention.route;
-          const requestedSkill = requestedLabel?.skill || requestedMention.skill;
-          const editedCommentCommandBlocked = isEditedCommentPrCommandBlocked({
-            eventName,
-            payload,
-            triggerKind,
-            targetKind: ctx.targetKind,
-            requestedRoute,
-          });
 
           if (triggerKind === "label" && !requestedLabel) {
             setOutput("should_respond", "false");

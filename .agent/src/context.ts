@@ -35,7 +35,7 @@ function joinTitleAndBody(title: string, body: string): string {
   return [title, body].filter(Boolean).join("\n\n");
 }
 
-function getPreviousEditedBody(eventName: string, payload: Payload): string | null {
+export function getPreviousEditedBody(eventName: string, payload: Payload): string | null {
   if (payload.action !== "edited") {
     return null;
   }
