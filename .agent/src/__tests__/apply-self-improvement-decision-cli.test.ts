@@ -55,6 +55,10 @@ if [ "\${1-}" = "api" ] && [ "\${2-}" = "--paginate" ] && [ "\${3-}" = "--slurp"
   fi
   exit 0
 fi
+if [ "\${1-}" = "api" ] && [[ "\${2-}" = repos/*/collaborators/*/permission ]]; then
+  printf '%s\n' "\${FAKE_TARGET_AUTHOR_PERMISSION:-none}"
+  exit 0
+fi
 if [ "\${1-}" = "issue" ] && [ "\${2-}" = "create" ]; then
   body_file=""
   while [ "$#" -gt 0 ]; do
@@ -84,7 +88,8 @@ if [ "\${1-}" = "api" ] && [[ "\${2-}" = repos/*/pulls/* ]]; then
     exit 1
   fi
   state_var="FAKE_PR_\${number}_STATE"
-  printf '%s\n' "\${!state_var:-open}"
+  author_var="FAKE_PR_\${number}_AUTHOR"
+  printf '{"state":"%s","user":{"login":"%s"}}\n' "\${!state_var:-open}" "\${!author_var:-app/sepo-agent-app}"
   exit 0
 fi
 if [ "\${1-}" = "api" ] && [[ "\${2-}" = repos/*/issues/* ]]; then
@@ -96,11 +101,12 @@ if [ "\${1-}" = "api" ] && [[ "\${2-}" = repos/*/issues/* ]]; then
   fi
   state_var="FAKE_ISSUE_\${number}_STATE"
   pull_var="FAKE_ISSUE_\${number}_PULL_REQUEST"
+  author_var="FAKE_ISSUE_\${number}_AUTHOR"
   state="\${!state_var:-open}"
   if [ "\${!pull_var:-}" = "true" ]; then
-    printf '{"state":"%s","pull_request":{"url":"https://api.github.com/repos/co-evolving/repo/pulls/%s"}}\n' "$state" "$number"
+    printf '{"state":"%s","user":{"login":"%s"},"pull_request":{"url":"https://api.github.com/repos/co-evolving/repo/pulls/%s"}}\n' "$state" "\${!author_var:-app/sepo-agent-app}" "$number"
   else
-    printf '{"state":"%s"}\n' "$state"
+    printf '{"state":"%s","user":{"login":"%s"}}\n' "$state" "\${!author_var:-app/sepo-agent-app}"
   fi
   exit 0
 fi
@@ -286,6 +292,43 @@ test("apply self-improvement decision comments on existing issue and dispatches 
   }
 });
 
+test("apply self-improvement decision allows trusted continuation target authors", () => {
+  const { result, paths } = runDecisionFixture({
+    decision: "continue_issue",
+    target_number: 18,
+    reason: "The existing issue is the best recovery target.",
+    comment: "Continue this issue instead of opening another proposal.",
+  }, {
+    FAKE_ISSUE_18_AUTHOR: "octocat",
+    FAKE_TARGET_AUTHOR_PERMISSION: "write",
+  });
+  try {
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.match(readFileSync(paths.commentArgs, "utf8"), /^issue comment 18 --body Scheduled self-improvement selected this issue #18/);
+    const dispatch = JSON.parse(readFileSync(paths.dispatchPayload, "utf8"));
+    assert.equal(dispatch.inputs.target_kind, "issue");
+    assert.equal(dispatch.inputs.target_number, "18");
+  } finally {
+    cleanup(paths);
+  }
+});
+
+test("apply self-improvement decision rejects untrusted issue targets", () => {
+  const { result, paths } = runDecisionFixture({
+    decision: "continue_issue",
+    target_number: 18,
+    reason: "The existing issue is the best recovery target.",
+    comment: "Continue this issue instead of opening another proposal.",
+  }, { FAKE_ISSUE_18_AUTHOR: "octocat" });
+  try {
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /continue_issue target #18 must be authored by Sepo or a trusted repository actor/);
+    assertNoCommentOrDispatch(paths);
+  } finally {
+    cleanup(paths);
+  }
+});
+
 test("apply self-improvement decision skips duplicate same-run continuation comment", () => {
   const { result, paths } = runDecisionFixture({
     decision: "continue_issue",
@@ -332,6 +375,22 @@ test("apply self-improvement decision ignores forged continuation markers", () =
     assert.equal(outputs.get("target_kind"), "issue");
     assert.equal(outputs.get("target_number"), "18");
     assert.equal(outputs.get("comment_posted"), "true");
+  } finally {
+    cleanup(paths);
+  }
+});
+
+test("apply self-improvement decision rejects untrusted PR targets", () => {
+  const { result, paths } = runDecisionFixture({
+    decision: "continue_pr",
+    target_number: 17,
+    reason: "The open PR is the best recovery target.",
+    comment: "Continue this PR instead of opening another proposal.",
+  }, { FAKE_PR_17_AUTHOR: "octocat" });
+  try {
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /continue_pr target #17 must be authored by Sepo or a trusted repository actor/);
+    assertNoCommentOrDispatch(paths);
   } finally {
     cleanup(paths);
   }

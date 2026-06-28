@@ -21,6 +21,7 @@
 //   decision, target_kind, target_number, issue_url, comment_posted
 
 import { readFileSync } from "node:fs";
+import { resolveGithubActorAssociation } from "../actor-association.js";
 import {
   createIssue,
   dispatchWorkflow,
@@ -93,9 +94,25 @@ function issueAuthorLogin(issue: Record<string, unknown>): string {
   return loginFromRecord(issue.user) || loginFromRecord(issue.author);
 }
 
+function isTrustedAssociation(association: string): boolean {
+  const normalized = String(association || "").trim().toUpperCase();
+  return normalized === "OWNER" || normalized === "MEMBER" || normalized === "COLLABORATOR";
+}
+
 function isTrustedAuthorLogin(authorLogin: string, authenticatedLogin: string): boolean {
   const normalizedAuthor = normalizeActorLogin(authorLogin);
   return Boolean(normalizedAuthor) && normalizedAuthor === normalizeActorLogin(authenticatedLogin);
+}
+
+function isTrustedContinuationTargetAuthor(authorLogin: string, repo: string): boolean {
+  if (!authorLogin) return false;
+  const association = resolveGithubActorAssociation({
+    repo,
+    actorLogin: authorLogin,
+    lookupOrder: "repository-first",
+  });
+  if (isTrustedAssociation(association)) return true;
+  return isTrustedAuthorLogin(authorLogin, fetchAuthenticatedActorLogin());
 }
 
 function findExistingRunProposalIssue(context: SelfImprovementRunContext): { issueUrl: string; targetNumber: number } | null {
@@ -166,40 +183,43 @@ function validateContinuationTarget(
 ): void {
   const targetNumber = decision.targetNumber || 0;
   if (!targetNumber) throw new Error(`${decision.decision} is missing target number`);
+  let target: Record<string, unknown> | null = null;
 
   if (decision.decision === "continue_pr") {
-    let raw = "";
     try {
-      raw = gh([
+      target = JSON.parse(gh([
         "api",
         `repos/${repo}/pulls/${targetNumber}`,
-        "--jq",
-        ".state // empty",
-      ]).trim().toLowerCase();
+      ])) as Record<string, unknown>;
     } catch {
-      raw = "";
+      target = null;
     }
-    if (raw !== "open") {
-      throw new Error(`continue_pr target #${targetNumber} must be an open pull request; got ${raw || "missing"}`);
+    const state = String(target?.state || "").trim().toLowerCase();
+    if (state !== "open") {
+      throw new Error(`continue_pr target #${targetNumber} must be an open pull request; got ${state || "missing"}`);
     }
-    return;
+  } else {
+    try {
+      target = JSON.parse(gh([
+        "api",
+        `repos/${repo}/issues/${targetNumber}`,
+      ])) as Record<string, unknown>;
+    } catch {
+      target = null;
+    }
+    const state = String(target?.state || "").trim().toLowerCase();
+    if (target?.pull_request) {
+      throw new Error(`continue_issue target #${targetNumber} is a pull request, not an issue`);
+    }
+    if (state !== "open") {
+      throw new Error(`continue_issue target #${targetNumber} must be an open issue; got ${state || "missing"}`);
+    }
   }
 
-  let issue: Record<string, unknown> | null = null;
-  try {
-    issue = JSON.parse(gh([
-      "api",
-      `repos/${repo}/issues/${targetNumber}`,
-    ])) as Record<string, unknown>;
-  } catch {
-    issue = null;
-  }
-  const state = String(issue?.state || "").trim().toLowerCase();
-  if (issue?.pull_request) {
-    throw new Error(`continue_issue target #${targetNumber} is a pull request, not an issue`);
-  }
-  if (state !== "open") {
-    throw new Error(`continue_issue target #${targetNumber} must be an open issue; got ${state || "missing"}`);
+  if (!isTrustedContinuationTargetAuthor(issueAuthorLogin(target || {}), repo)) {
+    throw new Error(
+      `${decision.decision} target #${targetNumber} must be authored by Sepo or a trusted repository actor`,
+    );
   }
 }
 

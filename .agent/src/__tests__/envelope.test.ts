@@ -523,6 +523,8 @@ test("scheduled workflows evaluate skip gates before provider-dependent jobs", (
   assert.match(selfImprovementWorkflow, /gate:\n[\s\S]*Resolve scheduled activity gate/);
   assert.match(selfImprovementWorkflow, /plan:\n\s+needs: gate\n\s+if: vars\.AGENT_ENABLED != 'false' && needs\.gate\.outputs\.skip != 'true'/);
   assert.match(selfImprovementWorkflow, /rubrics_mode_override:\s*disabled/);
+  assert.match(selfImprovementWorkflow, /cron: "23 \*\/6 \* \* \*"/);
+  assert.match(selfImprovementWorkflow, /workflow schedule: every 6 hours at minute 23 UTC/);
 
   assert.match(updateWorkflow, /gate:\n[\s\S]*Resolve scheduled activity gate/);
   assert.match(updateWorkflow, /vars\.AGENT_AUTO_UPDATE == 'false'/);
