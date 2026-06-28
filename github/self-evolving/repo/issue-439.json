@@ -1,0 +1,78 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "@sepo-agent /answer\n\nIt takes quite some time to get the first response. Can we think of ways to optimize for it?",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABH4X2Ow",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes. I’d optimize this in two passes.\n\nI checked the current run for this issue: the portal job spent about 10s in `Setup agent runtime`, then the answer job repeated runtime setup before `Run answer agent` started. The first progress comment is created inside the shared task action, so it cannot appear until after checkout/auth/provider/runtime setup and some task prework.\n\nRelevant code paths:\n- Router portal setup and context extraction: [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L146-L221)\n- Direct `/answer` job: [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L487-L604)\n- Runtime bootstrap does `npm ci` and build every job: [`setup-agent-runtime/action.yml`](https://github.com/self-evolving/repo/blob/main/.github/actions/setup-agent-runtime/action.yml#L79-L87)\n- Progress reporter starts only inside `run-agent-task`: [`run-agent-task/action.yml`](https://github.com/self-evolving/repo/blob/main/.github/actions/run-agent-task/action.yml#L397-L442)\n- Progress comment creation logic: [`progress-report.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/progress-report.ts#L139-L154)\n\nProposed approach:\n\n1. Add a lightweight “fast acknowledgement” path before `.agent/dist` is built.\n   Use a small dependency-free action/script, like the existing pre-runtime provider resolver, to detect clear mention targets from the event payload and create an initial progress comment quickly.\n\n2. Pass that progress comment id through `portal` to the route job.\n   The `answer` job should receive the early comment id and pass it to `run-agent-task`.\n\n3. Teach `progress-report.ts` to adopt an existing comment id.\n   Today it always creates a new comment. I’d add an `initial_comment_id`/`AGENT_PROGRESS_COMMENT_ID` input so it updates the fast acknowledgement comment instead of creating a duplicate.\n\n4. Keep final-response merging unchanged conceptually.\n   `post-response.ts` already merges the final answer into a progress comment when given `AGENT_PROGRESS_COMMENT_ID`, so the main work is ensuring the adopted id flows through reliably.\n\n5. Then reduce real execution latency.\n   After the UX fix, look at moving progress startup earlier inside `run-agent-task`, skipping portal runtime setup for explicit `/answer` where possible, and adding runtime/install caching. The biggest structural waste is that explicit answers currently pay portal runtime setup and answer runtime setup.\n\nTests I’d add:\n- `progress-report.test.ts`: adopting an existing comment updates instead of creates.\n- Workflow/action validation: fast ack id is wired from portal to answer.\n- `post-response` coverage stays green for final merge into the adopted comment.\n\nNo blocker from my side. If approved, I’d implement the fast acknowledgement/adopted-progress-comment path first, because it directly improves perceived first response time without changing model behavior.\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — answer · 2m15s · 38 steps**\n\nLast message\n> Yes. I’d optimize this in two passes. I checked the current run for this issue: the portal job spent about 10s in `Setup agent runtime`, then the answer job repeated runtime setup before `Run answer agent` started. The first progress comme…\n\nActivity\n\n- 💬 Message \"The current run’s progress comment shows the first visible progress body at about 20 seconds, which lines up with the pre-agent setup path rather than model thinking time. I’m going to use that as the concrete baseline and propose changes…\"\n- 📖 Read `Read progress-policy.test.ts` (completed)\n- 📖 Read `Read progress-report.test.ts` (completed)\n- 📖 Read `Read workflow-action-validation.test.ts` (completed)\n- 📖 Read `gh run view 28307477792 --repo self-evolving/repo --json name,status,conclusion,createdAt,updatedAt,jobs,url` (completed)\n- 💬 Message \"Yes. I’d optimize this in two passes. I checked the current run for this issue: the portal job spent about 10s in `Setup agent runtime`, then the answer job repeated runtime setup before `Run answer agent` started. The first progress comme…\"\n</details>\n\n<!-- sepo-progress:run-28307477792 -->\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-1`",
+      "createdAt": "2026-06-28T01:23:21Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/439#issuecomment-4823840315",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABH4cYPQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "Ok this is fine. But functionally what are the ways to optimize the code to make it load faster? ",
+      "createdAt": "2026-06-28T01:41:06Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/439#issuecomment-4823914557",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABH4dEvw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Functionally, the biggest code-level wins are:\n\n1. **Remove runtime setup from the portal path for explicit routes.**  \n   Right now `portal` runs `setup-agent-runtime` before `extract-context`, because context extraction calls `.agent/dist/cli/extract-context.js`: [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L205-L221). For an explicit `@sepo-agent /answer`, that means we pay `npm ci` + build before we even know the route. Make `extract-context` a small prebuilt/plain-JS action like `resolve-agent-provider`, then skip portal runtime setup unless dispatch triage is actually needed.\n\n2. **Run explicit `/answer` in the same job as routing.**  \n   Today `portal` finishes, then a fresh `answer` job starts and repeats checkout/auth/provider/runtime setup: [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L487-L544). For explicit `/answer`, there is no model triage needed, so we can continue directly after route resolution in the same job. That avoids a second runner startup plus duplicate setup.\n\n3. **Cache or skip the TypeScript runtime build.**  \n   `setup-agent-runtime` always does `npm ci` and `npm run build`: [`setup-agent-runtime/action.yml`](https://github.com/self-evolving/repo/blob/main/.github/actions/setup-agent-runtime/action.yml#L79-L87). Add a cache keyed by `.agent/package-lock.json` plus `.agent/src/**`, or a validity marker, and skip rebuild when `.agent/dist/run.js` is fresh. This helps every route.\n\n4. **Start the agent before optional context work when possible.**  \n   `run-agent-task` does session restore, memory clone, rubrics clone, and rubric selection before starting progress/model execution: [`run-agent-task/action.yml`](https://github.com/self-evolving/repo/blob/main/.github/actions/run-agent-task/action.yml#L281-L407). For `/answer`, make memory/rubrics opt-in or “lazy”: skip rubrics unless selected policy requires them, and only restore sessions when there is known prior thread state.\n\n5. **Use a faster default answer model/reasoning profile.**  \n   The answer job defaults reasoning to `high`: [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L575). For simple answers, defaulting answer to `medium` or a smaller configured model would reduce first-token and total response time. Keep heavier reasoning for `/implement`, `/review`, and `/fix-pr`.\n\nRecommended order:\n1. Prebuilt/plain-JS `extract-context`.\n2. Same-job explicit `/answer` fast path.\n3. Runtime build cache/skip.\n4. Lazy memory/rubrics/session setup for answer.\n5. Lower default answer reasoning/model.\n\nThat order should improve actual load time, not just perceived responsiveness.\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — answer · 56s · 6 steps**\n\nLast message\n> Functionally, the biggest code-level wins are: 1. **Remove runtime setup from the portal path for explicit routes.** Right now `portal` runs `setup-agent-runtime` before `extract-context`, because context extraction calls `.agent/dist/cli/…\n\nActivity\n\n- 💬 Message \"I’ll ground this in the actual router/runtime path and focus on changes that reduce real time-to-agent-start, not just a faster acknowledgement comment.\"\n- 📖 Read `Read agent-router.yml` (completed)\n- 📖 Read `Read action.yml` (completed)\n- 📖 Read `Read agent-router.yml` (completed)\n- 📖 Read `Read action.yml` (completed)\n- 💬 Message \"Functionally, the biggest code-level wins are: 1. **Remove runtime setup from the portal path for explicit routes.** Right now `portal` runs `setup-agent-runtime` before `extract-context`, because context extraction calls `.agent/dist/cli/…\"\n</details>\n\n<!-- sepo-progress:run-28307865596 -->\n\n---\n`codex` | `gpt-5.5` | `high` | `Macmini-runner-5`",
+      "createdAt": "2026-06-28T01:42:23Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/439#issuecomment-4823925951",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-06-28T01:22:09Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 439,
+  "state": "OPEN",
+  "title": "Make first response faster",
+  "updatedAt": "2026-06-28T01:43:26Z",
+  "url": "https://github.com/self-evolving/repo/issues/439"
+}

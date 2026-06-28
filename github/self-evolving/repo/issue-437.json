@@ -1,0 +1,121 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "Agent commands that are added by editing an existing comment can look accepted but do not run the requested action.\n\nPlain-language problem:\n\nA user may post a comment, then edit it a few minutes later to add a command such as `@sepo-agent /fix-pr` or `@sepo-agent /review`. The edited comment wakes the agent entrypoint, the router can parse the command, and the agent may even add an eyes reaction. However, the downstream PR action is currently guarded with `github.event.action != 'edited'`, so the requested job is skipped. From the user's point of view, the agent appeared to notice the request but then nothing happened.\n\nThis is confusing because there is no visible explanation on the PR telling the user that commands added by editing a comment are not allowed to launch PR-modifying actions.\n\nDesired behavior:\n\n- If edited comments should remain blocked for safety, the portal should not silently acknowledge them as actionable. It should post a short explanation such as: \"I noticed this command on an edited comment, but PR-modifying actions only run from new comments. Please post a new comment with the command.\"\n- Alternatively, support edited comments safely by detecting that a trusted user added a valid explicit command and dispatching the requested action exactly once.\n- Avoid adding reactions or status signals that imply the action is running when the downstream action will be skipped.\n- Add tests covering edited issue comments and edited PR comments for explicit `/review` and `/fix-pr` commands.\n\nWhy this matters:\n\nThis failure mode is easy to hit when users refine a comment after posting it. The current behavior creates a silent no-op and makes it hard to tell whether the agent is broken, waiting, or deliberately refusing to run.",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABH31m8A",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate ",
+      "createdAt": "2026-06-28T00:20:25Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/437#issuecomment-4823279344",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABH32Dcw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | implement | Issue #437 | 2 / 40 | Dispatched |\n\nReason: agent planner selected implement: Issue #437 is a small, self-contained bug fix request with clear desired behavior and tests; no child issue or human clarification is needed.\n\n<!-- sepo-agent-handoff state:dispatched created:1782606143354 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjgzMDYyMDI5MTA6b3JjaGVzdHJhdGU6NDM3OmltcGxlbWVudDo0Mzc6Mg -->",
+      "createdAt": "2026-06-28T00:22:23Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/437#issuecomment-4823286643",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABH34ueA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-437/codex-28306242548`\n- Pull request: https://github.com/self-evolving/repo/pull/438\n\nAdded edited-comment command blocking metadata, made the router post an inline explanation for edited PR `/review` and `/fix-pr` commands while suppressing eyes/status labels, documented the behavior, and verified with build plus focused context/workflow/docs tests.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-2`",
+      "createdAt": "2026-06-28T00:29:39Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/437#issuecomment-4823330424",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABH4XAYA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer sorry the simple fix should be just allow that for fix pr route? ",
+      "createdAt": "2026-06-28T01:20:41Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/437#issuecomment-4823826528",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABH4XY8A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, for `/fix-pr` specifically that’s probably the better simple policy.\n\nI would not just remove the edited-event guard wholesale, though. The current skip is the `fix-pr` job condition in [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L1155-L1163). Safer minimal shape:\n\n- allow `/fix-pr` when the comment is new, as today\n- also allow `/fix-pr` when an edited PR comment newly added that explicit route\n- compare against `changes.body.from` so repeated edits to the same `/fix-pr` comment do not rerun it\n- leave `/review` blocked/explained unless we separately decide edited review requests are okay too\n\nSo the fix is “allow edited `/fix-pr` route,” but with an idempotency predicate, not a blanket `github.event.action == edited` bypass.\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — answer · 1m31s · 26 steps**\n\nLast message\n> Yes, for `/fix-pr` specifically that’s probably the better simple policy. I would not just remove the edited-event guard wholesale, though. The current skip is the `fix-pr` job condition in [`agent-router.yml`](https://github.com/self-evol…\n\nActivity\n\n- ✏️ Edited `Search edited_comment_command_blocked|isEditedCommentPrCommandBlocked|getPreviousEditedBody|github\\.event\\.action != 'e…` (completed)\n- 💬 Message \"I have enough context to answer now. The useful answer is policy-level: yes for `/fix-pr` if that’s the desired product behavior, but the implementation should still gate on “command was newly added by this edit” to avoid repeat runs.\"\n- 📖 Read `Read agent-router.yml` (completed)\n- 📖 Read `Read context.ts` (completed)\n- 📖 Read `Read context.ts` (completed)\n- 💬 Message \"Yes, for `/fix-pr` specifically that’s probably the better simple policy. I would not just remove the edited-event guard wholesale, though. The current skip is the `fix-pr` job condition in [`agent-router.yml`](https://github.com/self-evol…\"\n</details>\n\n<!-- sepo-progress:run-28307447085 -->\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-5`",
+      "createdAt": "2026-06-28T01:21:28Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/437#issuecomment-4823832816",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-06-28T00:19:28Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 437,
+  "state": "OPEN",
+  "title": "Make edited-comment agent commands explicit instead of silent no-ops",
+  "updatedAt": "2026-06-28T01:23:09Z",
+  "url": "https://github.com/self-evolving/repo/issues/437"
+}
