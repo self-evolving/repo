@@ -926,6 +926,107 @@ test("extract-context skips edited issue comments when mention was already prese
   }
 });
 
+test("extract-context responds when an edited PR comment newly adds fix-pr", () => {
+  const outputs = runExtractContextCli({
+    eventName: "issue_comment",
+    payload: {
+      action: "edited",
+      sender: { login: "alice", type: "User" },
+      comment: {
+        id: 401,
+        node_id: "IC_401",
+        html_url: "https://github.com/self-evolving/repo/pull/401#issuecomment-401",
+        body: "please check @sepo-agent /fix-pr",
+        author_association: "CONTRIBUTOR",
+        user: { login: "alice" },
+      },
+      changes: {
+        body: {
+          from: "please check @sepo-agent",
+        },
+      },
+      issue: {
+        number: 401,
+        html_url: "https://github.com/self-evolving/repo/pull/401",
+        pull_request: { url: "https://api.github.com/repos/self-evolving/repo/pulls/401" },
+      },
+    },
+  });
+
+  assert.equal(outputs.get("should_respond"), "true");
+  assert.equal(outputs.get("target_kind"), "pull_request");
+  assert.equal(outputs.get("requested_route"), "fix-pr");
+  assert.equal(outputs.get("edited_comment_command_added"), "fix-pr");
+  assert.equal(outputs.get("edited_comment_pr_command_blocked"), "false");
+});
+
+test("extract-context skips repeated edited PR fix-pr commands", () => {
+  const outputs = runExtractContextCli({
+    eventName: "issue_comment",
+    payload: {
+      action: "edited",
+      sender: { login: "alice", type: "User" },
+      comment: {
+        id: 402,
+        node_id: "IC_402",
+        html_url: "https://github.com/self-evolving/repo/pull/402#issuecomment-402",
+        body: "please check @sepo-agent /fix-pr the latest review",
+        author_association: "CONTRIBUTOR",
+        user: { login: "alice" },
+      },
+      changes: {
+        body: {
+          from: "please check @sepo-agent /answer\n\nAlso @sepo-agent /fix-pr",
+        },
+      },
+      issue: {
+        number: 402,
+        html_url: "https://github.com/self-evolving/repo/pull/402",
+        pull_request: { url: "https://api.github.com/repos/self-evolving/repo/pulls/402" },
+      },
+    },
+  });
+
+  assert.equal(outputs.get("should_respond"), "false");
+});
+
+test("extract-context marks edited PR review commands as blocked", () => {
+  const outputs = runExtractContextCli({
+    eventName: "pull_request_review_comment",
+    payload: {
+      action: "edited",
+      sender: { login: "alice", type: "User" },
+      comment: {
+        id: 403,
+        node_id: "PRRC_403",
+        html_url: "https://github.com/self-evolving/repo/pull/403#discussion_r403",
+        body: "please check @sepo-agent /review",
+        author_association: "CONTRIBUTOR",
+        user: { login: "alice" },
+      },
+      changes: {
+        body: {
+          from: "please check @sepo-agent",
+        },
+      },
+      pull_request: {
+        number: 403,
+        html_url: "https://github.com/self-evolving/repo/pull/403",
+      },
+    },
+  });
+
+  assert.equal(outputs.get("should_respond"), "true");
+  assert.equal(outputs.get("source_kind"), "pull_request_review_comment");
+  assert.equal(outputs.get("requested_route"), "review");
+  assert.equal(outputs.get("edited_comment_command_added"), "review");
+  assert.equal(outputs.get("edited_comment_pr_command_blocked"), "true");
+  assert.match(
+    outputs.get("edited_comment_command_block_message") || "",
+    /Please post a new comment with the command\./,
+  );
+});
+
 test("extract-context responds when an edited discussion comment adds a mention", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-extract-context-"));
 

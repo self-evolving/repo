@@ -3,6 +3,10 @@
 // and response targets without branching on every event type again.
 
 import { hasLiveMention } from "./mentions.js";
+import {
+  extractRequestedRouteDecision,
+  hasExplicitRequestedRoute,
+} from "./triage.js";
 
 export const DEFAULT_TRUSTED_ASSOCIATIONS = new Set([
   "OWNER",
@@ -35,7 +39,11 @@ function joinTitleAndBody(title: string, body: string): string {
   return [title, body].filter(Boolean).join("\n\n");
 }
 
-function getPreviousEditedBody(eventName: string, payload: Payload): string | null {
+function isEditedCommentEvent(eventName: string): boolean {
+  return eventName === "issue_comment" || eventName === "pull_request_review_comment";
+}
+
+export function getPreviousEditedBody(eventName: string, payload: Payload): string | null {
   if (payload.action !== "edited") {
     return null;
   }
@@ -75,6 +83,31 @@ function getPreviousEditedBody(eventName: string, payload: Payload): string | nu
   }
 
   return null;
+}
+
+export function getNewlyAddedEditedCommentCommandRoute(
+  eventName: string,
+  payload: Payload,
+  mention: string,
+): string {
+  if (!isEditedCommentEvent(eventName)) {
+    return "";
+  }
+
+  const previousBody = getPreviousEditedBody(eventName, payload);
+  if (previousBody === null) {
+    return "";
+  }
+
+  const currentRoute = extractRequestedRouteDecision(
+    extractEventContext(eventName, payload).body,
+    mention,
+  ).route;
+  if (currentRoute !== "fix-pr" && currentRoute !== "review") {
+    return "";
+  }
+
+  return hasExplicitRequestedRoute(previousBody, mention, currentRoute) ? "" : currentRoute;
 }
 
 /**
@@ -265,7 +298,9 @@ export function shouldSkipSender(payload: Payload): boolean {
 
 /**
  * Checks whether this payload should trigger a mention-based response.
- * Edited events only trigger when the live mention state changes false -> true.
+ * Edited events normally trigger only when the live mention state changes
+ * false -> true. Edited comments may also trigger when they newly add an
+ * explicit PR command that downstream routing handles specially.
  */
 export function shouldRespondToMention(
   eventName: string,
@@ -282,7 +317,11 @@ export function shouldRespondToMention(
     return true;
   }
 
-  return !hasLiveMention(previousBody, mention);
+  if (!hasLiveMention(previousBody, mention)) {
+    return true;
+  }
+
+  return Boolean(getNewlyAddedEditedCommentCommandRoute(eventName, payload, mention));
 }
 
 // Re-export for convenient access from context module consumers

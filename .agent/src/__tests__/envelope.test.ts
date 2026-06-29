@@ -275,6 +275,60 @@ test("answer route passes trigger metadata into prompt variables", () => {
   assert.match(runSource, /ANSWER_REVIEW_CONTEXT/);
 });
 
+test("router allows edited fix-pr only when the command was newly added", () => {
+  const routerWorkflow = parseYaml(readRepoFile(".github/workflows/agent-router.yml")) as unknown;
+
+  assert.ok(isRecord(routerWorkflow), "agent-router workflow should parse");
+  assert.ok(isRecord(routerWorkflow.jobs), "agent-router workflow should define jobs");
+  const portalJob = routerWorkflow.jobs.portal;
+  const fixPrJob = routerWorkflow.jobs["fix-pr"];
+  const reviewJob = routerWorkflow.jobs.review;
+  assert.ok(isRecord(portalJob), "agent-router workflow should define portal job");
+  assert.ok(isRecord(portalJob.outputs), "portal job should define outputs");
+  assert.ok(Array.isArray(portalJob.steps), "portal job should define steps");
+  assert.ok(isRecord(fixPrJob), "agent-router workflow should define fix-pr job");
+  assert.ok(isRecord(reviewJob), "agent-router workflow should define review job");
+
+  assert.equal(
+    portalJob.outputs.edited_comment_command_added,
+    "${{ steps.context.outputs.edited_comment_command_added }}",
+  );
+  assert.equal(
+    portalJob.outputs.edited_comment_pr_command_blocked,
+    "${{ steps.context.outputs.edited_comment_pr_command_blocked }}",
+  );
+
+  const eyesStep = portalJob.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "React with eyes",
+  );
+  const blockStep = portalJob.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Post edited review command block",
+  );
+  const labelStep = portalJob.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Label handled issue or PR",
+  );
+  const thumbsStep = portalJob.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "React with thumbs up (dispatch acknowledgment)",
+  );
+  assert.ok(eyesStep, "portal should react with eyes for normal mention handling");
+  assert.ok(blockStep, "portal should post a visible block for edited review commands");
+  assert.ok(labelStep, "portal should label handled targets");
+  assert.ok(thumbsStep, "portal should acknowledge dispatched PR routes");
+
+  assert.match(String(eyesStep.if || ""), /edited_comment_pr_command_blocked != 'true'/);
+  assert.match(String(labelStep.if || ""), /edited_comment_pr_command_blocked != 'true'/);
+  assert.match(String(blockStep.if || ""), /edited_comment_pr_command_blocked == 'true'/);
+  assert.match(String(blockStep.if || ""), /steps\.dispatch\.outputs\.route == 'review'/);
+  assert.match(String(blockStep.run || ""), /post-response\.js/);
+  assert.match(String(thumbsStep.if || ""), /edited_comment_command_added == 'fix-pr'/);
+  assert.match(String(fixPrJob.if || ""), /edited_comment_command_added == 'fix-pr'/);
+  assert.match(String(reviewJob.if || ""), /github\.event\.action != 'edited'/);
+});
+
 test("answer action docs mention review-triggered inline replies", () => {
   const docs = readRepoFile(".agent/docs/usage/agent-actions.md");
 

@@ -14,7 +14,7 @@ Explicit mentions remain the primary trigger. When `AGENT_FOLLOWUP_INTENT_MODE` 
 - Implicit follow-up answers are posted only after the intent gate returns `respond`; they never dispatch implementation, review, PR-fix, orchestration, install, skill, or create-action workflows.
 - Review and `fix-pr` requests on pull requests are dispatched immediately.
 - Explicit `/orchestrate` (or `agent/orchestrate`) requests dispatch the orchestrator workflow, which chooses one follow-up action from current target state.
-- Edited PR events are blocked from re-triggering review and `fix-pr` routes.
+- Edited PR comments can trigger `fix-pr` when the edit newly adds an explicit `/fix-pr` command; repeated edits where the previous body already requested `/fix-pr` are suppressed. Edited PR `/review` comments remain blocked and get a short visible explanation asking the user to post a new comment.
 - Mention and label requests that fail route authorization are posted back as inline `unsupported` replies instead of being dropped silently; that path still runs `Setup agent runtime` before `post-response.js` so posting dependencies are available.
 - Triaged implementation requests (i.e., when the dispatch agent predicts `implement` from a free-form mention) require an approval comment:
   - `@sepo-agent /approve req-...`
