@@ -102,6 +102,58 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/437#issuecomment-4823832816",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABH7-dng",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer I think a more fundamental question is that why we decided that fix-pr is not edit trackable? was there a reason or? ",
+      "createdAt": "2026-06-28T22:39:19Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/437#issuecomment-4827618718",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABH8LYkg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> @sepo-agent /answer I think a more fundamental question is that why we decided that fix-pr is not edit trackable? was there a reason or? \n\n@sepo-agent /answer  ",
+      "createdAt": "2026-06-29T00:03:43Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/437#issuecomment-4827830418",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABH9aV2g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I don’t see a documented product reason that `/fix-pr` must be non-edit-trackable. It looks more like a conservative workflow guard than a deliberate route-specific policy.\n\nThe likely original reasoning was:\n\n- `fix-pr` mutates an existing PR branch, so it was safer to require a fresh comment as an explicit action request.\n- Edited comments can fire repeatedly for small text changes, so without comparing `changes.body.from`, an edited `/fix-pr` could rerun more than once.\n- The router already wakes on edited comments, but the downstream job blocks them here: [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L1155-L1163).\n- The existing mention logic is already edit-aware for “mention newly appeared” cases, so the missing piece is route-level idempotency rather than a hard platform limitation.\n\nSo my read is: there was a reasonable safety instinct, but not a strong reason to keep `/fix-pr` permanently blocked. The better policy is probably to allow edited `/fix-pr` only when the edit newly introduced that explicit command, and suppress repeated edits where the previous body already requested `/fix-pr`.\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — answer · 48s · 7 steps**\n\nLast message\n> I don’t see a documented product reason that `/fix-pr` must be non-edit-trackable. It looks more like a conservative workflow guard than a deliberate route-specific policy. The likely original reasoning was: - `fix-pr` mutates an existing…\n\nActivity\n\n- 🔧 Used tool `git log --oneline -- .github/workflows/agent-router.yml .github/workflows/agent-entrypoint.yml .agent/src/context.ts |…` (completed)\n- ✏️ Edited `Search github\\.event\\.action != 'edited'|edited.*fix-pr|fix-pr.*edited|edit track|edited-event|edited event in .github` (completed)\n- 📖 Read `gh issue view 437 --repo self-evolving/repo --json title,body,comments,state,url` (failed)\n- 💬 Message \"The local checkout shows the guard but not an inline rationale. The GitHub API call hit the sandbox network restriction, so I’m retrying once with approval to read the issue thread.\"\n- 📖 Read `gh issue view 437 --repo self-evolving/repo --json title,body,comments,state,url` (completed)\n- 💬 Message \"I don’t see a documented product reason that `/fix-pr` must be non-edit-trackable. It looks more like a conservative workflow guard than a deliberate route-specific policy. The likely original reasoning was: - `fix-pr` mutates an existing…\"\n</details>\n\n<!-- sepo-progress:run-28340535378 -->\n\n---\n`codex` | `gpt-5.5` | `high` | `Macmini-runner-4`",
+      "createdAt": "2026-06-29T04:57:36Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/437#issuecomment-4829124058",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-06-28T00:19:28Z",
@@ -116,6 +168,6 @@
   "number": 437,
   "state": "OPEN",
   "title": "Make edited-comment agent commands explicit instead of silent no-ops",
-  "updatedAt": "2026-06-28T01:23:09Z",
+  "updatedAt": "2026-06-29T04:58:31Z",
   "url": "https://github.com/self-evolving/repo/issues/437"
 }
