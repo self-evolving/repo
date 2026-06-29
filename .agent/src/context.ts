@@ -3,10 +3,7 @@
 // and response targets without branching on every event type again.
 
 import { hasLiveMention } from "./mentions.js";
-import {
-  extractRequestedRouteDecision,
-  hasExplicitRequestedRoute,
-} from "./triage.js";
+import { hasExplicitRequestedRoute } from "./triage.js";
 
 export const DEFAULT_TRUSTED_ASSOCIATIONS = new Set([
   "OWNER",
@@ -16,6 +13,8 @@ export const DEFAULT_TRUSTED_ASSOCIATIONS = new Set([
 ]);
 
 export const DEFAULT_MENTION = "@sepo-agent";
+
+const EDITED_COMMENT_COMMAND_ROUTES = ["fix-pr", "review"] as const;
 
 export interface PortalEventContext {
   body: string;
@@ -99,15 +98,17 @@ export function getNewlyAddedEditedCommentCommandRoute(
     return "";
   }
 
-  const currentRoute = extractRequestedRouteDecision(
-    extractEventContext(eventName, payload).body,
-    mention,
-  ).route;
-  if (currentRoute !== "fix-pr" && currentRoute !== "review") {
-    return "";
+  const currentBody = extractEventContext(eventName, payload).body;
+  for (const route of EDITED_COMMENT_COMMAND_ROUTES) {
+    if (
+      hasExplicitRequestedRoute(currentBody, mention, route) &&
+      !hasExplicitRequestedRoute(previousBody, mention, route)
+    ) {
+      return route;
+    }
   }
 
-  return hasExplicitRequestedRoute(previousBody, mention, currentRoute) ? "" : currentRoute;
+  return "";
 }
 
 /**

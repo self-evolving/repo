@@ -277,6 +277,30 @@ test("shouldRespondToMention triggers when an edited comment newly adds fix-pr",
   assert.equal(shouldRespondToMention("issue_comment", payload, "@sepo-agent"), true);
 });
 
+test("shouldRespondToMention triggers when an edit adds fix-pr after an earlier route", () => {
+  const payload = {
+    action: "edited",
+    comment: {
+      body: [
+        "@sepo-agent /answer explain the current failure",
+        "",
+        "Also @sepo-agent /fix-pr",
+      ].join("\n"),
+    },
+    changes: {
+      body: {
+        from: "@sepo-agent /answer explain the current failure",
+      },
+    },
+  };
+
+  assert.equal(
+    getNewlyAddedEditedCommentCommandRoute("issue_comment", payload, "@sepo-agent"),
+    "fix-pr",
+  );
+  assert.equal(shouldRespondToMention("issue_comment", payload, "@sepo-agent"), true);
+});
+
 test("shouldRespondToMention suppresses repeated edited fix-pr commands", () => {
   const payload = {
     action: "edited",

@@ -960,6 +960,45 @@ test("extract-context responds when an edited PR comment newly adds fix-pr", () 
   assert.equal(outputs.get("edited_comment_pr_command_blocked"), "false");
 });
 
+test("extract-context prefers newly added edited fix-pr after an earlier route", () => {
+  const outputs = runExtractContextCli({
+    eventName: "issue_comment",
+    payload: {
+      action: "edited",
+      sender: { login: "alice", type: "User" },
+      comment: {
+        id: 404,
+        node_id: "IC_404",
+        html_url: "https://github.com/self-evolving/repo/pull/404#issuecomment-404",
+        body: [
+          "@sepo-agent /answer explain the current failure",
+          "",
+          "Also @sepo-agent /fix-pr",
+        ].join("\n"),
+        author_association: "CONTRIBUTOR",
+        user: { login: "alice" },
+      },
+      changes: {
+        body: {
+          from: "@sepo-agent /answer explain the current failure",
+        },
+      },
+      issue: {
+        number: 404,
+        html_url: "https://github.com/self-evolving/repo/pull/404",
+        pull_request: { url: "https://api.github.com/repos/self-evolving/repo/pulls/404" },
+      },
+    },
+  });
+
+  assert.equal(outputs.get("should_respond"), "true");
+  assert.equal(outputs.get("target_kind"), "pull_request");
+  assert.equal(outputs.get("requested_route"), "fix-pr");
+  assert.equal(outputs.get("requested_skill"), "");
+  assert.equal(outputs.get("edited_comment_command_added"), "fix-pr");
+  assert.equal(outputs.get("edited_comment_pr_command_blocked"), "false");
+});
+
 test("extract-context skips repeated edited PR fix-pr commands", () => {
   const outputs = runExtractContextCli({
     eventName: "issue_comment",

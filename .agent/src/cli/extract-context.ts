@@ -205,12 +205,14 @@ if (!eventPath || !eventName) {
           const requestedMention = triggerKind === "label" || implicitFollowup
             ? { route: "", skill: "" }
             : extractRequestedRouteDecision(ctx.body, mention);
-          const requestedRoute = requestedLabel?.route || requestedMention.route;
-          const requestedSkill = requestedLabel?.skill || requestedMention.skill;
           const editedCommentCommandAdded =
             triggerKind === "label" || implicitFollowup
               ? ""
               : getNewlyAddedEditedCommentCommandRoute(eventName, payload, mention);
+          const requestedRoute =
+            requestedLabel?.route || editedCommentCommandAdded || requestedMention.route;
+          const requestedSkill =
+            requestedLabel?.skill || (editedCommentCommandAdded ? "" : requestedMention.skill);
           const editedCommentPrCommandBlocked =
             ctx.targetKind === "pull_request" && editedCommentCommandAdded === "review";
 
