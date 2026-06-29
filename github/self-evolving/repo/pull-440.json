@@ -1,0 +1,248 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Allow edited PR comments to dispatch `/fix-pr` when the edit newly adds that command.\n- Suppress repeated edited `/fix-pr` commands by checking the previous edited body for the same route.\n- Keep edited `/review` PR comments blocked with a visible explanation and no misleading reaction/label signals.\n- Update docs and focused tests for the new route behavior.\n\n## Tests\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/context.test.js .agent/dist/__tests__/triage.test.js .agent/dist/__tests__/extract-context-cli.test.js .agent/dist/__tests__/envelope.test.js .agent/dist/__tests__/docs-validation.test.js .agent/dist/__tests__/workflow-action-validation.test.js`\n\nCloses #437\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABH_W7_w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #440 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: Implementation succeeded and produced open PR #440 for issue #437; one automated review is warranted before stopping or leaving it to humans.\n\n<!-- sepo-agent-handoff state:dispatched created:1782726817136 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjgzNjI5MDE0ODE6aW1wbGVtZW50OjQzNzpyZXZpZXc6NDQwOjM -->",
+      "createdAt": "2026-06-29T09:53:37Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/440#issuecomment-4831165439",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABH_YmZg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 90 | PARTIAL | 10 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | The workflow still routes through `resolve-dispatch.js`; the PR only changes the downstream `fix-pr` job condition using typed portal outputs. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The change extends existing `context.ts`, `triage.ts`, `extract-context.ts`, `post-response.js`, and router output patterns instead of adding a separate parser or workflow path. |\n| coding_workflow / generic | Make user-facing automation idempotent | partial | 5/7 | Repeated edited `/fix-pr` commands are suppressed by checking `changes.body.from`, but one multi-command edge case remains; see finding. |\n| coding_workflow / generic | Prefer permissive command route parsing | partial | 5/7 | `hasExplicitRequestedRoute` can find `/fix-pr` beyond the first command, but current edited-command detection still depends on `extractRequestedRouteDecision(...).route`, which returns the first explicit route. |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Edited PR `/review` commands now post a concise visible explanation instead of silently acknowledging then skipping. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | `.agent/docs/architecture/overall-design.md` and `.agent/docs/architecture/request-lifecycle.md` document the new edited `/fix-pr` behavior and retained `/review` block. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The router adds explicit outputs for `edited_comment_command_added`, `edited_comment_pr_command_blocked`, and `edited_comment_command_block_message`. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is limited to route/context helpers, the router workflow, focused tests, and matching docs. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation uses a small predicate and workflow condition updates rather than new settings or broad workflow restructuring. |\n| communication / generic | Keep status comments compact | pass | 6/6 | The edited `/review` block message is a short user-facing sentence, not raw workflow output. |\n\n## Notes\n\n- The PR mostly satisfies the requested policy: newly added edited `/fix-pr` can dispatch, repeated edited `/fix-pr` is suppressed, edited `/review` remains blocked with visible feedback, and docs/tests were updated.\n- The main rubric gap is a narrow parsing/idempotency edge case where `/fix-pr` is newly added after another existing explicit command in the same edited comment.\n\n## Findings\n\n- **WARNING:** The edited `/fix-pr` allowance appears to miss comments where the edit newly adds `/fix-pr` after an earlier explicit route. In `.agent/src/context.ts`, `getNewlyAddedEditedCommentCommandRoute` derives `currentRoute` from `extractRequestedRouteDecision(...).route`; in `.agent/src/triage.ts`, that parser returns the first explicit route. So editing a comment from `@sepo-agent /answer ...` to add `Also @sepo-agent /fix-pr` later would likely not dispatch `/fix-pr`, even though the new helper and rubric direction support detecting routes beyond the first command. Add a focused test and use explicit-route presence for the current body as well as the previous body.\n\n## Final Rubric Verdict\n\nPARTIAL\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-3`",
+      "createdAt": "2026-06-29T09:56:44Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/440#issuecomment-4831192678",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABH_Y-Hw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer i don't understand --> I thought it's as simple as removing that gate condition? ",
+      "createdAt": "2026-06-29T09:57:27Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/440#issuecomment-4831198751",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABH_bOOA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "For the narrow case “old comment had no Sepo mention, edit adds `@sepo-agent /fix-pr`”, yes, removing the `github.event.action != 'edited'` gate would probably work.\n\nBut it is too broad/incomplete as the actual policy because we want: edited `/fix-pr` runs **only when that edit newly added `/fix-pr`**, and only once. That means the router needs to compare the current body to `changes.body.from`, not just allow every edited event through.\n\nIn this PR, that is why the `fix-pr` job gate became:\n\n[`github.event.action != 'edited' || edited_comment_command_added == 'fix-pr'`](https://github.com/self-evolving/repo/blob/4518d44348a897319634c357c31952ccef923929/.github/workflows/agent-router.yml#L1184-L1192)\n\nThe review finding is about a narrower bug in the new predicate: [`getNewlyAddedEditedCommentCommandRoute`](https://github.com/self-evolving/repo/blob/4518d44348a897319634c357c31952ccef923929/.agent/src/context.ts#L88-L110) uses `extractRequestedRouteDecision`, which returns the **first** explicit route. So this edit can be missed:\n\n```md\n@sepo-agent /answer explain this\n\nAlso @sepo-agent /fix-pr\n```\n\nbecause the current route still parses as `answer`, not `fix-pr`.\n\nSo the fix is not just “remove the gate”; it is “allow the gate only when current body has explicit `/fix-pr` and previous body did not.” The PR already has `hasExplicitRequestedRoute` for that; it just needs to use it for the current body too.\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — answer · 1m37s · 25 steps**\n\nLast message\n> For the narrow case “old comment had no Sepo mention, edit adds `@sepo-agent /fix-pr`”, yes, removing the `github.event.action != 'edited'` gate would probably work. But it is too broad/incomplete as the actual policy because we want: edit…\n\nActivity\n\n- 🔧 Used tool `git show origin/pr-440:.github/workflows/agent-router.yml | nl -ba | sed -n '468,510p;1134,1170p'` (completed)\n- 🔧 Used tool `git show origin/pr-440:.agent/src/context.ts | nl -ba | sed -n '85,120p;304,325p'` (completed)\n- 🔧 Used tool `git show origin/pr-440:.agent/src/__tests__/context.test.ts | nl -ba | sed -n '257,315p'` (completed)\n- 🔧 Used tool `git show origin/pr-440:.github/workflows/agent-router.yml | nl -ba | sed -n '1180,1202p'` (completed)\n- 🔧 Used tool `git rev-parse origin/pr-440` (completed)\n- 💬 Message \"For the narrow case “old comment had no Sepo mention, edit adds `@sepo-agent /fix-pr`”, yes, removing the `github.event.action != 'edited'` gate would probably work. But it is too broad/incomplete as the actual policy because we want: edit…\"\n</details>\n\n<!-- sepo-progress:run-28363867425 -->\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-2`",
+      "createdAt": "2026-06-29T10:02:05Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/440#issuecomment-4831235640",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABH_glvg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 4518d44348a897319634c357c31952ccef923929 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #440 addresses issue #437 by allowing edited PR comments to run `/fix-pr` only when the edit newly adds that explicit command. It also suppresses repeated edited `/fix-pr` runs by comparing against the previous body, keeps edited `/review` blocked, and adds a visible explanation for that blocked review path. The PR updates workflow gates, context extraction, tests, and architecture docs. The intended policy is narrower than simply removing the edited-event gate because it needs idempotency.\n\n## Review\nOverall, the implementation is close and covers the main workflow safely, with no clear authorization regression. One narrow route parsing edge remains unresolved and is already grounded in both reviewer artifacts and the current PR state.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Edited `/fix-pr` after an earlier route is still ignored | WARNING | `getNewlyAddedEditedCommentCommandRoute` derives the current route from the first explicit command, so editing an existing `@sepo-agent /answer` comment to add `@sepo-agent /fix-pr` later does not dispatch `/fix-pr`. `extract-context` also leaves `requested_route` as that earlier route, so the workflow fix-pr job will not run. |\n\n## Progress\n- The simple edited-comment case is implemented: bare mention or non-command comment edited to add `/fix-pr` can dispatch.\n- Repeated edited `/fix-pr` requests are suppressed using `changes.body.from`.\n- Edited `/review` on PRs now gets a visible block response without misleading eyes/status/dispatch signals.\n- Docs and focused tests were added for the implemented behavior.\n- Existing inline review comments and review threads are empty; I did not post a new inline comment because the same multi-command issue is already clearly covered in current PR discussion and review artifacts.\n\n## Issue Details\n\n<details>\n<summary>Edited `/fix-pr` after an earlier route is still ignored</summary>\n\n**Cause:** [`context.ts`](https://github.com/self-evolving/repo/blob/4518d44348a897319634c357c31952ccef923929/.agent/src/context.ts#L102) uses `extractRequestedRouteDecision(...).route`, which returns the first explicit route. [`extract-context.ts`](https://github.com/self-evolving/repo/blob/4518d44348a897319634c357c31952ccef923929/.agent/src/cli/extract-context.ts#L205) uses the same first-route decision for `requested_route`, so a newly appended `/fix-pr` behind an existing `/answer` remains invisible to the fix-pr job gate.\n\n**Candidate solutions:** Detect current-body presence of `/fix-pr` and `/review` with the same explicit-route predicate used for the previous body, then make edited-command routing prefer the newly added edited command when appropriate. Add regression coverage for editing `@sepo-agent /answer ...` to append `Also @sepo-agent /fix-pr`.\n\n**Comments:** Reviewers disagreed on severity: one review considered this consistent with first-route-wins behavior, while Codex and rubrics review flagged it as a policy gap. Given issue #437’s “newly introduced explicit command” policy and the current PR discussion, this synthesis treats it as a scoped warning worth fixing.\n\n</details>\n\n## Recommended Next Step\n`FIX_PR`: the remaining issue is a concrete, localized branch change with a straightforward regression test.\n\n## Final Verdict\n`MINOR_ISSUES`\n\n## Action Items\n- [ ] Make edited-command detection and `requested_route` prefer a newly added edited `/fix-pr` when it appears after an earlier explicit route, and add regression coverage for that case.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-5`",
+      "createdAt": "2026-06-29T10:12:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/440#issuecomment-4831323582",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABH_hT9w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #440 | 4 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review concluded MINOR_ISSUES and recommended FIX_PR; the remaining item is a concrete regression in edited-command detection/requested_route behavior that requires a branch change.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Make edited-command detection and `requested_route` prefer a newly added edited `/fix-pr` when it appears after an earlier explicit route, and add regression coverage for that case.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1782728043719 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjgzNjM2NTUxMDY6cmV2aWV3OjQ0MDpmaXhfcHI6NDQwOjQ -->",
+      "createdAt": "2026-06-29T10:14:04Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/440#issuecomment-4831335415",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABH_k3qA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-437/codex-28362901481`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Fixed edited-command detection so a newly added `@sepo-agent /fix-pr` is found even when an earlier explicit route such as `/answer` is already present.\n- Updated `requested_route` to prefer that newly added edited command, allowing the existing `fix-pr` workflow gate to dispatch the intended route.\n- Added focused regression coverage for the helper and extract-context CLI contract.\n\n<details><summary>Checks</summary>\n\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/context.test.js .agent/dist/__tests__/extract-context-cli.test.js .agent/dist/__tests__/triage.test.js .agent/dist/__tests__/envelope.test.js`\n- `git diff --check`\n\n</details>\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-3`",
+      "createdAt": "2026-06-29T10:21:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/440#issuecomment-4831393704",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABH_mWrQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #440 | 5 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr completed successfully on open PR #440 after addressing the prior review's concrete edited-command routing regression; one follow-up review is warranted to validate the branch changes before stopping.\n\n<!-- sepo-agent-handoff state:dispatched created:1782728712301 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjgzNjQ3OTEyNjI6Zml4X3ByOjQ0MDpyZXZpZXc6NDQwOjU -->",
+      "createdAt": "2026-06-29T10:25:12Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/440#issuecomment-4831418029",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABH_nkww",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "The existing dispatch policy still rejects `fix-pr` outside pull requests and enforces access policy after explicit route extraction. That means the PR’s new predicate is not acting as a separate authorization path.## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 11 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | The new edited-command output only influences route selection; dispatch still flows through `resolve-dispatch.js` / `applyDispatchPolicy`, and the `fix-pr` job remains gated to `target_kind == 'pull_request'`. |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | The policy is encoded from current event context and `changes.body.from`, without adding a repo setting or environment toggle. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The implementation extends existing context extraction, triage parsing, router outputs, and `post-response.js` patterns rather than adding a parallel command parser or workflow path. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | `getNewlyAddedEditedCommentCommandRoute` compares current and previous bodies, and tests cover repeated edited `/fix-pr` suppression. |\n| coding_workflow / generic | Prefer permissive command route parsing | pass | 7/7 | `hasExplicitRequestedRoute` detects `/fix-pr` beyond the first command, and tests cover adding `/fix-pr` after an earlier `/answer`. |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Edited PR `/review` commands now get a visible block response asking the user to post a new comment. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | The router exposes typed outputs for `edited_comment_command_added`, `edited_comment_pr_command_blocked`, and `edited_comment_command_block_message`. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is limited to context/triage helpers, router gates, focused tests, and matching architecture docs. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | `.agent/docs/architecture/request-lifecycle.md` and `overall-design.md` document the new edited `/fix-pr` allowance and retained edited `/review` block. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The change is a small predicate plus workflow condition updates, with no broad restructuring. |\n| communication / generic | Keep status comments compact | pass | 6/6 | The edited `/review` stop message is a short user-facing sentence rather than log-style output. |\n\n## Notes\n\n- The current PR diff satisfies the requested policy from issue #437: edited `/fix-pr` runs only when newly introduced, repeated edits are suppressed, and edited `/review` remains blocked with a visible explanation.\n- The earlier multi-command edge case has been addressed in the current head with focused context and extract-context CLI regression tests.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-1`",
+      "createdAt": "2026-06-29T10:27:52Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/440#issuecomment-4831438019",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABH_uskw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 7cbf78ebcec9348c764114c1b8f8c90ae19c117a -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #440 closes #437 by allowing edited PR comments to dispatch `/fix-pr` only when the edit newly adds that explicit command. It suppresses repeated edited `/fix-pr` requests by comparing the current body with `changes.body.from`. It keeps edited `/review` blocked, but now posts a visible explanation instead of creating a silent no-op. The PR updates context extraction, routing gates, tests, and architecture docs for that policy.\n\n## Review\nThe current reviewer artifacts converge on `SHIP` / `PASS`, and the live PR head `7cbf78ebcec9348c764114c1b8f8c90ae19c117a` matches the requested behavior. Claude noted optional INFO polish, but no reviewer identified unresolved required branch work.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable issues | INFO | The prior multi-command `/answer` then newly added `/fix-pr` regression has been fixed and covered. No blocking, warning, or required INFO action remains. |\n\n## Progress\n- The earlier review synthesis flagged that edited `/fix-pr` could be missed after an earlier explicit route; the follow-up fix-pr pass addressed it.\n- Current review artifacts verify that `requested_route` now prefers the newly added edited `/fix-pr`, including regression coverage.\n- Authorization remains routed through existing dispatch policy, and the `fix-pr` job is still PR-only.\n- Existing inline review comments and review threads are empty; no inline comments were posted, resolved, replied to, or minimized.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: no unresolved actionable branch changes remain, and the current inline review state is empty.\n\n## Final Verdict\n`SHIP`\n\n## Action Items\n- [x] No required branch-change work remains.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-1`",
+      "createdAt": "2026-06-29T10:42:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/440#issuecomment-4831554707",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-06-29T09:51:29Z",
+  "files": [
+    {
+      "path": ".agent/docs/architecture/overall-design.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/request-lifecycle.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/context.test.ts",
+      "additions": 85,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 54,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/extract-context-cli.test.ts",
+      "additions": 140,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/triage.test.ts",
+      "additions": 12,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/extract-context.ts",
+      "additions": 22,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/context.ts",
+      "additions": 43,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/triage.ts",
+      "additions": 25,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-router.yml",
+      "additions": 33,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-437/codex-28362901481",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 440,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "OPEN",
+  "title": "Allow newly added edited /fix-pr commands",
+  "updatedAt": "2026-06-29T10:42:02Z",
+  "url": "https://github.com/self-evolving/repo/pull/440"
+}
