@@ -118,3 +118,4 @@
 - Handle GitHub user-attachments on demand with an attachment-specific CLI; avoid thread-wide pre-download scanning.
 - Rubrics review skips model/comment work when reads are disabled, agent/rubrics is missing, or no active rubrics select.
 - test-scripts.yml runner labels resolve AGENT_TEST_RUNS_ON, then AGENT_RUNS_ON, then ["ubuntu-latest"].
+- Treat acpx >0.6.1 upgrades as compatibility PRs; verify Codex adapter model IDs and Node >=22.13. [[github/self-evolving/repo/issue-364.json]]

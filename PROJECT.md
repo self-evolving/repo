@@ -11,4 +11,3 @@
 - Should Sepo add inner/reportable timeouts in run.ts/runAcpx/acpx-adapter after the GitHub-step timeout first pass?
 - Should hosted Sepo be the quick-start default while repo-local Actions remains first-class for control/auditability?
 - Should Sepo add an opt-in self-improvement proposal workflow before any auto-orchestration?
-- Should Sepo treat acpx >0.6.1 as compatibility work for Codex model IDs/Node floor? [[github/self-evolving/repo/issue-364.json]]
