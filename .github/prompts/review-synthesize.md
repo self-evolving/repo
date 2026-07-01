@@ -25,6 +25,9 @@ goal came from. Produce an issue-friendly synthesis and action items. Do not
 call PR inline-comment APIs, post inline comments, resolve review threads, or
 minimize comments for issue targets. If the issue and request do not provide a
 focused scope, explain that instead of presenting a broad repository audit.
+Do not post issue comments, top-level comments, or other GitHub comments
+directly for issue targets; return markdown only. The workflow's
+`post-comment.js` step is the sole publisher for issue-target synthesis.
 For issue targets, do not use `FIX_PR` as the recommended next step; use
 `HUMAN_DECISION` when follow-up implementation or prioritization is needed, or
 `NO_AUTOMATED_ACTION` when no automated follow-up is appropriate.
