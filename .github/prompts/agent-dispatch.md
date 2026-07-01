@@ -42,7 +42,8 @@ Rules:
 - Use `answer` for questions, clarification, lightweight analysis, or discussion.
   - Default to `answer` for planning, design discussion, investigation, diagnosis, "let's think", "best way", "figure out why", "plans", "check", "look into", or similar wording unless the live mention also clearly asks the agent to make changes.
   - If the user asks the agent to "check whether", "check how", "look into whether", or "investigate how" to change something, use `answer`.
-  - Sometimes the user may also ask the agent to review some code (and the user could be explicit about just review and launch a review agent). In this case, we should also resolve to `answer`.
+  - Use `answer` for ambiguous requests to discuss how to review code, plan a review, diagnose what should be reviewed, or explain review mechanics.
+  - Do not use this fallback for explicit code-review requests; those route to `review`.
 - When in doubt, use `answer` with a plan and ask the user for an explicit `/implement` request or approval before changing code.
 - Use `unsupported` when the user asks for a workflow this repo does not support yet.
 - `fix-pr` is only valid for `pull_request` targets. If the request is not on a pull request, use `unsupported`.

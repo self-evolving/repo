@@ -45,6 +45,18 @@ test("dispatch prompt enumerates every supported dispatch route", () => {
     .sort();
   assert.deepEqual(unionRoutes, supportedRoutes);
   assert.match(prompt, /Use `orchestrate` when/);
+  assert.match(
+    prompt,
+    /Use `review` only when the user is explicitly asking for a PR review, issue-scoped code review, or another review pass/,
+  );
+  assert.match(
+    prompt,
+    /Do not use this fallback for explicit code-review requests; those route to `review`/,
+  );
+  assert.doesNotMatch(
+    prompt,
+    /review some code.*review agent.*resolve to `answer`/s,
+  );
 });
 
 test("normalizeDispatch reads raw JSON", () => {
