@@ -284,8 +284,8 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 7c33f3c78622141bd668588d95283d464d63598e -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #444 expands the `review` route so Sepo can review both pull requests and issues. The linked #442/#396 context asks for issue reviews to be focused default-branch reviews scoped by the triggering request text, not broad audits of `main`. The PR threads target kind, target number, request text, and source metadata through routing, workflow inputs, prompts, publishing, docs, and tests while preserving PR diff-review behavior. Current head `7c33f3c78622141bd668588d95283d464d63598e` also includes follow-up fixes for prior review findings around issue publishing guardrails, target preflight, preflight permissions, and dispatch prompt routing.\n\n## Review\nThe core implementation is sound, and no blocking logic or permission issue remains in the current PR state. Codex and rubrics review classify the remaining stale docs/label wording as a WARNING; Claude treats it as INFO-only polish, but synthesis agrees it is concrete enough to fix because the built-in review label remains user-visible.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Stale PR-only review wording remains | WARNING | Secondary architecture docs and the built-in `agent/review` label still describe review as PR-only, which conflicts with the new issue-review behavior. |\n\n## Progress\n- Prior findings are fixed on the current head: issue synthesis is return-only, review target preflight validates issue/PR targets, preflight has `permissions: {}`, and the dispatch answer fallback no longer catches explicit code-review requests.\n- Reviewer artifacts report successful build, focused triage/envelope tests, workflow checks, docs validation, and diff whitespace checks on current head.\n- Resolved the superseded same-agent inline thread on `.github/prompts/agent-dispatch.md` line 38 after re-fetching threads and confirming authorship/resolution state.\n- No new inline comments were posted, no replies were added, and no comments were minimized.\n\n## Issue Details\n<details>\n<summary>Stale PR-only review wording remains</summary>\n\n**Cause:** [`overall-design.md`](https://github.com/self-evolving/repo/blob/7c33f3c78622141bd668588d95283d464d63598e/.agent/docs/architecture/overall-design.md#L65) still says `review (PR only, not on edit)`, [`request-lifecycle.md`](https://github.com/self-evolving/repo/blob/7c33f3c78622141bd668588d95283d464d63598e/.agent/docs/architecture/request-lifecycle.md#L15) still says review requests on pull requests are dispatched immediately, and [`trigger-labels.ts`](https://github.com/self-evolving/repo/blob/7c33f3c78622141bd668588d95283d464d63598e/.agent/src/trigger-labels.ts#L30) describes `agent/review` as reviewing a pull request.\n\n**Candidate solutions:** Update those three references to describe review as supporting pull requests and focused issue scopes. Keep the wording concise and aligned with the already-updated usage docs.\n\n**Comments:** This was not inline-commented because the affected lines are outside the current diff. The remaining issue is documentation/label consistency, not runtime behavior.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: The remaining warning is a small, concrete docs/label metadata cleanup suitable for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Update stale PR-only review wording in `.agent/docs/architecture/overall-design.md`, `.agent/docs/architecture/request-lifecycle.md`, and `.agent/src/trigger-labels.ts` to reflect issue and pull request review support.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-4`",
       "createdAt": "2026-07-01T09:59:48Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/444#issuecomment-4853084739",
       "viewerDidAuthor": true
@@ -348,6 +348,21 @@
       "minimizedReason": "",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/444#issuecomment-4853201157",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIUdPZw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: fba48ced120d0732b0ce48dd7af6eef9ced53f9e -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #444 allows the `review` route to run on both pull requests and issues. The linked #442/#396 context asks for issue reviews to be focused default-branch reviews scoped by the triggering request text, not broad audits of `main`. The PR updates routing, workflow inputs, prompts, publishing, docs, labels, and tests while preserving PR diff-review behavior. Current head `fba48ced120d0732b0ce48dd7af6eef9ced53f9e` includes follow-up fixes for all prior warning-level review findings.\n\n## Review\nThe current reviewer artifacts agree the PR is shippable: Claude and Codex report SHIP with INFO-only notes, and the rubrics review passes 100/100. There is no meaningful disagreement on merge readiness; remaining notes are optional polish or intentionally accepted residual trade-offs.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable issues | INFO | Current review artifacts and PR state support no blocking or warning findings. Remaining reviewer notes are optional design/UX polish, such as repeated issue-review summaries not being collapsed and other low-risk workflow/prompt refinements. |\n\n## Progress\n- Prior warning-level findings are fixed: issue synthesis is return-only with `post-comment.js` as sole publisher, review target preflight validates issue/PR targets, preflight uses `permissions: {}`, dispatch prompt routing is narrowed, and stale docs/label wording is updated.\n- Existing same-agent inline review threads for the prior findings are already resolved.\n- Reviewer artifacts report successful build, focused triage/envelope tests, workflow checks, docs validation, and diff whitespace checks on the current head.\n- No new inline comments were posted, no replies were added, no comments were minimized, and no threads were resolved during this synthesis.\n- Optional INFO notes remain out of scope for automation because they do not require concrete branch changes for this PR.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: No unresolved actionable branch work remains; remaining INFO notes are optional maintainer follow-up.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-2`",
+      "createdAt": "2026-07-01T10:19:31Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/444#issuecomment-4853288807",
       "viewerDidAuthor": true
     }
   ],
@@ -550,6 +565,6 @@
   ],
   "state": "OPEN",
   "title": "Allow review route on issues",
-  "updatedAt": "2026-07-01T10:08:21Z",
+  "updatedAt": "2026-07-01T10:19:31Z",
   "url": "https://github.com/self-evolving/repo/pull/444"
 }

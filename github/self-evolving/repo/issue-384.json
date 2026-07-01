@@ -4,7 +4,7 @@
     "login": "app/sepo-agent-app"
   },
   "body": "## Goal\nImplement the follow-up model defaults registry design separately from PR #380's urgent hardcoded quality-floor fix.\n\n## Context\nPR #380 pins Sepo's built-in defaults directly in `resolve-agent-provider`: Codex uses `gpt-5.5` and Claude uses `claude-opus-4-8`, with `AGENT_MODEL_POLICY` and inline workflow escape hatches preserved. In the PR discussion, the requester confirmed that the broader registry approach is not implemented and asked to implement it as the follow-up.\n\nThe intended design is a layered model source for installed repos so defaults can refresh between infra updates while preserving local control and deterministic fallback behavior:\n\n```text\nbundled Sepo defaults\n< remote Sepo model registry, if enabled and valid\n< AGENT_MODEL_POLICY.default / providers / route_overrides\n< inline workflow route_provider/provider escape hatches\n```\n\nThe remote/default registry should be constrained to Sepo-owned model metadata by default, not arbitrary URLs unless explicitly configured.\n\n## Acceptance Criteria\n- Move bundled provider defaults out of inline JS into a versioned repo manifest, for example `.agent/model-defaults.json`.\n- Teach `.github/actions/resolve-agent-provider/resolve-provider.js` to load bundled defaults, optionally load a remote registry, then apply `AGENT_MODEL_POLICY` and existing inline workflow overrides with the current precedence intact.\n- Add config for registry behavior, such as `AGENT_MODEL_REGISTRY=auto|bundled|remote`, and optionally `AGENT_MODEL_REGISTRY_URL` for explicitly configured custom registries.\n- Fetch remote defaults with a short timeout and deterministic fallback to bundled defaults unless the selected mode intentionally requires stricter behavior.\n- Validate registry schema strictly, including known providers (`codex`, `claude`) and safe model/reasoning tokens using existing resolver validation rules where possible.\n- Log or expose whether each resolved model came from bundled defaults, remote registry, `AGENT_MODEL_POLICY`, or inline workflow inputs.\n- Ensure remote defaults never override repo-local `AGENT_MODEL_POLICY`.\n- Update docs for configuration, installed-repo behavior, determinism/offline mode, and the relationship to `agent-update.yml`.\n- Add focused tests for bundled-only, remote-valid, remote-timeout/fallback, invalid registry fallback/rejection, local policy precedence, and reviewer-lane resolver behavior.\n\n---\n\nRequested via issue_comment at https://github.com/self-evolving/repo/pull/380\n",
-  "closedAt": null,
+  "closedAt": "2026-07-01T11:51:50Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABEX8-SA",
@@ -20,6 +20,21 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/384#issuecomment-4588518984",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIVZ55w",
+      "author": {
+        "login": "github-actions"
+      },
+      "authorAssociation": "NONE",
+      "body": "Closing because this agent issue has had no activity for 30 days.",
+      "createdAt": "2026-07-01T11:51:49Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/384#issuecomment-4854282727",
+      "viewerDidAuthor": false
     }
   ],
   "createdAt": "2026-05-31T23:03:21Z",
@@ -32,8 +47,8 @@
     }
   ],
   "number": 384,
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Add layered model defaults registry",
-  "updatedAt": "2026-05-31T23:12:30Z",
+  "updatedAt": "2026-07-01T11:51:50Z",
   "url": "https://github.com/self-evolving/repo/issues/384"
 }
