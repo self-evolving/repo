@@ -47,6 +47,29 @@ test("dispatch prompt enumerates every supported dispatch route", () => {
   assert.match(prompt, /Use `orchestrate` when/);
 });
 
+test("dispatch prompt separates bare action asks from planning questions", () => {
+  const prompt = readRepoFile(".github/prompts/agent-dispatch.md");
+
+  assert.match(prompt, /Bare mentions should still infer existing routes/);
+  assert.match(prompt, /set `needs_approval` to `true`/);
+  assert.match(
+    prompt,
+    /Mention: `@sepo-agent please add a regression test[^\n]*`\n  Route: `implement`/,
+  );
+  assert.match(
+    prompt,
+    /Mention: `@sepo-agent fix the failing router test`\n  Route: `implement`/,
+  );
+  assert.match(
+    prompt,
+    /Mention: `@sepo-agent can we add a regression test[^\n]*`\n  Route: `answer`/,
+  );
+  assert.match(
+    prompt,
+    /Mention: `@sepo-agent should we change the routing step\?`\n  Route: `answer`/,
+  );
+});
+
 test("normalizeDispatch reads raw JSON", () => {
   const d = normalizeDispatch(
     '{"route":"answer","needs_approval":false,"summary":"Will answer.","confidence":"high","issue_title":"","issue_body":""}',

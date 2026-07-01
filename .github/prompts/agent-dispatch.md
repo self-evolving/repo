@@ -31,17 +31,23 @@ Return exactly one JSON object and nothing else:
 ```
 
 Rules:
+- Bare mentions should still infer existing routes when the live mention clearly
+  asks the agent to act. Do not require the user to spell a slash command just
+  to route obvious work.
 - Use `implement` when the user is explicitly asking the agent to make code changes.
   - Prioritize the live mention over the target issue or pull request body. Existing context can explain what the work is, but it must not by itself turn a discussion-shaped mention into `implement`.
-  - Choose `implement` only when the live mention clearly authorizes changes, such as "implement", "add", "update", "fix", "create", "change", or an explicit `/implement` command.
+  - Choose `implement` only when the live mention clearly authorizes changes, such as "implement", "please add", "update", "fix", "create", "change", or an explicit `/implement` command.
 - Use `fix-pr` when the user is explicitly asking the agent to update an existing PR to address review feedback or requested changes.
 - Use `review` only when the user is explicitly asking for a PR review, issue-scoped code review, or another review pass.
 - Use `orchestrate` when the user explicitly asks for orchestration, follow-up automation, or a bounded multi-step agent workflow on an issue or pull request.
 - Use `create-action` when the user asks to create an automatically running or durable automation, monitor, scheduled job, or recurring check.
 - Use `add-rubrics` when the user asks to add, update, capture, or propose user/team rubrics or agent behavior preferences for future implementation/review work.
 - Use `answer` for questions, clarification, lightweight analysis, or discussion.
-  - Default to `answer` for planning, design discussion, investigation, diagnosis, "let's think", "best way", "figure out why", "plans", "check", "look into", or similar wording unless the live mention also clearly asks the agent to make changes.
+  - Default to `answer` for planning, design discussion, investigation, diagnosis, "can we", "should we", "could we", "let's think", "think about", "best way", "figure out why", "plans", "check", "look into", or similar wording unless the live mention also clearly asks the agent to make changes.
   - If the user asks the agent to "check whether", "check how", "look into whether", or "investigate how" to change something, use `answer`.
+  - If the live mention is phrased as a question about whether a change is a
+    good idea, feasible, or worth doing, use `answer` even when the target
+    issue or PR describes possible implementation work.
   - Sometimes the user may also ask the agent to review some code (and the user could be explicit about just review and launch a review agent). In this case, we should also resolve to `answer`.
 - When in doubt, use `answer` with a plan and ask the user for an explicit `/implement` request or approval before changing code.
 - Use `unsupported` when the user asks for a workflow this repo does not support yet.
@@ -53,12 +59,28 @@ Rules:
   and `issue_body` (structured markdown with goal, acceptance criteria, and any
   relevant context from the original message). These will be used to create a
   tracking issue that the user can review and edit before approving.
+- For bare-mention decisions that choose `implement`, `create-action`, or
+  `add-rubrics`, set `needs_approval` to `true`. The deterministic dispatch
+  policy also enforces this approval gate. Explicit slash commands are handled
+  before this prompt and keep their current route behavior.
 - When `route` is not `implement`, `create-action`, or `add-rubrics`, leave `issue_title` and `issue_body` empty.
 
 Examples:
+- Mention: `@sepo-agent please add a regression test for approval routing`
+  Route: `implement`
+  Reason: the live bare mention clearly asks the agent to add code or tests.
+- Mention: `@sepo-agent fix the failing router test`
+  Route: `implement`
+  Reason: the live bare mention clearly asks the agent to make a fix.
 - Mention: `@sepo-agent let's think about the best way to do it`
   Route: `answer`
   Reason: this asks for planning and discussion, even if the issue body describes an implementable change.
+- Mention: `@sepo-agent can we add a regression test for approval routing?`
+  Route: `answer`
+  Reason: this is a question about whether to make a change, not an instruction to make it.
+- Mention: `@sepo-agent should we change the routing step?`
+  Route: `answer`
+  Reason: this asks for judgment and discussion before any implementation.
 - Mention: `@sepo-agent shall we figure out why and plans for improvement?`
   Route: `answer`
   Reason: this asks for diagnosis and a plan, not code changes.
