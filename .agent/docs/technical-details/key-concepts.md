@@ -8,7 +8,7 @@ The core idea is a GitHub-native agent system where the repository itself can:
 
 - answer questions inline
 - implement approved changes
-- review pull requests
+- review pull requests or focused issue scopes
 - apply fixes to pull requests
 - accumulate continuity across repeated runs on the same thread
 

@@ -4,8 +4,17 @@ on:
   workflow_dispatch:
     inputs:
       pr_number:
-        description: "Pull request number to review"
-        required: true
+        description: "Legacy pull request number to review"
+        required: false
+        default: ""
+      target_kind:
+        description: "Target kind to review: pull_request or issue"
+        required: false
+        default: "pull_request"
+      target_number:
+        description: "Issue or pull request number to review"
+        required: false
+        default: ""
       requested_by:
         description: "GitHub login that requested the run"
         required: false
@@ -15,6 +24,18 @@ on:
       request_text:
         description: "Original user request text forwarded from the portal"
         required: false
+      request_source_kind:
+        description: "Trigger source kind from the portal"
+        required: false
+        default: "workflow_dispatch"
+      request_comment_id:
+        description: "Triggering comment or review id"
+        required: false
+        default: ""
+      request_comment_url:
+        description: "Triggering comment or review URL"
+        required: false
+        default: ""
       session_bundle_mode:
         description: "Session bundle persistence mode (defaults to repository variable AGENT_SESSION_BUNDLE_MODE or 'auto')"
         required: false
@@ -39,7 +60,16 @@ on:
     inputs:
       pr_number:
         type: string
-        required: true
+        required: false
+        default: ""
+      target_kind:
+        type: string
+        required: false
+        default: "pull_request"
+      target_number:
+        type: string
+        required: false
+        default: ""
       requested_by:
         type: string
         required: false
@@ -49,6 +79,18 @@ on:
       request_text:
         type: string
         required: false
+      request_source_kind:
+        type: string
+        required: false
+        default: "workflow_dispatch"
+      request_comment_id:
+        type: string
+        required: false
+        default: ""
+      request_comment_url:
+        type: string
+        required: false
+        default: ""
       runs_on:
         type: string
         default: ""
@@ -75,6 +117,7 @@ on:
 permissions:
   actions: write
   contents: read
+  issues: write
   pull-requests: write
   id-token: write # required for GitHub Actions OIDC broker exchange
 
@@ -109,12 +152,13 @@ jobs:
         uses: ./.github/actions/setup-agent-runtime
 
       - name: Capture reviewed head
+        if: ${{ (inputs.target_kind || 'pull_request') == 'pull_request' }}
         id: capture
         continue-on-error: true
         env:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-          TARGET_NUMBER: ${{ inputs.pr_number }}
+          TARGET_NUMBER: ${{ inputs.target_number || inputs.pr_number }}
         run: node .agent/dist/cli/capture-pr-head.js
 
   # One job definition, two parallel runs via matrix.
@@ -131,6 +175,7 @@ jobs:
       # (see memory_mode_override below and per-job permissions on synthesize).
       actions: read
       contents: read
+      issues: read
       pull-requests: write
       id-token: write
     runs-on: ${{ fromJson(inputs.runs_on || vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
@@ -218,12 +263,15 @@ jobs:
           session_bundle_mode: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
           session_policy: track-only
           request_text: ${{ inputs.request_text }}
+          request_source_kind: ${{ inputs.request_source_kind }}
+          request_comment_id: ${{ inputs.request_comment_id }}
+          request_comment_url: ${{ inputs.request_comment_url }}
           requested_by: ${{ inputs.requested_by || github.actor }}
           route: review
           source_kind: workflow_dispatch
-          target_kind: pull_request
-          target_number: ${{ inputs.pr_number }}
-          target_url: ${{ github.server_url }}/${{ github.repository }}/pull/${{ inputs.pr_number }}
+          target_kind: ${{ inputs.target_kind || 'pull_request' }}
+          target_number: ${{ inputs.target_number || inputs.pr_number }}
+          target_url: ${{ (inputs.target_kind || 'pull_request') == 'issue' && format('{0}/{1}/issues/{2}', github.server_url, github.repository, inputs.target_number || inputs.pr_number) || format('{0}/{1}/pull/{2}', github.server_url, github.repository, inputs.target_number || inputs.pr_number) }}
           workflow: agent-review.yml
 
       - name: Persist review artifacts
@@ -239,7 +287,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: ${{ steps.agent.outcome == 'success' }}
         with:
-          name: ${{ matrix.artifact_name }}-${{ inputs.pr_number }}
+          name: ${{ matrix.artifact_name }}-${{ inputs.target_kind || 'pull_request' }}-${{ inputs.target_number || inputs.pr_number }}
           path: |
             ${{ runner.temp }}/review.md
             ${{ runner.temp }}/session.txt
@@ -247,10 +295,10 @@ jobs:
           retention-days: 30
 
   rubrics-review:
-    if: vars.AGENT_ENABLED != 'false'
+    if: vars.AGENT_ENABLED != 'false' && (inputs.target_kind || 'pull_request') == 'pull_request'
     uses: ./.github/workflows/agent-rubrics-review.yml
     with:
-      pr_number: ${{ inputs.pr_number }}
+      pr_number: ${{ inputs.target_number || inputs.pr_number }}
       requested_by: ${{ inputs.requested_by || github.actor }}
       request_text: ${{ inputs.request_text }}
       runs_on: ${{ inputs.runs_on }}
@@ -270,6 +318,7 @@ jobs:
       # also avoids the parallel-push race.
       actions: write
       contents: write
+      issues: write
       pull-requests: write
       id-token: write
     runs-on: ${{ fromJson(inputs.runs_on || vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
@@ -360,12 +409,16 @@ jobs:
           rubrics_limit: ${{ vars.AGENT_RUBRICS_LIMIT || '10' }}
           session_bundle_mode: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
           session_policy: track-only
+          request_text: ${{ inputs.request_text }}
+          request_source_kind: ${{ inputs.request_source_kind }}
+          request_comment_id: ${{ inputs.request_comment_id }}
+          request_comment_url: ${{ inputs.request_comment_url }}
           requested_by: ${{ inputs.requested_by || github.actor }}
           route: review
           source_kind: workflow_dispatch
-          target_kind: pull_request
-          target_number: ${{ inputs.pr_number }}
-          target_url: ${{ github.server_url }}/${{ github.repository }}/pull/${{ inputs.pr_number }}
+          target_kind: ${{ inputs.target_kind || 'pull_request' }}
+          target_number: ${{ inputs.target_number || inputs.pr_number }}
+          target_url: ${{ (inputs.target_kind || 'pull_request') == 'issue' && format('{0}/{1}/issues/{2}', github.server_url, github.repository, inputs.target_number || inputs.pr_number) || format('{0}/{1}/pull/{2}', github.server_url, github.repository, inputs.target_number || inputs.pr_number) }}
           workflow: agent-review.yml
         env:
           REVIEWS_DIR: ${{ steps.reviews.outputs.reviews_dir }}
@@ -375,7 +428,7 @@ jobs:
         env:
           AGENT_COLLAPSE_OLD_REVIEWS: ${{ vars.AGENT_COLLAPSE_OLD_REVIEWS }}
           APPROVAL_COMMENT_URL: ${{ inputs.approval_comment_url }}
-          COMMENT_TARGET: pr
+          COMMENT_TARGET: ${{ (inputs.target_kind || 'pull_request') == 'issue' && 'issue' || 'pr' }}
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           REQUESTED_BY: ${{ inputs.requested_by }}
           RESPONSE_FILE: ${{ steps.synthesis.outputs.response_file }}
@@ -383,12 +436,12 @@ jobs:
           REVIEWED_HEAD_SHA: ${{ needs.prepare.outputs.reviewed_head_sha }}
           ROUTE: review
           STATUS: success
-          TARGET_NUMBER: ${{ inputs.pr_number }}
+          TARGET_NUMBER: ${{ inputs.target_number || inputs.pr_number }}
         run: node .agent/dist/cli/post-comment.js
 
       - uses: actions/upload-artifact@v4
         with:
-          name: agent-review-result-${{ inputs.pr_number }}
+          name: agent-review-result-${{ inputs.target_kind || 'pull_request' }}-${{ inputs.target_number || inputs.pr_number }}
           path: |
             ${{ steps.synthesis.outputs.response_file }}
             ${{ steps.synthesis.outputs.session_log_file }}
@@ -399,6 +452,7 @@ jobs:
           always() &&
           steps.auth.outputs.token &&
           steps.post_comment.outcome == 'success' &&
+          (inputs.target_kind || 'pull_request') == 'pull_request' &&
           inputs.orchestration_enabled == 'true'
         env:
           AUTOMATION_CURRENT_ROUND: ${{ inputs.automation_current_round }}
@@ -416,5 +470,5 @@ jobs:
           SESSION_BUNDLE_MODE: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
           SOURCE_ACTION: review
           TARGET_KIND: pull_request
-          TARGET_NUMBER: ${{ inputs.pr_number }}
+          TARGET_NUMBER: ${{ inputs.target_number || inputs.pr_number }}
         run: node .agent/dist/cli/dispatch-agent-orchestrator.js

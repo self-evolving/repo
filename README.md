@@ -1,6 +1,6 @@
 # sepo: self-evolving repository
 
-Mention `@sepo-agent` on a GitHub issue, pull request, or discussion to answer questions, implement issues, review PRs, fix PR branches, or create durable scheduled agent workflows. Sepo runs inside GitHub Actions and keeps working context in repository-owned branches, so collaboration stays in GitHub instead of moving to a separate chat surface.
+Mention `@sepo-agent` on a GitHub issue, pull request, or discussion to answer questions, implement issues, review PRs or focused issue scopes, fix PR branches, or create durable scheduled agent workflows. Sepo runs inside GitHub Actions and keeps working context in repository-owned branches, so collaboration stays in GitHub instead of moving to a separate chat surface.
 
 Sepo turns a repository into a **self-evolving repository**: a codebase that can react to user requests, preserve agent-facing memory and user/team rubrics, and improve both application code and its own automation over time. For the concept behind that architecture, see [What is a self-evolving repository?](.agent/docs/overview/what-is-self-evolving-repo.md).
 
@@ -38,6 +38,9 @@ Check [Install into an existing repository](.agent/docs/setup/install-existing-r
 # Use an explicit slash route when you already know the action
 @sepo-agent /implement implement issue #2
 
+# On an issue, review the default branch for the focused scope in the request
+@sepo-agent /review check the auth policy handling described above
+
 # Propose user/team rubric updates against agent/rubrics
 @sepo-agent /add-rubrics prefer small PRs for workflow changes
 
@@ -60,7 +63,7 @@ Check [Install into an existing repository](.agent/docs/setup/install-existing-r
 > Only authorized repository users can trigger Sepo. By default, repositories allow `OWNER`, `MEMBER`, `COLLABORATOR`, and `CONTRIBUTOR` associations; public repositories can tighten this with `AGENT_ACCESS_POLICY`. See [Trigger access policy](.agent/docs/customization/access-policy.md) to customize that behavior.
 
 
-### You can also trigger the same built-in routes by adding `agent/*` labels to PRs
+### You can also trigger the same built-in routes by adding `agent/*` labels to issues or PRs
 
 For example, adding the `agent/review` label will run the review agent. The `Agent / Onboarding / Check Setup` workflow creates the built-in trigger labels on first run.
 

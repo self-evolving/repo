@@ -143,6 +143,8 @@ test("review and implement prompts use self-serve context gathering", () => {
 
   assert.match(reviewPrompt, /gh pr view \$\{TARGET_NUMBER\} --repo \$\{REPO_SLUG\}/);
   assert.match(reviewPrompt, /gh pr diff \$\{TARGET_NUMBER\} --repo \$\{REPO_SLUG\}/);
+  assert.match(reviewPrompt, /gh issue view \$\{TARGET_NUMBER\} --repo \$\{REPO_SLUG\}/);
+  assert.match(reviewPrompt, /\$\{REQUEST_TEXT\}/);
   assert.doesNotMatch(
     reviewPrompt,
     /\$\{PR_META_FILE\}|\$\{DIFF_FILE\}|\$\{RESOURCE_MANIFEST_FILE\}/,
@@ -751,9 +753,10 @@ test("review workflow captures reviewed head as best-effort prepare output", () 
   );
   assert.ok(captureStep, "prepare job should capture the reviewed head");
   assert.equal(captureStep["continue-on-error"], true);
+  assert.equal(captureStep.if, "${{ (inputs.target_kind || 'pull_request') == 'pull_request' }}");
   assert.equal(captureStep.run, "node .agent/dist/cli/capture-pr-head.js");
   assert.ok(isRecord(captureStep.env), "capture step should define env");
-  assert.equal(captureStep.env.TARGET_NUMBER, "${{ inputs.pr_number }}");
+  assert.equal(captureStep.env.TARGET_NUMBER, "${{ inputs.target_number || inputs.pr_number }}");
 
   const reviewJob = workflow.jobs.review;
   assert.ok(isRecord(reviewJob), "review workflow should define review job");
@@ -763,6 +766,10 @@ test("review workflow captures reviewed head as best-effort prepare output", () 
   const rubricsReviewJob = workflow.jobs["rubrics-review"];
   assert.ok(isRecord(rubricsReviewJob), "review workflow should define rubrics-review job");
   assert.equal(rubricsReviewJob.needs, undefined);
+  assert.equal(
+    rubricsReviewJob.if,
+    "vars.AGENT_ENABLED != 'false' && (inputs.target_kind || 'pull_request') == 'pull_request'",
+  );
 
   const synthesizeJob = workflow.jobs.synthesize;
   assert.ok(isRecord(synthesizeJob), "review workflow should define synthesize job");
@@ -775,9 +782,57 @@ test("review workflow captures reviewed head as best-effort prepare output", () 
   assert.ok(postCommentStep, "synthesize job should post the review comment");
   assert.ok(isRecord(postCommentStep.env), "post review comment step should define env");
   assert.equal(
+    postCommentStep.env.COMMENT_TARGET,
+    "${{ (inputs.target_kind || 'pull_request') == 'issue' && 'issue' || 'pr' }}",
+  );
+  assert.equal(postCommentStep.env.TARGET_NUMBER, "${{ inputs.target_number || inputs.pr_number }}");
+  assert.equal(
     postCommentStep.env.REVIEWED_HEAD_SHA,
     "${{ needs.prepare.outputs.reviewed_head_sha }}",
   );
+});
+
+test("review route dispatch supports issues and forwards trigger metadata", () => {
+  const routerWorkflow = parseYaml(readRepoFile(".github/workflows/agent-router.yml")) as unknown;
+  assert.ok(isRecord(routerWorkflow), "agent-router workflow should parse");
+  assert.ok(isRecord(routerWorkflow.jobs), "agent-router workflow should define jobs");
+  const reviewJob = routerWorkflow.jobs.review;
+  assert.ok(isRecord(reviewJob), "agent-router should define review job");
+  assert.match(
+    String(reviewJob.if || ""),
+    /\(needs\.portal\.outputs\.target_kind == 'issue' \|\| needs\.portal\.outputs\.target_kind == 'pull_request'\)/,
+  );
+  assert.ok(isRecord(reviewJob.with), "review job should pass inputs");
+  assert.equal(reviewJob.with.target_kind, "${{ needs.portal.outputs.target_kind }}");
+  assert.equal(reviewJob.with.target_number, "${{ needs.portal.outputs.target_number }}");
+  assert.equal(reviewJob.with.request_text, "${{ needs.portal.outputs.body }}");
+  assert.equal(reviewJob.with.request_source_kind, "${{ needs.portal.outputs.source_kind }}");
+  assert.equal(reviewJob.with.request_comment_id, "${{ needs.portal.outputs.source_comment_id }}");
+  assert.equal(reviewJob.with.request_comment_url, "${{ needs.portal.outputs.source_comment_url }}");
+
+  const reviewWorkflow = parseYaml(readRepoFile(".github/workflows/agent-review.yml")) as unknown;
+  assert.ok(isRecord(reviewWorkflow), "agent-review workflow should parse");
+  assert.ok(isRecord(reviewWorkflow.on), "agent-review should define triggers");
+  const workflowCall = reviewWorkflow.on.workflow_call;
+  assert.ok(isRecord(workflowCall), "agent-review should define workflow_call");
+  assert.ok(isRecord(workflowCall.inputs), "workflow_call should define inputs");
+  assert.ok(isRecord(workflowCall.inputs.pr_number), "workflow_call should accept pr_number");
+  assert.ok(isRecord(workflowCall.inputs.target_kind), "workflow_call should accept target_kind");
+  assert.ok(isRecord(workflowCall.inputs.target_number), "workflow_call should accept target_number");
+  assert.ok(isRecord(workflowCall.inputs.request_comment_id), "workflow_call should accept request_comment_id");
+  assert.equal(workflowCall.inputs.pr_number.required, false);
+
+  const runSteps = readRunAgentTaskSteps(".github/workflows/agent-review.yml");
+  assert.ok(runSteps.length >= 2, "review workflow should run reviewers and synthesis");
+  for (const { step } of runSteps) {
+    assert.ok(isRecord(step.with), "review run-agent-task step should define inputs");
+    assert.equal(step.with.target_kind, "${{ inputs.target_kind || 'pull_request' }}");
+    assert.equal(step.with.target_number, "${{ inputs.target_number || inputs.pr_number }}");
+    assert.equal(step.with.request_text, "${{ inputs.request_text }}");
+    assert.equal(step.with.request_source_kind, "${{ inputs.request_source_kind }}");
+    assert.equal(step.with.request_comment_id, "${{ inputs.request_comment_id }}");
+    assert.equal(step.with.request_comment_url, "${{ inputs.request_comment_url }}");
+  }
 });
 
 test("self-approval workflow stays opt-in and read-only until deterministic resolution", () => {
